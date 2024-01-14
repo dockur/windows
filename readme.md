@@ -75,7 +75,7 @@ docker run -it --rm -e "VERSION=win11x64" -p 8006:8006 --device=/dev/kvm --cap-a
     
   * ### How do I increase the amount of CPU or RAM?
 
-    By default, a single core and 4 GB of RAM are allocated to the container.
+    By default, 2 CPU cores and 4 GB of RAM are allocated to the container.
 
     To increase this, add the following environment variables:
 
