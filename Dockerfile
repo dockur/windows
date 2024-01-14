@@ -12,6 +12,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY ./src /run/
+ADD https://raw.githubusercontent.com/ElliotKillick/Mido/main/Mido.sh /run/mido.sh
 RUN chmod +x /run/*.sh
 
 EXPOSE 8006
