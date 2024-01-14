@@ -13,16 +13,28 @@ else
   PROGRESS="--progress=dot:giga"
 fi
 
-SCRIPT="$STORAGE/mido.sh"
+rm -rf "$STORAGE/tmp"
+mkdir -p "$STORAGE/tmp"
+SCRIPT="$STORAGE/tmp/mido.sh"
 
-rm -f "$SCRIPT"
 cp /run/mido.sh "$SCRIPT"
 chmod +x "$SCRIPT"
 
+cd "$STORAGE/tmp"
 bash "$SCRIPT" "$VERSION"
 rm -f "$SCRIPT"
 
-[ ! -f "$STORAGE/$BASE" ] && error "Failed to download $VERSION.iso!" && exit 66
+[ ! -f "$STORAGE/tmp/$BASE" ] && error "Failed to download $VERSION.iso!" && exit 66
+
+info "Modifying ISO to remove keypress requirement..."
+
+7z x "$BASE" -ounpack
+genisoimage -b boot/etfsboot.com -no-emul-boot -c BOOT.CAT -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -v -V "Custom" -udf -boot-info-table -eltorito-alt-boot -eltorito-boot efi/microsoft/boot/efisys_noprompt.bin -no-emul-boot -o "$STORAGE/tmp/$BASE.tmp" -allow-limited-size unpack
+
+mv "$STORAGE/tmp/$BASE.tmp" "$STORAGE/$BASE"
+rm -rf "$STORAGE/tmp"
+
+cd /run
 
 DEST="$STORAGE/drivers.img"
 
