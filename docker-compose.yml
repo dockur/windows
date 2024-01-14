@@ -1,0 +1,15 @@
+version: "3"
+services:
+  windows:
+    container_name: windows
+    image: dockurr/windows:latest
+    environment:
+      VERSION: "win11x64"
+    devices:
+      - /dev/kvm
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8006:8006
+    stop_grace_period: 2m
+    restart: unless-stopped
