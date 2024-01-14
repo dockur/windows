@@ -8,6 +8,7 @@ RUN apt-get update \
     && apt-get --no-install-recommends -y install \
         curl \
         novnc \
+        swtpm \
         p7zip-full \
         genisoimage \
     && apt-get clean \
@@ -23,7 +24,7 @@ RUN chmod +x /run/*.sh
 EXPOSE 8006
 VOLUME /storage
 
-ENV CPU_CORES "1"
+ENV CPU_CORES "2"
 ENV RAM_SIZE "4G"
 ENV DISK_SIZE "64G"
 
