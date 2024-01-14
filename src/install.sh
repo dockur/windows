@@ -1,50 +1,22 @@
-#!/usr/bin/env bash
+!/usr/bin/env bash
 set -Eeuo pipefail
 
-# Check if running with interactive TTY or redirected to docker log
-if [ -t 1 ]; then
-  PROGRESS="--progress=bar:noscroll"
-else
-  PROGRESS="--progress=dot:giga"
-fi
+: "${VERSION:="win11x64"}"
 
-info "Downloading installer..."
+BASE="$VERSION.iso"
+[ -f "$STORAGE/$BASE" ] && return 0
 
 URL="https://raw.githubusercontent.com/ElliotKillick/Mido/main/Mido.sh"
-{ wget "$URL" -O /run/Mido.sh -q --no-check-certificate; rc=$?; } || :
+{ wget "$URL" -O "$STORAGE/Mido.sh" -q --no-check-certificate; rc=$?; } || :
 
 (( rc != 0 )) && error "Failed to download $URL, reason: $rc" && exit 65
 
-chmod +x /run/Mido.sh
-bash /run/Mido.sh
+chmod +x "$STORAGE/Mido.sh"
+rm -f "$STORAGE/$BASE"
 
-exit 99
+bash "$STORAGE/Mido.sh" "$VERSION"
 
-BASE="boot.img"
-[ -f "$STORAGE/$BASE" ] && return 0
-
-if [ -z "$BOOT" ]; then
-  error "No boot disk specified, set BOOT= to the URL of an ISO file." && exit 64
-fi
-
-BASE=$(basename "$BOOT")
-[ -f "$STORAGE/$BASE" ] && return 0
-
-TMP="$STORAGE/${BASE%.*}.tmp"
-rm -f "$TMP"
-
-info "Downloading $BASE as boot image..."
-
-{ wget "$BOOT" -O "$TMP" -q --no-check-certificate --show-progress "$PROGRESS"; rc=$?; } || :
-
-(( rc != 0 )) && error "Failed to download $BOOT, reason: $rc" && exit 60
-[ ! -f "$TMP" ] && error "Failed to download $BOOT" && exit 61
-
-SIZE=$(stat -c%s "$TMP")
-
-if ((SIZE<100000)); then
-  error "Invalid ISO file: Size is smaller than 100 KB" && exit 62
-fi
+[ ! -f "$STORAGE/$BASE" ] && error "Failed to download $VERSION.iso!" && exit 66
 
 DEST="$STORAGE/drivers.img"
 
@@ -58,7 +30,5 @@ if [ ! -f "$DEST" ]; then
   (( rc != 0 )) && info "Failed to download $DRIVERS, reason: $rc" && rm -f "$DEST"
 
 fi
-
-mv -f "$TMP" "$STORAGE/$BASE"
 
 return 0
