@@ -50,7 +50,7 @@ docker run -it --rm -e "VERSION=win11x64" -p 8006:8006 --device=/dev/kvm --cap-a
 
   * ### How do I specify the Windows version?
 
-    You can modify the `VERSION` environment variable to specify the version you want:
+    You can modify the `VERSION` environment variable to specify the version of Windows you want to download:
 
     ```yaml
     environment:
@@ -67,11 +67,11 @@ docker run -it --rm -e "VERSION=win11x64" -p 8006:8006 --device=/dev/kvm --cap-a
     - ```win2019-eval``` (Windows Server 2019)
     - ```win2022-eval``` (Windows Server 2022)
     
-  * ### How do I see the screen?
+  * ### How can I view the screen?
 
     The container includes a web-based viewer, so you can visit [http://localhost:8006/](http://localhost:8006/) using any webbrowser to view the screen and interact with Windows via the keyboard/mouse.
 
-    Alternatively it is also possible to connect to port 5900 using a VNC client like RealVNC or many others.
+    Alternatively, it is also possible to connect to port 5900 using a VNC client like RealVNC or many others.
     
   * ### How do I increase the amount of CPU or RAM?
 
