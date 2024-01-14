@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-: "${VERSION:="win10x64"}"
+: "${VERSION:="win11x64"}"
+
+ARGUMENTS="-chardev socket,id=chrtpm,path=/tmp/emulated_tpm/swtpm-sock $ARGUMENTS"
+ARGUMENTS="-tpmdev emulator,id=tpm0,chardev=chrtpm -device tpm-tis,tpmdev=tpm0 $ARGUMENTS"
 
 BASE="$VERSION.iso"
 [ -f "$STORAGE/$BASE" ] && return 0
@@ -13,28 +16,30 @@ else
   PROGRESS="--progress=dot:giga"
 fi
 
-SCRIPT="$STORAGE/mido.sh"
+DEST="$STORAGE/drivers.img"
+[ ! -f "$DEST" ] && cp /run/drivers.iso $DEST
 
-rm -f "$SCRIPT"
+rm -rf "$STORAGE/tmp"
+mkdir -p "$STORAGE/tmp"
+SCRIPT="$STORAGE/tmp/mido.sh"
+
 cp /run/mido.sh "$SCRIPT"
 chmod +x "$SCRIPT"
 
+cd "$STORAGE/tmp"
 bash "$SCRIPT" "$VERSION"
 rm -f "$SCRIPT"
 
-[ ! -f "$STORAGE/$BASE" ] && error "Failed to download $VERSION.iso!" && exit 66
+[ ! -f "$STORAGE/tmp/$BASE" ] && error "Failed to download $VERSION.iso from the Microsoft servers!" && exit 66
 
-DEST="$STORAGE/drivers.img"
+info "Modifying ISO to remove keypress requirement during boot..."
 
-if [ ! -f "$DEST" ]; then
+7z x "$BASE" -ounpack
+genisoimage -b boot/etfsboot.com -no-emul-boot -c BOOT.CAT -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -v -V "Custom" -udf -boot-info-table -eltorito-alt-boot -eltorito-boot efi/microsoft/boot/efisys_noprompt.bin -no-emul-boot -o "$STORAGE/tmp/$BASE.tmp" -allow-limited-size unpack
 
-  info "Downloading VirtIO drivers for Windows..."
-  DRIVERS="https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso"
+mv "$STORAGE/tmp/$BASE.tmp" "$STORAGE/$BASE"
+rm -rf "$STORAGE/tmp"
 
-  { wget "$DRIVERS" -O "$DEST" -q --no-check-certificate --show-progress "$PROGRESS"; rc=$?; } || :
-
-  (( rc != 0 )) && info "Failed to download $DRIVERS, reason: $rc" && rm -f "$DEST"
-
-fi
+cd /run
 
 return 0

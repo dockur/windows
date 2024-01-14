@@ -24,6 +24,9 @@ if [[ "${DISPLAY,,}" == "web" ]]; then
   websockify -D --web /usr/share/novnc/ 8006 localhost:5900 2>/dev/null
 fi
 
+mkdir -p /tmp/emulated_tpm
+swtpm socket -t -d --tpmstate dir=/tmp/emulated_tpm --ctrl type=unixio,path=/tmp/emulated_tpm/swtpm-sock --log level=1 --tpm2
+
 info "Booting Windows using $VERS..."
 
 [[ "$DEBUG" == [Yy1]* ]] && set -x

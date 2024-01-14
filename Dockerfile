@@ -8,17 +8,23 @@ RUN apt-get update \
     && apt-get --no-install-recommends -y install \
         curl \
         novnc \
+        swtpm \
+        p7zip-full \
+        genisoimage \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY ./src /run/
+
 ADD https://raw.githubusercontent.com/ElliotKillick/Mido/main/Mido.sh /run/mido.sh
+ADD https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso /run/drivers.iso
+
 RUN chmod +x /run/*.sh
 
 EXPOSE 8006
 VOLUME /storage
 
-ENV CPU_CORES "1"
+ENV CPU_CORES "2"
 ENV RAM_SIZE "4G"
 ENV DISK_SIZE "64G"
 
