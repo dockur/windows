@@ -1,0 +1,14 @@
+on: [workflow_call]
+name: "Check"
+permissions: {}
+
+jobs:
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+env:
+        SHELLCHECK_OPTS: -x --source-path=src -e SC2001 -e SC2034 -e SC2064 -e SC2317 -e SC2153
