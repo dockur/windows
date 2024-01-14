@@ -1,0 +1,15 @@
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '**/*.sh'
+      - '.github/workflows/test.yml'
+      - '.github/workflows/check.yml'
+
+name: "Test"
+permissions: {}
+
+jobs:
+  shellcheck:
+    name: Test
+    uses: ./.github/workflows/check.yml
