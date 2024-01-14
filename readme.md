@@ -29,7 +29,7 @@ services:
     container_name: windows
     image: dockurr/windows:latest
     environment:
-      VERSION: "win11x64"
+      VERSION: "win10x64"
     devices:
       - /dev/kvm
     cap_add:
@@ -43,7 +43,7 @@ services:
 Via `docker run`
 
 ```bash
-docker run -it --rm -e "VERSION=win11x64" -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/windows:latest
+docker run -it --rm -e "VERSION=win10x64" -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/windows:latest
 ```
 
 ## FAQ
@@ -54,12 +54,12 @@ docker run -it --rm -e "VERSION=win11x64" -p 8006:8006 --device=/dev/kvm --cap-a
 
     ```yaml
     environment:
-      VERSION: "win11x64"
+      VERSION: "win10x64"
     ```
     
     Select from the values below:
     
-    - ```win11x64``` (Windows 11)
+    - ~~```win11x64``` (Windows 11)~~
     - ```win10x64``` (Windows 10)
     - ```win81x64``` (Windows 8.1)
     - ```win7x64-ultimate``` (Windows 7 )
