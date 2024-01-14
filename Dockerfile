@@ -23,4 +23,4 @@ ENV DISK_SIZE "64G"
 ARG VERSION_ARG "0.0"
 RUN echo "$VERSION_ARG" > /run/version
 
-ENTRYPOINT ["/usr/bin/tini", "-s", "/run/init.sh"]
+ENTRYPOINT ["/usr/bin/tini", "-s", "/run/entry.sh"]
