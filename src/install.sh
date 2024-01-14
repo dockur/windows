@@ -14,7 +14,7 @@ else
 fi
 
 DEST="$STORAGE/drivers.img"
-[ ! -f "$DEST" ] && cp /run/drivers.img $DEST
+[ ! -f "$DEST" ] && cp /run/drivers.iso $DEST
 
 rm -rf "$STORAGE/tmp"
 mkdir -p "$STORAGE/tmp"
