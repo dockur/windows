@@ -118,6 +118,14 @@ docker run -it --rm -e "VERSION=win11x64" -p 8006:8006 --device=/dev/kvm --cap-a
 
     If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check the virtualization settings in the BIOS.
 
+  * ### Is this project legal?
+
+    Yes, this project contains only open-source code and does not distribute any copyrighted material. Neither does it try to circumvent any copyright protection measures. So under all applicable laws, this project would be considered legal. 
+
+## Disclaimer
+
+The product names, logos, brands, and other trademarks referred to within this project are the property of their respective trademark holders. This project is not affiliated, sponsored, or endorsed by Microsoft Corporation.
+
 [build_url]: https://github.com/dockur/windows/
 [hub_url]: https://hub.docker.com/r/dockurr/windows/
 [tag_url]: https://hub.docker.com/r/dockurr/windows/tags
