@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-: "${VERSION:="win11x64"}"
+: "${VERSION:="win10x64"}"
 
 BASE="$VERSION.iso"
 [ -f "$STORAGE/$BASE" ] && return 0
@@ -13,15 +13,14 @@ else
   PROGRESS="--progress=dot:giga"
 fi
 
-URL="https://raw.githubusercontent.com/ElliotKillick/Mido/main/Mido.sh"
-{ wget "$URL" -O "$STORAGE/Mido.sh" -q --no-check-certificate; rc=$?; } || :
+SCRIPT="$STORAGE/mido.sh"
 
-(( rc != 0 )) && error "Failed to download $URL, reason: $rc" && exit 65
+rm -f "$SCRIPT"
+cp /run/mido.sh "$SCRIPT"
+chmod +x "$SCRIPT"
 
-chmod +x "$STORAGE/Mido.sh"
-rm -f "$STORAGE/$BASE"
-
-bash "$STORAGE/Mido.sh" "$VERSION"
+bash "$SCRIPT" "$VERSION"
+rm -f "$SCRIPT"
 
 [ ! -f "$STORAGE/$BASE" ] && error "Failed to download $VERSION.iso!" && exit 66
 
