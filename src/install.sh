@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-: "${VERSION:="win10x64"}"
+: "${VERSION:="win11x64"}"
 
 BASE="$VERSION.iso"
 [ -f "$STORAGE/$BASE" ] && return 0
@@ -12,6 +12,9 @@ if [ -t 1 ]; then
 else
   PROGRESS="--progress=dot:giga"
 fi
+
+DEST="$STORAGE/drivers.img"
+[ ! -f "$DEST" ] && cp /run/drivers.img $DEST
 
 rm -rf "$STORAGE/tmp"
 mkdir -p "$STORAGE/tmp"
@@ -35,18 +38,5 @@ mv "$STORAGE/tmp/$BASE.tmp" "$STORAGE/$BASE"
 rm -rf "$STORAGE/tmp"
 
 cd /run
-
-DEST="$STORAGE/drivers.img"
-
-if [ ! -f "$DEST" ]; then
-
-  info "Downloading VirtIO drivers for Windows..."
-  DRIVERS="https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso"
-
-  { wget "$DRIVERS" -O "$DEST" -q --no-check-certificate --show-progress "$PROGRESS"; rc=$?; } || :
-
-  (( rc != 0 )) && info "Failed to download $DRIVERS, reason: $rc" && rm -f "$DEST"
-
-fi
 
 return 0
