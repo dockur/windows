@@ -6,6 +6,13 @@ set -Eeuo pipefail
 BASE="$VERSION.iso"
 [ -f "$STORAGE/$BASE" ] && return 0
 
+# Check if running with interactive TTY or redirected to docker log
+if [ -t 1 ]; then
+  PROGRESS="--progress=bar:noscroll"
+else
+  PROGRESS="--progress=dot:giga"
+fi
+
 URL="https://raw.githubusercontent.com/ElliotKillick/Mido/main/Mido.sh"
 { wget "$URL" -O "$STORAGE/Mido.sh" -q --no-check-certificate; rc=$?; } || :
 
