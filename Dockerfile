@@ -1,4 +1,4 @@
-FROM qemus/qemu-docker:latest
+FROM qemux/qemu-docker:latest
 
 ARG DEBCONF_NOWARNINGS="yes"
 ARG DEBIAN_FRONTEND "noninteractive"
