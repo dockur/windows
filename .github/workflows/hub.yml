@@ -1,0 +1,24 @@
+name: Update
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - readme.md
+      - README.md
+      - .github/workflows/hub.yml
+
+jobs:
+  dockerHubDescription:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - 
+      name: Docker Hub Description
+      uses: peter-evans/dockerhub-description@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        repository: ${{ secrets.DOCKERHUB_REPO }}
+        short-description: ${{ github.event.repository.description }}
+        readme-filepath: ./readme.md
