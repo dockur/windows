@@ -29,7 +29,7 @@ version: "3"
 services:
   windows:
     container_name: windows
-    image: dockurr/windows:latest
+    image: dockurr/windows
     environment:
       VERSION: "win11x64"
     devices:
@@ -45,7 +45,7 @@ services:
 Via `docker run`
 
 ```bash
-docker run -it --rm -e "VERSION=win11x64" -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/windows:latest
+docker run -it --rm -e "VERSION=win11x64" -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/windows
 ```
 
 ## FAQ
