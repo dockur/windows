@@ -41,7 +41,7 @@ DIR="$TMP/unpack"
 if [[ "$ATTENDED" != [Yy1]* ]]; then
   if [ -f "/run/assets/$VERSION.xml" ]; then
 
-    wimlib-imagex update $DIR/sources/boot.wim 2 \
+    wimlib-imagex update "$DIR/sources/boot.wim" 2 \
       --command "add /run/assets/$VERSION.xml /autounattend.xml"
 
   fi
