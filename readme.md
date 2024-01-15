@@ -82,11 +82,11 @@ docker run -it --rm -e "VERSION=win11x64" -p 8006:8006 --device=/dev/kvm --cap-a
 
     The container includes a web-based viewer, so you can visit [http://localhost:8006/](http://localhost:8006/) using any webbrowser to view the screen and interact with Windows via the keyboard/mouse.
 
-    This is mainly for use during installation, as afterwards you can use Remote Desktop, TeamViewer or any software you like.
+    This is mainly for use during installation, as afterwards you can use Remote Desktop, TeamViewer or any other software you prefer.
 
   * ### How do I increase the amount of CPU or RAM?
 
-    By default, 2 CPU cores and 4 GB of RAM are allocated to the container.
+    By default, 2 CPU cores and 4 GB of RAM are allocated to the container, as that are the minimum requirements of Windows 11.
 
     To increase this, add the following environment variables:
 
