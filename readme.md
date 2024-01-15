@@ -82,7 +82,7 @@ docker run -it --rm -e "VERSION=win11x64" -p 8006:8006 --device=/dev/kvm --cap-a
 
   * ### How can I use a custom ISO file?
 
-    You can supply your own ISO file by naming it ```custom.iso``` and placing it in the ```/storage``` folder.
+    You can supply your own ISO file by naming it ```custom.iso``` and placing it in the ```/storage``` folder. Then follow the same steps as for [manual installation](https://github.com/dockur/windows/tree/dev?tab=readme-ov-file#how-do-i-perform-a-manual-installation).
 
   * ### How do I increase the amount of CPU or RAM?
 
