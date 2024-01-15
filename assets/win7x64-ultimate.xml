@@ -69,6 +69,7 @@
               <Label>Windows</Label>
               <Letter>C</Letter>
               <Format>NTFS</Format>
+              <TypeID>DE94BBA4-06D1-4D40-A16A-BFD50179D6AC</TypeID>
             </ModifyPartition>
           </ModifyPartitions>
         </Disk>
