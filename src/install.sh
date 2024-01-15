@@ -33,16 +33,23 @@ if [ ! -f "$TMP/$BASE" ]; then
 
 fi
 
-info "Customizing ISO to remove keypress requirement during boot..."
+info "Preparing ISO image for installation..."
 
 DIR="$TMP/unpack"
 7z x "$TMP/$BASE" -o"$DIR"
 
-if [ -f "/run/assets/$VERSION.xml" ]; then
-  cp "/run/assets/$VERSION.xml" "$DIR/Unattend.xml"
+if [[ "$ATTENDED" != [Yy1]* ]]; then
+  if [ -f "/run/assets/$VERSION.xml" ]; then
+
+    wimlib-imagex update $DIR/sources/boot.wim 2 \
+      --command "add /run/assets/$VERSION.xml /autounattend.xml"
+
+  fi
 fi
 
-genisoimage -b boot/etfsboot.com -no-emul-boot -c BOOT.CAT -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -v -V "$VERSION" -udf -boot-info-table -eltorito-alt-boot -eltorito-boot efi/microsoft/boot/efisys_noprompt.bin -no-emul-boot -o "$TMP/$BASE.tmp" -allow-limited-size "$DIR"
+genisoimage -b boot/etfsboot.com -no-emul-boot -c BOOT.CAT -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames \
+            -v -V "$VERSION" -udf -boot-info-table -eltorito-alt-boot -eltorito-boot efi/microsoft/boot/efisys_noprompt.bin \
+            -no-emul-boot -o "$TMP/$BASE.tmp" -allow-limited-size "$DIR"
 
 mv "$TMP/$BASE.tmp" "$STORAGE/$BASE"
 rm -rf "$TMP"
