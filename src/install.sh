@@ -9,27 +9,36 @@ ARGUMENTS="-tpmdev emulator,id=tpm0,chardev=chrtpm -device tpm-tis,tpmdev=tpm0 $
 BASE="$VERSION.iso"
 [ -f "$STORAGE/$BASE" ] && return 0
 
-rm -rf "$STORAGE/tmp"
-mkdir -p "$STORAGE/tmp"
-SCRIPT="$STORAGE/tmp/mido.sh"
+TMP="$STORAGE/tmp"
+rm -rf "$TMP"
+mkdir -p "$TMP"
 
-cp /run/mido.sh "$SCRIPT"
-chmod +x "$SCRIPT"
+if [ -f "$STORAGE/custom.iso" ]; then
+  cp "$STORAGE/custom.iso" "$TMP/$BASE"
+fi
 
-cd "$STORAGE/tmp"
-bash "$SCRIPT" "$VERSION"
-rm -f "$SCRIPT"
+if [ ! -f "$TMP/$BASE" ]; then
 
-[ ! -f "$STORAGE/tmp/$BASE" ] && error "Failed to download $VERSION.iso from the Microsoft servers!" && exit 66
+  SCRIPT="$TMP/mido.sh"
+
+  cp /run/mido.sh "$SCRIPT"
+  chmod +x "$SCRIPT"
+  cd "$TMP"
+  bash "$SCRIPT" "$VERSION"
+  cd /run
+  rm -f "$SCRIPT"
+
+  [ ! -f "$TMP/$BASE" ] && error "Failed to download $VERSION.iso from the Microsoft servers!" && exit 66
+
+fi
 
 info "Customizing ISO to remove keypress requirement during boot..."
 
-7z x "$BASE" -ounpack
-genisoimage -b boot/etfsboot.com -no-emul-boot -c BOOT.CAT -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -v -V "Custom" -udf -boot-info-table -eltorito-alt-boot -eltorito-boot efi/microsoft/boot/efisys_noprompt.bin -no-emul-boot -o "$STORAGE/tmp/$BASE.tmp" -allow-limited-size unpack
+DIR="$TMP/unpack"
+7z x "$TMP/$BASE" -o"$DIR"
+genisoimage -b boot/etfsboot.com -no-emul-boot -c BOOT.CAT -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -v -V "$VERSION" -udf -boot-info-table -eltorito-alt-boot -eltorito-boot efi/microsoft/boot/efisys_noprompt.bin -no-emul-boot -o "$TMP/$BASE.tmp" -allow-limited-size "$DIR"
 
-mv "$STORAGE/tmp/$BASE.tmp" "$STORAGE/$BASE"
-rm -rf "$STORAGE/tmp"
-
-cd /run
+mv "$TMP/$BASE.tmp" "$STORAGE/$BASE"
+rm -rf "$TMP"
 
 return 0
