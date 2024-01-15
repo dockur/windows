@@ -9,12 +9,14 @@ RUN apt-get update \
         curl \
         novnc \
         swtpm \
+        wimtools \
         p7zip-full \
         genisoimage \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY ./src /run/
+COPY ./assets /run/assets
 
 ADD https://raw.githubusercontent.com/ElliotKillick/Mido/main/Mido.sh /run/mido.sh
 ADD https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso /run/drivers.iso
