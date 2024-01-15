@@ -18,7 +18,7 @@ Windows in a docker container.
  - Multi-platform
  - ISO downloader
  - KVM acceleration
- - Webbased viewer
+ - Web-based viewer
 
 ## Usage
 
