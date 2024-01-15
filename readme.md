@@ -45,7 +45,7 @@ services:
 Via `docker run`
 
 ```bash
-docker run -it --rm -e "VERSION=win11x64" -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/windows
+docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/windows
 ```
 
 ## FAQ
@@ -82,7 +82,7 @@ docker run -it --rm -e "VERSION=win11x64" -p 8006:8006 --device=/dev/kvm --cap-a
 
   * ### How do I use a custom ISO file?
 
-    You can supply your own ISO file by naming it ```custom.iso``` and placing it in the ```/storage``` folder. Then follow the same steps as for [manual installation](https://github.com/dockur/windows/tree/dev?tab=readme-ov-file#how-do-i-perform-a-manual-installation).
+    You can supply your own ISO file by naming it ```custom.iso``` and placing it in the ```/storage``` folder. Then follow the same steps as for [manual installation](https://github.com/dockur/windows/tree/master?tab=readme-ov-file#how-do-i-perform-a-manual-installation).
 
   * ### How do I increase the amount of CPU or RAM?
 
