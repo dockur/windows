@@ -50,7 +50,7 @@ docker run -it --rm -e "VERSION=win11x64" -p 8006:8006 --device=/dev/kvm --cap-a
 
 ## FAQ
 
-  * ### How does it work?
+  * ### How do I use it?
 
     Very simple! These are the steps:
     
@@ -80,7 +80,7 @@ docker run -it --rm -e "VERSION=win11x64" -p 8006:8006 --device=/dev/kvm --cap-a
     - ```win2019-eval``` (Windows Server 2019)
     - ```win2016-eval``` (Windows Server 2016)
 
-  * ### How can I use a custom ISO file?
+  * ### How do I use a custom ISO file?
 
     You can supply your own ISO file by naming it ```custom.iso``` and placing it in the ```/storage``` folder. Then follow the same steps as for [manual installation](https://github.com/dockur/windows/tree/dev?tab=readme-ov-file#how-do-i-perform-a-manual-installation).
 
@@ -129,7 +129,7 @@ docker run -it --rm -e "VERSION=win11x64" -p 8006:8006 --device=/dev/kvm --cap-a
 
     If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check the virtualization settings in the BIOS.
 
-  * ### How can I view the screen?
+  * ### How do I view the screen?
 
     The container includes a web-based viewer, so you can visit [http://localhost:8006/](http://localhost:8006/) using any web browser to view the screen and interact with Windows via the keyboard or mouse.
 
