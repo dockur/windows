@@ -101,34 +101,34 @@
     <component name="Microsoft-Windows-PnpCustomizationsWinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DriverPaths>
         <PathAndCredentials wcm:action="add" wcm:keyValue="1">
-            <Path>D:\viostor\2k22\amd64</Path>
+          <Path>D:\viostor\2k22\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="2">
-            <Path>D:\NetKVM\2k22\amd64</Path>
+          <Path>D:\NetKVM\2k22\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="3">
-            <Path>D:\Balloon\2k22\amd64</Path>
+          <Path>D:\Balloon\2k22\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="4">
-            <Path>D:\pvpanic\2k22\amd64</Path>
+          <Path>D:\pvpanic\2k22\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="5">
-            <Path>D:\qemupciserial\2k22\amd64</Path>
+          <Path>D:\qemupciserial\2k22\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="6">
-            <Path>D:\qxldod\2k22\amd64</Path>
+          <Path>D:\qxldod\2k22\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="7">
-            <Path>D:\vioinput\2k22\amd64</Path>
+          <Path>D:\vioinput\2k22\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="8">
-            <Path>D:\viorng\2k22\amd64</Path>
+          <Path>D:\viorng\2k22\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="9">
-            <Path>D:\vioscsi\2k22\amd64</Path>
+          <Path>D:\vioscsi\2k22\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="10">
-            <Path>D:\vioserial\2k22\amd64</Path>
+          <Path>D:\vioserial\2k22\amd64</Path>
         </PathAndCredentials>
       </DriverPaths>
     </component>
