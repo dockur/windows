@@ -7,6 +7,7 @@ echo "❯ For support visit https://github.com/dockur/windows"
 export DISPLAY=web
 export BOOT_MODE=windows
 
+ln -sfn /usr/share/novnc/vnc_lite.html /usr/share/novnc/index.html
 websockify -D --web /usr/share/novnc/ 8006 localhost:5900 2>/dev/null
 
 cd /run
