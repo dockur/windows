@@ -14,53 +14,87 @@
     <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DiskConfiguration>
         <Disk wcm:action="add">
+          <DiskID>0</DiskID>
+          <WillWipeDisk>true</WillWipeDisk>
           <CreatePartitions>
+            <!-- Windows RE Tools partition -->
             <CreatePartition wcm:action="add">
               <Order>1</Order>
-              <Size>350</Size>
               <Type>Primary</Type>
+              <Size>300</Size>
             </CreatePartition>
+            <!-- System partition (ESP) -->
             <CreatePartition wcm:action="add">
               <Order>2</Order>
-              <Extend>true</Extend>
+              <Type>EFI</Type>
+              <Size>100</Size>
+            </CreatePartition>
+            <!-- Microsoft reserved partition (MSR) -->
+            <CreatePartition wcm:action="add">
+              <Order>3</Order>
+              <Type>MSR</Type>
+              <Size>128</Size>
+            </CreatePartition>
+            <!-- Windows partition -->
+            <CreatePartition wcm:action="add">
+              <Order>4</Order>
               <Type>Primary</Type>
+              <Extend>true</Extend>
             </CreatePartition>
           </CreatePartitions>
           <ModifyPartitions>
+            <!-- Windows RE Tools partition -->
             <ModifyPartition wcm:action="add">
-              <Format>NTFS</Format>
-              <Label>System</Label>
               <Order>1</Order>
               <PartitionID>1</PartitionID>
-              <TypeID>0x27</TypeID>
+              <Label>WINRE</Label>
+              <Format>NTFS</Format>
+              <TypeID>DE94BBA4-06D1-4D40-A16A-BFD50179D6AC</TypeID>
             </ModifyPartition>
+            <!-- System partition (ESP) -->
             <ModifyPartition wcm:action="add">
               <Order>2</Order>
               <PartitionID>2</PartitionID>
-              <Letter>C</Letter>
+              <Label>System</Label>
+              <Format>FAT32</Format>
+            </ModifyPartition>
+            <!-- MSR partition does not need to be modified -->
+            <ModifyPartition wcm:action="add">
+              <Order>3</Order>
+              <PartitionID>3</PartitionID>
+            </ModifyPartition>
+            <!-- Windows partition -->
+            <ModifyPartition wcm:action="add">
+              <Order>4</Order>
+              <PartitionID>4</PartitionID>
               <Label>Windows</Label>
+              <Letter>C</Letter>
               <Format>NTFS</Format>
             </ModifyPartition>
           </ModifyPartitions>
-          <DiskID>0</DiskID>
-          <WillWipeDisk>true</WillWipeDisk>
         </Disk>
       </DiskConfiguration>
       <ImageInstall>
         <OSImage>
+          <InstallFrom>
+            <MetaData wcm:action="add">
+              <Key>/IMAGE/NAME</Key>
+              <Value>Windows Server 2019 SERVERSTANDARD</Value>
+            </MetaData>
+          </InstallFrom>
           <InstallTo>
             <DiskID>0</DiskID>
-            <PartitionID>2</PartitionID>
+            <PartitionID>4</PartitionID>
           </InstallTo>
+          <WillShowUI>OnError</WillShowUI>
+          <InstallToAvailablePartition>false</InstallToAvailablePartition>
         </OSImage>
       </ImageInstall>
       <UserData>
         <AcceptEula>true</AcceptEula>
         <FullName>Docker</FullName>
         <Organization>Organization</Organization>
-        <ProductKey>
-          <Key>N69G4-B89J2-4G8F4-WWYCC-J464C</Key>
-        </ProductKey>
+        <ProductKey/>
       </UserData>
       <EnableFirewall>false</EnableFirewall>
     </component>
@@ -125,7 +159,7 @@
     </component>
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <ComputerName>Container</ComputerName>
-      <ProductKey>N2KJX-J94YW-TQVFB-DG9YT-724CC</ProductKey>
+      <ProductKey/>
     </component>
   </settings>
   <settings pass="oobeSystem">
@@ -180,7 +214,7 @@
           <RequiresUserInput>false</RequiresUserInput>
           <CommandLine>cmd /C wmic useraccount where name="Docker" set PasswordExpires=false</CommandLine>
           <Description>Password Never Expires</Description>
-        </SynchronousCommand>     
+        </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>4</Order>
           <CommandLine>msiexec /i E:\virtio-win-gt-x64.msi /qb!</CommandLine>
