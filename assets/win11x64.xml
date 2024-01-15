@@ -89,6 +89,16 @@
         </RunSynchronousCommand>
       </RunSynchronous>
     </component>
+    <component name="Microsoft-Windows-PnpCustomizationsWinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+      <DriverPaths>
+        <PathAndCredentials wcm:action="add" wcm:keyValue="1">
+          <Path>D:\NetKVM\w11\amd64\</Path>
+        </PathAndCredentials>
+        <PathAndCredentials wcm:action="add" wcm:keyValue="3">
+          <Path>D:\w11\amd64\</Path>
+        </PathAndCredentials>
+      </DriverPaths>
+    </component>
   </settings>
   <settings pass="generalize"/>
   <settings pass="specialize">
@@ -232,6 +242,10 @@
         <SynchronousCommand wcm:action="add">
           <Order>2</Order>
           <CommandLine>powershell.exe -NoProfile -Command "Disable-ComputerRestore -Drive 'C:';"</CommandLine>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>3</Order>
+          <CommandLine>D:\virtio-win-gt-x64.msi</CommandLine>
         </SynchronousCommand>
       </FirstLogonCommands>
     </component>
