@@ -16,7 +16,9 @@ Windows in a docker container.
 ## Features
 
  - Multi-platform
+ - ISO downloader
  - KVM acceleration
+ - Webbased viewer
 
 ## Usage
 
