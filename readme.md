@@ -53,13 +53,21 @@ docker run -it --rm -e "VERSION=win11x64" -p 8006:8006 --device=/dev/kvm --cap-a
   * ### How do I perform the installation?
 
     - Start the container and wait until the ISO download is completed. If needed, you can view this progress in the Docker log, wait until you see the message ```BdsDxe: starting Boot```.
+
     - Connect to port 8006 of the container in your webbrowser.
+
     - Start the installation by clicking ```Install now```. On the next screen, press 'OK' when prompted for ```Load driver``` and select the ```VirtIO SCSI``` driver from the list that matches your Windows version. So for Windows 11, select ```D:\amd64\w11\vioscsi.inf``` and click 'Next'.
+
     - Accept the license agreement and select your preferred Windows edition, like Home or Pro.
+
     - Choose ```Custom: Install Windows only (advanced)```, and click ```Load driver``` in the next screen. Select 'Browse' and navigate  to the ```D:\NetKVM\w11\amd64``` folder and click 'OK'. Select the ```VirtIO Ethernet Adapter``` from the list, and click 'Next'.
+
     - Select 'Drive 0' and click 'Next'.
+
     - Wait until Windows finishes copying files and completes the installation.
+
     - Once you see your desktop, open File Explorer and navigate to the CD-ROM drive (D:). Double-click on ```virtio-win-gt-x64``` and proceed to install the VirtIO drivers.
+
     - Now your Windows installation is ready for use. Enjoy it and don't forget to star this repo!
 
   * ### How do I specify the Windows version?
