@@ -9,6 +9,7 @@ RUN apt-get update \
         curl \
         novnc \
         swtpm \
+        wimtools \
         p7zip-full \
         genisoimage \
     && apt-get clean \
