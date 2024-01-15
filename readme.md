@@ -28,8 +28,8 @@ Via `docker-compose.yml`
 version: "3"
 services:
   windows:
-    container_name: windows
     image: dockurr/windows
+    container_name: windows
     environment:
       VERSION: "win11x64"
     devices:
