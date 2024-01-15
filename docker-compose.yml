@@ -1,8 +1,8 @@
 version: "3"
 services:
   windows:
+    image: dockurr/windows
     container_name: windows
-    image: dockurr/windows:latest
     environment:
       VERSION: "win11x64"
     devices:
