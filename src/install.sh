@@ -9,9 +9,6 @@ ARGUMENTS="-tpmdev emulator,id=tpm0,chardev=chrtpm -device tpm-tis,tpmdev=tpm0 $
 BASE="$VERSION.iso"
 [ -f "$STORAGE/$BASE" ] && return 0
 
-DEST="$STORAGE/drivers.img"
-[ ! -f "$DEST" ] && cp /run/drivers.iso "$DEST"
-
 rm -rf "$STORAGE/tmp"
 mkdir -p "$STORAGE/tmp"
 SCRIPT="$STORAGE/tmp/mido.sh"
