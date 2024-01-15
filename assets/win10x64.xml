@@ -268,17 +268,12 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>2</Order>
-          <CommandLine>powershell.exe -NoProfile -Command "Disable-ComputerRestore -Drive 'C:';"</CommandLine>
-          <Description>Disable System Restore</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>3</Order>
           <RequiresUserInput>false</RequiresUserInput>
           <CommandLine>cmd /C wmic useraccount where name="Docker" set PasswordExpires=false</CommandLine>
           <Description>Password Never Expires</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>4</Order>
+          <Order>3</Order>
           <CommandLine>msiexec /i E:\virtio-win-gt-x64.msi /qb!</CommandLine>
           <Description>Install VirtIO drivers</Description>
         </SynchronousCommand>
