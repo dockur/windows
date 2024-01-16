@@ -36,6 +36,8 @@ services:
       - NET_ADMIN
     ports:
       - 8006:8006
+      - 3389:3389/tcp
+      - 3389:3389/udp
     stop_grace_period: 2m
     restart: unless-stopped
 ```
