@@ -23,7 +23,7 @@ trap - ERR
 ln -sfn /usr/share/novnc/vnc_lite.html /usr/share/novnc/index.html
 websockify -D --web /usr/share/novnc/ 8006 localhost:5900 2>/dev/null
 
-mkdir -p /tmp/emulated_tpm
+mkdir -p /dev/shm/emulated_tpm
 swtpm socket -t -d --tpmstate dir=/dev/shm/emulated_tpm --ctrl \
   type=unixio,path=/dev/shm/emulated_tpm/swtpm-sock --log level=1 --tpm2
 
