@@ -14,35 +14,48 @@ ARGUMENTS="-tpmdev emulator,id=tpm0,chardev=chrtpm -device tpm-tis,tpmdev=tpm0 $
 BASE="$VERSION.iso"
 [ -f "$STORAGE/$BASE" ] && return 0
 
+#if [ -f "$STORAGE/data.qcow2" ]; then
+#  error "Cannot download ISO '$VERSION' while there is an existing hard disk file present (data.qcow2)."
+#  error "If you are sure that the disk contains nothing important, delete it manually and restart the container."
+#  exit 68
+#fi
+
 TMP="$STORAGE/tmp"
-rm -rf "$TMP"
-mkdir -p "$TMP"
+rm -rf "$TMP" && mkdir -p "$TMP"
 
 if [ -f "$STORAGE/custom.iso" ]; then
+
   ATTENDED="Y"
   LABEL="Custom"
   cp "$STORAGE/custom.iso" "$TMP/$BASE"
+
+else
+
+  LABEL="$VERSION"
+
 fi
 
 if [ ! -f "$TMP/$BASE" ]; then
 
-  LABEL="$VERSION"
   SCRIPT="$TMP/mido.sh"
 
+  rm -f "$SCRIPT"
   cp /run/mido.sh "$SCRIPT"
   chmod +x "$SCRIPT"
   cd "$TMP"
   bash "$SCRIPT" "$VERSION"
-  cd /run
   rm -f "$SCRIPT"
+  cd /run
 
-  [ ! -f "$TMP/$BASE" ] && error "Failed to download $VERSION.iso from the Microsoft servers!" && exit 66
+  [ ! -f "$TMP/$BASE" ] && error "Failed to download '$VERSION' from the Microsoft servers!" && exit 66
 
 fi
 
 info "Preparing ISO image for installation..."
 
 DIR="$TMP/unpack"
+rm -rf "$DIR"
+
 7z x "$TMP/$BASE" -o"$DIR"
 
 if [[ "$ATTENDED" != [Yy1]* ]]; then
@@ -54,11 +67,14 @@ if [[ "$ATTENDED" != [Yy1]* ]]; then
   fi
 fi
 
+OUT="$TMP/$VERSION.tmp"
+rm -f "$OUT"
+
 genisoimage -b boot/etfsboot.com -no-emul-boot -c BOOT.CAT -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames \
             -v -V "$LABEL" -udf -boot-info-table -eltorito-alt-boot -eltorito-boot efi/microsoft/boot/efisys_noprompt.bin \
-            -no-emul-boot -o "$TMP/$BASE.tmp" -allow-limited-size "$DIR"
+            -no-emul-boot -o "$OUT" -allow-limited-size "$DIR"
 
-mv "$TMP/$BASE.tmp" "$STORAGE/$BASE"
+mv "$OUT" "$STORAGE/$BASE"
 rm -rf "$TMP"
 
 return 0
