@@ -217,8 +217,6 @@
         <SkipMachineOOBE>true</SkipMachineOOBE>
         <SkipUserOOBE>true</SkipUserOOBE>
       </OOBE>
-      <RegisteredOrganization>Organization</RegisteredOrganization>
-      <RegisteredOwner>Owner</RegisteredOwner>
       <FirstLogonCommands>
         <SynchronousCommand wcm:action="add">
           <Order>1</Order>
