@@ -80,9 +80,9 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
     - ```win2019-eval``` (Windows Server 2019)
     - ```win2016-eval``` (Windows Server 2016)
 
-  * ### How do I use a custom ISO file?
+  * ### How do I install a custom ISO file?
 
-    You can supply your own ISO file by naming it ```custom.iso``` and placing it in the ```/storage``` folder. Then follow the same steps as for [manual installation](https://github.com/dockur/windows/tree/master?tab=readme-ov-file#how-do-i-perform-a-manual-installation).
+    You can supply your own ISO file by naming it ```custom.iso``` and placing it in the ```/storage``` folder. Make sure to delete every other file in this folder, so that there are no leftovers from previous installations. Then follow the same steps as for [manual installation](https://github.com/dockur/windows/tree/master?tab=readme-ov-file#how-do-i-perform-a-manual-installation).
 
   * ### How do I increase the amount of CPU or RAM?
 
