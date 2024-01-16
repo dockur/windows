@@ -76,6 +76,12 @@
       </DiskConfiguration>
       <ImageInstall>
         <OSImage>
+          <InstallFrom>
+            <MetaData wcm:action="add">
+              <Value>1</Value>
+              <Key>/IMAGE/INDEX</Key>
+            </MetaData>
+          </InstallFrom>
           <InstallTo>
             <DiskID>0</DiskID>
             <PartitionID>4</PartitionID>
@@ -85,12 +91,12 @@
       </ImageInstall>
       <UserData>
         <ProductKey>
-          <Key>GCRJD-8NW9H-F2CDX-CCM8D-9D6T9</Key>
-          <WillShowUI>Never</WillShowUI>
+          <Key/>
+          <WillShowUI>OnError</WillShowUI>
         </ProductKey>
         <AcceptEula>true</AcceptEula>
         <FullName>Docker</FullName>
-        <Organization/>
+        <Organization>Docker</Organization>
       </UserData>
       <EnableFirewall>false</EnableFirewall>
     </component>
