@@ -127,7 +127,7 @@
           <Path>D:\viorng\w8.1\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="9">
-          <Path>D:\vioscsi\w8.1\amd64</Path>
+          <Path>D:\vioscsi\w10\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="10">
           <Path>D:\vioserial\w8.1\amd64</Path>
