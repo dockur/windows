@@ -62,7 +62,7 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
 
   * ### How do I specify another Windows version?
 
-    You can add the `VERSION` environment variable to your compose file, in order to specify the Windows version you want to download:
+    By default, Windows 11 will be installed. But you can add the `VERSION` environment variable to your compose file, in order to specify an alternative Windows version to download:
 
     ```yaml
     environment:
@@ -82,7 +82,7 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
 
     You can supply your own ISO file by naming it ```custom.iso``` and placing it in the ```/storage``` folder.
 
-    Make sure to delete every other file in this folder, so that there are no leftovers from previous installations. Then follow the same steps as for [manual installation](https://github.com/dockur/windows/tree/master?tab=readme-ov-file#how-do-i-perform-a-manual-installation).
+    Make sure to delete any other files in this folder, so that there are no leftovers from previous installations. Then follow the same steps as for [manual installation](https://github.com/dockur/windows/tree/master?tab=readme-ov-file#how-do-i-perform-a-manual-installation).
 
   * ### How do I increase the amount of CPU or RAM?
 
@@ -160,7 +160,7 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
 
     - Wait until Windows finishes copying files and completes the installation.
 
-    - Once you see your desktop, open File Explorer and navigate to the CD-ROM drive (E:). Double-click on ```virtio-win-gt-x64.msi``` and proceed to install the VirtIO drivers.
+    - Once you see the desktop, open File Explorer and navigate to the CD-ROM drive (E:). Double-click on ```virtio-win-gt-x64.msi``` and proceed to install the VirtIO drivers.
 
     - Now your Windows installation is ready for use. Enjoy it, and don't forget to star this repo!
 
