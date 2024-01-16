@@ -78,8 +78,8 @@
         <OSImage>
           <InstallFrom>
             <MetaData wcm:action="add">
-              <Value>1</Value>
-              <Key>/IMAGE/INDEX</Key>
+              <Value>Windows 8.1</Value>
+              <Key>/IMAGE/NAME</Key>
             </MetaData>
           </InstallFrom>
           <InstallTo>
@@ -103,7 +103,7 @@
     <component name="Microsoft-Windows-PnpCustomizationsWinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DriverPaths>
         <PathAndCredentials wcm:action="add" wcm:keyValue="1">
-          <Path>D:\viostor\w8.1\amd64</Path>
+          <Path>D:\viostor\w10\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="2">
           <Path>D:\NetKVM\w8.1\amd64</Path>
@@ -193,12 +193,6 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>2</Order>
-          <RequiresUserInput>false</RequiresUserInput>
-          <CommandLine>cmd /C wmic useraccount where name="Docker" set PasswordExpires=false</CommandLine>
-          <Description>Password Never Expires</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>3</Order>
           <CommandLine>msiexec /i E:\virtio-win-gt-x64.msi /qb!</CommandLine>
           <Description>Install VirtIO drivers</Description>
         </SynchronousCommand>
