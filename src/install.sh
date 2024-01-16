@@ -4,7 +4,11 @@ set -Eeuo pipefail
 : "${ATTENDED:="N"}"
 : "${VERSION:="win11x64"}"
 
-ARGUMENTS="-chardev socket,id=chrtpm,path=/tmp/emulated_tpm/swtpm-sock $ARGUMENTS"
+# Display wait message
+MSG="Please wait while Windows is being downloaded..."
+/run/server.sh "Windows" "$MSG" &
+
+ARGUMENTS="-chardev socket,id=chrtpm,path=/dev/shm/emulated_tpm/swtpm-sock $ARGUMENTS"
 ARGUMENTS="-tpmdev emulator,id=tpm0,chardev=chrtpm -device tpm-tis,tpmdev=tpm0 $ARGUMENTS"
 
 BASE="$VERSION.iso"
