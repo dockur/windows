@@ -49,6 +49,7 @@
               <PartitionID>1</PartitionID>
               <Label>WINRE</Label>
               <Format>NTFS</Format>
+              <TypeID>DE94BBA4-06D1-4D40-A16A-BFD50179D6AC</TypeID>
             </ModifyPartition>
             <!-- System partition (ESP) -->
             <ModifyPartition wcm:action="add">
@@ -69,7 +70,6 @@
               <Label>Windows</Label>
               <Letter>C</Letter>
               <Format>NTFS</Format>
-              <TypeID>DE94BBA4-06D1-4D40-A16A-BFD50179D6AC</TypeID>
             </ModifyPartition>
           </ModifyPartitions>
         </Disk>
@@ -180,8 +180,6 @@
         <SkipUserOOBE>true</SkipUserOOBE>
         <SkipMachineOOBE>true</SkipMachineOOBE>
       </OOBE>
-      <RegisteredOrganization/>
-      <RegisteredOwner>Docker</RegisteredOwner>
       <FirstLogonCommands>
         <SynchronousCommand wcm:action="add">
           <Order>1</Order>
