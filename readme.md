@@ -30,8 +30,6 @@ services:
   windows:
     image: dockurr/windows
     container_name: windows
-    environment:
-      VERSION: "win11x64"
     devices:
       - /dev/kvm
     cap_add:
@@ -54,17 +52,17 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
 
     Very simple! These are the steps:
     
-    - Start the container and get some coffee, it will start downloading the ISO.
+    - Start the container and get some coffee, it will begin downloading the ISO file.
 
-    - Connect to port 8006 of the container in your web browser and wait untill you see the screen.
+    - Connect to port 8006 of the container in your web browser and wait until you see the screen.
 
-    - Sit back and relax while all the magic happens, the whole installation will be performed fully automatic.
+    - Sit back and relax while the magic happens, the whole installation will be performed fully automatic.
 
-    - Once you see your desktop, your Windows installation is ready for use. Enjoy it, and don't forget to star this repo!
+    - Once you see the desktop, your Windows installation is ready for use. Enjoy it, and don't forget to star this repo!
 
-  * ### How do I specify the Windows version?
+  * ### How do I specify another Windows version?
 
-    You can modify the `VERSION` environment variable in order to specify the version of Windows you want to download:
+    You can add the `VERSION` environment variable to your compose file, in order to specify the Windows version you want to download:
 
     ```yaml
     environment:
@@ -82,7 +80,9 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
 
   * ### How do I install a custom ISO file?
 
-    You can supply your own ISO file by naming it ```custom.iso``` and placing it in the ```/storage``` folder. Make sure to delete every other file in this folder, so that there are no leftovers from previous installations. Then follow the same steps as for [manual installation](https://github.com/dockur/windows/tree/master?tab=readme-ov-file#how-do-i-perform-a-manual-installation).
+    You can supply your own ISO file by naming it ```custom.iso``` and placing it in the ```/storage``` folder.
+
+    Make sure to delete every other file in this folder, so that there are no leftovers from previous installations. Then follow the same steps as for [manual installation](https://github.com/dockur/windows/tree/master?tab=readme-ov-file#how-do-i-perform-a-manual-installation).
 
   * ### How do I increase the amount of CPU or RAM?
 
@@ -146,7 +146,7 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
 
     Then follow these steps:
 
-    - Start the container and wait until the ISO download is completed. If needed, you can view this progress in the Docker log. Wait until you see the message ```BdsDxe: starting Boot```.
+    - Start the container and wait until the ISO download is finished. If needed, you can view the progress in the Docker log.
 
     - Connect to port 8006 of the container in your web browser, you will see the Windows installation screen.
 
@@ -160,7 +160,7 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
 
     - Wait until Windows finishes copying files and completes the installation.
 
-    - Once you see your desktop, open File Explorer and navigate to the CD-ROM drive (D:). Double-click on ```virtio-win-gt-x64``` and proceed to install the VirtIO drivers.
+    - Once you see your desktop, open File Explorer and navigate to the CD-ROM drive (E:). Double-click on ```virtio-win-gt-x64.msi``` and proceed to install the VirtIO drivers.
 
     - Now your Windows installation is ready for use. Enjoy it, and don't forget to star this repo!
 
