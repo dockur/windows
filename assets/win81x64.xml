@@ -78,7 +78,7 @@
         <OSImage>
           <InstallFrom>
             <MetaData wcm:action="add">
-              <Value>Windows 8.1</Value>
+              <Value>Windows 8.1 Pro</Value>
               <Key>/IMAGE/NAME</Key>
             </MetaData>
           </InstallFrom>
@@ -91,7 +91,7 @@
       </ImageInstall>
       <UserData>
         <ProductKey>
-          <Key>334NH-RXG76-64THK-C7CKG-D3VPT</Key>
+          <Key>GCRJD-8NW9H-F2CDX-CCM8D-9D6T9</Key>
           <WillShowUI>OnError</WillShowUI>
         </ProductKey>
         <AcceptEula>true</AcceptEula>
