@@ -19,15 +19,15 @@ COPY ./src /run/
 COPY ./assets /run/assets
 
 ADD https://raw.githubusercontent.com/ElliotKillick/Mido/main/Mido.sh /run/mido.sh
-ADD https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso /run/drivers.iso
+ADD https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/latest-virtio/virtio-win.iso /run/drivers.iso
 
 RUN chmod +x /run/*.sh
 
 EXPOSE 8006
 VOLUME /storage
 
-ENV CPU_CORES "2"
 ENV RAM_SIZE "4G"
+ENV CPU_CORES "2"
 ENV DISK_SIZE "64G"
 
 ARG VERSION_ARG "0.0"
