@@ -15,11 +15,14 @@ rm -rf "$TMP"
 mkdir -p "$TMP"
 
 if [ -f "$STORAGE/custom.iso" ]; then
+  ATTENDED="Y"
+  LABEL="Custom"
   cp "$STORAGE/custom.iso" "$TMP/$BASE"
 fi
 
 if [ ! -f "$TMP/$BASE" ]; then
 
+  LABEL="$VERSION"
   SCRIPT="$TMP/mido.sh"
 
   cp /run/mido.sh "$SCRIPT"
@@ -48,7 +51,7 @@ if [[ "$ATTENDED" != [Yy1]* ]]; then
 fi
 
 genisoimage -b boot/etfsboot.com -no-emul-boot -c BOOT.CAT -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames \
-            -v -V "$VERSION" -udf -boot-info-table -eltorito-alt-boot -eltorito-boot efi/microsoft/boot/efisys_noprompt.bin \
+            -v -V "$LABEL" -udf -boot-info-table -eltorito-alt-boot -eltorito-boot efi/microsoft/boot/efisys_noprompt.bin \
             -no-emul-boot -o "$TMP/$BASE.tmp" -allow-limited-size "$DIR"
 
 mv "$TMP/$BASE.tmp" "$STORAGE/$BASE"
