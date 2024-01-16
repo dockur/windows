@@ -23,7 +23,7 @@ ADD https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/latest-virt
 
 RUN chmod +x /run/*.sh
 
-EXPOSE 8006
+EXPOSE 3389 8006
 VOLUME /storage
 
 ENV RAM_SIZE "4G"
