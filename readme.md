@@ -1,4 +1,4 @@
-<h1 align="center">Windows in Docker<br />
+<h1 align="center">Windows Container<br />
 <div align="center">
 <img src="https://github.com/dockur/windows/raw/master/.github/logo.png" title="Logo" style="max-width:100%;" width="128" />
 </div>
@@ -114,23 +114,6 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
 
     Replace the example path `/var/win` with the desired storage folder.
 
-  * ### How do I verify if my system supports KVM?
-
-    To verify if your system supports KVM, run the following commands:
-
-    ```bash
-    sudo apt install cpu-checker
-    sudo kvm-ok
-    ```
-
-    If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check the virtualization settings in the BIOS.
-
-  * ### How do I view the screen?
-
-    The container includes a web-based viewer, so you can visit [http://localhost:8006/](http://localhost:8006/) using any web browser to view the screen and interact with Windows via the keyboard and mouse.
-
-    This is mainly for use during installation, as afterwards you can use Remote Desktop, TeamViewer or any other software you prefer.
-
   * ### How do I perform a manual installation?
 
     If you prefer to perform the installation manually in order to customize some options, such as selecting another edition, add the following environment variable:
@@ -168,6 +151,17 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
     ```
     
     During the installation you will need to add some drivers as described in [manual installation](https://github.com/dockur/windows/tree/master?tab=readme-ov-file#how-do-i-perform-a-manual-installation) above.
+
+  * ### How do I verify if my system supports KVM?
+
+    To verify if your system supports KVM, run the following commands:
+
+    ```bash
+    sudo apt install cpu-checker
+    sudo kvm-ok
+    ```
+
+    If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check the virtualization settings in the BIOS.
 
   * ### Is this project legal?
 
