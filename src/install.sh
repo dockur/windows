@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+: "${MANUAL:="N"}"
 : "${EXTERNAL:="N"}"
-: "${ATTENDED:="N"}"
 : "${VERSION:="win11x64"}"
 
 ARGUMENTS="-chardev socket,id=chrtpm,path=/dev/shm/emulated_tpm/swtpm-sock $ARGUMENTS"
@@ -139,7 +139,7 @@ rm -rf "$DIR"
 
 7z x "$ISO" -o"$DIR"
 
-if [[ "$ATTENDED" != [Yy1]* ]]; then
+if [[ "$MANUAL" != [Yy1]* ]]; then
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
     if [ -f "/run/assets/$VERSION.xml" ]; then
 
