@@ -7,7 +7,6 @@ ARG DEBCONF_NONINTERACTIVE_SEEN "true"
 RUN apt-get update \
     && apt-get --no-install-recommends -y install \
         curl \
-        novnc \
         swtpm \
         wimtools \
         p7zip-full \
@@ -23,7 +22,7 @@ ADD https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/latest-virt
 
 RUN chmod +x /run/*.sh
 
-EXPOSE 3389 8006
+EXPOSE 8006 3389
 VOLUME /storage
 
 ENV RAM_SIZE "4G"
