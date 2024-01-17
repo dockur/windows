@@ -4,7 +4,6 @@ set -Eeuo pipefail
 echo "❯ Starting Windows for Docker v$(</run/version)..."
 echo "❯ For support visit https://github.com/dockur/windows"
 
-export DISPLAY=web
 export BOOT_MODE=windows
 
 cd /run
@@ -20,8 +19,9 @@ cd /run
 
 trap - ERR
 
-ln -sfn /usr/share/novnc/vnc_lite.html /usr/share/novnc/index.html
-websockify -D --web /usr/share/novnc/ 8006 localhost:5900 2>/dev/null
+if [[ "${DISPLAY,,}" == "web" ]]; then
+  nginx -e stderr
+fi
 
 mkdir -p /dev/shm/emulated_tpm
 swtpm socket -t -d --tpmstate dir=/dev/shm/emulated_tpm --ctrl \
