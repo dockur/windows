@@ -9,6 +9,37 @@ ARGUMENTS="-chardev socket,id=chrtpm,path=/dev/shm/emulated_tpm/swtpm-sock $ARGU
 ARGUMENTS="-tpmdev emulator,id=tpm0,chardev=chrtpm -device tpm-tis,tpmdev=tpm0 $ARGUMENTS"
 
 [[ "${VERSION,,}" == "http"* ]] && EXTERNAL="Y"
+
+[[ "${VERSION,,}" == "11" ]] && VERSION="win11x64"
+[[ "${VERSION,,}" == "win11" ]] && VERSION="win11x64"
+
+[[ "${VERSION,,}" == "10" ]] && VERSION="win10x64"
+[[ "${VERSION,,}" == "win10" ]] && VERSION="win10x64"
+
+[[ "${VERSION,,}" == "8" ]] && VERSION="win81x64"
+[[ "${VERSION,,}" == "81" ]] && VERSION="win81x64"
+[[ "${VERSION,,}" == "8.1" ]] && VERSION="win81x64"
+[[ "${VERSION,,}" == "win81" ]] && VERSION="win81x64"
+[[ "${VERSION,,}" == "win8" ]] && VERSION="win81x64"
+
+[[ "${VERSION,,}" == "7" ]] && VERSION="win7x64-ultimate"
+[[ "${VERSION,,}" == "win7" ]] && VERSION="win7x64-ultimate"
+
+[[ "${VERSION,,}" == "22" ]] && VERSION="win2022-eval"
+[[ "${VERSION,,}" == "2022" ]] && VERSION="win2022-eval"
+[[ "${VERSION,,}" == "win22" ]] && VERSION="win2022-eval"
+[[ "${VERSION,,}" == "win2022" ]] && VERSION="win2022-eval"
+
+[[ "${VERSION,,}" == "19" ]] && VERSION="win2019-eval"
+[[ "${VERSION,,}" == "2019" ]] && VERSION="win2019-eval"
+[[ "${VERSION,,}" == "win19" ]] && VERSION="win2019-eval"
+[[ "${VERSION,,}" == "win2019" ]] && VERSION="win2019-eval"
+
+[[ "${VERSION,,}" == "16" ]] && VERSION="win2016-eval"
+[[ "${VERSION,,}" == "2016" ]] && VERSION="win2016-eval"
+[[ "${VERSION,,}" == "win16" ]] && VERSION="win2016-eval"
+[[ "${VERSION,,}" == "win2016" ]] && VERSION="win2016-eval"
+
 MSG="Please wait while Windows is being started..."
 
 if [ ! -f "$STORAGE/custom.iso" ]; then
