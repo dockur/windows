@@ -62,18 +62,6 @@ fi
 BASE="custom.iso"
 [ -f "$STORAGE/$BASE" ] && return 0
 
-BASE="Custom.iso"
-[ -f "$STORAGE/$BASE" ] && return 0
-
-BASE="custom.ISO"
-[ -f "$STORAGE/$BASE" ] && return 0
-
-BASE="CUSTOM.iso"
-[ -f "$STORAGE/$BASE" ] && return 0
-
-BASE="CUSTOM.ISO"
-[ -f "$STORAGE/$BASE" ] && return 0
-
 if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
   BASE="$VERSION.iso"
@@ -148,6 +136,8 @@ if [[ "$MANUAL" != [Yy1]* ]]; then
 fi
 
 LABEL="${BASE%.*}"
+LABEL="${LABEL::32}"
+
 ISO="$TMP/$LABEL.tmp"
 rm -f "$ISO"
 
