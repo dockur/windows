@@ -22,9 +22,6 @@ ARGUMENTS="-tpmdev emulator,id=tpm0,chardev=chrtpm -device tpm-tis,tpmdev=tpm0 $
 [[ "${VERSION,,}" == "win81" ]] && VERSION="win81x64"
 [[ "${VERSION,,}" == "win8" ]] && VERSION="win81x64"
 
-[[ "${VERSION,,}" == "7" ]] && VERSION="win7x64-ultimate"
-[[ "${VERSION,,}" == "win7" ]] && VERSION="win7x64-ultimate"
-
 [[ "${VERSION,,}" == "22" ]] && VERSION="win2022-eval"
 [[ "${VERSION,,}" == "2022" ]] && VERSION="win2022-eval"
 [[ "${VERSION,,}" == "win22" ]] && VERSION="win2022-eval"
