@@ -1,4 +1,4 @@
-<h1 align="center">Windows Container<br />
+<h1 align="center">Windows<br />
 <div align="center">
 <img src="https://github.com/dockur/windows/raw/master/.github/logo.png" title="Logo" style="max-width:100%;" width="128" />
 </div>
