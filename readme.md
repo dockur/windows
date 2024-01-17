@@ -54,37 +54,31 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
 
     Very simple! These are the steps:
     
-    - Start the container and get some coffee, it will begin downloading the ISO file.
+    - Start the container and get some coffee.
 
-    - Connect to port 8006 of the container in your web browser and wait until you see the screen.
+    - Connect to port 8006 of the container in your web browser.
 
     - Sit back and relax while the magic happens, the whole installation will be performed fully automatic.
 
     - Once you see the desktop, your Windows installation is ready for use. Enjoy it, and don't forget to star this repo!
 
-  * ### How do I specify another Windows version?
+  * ### How do I select the Windows version?
 
     By default, Windows 11 will be installed. But you can add the `VERSION` environment variable to your compose file, in order to specify an alternative Windows version to download:
 
     ```yaml
     environment:
-      VERSION: "win11x64"
+      VERSION: "win11"
     ```
     
     Select from the values below:
     
-    - ```win11x64``` (Windows 11)
-    - ```win10x64``` (Windows 10)
-    - ```win81x64``` (Windows 8.1)
-    - ```win2022-eval``` (Windows Server 2022)
-    - ```win2019-eval``` (Windows Server 2019)
-    - ```win2016-eval``` (Windows Server 2016)
-
-  * ### How do I install a custom ISO file?
-
-    You can supply your own ISO file by naming it ```custom.iso``` and placing it in the ```/storage``` folder.
-
-    Make sure to delete any other files in this folder, so that there are no leftovers from previous installations. Then follow the same steps as for [manual installation](https://github.com/dockur/windows/tree/master?tab=readme-ov-file#how-do-i-perform-a-manual-installation).
+    - ```win11``` (Windows 11)
+    - ```win10``` (Windows 10)
+    - ```win81``` (Windows 8.1)
+    - ```win22``` (Windows Server 2022)
+    - ```win19``` (Windows Server 2019)
+    - ```win16``` (Windows Server 2016)
 
   * ### How do I increase the amount of CPU or RAM?
 
@@ -98,20 +92,20 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
       CPU_CORES: "4"
     ```
 
-  * ### How do I change the size of the data disk?
+  * ### How do I change the size of the disk?
 
     To expand the default size of 64 GB, add the `DISK_SIZE` setting to your compose file and set it to your preferred capacity:
 
     ```yaml
     environment:
-      DISK_SIZE: "128G"
+      DISK_SIZE: "256G"
     ```
     
     This can also be used to resize the existing disk to a larger capacity without any data loss.
     
-  * ### How do I change the location of the data disk?
+  * ### How do I change the storage location?
 
-    To change the location of the data disk, include the following bind mount in your compose file:
+    To change the storage location, include the following bind mount in your compose file:
 
     ```yaml
     volumes:
@@ -133,17 +127,17 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
 
   * ### How do I view the screen?
 
-    The container includes a web-based viewer, so you can visit [http://localhost:8006/](http://localhost:8006/) using any web browser to view the screen and interact with Windows via the keyboard or mouse.
+    The container includes a web-based viewer, so you can visit [http://localhost:8006/](http://localhost:8006/) using any web browser to view the screen and interact with Windows via the keyboard and mouse.
 
     This is mainly for use during installation, as afterwards you can use Remote Desktop, TeamViewer or any other software you prefer.
 
   * ### How do I perform a manual installation?
 
-    If you prefer to perform the installation manually in order to customize some options, add the following environment variable:
+    If you prefer to perform the installation manually in order to customize some options, such as selecting another edition, add the following environment variable:
 
     ```yaml
     environment:
-      ATTENDED: "Y"
+      MANUAL: "Y"
     ```
 
     Then follow these steps:
@@ -163,6 +157,17 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
     - Once you see the desktop, open File Explorer and navigate to the CD-ROM drive (E:). Double-click on ```virtio-win-gt-x64.msi``` and proceed to install the VirtIO drivers.
 
     - Now your Windows installation is ready for use. Enjoy it, and don't forget to star this repo!
+
+  * ### How do I install an unsupported version?
+
+    You can specify an URL in the `VERSION` environment variable, in order to download a custom ISO file:
+    
+    ```yaml
+    environment:
+      VERSION: "https://example.com/win.iso"
+    ```
+    
+    During the installation you will need to add some drivers as described in [manual installation](https://github.com/dockur/windows/tree/master?tab=readme-ov-file#how-do-i-perform-a-manual-installation) above.
 
   * ### Is this project legal?
 
