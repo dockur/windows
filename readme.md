@@ -152,6 +152,21 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
     
     During the installation you will need to add some drivers as described in [manual installation](https://github.com/dockur/windows/tree/master?tab=readme-ov-file#how-do-i-perform-a-manual-installation) above.
 
+  * ### How do I pass-through a disk?
+
+    It is possible to pass-through disk devices directly by adding them to your compose file in this way:
+
+    ```yaml
+    environment:
+      DEVICE: "/dev/sda"
+      DEVICE2: "/dev/sdb"
+    devices:
+      - /dev/sda
+      - /dev/sdb
+    ```
+
+    Use ```DEVICE``` if you want it to become your main drive, and use ```DEVICE2``` and higher to add them as secondary drives.
+    
   * ### How do I verify if my system supports KVM?
 
     To verify if your system supports KVM, run the following commands:
