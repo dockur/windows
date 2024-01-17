@@ -1,6 +1,5 @@
 <?xml version="1.0"?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
-  <settings pass="offlineServicing"/>
   <settings pass="windowsPE">
     <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <SetupUILanguage>
@@ -76,6 +75,12 @@
       </DiskConfiguration>
       <ImageInstall>
         <OSImage>
+          <InstallFrom>
+            <MetaData wcm:action="add">
+              <Value>Windows 8.1 Pro</Value>
+              <Key>/IMAGE/NAME</Key>
+            </MetaData>
+          </InstallFrom>
           <InstallTo>
             <DiskID>0</DiskID>
             <PartitionID>4</PartitionID>
@@ -86,18 +91,18 @@
       <UserData>
         <ProductKey>
           <Key>GCRJD-8NW9H-F2CDX-CCM8D-9D6T9</Key>
-          <WillShowUI>Never</WillShowUI>
+          <WillShowUI>OnError</WillShowUI>
         </ProductKey>
         <AcceptEula>true</AcceptEula>
         <FullName>Docker</FullName>
-        <Organization/>
+        <Organization>Docker</Organization>
       </UserData>
       <EnableFirewall>false</EnableFirewall>
     </component>
     <component name="Microsoft-Windows-PnpCustomizationsWinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DriverPaths>
         <PathAndCredentials wcm:action="add" wcm:keyValue="1">
-          <Path>D:\viostor\w8.1\amd64</Path>
+          <Path>D:\viostor\w10\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="2">
           <Path>D:\NetKVM\w8.1\amd64</Path>
@@ -121,12 +126,17 @@
           <Path>D:\viorng\w8.1\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="9">
-          <Path>D:\vioscsi\w8.1\amd64</Path>
+          <Path>D:\vioscsi\w10\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="10">
           <Path>D:\vioserial\w8.1\amd64</Path>
         </PathAndCredentials>
       </DriverPaths>
+    </component>
+  </settings>
+  <settings pass="offlineServicing">
+    <component name="Microsoft-Windows-LUA-Settings" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <EnableLUA>false</EnableLUA>
     </component>
   </settings>
   <settings pass="specialize">
@@ -187,12 +197,6 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>2</Order>
-          <RequiresUserInput>false</RequiresUserInput>
-          <CommandLine>cmd /C wmic useraccount where name="Docker" set PasswordExpires=false</CommandLine>
-          <Description>Password Never Expires</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>3</Order>
           <CommandLine>msiexec /i E:\virtio-win-gt-x64.msi /qb!</CommandLine>
           <Description>Install VirtIO drivers</Description>
         </SynchronousCommand>
