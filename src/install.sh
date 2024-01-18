@@ -2,10 +2,8 @@
 set -Eeuo pipefail
 
 : "${MANUAL:=""}"
-: "${EXTERNAL:="N"}"
+: "${EXTERNAL:=""}"
 : "${VERSION:="win11x64"}"
-
-[[ "${VERSION,,}" == "http"* ]] && EXTERNAL="Y"
 
 [[ "${VERSION,,}" == "11" ]] && VERSION="win11x64"
 [[ "${VERSION,,}" == "win11" ]] && VERSION="win11x64"
@@ -33,6 +31,20 @@ set -Eeuo pipefail
 [[ "${VERSION,,}" == "2016" ]] && VERSION="win2016-eval"
 [[ "${VERSION,,}" == "win16" ]] && VERSION="win2016-eval"
 [[ "${VERSION,,}" == "win2016" ]] && VERSION="win2016-eval"
+
+if [[ "${VERSION,,}" == "tiny10" ]]; then
+  VERSION="https://archive.org/download/tiny-10-23-h2/tiny10%20x64%2023h2.iso"
+fi
+
+if [[ "${VERSION,,}" == "tiny11" ]]; then
+  VERSION="https://archive.org/download/tiny-11-NTDEV/tiny11%2023H2%20x64.iso"
+fi
+
+if [[ "${VERSION,,}" == "http"* ]];
+  EXTERNAL="Y"
+else
+  EXTERNAL="N"
+fi
 
 MSG="Please wait while Windows is being started..."
 
@@ -131,10 +143,9 @@ if [ -z "$MANUAL" ]; then
   MANUAL="N"
 
   if [[ "$EXTERNAL" == [Yy1]* ]]; then
-
     [[ "${BASE,,}" == "tiny10"* ]] && MANUAL="Y"
-
   fi
+
 fi
 
 if [[ "$MANUAL" != [Yy1]* ]]; then
