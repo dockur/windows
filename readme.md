@@ -73,13 +73,15 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
     
     Select from the values below:
     
-    - ```win11``` (Windows 11)
-    - ```win10``` (Windows 10)
-    - ```win81``` (Windows 8.1)
-    - ```win22``` (Windows Server 2022)
-    - ```win19``` (Windows Server 2019)
-    - ```win16``` (Windows Server 2016)
-
+    - ```win11``` = Windows 11
+    - ```win10``` = Windows 10
+    - ```win81``` = Windows 8.1
+    - ```win22``` = Windows Server 2022
+    - ```win19``` = Windows Server 2019
+    - ```win16``` = Windows Server 2016
+    - ```tiny11``` = Tiny11 (Slow download)
+    - ```tiny10``` = Tiny10 (Slow download)
+ 
   * ### How do I increase the amount of CPU or RAM?
 
     By default, 2 CPU cores and 4 GB of RAM are allocated to the container, as those are the minimum requirements of Windows 11.
@@ -143,14 +145,14 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
 
   * ### How do I install an unsupported version?
 
-    You can specify an URL in the `VERSION` environment variable, in order to download a custom ISO file:
+    You can specify an URL in the `VERSION` environment variable, in order to download a custom ISO image:
     
     ```yaml
     environment:
       VERSION: "https://example.com/win.iso"
     ```
     
-    During the installation you will need to add some drivers as described in [manual installation](https://github.com/dockur/windows/tree/master?tab=readme-ov-file#how-do-i-perform-a-manual-installation) above.
+    During the installation you may need to add some drivers as described in [manual installation](https://github.com/dockur/windows/tree/master?tab=readme-ov-file#how-do-i-perform-a-manual-installation) above.
 
   * ### How do I pass-through a disk?
 
