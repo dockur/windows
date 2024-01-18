@@ -122,6 +122,7 @@ rm -rf "$DIR"
 7z x "$ISO" -o"$DIR"
 echo
 
+XML=""
 FB="falling back to manual installation!"
 
 if [[ "$EXTERNAL" != [Yy1]* ]]; then
@@ -130,82 +131,100 @@ if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
 else
 
-  info "Detecting Windows version from ISO image..."
+  if [[ "$MANUAL" != [Yy1]* ]]; then
 
-  XML=""
-  DETECTED=""
-  LOC="$DIR/sources/install.wim"
-  [ ! -f "$LOC" ] && LOC="$DIR/sources/install.esd"
+    info "Detecting Windows version from ISO image..."
 
-  if [ -f "$LOC" ]; then
-
-    TAG="DISPLAYNAME"
-    RESULT=$(wimlib-imagex info -xml "$LOC" | tr -d '\000')
-    NAME=$(sed -n "/$TAG/{s/.*<$TAG>\(.*\)<\/$TAG>.*/\1/;p}" <<< "$RESULT")
-
-    [[ "$NAME" == "Windows 11"* ]] && DETECTED="win11x64"
-    [[ "$NAME" == "Windows 10"* ]] && DETECTED="win10x64"
-    [[ "$NAME" == "Windows 8"* ]] && DETECTED="win81x64"
-    [[ "$NAME" == "Windows Server 2022"* ]] && DETECTED="win2022-eval"
-    [[ "$NAME" == "Windows Server 2019"* ]] && DETECTED="win2019-eval"
-    [[ "$NAME" == "Windows Server 2016"* ]] && DETECTED="win2016-eval"
-
-    if [ -n "$DETECTED" ]; then
-
-      XML="$DETECTED.xml"
-      echo "Detected image of type '$DETECTED', will apply unattended.xml file."
-
-    else
-      error "Warning: failed to detect Windows version from '$NAME', $FB"
-    fi
-  else
-    error "Warning: failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
-  fi
-  echo
-fi
-
-if [[ "$MANUAL" != [Yy1]* ]]; then
-  if [ -f "/run/assets/$XML" ]; then
-
-    LOC="$DIR/sources/boot.wim"
-    [ ! -f "$LOC" ] && LOC="$DIR/sources/boot.esd"
+    LOC="$DIR/sources/install.wim"
+    [ ! -f "$LOC" ] && LOC="$DIR/sources/install.esd"
 
     if [ -f "$LOC" ]; then
 
-      wimlib-imagex update "$LOC" 2 --command "add /run/assets/$XML /autounattend.xml"
+      DETECTED=""
+      TAG="DISPLAYNAME"
+      RESULT=$(wimlib-imagex info -xml "$LOC" | tr -d '\000')
+      NAME=$(sed -n "/$TAG/{s/.*<$TAG>\(.*\)<\/$TAG>.*/\1/;p}" <<< "$RESULT")
 
+      [[ "$NAME" == "Windows 11"* ]] && DETECTED="win11x64"
+      [[ "$NAME" == "Windows 10"* ]] && DETECTED="win10x64"
+      [[ "$NAME" == "Windows 8"* ]] && DETECTED="win81x64"
+      [[ "$NAME" == "Windows Server 2022"* ]] && DETECTED="win2022-eval"
+      [[ "$NAME" == "Windows Server 2019"* ]] && DETECTED="win2019-eval"
+      [[ "$NAME" == "Windows Server 2016"* ]] && DETECTED="win2016-eval"
+
+      if [ -n "$DETECTED" ]; then
+
+        XML="$DETECTED.xml"
+        echo "Detected image of type '$DETECTED', will apply autounattend.xml file."
+
+      else
+        error "Warning: failed to detect Windows version from '$NAME', $FB"
+      fi
     else
-      error "Warning: failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB"
+      error "Warning: failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
     fi
-  else
-    [ -n "$XML" ] && error "Warning: XML file '$XML' does not exist, $FB"
+    echo
   fi
-  echo
 fi
 
-CAT="BOOT.CAT"
+ASSET="/run/assets/$XML"
+
+if [ -f "$ASSET" ]; then
+
+  LOC="$DIR/sources/boot.wim"
+  [ ! -f "$LOC" ] && LOC="$DIR/sources/boot.esd"
+
+  if [ -f "$LOC" ]; then
+
+    wimlib-imagex update "$LOC" 2 --command "add $ASSET /autounattend.xml"
+
+  else
+    error "Warning: failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB"
+  fi
+
+  LOC="$DIR/autounattend.xml"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  LOC="$DIR/Autounattend.xml"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  LOC="$DIR/AutoUnattend.xml"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  LOC="$DIR/autounattend.XML"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  LOC="$DIR/Autounattend.XML"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  LOC="$DIR/AutoUnattend.XML"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  LOC="$DIR/AUTOUNATTEND.xml"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  LOC="$DIR/AUTOUNATTEND.XML"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  
+  echo
+
+else
+  [ -n "$XML" ] && error "Warning: XML file '$XML' does not exist, $FB" && echo
+fi
+
 ETFS="boot/etfsboot.com"
 EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 
-if [ -f "$DIR/$CAT" ]; then
-  if [ -f "$DIR/$ETFS" ]; then
-    if [ -f "$DIR/$EFISYS" ]; then
+if [ -f "$DIR/$ETFS" ]; then
+  if [ -f "$DIR/$EFISYS" ]; then
 
-      LABEL="${BASE%.*}"
-      LABEL="${LABEL::32}"
-      ISO="$TMP/$LABEL.tmp"
-      rm -f "$ISO"
+    CAT="BOOT.CAT"
+    LABEL="${BASE%.*}"
+    LABEL="${LABEL::32}"
+    ISO="$TMP/$LABEL.tmp"
+    rm -f "$ISO"
 
-      genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -v -V "$LABEL" -udf \
-                              -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$ISO" -allow-limited-size "$DIR"
-    else
-      error "Failed to locate file '"$(basename "$EFISYS")"' in ISO image, $FB"
-    fi
+    genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -v -V "$LABEL" -udf \
+                            -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$ISO" -allow-limited-size "$DIR"
+
   else
-    error "Failed to locate file '"$(basename "$ETFS")"' in ISO image, $FB"
+    error "Failed to locate file '"$(basename "$EFISYS")"' in ISO image, $FB"
   fi
 else
-  error "Failed to locate file '"$(basename "$CAT")"' in ISO image, $FB"
+  error "Failed to locate file '"$(basename "$ETFS")"' in ISO image, $FB"
 fi
 
 mv "$ISO" "$STORAGE/$BASE"
