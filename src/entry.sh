@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 echo "❯ Starting Windows for Docker v$(</run/version)..."
 echo "❯ For support visit https://github.com/dockur/windows"
+echo
 
 export BOOT_MODE=windows
 
