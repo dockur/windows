@@ -76,6 +76,7 @@ rm -rf "$TMP" && mkdir -p "$TMP"
 
 ISO="$TMP/$BASE"
 rm -f "$ISO"
+echo
 
 if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
@@ -114,7 +115,7 @@ if ((SIZE<10000000)); then
   echo && error "Invalid ISO file: Size is smaller than 10 MB" && exit 62
 fi
 
-echo && info "Preparing ISO image for installation..." && echo
+echo && info "Preparing ISO image for installation..."
 
 DIR="$TMP/unpack"
 rm -rf "$DIR"
@@ -128,7 +129,7 @@ if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
 else
 
-  info "Detecting Windows version from ISO image..." && echo
+  info "Detecting Windows version from ISO image..."
 
   XML=""
   DETECTED=""
@@ -146,13 +147,15 @@ else
   if [ -n "$DETECTED" ]; then
 
     XML="$DETECTED.xml"
-    echo "Detected image of type '$DETECTED', will apply unattended.xml file." && echo
+    echo "Detected image of type '$DETECTED', will apply unattended.xml file."
 
   else
 
-    echo "Warning: failed to detect Windows version from '$NAME', falling back to manual installation!" && echo
+    echo "Warning: failed to detect Windows version from '$NAME', falling back to manual installation!"
 
   fi
+
+  echo
 fi
 
 if [[ "$MANUAL" != [Yy1]* ]]; then
