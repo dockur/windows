@@ -37,7 +37,7 @@ if [[ "${VERSION,,}" == "tiny10" ]]; then
 fi
 
 if [[ "${VERSION,,}" == "tiny11" ]]; then
-  VERSION="https://archive.org/download/tiny-11-NTDEV/tiny11%2023H2%20x64.iso"
+  VERSION="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
 fi
 
 if [[ "${VERSION,,}" == "http"* ]];
