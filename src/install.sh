@@ -132,41 +132,53 @@ else
 
   XML=""
   DETECTED=""
-  TAG="DISPLAYNAME"
-  RESULT=$(wimlib-imagex info -xml "$DIR/sources/install.wim" | tr -d '\000')
-  NAME=$(sed -n "/$TAG/{s/.*<$TAG>\(.*\)<\/$TAG>.*/\1/;p}" <<< "$RESULT")
+  LOC="$DIR/sources/install.wim"
+  [ ! -f "$LOC" ] && LOC="$DIR/sources/install.esd"
 
-  [[ "$NAME" == "Windows 11"* ]] && DETECTED="win11x64"
-  [[ "$NAME" == "Windows 10"* ]] && DETECTED="win10x64"
-  [[ "$NAME" == "Windows 8"* ]] && DETECTED="win81x64"
-  [[ "$NAME" == "Windows Server 2022"* ]] && DETECTED="win2022-eval"
-  [[ "$NAME" == "Windows Server 2019"* ]] && DETECTED="win2019-eval"
-  [[ "$NAME" == "Windows Server 2016"* ]] && DETECTED="win2016-eval"
+  if [ -f "$LOC" ]; then
 
-  if [ -n "$DETECTED" ]; then
+    TAG="DISPLAYNAME"
+    RESULT=$(wimlib-imagex info -xml "$LOC" | tr -d '\000')
+    NAME=$(sed -n "/$TAG/{s/.*<$TAG>\(.*\)<\/$TAG>.*/\1/;p}" <<< "$RESULT")
 
-    XML="$DETECTED.xml"
-    echo "Detected image of type '$DETECTED', will apply unattended.xml file."
+    [[ "$NAME" == "Windows 11"* ]] && DETECTED="win11x64"
+    [[ "$NAME" == "Windows 10"* ]] && DETECTED="win10x64"
+    [[ "$NAME" == "Windows 8"* ]] && DETECTED="win81x64"
+    [[ "$NAME" == "Windows Server 2022"* ]] && DETECTED="win2022-eval"
+    [[ "$NAME" == "Windows Server 2019"* ]] && DETECTED="win2019-eval"
+    [[ "$NAME" == "Windows Server 2016"* ]] && DETECTED="win2016-eval"
 
+    if [ -n "$DETECTED" ]; then
+
+      XML="$DETECTED.xml"
+      echo "Detected image of type '$DETECTED', will apply unattended.xml file."
+
+    else
+      error "Warning: failed to detect Windows version from '$NAME', falling back to manual installation!"
+    fi
   else
-
-    echo "Warning: failed to detect Windows version from '$NAME', falling back to manual installation!"
-
+    error "Warning: failed to locate 'install.wim' or 'install.esd' in ISO image, falling back to manual installation!"
   fi
-
   echo
 fi
 
 if [[ "$MANUAL" != [Yy1]* ]]; then
   if [ -f "/run/assets/$XML" ]; then
 
-    wimlib-imagex update "$DIR/sources/boot.wim" 2 \
-      --command "add /run/assets/$XML /autounattend.xml"
-    echo
+    LOC="$DIR/sources/boot.wim"
+    [ ! -f "$LOC" ] && LOC="$DIR/sources/boot.esd"
 
+    if [ -f "$LOC" ]; then
+
+      wimlib-imagex update "$LOC" 2 --command "add /run/assets/$XML /autounattend.xml"
+
+    else
+      error "Warning: failed to locate 'boot.wim' or 'boot.esd' in ISO image, falling back to manual installation!"
+    fi
   else
-    [ -n "$XML" ] && info "Warning: XML file '$XML' does not exist, falling back to manual installation!" && echo
+    [ -n "$XML" ] && error "Warning: XML file '$XML' does not exist, falling back to manual installation!"
   fi
+  echo
 fi
 
 LABEL="${BASE%.*}"
@@ -175,9 +187,18 @@ LABEL="${LABEL::32}"
 ISO="$TMP/$LABEL.tmp"
 rm -f "$ISO"
 
-genisoimage -b boot/etfsboot.com -no-emul-boot -c BOOT.CAT -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames \
-            -v -V "$LABEL" -udf -boot-info-table -eltorito-alt-boot -eltorito-boot efi/microsoft/boot/efisys_noprompt.bin \
-            -no-emul-boot -o "$ISO" -allow-limited-size "$DIR"
+EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
+[ -f "$DIR/$EFISYS" ] && EFISYS="efi/microsoft/boot/efisys.bin"
+
+if [ -f "$DIR/$EFISYS" ]; then
+
+  genisoimage -b boot/etfsboot.com -no-emul-boot -c BOOT.CAT -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -v -V "$LABEL" \
+                          -udf -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$ISO" -allow-limited-size "$DIR"
+else
+
+  error "Failed to locate file 'efisys.bin' in ISO image!" && exit 64
+
+fi
 
 mv "$ISO" "$STORAGE/$BASE"
 rm -rf "$TMP"
