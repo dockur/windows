@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-: "${MANUAL:="N"}"
+: "${MANUAL:=""}"
 : "${EXTERNAL:="N"}"
 : "${VERSION:="win11x64"}"
 
@@ -72,7 +72,8 @@ fi
 [ -f "$STORAGE/$BASE" ] && return 0
 
 TMP="$STORAGE/tmp"
-rm -rf "$TMP" && mkdir -p "$TMP"
+rm -rf "$TMP"
+mkdir -p "$TMP"
 
 ISO="$TMP/$BASE"
 rm -f "$ISO"
@@ -114,16 +115,27 @@ if ((SIZE<10000000)); then
   echo && error "Invalid ISO file: Size is smaller than 10 MB" && exit 62
 fi
 
-echo && info "Preparing ISO image for installation..."
+echo && info "Extracting downloaded ISO image..."
 
 DIR="$TMP/unpack"
 rm -rf "$DIR"
 
-7z x "$ISO" -o"$DIR"
+7z x "$ISO" -o"$DIR" > /dev/null
 echo
 
 XML=""
 FB="falling back to manual installation!"
+
+if [ -z "$MANUAL" ]; then
+
+  MANUAL="N"
+
+  if [[ "$EXTERNAL" == [Yy1]* ]]; then
+
+    [[ "${BASE,,}" == "tiny10"* ]] && MANUAL="Y"
+
+  fi
+fi
 
 if [[ "$MANUAL" != [Yy1]* ]]; then
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
@@ -144,12 +156,17 @@ if [[ "$MANUAL" != [Yy1]* ]]; then
       RESULT=$(wimlib-imagex info -xml "$LOC" | tr -d '\000')
       NAME=$(sed -n "/$TAG/{s/.*<$TAG>\(.*\)<\/$TAG>.*/\1/;p}" <<< "$RESULT")
 
-      [[ "$NAME" == "Windows 11"* ]] && DETECTED="win11x64"
-      [[ "$NAME" == "Windows 10"* ]] && DETECTED="win10x64"
-      [[ "$NAME" == "Windows 8"* ]] && DETECTED="win81x64"
-      [[ "$NAME" == "Windows Server 2022"* ]] && DETECTED="win2022-eval"
-      [[ "$NAME" == "Windows Server 2019"* ]] && DETECTED="win2019-eval"
-      [[ "$NAME" == "Windows Server 2016"* ]] && DETECTED="win2016-eval"
+      if [ -z "$NAME" ]; then
+        TAG="PRODUCTNAME"
+        NAME=$(sed -n "/$TAG/{s/.*<$TAG>\(.*\)<\/$TAG>.*/\1/;p}" <<< "$RESULT")
+      fi
+
+      [[ "${NAME,,}" == "windows 11"* ]] && DETECTED="win11x64"
+      [[ "${NAME,,}" == "windows 10"* ]] && DETECTED="win10x64"
+      [[ "${NAME,,}" == "windows 8"* ]] && DETECTED="win81x64"
+      [[ "${NAME,,}" == *"server 2022"* ]] && DETECTED="win2022-eval"
+      [[ "${NAME,,}" == *"server 2019"* ]] && DETECTED="win2019-eval"
+      [[ "${NAME,,}" == *"server 2016"* ]] && DETECTED="win2016-eval"
 
       if [ -n "$DETECTED" ]; then
 
@@ -157,7 +174,15 @@ if [[ "$MANUAL" != [Yy1]* ]]; then
         echo "Detected image of type '$DETECTED', will apply autounattend.xml file."
 
       else
-        error "Warning: failed to detect Windows version from '$NAME', $FB"
+        if [ -z "$NAME" ]; then
+          error "Warning: failed to detect Windows version from image, $FB"
+        else
+          if [[ "${NAME,,}" == "windows 7" ]]; then
+            error "Warning: detected Windows 7 image, $FB"
+          else
+            error "Warning: failed to detect Windows version from string '$NAME', $FB"
+          fi
+        fi
       fi
     else
       error "Warning: failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
@@ -175,7 +200,17 @@ if [ -f "$ASSET" ]; then
 
   if [ -f "$LOC" ]; then
 
-    wimlib-imagex update "$LOC" 2 --command "add $ASSET /autounattend.xml"
+    info "Adding XML file for automatic installation..."
+
+    RESULT=$(wimlib-imagex info -xml "$LOC" | tr -d '\000')
+
+    if [[ "${RESULT^^}" == *"<IMAGE INDEX=\"2\">"* ]]; then
+      INDEX="2"
+    else
+      INDEX="1"
+    fi
+
+    wimlib-imagex update "$LOC" "$INDEX" --command "add $ASSET /autounattend.xml" > /dev/null
 
   else
     error "Warning: failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB"
@@ -197,12 +232,14 @@ if [ -f "$ASSET" ]; then
   [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
   LOC="$DIR/AUTOUNATTEND.XML"
   [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-  
+
   echo
 
 else
   [ -n "$XML" ] && error "Warning: XML file '$XML' does not exist, $FB" && echo
 fi
+
+info "Generating new ISO image for installation..."
 
 ETFS="boot/etfsboot.com"
 EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
@@ -216,8 +253,8 @@ if [ -f "$DIR/$ETFS" ]; then
     ISO="$TMP/$LABEL.tmp"
     rm -f "$ISO"
 
-    genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -v -V "$LABEL" -udf \
-                            -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$ISO" -allow-limited-size "$DIR"
+    genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -quiet -V "$LABEL" -udf \
+                           -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$ISO" -allow-limited-size "$DIR"
 
   else
     error "Failed to locate file '"$(basename "$EFISYS")"' in ISO image, $FB"
