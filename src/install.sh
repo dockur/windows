@@ -5,9 +5,6 @@ set -Eeuo pipefail
 : "${EXTERNAL:="N"}"
 : "${VERSION:="win11x64"}"
 
-ARGUMENTS="-chardev socket,id=chrtpm,path=/dev/shm/emulated_tpm/swtpm-sock $ARGUMENTS"
-ARGUMENTS="-tpmdev emulator,id=tpm0,chardev=chrtpm -device tpm-tis,tpmdev=tpm0 $ARGUMENTS"
-
 [[ "${VERSION,,}" == "http"* ]] && EXTERNAL="Y"
 
 [[ "${VERSION,,}" == "11" ]] && VERSION="win11x64"
