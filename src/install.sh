@@ -76,7 +76,6 @@ rm -rf "$TMP" && mkdir -p "$TMP"
 
 ISO="$TMP/$BASE"
 rm -f "$ISO"
-echo
 
 if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
