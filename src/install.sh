@@ -40,7 +40,7 @@ if [[ "${VERSION,,}" == "tiny11" ]]; then
   VERSION="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
 fi
 
-if [[ "${VERSION,,}" == "http"* ]];
+if [[ "${VERSION,,}" == "http"* ]]; then
   EXTERNAL="Y"
 else
   EXTERNAL="N"
