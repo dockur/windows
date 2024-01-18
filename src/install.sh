@@ -102,33 +102,68 @@ else
 
   { wget "$VERSION" -O "$ISO" -q --no-check-certificate --show-progress "$PROGRESS"; rc=$?; } || :
 
-  (( rc != 0 )) && error "Failed to download $VERSION, reason: $rc" && exit 60
+  (( rc != 0 )) && echo && error "Failed to download $VERSION, reason: $rc" && exit 60
 
 fi
 
-[ ! -f "$ISO" ] && error "Failed to download $VERSION" && exit 61
+[ ! -f "$ISO" ] && echo && error "Failed to download $VERSION" && exit 61
 
 SIZE=$(stat -c%s "$ISO")
 
 if ((SIZE<10000000)); then
-  error "Invalid ISO file: Size is smaller than 10 MB" && exit 62
+  echo && error "Invalid ISO file: Size is smaller than 10 MB" && exit 62
 fi
 
-info "Preparing ISO image for installation..."
+echo && info "Preparing ISO image for installation..." && echo
 
 DIR="$TMP/unpack"
 rm -rf "$DIR"
 
 7z x "$ISO" -o"$DIR"
+echo
+
+if [[ "$EXTERNAL" != [Yy1]* ]]; then
+
+  XML="$VERSION.xml"
+
+else
+
+  info "Detecting Windows version from ISO image..." && echo
+
+  XML=""
+  DETECTED=""
+  TAG="DISPLAYNAME"
+  RESULT=$(wimlib-imagex info -xml "$DIR/sources/install.wim" | tr -d '\000')
+  NAME=$(sed -n "/$TAG/{s/.*<$TAG>\(.*\)<\/$TAG>.*/\1/;p}" <<< "$RESULT")
+
+  [[ "$NAME" == "Windows 11"* ]] && DETECTED="win11x64"
+  [[ "$NAME" == "Windows 10"* ]] && DETECTED="win10x64"
+  [[ "$NAME" == "Windows 8"* ]] && DETECTED="win81x64"
+  [[ "$NAME" == "Windows Server 2022"* ]] && DETECTED="win2022-eval"
+  [[ "$NAME" == "Windows Server 2019"* ]] && DETECTED="win2019-eval"
+  [[ "$NAME" == "Windows Server 2016"* ]] && DETECTED="win2016-eval"
+
+  if [ -n "$DETECTED" ]; then
+
+    XML="$DETECTED.xml"
+    echo "Detected image of type '$DETECTED', will apply unattended.xml file." && echo
+
+  else
+
+    echo "Warning: failed to detect Windows version from '$NAME', falling back to manual installation!" && echo
+
+  fi
+fi
 
 if [[ "$MANUAL" != [Yy1]* ]]; then
-  if [[ "$EXTERNAL" != [Yy1]* ]]; then
-    if [ -f "/run/assets/$VERSION.xml" ]; then
+  if [ -f "/run/assets/$XML" ]; then
 
-      wimlib-imagex update "$DIR/sources/boot.wim" 2 \
-        --command "add /run/assets/$VERSION.xml /autounattend.xml"
+    wimlib-imagex update "$DIR/sources/boot.wim" 2 \
+      --command "add /run/assets/$XML /autounattend.xml"
+    echo
 
-    fi
+  else
+    [ -n "$XML" ] && info "Warning: XML file '$XML' does not exist, falling back to manual installation!" && echo
   fi
 fi
 
@@ -143,7 +178,7 @@ genisoimage -b boot/etfsboot.com -no-emul-boot -c BOOT.CAT -iso-level 4 -J -l -D
             -no-emul-boot -o "$ISO" -allow-limited-size "$DIR"
 
 mv "$ISO" "$STORAGE/$BASE"
-
 rm -rf "$TMP"
 
+echo
 return 0
