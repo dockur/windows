@@ -125,13 +125,12 @@ echo
 XML=""
 FB="falling back to manual installation!"
 
-if [[ "$EXTERNAL" != [Yy1]* ]]; then
+if [[ "$MANUAL" != [Yy1]* ]]; then
+  if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
-  XML="$VERSION.xml"
+    XML="$VERSION.xml"
 
-else
-
-  if [[ "$MANUAL" != [Yy1]* ]]; then
+  else
 
     info "Detecting Windows version from ISO image..."
 
