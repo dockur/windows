@@ -23,10 +23,6 @@ if [[ "${DISPLAY,,}" == "web" ]]; then
   nginx -e stderr
 fi
 
-mkdir -p /dev/shm/emulated_tpm
-swtpm socket -t -d --tpmstate dir=/dev/shm/emulated_tpm --ctrl \
-  type=unixio,path=/dev/shm/emulated_tpm/swtpm-sock --log level=1 --tpm2
-
 info "Booting Windows using $VERS..."
 
 [[ "$DEBUG" == [Yy1]* ]] && set -x
