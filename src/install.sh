@@ -122,6 +122,8 @@ rm -rf "$DIR"
 7z x "$ISO" -o"$DIR"
 echo
 
+FB="falling back to manual installation!"
+
 if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
   XML="$VERSION.xml"
@@ -154,10 +156,10 @@ else
       echo "Detected image of type '$DETECTED', will apply unattended.xml file."
 
     else
-      error "Warning: failed to detect Windows version from '$NAME', falling back to manual installation!"
+      error "Warning: failed to detect Windows version from '$NAME', $FB"
     fi
   else
-    error "Warning: failed to locate 'install.wim' or 'install.esd' in ISO image, falling back to manual installation!"
+    error "Warning: failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
   fi
   echo
 fi
@@ -173,43 +175,38 @@ if [[ "$MANUAL" != [Yy1]* ]]; then
       wimlib-imagex update "$LOC" 2 --command "add /run/assets/$XML /autounattend.xml"
 
     else
-      error "Warning: failed to locate 'boot.wim' or 'boot.esd' in ISO image, falling back to manual installation!"
+      error "Warning: failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB"
     fi
   else
-    [ -n "$XML" ] && error "Warning: XML file '$XML' does not exist, falling back to manual installation!"
+    [ -n "$XML" ] && error "Warning: XML file '$XML' does not exist, $FB"
   fi
   echo
 fi
-
-LABEL="${BASE%.*}"
-LABEL="${LABEL::32}"
-
-ISO="$TMP/$LABEL.tmp"
-rm -f "$ISO"
 
 CAT="BOOT.CAT"
 ETFS="boot/etfsboot.com"
 EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 
-if [ ! -f "$DIR/$CAT" ]; then
-  error "Failed to locate file '$(basename "$CAT")' in ISO image!" && exit 63
-fi
+if [ -f "$DIR/$CAT" ]; then
+  if [ -f "$DIR/$ETFS" ]; then
+    if [ -f "$DIR/$EFISYS" ]; then
 
-if [ ! -f "$DIR/$ETFS" ]; then
-  error "Failed to locate file '$(basename "$ETFS")' in ISO image!" && exit 64
-fi
+      LABEL="${BASE%.*}"
+      LABEL="${LABEL::32}"
+      ISO="$TMP/$LABEL.tmp"
+      rm -f "$ISO"
 
-if [ ! -f "$DIR/$EFISYS" ]; then
-  EFISYS="efi/microsoft/boot/efisys.bin"
-  if [ -f "$DIR/$EFISYS" ]; then
-    error "Failed to locate file 'efisys_noprompt' in ISO image!"
+      genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -v -V "$LABEL" -udf \
+                              -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$ISO" -allow-limited-size "$DIR"
+    else
+      error "Failed to locate file '"$(basename "$EFISYS")"' in ISO image, $FB"
+    fi
   else
-    error "Failed to locate file 'efisys.bin' in ISO image!" && exit 65
+    error "Failed to locate file '"$(basename "$ETFS")"' in ISO image, $FB"
   fi
+else
+  error "Failed to locate file '"$(basename "$CAT")"' in ISO image, $FB"
 fi
-
-genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -v -V "$LABEL" -udf \
-                        -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$ISO" -allow-limited-size "$DIR"
 
 mv "$ISO" "$STORAGE/$BASE"
 rm -rf "$TMP"
