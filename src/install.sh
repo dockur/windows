@@ -6,8 +6,8 @@ set -Eeuo pipefail
 : "${VERSION:="win11x64"}"
 
 ARGUMENTS="-audiodev none,id=snd0 $ARGUMENTS"
+ARGUMENTS="-device ich9-intel-hda,bus=pcie.0 $ARGUMENTS"
 ARGUMENTS="-device hda-output,audiodev=snd0 $ARGUMENTS"
-ARGUMENTS="-device ich9-intel-hda,bus=pcie.0,addr=0x2 $ARGUMENTS"
 ARGUMENTS="-chardev socket,id=chrtpm,path=/dev/shm/emulated_tpm/swtpm-sock $ARGUMENTS"
 ARGUMENTS="-tpmdev emulator,id=tpm0,chardev=chrtpm -device tpm-tis,tpmdev=tpm0 $ARGUMENTS"
 
