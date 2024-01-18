@@ -187,18 +187,29 @@ LABEL="${LABEL::32}"
 ISO="$TMP/$LABEL.tmp"
 rm -f "$ISO"
 
+CAT="BOOT.CAT"
+ETFS="boot/etfsboot.com"
 EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
-[ -f "$DIR/$EFISYS" ] && EFISYS="efi/microsoft/boot/efisys.bin"
 
-if [ -f "$DIR/$EFISYS" ]; then
-
-  genisoimage -b boot/etfsboot.com -no-emul-boot -c BOOT.CAT -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -v -V "$LABEL" \
-                          -udf -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$ISO" -allow-limited-size "$DIR"
-else
-
-  error "Failed to locate file 'efisys.bin' in ISO image!" && exit 64
-
+if [ ! -f "$DIR/$CAT" ]; then
+  error "Failed to locate file '$(basename "$CAT")' in ISO image!" && exit 63
 fi
+
+if [ ! -f "$DIR/$ETFS" ]; then
+  error "Failed to locate file '$(basename "$ETFS")' in ISO image!" && exit 64
+fi
+
+if [ ! -f "$DIR/$EFISYS" ]; then
+  EFISYS="efi/microsoft/boot/efisys.bin"
+  if [ -f "$DIR/$EFISYS" ]; then
+    error "Failed to locate file 'efisys_noprompt' in ISO image!"
+  else
+    error "Failed to locate file 'efisys.bin' in ISO image!" && exit 65
+  fi
+fi
+
+genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -v -V "$LABEL" -udf \
+                        -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$ISO" -allow-limited-size "$DIR"
 
 mv "$ISO" "$STORAGE/$BASE"
 rm -rf "$TMP"
