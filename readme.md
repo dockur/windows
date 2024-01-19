@@ -79,8 +79,6 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
     - ```win22``` = Windows Server 2022
     - ```win19``` = Windows Server 2019
     - ```win16``` = Windows Server 2016
-    - ```tiny11``` = Tiny11 (Slow download)
-    - ```tiny10``` = Tiny10 (Slow download)
  
   * ### How do I increase the amount of CPU or RAM?
 
