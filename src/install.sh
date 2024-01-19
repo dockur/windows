@@ -48,16 +48,22 @@ fi
 
 MSG="Please wait while Windows is being started..."
 
-if [ ! -f "$STORAGE/custom.iso" ]; then
+BASE="custom.iso"
+if [ ! -f "$STORAGE/$BASE" ]; then
+
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
-    if [ ! -f "$STORAGE/$VERSION.iso" ]; then
+    BASE="$VERSION.iso"
+    if [ ! -f "$STORAGE/$BASE" ]; then
       MSG="Please wait while Windows is being downloaded..."
     fi
 
   else
 
-    BASE=$(basename "$VERSION")
+    BASE=$(basename "${VERSION%%\?*}")
+    : "${BASE//+/ }"; printf -v BASE '%b' "${_//%/\\x}"
+    BASE=$(echo "$BASE" | sed -e 's/[^A-Za-z0-9._-]/_/g')
+
     if [ ! -f "$STORAGE/$BASE" ]; then
       MSG="Please wait while '$BASE' is being downloaded..."
     fi
@@ -67,19 +73,6 @@ fi
 
 # Display wait message
 /run/server.sh "Windows" "$MSG" &
-
-BASE="custom.iso"
-[ -f "$STORAGE/$BASE" ] && return 0
-
-if [[ "$EXTERNAL" != [Yy1]* ]]; then
-
-  BASE="$VERSION.iso"
-
-else
-
-  BASE=$(basename "$VERSION")
-
-fi
 
 [ -f "$STORAGE/$BASE" ] && return 0
 
@@ -250,8 +243,6 @@ else
   [ -n "$XML" ] && error "Warning: XML file '$XML' does not exist, $FB" && echo
 fi
 
-info "Generating new ISO image for installation..."
-
 ETFS="boot/etfsboot.com"
 EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 
@@ -263,6 +254,8 @@ if [ -f "$DIR/$ETFS" ]; then
     LABEL="${LABEL::32}"
     ISO="$TMP/$LABEL.tmp"
     rm -f "$ISO"
+
+    info "Generating new ISO image for installation..."
 
     genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -quiet -V "$LABEL" -udf \
                            -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$ISO" -allow-limited-size "$DIR"
