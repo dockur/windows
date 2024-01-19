@@ -128,8 +128,20 @@ rm -rf "$DIR"
 7z x "$ISO" -o"$DIR" > /dev/null
 echo
 
-XML=""
 FB="falling back to manual installation!"
+ETFS="boot/etfsboot.com"
+EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
+
+if [ ! -f "$DIR/$ETFS" ] || [ ! -f "$DIR/$EFISYS" ]; then
+  if [ ! -f "$DIR/$ETFS" ]; then
+    warn "failed to locate file 'etfsboot.com' in ISO image, $FB"
+  else
+    warn "failed to locate file 'efisys_noprompt.bin' in ISO image, $FB"
+  fi
+  mv "$ISO" "$STORAGE/$BASE"
+  rm -rf "$TMP"
+  echo && return 0
+fi
 
 if [ -z "$MANUAL" ]; then
 
@@ -140,6 +152,8 @@ if [ -z "$MANUAL" ]; then
   fi
 
 fi
+
+XML=""
 
 if [[ "$MANUAL" != [Yy1]* ]]; then
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
@@ -179,17 +193,17 @@ if [[ "$MANUAL" != [Yy1]* ]]; then
 
       else
         if [ -z "$NAME" ]; then
-          error "Warning: failed to detect Windows version from image, $FB"
+          warn "failed to detect Windows version from image, $FB"
         else
           if [[ "${NAME,,}" == "windows 7" ]]; then
-            error "Warning: detected Windows 7 image, $FB"
+            warn "detected Windows 7 image, $FB"
           else
-            error "Warning: failed to detect Windows version from string '$NAME', $FB"
+            warn "failed to detect Windows version from string '$NAME', $FB"
           fi
         fi
       fi
     else
-      error "Warning: failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
+      warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
     fi
     echo
   fi
@@ -217,7 +231,7 @@ if [ -f "$ASSET" ]; then
     wimlib-imagex update "$LOC" "$INDEX" --command "add $ASSET /autounattend.xml" > /dev/null
 
   else
-    error "Warning: failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB"
+    warn "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB"
   fi
 
   LOC="$DIR/autounattend.xml"
@@ -240,32 +254,21 @@ if [ -f "$ASSET" ]; then
   echo
 
 else
-  [ -n "$XML" ] && error "Warning: XML file '$XML' does not exist, $FB" && echo
-fi
-
-ETFS="boot/etfsboot.com"
-EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
-
-if [ -f "$DIR/$ETFS" ]; then
-  if [ -f "$DIR/$EFISYS" ]; then
-
-    CAT="BOOT.CAT"
-    LABEL="${BASE%.*}"
-    LABEL="${LABEL::32}"
-    ISO="$TMP/$LABEL.tmp"
-    rm -f "$ISO"
-
-    info "Generating new ISO image for installation..."
-
-    genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -quiet -V "$LABEL" -udf \
-                           -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$ISO" -allow-limited-size "$DIR"
-
-  else
-    error "Failed to locate file 'efisys_noprompt.bin' in ISO image, $FB"
+  if [ -n "$XML" ]; then
+    warn "XML file '$XML' does not exist, $FB" && echo
   fi
-else
-  error "Failed to locate file 'etfsboot.com' in ISO image, $FB"
 fi
+
+CAT="BOOT.CAT"
+LABEL="${BASE%.*}"
+LABEL="${LABEL::30}"
+ISO="$TMP/$LABEL.tmp"
+rm -f "$ISO"
+
+info "Generating new ISO image for installation..."
+
+genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -quiet -V "$LABEL" -udf \
+                       -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$ISO" -allow-limited-size "$DIR"
 
 mv "$ISO" "$STORAGE/$BASE"
 rm -rf "$TMP"
