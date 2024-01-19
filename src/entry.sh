@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 echo "❯ Starting Windows for Docker v$(</run/version)..."
 echo "❯ For support visit https://github.com/dockur/windows"
+echo
 
 export BOOT_MODE=windows
 
@@ -23,7 +24,7 @@ if [[ "${DISPLAY,,}" == "web" ]]; then
   nginx -e stderr
 fi
 
-info "Booting Windows using $VERS..."
+echo && info "Booting Windows using $VERS..."
 
 [[ "$DEBUG" == [Yy1]* ]] && set -x
 exec qemu-system-x86_64 ${ARGS:+ $ARGS}
