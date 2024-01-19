@@ -58,6 +58,8 @@ if [ ! -f "$STORAGE/custom.iso" ]; then
   else
 
     BASE=$(basename "$VERSION")
+    BASE="${BASE%%\?*}"
+
     if [ ! -f "$STORAGE/$BASE" ]; then
       MSG="Please wait while '$BASE' is being downloaded..."
     fi
@@ -78,6 +80,7 @@ if [[ "$EXTERNAL" != [Yy1]* ]]; then
 else
 
   BASE=$(basename "$VERSION")
+  BASE="${BASE%%\?*}"
 
 fi
 
