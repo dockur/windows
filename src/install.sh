@@ -48,10 +48,13 @@ fi
 
 MSG="Please wait while Windows is being started..."
 
-if [ ! -f "$STORAGE/custom.iso" ]; then
+BASE="custom.iso"
+if [ ! -f "$STORAGE/$BASE" ]; then
+
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
-    if [ ! -f "$STORAGE/$VERSION.iso" ]; then
+    BASE="$VERSION.iso"
+    if [ ! -f "$STORAGE/$BASE" ]; then
       MSG="Please wait while Windows is being downloaded..."
     fi
 
@@ -59,6 +62,8 @@ if [ ! -f "$STORAGE/custom.iso" ]; then
 
     BASE=$(basename "$VERSION")
     BASE="${BASE%%\?*}"
+    : "${BASE//+/ }"; printf -v BASE '%b' "${_//%/\\x}"
+    BASE=$(echo "$BASE" | sed -e 's/[^A-Za-z0-9._-]/_/g')
 
     if [ ! -f "$STORAGE/$BASE" ]; then
       MSG="Please wait while '$BASE' is being downloaded..."
@@ -69,20 +74,6 @@ fi
 
 # Display wait message
 /run/server.sh "Windows" "$MSG" &
-
-BASE="custom.iso"
-[ -f "$STORAGE/$BASE" ] && return 0
-
-if [[ "$EXTERNAL" != [Yy1]* ]]; then
-
-  BASE="$VERSION.iso"
-
-else
-
-  BASE=$(basename "$VERSION")
-  BASE="${BASE%%\?*}"
-
-fi
 
 [ -f "$STORAGE/$BASE" ] && return 0
 
