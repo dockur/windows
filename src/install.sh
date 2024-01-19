@@ -268,10 +268,10 @@ if [ -f "$DIR/$ETFS" ]; then
                            -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$ISO" -allow-limited-size "$DIR"
 
   else
-    error "Failed to locate file '"$(basename "$EFISYS")"' in ISO image, $FB"
+    error "Failed to locate file 'efisys_noprompt.bin' in ISO image, $FB"
   fi
 else
-  error "Failed to locate file '"$(basename "$ETFS")"' in ISO image, $FB"
+  error "Failed to locate file 'etfsboot.com' in ISO image, $FB"
 fi
 
 mv "$ISO" "$STORAGE/$BASE"
