@@ -16,8 +16,8 @@ RUN apt-get update \
 COPY ./src /run/
 COPY ./assets /run/assets
 
+ADD https://github.com/qemus/virtiso/raw/master/virtio-win.iso /run/drivers.iso
 ADD https://raw.githubusercontent.com/ElliotKillick/Mido/main/Mido.sh /run/mido.sh
-ADD https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/latest-virtio/virtio-win.iso /run/drivers.iso
 
 RUN chmod +x /run/*.sh
 
