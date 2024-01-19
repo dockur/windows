@@ -251,7 +251,7 @@ if [ -f "$DIR/$ETFS" ]; then
 
     CAT="BOOT.CAT"
     LABEL="${BASE%.*}"
-    LABEL="${LABEL::32}"
+    LABEL="${LABEL::30}"
     ISO="$TMP/$LABEL.tmp"
     rm -f "$ISO"
 
