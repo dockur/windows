@@ -250,8 +250,6 @@ else
   [ -n "$XML" ] && error "Warning: XML file '$XML' does not exist, $FB" && echo
 fi
 
-info "Generating new ISO image for installation..."
-
 ETFS="boot/etfsboot.com"
 EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 
@@ -263,6 +261,8 @@ if [ -f "$DIR/$ETFS" ]; then
     LABEL="${LABEL::32}"
     ISO="$TMP/$LABEL.tmp"
     rm -f "$ISO"
+
+    info "Generating new ISO image for installation..."
 
     genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -quiet -V "$LABEL" -udf \
                            -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$ISO" -allow-limited-size "$DIR"
