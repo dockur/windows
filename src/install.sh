@@ -46,7 +46,7 @@ else
   EXTERNAL="N"
 fi
 
-MSG="Please wait while Windows is being started..."
+MSG="Windows is being started, please wait..."
 
 BASE="custom.iso"
 if [ ! -f "$STORAGE/$BASE" ]; then
@@ -55,7 +55,7 @@ if [ ! -f "$STORAGE/$BASE" ]; then
 
     BASE="$VERSION.iso"
     if [ ! -f "$STORAGE/$BASE" ]; then
-      MSG="Please wait while Windows is being downloaded..."
+      MSG="Windows is being downloaded, please wait..."
     fi
 
   else
@@ -65,14 +65,13 @@ if [ ! -f "$STORAGE/$BASE" ]; then
     BASE=$(echo "$BASE" | sed -e 's/[^A-Za-z0-9._-]/_/g')
 
     if [ ! -f "$STORAGE/$BASE" ]; then
-      MSG="Please wait while '$BASE' is being downloaded..."
+      MSG="Image '$BASE' is being downloaded, please wait..."
     fi
 
   fi
 fi
 
-# Display wait message
-/run/server.sh "Windows" "$MSG" &
+html "$MSG"
 
 [ -f "$STORAGE/$BASE" ] && return 0
 
@@ -120,7 +119,8 @@ if ((SIZE<10000000)); then
   echo && error "Invalid ISO file: Size is smaller than 10 MB" && exit 62
 fi
 
-echo && info "Extracting downloaded ISO image..."
+MSG="Extracting downloaded ISO image..."
+echo && info "$MSG" && html "$MSG"
 
 DIR="$TMP/unpack"
 rm -rf "$DIR"
@@ -162,7 +162,8 @@ if [[ "$MANUAL" != [Yy1]* ]]; then
 
   else
 
-    info "Detecting Windows version from ISO image..."
+    MSG="Detecting Windows version from ISO image..."
+    info "$MSG" && html "$MSG"
 
     LOC="$DIR/sources/install.wim"
     [ ! -f "$LOC" ] && LOC="$DIR/sources/install.esd"
@@ -218,7 +219,8 @@ if [ -f "$ASSET" ]; then
 
   if [ -f "$LOC" ]; then
 
-    info "Adding XML file for automatic installation..."
+    MSG="Adding XML file for automatic installation..."
+    info "$MSG" && html "$MSG"
 
     RESULT=$(wimlib-imagex info -xml "$LOC" | tr -d '\000')
 
@@ -265,13 +267,16 @@ LABEL="${LABEL::30}"
 ISO="$TMP/$LABEL.tmp"
 rm -f "$ISO"
 
-info "Generating new ISO image for installation..."
+MSG="Generating new ISO image for installation..."
+info "$MSG" && html "$MSG"
 
 genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -quiet -V "$LABEL" -udf \
                        -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$ISO" -allow-limited-size "$DIR"
 
 mv "$ISO" "$STORAGE/$BASE"
 rm -rf "$TMP"
+
+html "Successfully prepared image for installation..."
 
 echo
 return 0
