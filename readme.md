@@ -143,16 +143,16 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
 
     - Now your Windows installation is ready for use. Enjoy it, and don't forget to star this repo!
 
-  * ### How do I install an unsupported version?
+  * ### How do I install a custom image?
 
-    You can specify an URL in the `VERSION` environment variable, in order to download a custom ISO image:
+    In order to download a custom ISO image, specify an URL in the `VERSION` environment variable:
     
     ```yaml
     environment:
       VERSION: "https://example.com/win.iso"
     ```
     
-    During the installation you may need to add some drivers as described in [manual installation](https://github.com/dockur/windows/tree/master?tab=readme-ov-file#how-do-i-perform-a-manual-installation) above.
+    Make sure your `/storage` folder is empty before starting the container. Alternatively, you can also place a file called `custom.iso` in that folder to skip the download too.
 
   * ### How do I pass-through a disk?
 
