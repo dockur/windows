@@ -152,7 +152,7 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
       VERSION: "https://example.com/win.iso"
     ```
     
-    Make sure your `/storage` folder is empty before starting the container. Alternatively, you can also place a file called `custom.iso` in that folder to skip the download too.
+    Make sure your `/storage` folder is empty before starting the container. Alternatively, you can also place a file called `custom.iso` in that folder to skip the download.
 
   * ### How do I pass-through a disk?
 
