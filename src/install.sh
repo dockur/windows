@@ -90,7 +90,9 @@ CUSTOM="custom.iso"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.ISO"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.IMG"
 
-if [ -f "$STORAGE/$CUSTOM" ]; then
+if [ ! -f "$STORAGE/$CUSTOM" ]; then
+  CUSTOM=""
+else
   ISO="$STORAGE/$CUSTOM"
 fi
 
