@@ -2,7 +2,6 @@
 set -Eeuo pipefail
 
 : "${MANUAL:=""}"
-: "${EXTERNAL:=""}"
 : "${VERSION:="win11x64"}"
 
 [[ "${VERSION,,}" == "11" ]] && VERSION="win11x64"
@@ -48,28 +47,27 @@ fi
 
 MSG="Windows is being started, please wait..."
 
-BASE="custom.iso"
-if [ ! -f "$STORAGE/$BASE" ]; then
+if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
-  if [[ "$EXTERNAL" != [Yy1]* ]]; then
+  BASE="$VERSION.iso"
 
-    BASE="$VERSION.iso"
-    if [ ! -f "$STORAGE/$BASE" ]; then
-      MSG="Windows is being downloaded, please wait..."
-    fi
-
-  else
-
-    BASE=$(basename "${VERSION%%\?*}")
-    : "${BASE//+/ }"; printf -v BASE '%b' "${_//%/\\x}"
-    BASE=$(echo "$BASE" | sed -e 's/[^A-Za-z0-9._-]/_/g')
-
-    if [ ! -f "$STORAGE/$BASE" ]; then
-      MSG="Image '$BASE' is being downloaded, please wait..."
-    fi
-
+  if [ ! -f "$STORAGE/$BASE" ]; then
+    MSG="Windows is being downloaded, please wait..."
   fi
+
+else
+
+  BASE=$(basename "${VERSION%%\?*}")
+  : "${BASE//+/ }"; printf -v BASE '%b' "${_//%/\\x}"
+  BASE=$(echo "$BASE" | sed -e 's/[^A-Za-z0-9._-]/_/g')
+
+  if [ ! -f "$STORAGE/$BASE" ]; then
+    MSG="Image '$BASE' is being downloaded, please wait..."
+  fi
+
 fi
+
+[[ "${BASE,,}" == "custom."* ]] && BASE="target.iso"
 
 html "$MSG"
 
@@ -82,44 +80,73 @@ mkdir -p "$TMP"
 ISO="$TMP/$BASE"
 rm -f "$ISO"
 
-if [[ "$EXTERNAL" != [Yy1]* ]]; then
+CUSTOM="custom.iso"
 
-  SCRIPT="$TMP/mido.sh"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.img"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.iso"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.img"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.ISO"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.IMG"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.ISO"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.IMG"
 
-  rm -f "$SCRIPT"
-  cp /run/mido.sh "$SCRIPT"
-  chmod +x "$SCRIPT"
-  cd "$TMP"
-  bash "$SCRIPT" "$VERSION"
-  rm -f "$SCRIPT"
-  cd /run
-
-else
-
-  info "Downloading $BASE as boot image..."
-
-  # Check if running with interactive TTY or redirected to docker log
-  if [ -t 1 ]; then
-    PROGRESS="--progress=bar:noscroll"
-  else
-    PROGRESS="--progress=dot:giga"
-  fi
-
-  { wget "$VERSION" -O "$ISO" -q --no-check-certificate --show-progress "$PROGRESS"; rc=$?; } || :
-
-  (( rc != 0 )) && echo && error "Failed to download $VERSION, reason: $rc" && exit 60
-
+if [ -f "$STORAGE/$CUSTOM" ]; then
+  ISO="$STORAGE/$CUSTOM"
 fi
 
-[ ! -f "$ISO" ] && echo && error "Failed to download $VERSION" && exit 61
+if [ ! -f "$ISO" ]; then
+  if [[ "$EXTERNAL" != [Yy1]* ]]; then
+
+    SCRIPT="$TMP/mido.sh"
+
+    rm -f "$SCRIPT"
+    cp /run/mido.sh "$SCRIPT"
+    chmod +x "$SCRIPT"
+    cd "$TMP"
+    bash "$SCRIPT" "$VERSION"
+    rm -f "$SCRIPT"
+    cd /run
+
+  else
+
+    info "Downloading $BASE as boot image..."
+
+    # Check if running with interactive TTY or redirected to docker log
+    if [ -t 1 ]; then
+      PROGRESS="--progress=bar:noscroll"
+    else
+      PROGRESS="--progress=dot:giga"
+    fi
+
+    { wget "$VERSION" -O "$ISO" -q --no-check-certificate --show-progress "$PROGRESS"; rc=$?; } || :
+
+    (( rc != 0 )) && echo && error "Failed to download $VERSION, reason: $rc" && exit 60
+
+  fi
+
+  [ ! -f "$ISO" ] && echo && error "Failed to download $VERSION" && exit 61
+fi
 
 SIZE=$(stat -c%s "$ISO")
+SIZE_GB=$(( (SIZE + 1073741823)/1073741824 ))
 
 if ((SIZE<10000000)); then
   echo && error "Invalid ISO file: Size is smaller than 10 MB" && exit 62
 fi
 
-MSG="Extracting downloaded ISO image..."
+SPACE=$(df --output=avail -B 1 "$TMP" | tail -n 1)
+SPACE_GB=$(( (SPACE + 1073741823)/1073741824 ))
+
+if (( SIZE > SPACE )); then
+  error "Not enough free space in $STORAGE, have $SPACE_GB GB available but need at least $SIZE_GB GB." && exit 63
+fi
+
+if [ -n "$CUSTOM" ]; then
+  MSG="Extracting custom ISO image..."
+else
+  MSG="Extracting downloaded ISO image..."
+fi
+
 echo && info "$MSG" && html "$MSG"
 
 DIR="$TMP/unpack"
@@ -138,10 +165,12 @@ if [ ! -f "$DIR/$ETFS" ] || [ ! -f "$DIR/$EFISYS" ]; then
   else
     warn "failed to locate file 'efisys_noprompt.bin' in ISO image, $FB"
   fi
-  mv "$ISO" "$STORAGE/$BASE"
+  mv -f "$ISO" "$STORAGE/$BASE"
   rm -rf "$TMP"
   echo && return 0
 fi
+
+[ -z "$CUSTOM" ] && rm -f "$ISO"
 
 if [ -z "$MANUAL" ]; then
 
@@ -156,11 +185,10 @@ fi
 XML=""
 
 if [[ "$MANUAL" != [Yy1]* ]]; then
-  if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
-    XML="$VERSION.xml"
+  [[ "$EXTERNAL" != [Yy1]* ]] && XML="$VERSION.xml"
 
-  else
+  if [ ! -f "/run/assets/$XML" ]; then
 
     MSG="Detecting Windows version from ISO image..."
     info "$MSG" && html "$MSG"
@@ -190,7 +218,12 @@ if [[ "$MANUAL" != [Yy1]* ]]; then
       if [ -n "$DETECTED" ]; then
 
         XML="$DETECTED.xml"
-        echo "Detected image of type '$DETECTED', will apply autounattend.xml file."
+
+        if [ -f "/run/assets/$XML" ]; then
+          echo "Detected image of type '$DETECTED', will apply an autounattend.xml file."
+        else
+          warn "detected image of type '$DETECTED', but no matching .xml file exists, $FB."
+        fi
 
       else
         if [ -z "$NAME" ]; then
@@ -255,25 +288,30 @@ if [ -f "$ASSET" ]; then
 
   echo
 
-else
-  if [ -n "$XML" ]; then
-    warn "XML file '$XML' does not exist, $FB" && echo
-  fi
 fi
 
 CAT="BOOT.CAT"
 LABEL="${BASE%.*}"
 LABEL="${LABEL::30}"
-ISO="$TMP/$LABEL.tmp"
-rm -f "$ISO"
+OUT="$TMP/$LABEL.tmp"
+rm -f "$OUT"
+
+SPACE=$(df --output=avail -B 1 "$TMP" | tail -n 1)
+SPACE_GB=$(( (SPACE + 1073741823)/1073741824 ))
+
+if (( SIZE > SPACE )); then
+  error "Not enough free space in $STORAGE, have $SPACE_GB GB available but need at least $SIZE_GB GB." && exit 63
+fi
 
 MSG="Generating new ISO image for installation..."
 info "$MSG" && html "$MSG"
 
 genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -quiet -V "$LABEL" -udf \
-                       -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$ISO" -allow-limited-size "$DIR"
+                       -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$OUT" -allow-limited-size "$DIR"
 
-mv "$ISO" "$STORAGE/$BASE"
+[ -n "$CUSTOM" ] && rm -f "$ISO"
+mv "$OUT" "$STORAGE/$BASE"
+
 rm -rf "$TMP"
 
 html "Successfully prepared image for installation..."
