@@ -56,7 +56,7 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
     
     - Start the container and get some coffee.
 
-    - Connect to port 8006 of the container in your web browser.
+    - Connect to [port 8006](http://localhost:8006) of the container in your web browser.
 
     - Sit back and relax while the magic happens, the whole installation will be performed fully automatic.
 
@@ -127,7 +127,7 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
 
     Then follow these steps:
 
-    - Start the container and connect to port 8006 of the container in your web browser. After the download is finished, you will see the Windows installation screen.
+    - Start the container and connect to [port 8006](http://localhost:8006) of the container in your web browser. After the download is finished, you will see the Windows installation screen.
 
     - Start the installation by clicking ```Install now```. On the next screen, press 'OK' when prompted to ```Load driver``` and select the ```VirtIO SCSI``` driver from the list that matches your Windows version. So for Windows 11, select ```D:\amd64\w11\vioscsi.inf``` and click 'Next'.
 
