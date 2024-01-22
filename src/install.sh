@@ -39,40 +39,8 @@ if [[ "${VERSION,,}" == "tiny11" ]]; then
   VERSION="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
 fi
 
-if [[ "${VERSION,,}" == "http"* ]]; then
-  EXTERNAL="Y"
-else
-  EXTERNAL="N"
-fi
-
-TMP="$STORAGE/tmp"
-MSG="Windows is being started, please wait..."
-
-if [[ "$EXTERNAL" != [Yy1]* ]]; then
-
-  BASE="$VERSION.iso"
-
-  if [ ! -f "$STORAGE/$BASE" ]; then
-    MSG="Windows is being downloaded, please wait..."
-  fi
-
-else
-
-  BASE=$(basename "${VERSION%%\?*}")
-  : "${BASE//+/ }"; printf -v BASE '%b' "${_//%/\\x}"
-  BASE=$(echo "$BASE" | sed -e 's/[^A-Za-z0-9._-]/_/g')
-
-  if [ ! -f "$STORAGE/$BASE" ]; then
-    MSG="Image '$BASE' is being downloaded, please wait..."
-  fi
-
-fi
-
-[[ "${BASE,,}" == "custom."* ]] && BASE="target.iso"
-
-html "$MSG"
-
 CUSTOM="custom.iso"
+
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.iso"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.ISO"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.ISO"
@@ -81,11 +49,49 @@ CUSTOM="custom.iso"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.IMG"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.IMG"
 
+MSG="Windows is being started, please wait..."
+
 if [ -f "$STORAGE/$CUSTOM" ]; then
+
+  EXTERNAL="N"
   BASE="$CUSTOM"
+
 else
+
   CUSTOM=""
+
+  if [[ "${VERSION,,}" == "http"* ]]; then
+    EXTERNAL="Y"
+  else
+    EXTERNAL="N"
+  fi
+
+  if [[ "$EXTERNAL" != [Yy1]* ]]; then
+
+    BASE="$VERSION.iso"
+
+    if [ ! -f "$STORAGE/$BASE" ]; then
+      MSG="Windows is being downloaded, please wait..."
+    fi
+
+  else
+
+    BASE=$(basename "${VERSION%%\?*}")
+    : "${BASE//+/ }"; printf -v BASE '%b' "${_//%/\\x}"
+    BASE=$(echo "$BASE" | sed -e 's/[^A-Za-z0-9._-]/_/g')
+
+    if [ ! -f "$STORAGE/$BASE" ]; then
+      MSG="Image '$BASE' is being downloaded, please wait..."
+    fi
+
+  fi
+
+  [[ "${BASE,,}" == "custom."* ]] && BASE="target.iso"
+
 fi
+
+html "$MSG"
+TMP="$STORAGE/tmp"
 
 if [ -f "$STORAGE/$BASE" ]; then
 
@@ -99,7 +105,8 @@ if [ -f "$STORAGE/$BASE" ]; then
   fi
 
   CUSTOM="$BASE"
-  info "Custom ISO file '$BASE' needs to be prepared..."
+  MSG="ISO file '$BASE' needs to be prepared..."
+  info "$MSG" && html "$MSG"
 
 fi
 
@@ -158,7 +165,7 @@ if (( SIZE > SPACE )); then
 fi
 
 if [ -n "$CUSTOM" ]; then
-  MSG="Extracting custom ISO image..."
+  MSG="Extracting local ISO image..."
 else
   MSG="Extracting downloaded ISO image..."
 fi
