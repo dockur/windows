@@ -106,23 +106,21 @@ if [ -f "$STORAGE/$BASE" ]; then
   MAGIC=$(dd if="$STORAGE/$BASE" seek=0 bs=1 count=1 status=none | tr -d '\000')
   MAGIC="$(printf '%s' "$MAGIC" | od -A n -t x1 -v | tr -d ' \n')"
 
-  if [[ "$MAGIC" == "16" ]] || [[ "$MAGIC" == "17" ]] || [[ "$MAGIC" == "18" ]]; then
-    if [ -f "$STORAGE/windows.ver" ] && [ -f "$STORAGE/windows.base" ]; then
-      if [ -f "$STORAGE/data.img" ] || [ -f "$STORAGE/data.qcow2" ] DEVICDEE; then
-        if [ -f "$STORAGE/windows.mode" ]; then
+  if [[ "$MAGIC" == "16" ]] && [ -f "$STORAGE/windows.ver" ]; then
 
-          LAST_MODE=$(<"$STORAGE/windows.mode")
-  
-          if [[ "${LAST_MODE,,}" == "${MANUAL,,}" ]]; then
-  
-            rm -rf "$TMP"
-            return 0
-  
-          fi
+    FOUND="N"
 
-        fi
-      fi
+    if [ -f "$STORAGE/data.img" ] || [ -f "$STORAGE/data.qcow2" ]; then
+      FOUND="Y"
+    else
+      [ -b "${DEVICE:-}" ] && FOUND="Y"
     fi
+
+    if [[ "$FOUND" == "Y" ]]; then
+      rm -rf "$TMP"
+      return 0
+    fi
+
   fi
 
   EXTERNAL="Y"
@@ -217,10 +215,8 @@ if [ ! -f "$DIR/$ETFS" ] || [ ! -f "$DIR/$EFISYS" ]; then
   [[ "$ISO" != "$STORAGE/$BASE" ]] && mv -f "$ISO" "$STORAGE/$BASE"
 
   rm -f "$STORAGE/windows.ver"
-  rm -f "$STORAGE/windows.xml"
   cp /run/version "$STORAGE/windows.ver"
-  echo "$BASE" > "$STORAGE/windows.base"
-  echo "$MANUAL" > "$STORAGE/windows.mode"
+
   rm -rf "$TMP"
   return 0
 fi
@@ -367,13 +363,7 @@ genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-
                        -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$OUT" -allow-limited-size "$DIR"
 
 # Mark ISO as prepared via magic byte
-if [ ! -f "$ASSET" ]; then
-  BYTE="\x17"
-else
-  BYTE="\x18"
-fi
-
-printf "$BYTE" | dd of=$OUT bs=1 seek=0 count=1 conv=notrunc status=none
+printf '\x16' | dd of=$ISO bs=1 seek=0 count=1 conv=notrunc status=none
 
 [ -n "$CUSTOM" ] && rm -f "$STORAGE/$CUSTOM"
 
@@ -384,14 +374,7 @@ fi
 mv "$OUT" "$STORAGE/$BASE"
 
 rm -f "$STORAGE/windows.ver"
-rm -f "$STORAGE/windows.xml"
 cp /run/version "$STORAGE/windows.ver"
-echo "$BASE" > "$STORAGE/windows.base"
-echo "$MANUAL" > "$STORAGE/windows.mode"
-
-if [ -f "$ASSET" ]; then
-  cp "$ASSET" "$STORAGE/windows.xml"
-fi
 
 rm -rf "$TMP"
 
