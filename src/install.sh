@@ -39,6 +39,13 @@ if [[ "${VERSION,,}" == "tiny11" ]]; then
   VERSION="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
 fi
 
+if [ -z "$MANUAL" ]; then
+
+  MANUAL="N"
+  [[ "${BASE,,}" == "tiny10"* ]] && MANUAL="Y"
+
+fi
+
 CUSTOM="custom.iso"
 
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.iso"
@@ -53,7 +60,7 @@ MSG="Windows is being started, please wait..."
 
 if [ -f "$STORAGE/$CUSTOM" ]; then
 
-  EXTERNAL="N"
+  EXTERNAL="Y"
   BASE="$CUSTOM"
 
 else
@@ -86,7 +93,7 @@ else
 
   fi
 
-  [[ "${BASE,,}" == "custom."* ]] && BASE="target.iso"
+  [[ "${BASE,,}" == "custom."* ]] && BASE="windows.iso"
 
 fi
 
@@ -100,10 +107,25 @@ if [ -f "$STORAGE/$BASE" ]; then
   MAGIC="$(printf '%s' "$MAGIC" | od -A n -t x1 -v | tr -d ' \n')"
 
   if [[ "$MAGIC" == "16" ]] || [[ "$MAGIC" == "17" ]] || [[ "$MAGIC" == "18" ]]; then
-    rm -rf "$TMP"
-    return 0
+    if [ -f "$STORAGE/windows.ver" ] && [ -f "$STORAGE/windows.base" ]; then
+      if [ -f "$STORAGE/data.img" ] || [ -f "$STORAGE/data.qcow2" ] DEVICDEE; then
+        if [ -f "$STORAGE/windows.mode" ]; then
+
+          LAST_MODE=$(<"$STORAGE/windows.mode")
+  
+          if [[ "${LAST_MODE,,}" == "${MANUAL,,}" ]]; then
+  
+            rm -rf "$TMP"
+            return 0
+  
+          fi
+
+        fi
+      fi
+    fi
   fi
 
+  EXTERNAL="Y"
   CUSTOM="$BASE"
   MSG="ISO file '$BASE' needs to be prepared..."
   info "$MSG" && html "$MSG"
@@ -198,7 +220,7 @@ if [ ! -f "$DIR/$ETFS" ] || [ ! -f "$DIR/$EFISYS" ]; then
   rm -f "$STORAGE/windows.xml"
   cp /run/version "$STORAGE/windows.ver"
   echo "$BASE" > "$STORAGE/windows.base"
-
+  echo "$MANUAL" > "$STORAGE/windows.mode"
   rm -rf "$TMP"
   return 0
 fi
@@ -206,13 +228,6 @@ fi
 [ -z "$CUSTOM" ] && rm -f "$ISO"
 
 XML=""
-
-if [ -z "$MANUAL" ]; then
-
-  MANUAL="N"
-  [[ "${BASE,,}" == "tiny10"* ]] && MANUAL="Y"
-
-fi
 
 if [[ "$MANUAL" != [Yy1]* ]]; then
 
@@ -372,6 +387,7 @@ rm -f "$STORAGE/windows.ver"
 rm -f "$STORAGE/windows.xml"
 cp /run/version "$STORAGE/windows.ver"
 echo "$BASE" > "$STORAGE/windows.base"
+echo "$MANUAL" > "$STORAGE/windows.mode"
 
 if [ -f "$ASSET" ]; then
   cp "$ASSET" "$STORAGE/windows.xml"
