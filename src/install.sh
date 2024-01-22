@@ -74,7 +74,6 @@ html "$MSG"
 [ -f "$STORAGE/$BASE" ] && return 0
 
 TMP="$STORAGE/tmp"
-rm -rf "$TMP"
 mkdir -p "$TMP"
 
 ISO="$TMP/$BASE"
@@ -311,7 +310,7 @@ info "$MSG" && html "$MSG"
 genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -quiet -V "$LABEL" -udf \
                        -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$OUT" -allow-limited-size "$DIR"
 
-[ -n "$CUSTOM" ] && rm -f "$ISO"
+[ -n "$CUSTOM" ] && rm -f "$STORAGE/$CUSTOM"
 mv "$OUT" "$STORAGE/$BASE"
 
 rm -rf "$TMP"
