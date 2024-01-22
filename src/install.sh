@@ -45,6 +45,7 @@ else
   EXTERNAL="N"
 fi
 
+TMP="$STORAGE/tmp"
 MSG="Windows is being started, please wait..."
 
 if [[ "$EXTERNAL" != [Yy1]* ]]; then
@@ -72,15 +73,19 @@ fi
 html "$MSG"
 
 CUSTOM="custom.iso"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.img"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.iso"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.img"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.ISO"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.IMG"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.ISO"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.img"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.img"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.IMG"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.IMG"
 
-TMP="$STORAGE/tmp"
+if [ -f "$STORAGE/$CUSTOM" ]; then
+  BASE="$CUSTOM"
+else
+  CUSTOM=""
+fi
 
 if [ -f "$STORAGE/$BASE" ]; then
 
@@ -94,20 +99,20 @@ if [ -f "$STORAGE/$BASE" ]; then
   fi
 
   CUSTOM="$BASE"
-  info "Custom ISO file $BASE needs to be prepared..."
+  info "Custom ISO file '$BASE' needs to be prepared..."
 
 fi
 
 mkdir -p "$TMP"
 
-ISO="$TMP/$BASE"
-rm -f "$ISO"
-
 if [ ! -f "$STORAGE/$CUSTOM" ]; then
   CUSTOM=""
+  ISO="$TMP/$BASE"
 else
   ISO="$STORAGE/$CUSTOM"
 fi
+
+rm -f "$TMP/$BASE"
 
 if [ ! -f "$ISO" ]; then
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
@@ -134,6 +139,7 @@ if [ ! -f "$ISO" ]; then
   fi
 
   [ ! -f "$ISO" ] && error "Failed to download $VERSION" && exit 61
+
 fi
 
 SIZE=$(stat -c%s "$ISO")
@@ -184,14 +190,14 @@ fi
 
 [ -z "$CUSTOM" ] && rm -f "$ISO"
 
+XML=""
+
 if [ -z "$MANUAL" ]; then
 
   MANUAL="N"
   [[ "${BASE,,}" == "tiny10"* ]] && MANUAL="Y"
 
 fi
-
-XML=""
 
 if [[ "$MANUAL" != [Yy1]* ]]; then
 
@@ -243,6 +249,7 @@ if [[ "$MANUAL" != [Yy1]* ]]; then
         if [ -f "/run/assets/$XML" ]; then
           echo "Detected image of type '$DETECTED', which supports automatic installation."
         else
+          XML=""
           warn "detected image of type '$DETECTED', but no matching XML file exists, $FB."
         fi
 
@@ -267,6 +274,23 @@ ASSET="/run/assets/$XML"
 
 if [ -f "$ASSET" ]; then
 
+  LOC="$DIR/autounattend.xml"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  LOC="$DIR/Autounattend.xml"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  LOC="$DIR/AutoUnattend.xml"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  LOC="$DIR/autounattend.XML"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  LOC="$DIR/Autounattend.XML"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  LOC="$DIR/AutoUnattend.XML"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  LOC="$DIR/AUTOUNATTEND.xml"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  LOC="$DIR/AUTOUNATTEND.XML"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+
   LOC="$DIR/sources/boot.wim"
   [ ! -f "$LOC" ] && LOC="$DIR/sources/boot.esd"
 
@@ -286,26 +310,11 @@ if [ -f "$ASSET" ]; then
     wimlib-imagex update "$LOC" "$INDEX" --command "add $ASSET /autounattend.xml" > /dev/null
 
   else
+
+    ASSET=""
     warn "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB"
+
   fi
-
-  LOC="$DIR/autounattend.xml"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-  LOC="$DIR/Autounattend.xml"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-  LOC="$DIR/AutoUnattend.xml"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-  LOC="$DIR/autounattend.XML"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-  LOC="$DIR/Autounattend.XML"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-  LOC="$DIR/AutoUnattend.XML"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-  LOC="$DIR/AUTOUNATTEND.xml"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-  LOC="$DIR/AUTOUNATTEND.XML"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-
 fi
 
 CAT="BOOT.CAT"
@@ -337,7 +346,6 @@ if [ -f "$STORAGE/$BASE" ]; then
 fi
 
 mv "$OUT" "$STORAGE/$BASE"
-
 echo "$BASE" > "$STORAGE/windows.ver"
 
 if [ -f "$ASSET" ]; then
