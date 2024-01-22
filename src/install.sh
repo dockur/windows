@@ -79,13 +79,14 @@ if [ -f "$STORAGE/$BASE" ]; then
   # Check if the ISO was already processed by our script
   MAGIC=$(dd if="$STORAGE/$BASE" seek=0 bs=1 count=1 status=none)
   MAGIC="$(printf '%s' "$MAGIC" | od -A n -t x1 -v | tr -d ' \n')"
-  
+
   if [[ "${MAGIC,,}" == "16" ]]; then
     rm -rf "$TMP"
     return 0
   fi
 
-  info "ISO file "$STORAGE/$BASE" needs to be prepared..."
+  CUSTOM="$BASE"
+  info "Custom ISO file $BASE needs to be prepared..."
 
 fi
 
@@ -173,7 +174,7 @@ if [ ! -f "$DIR/$ETFS" ] || [ ! -f "$DIR/$EFISYS" ]; then
     warn "failed to locate file 'efisys_noprompt.bin' in ISO image, $FB"
   fi
   # Mark ISO as prepared
-  printf '\x16' | dd of=$OUT bs=1 seek=0 count=1 conv=notrunc > /dev/null
+  printf '\x16' | dd of=$ISO bs=1 seek=0 count=1 conv=notrunc > /dev/null
   mv -f "$ISO" "$STORAGE/$BASE"
   rm -rf "$TMP"
   return 0
@@ -192,7 +193,7 @@ XML=""
 
 if [[ "$MANUAL" != [Yy1]* ]]; then
 
-  if  [[ "$EXTERNAL" != [Yy1]* ]]; then
+  if [[ "$EXTERNAL" != [Yy1]* ]]; then
     [ -z "$CUSTOM" ] && XML="$VERSION.xml"
   fi
 
