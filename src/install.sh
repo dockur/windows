@@ -129,8 +129,6 @@ if [ -f "$STORAGE/$BASE" ]; then
 
   EXTERNAL="Y"
   CUSTOM="$BASE"
-  MSG="ISO file needs to be prepared..."
-  info "$MSG" && html "$MSG"
 
 fi
 
