@@ -164,7 +164,7 @@ if [ ! -f "$DIR/$ETFS" ] || [ ! -f "$DIR/$EFISYS" ]; then
   fi
   mv -f "$ISO" "$STORAGE/$BASE"
   rm -rf "$TMP"
-  echo && return 0
+  return 0
 fi
 
 [ -z "$CUSTOM" ] && rm -f "$ISO"
@@ -309,5 +309,4 @@ rm -rf "$TMP"
 
 html "Successfully prepared image for installation..."
 
-echo
 return 0
