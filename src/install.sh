@@ -101,7 +101,7 @@ fi
 if [ ! -f "$ISO" ]; then
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
-    (cd "$TMP; /run/mido.sh "$VERSION")
+    (cd "$TMP"; /run/mido.sh "$VERSION")
 
   else
 
