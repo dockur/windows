@@ -39,13 +39,6 @@ if [[ "${VERSION,,}" == "tiny11" ]]; then
   VERSION="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
 fi
 
-if [ -z "$MANUAL" ]; then
-
-  MANUAL="N"
-  [[ "${BASE,,}" == "tiny10"* ]] && MANUAL="Y"
-
-fi
-
 CUSTOM="custom.iso"
 
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.iso"
@@ -99,6 +92,13 @@ fi
 
 html "$MSG"
 TMP="$STORAGE/tmp"
+
+if [ -z "$MANUAL" ]; then
+
+  MANUAL="N"
+  [[ "${BASE,,}" == "tiny10"* ]] && MANUAL="Y"
+
+fi
 
 if [ -f "$STORAGE/$BASE" ]; then
 
