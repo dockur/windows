@@ -259,7 +259,7 @@ scurl_file() {
     }
 
     # Full downloaded succeeded, ready for verification check
-    mv "$part_file" "${out_file}${unverified_ext}"
+    mv "$part_file" "${out_file}"
 }
 
 manual_verification() {
@@ -678,17 +678,6 @@ ending_summary() {
         echo_err "$(word_count $media_download_failed_list) attempted download(s) failed! Please re-run Mido with these arguments to try downloading again (any partial downloads will be resumed):$media_download_failed_argument_list"
     fi
 
-    media_verification_failed_list=""
-    checksum_verification_failed_list=""
-
-    if [ "$media_verification_failed_list" ]; then
-        manual_verification "$media_verification_failed_list" "$checksum_verification_failed_list"
-        # shellcheck disable=SC2086
-        echo_err "$(word_count $media_verification_failed_list) of the downloaded Windows media did NOT match the expected checksum! This means either that the media is a newer release than our current checksum (stored in Mido), was corrupted during download, or that is has been (potentially maliciously) modified! Please manually verify the Windows media before use:$media_verification_failed_list"
-    elif [ "$manual_verification" = "true" ]; then
-        manual_verification
-    fi
-
     # Exit codes
     # 0: Success
     # 1: Argument parsing error
@@ -782,5 +771,5 @@ done
 trap handle_exit EXIT
 
 download_media
-#verify_media
+verify_media
 ending_summary
