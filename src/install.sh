@@ -77,7 +77,7 @@ TMP="$STORAGE/tmp"
 if [ -f "$STORAGE/$BASE" ]; then
 
   # Check if the ISO was already processed by our script
-  MAGIC=$(dd if="$STORAGE/$BASE" seek=0 bs=1 count=1 status=none)
+  MAGIC=$(dd if="$STORAGE/$BASE" seek=0 bs=1 count=1 status=none | tr -d '\000')
   MAGIC="$(printf '%s' "$MAGIC" | od -A n -t x1 -v | tr -d ' \n')"
 
   if [[ "${MAGIC,,}" == "16" ]]; then
@@ -174,7 +174,7 @@ if [ ! -f "$DIR/$ETFS" ] || [ ! -f "$DIR/$EFISYS" ]; then
     warn "failed to locate file 'efisys_noprompt.bin' in ISO image, $FB"
   fi
   # Mark ISO as prepared via magic byte
-  printf '\x16' | dd of=$ISO bs=1 seek=0 count=1 conv=notrunc > /dev/null
+  printf '\x16' | dd of=$ISO bs=1 seek=0 count=1 conv=notrunc status=none
   [[ "$ISO" != "$STORAGE/$BASE" ]] && mv -f "$ISO" "$STORAGE/$BASE"
   rm -rf "$TMP"
   return 0
@@ -326,7 +326,7 @@ genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-
                        -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$OUT" -allow-limited-size "$DIR"
 
 # Mark ISO as prepared via magic byte
-printf '\x16' | dd of=$OUT bs=1 seek=0 count=1 conv=notrunc > /dev/null
+printf '\x16' | dd of=$OUT bs=1 seek=0 count=1 conv=notrunc status=none
 
 [ -n "$CUSTOM" ] && rm -f "$STORAGE/$CUSTOM"
 mv "$OUT" "$STORAGE/$BASE"
