@@ -118,18 +118,18 @@ if [ ! -f "$ISO" ]; then
 
     { wget "$VERSION" -O "$ISO" -q --no-check-certificate --show-progress "$PROGRESS"; rc=$?; } || :
 
-    (( rc != 0 )) && echo && error "Failed to download $VERSION, reason: $rc" && exit 60
+    (( rc != 0 )) && error "Failed to download $VERSION, reason: $rc" && exit 60
 
   fi
 
-  [ ! -f "$ISO" ] && echo && error "Failed to download $VERSION" && exit 61
+  [ ! -f "$ISO" ] && error "Failed to download $VERSION" && exit 61
 fi
 
 SIZE=$(stat -c%s "$ISO")
 SIZE_GB=$(( (SIZE + 1073741823)/1073741824 ))
 
 if ((SIZE<10000000)); then
-  echo && error "Invalid ISO file: Size is smaller than 10 MB" && exit 62
+  error "Invalid ISO file: Size is smaller than 10 MB" && exit 62
 fi
 
 SPACE=$(df --output=avail -B 1 "$TMP" | tail -n 1)
@@ -145,13 +145,12 @@ else
   MSG="Extracting downloaded ISO image..."
 fi
 
-echo && info "$MSG" && html "$MSG"
+info "$MSG" && html "$MSG"
 
 DIR="$TMP/unpack"
 rm -rf "$DIR"
 
 7z x "$ISO" -o"$DIR" > /dev/null
-echo
 
 FB="falling back to manual installation!"
 ETFS="boot/etfsboot.com"
@@ -165,7 +164,7 @@ if [ ! -f "$DIR/$ETFS" ] || [ ! -f "$DIR/$EFISYS" ]; then
   fi
   mv -f "$ISO" "$STORAGE/$BASE"
   rm -rf "$TMP"
-  echo && return 0
+  return 0
 fi
 
 [ -z "$CUSTOM" ] && rm -f "$ISO"
@@ -173,10 +172,7 @@ fi
 if [ -z "$MANUAL" ]; then
 
   MANUAL="N"
-
-  if [[ "$EXTERNAL" == [Yy1]* ]]; then
-    [[ "${BASE,,}" == "tiny10"* ]] && MANUAL="Y"
-  fi
+  [[ "${BASE,,}" == "tiny10"* ]] && MANUAL="Y"
 
 fi
 
@@ -184,7 +180,9 @@ XML=""
 
 if [[ "$MANUAL" != [Yy1]* ]]; then
 
-  [[ "$EXTERNAL" != [Yy1]* ]] && XML="$VERSION.xml"
+  if  [[ "$EXTERNAL" != [Yy1]* ]]; then
+    [ -z "$CUSTOM" ] && XML="$VERSION.xml"
+  fi
 
   if [ ! -f "/run/assets/$XML" ]; then
 
@@ -237,7 +235,6 @@ if [[ "$MANUAL" != [Yy1]* ]]; then
     else
       warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
     fi
-    echo
   fi
 fi
 
@@ -284,8 +281,6 @@ if [ -f "$ASSET" ]; then
   LOC="$DIR/AUTOUNATTEND.XML"
   [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
 
-  echo
-
 fi
 
 CAT="BOOT.CAT"
@@ -314,5 +309,4 @@ rm -rf "$TMP"
 
 html "Successfully prepared image for installation..."
 
-echo
 return 0
