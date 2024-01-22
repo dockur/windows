@@ -214,7 +214,7 @@ if [ ! -f "$DIR/$ETFS" ] || [ ! -f "$DIR/$EFISYS" ]; then
   fi
 
   # Mark ISO as prepared via magic byte
-  printf '\x16' | dd of=$ISO bs=1 seek=0 count=1 conv=notrunc status=none
+  printf '\x16' | dd of="$ISO" bs=1 seek=0 count=1 conv=notrunc status=none
 
   [[ "$ISO" != "$STORAGE/$BASE" ]] && mv -f "$ISO" "$STORAGE/$BASE"
 
@@ -367,7 +367,7 @@ genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-
                        -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$OUT" -allow-limited-size "$DIR"
 
 # Mark ISO as prepared via magic byte
-printf '\x16' | dd of=$OUT bs=1 seek=0 count=1 conv=notrunc status=none
+printf '\x16' | dd of="$OUT" bs=1 seek=0 count=1 conv=notrunc status=none
 
 [ -n "$CUSTOM" ] && rm -f "$STORAGE/$CUSTOM"
 
