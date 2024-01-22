@@ -118,7 +118,7 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
 
   * ### How do I perform a manual installation?
 
-    If you prefer to perform the installation manually in order to customize some options, add the following environment variable:
+    If you prefer to perform the installation manually, empty the `/storage` folder and add the following environment variable:
 
     ```yaml
     environment:
