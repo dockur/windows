@@ -82,11 +82,21 @@
           <InstallToAvailablePartition>false</InstallToAvailablePartition>
         </OSImage>
       </ImageInstall>
+      <DynamicUpdate>
+        <Enable>true</Enable>
+        <WillShowUI>Never</WillShowUI>
+      </DynamicUpdate>
+      <UpgradeData>
+        <Upgrade>false</Upgrade>
+        <WillShowUI>Never</WillShowUI>
+      </UpgradeData>
       <UserData>
+        <AcceptEula>true</AcceptEula>
+        <FullName>Docker</FullName>
+        <Organization>Windows for Docker</Organization>
         <ProductKey>
           <Key>VK7JG-NPHTM-C97JM-9MPGT-3V66T</Key>
         </ProductKey>
-        <AcceptEula>true</AcceptEula>
       </UserData>
       <EnableFirewall>false</EnableFirewall>
       <Diagnostics>
