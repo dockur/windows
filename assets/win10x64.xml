@@ -301,9 +301,18 @@
         </Password>
       </AutoLogon>
       <OOBE>
-        <ProtectYourPC>3</ProtectYourPC>
         <HideEULAPage>true</HideEULAPage>
+        <HideLocalAccountScreen>true</HideLocalAccountScreen>
+        <HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
+        <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
         <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
+        <NetworkLocation>Home</NetworkLocation>
+        <ProtectYourPC>3</ProtectYourPC>
+        <SkipUserOOBE>true</SkipUserOOBE>
+        <SkipMachineOOBE>true</SkipMachineOOBE>
+        <VMModeOptimizations>
+          <SkipWinREInitialization>true</SkipWinREInitialization>
+        </VMModeOptimizations>
       </OOBE>
       <FirstLogonCommands>
         <SynchronousCommand wcm:action="add">
