@@ -90,10 +90,18 @@
           <InstallToAvailablePartition>false</InstallToAvailablePartition>
         </OSImage>
       </ImageInstall>
+      <DynamicUpdate>
+        <Enable>true</Enable>
+        <WillShowUI>Never</WillShowUI>
+      </DynamicUpdate>
+      <UpgradeData>
+        <Upgrade>false</Upgrade>
+        <WillShowUI>Never</WillShowUI>
+      </UpgradeData>
       <UserData>
         <AcceptEula>true</AcceptEula>
         <FullName>Docker</FullName>
-        <Organization>Organization</Organization>
+        <Organization>Windows for Docker</Organization>
         <ProductKey/>
       </UserData>
       <EnableFirewall>false</EnableFirewall>
