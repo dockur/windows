@@ -72,6 +72,14 @@ fi
 html "$MSG"
 
 CUSTOM="custom.iso"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.img"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.iso"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.img"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.ISO"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.IMG"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.ISO"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.IMG"
+
 TMP="$STORAGE/tmp"
 
 if [ -f "$STORAGE/$BASE" ]; then
@@ -94,14 +102,6 @@ mkdir -p "$TMP"
 
 ISO="$TMP/$BASE"
 rm -f "$ISO"
-
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.img"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.iso"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.img"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.ISO"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.IMG"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.ISO"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.IMG"
 
 if [ ! -f "$STORAGE/$CUSTOM" ]; then
   CUSTOM=""
@@ -330,13 +330,6 @@ genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-
 # Mark ISO as prepared via magic byte
 printf '\x16' | dd of=$OUT bs=1 seek=0 count=1 conv=notrunc status=none
 
-echo "$BASE" > "$STORAGE/windows.ver"
-
-if [ -f "$ASSET" ]; then
-  rm -f "$STORAGE/windows.xml"
-  cp "$ASSET" "$STORAGE/windows.xml"
-fi
-
 [ -n "$CUSTOM" ] && rm -f "$STORAGE/$CUSTOM"
 
 if [ -f "$STORAGE/$BASE" ]; then
@@ -344,6 +337,14 @@ if [ -f "$STORAGE/$BASE" ]; then
 fi
 
 mv "$OUT" "$STORAGE/$BASE"
+
+echo "$BASE" > "$STORAGE/windows.ver"
+
+if [ -f "$ASSET" ]; then
+  rm -f "$STORAGE/windows.xml"
+  cp "$ASSET" "$STORAGE/windows.xml"
+fi
+
 rm -rf "$TMP"
 
 html "Successfully prepared image for installation..."
