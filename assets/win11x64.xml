@@ -89,6 +89,9 @@
         <AcceptEula>true</AcceptEula>
       </UserData>
       <EnableFirewall>false</EnableFirewall>
+      <Diagnostics>
+        <OptIn>false</OptIn>
+      </Diagnostics>
       <RunSynchronous>
         <RunSynchronousCommand wcm:action="add">
           <Order>1</Order>
