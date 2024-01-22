@@ -56,7 +56,7 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
     
     - Start the container and get some coffee.
 
-    - Connect to port 8006 of the container in your web browser.
+    - Connect to [port 8006](http://localhost:8006) of the container in your web browser.
 
     - Sit back and relax while the magic happens, the whole installation will be performed fully automatic.
 
@@ -127,7 +127,7 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
 
     Then follow these steps:
 
-    - Start the container and connect to port 8006 of the container in your web browser. After the download is finished, you will see the Windows installation screen.
+    - Start the container and connect to [port 8006](http://localhost:8006) of the container in your web browser. After the download is finished, you will see the Windows installation screen.
 
     - Start the installation by clicking ```Install now```. On the next screen, press 'OK' when prompted to ```Load driver``` and select the ```VirtIO SCSI``` driver from the list that matches your Windows version. So for Windows 11, select ```D:\amd64\w11\vioscsi.inf``` and click 'Next'.
 
@@ -143,16 +143,16 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
 
     - Now your Windows installation is ready for use. Enjoy it, and don't forget to star this repo!
 
-  * ### How do I install an unsupported version?
+  * ### How do I install a custom image?
 
-    You can specify an URL in the `VERSION` environment variable, in order to download a custom ISO image:
+    In order to download a custom ISO image, specify an URL in the `VERSION` environment variable:
     
     ```yaml
     environment:
       VERSION: "https://example.com/win.iso"
     ```
     
-    During the installation you may need to add some drivers as described in [manual installation](https://github.com/dockur/windows/tree/master?tab=readme-ov-file#how-do-i-perform-a-manual-installation) above.
+    Make sure your `/storage` folder is empty before starting the container. Alternatively, you can also place a file called `custom.iso` in that folder to skip the download.
 
   * ### How do I pass-through a disk?
 

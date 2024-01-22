@@ -15,10 +15,7 @@ RUN apt-get update \
 
 COPY ./src /run/
 COPY ./assets /run/assets
-
 ADD https://github.com/qemus/virtiso/raw/master/virtio-win.iso /run/drivers.iso
-ADD https://raw.githubusercontent.com/ElliotKillick/Mido/main/Mido.sh /run/mido.sh
-
 RUN chmod +x /run/*.sh
 
 EXPOSE 8006 3389
