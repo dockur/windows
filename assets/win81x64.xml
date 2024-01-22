@@ -88,14 +88,22 @@
           <InstallToAvailablePartition>false</InstallToAvailablePartition>
         </OSImage>
       </ImageInstall>
+      <DynamicUpdate>
+        <Enable>true</Enable>
+        <WillShowUI>Never</WillShowUI>
+      </DynamicUpdate>
+      <UpgradeData>
+        <Upgrade>false</Upgrade>
+        <WillShowUI>Never</WillShowUI>
+      </UpgradeData>
       <UserData>
+        <AcceptEula>true</AcceptEula>
+        <FullName>Docker</FullName>
+        <Organization>Windows for Docker</Organization>
         <ProductKey>
           <Key>GCRJD-8NW9H-F2CDX-CCM8D-9D6T9</Key>
           <WillShowUI>OnError</WillShowUI>
         </ProductKey>
-        <AcceptEula>true</AcceptEula>
-        <FullName>Docker</FullName>
-        <Organization>Docker</Organization>
       </UserData>
       <EnableFirewall>false</EnableFirewall>
       <Diagnostics>
