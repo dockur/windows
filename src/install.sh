@@ -70,10 +70,13 @@ fi
 [[ "${BASE,,}" == "custom."* ]] && BASE="target.iso"
 
 html "$MSG"
-
-[ -f "$STORAGE/$BASE" ] && return 0
-
 TMP="$STORAGE/tmp"
+
+if [ -f "$STORAGE/$BASE" ]; then
+  rm -rf "$TMP"
+  return 0
+fi
+
 mkdir -p "$TMP"
 
 ISO="$TMP/$BASE"
@@ -98,14 +101,8 @@ fi
 if [ ! -f "$ISO" ]; then
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
-    SCRIPT="$TMP/mido.sh"
-
-    rm -f "$SCRIPT"
-    cp /run/mido.sh "$SCRIPT"
-    chmod +x "$SCRIPT"
     cd "$TMP"
-    bash "$SCRIPT" "$VERSION"
-    rm -f "$SCRIPT"
+    /run/mido.sh "$VERSION"
     cd /run
 
   else
@@ -311,8 +308,8 @@ genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-
                        -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$OUT" -allow-limited-size "$DIR"
 
 [ -n "$CUSTOM" ] && rm -f "$STORAGE/$CUSTOM"
-mv "$OUT" "$STORAGE/$BASE"
 
+mv "$OUT" "$STORAGE/$BASE"
 rm -rf "$TMP"
 
 html "Successfully prepared image for installation..."
