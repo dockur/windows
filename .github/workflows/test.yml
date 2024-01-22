@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - '**/*.sh'
+      - '**/*.xml'
       - '.github/workflows/test.yml'
       - '.github/workflows/check.yml'
 
