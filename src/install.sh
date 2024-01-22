@@ -136,7 +136,7 @@ SPACE=$(df --output=avail -B 1 "$TMP" | tail -n 1)
 SPACE_GB=$(( (SPACE + 1073741823)/1073741824 ))
 
 if (( SIZE > SPACE )); then
-  error "Not enough free space in $STORAGE, have $SPACE_GB GB available but need at least $SIZE_GB GB." && exit 63
+  echo && error "Not enough free space in $STORAGE, have $SPACE_GB GB available but need at least $SIZE_GB GB." && exit 63
 fi
 
 if [ -n "$CUSTOM" ]; then
@@ -184,7 +184,9 @@ XML=""
 
 if [[ "$MANUAL" != [Yy1]* ]]; then
 
-  [[ "$EXTERNAL" != [Yy1]* ]] && XML="$VERSION.xml"
+  if  [[ "$EXTERNAL" != [Yy1]* ]]; then
+    [ -z "$CUSTOM" ] && XML="$VERSION.xml"
+  fi
 
   if [ ! -f "/run/assets/$XML" ]; then
 
@@ -298,7 +300,7 @@ SPACE=$(df --output=avail -B 1 "$TMP" | tail -n 1)
 SPACE_GB=$(( (SPACE + 1073741823)/1073741824 ))
 
 if (( SIZE > SPACE )); then
-  error "Not enough free space in $STORAGE, have $SPACE_GB GB available but need at least $SIZE_GB GB." && exit 63
+  echo && error "Not enough free space in $STORAGE, have $SPACE_GB GB available but need at least $SIZE_GB GB." && exit 63
 fi
 
 MSG="Generating new ISO image for installation..."
