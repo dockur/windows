@@ -241,9 +241,12 @@
         <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
         <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
         <NetworkLocation>Home</NetworkLocation>
-        <ProtectYourPC>1</ProtectYourPC>
-        <SkipMachineOOBE>true</SkipMachineOOBE>
+        <ProtectYourPC>3</ProtectYourPC>
         <SkipUserOOBE>true</SkipUserOOBE>
+        <SkipMachineOOBE>true</SkipMachineOOBE>
+        <VMModeOptimizations>
+          <SkipWinREInitialization>true</SkipWinREInitialization>
+        </VMModeOptimizations>
       </OOBE>
       <FirstLogonCommands>
         <SynchronousCommand wcm:action="add">
