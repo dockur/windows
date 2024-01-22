@@ -176,6 +176,8 @@ if [ ! -f "$DIR/$ETFS" ] || [ ! -f "$DIR/$EFISYS" ]; then
   # Mark ISO as prepared via magic byte
   printf '\x16' | dd of=$ISO bs=1 seek=0 count=1 conv=notrunc status=none
   [[ "$ISO" != "$STORAGE/$BASE" ]] && mv -f "$ISO" "$STORAGE/$BASE"
+  rm -f "$STORAGE/windows.xml"
+  echo "$BASE" > "$STORAGE/windows.ver"
   rm -rf "$TMP"
   return 0
 fi
@@ -328,7 +330,19 @@ genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-
 # Mark ISO as prepared via magic byte
 printf '\x16' | dd of=$OUT bs=1 seek=0 count=1 conv=notrunc status=none
 
+echo "$BASE" > "$STORAGE/windows.ver"
+
+if [ -f "$ASSET" ]; then
+  rm -f "$STORAGE/windows.xml"
+  cp "$ASSET" "$STORAGE/windows.xml"
+fi
+
 [ -n "$CUSTOM" ] && rm -f "$STORAGE/$CUSTOM"
+
+if [ -f "$STORAGE/$BASE" ]; then
+  error "File $STORAGE/$BASE does already exist ?!" && exit 64
+fi
+
 mv "$OUT" "$STORAGE/$BASE"
 rm -rf "$TMP"
 
