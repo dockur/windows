@@ -145,7 +145,7 @@ else
   MSG="Extracting downloaded ISO image..."
 fi
 
-echo && info "$MSG" && html "$MSG"
+info "$MSG" && html "$MSG"
 
 DIR="$TMP/unpack"
 rm -rf "$DIR"
