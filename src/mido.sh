@@ -702,7 +702,7 @@ ending_summary() {
     trap -- - EXIT
 
     if [ "$exit_code" = 0 ]; then
-        echo_ok "Successfully downloaded and verified integrity of all Windows media!"
+        echo_ok "Successfully downloaded Windows image!"
     else
         echo_ok "Finished! Please see the above errors with information"
         exit "$exit_code"
