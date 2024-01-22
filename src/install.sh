@@ -151,7 +151,6 @@ DIR="$TMP/unpack"
 rm -rf "$DIR"
 
 7z x "$ISO" -o"$DIR" > /dev/null
-echo
 
 FB="falling back to manual installation!"
 ETFS="boot/etfsboot.com"
@@ -236,7 +235,6 @@ if [[ "$MANUAL" != [Yy1]* ]]; then
     else
       warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
     fi
-    echo
   fi
 fi
 
@@ -282,8 +280,6 @@ if [ -f "$ASSET" ]; then
   [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
   LOC="$DIR/AUTOUNATTEND.XML"
   [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-
-  echo
 
 fi
 
