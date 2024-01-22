@@ -175,7 +175,7 @@ if [ ! -f "$DIR/$ETFS" ] || [ ! -f "$DIR/$EFISYS" ]; then
   fi
   # Mark ISO as prepared
   printf '\x16' | dd of=$ISO bs=1 seek=0 count=1 conv=notrunc > /dev/null
-  mv -f "$ISO" "$STORAGE/$BASE"
+  [[ "$ISO" != "$STORAGE/$BASE" ]] && mv -f "$ISO" "$STORAGE/$BASE"
   rm -rf "$TMP"
   return 0
 fi
@@ -212,26 +212,36 @@ if [[ "$MANUAL" != [Yy1]* ]]; then
       RESULT=$(wimlib-imagex info -xml "$LOC" | tr -d '\000')
       NAME=$(sed -n "/$TAG/{s/.*<$TAG>\(.*\)<\/$TAG>.*/\1/;p}" <<< "$RESULT")
 
-      if [ -z "$NAME" ]; then
-        TAG="PRODUCTNAME"
-        NAME=$(sed -n "/$TAG/{s/.*<$TAG>\(.*\)<\/$TAG>.*/\1/;p}" <<< "$RESULT")
-      fi
-
-      [[ "${NAME,,}" == "windows 11"* ]] && DETECTED="win11x64"
-      [[ "${NAME,,}" == "windows 10"* ]] && DETECTED="win10x64"
-      [[ "${NAME,,}" == "windows 8"* ]] && DETECTED="win81x64"
+      [[ "${NAME,,}" == *"windows 11"* ]] && DETECTED="win11x64"
+      [[ "${NAME,,}" == *"windows 10"* ]] && DETECTED="win10x64"
+      [[ "${NAME,,}" == *"windows 8"* ]] && DETECTED="win81x64"
       [[ "${NAME,,}" == *"server 2022"* ]] && DETECTED="win2022-eval"
       [[ "${NAME,,}" == *"server 2019"* ]] && DETECTED="win2019-eval"
       [[ "${NAME,,}" == *"server 2016"* ]] && DETECTED="win2016-eval"
+
+      if [ -z "$DETECTED" ]; then
+
+        TAG="PRODUCTNAME"
+        NAME2=$(sed -n "/$TAG/{s/.*<$TAG>\(.*\)<\/$TAG>.*/\1/;p}" <<< "$RESULT")
+        [ -z "$NAME" ] && NAME="$NAME2"
+
+        [[ "${NAME2,,}" == *"windows 11"* ]] && DETECTED="win11x64"
+        [[ "${NAME2,,}" == *"windows 10"* ]] && DETECTED="win10x64"
+        [[ "${NAME2,,}" == *"windows 8"* ]] && DETECTED="win81x64"
+        [[ "${NAME2,,}" == *"server 2022"* ]] && DETECTED="win2022-eval"
+        [[ "${NAME2,,}" == *"server 2019"* ]] && DETECTED="win2019-eval"
+        [[ "${NAME2,,}" == *"server 2016"* ]] && DETECTED="win2016-eval"
+
+      fi
 
       if [ -n "$DETECTED" ]; then
 
         XML="$DETECTED.xml"
 
         if [ -f "/run/assets/$XML" ]; then
-          echo "Detected image of type '$DETECTED', will apply an autounattend.xml file."
+          echo "Detected image of type '$DETECTED', which supports automatic installation."
         else
-          warn "detected image of type '$DETECTED', but no matching .xml file exists, $FB."
+          warn "detected image of type '$DETECTED', but no matching XML file exists, $FB."
         fi
 
       else
