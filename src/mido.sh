@@ -740,15 +740,6 @@ IFS=' '
 
 parse_args "$@"
 
-# If script is installed (in the PATH) then remain at PWD
-# Otherwise, change directory to location of script
-# readlink was recently added to POSIX: https://austingroupbugs.net/view.php?id=1457
-local_dir="$(dirname -- "$(readlink -f -- "$0")")"
-case ":$PATH:" in
-  *":$local_dir:"*) ;;
-  *) cd "$local_dir" || exit ;;
-esac
-
 # POSIX sh doesn't include signals in its EXIT trap so do it ourselves
 signo=1
 while true; do
