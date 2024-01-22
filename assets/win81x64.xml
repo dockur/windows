@@ -98,6 +98,9 @@
         <Organization>Docker</Organization>
       </UserData>
       <EnableFirewall>false</EnableFirewall>
+      <Diagnostics>
+        <OptIn>false</OptIn>
+      </Diagnostics>
     </component>
     <component name="Microsoft-Windows-PnpCustomizationsWinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DriverPaths>
