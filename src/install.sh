@@ -173,10 +173,7 @@ fi
 if [ -z "$MANUAL" ]; then
 
   MANUAL="N"
-
-  if [[ "$EXTERNAL" == [Yy1]* ]]; then
-    [[ "${BASE,,}" == "tiny10"* ]] && MANUAL="Y"
-  fi
+  [[ "${BASE,,}" == "tiny10"* ]] && MANUAL="Y"
 
 fi
 
