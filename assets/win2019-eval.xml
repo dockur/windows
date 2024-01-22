@@ -248,6 +248,8 @@
           <SkipWinREInitialization>true</SkipWinREInitialization>
         </VMModeOptimizations>
       </OOBE>
+      <RegisteredOrganization>Dockur</RegisteredOrganization>
+      <RegisteredOwner>Windows for Docker</RegisteredOwner>
       <FirstLogonCommands>
         <SynchronousCommand wcm:action="add">
           <Order>1</Order>
