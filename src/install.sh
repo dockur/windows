@@ -162,6 +162,8 @@ if [ ! -f "$DIR/$ETFS" ] || [ ! -f "$DIR/$EFISYS" ]; then
   else
     warn "failed to locate file 'efisys_noprompt.bin' in ISO image, $FB"
   fi
+  # Mark ISO as prepared
+  printf '\x16' | dd of=$OUT bs=1 seek=0 count=1 conv=notrunc > /dev/null
   mv -f "$ISO" "$STORAGE/$BASE"
   rm -rf "$TMP"
   return 0
@@ -303,6 +305,9 @@ genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-
                        -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$OUT" -allow-limited-size "$DIR"
 
 [ -n "$CUSTOM" ] && rm -f "$STORAGE/$CUSTOM"
+
+# Mark ISO as prepared
+printf '\x16' | dd of=$OUT bs=1 seek=0 count=1 conv=notrunc > /dev/null
 
 mv "$OUT" "$STORAGE/$BASE"
 rm -rf "$TMP"
