@@ -118,7 +118,7 @@ if [ ! -f "$ISO" ]; then
 
     { wget "$VERSION" -O "$ISO" -q --no-check-certificate --show-progress "$PROGRESS"; rc=$?; } || :
 
-    (( rc != 0 )) && echo && error "Failed to download $VERSION, reason: $rc" && exit 60
+    (( rc != 0 )) && error "Failed to download $VERSION, reason: $rc" && exit 60
 
   fi
 
