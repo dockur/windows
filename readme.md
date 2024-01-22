@@ -118,7 +118,7 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
 
   * ### How do I perform a manual installation?
 
-    If you prefer to perform the installation manually, empty the `/storage` folder and add the following environment variable:
+    If you prefer to perform the installation manually, empty the `/storage` folder to delete your previous installation and add the following environment variable:
 
     ```yaml
     environment:
@@ -145,16 +145,14 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
 
   * ### How do I install a custom image?
 
-    In order to download a custom ISO image, specify an URL in the `VERSION` environment variable:
+    In order to download a custom ISO image, empty the `/storage` folder to delete your previous installation and specify its URL in the `VERSION` environment variable:
     
     ```yaml
     environment:
       VERSION: "https://example.com/win.iso"
     ```
-    
-    Make sure your `/storage` folder is empty before starting the container.
 
-    Alternatively, you can also place a file called `custom.iso` in that folder to skip the download.
+    Alternatively, you can also place a file called `custom.iso` in the empty `/storage` folder to skip the download.
 
   * ### How do I pass-through a disk?
 
