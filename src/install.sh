@@ -108,15 +108,16 @@ if [ -f "$STORAGE/$BASE" ]; then
 
   if [[ "$MAGIC" == "16" ]]; then
 
-    FOUND="N"
-    [[ "$MANUAL" = [Yy1]* ]] && FOUND="Y"
+    if [[ "$MANUAL" = [Yy1]* ]]; then
+      rm -rf "$TMP"
+      return 0
+    fi
 
-    if [[ "$FOUND" == "N" ]]; then
-      if [ -f "$STORAGE/data.img" ] || [ -f "$STORAGE/data.qcow2" ]; then
-        FOUND="Y"
-      else
-        [ -b "${DEVICE:-}" ] && FOUND="Y"
-      fi
+    FOUND="N"
+    if [ -f "$STORAGE/data.img" ] || [ -f "$STORAGE/data.qcow2" ]; then
+      FOUND="Y"
+    else
+      [ -b "${DEVICE:-}" ] && FOUND="Y"
     fi
 
     if [[ "$FOUND" == "Y" ]]; then
@@ -128,7 +129,7 @@ if [ -f "$STORAGE/$BASE" ]; then
 
   EXTERNAL="Y"
   CUSTOM="$BASE"
-  MSG="ISO file '$BASE' needs to be prepared..."
+  MSG="ISO file needs to be prepared..."
   info "$MSG" && html "$MSG"
 
 fi
