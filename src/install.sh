@@ -39,66 +39,114 @@ if [[ "${VERSION,,}" == "tiny11" ]]; then
   VERSION="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
 fi
 
-if [[ "${VERSION,,}" == "http"* ]]; then
-  EXTERNAL="Y"
-else
-  EXTERNAL="N"
+if [ -z "$MANUAL" ]; then
+
+  MANUAL="N"
+  [[ "${BASE,,}" == "tiny10"* ]] && MANUAL="Y"
+
 fi
+
+CUSTOM="custom.iso"
+
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.iso"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.ISO"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.ISO"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.img"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.img"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.IMG"
+[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.IMG"
 
 MSG="Windows is being started, please wait..."
 
-if [[ "$EXTERNAL" != [Yy1]* ]]; then
+if [ -f "$STORAGE/$CUSTOM" ]; then
 
-  BASE="$VERSION.iso"
-
-  if [ ! -f "$STORAGE/$BASE" ]; then
-    MSG="Windows is being downloaded, please wait..."
-  fi
+  EXTERNAL="Y"
+  BASE="$CUSTOM"
 
 else
 
-  BASE=$(basename "${VERSION%%\?*}")
-  : "${BASE//+/ }"; printf -v BASE '%b' "${_//%/\\x}"
-  BASE=$(echo "$BASE" | sed -e 's/[^A-Za-z0-9._-]/_/g')
+  CUSTOM=""
 
-  if [ ! -f "$STORAGE/$BASE" ]; then
-    MSG="Image '$BASE' is being downloaded, please wait..."
+  if [[ "${VERSION,,}" == "http"* ]]; then
+    EXTERNAL="Y"
+  else
+    EXTERNAL="N"
   fi
 
-fi
+  if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
-[[ "${BASE,,}" == "custom."* ]] && BASE="target.iso"
+    BASE="$VERSION.iso"
+
+    if [ ! -f "$STORAGE/$BASE" ]; then
+      MSG="Windows is being downloaded, please wait..."
+    fi
+
+  else
+
+    BASE=$(basename "${VERSION%%\?*}")
+    : "${BASE//+/ }"; printf -v BASE '%b' "${_//%/\\x}"
+    BASE=$(echo "$BASE" | sed -e 's/[^A-Za-z0-9._-]/_/g')
+
+    if [ ! -f "$STORAGE/$BASE" ]; then
+      MSG="Image '$BASE' is being downloaded, please wait..."
+    fi
+
+  fi
+
+  [[ "${BASE,,}" == "custom."* ]] && BASE="windows.iso"
+
+fi
 
 html "$MSG"
 TMP="$STORAGE/tmp"
 
 if [ -f "$STORAGE/$BASE" ]; then
-  rm -rf "$TMP"
-  return 0
+
+  # Check if the ISO was already processed by our script
+  MAGIC=$(dd if="$STORAGE/$BASE" seek=0 bs=1 count=1 status=none | tr -d '\000')
+  MAGIC="$(printf '%s' "$MAGIC" | od -A n -t x1 -v | tr -d ' \n')"
+
+  if [[ "$MAGIC" == "16" ]]; then
+
+    if [[ "$MANUAL" = [Yy1]* ]]; then
+      rm -rf "$TMP"
+      return 0
+    fi
+
+    FOUND="N"
+    if [ -f "$STORAGE/data.img" ] || [ -f "$STORAGE/data.qcow2" ]; then
+      FOUND="Y"
+    else
+      [ -b "${DEVICE:-}" ] && FOUND="Y"
+    fi
+
+    if [[ "$FOUND" == "Y" ]]; then
+      rm -rf "$TMP"
+      return 0
+    fi
+
+  fi
+
+  EXTERNAL="Y"
+  CUSTOM="$BASE"
+  MSG="ISO file needs to be prepared..."
+  info "$MSG" && html "$MSG"
+
 fi
 
 mkdir -p "$TMP"
 
-ISO="$TMP/$BASE"
-rm -f "$ISO"
-
-CUSTOM="custom.iso"
-
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.img"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.iso"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.img"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.ISO"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.IMG"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.ISO"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.IMG"
-
 if [ ! -f "$STORAGE/$CUSTOM" ]; then
   CUSTOM=""
+  ISO="$TMP/$BASE"
 else
   ISO="$STORAGE/$CUSTOM"
 fi
 
+rm -f "$TMP/$BASE"
+
 if [ ! -f "$ISO" ]; then
+
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
     cd "$TMP"
@@ -123,6 +171,7 @@ if [ ! -f "$ISO" ]; then
   fi
 
   [ ! -f "$ISO" ] && error "Failed to download $VERSION" && exit 61
+
 fi
 
 SIZE=$(stat -c%s "$ISO")
@@ -140,7 +189,7 @@ if (( SIZE > SPACE )); then
 fi
 
 if [ -n "$CUSTOM" ]; then
-  MSG="Extracting custom ISO image..."
+  MSG="Extracting local ISO image..."
 else
   MSG="Extracting downloaded ISO image..."
 fi
@@ -157,30 +206,32 @@ ETFS="boot/etfsboot.com"
 EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 
 if [ ! -f "$DIR/$ETFS" ] || [ ! -f "$DIR/$EFISYS" ]; then
+
   if [ ! -f "$DIR/$ETFS" ]; then
     warn "failed to locate file 'etfsboot.com' in ISO image, $FB"
   else
     warn "failed to locate file 'efisys_noprompt.bin' in ISO image, $FB"
   fi
-  mv -f "$ISO" "$STORAGE/$BASE"
+
+  # Mark ISO as prepared via magic byte
+  printf '\x16' | dd of=$ISO bs=1 seek=0 count=1 conv=notrunc status=none
+
+  [[ "$ISO" != "$STORAGE/$BASE" ]] && mv -f "$ISO" "$STORAGE/$BASE"
+
+  rm -f "$STORAGE/windows.ver"
+  cp /run/version "$STORAGE/windows.ver"
+
   rm -rf "$TMP"
   return 0
 fi
 
 [ -z "$CUSTOM" ] && rm -f "$ISO"
 
-if [ -z "$MANUAL" ]; then
-
-  MANUAL="N"
-  [[ "${BASE,,}" == "tiny10"* ]] && MANUAL="Y"
-
-fi
-
 XML=""
 
 if [[ "$MANUAL" != [Yy1]* ]]; then
 
-  if  [[ "$EXTERNAL" != [Yy1]* ]]; then
+  if [[ "$EXTERNAL" != [Yy1]* ]]; then
     [ -z "$CUSTOM" ] && XML="$VERSION.xml"
   fi
 
@@ -199,26 +250,37 @@ if [[ "$MANUAL" != [Yy1]* ]]; then
       RESULT=$(wimlib-imagex info -xml "$LOC" | tr -d '\000')
       NAME=$(sed -n "/$TAG/{s/.*<$TAG>\(.*\)<\/$TAG>.*/\1/;p}" <<< "$RESULT")
 
-      if [ -z "$NAME" ]; then
-        TAG="PRODUCTNAME"
-        NAME=$(sed -n "/$TAG/{s/.*<$TAG>\(.*\)<\/$TAG>.*/\1/;p}" <<< "$RESULT")
-      fi
-
-      [[ "${NAME,,}" == "windows 11"* ]] && DETECTED="win11x64"
-      [[ "${NAME,,}" == "windows 10"* ]] && DETECTED="win10x64"
-      [[ "${NAME,,}" == "windows 8"* ]] && DETECTED="win81x64"
+      [[ "${NAME,,}" == *"windows 11"* ]] && DETECTED="win11x64"
+      [[ "${NAME,,}" == *"windows 10"* ]] && DETECTED="win10x64"
+      [[ "${NAME,,}" == *"windows 8"* ]] && DETECTED="win81x64"
       [[ "${NAME,,}" == *"server 2022"* ]] && DETECTED="win2022-eval"
       [[ "${NAME,,}" == *"server 2019"* ]] && DETECTED="win2019-eval"
       [[ "${NAME,,}" == *"server 2016"* ]] && DETECTED="win2016-eval"
+
+      if [ -z "$DETECTED" ]; then
+
+        TAG="PRODUCTNAME"
+        NAME2=$(sed -n "/$TAG/{s/.*<$TAG>\(.*\)<\/$TAG>.*/\1/;p}" <<< "$RESULT")
+        [ -z "$NAME" ] && NAME="$NAME2"
+
+        [[ "${NAME2,,}" == *"windows 11"* ]] && DETECTED="win11x64"
+        [[ "${NAME2,,}" == *"windows 10"* ]] && DETECTED="win10x64"
+        [[ "${NAME2,,}" == *"windows 8"* ]] && DETECTED="win81x64"
+        [[ "${NAME2,,}" == *"server 2022"* ]] && DETECTED="win2022-eval"
+        [[ "${NAME2,,}" == *"server 2019"* ]] && DETECTED="win2019-eval"
+        [[ "${NAME2,,}" == *"server 2016"* ]] && DETECTED="win2016-eval"
+
+      fi
 
       if [ -n "$DETECTED" ]; then
 
         XML="$DETECTED.xml"
 
         if [ -f "/run/assets/$XML" ]; then
-          echo "Detected image of type '$DETECTED', will apply an autounattend.xml file."
+          echo "Detected image of type '$DETECTED', which supports automatic installation."
         else
-          warn "detected image of type '$DETECTED', but no matching .xml file exists, $FB."
+          XML=""
+          warn "detected image of type '$DETECTED', but no matching XML file exists, $FB."
         fi
 
       else
@@ -242,6 +304,23 @@ ASSET="/run/assets/$XML"
 
 if [ -f "$ASSET" ]; then
 
+  LOC="$DIR/autounattend.xml"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  LOC="$DIR/Autounattend.xml"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  LOC="$DIR/AutoUnattend.xml"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  LOC="$DIR/autounattend.XML"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  LOC="$DIR/Autounattend.XML"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  LOC="$DIR/AutoUnattend.XML"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  LOC="$DIR/AUTOUNATTEND.xml"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  LOC="$DIR/AUTOUNATTEND.XML"
+  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+
   LOC="$DIR/sources/boot.wim"
   [ ! -f "$LOC" ] && LOC="$DIR/sources/boot.esd"
 
@@ -261,26 +340,11 @@ if [ -f "$ASSET" ]; then
     wimlib-imagex update "$LOC" "$INDEX" --command "add $ASSET /autounattend.xml" > /dev/null
 
   else
+
+    ASSET=""
     warn "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB"
+
   fi
-
-  LOC="$DIR/autounattend.xml"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-  LOC="$DIR/Autounattend.xml"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-  LOC="$DIR/AutoUnattend.xml"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-  LOC="$DIR/autounattend.XML"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-  LOC="$DIR/Autounattend.XML"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-  LOC="$DIR/AutoUnattend.XML"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-  LOC="$DIR/AUTOUNATTEND.xml"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-  LOC="$DIR/AUTOUNATTEND.XML"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-
 fi
 
 CAT="BOOT.CAT"
@@ -302,9 +366,20 @@ info "$MSG" && html "$MSG"
 genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -quiet -V "$LABEL" -udf \
                        -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$OUT" -allow-limited-size "$DIR"
 
+# Mark ISO as prepared via magic byte
+printf '\x16' | dd of=$OUT bs=1 seek=0 count=1 conv=notrunc status=none
+
 [ -n "$CUSTOM" ] && rm -f "$STORAGE/$CUSTOM"
 
+if [ -f "$STORAGE/$BASE" ]; then
+  error "File $STORAGE/$BASE does already exist ?!" && exit 64
+fi
+
 mv "$OUT" "$STORAGE/$BASE"
+
+rm -f "$STORAGE/windows.ver"
+cp /run/version "$STORAGE/windows.ver"
+
 rm -rf "$TMP"
 
 html "Successfully prepared image for installation..."
