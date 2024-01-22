@@ -70,19 +70,29 @@ fi
 [[ "${BASE,,}" == "custom."* ]] && BASE="target.iso"
 
 html "$MSG"
+
+CUSTOM="custom.iso"
 TMP="$STORAGE/tmp"
 
 if [ -f "$STORAGE/$BASE" ]; then
-  rm -rf "$TMP"
-  return 0
+
+  # Check if the ISO was already processed by our script
+  MAGIC=$(dd if="$STORAGE/$BASE" seek=0 bs=1 count=1 status=none)
+  MAGIC="$(printf '%s' "$MAGIC" | od -A n -t x1 -v | tr -d ' \n')"
+  
+  if [[ "${MAGIC,,}" == "16" ]]; then
+    rm -rf "$TMP"
+    return 0
+  fi
+
+  info "ISO file "$STORAGE/$BASE" needs to be prepared..."
+
 fi
 
 mkdir -p "$TMP"
 
 ISO="$TMP/$BASE"
 rm -f "$ISO"
-
-CUSTOM="custom.iso"
 
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.img"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.iso"
