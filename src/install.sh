@@ -93,7 +93,7 @@ if [ -f "$STORAGE/$BASE" ]; then
   MAGIC=$(dd if="$STORAGE/$BASE" seek=0 bs=1 count=1 status=none | tr -d '\000')
   MAGIC="$(printf '%s' "$MAGIC" | od -A n -t x1 -v | tr -d ' \n')"
 
-  if [[ "${MAGIC,,}" == "16" ]]; then
+  if [[ "$MAGIC" == "16" ]] || [[ "$MAGIC" == "17" ]] || [[ "$MAGIC" == "18" ]]; then
     rm -rf "$TMP"
     return 0
   fi
@@ -115,6 +115,7 @@ fi
 rm -f "$TMP/$BASE"
 
 if [ ! -f "$ISO" ]; then
+
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
     cd "$TMP"
@@ -174,16 +175,23 @@ ETFS="boot/etfsboot.com"
 EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 
 if [ ! -f "$DIR/$ETFS" ] || [ ! -f "$DIR/$EFISYS" ]; then
+
   if [ ! -f "$DIR/$ETFS" ]; then
     warn "failed to locate file 'etfsboot.com' in ISO image, $FB"
   else
     warn "failed to locate file 'efisys_noprompt.bin' in ISO image, $FB"
   fi
+
   # Mark ISO as prepared via magic byte
   printf '\x16' | dd of=$ISO bs=1 seek=0 count=1 conv=notrunc status=none
+
   [[ "$ISO" != "$STORAGE/$BASE" ]] && mv -f "$ISO" "$STORAGE/$BASE"
+
+  rm -f "$STORAGE/windows.ver"
   rm -f "$STORAGE/windows.xml"
-  echo "$BASE" > "$STORAGE/windows.ver"
+  cp /run/version "$STORAGE/windows.ver"
+  echo "$BASE" > "$STORAGE/windows.base"
+
   rm -rf "$TMP"
   return 0
 fi
@@ -337,7 +345,13 @@ genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-
                        -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$OUT" -allow-limited-size "$DIR"
 
 # Mark ISO as prepared via magic byte
-printf '\x16' | dd of=$OUT bs=1 seek=0 count=1 conv=notrunc status=none
+if [ ! -f "$ASSET" ]; then
+  BYTE="\x17"
+else
+  BYTE="\x18"
+fi
+
+printf "$BYTE" | dd of=$OUT bs=1 seek=0 count=1 conv=notrunc status=none
 
 [ -n "$CUSTOM" ] && rm -f "$STORAGE/$CUSTOM"
 
@@ -346,10 +360,13 @@ if [ -f "$STORAGE/$BASE" ]; then
 fi
 
 mv "$OUT" "$STORAGE/$BASE"
-echo "$BASE" > "$STORAGE/windows.ver"
+
+rm -f "$STORAGE/windows.ver"
+rm -f "$STORAGE/windows.xml"
+cp /run/version "$STORAGE/windows.ver"
+echo "$BASE" > "$STORAGE/windows.base"
 
 if [ -f "$ASSET" ]; then
-  rm -f "$STORAGE/windows.xml"
   cp "$ASSET" "$STORAGE/windows.xml"
 fi
 
