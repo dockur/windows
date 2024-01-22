@@ -13,7 +13,7 @@ jobs:
         env:
           SHELLCHECK_OPTS: -x --source-path=src -e SC1091 -e SC2001 -e SC2034 -e SC2064 -e SC2317 -e SC2153
       - name: Validate XML
-        uses: anyone-developer/anyone-validate-xml@main
+        uses: actions/verify-xml-action@v1
         with:
-         file-extension: '.xml'
-         read-path: 'assets'
+         path: "assets"
+         file-endings: ".xml"
