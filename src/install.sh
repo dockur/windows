@@ -106,14 +106,17 @@ if [ -f "$STORAGE/$BASE" ]; then
   MAGIC=$(dd if="$STORAGE/$BASE" seek=0 bs=1 count=1 status=none | tr -d '\000')
   MAGIC="$(printf '%s' "$MAGIC" | od -A n -t x1 -v | tr -d ' \n')"
 
-  if [[ "$MAGIC" == "16" ]] && [ -f "$STORAGE/windows.ver" ]; then
+  if [[ "$MAGIC" == "16" ]]; then
 
     FOUND="N"
+    [[ "$MANUAL" = [Yy1]* ]] && FOUND="Y"
 
-    if [ -f "$STORAGE/data.img" ] || [ -f "$STORAGE/data.qcow2" ]; then
-      FOUND="Y"
-    else
-      [ -b "${DEVICE:-}" ] && FOUND="Y"
+    if [[ "$FOUND" == "N" ]]; then
+      if [ -f "$STORAGE/data.img" ] || [ -f "$STORAGE/data.qcow2" ]; then
+        FOUND="Y"
+      else
+        [ -b "${DEVICE:-}" ] && FOUND="Y"
+      fi
     fi
 
     if [[ "$FOUND" == "Y" ]]; then
