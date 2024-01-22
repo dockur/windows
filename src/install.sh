@@ -122,21 +122,21 @@ if [ ! -f "$ISO" ]; then
 
   fi
 
-  [ ! -f "$ISO" ] && echo && error "Failed to download $VERSION" && exit 61
+  [ ! -f "$ISO" ] && error "Failed to download $VERSION" && exit 61
 fi
 
 SIZE=$(stat -c%s "$ISO")
 SIZE_GB=$(( (SIZE + 1073741823)/1073741824 ))
 
 if ((SIZE<10000000)); then
-  echo && error "Invalid ISO file: Size is smaller than 10 MB" && exit 62
+  error "Invalid ISO file: Size is smaller than 10 MB" && exit 62
 fi
 
 SPACE=$(df --output=avail -B 1 "$TMP" | tail -n 1)
 SPACE_GB=$(( (SPACE + 1073741823)/1073741824 ))
 
 if (( SIZE > SPACE )); then
-  echo && error "Not enough free space in $STORAGE, have $SPACE_GB GB available but need at least $SIZE_GB GB." && exit 63
+  error "Not enough free space in $STORAGE, have $SPACE_GB GB available but need at least $SIZE_GB GB." && exit 63
 fi
 
 if [ -n "$CUSTOM" ]; then
@@ -293,7 +293,7 @@ SPACE=$(df --output=avail -B 1 "$TMP" | tail -n 1)
 SPACE_GB=$(( (SPACE + 1073741823)/1073741824 ))
 
 if (( SIZE > SPACE )); then
-  echo && error "Not enough free space in $STORAGE, have $SPACE_GB GB available but need at least $SIZE_GB GB." && exit 63
+  error "Not enough free space in $STORAGE, have $SPACE_GB GB available but need at least $SIZE_GB GB." && exit 63
 fi
 
 MSG="Generating new ISO image for installation..."
