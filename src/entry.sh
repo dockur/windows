@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 APP="Windows"
-export BOOT_MODE="windows"
+BOOT_MODE="windows"
 SUPPORT="https://github.com/dockur/windows"
 
 cd /run
