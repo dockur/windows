@@ -11,6 +11,7 @@ QEMU_LOG="/run/shm/qemu.log"
 QEMU_OUT="/run/shm/qemu.out"
 QEMU_END="/run/shm/qemu.end"
 
+rm -f /run/shm/qemu.*
 touch "$QEMU_LOG"
 
 _trap() {
@@ -37,6 +38,9 @@ finish() {
       [ ! -f "$QEMU_PID" ] && break
     done
   fi
+
+  pid="/var/run/tpm.pid"
+  [ -f "$pid" ] && pKill "$(<"$pid")"
 
   closeNetwork
 
@@ -87,7 +91,6 @@ terminal() {
 _graceful_shutdown() {
 
   local code=$?
-  local pid url response
 
   set +e
 
@@ -104,6 +107,7 @@ _graceful_shutdown() {
     finish "$code" && return "$code"
   fi
 
+  local pid=""
   pid=$(<"$QEMU_PID")
 
   if ! isAlive "$pid"; then
@@ -115,7 +119,6 @@ _graceful_shutdown() {
   echo 'system_powerdown' | nc -q 1 -w 1 localhost "${QEMU_PORT}" > /dev/null
 
   local cnt=0
-
   while [ "$cnt" -lt "$QEMU_TIMEOUT" ]; do
 
     sleep 1
