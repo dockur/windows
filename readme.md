@@ -39,13 +39,13 @@ services:
       - 3389:3389/tcp
       - 3389:3389/udp
     stop_grace_period: 2m
-    restart: unless-stopped
+    restart: on-failure
 ```
 
 Via `docker run`
 
 ```bash
-docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/windows
+docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-timeout 120 dockurr/windows
 ```
 
 ## FAQ
@@ -152,7 +152,7 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN dockurr/w
       VERSION: "https://example.com/win.iso"
     ```
 
-    Alternatively, you can also place a file called `custom.iso` in an empty `/storage` folder to skip the download.
+    Alternatively, you can also rename a local file to `custom.iso` and place it in an empty `/storage` folder to skip the download.
 
   * ### How do I pass-through a disk?
 
