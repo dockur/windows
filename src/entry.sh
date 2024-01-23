@@ -2,23 +2,31 @@
 set -Eeuo pipefail
 
 APP="Windows"
-export BOOT_MODE=windows
+export BOOT_MODE="windows"
 SUPPORT="https://github.com/dockur/windows"
 
 cd /run
 
 . reset.sh      # Initialize system
-. install.sh    # Get bootdisk
+. install.sh    # Run installation
 . disk.sh       # Initialize disks
 . display.sh    # Initialize graphics
 . network.sh    # Initialize network
 . boot.sh       # Configure boot
 . proc.sh       # Initialize processor
+. power.sh      # Configure shutdown
 . config.sh     # Configure arguments
 
 trap - ERR
 
 info "Booting $APP using $VERS..."
+[[ "$DEBUG" == [Yy1]* ]] && echo "Arguments: $ARGS" && echo
 
-[[ "$DEBUG" == [Yy1]* ]] && set -x
-exec qemu-system-x86_64 ${ARGS:+ $ARGS}
+{ qemu-system-x86_64 ${ARGS:+ $ARGS} >"$QEMU_OUT" 2>"$QEMU_LOG"; rc=$?; } || :
+(( rc != 0 )) && error "$(<"$QEMU_LOG")" && exit 15
+
+terminal
+tail -fn +0 "$QEMU_LOG" 2>/dev/null &
+cat "$QEMU_TERM" 2>/dev/null & wait $! || :
+
+sleep 1 && finish 0
