@@ -270,7 +270,17 @@
           <Order>5</Order>
           <CommandLine>msiexec /i E:\virtio-win-gt-x64.msi /qb!</CommandLine>
           <Description>Install VirtIO drivers</Description>
-        </SynchronousCommand>
+          </SynchronousCommand>
+          <SynchronousCommand wcm:action="add">
+            <Order>6</Order>
+            <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Network\NewNetworkWindowOff" /f</CommandLine>
+            <Description>Disable Network Discovery popup</Description>
+          </SynchronousCommand>
+          <SynchronousCommand wcm:action="add">
+            <Order>7</Order>
+            <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Network\NetworkLocationWizard" /v HideWizard /t REG_DWORD /d 1 /f</CommandLine>
+            <Description>Disable Network Discovery popup</Description>
+          </SynchronousCommand>
       </FirstLogonCommands>
     </component>
   </settings>
