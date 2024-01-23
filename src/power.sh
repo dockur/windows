@@ -5,7 +5,7 @@ set -Eeuo pipefail
 
 QEMU_TERM=""
 QEMU_PORT=7100
-QEMU_TIMEOUT=50
+QEMU_TIMEOUT=45
 QEMU_PID="/run/shm/qemu.pid"
 QEMU_LOG="/run/shm/qemu.log"
 QEMU_OUT="/run/shm/qemu.out"
