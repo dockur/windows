@@ -4,6 +4,10 @@ set -Eeuo pipefail
 : "${MANUAL:=""}"
 : "${VERSION:="win11x64"}"
 
+if [[ "${VERSION}" == \"*\" || "${VERSION}" == \'*\' ]]; then
+  VERSION="${VERSION:1:-1}"
+fi
+
 [[ "${VERSION,,}" == "11" ]] && VERSION="win11x64"
 [[ "${VERSION,,}" == "win11" ]] && VERSION="win11x64"
 
