@@ -5,7 +5,7 @@ set -Eeuo pipefail
 
 QEMU_TERM=""
 QEMU_PORT=7100
-QEMU_TIMEOUT=45
+QEMU_TIMEOUT=110
 QEMU_PID="/run/shm/qemu.pid"
 QEMU_LOG="/run/shm/qemu.log"
 QEMU_OUT="/run/shm/qemu.out"
@@ -29,7 +29,7 @@ finish() {
   if [ -f "$QEMU_PID" ]; then
 
     pid=$(<"$QEMU_PID")
-    echo && error "Forcefully terminating QEMU process, reason: $reason..."
+    echo && error "Forcefully terminating Windows, reason: $reason..."
     { kill -15 "$pid" || true; } 2>/dev/null
 
     while isAlive "$pid"; do
@@ -95,12 +95,12 @@ _graceful_shutdown() {
   set +e
 
   if [ -f "$QEMU_END" ]; then
-    echo && info "Received $1 signal while already shutting down..."
+    echo && info "Received $1 while already shutting down..."
     return
   fi
 
   touch "$QEMU_END"
-  echo && info "Received $1 signal, sending ACPI shutdown signal..."
+  echo && info "Received $1, sending ACPI shutdown signal..."
 
   if [ ! -f "$QEMU_PID" ]; then
     echo && error "QEMU PID file does not exist?"
@@ -128,7 +128,7 @@ _graceful_shutdown() {
     # Workaround for zombie pid
     [ ! -f "$QEMU_PID" ] && break
 
-    info "Waiting for Windows shutdown... ($cnt/$QEMU_TIMEOUT)"
+    info "Waiting for Windows to shutdown... ($cnt/$QEMU_TIMEOUT)"
 
     # Send ACPI shutdown signal
     echo 'system_powerdown' | nc -q 1 -w 1 localhost "${QEMU_PORT}" > /dev/null
