@@ -142,16 +142,10 @@ _graceful_shutdown() {
   finish "$code" && return "$code"
 }
 
-MON_OPTS="\
-        -pidfile $QEMU_PID \
-        -monitor telnet:localhost:$QEMU_PORT,server,nowait,nodelay"
+SERIAL="pty"
+MONITOR="telnet:localhost:$QEMU_PORT,server,nowait,nodelay"
+MONITOR="$MONITOR -daemonize -D $QEMU_LOG -pidfile $QEMU_PID"
 
-if [[ "$CONSOLE" != [Yy]* ]]; then
-
-  MON_OPTS="$MON_OPTS -daemonize -D $QEMU_LOG"
-
-  _trap _graceful_shutdown SIGTERM SIGHUP SIGINT SIGABRT SIGQUIT
-
-fi
+_trap _graceful_shutdown SIGTERM SIGHUP SIGINT SIGABRT SIGQUIT
 
 return 0
