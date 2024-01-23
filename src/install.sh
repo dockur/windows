@@ -358,7 +358,7 @@ if (( SIZE > SPACE )); then
   error "Not enough free space in $STORAGE, have $SPACE_GB GB available but need at least $SIZE_GB GB." && exit 63
 fi
 
-MSG="Generating new ISO image for installation..."
+MSG="Generating the ISO image..."
 info "$MSG" && html "$MSG"
 
 genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -quiet -V "$LABEL" -udf \
