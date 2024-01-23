@@ -169,10 +169,6 @@
       <OEMInformation>
         <Manufacturer>Dockur</Manufacturer>
         <Model>Windows for Docker</Model>
-        <SupportHours>24/7</SupportHours>
-        <SupportPhone></SupportPhone>
-        <SupportProvider>Dockur</SupportProvider>
-        <SupportURL>https://github.com/dockur/windows/issues</SupportURL>
       </OEMInformation>
       <OEMName>Windows for Docker</OEMName>
     </component>
@@ -245,9 +241,6 @@
         <ProtectYourPC>3</ProtectYourPC>
         <SkipUserOOBE>true</SkipUserOOBE>
         <SkipMachineOOBE>true</SkipMachineOOBE>
-        <VMModeOptimizations>
-          <SkipWinREInitialization>true</SkipWinREInitialization>
-        </VMModeOptimizations>
       </OOBE>
       <RegisteredOrganization>Dockur</RegisteredOrganization>
       <RegisteredOwner>Windows for Docker</RegisteredOwner>
