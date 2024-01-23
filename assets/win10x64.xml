@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
   <settings pass="windowsPE">
     <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
@@ -164,7 +164,7 @@
         <Manufacturer>Dockur</Manufacturer>
         <Model>Windows for Docker</Model>
         <SupportHours>24/7</SupportHours>
-        <SupportPhone></SupportPhone>
+        <SupportPhone />
         <SupportProvider>Dockur</SupportProvider>
         <SupportURL>https://github.com/dockur/windows/issues</SupportURL>
       </OEMInformation>
@@ -266,8 +266,8 @@
       </RunSynchronous>
     </component>
   </settings>
-  <settings pass="auditSystem"/>
-  <settings pass="auditUser"/>
+  <settings pass="auditSystem" />
+  <settings pass="auditUser" />
   <settings pass="oobeSystem">
     <component name="Microsoft-Windows-International-Core" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <InputLocale>0409:00000409</InputLocale>
@@ -282,7 +282,7 @@
             <Name>Docker</Name>
             <Group>Administrators</Group>
             <Password>
-              <Value/>
+              <Value />
               <PlainText>true</PlainText>
             </Password>
           </LocalAccount>
@@ -297,7 +297,7 @@
         <Enabled>true</Enabled>
         <LogonCount>1</LogonCount>
         <Password>
-          <Value/>
+          <Value />
           <PlainText>true</PlainText>
         </Password>
       </AutoLogon>
@@ -343,6 +343,16 @@
           <Order>5</Order>
           <CommandLine>msiexec /i E:\virtio-win-gt-x64.msi /qb!</CommandLine>
           <Description>Install VirtIO drivers</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>6</Order>
+          <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Network\NewNetworkWindowOff" /f</CommandLine>
+          <Description>Disable Network Discovery popup</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>7</Order>
+          <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Network\NetworkLocationWizard" /v HideWizard /t REG_DWORD /d 1 /f</CommandLine>
+          <Description>Disable Network Discovery popup</Description>
         </SynchronousCommand>
       </FirstLogonCommands>
     </component>

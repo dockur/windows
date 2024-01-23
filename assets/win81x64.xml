@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
   <settings pass="windowsPE">
     <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
@@ -162,7 +162,7 @@
     </component>
   </settings>
   <settings pass="specialize">
-      <component name="Microsoft-Windows-Security-SPP-UX" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-Security-SPP-UX" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <SkipAutoActivation>true</SkipAutoActivation>
     </component>
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
@@ -170,10 +170,6 @@
       <OEMInformation>
         <Manufacturer>Dockur</Manufacturer>
         <Model>Windows for Docker</Model>
-        <SupportHours>24/7</SupportHours>
-        <SupportPhone></SupportPhone>
-        <SupportProvider>Dockur</SupportProvider>
-        <SupportURL>https://github.com/dockur/windows/issues</SupportURL>
       </OEMInformation>
       <OEMName>Windows for Docker</OEMName>
     </component>
@@ -195,7 +191,7 @@
             <Name>Docker</Name>
             <Group>Administrators</Group>
             <Password>
-              <Value/>
+              <Value />
               <PlainText>true</PlainText>
             </Password>
           </LocalAccount>
@@ -210,7 +206,7 @@
         <Enabled>true</Enabled>
         <LogonCount>1</LogonCount>
         <Password>
-          <Value/>
+          <Value />
           <PlainText>true</PlainText>
         </Password>
       </AutoLogon>
@@ -224,9 +220,6 @@
         <ProtectYourPC>3</ProtectYourPC>
         <SkipUserOOBE>true</SkipUserOOBE>
         <SkipMachineOOBE>true</SkipMachineOOBE>
-        <VMModeOptimizations>
-          <SkipWinREInitialization>true</SkipWinREInitialization>
-        </VMModeOptimizations>
       </OOBE>
       <RegisteredOrganization>Dockur</RegisteredOrganization>
       <RegisteredOwner>Windows for Docker</RegisteredOwner>
@@ -250,6 +243,16 @@
           <Order>4</Order>
           <CommandLine>msiexec /i E:\virtio-win-gt-x64.msi /qb!</CommandLine>
           <Description>Install VirtIO drivers</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>5</Order>
+          <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Network\NewNetworkWindowOff" /f</CommandLine>
+          <Description>Disable Network Discovery popup</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>6</Order>
+          <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Network\NetworkLocationWizard" /v HideWizard /t REG_DWORD /d 1 /f</CommandLine>
+          <Description>Disable Network Discovery popup</Description>
         </SynchronousCommand>
       </FirstLogonCommands>
     </component>
