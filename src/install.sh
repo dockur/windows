@@ -31,14 +31,6 @@ set -Eeuo pipefail
 [[ "${VERSION,,}" == "win16" ]] && VERSION="win2016-eval"
 [[ "${VERSION,,}" == "win2016" ]] && VERSION="win2016-eval"
 
-if [[ "${VERSION,,}" == "tiny10" ]]; then
-  VERSION="https://archive.org/download/tiny-10-23-h2/tiny10%20x64%2023h2.iso"
-fi
-
-if [[ "${VERSION,,}" == "tiny11" ]]; then
-  VERSION="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
-fi
-
 CUSTOM="custom.iso"
 
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.iso"
@@ -91,14 +83,9 @@ else
 fi
 
 html "$MSG"
+
 TMP="$STORAGE/tmp"
-
-if [ -z "$MANUAL" ]; then
-
-  MANUAL="N"
-  [[ "${BASE,,}" == "tiny10"* ]] && MANUAL="Y"
-
-fi
+[ -z "$MANUAL" ] && MANUAL="N"
 
 if [ -f "$STORAGE/$BASE" ]; then
 
