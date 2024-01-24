@@ -113,6 +113,7 @@ finishInstall() {
 
 startInstall() {
 
+  local magic
   local msg="Windows is being started, please wait..."
 
   if [ -f "$STORAGE/$CUSTOM" ]; then
@@ -161,7 +162,7 @@ startInstall() {
   if [ -f "$STORAGE/$BASE" ]; then
 
     # Check if the ISO was already processed by our script
-    local magic=$(dd if="$STORAGE/$BASE" seek=0 bs=1 count=1 status=none | tr -d '\000')
+    magic=$(dd if="$STORAGE/$BASE" seek=0 bs=1 count=1 status=none | tr -d '\000')
     magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
 
     if [[ "$magic" == "16" ]]; then
@@ -236,15 +237,16 @@ extractImage() {
 
   local iso="$1"
   local dir="$2"
-
+  local size size_gb space space_gb
+  
   local msg="Extracting downloaded ISO image..."
   [ -n "$CUSTOM" ] && msg="Extracting local ISO image..."
   info "$msg" && html "$msg"
 
-  local size=$(stat -c%s "$iso")
-  local size_gb=$(( (size + 1073741823)/1073741824 ))
-  local space=$(df --output=avail -B 1 "$TMP" | tail -n 1)
-  local space_gb=$(( (space + 1073741823)/1073741824 ))
+  size=$(stat -c%s "$iso")
+  size_gb=$(( (size + 1073741823)/1073741824 ))
+  space=$(df --output=avail -B 1 "$TMP" | tail -n 1)
+  space_gb=$(( (space + 1073741823)/1073741824 ))
 
   if ((size<10000000)); then
     error "Invalid ISO file: Size is smaller than 10 MB" && exit 62
@@ -292,6 +294,7 @@ findVersion() {
 selectXML() {
 
   local dir="$1"
+  local tag result name name2 detected
 
   XML=""
   [[ "$MANUAL" == [Yy1]* ]] && return 0
@@ -311,15 +314,15 @@ selectXML() {
     return 0
   fi
 
-  local tag="DISPLAYNAME"
-  local result=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
-  local name=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$result")
-  local detected=$(findVersion "$name")
+  tag="DISPLAYNAME"
+  result=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
+  name=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$result")
+  detected=$(findVersion "$name")
 
   if [ -z "$detected" ]; then
 
     tag="PRODUCTNAME"
-    local name2=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$result")
+    name2=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$result")
     [ -z "$name" ] && name="$name2"
     detected=$(findVersion "$name2")
 
@@ -355,6 +358,7 @@ updateImage() {
 
   local dir="$1"
   local asset="$2"
+  local index result
 
   [ ! -f "$asset" ] && return 0
   replaceXML "$dir" "$asset"
@@ -369,8 +373,8 @@ updateImage() {
 
   info "Adding XML file for automatic installation..."
 
-  local index="1"
-  local result=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
+  index="1"
+  result=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
 
   if [[ "${result^^}" == *"<IMAGE INDEX=\"2\">"* ]]; then
     index="2"
@@ -386,6 +390,8 @@ buildImage() {
   local dir="$1"
   local cat="BOOT.CAT"
   local label="${BASE%.*}"
+  local size size_gb space space_gb
+
   label="${label::30}"
   local out="$TMP/$label.tmp"
   rm -f "$out"
@@ -393,10 +399,10 @@ buildImage() {
   local msg="Generating updated ISO image..."
   info "$msg" && html "$msg"
 
-  local size=$(du -h -b --max-depth=0 "$dir" | cut -f1)
-  local size_gb=$(( (size + 1073741823)/1073741824 ))
-  local space=$(df --output=avail -B 1 "$TMP" | tail -n 1)
-  local space_gb=$(( (space + 1073741823)/1073741824 ))
+  size=$(du -h -b --max-depth=0 "$dir" | cut -f1)
+  size_gb=$(( (size + 1073741823)/1073741824 ))
+  space=$(df --output=avail -B 1 "$TMP" | tail -n 1)
+  space_gb=$(( (space + 1073741823)/1073741824 ))
 
   if (( size > space )); then
     error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB." && exit 63
