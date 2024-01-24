@@ -116,7 +116,7 @@ _graceful_shutdown() {
     finish "$code" && return "$code"
   fi
 
-  if [ -f "$QEMU_PTY" ]; then
+  if [ ! f "$STORAGE/windows.boot" ] && [ -f "$QEMU_PTY" ]; then
     if ! grep -Fq "Windows Boot Manager" "$QEMU_PTY"; then
       info "Cannot send ACPI signal during Windows setup, aborting..."
       finish "$code" && return "$code"
