@@ -121,8 +121,10 @@ _graceful_shutdown() {
       info "Cannot send ACPI signal during Windows setup, aborting..."
       finish "$code" && return "$code"
     else
-      [ -n "$BASE" ] && rm -f "$STORAGE/$BASE"
-      touch "$STORAGE/windows.boot"
+      if [ -f "$STORAGE/$BASE" ]; then
+        rm -f "$STORAGE/$BASE"
+        touch "$STORAGE/windows.boot"
+      fi
     fi
   fi
 
