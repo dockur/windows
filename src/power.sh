@@ -10,6 +10,7 @@ QEMU_PID="/run/shm/qemu.pid"
 QEMU_LOG="/run/shm/qemu.log"
 QEMU_OUT="/run/shm/qemu.out"
 QEMU_END="/run/shm/qemu.end"
+QEMU_PTY="/run/shm/qemu.pty"
 
 rm -f /run/shm/qemu.*
 touch "$QEMU_LOG"
@@ -29,7 +30,7 @@ finish() {
   if [ -f "$QEMU_PID" ]; then
 
     pid=$(<"$QEMU_PID")
-    echo && error "Forcefully terminating Windows, reason: $reason..."
+    error "Forcefully terminating Windows, reason: $reason..."
     { kill -15 "$pid" || true; } 2>/dev/null
 
     while isAlive "$pid"; do
@@ -44,8 +45,8 @@ finish() {
 
   closeNetwork
 
-  sleep 1
-  echo && echo "❯ Shutdown completed!"
+  sleep 0.5
+  echo "❯ Shutdown completed!"
 
   exit "$reason"
 }
@@ -95,15 +96,15 @@ _graceful_shutdown() {
   set +e
 
   if [ -f "$QEMU_END" ]; then
-    echo && info "Received $1 while already shutting down..."
+    info "Received $1 while already shutting down..."
     return
   fi
 
   touch "$QEMU_END"
-  echo && info "Received $1, sending ACPI shutdown signal..."
+  info "Received $1, sending ACPI shutdown signal..."
 
   if [ ! -f "$QEMU_PID" ]; then
-    echo && error "QEMU PID file does not exist?"
+    error "QEMU PID file does not exist?"
     finish "$code" && return "$code"
   fi
 
@@ -111,8 +112,18 @@ _graceful_shutdown() {
   pid=$(<"$QEMU_PID")
 
   if ! isAlive "$pid"; then
-    echo && error "QEMU process does not exist?"
+    error "QEMU process does not exist?"
     finish "$code" && return "$code"
+  fi
+
+  if [ -f "$QEMU_PTY" ]; then
+    if ! grep -Fq "Windows Boot Manager" "$QEMU_PTY"; then
+      info "Cannot send ACPI signal during Windows setup, aborting..."
+      finish "$code" && return "$code"
+    else
+      rm -f "$STORAGE/$BASE"
+      touch "$STORAGE/windows.boot"
+    fi
   fi
 
   # Send ACPI shutdown signal
@@ -136,7 +147,7 @@ _graceful_shutdown() {
   done
 
   if [ "$cnt" -ge "$QEMU_TIMEOUT" ]; then
-    echo && error "Shutdown timeout reached, aborting..."
+    error "Shutdown timeout reached, aborting..."
   fi
 
   finish "$code" && return "$code"
