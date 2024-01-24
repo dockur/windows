@@ -72,22 +72,22 @@ replaceXML() {
 
 hasDisk() {
 
-  [ -b "${DEVICE:-}" ] && return 1
+  [ -b "${DEVICE:-}" ] && return 0
 
   if [ -f "$STORAGE/data.img" ] || [ -f "$STORAGE/data.qcow2" ]; then
-    return 1
+    return 0
   fi
 
-  return 0
+  return 1
 }
 
 skipInstall() {
 
   if hasDisk && [ -f "$STORAGE/windows.boot" ]; then
-    return 1
+    return 0
   fi
 
-  return 0
+  return 1
 }
 
 TMP="$STORAGE/tmp"
