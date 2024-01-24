@@ -7,10 +7,10 @@ QEMU_TERM=""
 QEMU_PORT=7100
 QEMU_TIMEOUT=110
 QEMU_PID="/run/shm/qemu.pid"
+QEMU_PTY="/run/shm/qemu.pty"
 QEMU_LOG="/run/shm/qemu.log"
 QEMU_OUT="/run/shm/qemu.out"
 QEMU_END="/run/shm/qemu.end"
-QEMU_PTY="/run/shm/qemu.pty"
 
 rm -f /run/shm/qemu.*
 touch "$QEMU_LOG"
