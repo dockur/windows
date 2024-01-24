@@ -199,8 +199,8 @@ startInstall() {
 
 downloadImage() {
 
-  local url="$1"
-  local iso="$2"
+  local iso="$1"
+  local url="$2"
   local progress
   rm -f "$iso"
 
@@ -209,7 +209,7 @@ downloadImage() {
     cd "$TMP"
     /run/mido.sh "$url"
     cd /run
-    
+
     [ ! -f "$iso" ] && error "Failed to download $url" && exit 61
     return 0
 
@@ -234,8 +234,13 @@ downloadImage() {
 
 extractImage() {
 
-  local dir="$1"
-  local iso="$2"
+  local iso="$1"
+  local dir="$2"
+
+  local msg="Extracting downloaded ISO image..."
+  [ -n "$CUSTOM" ] && msg="Extracting local ISO image..."
+  info "$msg" && html "$msg"
+
   local size=$(stat -c%s "$iso")
   local size_gb=$(( (size + 1073741823)/1073741824 ))
   local space=$(df --output=avail -B 1 "$TMP" | tail -n 1)
@@ -248,11 +253,6 @@ extractImage() {
   if (( size > space )); then
     error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB." && exit 63
   fi
-
-  local msg="Extracting downloaded ISO image..."
-  [ -n "$CUSTOM" ] && msg="Extracting local ISO image..."
-
-  info "$msg" && html "$msg"
 
   rm -rf "$dir"
   7z x "$iso" -o"$dir" > /dev/null
@@ -289,7 +289,7 @@ findVersion() {
   return 0
 }
 
-getXML() {
+selectXML() {
 
   local dir="$1"
 
@@ -310,7 +310,7 @@ getXML() {
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
     return 0
   fi
-  
+
   local tag="DISPLAYNAME"
   local result=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
   local name=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$result")
@@ -366,7 +366,7 @@ updateImage() {
     warn "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB"
     return 0
   fi
-  
+
   info "Adding XML file for automatic installation..."
 
   local index="1"
@@ -384,14 +384,16 @@ updateImage() {
 buildImage() {
 
   local dir="$1"
-  local iso="$2"
   local cat="BOOT.CAT"
   local label="${BASE%.*}"
   label="${label::30}"
   local out="$TMP/$label.tmp"
   rm -f "$out"
 
-  local size=$(stat -c%s "$iso")
+  local msg="Generating updated ISO image..."
+  info "$msg" && html "$msg"
+
+  local size=$(du -h -b --max-depth=0 "$dir" | cut -f1)
   local size_gb=$(( (size + 1073741823)/1073741824 ))
   local space=$(df --output=avail -B 1 "$TMP" | tail -n 1)
   local space_gb=$(( (space + 1073741823)/1073741824 ))
@@ -399,9 +401,6 @@ buildImage() {
   if (( size > space )); then
     error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB." && exit 63
   fi
-
-  local msg="Generating updated ISO image..."
-  info "$msg" && html "$msg"
 
   genisoimage -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -quiet -V "$label" -udf \
                          -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$out" -allow-limited-size "$dir"
@@ -416,9 +415,7 @@ buildImage() {
   return 0
 }
 
-#######################
-#                                                               #
-#######################
+######################################
 
 if ! startInstall; then
   rm -rf "$TMP"
@@ -426,10 +423,10 @@ if ! startInstall; then
 fi
 
 if [ ! -f "$ISO" ]; then
-  downloadImage "$VERSION" "$ISO"
+  downloadImage "$ISO" "$VERSION"
 fi
 
-if ! extractImage "$DIR" "$ISO"; then
+if ! extractImage "$ISO" "$DIR"; then
 
   if [[ "$ISO" != "$STORAGE/$BASE" ]]; then
     mv -f "$ISO" "$STORAGE/$BASE"
@@ -440,9 +437,12 @@ if ! extractImage "$DIR" "$ISO"; then
 
 fi
 
-getXML "$DIR"
+selectXML "$DIR"
+
 updateImage "$DIR" "/run/assets/$XML"
-buildImage "$DIR" "$ISO"
+
+buildImage "$DIR"
+
 finishInstall "$STORAGE/$BASE"
 
 html "Successfully prepared image for installation..."
