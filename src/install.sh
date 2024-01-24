@@ -45,6 +45,12 @@ CUSTOM="custom.iso"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.IMG"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.IMG"
 
+TMP="$STORAGE/tmp"
+DIR="$TMP/unpack"
+FB="falling back to manual installation!"
+ETFS="boot/etfsboot.com"
+EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
+
 replaceXML() {
 
   local dir="$1"
@@ -90,8 +96,6 @@ skipInstall() {
   return 1
 }
 
-TMP="$STORAGE/tmp"
-
 finishInstall() {
 
   local iso="$1"
@@ -107,166 +111,167 @@ finishInstall() {
   return 0
 }
 
-MSG="Windows is being started, please wait..."
+startInstall() {
 
-if [ -f "$STORAGE/$CUSTOM" ]; then
+  local msg="Windows is being started, please wait..."
 
-  EXTERNAL="Y"
-  BASE="$CUSTOM"
+  if [ -f "$STORAGE/$CUSTOM" ]; then
 
-else
-
-  CUSTOM=""
-
-  if [[ "${VERSION,,}" == "http"* ]]; then
     EXTERNAL="Y"
-  else
-    EXTERNAL="N"
-  fi
-
-  if [[ "$EXTERNAL" != [Yy1]* ]]; then
-
-    BASE="$VERSION.iso"
-
-    if ! skipInstall && [ ! -f "$STORAGE/$BASE" ]; then
-      MSG="Windows is being downloaded, please wait..."
-    fi
+    BASE="$CUSTOM"
 
   else
 
-    BASE=$(basename "${VERSION%%\?*}")
-    : "${BASE//+/ }"; printf -v BASE '%b' "${_//%/\\x}"
-    BASE=$(echo "$BASE" | sed -e 's/[^A-Za-z0-9._-]/_/g')
+    CUSTOM=""
 
-    if ! skipInstall && [ ! -f "$STORAGE/$BASE" ]; then
-      MSG="Image '$BASE' is being downloaded, please wait..."
+    if [[ "${VERSION,,}" == "http"* ]]; then
+      EXTERNAL="Y"
+    else
+      EXTERNAL="N"
+    fi
+
+    if [[ "$EXTERNAL" != [Yy1]* ]]; then
+
+      BASE="$VERSION.iso"
+
+      if ! skipInstall && [ ! -f "$STORAGE/$BASE" ]; then
+        msg="Windows is being downloaded, please wait..."
+      fi
+
+    else
+
+      BASE=$(basename "${VERSION%%\?*}")
+      : "${BASE//+/ }"; printf -v BASE '%b' "${_//%/\\x}"
+      BASE=$(echo "$BASE" | sed -e 's/[^A-Za-z0-9._-]/_/g')
+
+      if ! skipInstall && [ ! -f "$STORAGE/$BASE" ]; then
+        msg="Image '$BASE' is being downloaded, please wait..."
+      fi
+
+    fi
+
+    [[ "${BASE,,}" == "custom."* ]] && BASE="windows.iso"
+
+  fi
+
+  html "$msg"
+
+  [ -z "$MANUAL" ] && MANUAL="N"
+
+  if [ -f "$STORAGE/$BASE" ]; then
+
+    # Check if the ISO was already processed by our script
+    local magic=$(dd if="$STORAGE/$BASE" seek=0 bs=1 count=1 status=none | tr -d '\000')
+    magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
+
+    if [[ "$magic" == "16" ]]; then
+
+      if hasDisk || [[ "$MANUAL" = [Yy1]* ]]; then
+        return 1
+      fi
+
+    fi
+
+    EXTERNAL="Y"
+    CUSTOM="$BASE"
+
+  else
+
+    if skipInstall; then
+      BASE=""
+      return 1
     fi
 
   fi
 
-  [[ "${BASE,,}" == "custom."* ]] && BASE="windows.iso"
+  mkdir -p "$TMP"
 
-fi
-
-html "$MSG"
-
-[ -z "$MANUAL" ] && MANUAL="N"
-
-if [ -f "$STORAGE/$BASE" ]; then
-
-  # Check if the ISO was already processed by our script
-  MAGIC=$(dd if="$STORAGE/$BASE" seek=0 bs=1 count=1 status=none | tr -d '\000')
-  MAGIC="$(printf '%s' "$MAGIC" | od -A n -t x1 -v | tr -d ' \n')"
-
-  if [[ "$MAGIC" == "16" ]]; then
-
-    if hasDisk || [[ "$MANUAL" = [Yy1]* ]]; then
-      rm -rf "$TMP"
-      return 0
-    fi
-
+  if [ ! -f "$STORAGE/$CUSTOM" ]; then
+    CUSTOM=""
+    ISO="$TMP/$BASE"
+  else
+    ISO="$STORAGE/$CUSTOM"
   fi
 
-  EXTERNAL="Y"
-  CUSTOM="$BASE"
+  rm -f "$TMP/$BASE"
+  return 0
+}
 
-else
+downloadImage() {
 
-  if skipInstall; then
-    BASE=""
-    rm -rf "$TMP"
-    return 0
-  fi
-
-fi
-
-mkdir -p "$TMP"
-
-if [ ! -f "$STORAGE/$CUSTOM" ]; then
-  CUSTOM=""
-  ISO="$TMP/$BASE"
-else
-  ISO="$STORAGE/$CUSTOM"
-fi
-
-rm -f "$TMP/$BASE"
-
-if [ ! -f "$ISO" ]; then
+  local url="$1"
+  local iso="$2"
+  local progress
+  rm -f "$iso"
 
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
     cd "$TMP"
-    /run/mido.sh "$VERSION"
+    /run/mido.sh "$url"
     cd /run
+    
+    [ ! -f "$iso" ] && error "Failed to download $url" && exit 61
+    return 0
 
+  fi
+
+  info "Downloading $BASE as boot image..."
+
+  # Check if running with interactive TTY or redirected to docker log
+  if [ -t 1 ]; then
+    progress="--progress=bar:noscroll"
   else
+    progress="--progress=dot:giga"
+  fi
 
-    info "Downloading $BASE as boot image..."
+  { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
 
-    # Check if running with interactive TTY or redirected to docker log
-    if [ -t 1 ]; then
-      PROGRESS="--progress=bar:noscroll"
+  (( rc != 0 )) && error "Failed to download $url, reason: $rc" && exit 60
+  [ ! -f "$iso" ] && error "Failed to download $url" && exit 61
+
+  return 0
+}
+
+extractImage() {
+
+  local dir="$1"
+  local iso="$2"
+  local size=$(stat -c%s "$iso")
+  local size_gb=$(( (size + 1073741823)/1073741824 ))
+  local space=$(df --output=avail -B 1 "$TMP" | tail -n 1)
+  local space_gb=$(( (space + 1073741823)/1073741824 ))
+
+  if ((size<10000000)); then
+    error "Invalid ISO file: Size is smaller than 10 MB" && exit 62
+  fi
+
+  if (( size > space )); then
+    error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB." && exit 63
+  fi
+
+  local msg="Extracting downloaded ISO image..."
+  [ -n "$CUSTOM" ] && msg="Extracting local ISO image..."
+
+  info "$msg" && html "$msg"
+
+  rm -rf "$dir"
+  7z x "$iso" -o"$dir" > /dev/null
+
+  if [ ! -f "$dir/$ETFS" ] || [ ! -f "$dir/$EFISYS" ]; then
+
+    if [ ! -f "$dir/$ETFS" ]; then
+      warn "failed to locate file 'etfsboot.com' in ISO image, $FB"
     else
-      PROGRESS="--progress=dot:giga"
+      warn "failed to locate file 'efisys_noprompt.bin' in ISO image, $FB"
     fi
 
-    { wget "$VERSION" -O "$ISO" -q --no-check-certificate --show-progress "$PROGRESS"; rc=$?; } || :
-
-    (( rc != 0 )) && error "Failed to download $VERSION, reason: $rc" && exit 60
-
+    return 1
   fi
 
-  [ ! -f "$ISO" ] && error "Failed to download $VERSION" && exit 61
+  [ -z "$CUSTOM" ] && rm -f "$iso"
 
-fi
-
-SIZE=$(stat -c%s "$ISO")
-SIZE_GB=$(( (SIZE + 1073741823)/1073741824 ))
-
-if ((SIZE<10000000)); then
-  error "Invalid ISO file: Size is smaller than 10 MB" && exit 62
-fi
-
-SPACE=$(df --output=avail -B 1 "$TMP" | tail -n 1)
-SPACE_GB=$(( (SPACE + 1073741823)/1073741824 ))
-
-if (( SIZE > SPACE )); then
-  error "Not enough free space in $STORAGE, have $SPACE_GB GB available but need at least $SIZE_GB GB." && exit 63
-fi
-
-if [ -n "$CUSTOM" ]; then
-  MSG="Extracting local ISO image..."
-else
-  MSG="Extracting downloaded ISO image..."
-fi
-
-info "$MSG" && html "$MSG"
-
-DIR="$TMP/unpack"
-rm -rf "$DIR"
-
-7z x "$ISO" -o"$DIR" > /dev/null
-
-FB="falling back to manual installation!"
-ETFS="boot/etfsboot.com"
-EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
-
-if [ ! -f "$DIR/$ETFS" ] || [ ! -f "$DIR/$EFISYS" ]; then
-
-  if [ ! -f "$DIR/$ETFS" ]; then
-    warn "failed to locate file 'etfsboot.com' in ISO image, $FB"
-  else
-    warn "failed to locate file 'efisys_noprompt.bin' in ISO image, $FB"
-  fi
-
-  [[ "$ISO" != "$STORAGE/$BASE" ]] && mv -f "$ISO" "$STORAGE/$BASE"
-
-  finishInstall "$STORAGE/$BASE"
   return 0
-
-fi
-
-[ -z "$CUSTOM" ] && rm -f "$ISO"
+}
 
 findVersion() {
 
@@ -284,126 +289,161 @@ findVersion() {
   return 0
 }
 
-XML=""
+getXML() {
 
-if [[ "$MANUAL" != [Yy1]* ]]; then
+  local dir="$1"
 
-  if [[ "$EXTERNAL" != [Yy1]* ]]; then
-    [ -z "$CUSTOM" ] && XML="$VERSION.xml"
+  XML=""
+  [[ "$MANUAL" == [Yy1]* ]] && return 0
+
+  if [[ "$EXTERNAL" != [Yy1]* ]] && [ -z "$CUSTOM" ]; then
+    XML="$VERSION.xml"
+    [ -f "/run/assets/$XML" ] && return 0
   fi
 
-  if [ ! -f "/run/assets/$XML" ]; then
+  info "Detecting Windows version from ISO image..."
 
-    MSG="Detecting Windows version from ISO image..."
-    info "$MSG" && html "$MSG"
+  local loc="$dir/sources/install.wim"
+  [ ! -f "$loc" ] && loc="$dir/sources/install.esd"
 
-    LOC="$DIR/sources/install.wim"
-    [ ! -f "$LOC" ] && LOC="$DIR/sources/install.esd"
-
-    if [ -f "$LOC" ]; then
-
-      TAG="DISPLAYNAME"
-      RESULT=$(wimlib-imagex info -xml "$LOC" | tr -d '\000')
-      NAME=$(sed -n "/$TAG/{s/.*<$TAG>\(.*\)<\/$TAG>.*/\1/;p}" <<< "$RESULT")
-      DETECTED=$(findVersion "$NAME")
-
-      if [ -z "$DETECTED" ]; then
-
-        TAG="PRODUCTNAME"
-        NAME2=$(sed -n "/$TAG/{s/.*<$TAG>\(.*\)<\/$TAG>.*/\1/;p}" <<< "$RESULT")
-        [ -z "$NAME" ] && NAME="$NAME2"
-        DETECTED=$(findVersion "$NAME2")
-
-      fi
-
-      if [ -n "$DETECTED" ]; then
-
-        XML="$DETECTED.xml"
-
-        if [ -f "/run/assets/$XML" ]; then
-          echo "Detected image of type '$DETECTED', which supports automatic installation."
-        else
-          XML=""
-          warn "detected image of type '$DETECTED', but no matching XML file exists, $FB."
-        fi
-
-      else
-        if [ -z "$NAME" ]; then
-          warn "failed to detect Windows version from image, $FB"
-        else
-          if [[ "${NAME,,}" == "windows 7" ]]; then
-            warn "detected Windows 7 image, $FB"
-          else
-            warn "failed to detect Windows version from string '$NAME', $FB"
-          fi
-        fi
-      fi
-    else
-      warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
-    fi
+  if [ ! -f "$loc" ]; then
+    warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
+    return 0
   fi
-fi
+  
+  local tag="DISPLAYNAME"
+  local result=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
+  local name=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$result")
+  local detected=$(findVersion "$name")
 
-ASSET="/run/assets/$XML"
+  if [ -z "$detected" ]; then
 
-if [ -f "$ASSET" ]; then
+    tag="PRODUCTNAME"
+    local name2=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$result")
+    [ -z "$name" ] && name="$name2"
+    detected=$(findVersion "$name2")
 
-  replaceXML "$DIR" "$ASSET"
+  fi
 
-  LOC="$DIR/sources/boot.wim"
-  [ ! -f "$LOC" ] && LOC="$DIR/sources/boot.esd"
+  if [ -n "$detected" ]; then
 
-  if [ -f "$LOC" ]; then
-
-    MSG="Adding XML file for automatic installation..."
-    info "$MSG" && html "$MSG"
-
-    RESULT=$(wimlib-imagex info -xml "$LOC" | tr -d '\000')
-
-    if [[ "${RESULT^^}" == *"<IMAGE INDEX=\"2\">"* ]]; then
-      INDEX="2"
+    if [ -f "/run/assets/$detected.xml" ]; then
+      XML="$detected.xml"
+      echo "Detected image of type '$detected', which supports automatic installation."
     else
-      INDEX="1"
+      warn "detected image of type '$detected', but no matching XML file exists, $FB."
     fi
-
-    wimlib-imagex update "$LOC" "$INDEX" --command "add $ASSET /autounattend.xml" > /dev/null
 
   else
 
-    ASSET=""
-    warn "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB"
+    if [ -z "$name" ]; then
+      warn "failed to detect Windows version from image, $FB"
+    else
+      if [[ "${name,,}" == "windows 7" ]]; then
+        warn "detected Windows 7 image, $FB"
+      else
+        warn "failed to detect Windows version from string '$name', $FB"
+      fi
+    fi
 
   fi
+
+  return 0
+}
+
+updateImage() {
+
+  local dir="$1"
+  local asset="$2"
+
+  [ ! -f "$asset" ] && return 0
+  replaceXML "$dir" "$asset"
+
+  local loc="$dir/sources/boot.wim"
+  [ ! -f "$loc" ] && loc="$dir/sources/boot.esd"
+
+  if [ ! -f "$loc" ]; then
+    warn "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB"
+    return 0
+  fi
+  
+  info "Adding XML file for automatic installation..."
+
+  local index="1"
+  local result=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
+
+  if [[ "${result^^}" == *"<IMAGE INDEX=\"2\">"* ]]; then
+    index="2"
+  fi
+
+  wimlib-imagex update "$loc" "$index" --command "add $asset /autounattend.xml" > /dev/null
+
+  return 0
+}
+
+buildImage() {
+
+  local dir="$1"
+  local iso="$2"
+  local cat="BOOT.CAT"
+  local label="${BASE%.*}"
+  label="${label::30}"
+  local out="$TMP/$label.tmp"
+  rm -f "$out"
+
+  local size=$(stat -c%s "$iso")
+  local size_gb=$(( (size + 1073741823)/1073741824 ))
+  local space=$(df --output=avail -B 1 "$TMP" | tail -n 1)
+  local space_gb=$(( (space + 1073741823)/1073741824 ))
+
+  if (( size > space )); then
+    error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB." && exit 63
+  fi
+
+  local msg="Generating updated ISO image..."
+  info "$msg" && html "$msg"
+
+  genisoimage -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -quiet -V "$label" -udf \
+                         -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$out" -allow-limited-size "$dir"
+
+  [ -n "$CUSTOM" ] && rm -f "$STORAGE/$CUSTOM"
+
+  if [ -f "$STORAGE/$BASE" ]; then
+    error "File $STORAGE/$BASE does already exist ?!" && exit 64
+  fi
+
+  mv "$out" "$STORAGE/$BASE"
+  return 0
+}
+
+#######################
+#                                                               #
+#######################
+
+if ! startInstall; then
+  rm -rf "$TMP"
+  return 0
 fi
 
-CAT="BOOT.CAT"
-LABEL="${BASE%.*}"
-LABEL="${LABEL::30}"
-OUT="$TMP/$LABEL.tmp"
-rm -f "$OUT"
-
-SPACE=$(df --output=avail -B 1 "$TMP" | tail -n 1)
-SPACE_GB=$(( (SPACE + 1073741823)/1073741824 ))
-
-if (( SIZE > SPACE )); then
-  error "Not enough free space in $STORAGE, have $SPACE_GB GB available but need at least $SIZE_GB GB." && exit 63
+if [ ! -f "$ISO" ]; then
+  downloadImage "$VERSION" "$ISO"
 fi
 
-MSG="Generating the ISO image..."
-info "$MSG" && html "$MSG"
+if ! extractImage "$DIR" "$ISO"; then
 
-genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -quiet -V "$LABEL" -udf \
-                       -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$OUT" -allow-limited-size "$DIR"
+  if [[ "$ISO" != "$STORAGE/$BASE" ]]; then
+    mv -f "$ISO" "$STORAGE/$BASE"
+  fi
 
-[ -n "$CUSTOM" ] && rm -f "$STORAGE/$CUSTOM"
+  finishInstall "$STORAGE/$BASE"
+  return 0
 
-if [ -f "$STORAGE/$BASE" ]; then
-  error "File $STORAGE/$BASE does already exist ?!" && exit 64
 fi
 
-mv "$OUT" "$STORAGE/$BASE"
+getXML "$DIR"
+updateImage "$DIR" "/run/assets/$XML"
+buildImage "$DIR" "$ISO"
 finishInstall "$STORAGE/$BASE"
 
 html "Successfully prepared image for installation..."
-
 return 0
