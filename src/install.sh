@@ -45,6 +45,68 @@ CUSTOM="custom.iso"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.IMG"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.IMG"
 
+replaceXML() {
+
+  local dir="$1"
+  local asset="$2"
+
+  local path="$dir/autounattend.xml"
+  [ -f "$path" ] && mv -f "$asset" "$path"
+  path="$dir/Autounattend.xml"
+  [ -f "$path" ] && mv -f "$asset" "$path"
+  path="$dir/AutoUnattend.xml"
+  [ -f "$path" ] && mv -f "$asset" "$path"
+  path="$dir/autounattend.XML"
+  [ -f "$path" ] && mv -f "$asset" "$path"
+  path="$dir/Autounattend.XML"
+  [ -f "$path" ] && mv -f "$asset" "$path"
+  path="$dir/AutoUnattend.XML"
+  [ -f "$path" ] && mv -f "$asset" "$path"
+  path="$dir/AUTOUNATTEND.xml"
+  [ -f "$path" ] && mv -f "$asset" "$path"
+  path="$dir/AUTOUNATTEND.XML"
+  [ -f "$path" ] && mv -f "$asset" "$path"
+
+  return 0
+}
+
+hasDisk() {
+
+  [ -b "${DEVICE:-}" ] && return 1
+
+  if [ -f "$STORAGE/data.img" ] || [ -f "$STORAGE/data.qcow2" ]; then
+    return 1
+  fi
+    
+  return 0
+}
+
+skipInstall() {
+
+  if hasDisk && [ -f "$STORAGE/windows.boot" ]; then
+    return 1
+  fi
+
+  return 0
+}
+
+TMP="$STORAGE/tmp"
+
+finishInstall() {
+
+  local iso="$1"
+
+  # Mark ISO as prepared via magic byte
+  printf '\x16' | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none
+
+  rm -f "$STORAGE/windows.ver"
+  rm -f "$STORAGE/windows.boot"
+  cp /run/version "$STORAGE/windows.ver"
+
+  rm -rf "$TMP"
+  return 0
+}
+
 MSG="Windows is being started, please wait..."
 
 if [ -f "$STORAGE/$CUSTOM" ]; then
@@ -66,7 +128,7 @@ else
 
     BASE="$VERSION.iso"
 
-    if [ ! -f "$STORAGE/$BASE" ]; then
+    if !skipInstall && [ ! -f "$STORAGE/$BASE" ]; then
       MSG="Windows is being downloaded, please wait..."
     fi
 
@@ -76,7 +138,7 @@ else
     : "${BASE//+/ }"; printf -v BASE '%b' "${_//%/\\x}"
     BASE=$(echo "$BASE" | sed -e 's/[^A-Za-z0-9._-]/_/g')
 
-    if [ ! -f "$STORAGE/$BASE" ]; then
+    if !skipInstall && [ ! -f "$STORAGE/$BASE" ]; then
       MSG="Image '$BASE' is being downloaded, please wait..."
     fi
 
@@ -88,7 +150,6 @@ fi
 
 html "$MSG"
 
-TMP="$STORAGE/tmp"
 [ -z "$MANUAL" ] && MANUAL="N"
 
 if [ -f "$STORAGE/$BASE" ]; then
@@ -99,19 +160,7 @@ if [ -f "$STORAGE/$BASE" ]; then
 
   if [[ "$MAGIC" == "16" ]]; then
 
-    if [[ "$MANUAL" = [Yy1]* ]]; then
-      rm -rf "$TMP"
-      return 0
-    fi
-
-    FOUND="N"
-    if [ -f "$STORAGE/data.img" ] || [ -f "$STORAGE/data.qcow2" ]; then
-      FOUND="Y"
-    else
-      [ -b "${DEVICE:-}" ] && FOUND="Y"
-    fi
-
-    if [[ "$FOUND" == "Y" ]]; then
+    if hasDisk || [[ "$MANUAL" = [Yy1]* ]]; then
       rm -rf "$TMP"
       return 0
     fi
@@ -120,6 +169,14 @@ if [ -f "$STORAGE/$BASE" ]; then
 
   EXTERNAL="Y"
   CUSTOM="$BASE"
+
+else
+
+  if skipInstall; then
+    BASE=""
+    rm -rf "$TMP"
+    return 0
+  fi
 
 fi
 
@@ -202,19 +259,30 @@ if [ ! -f "$DIR/$ETFS" ] || [ ! -f "$DIR/$EFISYS" ]; then
     warn "failed to locate file 'efisys_noprompt.bin' in ISO image, $FB"
   fi
 
-  # Mark ISO as prepared via magic byte
-  printf '\x16' | dd of="$ISO" bs=1 seek=0 count=1 conv=notrunc status=none
-
   [[ "$ISO" != "$STORAGE/$BASE" ]] && mv -f "$ISO" "$STORAGE/$BASE"
 
-  rm -f "$STORAGE/windows.ver"
-  cp /run/version "$STORAGE/windows.ver"
-
-  rm -rf "$TMP"
+  finishInstall "$STORAGE/$BASE"
   return 0
+
 fi
 
 [ -z "$CUSTOM" ] && rm -f "$ISO"
+
+findVersion() {
+
+  local name="$1"
+  local detected=""
+
+  [[ "${name,,}" == *"windows 11"* ]] && detected="win11x64"
+  [[ "${name,,}" == *"windows 10"* ]] && detected="win10x64"
+  [[ "${name,,}" == *"windows 8"* ]] && detected="win81x64"
+  [[ "${name,,}" == *"server 2022"* ]] && detected="win2022-eval"
+  [[ "${name,,}" == *"server 2019"* ]] && detected="win2019-eval"
+  [[ "${name,,}" == *"server 2016"* ]] && detected="win2016-eval"
+
+  echo "$detected"
+  return 0
+}
 
 XML=""
 
@@ -234,30 +302,17 @@ if [[ "$MANUAL" != [Yy1]* ]]; then
 
     if [ -f "$LOC" ]; then
 
-      DETECTED=""
       TAG="DISPLAYNAME"
       RESULT=$(wimlib-imagex info -xml "$LOC" | tr -d '\000')
       NAME=$(sed -n "/$TAG/{s/.*<$TAG>\(.*\)<\/$TAG>.*/\1/;p}" <<< "$RESULT")
-
-      [[ "${NAME,,}" == *"windows 11"* ]] && DETECTED="win11x64"
-      [[ "${NAME,,}" == *"windows 10"* ]] && DETECTED="win10x64"
-      [[ "${NAME,,}" == *"windows 8"* ]] && DETECTED="win81x64"
-      [[ "${NAME,,}" == *"server 2022"* ]] && DETECTED="win2022-eval"
-      [[ "${NAME,,}" == *"server 2019"* ]] && DETECTED="win2019-eval"
-      [[ "${NAME,,}" == *"server 2016"* ]] && DETECTED="win2016-eval"
+      DETECTED=$(findVersion "$NAME")
 
       if [ -z "$DETECTED" ]; then
 
         TAG="PRODUCTNAME"
         NAME2=$(sed -n "/$TAG/{s/.*<$TAG>\(.*\)<\/$TAG>.*/\1/;p}" <<< "$RESULT")
         [ -z "$NAME" ] && NAME="$NAME2"
-
-        [[ "${NAME2,,}" == *"windows 11"* ]] && DETECTED="win11x64"
-        [[ "${NAME2,,}" == *"windows 10"* ]] && DETECTED="win10x64"
-        [[ "${NAME2,,}" == *"windows 8"* ]] && DETECTED="win81x64"
-        [[ "${NAME2,,}" == *"server 2022"* ]] && DETECTED="win2022-eval"
-        [[ "${NAME2,,}" == *"server 2019"* ]] && DETECTED="win2019-eval"
-        [[ "${NAME2,,}" == *"server 2016"* ]] && DETECTED="win2016-eval"
+        DETECTED=$(findVersion "$NAME2")
 
       fi
 
@@ -293,22 +348,7 @@ ASSET="/run/assets/$XML"
 
 if [ -f "$ASSET" ]; then
 
-  LOC="$DIR/autounattend.xml"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-  LOC="$DIR/Autounattend.xml"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-  LOC="$DIR/AutoUnattend.xml"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-  LOC="$DIR/autounattend.XML"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-  LOC="$DIR/Autounattend.XML"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-  LOC="$DIR/AutoUnattend.XML"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-  LOC="$DIR/AUTOUNATTEND.xml"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
-  LOC="$DIR/AUTOUNATTEND.XML"
-  [ -f "$LOC" ] && mv -f "$ASSET" "$LOC"
+  replaceXML "$DIR" "$ASSET"
 
   LOC="$DIR/sources/boot.wim"
   [ ! -f "$LOC" ] && LOC="$DIR/sources/boot.esd"
@@ -355,9 +395,6 @@ info "$MSG" && html "$MSG"
 genisoimage -b "$ETFS" -no-emul-boot -c "$CAT" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -quiet -V "$LABEL" -udf \
                        -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$OUT" -allow-limited-size "$DIR"
 
-# Mark ISO as prepared via magic byte
-printf '\x16' | dd of="$OUT" bs=1 seek=0 count=1 conv=notrunc status=none
-
 [ -n "$CUSTOM" ] && rm -f "$STORAGE/$CUSTOM"
 
 if [ -f "$STORAGE/$BASE" ]; then
@@ -365,11 +402,7 @@ if [ -f "$STORAGE/$BASE" ]; then
 fi
 
 mv "$OUT" "$STORAGE/$BASE"
-
-rm -f "$STORAGE/windows.ver"
-cp /run/version "$STORAGE/windows.ver"
-
-rm -rf "$TMP"
+finishInstall "$STORAGE/$BASE"
 
 html "Successfully prepared image for installation..."
 
