@@ -1,4 +1,5 @@
-FROM qemux/qemu-docker:latest
+FROM scratch
+COPY --from=qemux/qemu-docker:latest / /
 
 ARG DEBCONF_NOWARNINGS="yes"
 ARG DEBIAN_FRONTEND "noninteractive"
@@ -21,7 +22,6 @@ RUN chmod +x /run/*.sh
 EXPOSE 8006 3389
 VOLUME /storage
 
-ENV BOOT ""
 ENV RAM_SIZE "4G"
 ENV CPU_CORES "2"
 ENV DISK_SIZE "64G"
