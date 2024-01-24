@@ -57,21 +57,21 @@ replaceXML() {
   local asset="$2"
 
   local path="$dir/autounattend.xml"
-  [ -f "$path" ] && mv -f "$asset" "$path"
+  [ -f "$path" ] && cp "$asset" "$path"
   path="$dir/Autounattend.xml"
-  [ -f "$path" ] && mv -f "$asset" "$path"
+  [ -f "$path" ] && cp "$asset" "$path"
   path="$dir/AutoUnattend.xml"
-  [ -f "$path" ] && mv -f "$asset" "$path"
+  [ -f "$path" ] && cp "$asset" "$path"
   path="$dir/autounattend.XML"
-  [ -f "$path" ] && mv -f "$asset" "$path"
+  [ -f "$path" ] && cp "$asset" "$path"
   path="$dir/Autounattend.XML"
-  [ -f "$path" ] && mv -f "$asset" "$path"
+  [ -f "$path" ] && cp "$asset" "$path"
   path="$dir/AutoUnattend.XML"
-  [ -f "$path" ] && mv -f "$asset" "$path"
+  [ -f "$path" ] && cp "$asset" "$path"
   path="$dir/AUTOUNATTEND.xml"
-  [ -f "$path" ] && mv -f "$asset" "$path"
+  [ -f "$path" ] && cp "$asset" "$path"
   path="$dir/AUTOUNATTEND.XML"
-  [ -f "$path" ] && mv -f "$asset" "$path"
+  [ -f "$path" ] && cp "$asset" "$path"
 
   return 0
 }
@@ -103,7 +103,6 @@ finishInstall() {
   # Mark ISO as prepared via magic byte
   printf '\x16' | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none
 
-  rm -f "$STORAGE/windows.ver"
   rm -f "$STORAGE/windows.boot"
   cp /run/version "$STORAGE/windows.ver"
 
@@ -238,7 +237,7 @@ extractImage() {
   local iso="$1"
   local dir="$2"
   local size size_gb space space_gb
-  
+
   local msg="Extracting downloaded ISO image..."
   [ -n "$CUSTOM" ] && msg="Extracting local ISO image..."
   info "$msg" && html "$msg"
