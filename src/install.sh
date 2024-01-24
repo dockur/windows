@@ -77,7 +77,7 @@ hasDisk() {
   if [ -f "$STORAGE/data.img" ] || [ -f "$STORAGE/data.qcow2" ]; then
     return 1
   fi
-    
+
   return 0
 }
 
@@ -128,7 +128,7 @@ else
 
     BASE="$VERSION.iso"
 
-    if !skipInstall && [ ! -f "$STORAGE/$BASE" ]; then
+    if ! skipInstall && [ ! -f "$STORAGE/$BASE" ]; then
       MSG="Windows is being downloaded, please wait..."
     fi
 
@@ -138,7 +138,7 @@ else
     : "${BASE//+/ }"; printf -v BASE '%b' "${_//%/\\x}"
     BASE=$(echo "$BASE" | sed -e 's/[^A-Za-z0-9._-]/_/g')
 
-    if !skipInstall && [ ! -f "$STORAGE/$BASE" ]; then
+    if ! skipInstall && [ ! -f "$STORAGE/$BASE" ]; then
       MSG="Image '$BASE' is being downloaded, please wait..."
     fi
 
