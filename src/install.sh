@@ -306,6 +306,7 @@ findVersion() {
   [[ "${name,,}" == *"server 2022"* ]] && detected="win2022-eval"
   [[ "${name,,}" == *"server 2019"* ]] && detected="win2019-eval"
   [[ "${name,,}" == *"server 2016"* ]] && detected="win2016-eval"
+  [[ "${name,,}" == *"windows 7"* ]] && detected="win7x64-ultimate"
 
   echo "$detected"
   return 0
