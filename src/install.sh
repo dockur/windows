@@ -320,24 +320,24 @@ findVersion() {
   return 0
 }
 
-selectXML() {
+detectImage() {
 
   local dir="$1"
-  local tag result name name2 detected
+  local tag result name name2
 
   XML=""
-  if [[ "$MANUAL" == [Yy1]* ]]; then
-
-    if [[ "$BASE" == "win7x64"* ]]; then
-      BOOT_MODE="windows_legacy"
-    fi
-
-    return 0
-  fi
+  DETECTED=""
 
   if [[ "$EXTERNAL" != [Yy1]* ]] && [ -z "$CUSTOM" ]; then
-    XML="$VERSION.xml"
-    [ -f "/run/assets/$XML" ] && return 0
+    DETECTED="$VERSION"
+    if [[ "$MANUAL" != [Yy1]* ]]; then
+      if [ -f "/run/assets/$DETECTED.xml" ]; then
+        XML="$DETECTED.xml"
+      else
+        warn "image type is '$DETECTED', but no matching XML file exists, $FB."
+      fi
+    fi
+    return 0
   fi
 
   info "Detecting Windows version from ISO image..."
@@ -354,24 +354,24 @@ selectXML() {
   tag="DISPLAYNAME"
   result=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
   name=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$result")
-  detected=$(findVersion "$name")
+  DETECTED=$(findVersion "$name")
 
-  if [ -z "$detected" ]; then
+  if [ -z "$DETECTED" ]; then
 
     tag="PRODUCTNAME"
     name2=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$result")
     [ -z "$name" ] && name="$name2"
-    detected=$(findVersion "$name2")
+    DETECTED=$(findVersion "$name2")
 
   fi
 
-  if [ -n "$detected" ]; then
+  if [ -n "$DETECTED" ]; then
 
-    if [ -f "/run/assets/$detected.xml" ]; then
-      XML="$detected.xml"
-      info "Detected image of type: '$detected'"
+    if [ -f "/run/assets/$DETECTED.xml" ]; then
+      [[ "$MANUAL" != [Yy1]* ]] && XML="$DETECTED.xml"
+      info "Detected image of type: '$DETECTED'"
     else
-      warn "detected image of type '$detected', but no matching XML file exists, $FB."
+      warn "detected image of type '$DETECTED', but no matching XML file exists, $FB."
     fi
 
   else
@@ -382,6 +382,26 @@ selectXML() {
       warn "failed to determine Windows version from string '$name', $FB"
     fi
 
+  fi
+}
+
+prepareImage() {
+
+  local iso="$1"
+  local dir="$2"
+
+  [[ "${DETECTED,,}" != "win7x64"* ]] && return 0
+
+  ETFS="boot.img"
+  BOOT_MODE="windows_legacy"
+
+  local len offset
+  len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
+  offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
+
+  if ! dd "if=$iso" "of=$dir/$ETFS" bs=2048 "count=$len" "skip=$offset" status=none; then
+    error "Failed to extract boot image from ISO!"
+    exit 67
   fi
 
   return 0
@@ -420,22 +440,6 @@ updateImage() {
     return 1
   fi
 
-  if [[ "$3" == "win7x64"* ]]; then
-
-    ETFS="boot.img"
-    BOOT_MODE="windows_legacy"
-
-    local len offset
-    len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
-    offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
-
-    if ! dd "if=$iso" "of=$dir/$ETFS" bs=2048 "count=$len" "skip=$offset" status=none; then
-      error "Failed to extract boot image from ISO!"
-      exit 67
-    fi
-
-  fi
-
   return 0
 }
 
@@ -444,6 +448,7 @@ buildImage() {
   local dir="$1"
   local cat="BOOT.CAT"
   local label="${BASE%.*}"
+  local log="/run/shm/iso.log"
   local size size_gb space space_gb
 
   label="${label::30}"
@@ -462,10 +467,7 @@ buildImage() {
     error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB."
     return 1
   fi
-
-  local log="/run/shm/iso.log"
-  local hide="Warning: creating filesystem that does not conform to ISO-9660."
-
+  
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
 
     if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
@@ -485,6 +487,8 @@ buildImage() {
   fi
 
   local error=""
+  local hide="Warning: creating filesystem that does not conform to ISO-9660."
+
   [ -f "$log" ] && error="$(<"$log")"
   [[ "$error" != "$hide" ]] && echo "$error"
 
@@ -521,7 +525,12 @@ if ! extractImage "$ISO" "$DIR"; then
   return 0
 fi
 
-if ! selectXML "$DIR"; then
+if ! detectImage "$DIR"; then
+  abortInstall "$ISO"
+  return 0
+fi
+
+if ! prepareImage "$ISO" "$DIR"; then
   abortInstall "$ISO"
   return 0
 fi
