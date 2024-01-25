@@ -118,12 +118,12 @@ _graceful_shutdown() {
 
   if [ ! -f "$STORAGE/windows.boot" ] && [ -f "$QEMU_PTY" ]; then
     if ! grep -Fq "Windows Boot Manager" "$QEMU_PTY"; then
-      if ! grep -Fq "SeaBIOS" "$QEMU_PTY"; then
+      if [ ! -f "$STORAGE/windows.bios" ]; then
         info "Cannot send ACPI signal during Windows setup, aborting..."
         finish "$code" && return "$code"
       fi
     fi
-    if [ -f "$STORAGE/$BASE" ]; then
+    if [ -f "$STORAGE/$BASE" ] && [ ! -f "$STORAGE/windows.bios" ]; then
       rm -f "$STORAGE/$BASE"
       touch "$STORAGE/windows.boot"
     fi
