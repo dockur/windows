@@ -439,11 +439,6 @@ updateImage() {
   return 0
 }
 
-capture () {
-    typeset var captured; captured="$1"; shift
-    { read $captured <<<$( { { "$@" ; } 1>&3 ; } 2>&1); } 3>&1
-}
-
 buildImage() {
 
   local dir="$1"
@@ -468,21 +463,28 @@ buildImage() {
     return 1
   fi
 
+  local log="/run/shm/iso.log"
+  local hide="Warning: creating filesystem that does not conform to ISO-9660."
+
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
 
-    if ! capture error genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
-                                 -udf -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -allow-limited-size -quiet "$dir"; then
+    if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
+                                 -udf -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -allow-limited-size -quiet "$dir" 2> "$log"; then
       return 1
     fi
 
   else
 
-    if ! capture error genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
-                                 -udf -allow-limited-size -quiet  "$dir"; then
+    if !  genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
+                                 -udf -allow-limited-size -quiet  "$dir" 2> "$log"; then
       return 1
     fi
 
   fi
+
+  error=$(<"$log")
+  echo "$error"
+  rm -f "$log"
 
   if [ -f "$STORAGE/$BASE" ]; then
     error "File $STORAGE/$BASE does already exist?!"
