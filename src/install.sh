@@ -412,7 +412,7 @@ updateImage() {
     return 1
   fi
 
-  if [[ "$2" == "win7"* ]]; then
+  if [[ "$3" == "win7"* ]]; then
 
     ETFS="boot.img"
     BOOT_MODE="windows_legacy"
