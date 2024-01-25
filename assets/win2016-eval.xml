@@ -172,6 +172,21 @@
       </OEMInformation>
       <OEMName>Windows for Docker</OEMName>
     </component>
+    <component name="Microsoft-Windows-ErrorReportingCore" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+        <DisableWER>1</DisableWER>
+    </component>
+    <component name="Microsoft-Windows-IE-InternetExplorer" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+        <DisableAccelerators>true</DisableAccelerators>
+        <DisableFirstRunWizard>true</DisableFirstRunWizard>
+        <Home_Page>about:blank</Home_Page>
+        <Help_Page>about:blank</Help_Page>
+    </component>
+    <component name="Microsoft-Windows-IE-InternetExplorer" processorArchitecture="wow64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+        <DisableAccelerators>true</DisableAccelerators>
+        <DisableFirstRunWizard>true</DisableFirstRunWizard>
+        <Home_Page>about:blank</Home_Page>
+        <Help_Page>about:blank</Help_Page>
+    </component>
     <component name="Microsoft-Windows-SQMApi" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <CEIPEnabled>0</CEIPEnabled>
     </component>
@@ -237,7 +252,7 @@
         <HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
         <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
         <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
-        <NetworkLocation>Home</NetworkLocation>
+        <NetworkLocation>Other</NetworkLocation>
         <ProtectYourPC>3</ProtectYourPC>
         <SkipUserOOBE>true</SkipUserOOBE>
         <SkipMachineOOBE>true</SkipMachineOOBE>

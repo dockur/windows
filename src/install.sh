@@ -20,6 +20,10 @@ fi
 [[ "${VERSION,,}" == "win81" ]] && VERSION="win81x64"
 [[ "${VERSION,,}" == "win8" ]] && VERSION="win81x64"
 
+[[ "${VERSION,,}" == "7" ]] && VERSION="win7x64-ultimate"
+[[ "${VERSION,,}" == "win7" ]] && VERSION="win7x64-ultimate"
+[[ "${VERSION,,}" == "win7x64" ]] && VERSION="win7x64-ultimate"
+
 [[ "${VERSION,,}" == "22" ]] && VERSION="win2022-eval"
 [[ "${VERSION,,}" == "2022" ]] && VERSION="win2022-eval"
 [[ "${VERSION,,}" == "win22" ]] && VERSION="win2022-eval"
@@ -34,6 +38,10 @@ fi
 [[ "${VERSION,,}" == "2016" ]] && VERSION="win2016-eval"
 [[ "${VERSION,,}" == "win16" ]] && VERSION="win2016-eval"
 [[ "${VERSION,,}" == "win2016" ]] && VERSION="win2016-eval"
+
+if [[ "${VERSION,,}" == "tiny11" ]]; then
+  VERSION="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
+fi
 
 CUSTOM="custom.iso"
 
@@ -106,7 +114,25 @@ finishInstall() {
   rm -f "$STORAGE/windows.boot"
   cp /run/version "$STORAGE/windows.ver"
 
+  if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+    touch "$STORAGE/windows.old"
+  else
+    rm -f "$STORAGE/windows.old"
+  fi
+
   rm -rf "$TMP"
+  return 0
+}
+
+abortInstall() {
+
+  local iso="$1"
+
+  if [[ "$iso" != "$STORAGE/$BASE" ]]; then
+    mv -f "$iso" "$STORAGE/$BASE"
+  fi
+
+  finishInstall "$STORAGE/$BASE"
   return 0
 }
 
@@ -207,12 +233,13 @@ downloadImage() {
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
     cd "$TMP"
-    /run/mido.sh "$url"
+    if ! /run/mido.sh "$url"; then
+      return 1
+    fi
     cd /run
 
-    [ ! -f "$iso" ] && error "Failed to download $url" && exit 61
+    [ ! -f "$iso" ] && return 1
     return 0
-
   fi
 
   info "Downloading $BASE as boot image..."
@@ -225,10 +252,9 @@ downloadImage() {
   fi
 
   { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
-
   (( rc != 0 )) && error "Failed to download $url, reason: $rc" && exit 60
-  [ ! -f "$iso" ] && error "Failed to download $url" && exit 61
 
+  [ ! -f "$iso" ] && return 1
   return 0
 }
 
@@ -256,7 +282,11 @@ extractImage() {
   fi
 
   rm -rf "$dir"
-  7z x "$iso" -o"$dir" > /dev/null
+
+  if ! 7z x "$iso" -o"$dir" > /dev/null; then
+    error "Failed to extract ISO file!"
+    exit 66
+  fi
 
   if [ ! -f "$dir/$ETFS" ] || [ ! -f "$dir/$EFISYS" ]; then
 
@@ -266,10 +296,9 @@ extractImage() {
       warn "failed to locate file 'efisys_noprompt.bin' in ISO image, $FB"
     fi
 
+    BOOT_MODE="windows_legacy"
     return 1
   fi
-
-  [ -z "$CUSTOM" ] && rm -f "$iso"
 
   return 0
 }
@@ -285,22 +314,30 @@ findVersion() {
   [[ "${name,,}" == *"server 2022"* ]] && detected="win2022-eval"
   [[ "${name,,}" == *"server 2019"* ]] && detected="win2019-eval"
   [[ "${name,,}" == *"server 2016"* ]] && detected="win2016-eval"
+  [[ "${name,,}" == *"windows 7"* ]] && detected="win7x64-ultimate"
 
   echo "$detected"
   return 0
 }
 
-selectXML() {
+detectImage() {
 
   local dir="$1"
-  local tag result name name2 detected
+  local tag result name name2
 
   XML=""
-  [[ "$MANUAL" == [Yy1]* ]] && return 0
+  DETECTED=""
 
   if [[ "$EXTERNAL" != [Yy1]* ]] && [ -z "$CUSTOM" ]; then
-    XML="$VERSION.xml"
-    [ -f "/run/assets/$XML" ] && return 0
+    DETECTED="$VERSION"
+    if [[ "$MANUAL" != [Yy1]* ]]; then
+      if [ -f "/run/assets/$DETECTED.xml" ]; then
+        XML="$DETECTED.xml"
+      else
+        warn "image type is '$DETECTED', but no matching XML file exists, $FB."
+      fi
+    fi
+    return 0
   fi
 
   info "Detecting Windows version from ISO image..."
@@ -310,44 +347,61 @@ selectXML() {
 
   if [ ! -f "$loc" ]; then
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
-    return 0
+    BOOT_MODE="windows_legacy"
+    return 1
   fi
 
   tag="DISPLAYNAME"
   result=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
   name=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$result")
-  detected=$(findVersion "$name")
+  DETECTED=$(findVersion "$name")
 
-  if [ -z "$detected" ]; then
+  if [ -z "$DETECTED" ]; then
 
     tag="PRODUCTNAME"
     name2=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$result")
     [ -z "$name" ] && name="$name2"
-    detected=$(findVersion "$name2")
+    DETECTED=$(findVersion "$name2")
 
   fi
 
-  if [ -n "$detected" ]; then
+  if [ -n "$DETECTED" ]; then
 
-    if [ -f "/run/assets/$detected.xml" ]; then
-      XML="$detected.xml"
-      echo "Detected image of type '$detected', which supports automatic installation."
+    if [ -f "/run/assets/$DETECTED.xml" ]; then
+      [[ "$MANUAL" != [Yy1]* ]] && XML="$DETECTED.xml"
+      info "Detected image of type: '$DETECTED'"
     else
-      warn "detected image of type '$detected', but no matching XML file exists, $FB."
+      warn "detected image of type '$DETECTED', but no matching XML file exists, $FB."
     fi
 
   else
 
     if [ -z "$name" ]; then
-      warn "failed to detect Windows version from image, $FB"
+      warn "failed to determine Windows version from image, $FB"
     else
-      if [[ "${name,,}" == "windows 7" ]]; then
-        warn "detected Windows 7 image, $FB"
-      else
-        warn "failed to detect Windows version from string '$name', $FB"
-      fi
+      warn "failed to determine Windows version from string '$name', $FB"
     fi
 
+  fi
+}
+
+prepareImage() {
+
+  local iso="$1"
+  local dir="$2"
+
+  [[ "${DETECTED,,}" != "win7x64"* ]] && return 0
+
+  ETFS="boot.img"
+  BOOT_MODE="windows_legacy"
+
+  local len offset
+  len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
+  offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
+
+  if ! dd "if=$iso" "of=$dir/$ETFS" bs=2048 "count=$len" "skip=$offset" status=none; then
+    error "Failed to extract boot image from ISO!"
+    exit 67
   fi
 
   return 0
@@ -355,8 +409,9 @@ selectXML() {
 
 updateImage() {
 
-  local dir="$1"
-  local asset="$2"
+  local iso="$1"
+  local dir="$2"
+  local asset="/run/assets/$3"
   local index result
 
   [ ! -f "$asset" ] && return 0
@@ -367,7 +422,8 @@ updateImage() {
 
   if [ ! -f "$loc" ]; then
     warn "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB"
-    return 0
+    BOOT_MODE="windows_legacy"
+    return 1
   fi
 
   info "Adding XML file for automatic installation..."
@@ -379,7 +435,10 @@ updateImage() {
     index="2"
   fi
 
-  wimlib-imagex update "$loc" "$index" --command "add $asset /autounattend.xml" > /dev/null
+  if ! wimlib-imagex update "$loc" "$index" --command "add $asset /autounattend.xml" > /dev/null; then
+    warn "failed to add XML to ISO image, $FB"
+    return 1
+  fi
 
   return 0
 }
@@ -389,6 +448,7 @@ buildImage() {
   local dir="$1"
   local cat="BOOT.CAT"
   local label="${BASE%.*}"
+  local log="/run/shm/iso.log"
   local size size_gb space space_gb
 
   label="${label::30}"
@@ -404,16 +464,37 @@ buildImage() {
   space_gb=$(( (space + 1073741823)/1073741824 ))
 
   if (( size > space )); then
-    error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB." && exit 63
+    error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB."
+    return 1
   fi
 
-  genisoimage -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -quiet -V "$label" -udf \
-                         -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$out" -allow-limited-size "$dir"
+  if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
 
-  [ -n "$CUSTOM" ] && rm -f "$STORAGE/$CUSTOM"
+    if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
+                     -udf -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -allow-limited-size -quiet "$dir" 2> "$log"; then
+      [ -f "$log" ] && echo "$(<"$log")"
+      return 1
+    fi
+
+  else
+
+    if !  genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
+                      -udf -allow-limited-size -quiet "$dir" 2> "$log"; then
+      [ -f "$log" ] && echo "$(<"$log")"
+      return 1
+    fi
+
+  fi
+
+  local error=""
+  local hide="Warning: creating filesystem that does not conform to ISO-9660."
+
+  [ -f "$log" ] && error="$(<"$log")"
+  [[ "$error" != "$hide" ]] && echo "$error"
 
   if [ -f "$STORAGE/$BASE" ]; then
-    error "File $STORAGE/$BASE does already exist ?!" && exit 64
+    error "File $STORAGE/$BASE does already exist?!"
+    return 1
   fi
 
   mv "$out" "$STORAGE/$BASE"
@@ -423,30 +504,48 @@ buildImage() {
 ######################################
 
 if ! startInstall; then
+
+  if [ -f "$STORAGE/windows.old" ]; then
+    BOOT_MODE="windows_legacy"
+  fi
+
   rm -rf "$TMP"
   return 0
 fi
 
 if [ ! -f "$ISO" ]; then
-  downloadImage "$ISO" "$VERSION"
+  if ! downloadImage "$ISO" "$VERSION"; then
+    error "Failed to download $VERSION"
+    exit 61
+  fi
 fi
 
 if ! extractImage "$ISO" "$DIR"; then
-
-  if [[ "$ISO" != "$STORAGE/$BASE" ]]; then
-    mv -f "$ISO" "$STORAGE/$BASE"
-  fi
-
-  finishInstall "$STORAGE/$BASE"
+  abortInstall "$ISO"
   return 0
-
 fi
 
-selectXML "$DIR"
+if ! detectImage "$DIR"; then
+  abortInstall "$ISO"
+  return 0
+fi
 
-updateImage "$DIR" "/run/assets/$XML"
+if ! prepareImage "$ISO" "$DIR"; then
+  abortInstall "$ISO"
+  return 0
+fi
 
-buildImage "$DIR"
+if ! updateImage "$ISO" "$DIR" "$XML"; then
+  abortInstall "$ISO"
+  return 0
+fi
+
+rm -f "$ISO"
+
+if ! buildImage "$DIR"; then
+  error "Failed to build image!"
+  exit 65
+fi
 
 finishInstall "$STORAGE/$BASE"
 

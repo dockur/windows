@@ -116,14 +116,15 @@ _graceful_shutdown() {
     finish "$code" && return "$code"
   fi
 
-  if [ ! -f "$STORAGE/windows.boot" ] && [ -f "$QEMU_PTY" ]; then
-    if ! grep -Fq "Windows Boot Manager" "$QEMU_PTY"; then
-      info "Cannot send ACPI signal during Windows setup, aborting..."
-      finish "$code" && return "$code"
-    else
-      if [ -f "$STORAGE/$BASE" ]; then
-        rm -f "$STORAGE/$BASE"
-        touch "$STORAGE/windows.boot"
+  local remove_iso=""
+
+  if [ ! -f "$STORAGE/windows.old" ]; then
+    if [ ! -f "$STORAGE/windows.boot" ] && [ -f "$QEMU_PTY" ]; then
+      if grep -Fq "Windows Boot Manager" "$QEMU_PTY"; then
+        [ -f "$STORAGE/$BASE" ] && remove_iso="y"
+      else
+        info "Cannot send ACPI signal during Windows setup, aborting..."
+        finish "$code" && return "$code"
       fi
     fi
   fi
@@ -150,6 +151,11 @@ _graceful_shutdown() {
 
   if [ "$cnt" -ge "$QEMU_TIMEOUT" ]; then
     error "Shutdown timeout reached, aborting..."
+  else
+    if [ -n "$remove_iso" ]; then
+      rm -f "$STORAGE/$BASE"
+      touch "$STORAGE/windows.boot"
+    fi
   fi
 
   finish "$code" && return "$code"

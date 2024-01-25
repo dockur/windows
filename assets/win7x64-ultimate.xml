@@ -12,63 +12,38 @@
     </component>
     <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DiskConfiguration>
+        <WillShowUI>OnError</WillShowUI>
         <Disk wcm:action="add">
           <DiskID>0</DiskID>
           <WillWipeDisk>true</WillWipeDisk>
           <CreatePartitions>
-            <!-- Windows RE Tools partition -->
             <CreatePartition wcm:action="add">
               <Order>1</Order>
               <Type>Primary</Type>
-              <Size>300</Size>
-            </CreatePartition>
-            <!-- System partition (ESP) -->
-            <CreatePartition wcm:action="add">
-              <Order>2</Order>
-              <Type>EFI</Type>
               <Size>100</Size>
             </CreatePartition>
-            <!-- Microsoft reserved partition (MSR) -->
             <CreatePartition wcm:action="add">
-              <Order>3</Order>
-              <Type>MSR</Type>
-              <Size>128</Size>
-            </CreatePartition>
-            <!-- Windows partition -->
-            <CreatePartition wcm:action="add">
-              <Order>4</Order>
+              <Order>2</Order>
               <Type>Primary</Type>
               <Extend>true</Extend>
             </CreatePartition>
           </CreatePartitions>
           <ModifyPartitions>
-            <!-- Windows RE Tools partition -->
             <ModifyPartition wcm:action="add">
-              <Order>1</Order>
-              <PartitionID>1</PartitionID>
-              <Label>WINRE</Label>
               <Format>NTFS</Format>
-              <TypeID>DE94BBA4-06D1-4D40-A16A-BFD50179D6AC</TypeID>
+              <Label>System Reserved</Label>
+              <Order>1</Order>
+              <Active>true</Active>
+              <PartitionID>1</PartitionID>
+              <TypeID>0x27</TypeID>
             </ModifyPartition>
-            <!-- System partition (ESP) -->
             <ModifyPartition wcm:action="add">
-              <Order>2</Order>
-              <PartitionID>2</PartitionID>
-              <Label>System</Label>
-              <Format>FAT32</Format>
-            </ModifyPartition>
-            <!-- MSR partition does not need to be modified -->
-            <ModifyPartition wcm:action="add">
-              <Order>3</Order>
-              <PartitionID>3</PartitionID>
-            </ModifyPartition>
-            <!-- Windows partition -->
-            <ModifyPartition wcm:action="add">
-              <Order>4</Order>
-              <PartitionID>4</PartitionID>
+              <Active>true</Active>
+              <Format>NTFS</Format>
               <Label>Windows</Label>
               <Letter>C</Letter>
-              <Format>NTFS</Format>
+              <Order>2</Order>
+              <PartitionID>2</PartitionID>
             </ModifyPartition>
           </ModifyPartitions>
         </Disk>
@@ -77,13 +52,13 @@
         <OSImage>
           <InstallFrom>
             <MetaData wcm:action="add">
-              <Value>Windows 8.1 Pro</Value>
-              <Key>/IMAGE/NAME</Key>
+              <Key>/IMAGE/INDEX</Key>
+              <Value>1</Value>
             </MetaData>
           </InstallFrom>
           <InstallTo>
             <DiskID>0</DiskID>
-            <PartitionID>4</PartitionID>
+            <PartitionID>2</PartitionID>
           </InstallTo>
           <InstallToAvailablePartition>false</InstallToAvailablePartition>
         </OSImage>
@@ -101,7 +76,7 @@
         <FullName>Docker</FullName>
         <Organization>Windows for Docker</Organization>
         <ProductKey>
-          <Key>GCRJD-8NW9H-F2CDX-CCM8D-9D6T9</Key>
+          <Key>D4F6K-QK3RD-TMVMJ-BBMRX-3MBMV</Key>
           <WillShowUI>OnError</WillShowUI>
         </ProductKey>
       </UserData>
@@ -113,34 +88,34 @@
     <component name="Microsoft-Windows-PnpCustomizationsWinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DriverPaths>
         <PathAndCredentials wcm:action="add" wcm:keyValue="1">
-          <Path>D:\viostor\w10\amd64</Path>
+          <Path>D:\viostor\w7\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="2">
-          <Path>D:\NetKVM\w8.1\amd64</Path>
+          <Path>D:\NetKVM\w7\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="3">
-          <Path>D:\Balloon\w8.1\amd64</Path>
+          <Path>D:\Balloon\w7\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="4">
-          <Path>D:\pvpanic\w8.1\amd64</Path>
+          <Path>D:\pvpanic\w7\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="5">
-          <Path>D:\qemupciserial\w8.1\amd64</Path>
+          <Path>D:\qemupciserial\w7\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="6">
-          <Path>D:\qxldod\w8.1\amd64</Path>
+          <Path>D:\qxldod\w7\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="7">
-          <Path>D:\vioinput\w8.1\amd64</Path>
+          <Path>D:\vioinput\w7\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="8">
-          <Path>D:\viorng\w8.1\amd64</Path>
+          <Path>D:\viorng\w7\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="9">
-          <Path>D:\vioscsi\w10\amd64</Path>
+          <Path>D:\vioscsi\w7\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="10">
-          <Path>D:\vioserial\w8.1\amd64</Path>
+          <Path>D:\vioserial\w7\amd64</Path>
         </PathAndCredentials>
       </DriverPaths>
     </component>
@@ -164,14 +139,6 @@
   <settings pass="specialize">
     <component name="Microsoft-Windows-Security-SPP-UX" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <SkipAutoActivation>true</SkipAutoActivation>
-    </component>
-    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <ComputerName>*</ComputerName>
-      <OEMInformation>
-        <Manufacturer>Dockur</Manufacturer>
-        <Model>Windows for Docker</Model>
-      </OEMInformation>
-      <OEMName>Windows for Docker</OEMName>
     </component>
     <component name="Microsoft-Windows-ErrorReportingCore" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
         <DisableWER>1</DisableWER>
@@ -227,17 +194,12 @@
       </AutoLogon>
       <OOBE>
         <HideEULAPage>true</HideEULAPage>
-        <HideLocalAccountScreen>true</HideLocalAccountScreen>
-        <HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
-        <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
         <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
         <NetworkLocation>Other</NetworkLocation>
         <ProtectYourPC>3</ProtectYourPC>
         <SkipUserOOBE>true</SkipUserOOBE>
         <SkipMachineOOBE>true</SkipMachineOOBE>
       </OOBE>
-      <RegisteredOrganization>Dockur</RegisteredOrganization>
-      <RegisteredOwner>Windows for Docker</RegisteredOwner>
       <FirstLogonCommands>
         <SynchronousCommand wcm:action="add">
           <Order>1</Order>
@@ -253,21 +215,6 @@
           <Order>3</Order>
           <CommandLine>cmd /C POWERCFG -H OFF</CommandLine>
           <Description>Disable Hibernation</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>4</Order>
-          <CommandLine>msiexec /i E:\virtio-win-gt-x64.msi /qb!</CommandLine>
-          <Description>Install VirtIO drivers</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>5</Order>
-          <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Network\NewNetworkWindowOff" /f</CommandLine>
-          <Description>Disable Network Discovery popup</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>6</Order>
-          <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Network\NetworkLocationWizard" /v HideWizard /t REG_DWORD /d 1 /f</CommandLine>
-          <Description>Disable Network Discovery popup</Description>
         </SynchronousCommand>
       </FirstLogonCommands>
     </component>
