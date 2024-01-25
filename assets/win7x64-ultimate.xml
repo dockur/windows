@@ -140,14 +140,6 @@
     <component name="Microsoft-Windows-Security-SPP-UX" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <SkipAutoActivation>true</SkipAutoActivation>
     </component>
-    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <ComputerName>*</ComputerName>
-      <OEMInformation>
-        <Manufacturer>Dockur</Manufacturer>
-        <Model>Windows for Docker</Model>
-      </OEMInformation>
-      <OEMName>Windows for Docker</OEMName>
-    </component>
     <component name="Microsoft-Windows-ErrorReportingCore" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
         <DisableWER>1</DisableWER>
     </component>
@@ -202,17 +194,12 @@
       </AutoLogon>
       <OOBE>
         <HideEULAPage>true</HideEULAPage>
-        <HideLocalAccountScreen>true</HideLocalAccountScreen>
-        <HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
-        <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
         <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
-        <NetworkLocation>Home</NetworkLocation>
+        <NetworkLocation>Other</NetworkLocation>
         <ProtectYourPC>3</ProtectYourPC>
         <SkipUserOOBE>true</SkipUserOOBE>
         <SkipMachineOOBE>true</SkipMachineOOBE>
       </OOBE>
-      <RegisteredOrganization>Dockur</RegisteredOrganization>
-      <RegisteredOwner>Windows for Docker</RegisteredOwner>
       <FirstLogonCommands>
         <SynchronousCommand wcm:action="add">
           <Order>1</Order>
