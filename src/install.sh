@@ -230,7 +230,10 @@ downloadImage() {
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
     cd "$TMP"
-    /run/mido.sh "$url"
+    if ! /run/mido.sh "$url"; then
+      error "Failed to download $url"
+      exit 68
+    fi
     cd /run
 
     [ ! -f "$iso" ] && return 1
@@ -247,7 +250,6 @@ downloadImage() {
   fi
 
   { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
-
   (( rc != 0 )) && error "Failed to download $url, reason: $rc" && exit 60
 
   [ ! -f "$iso" ] && return 1
@@ -258,7 +260,7 @@ extractImage() {
 
   local iso="$1"
   local dir="$2"
-  local size size_gb space space_gb
+  local size size_gb space space_gb len offset
 
   local msg="Extracting downloaded ISO image..."
   [ -n "$CUSTOM" ] && msg="Extracting local ISO image..."
@@ -278,7 +280,20 @@ extractImage() {
   fi
 
   rm -rf "$dir"
-  7z x "$iso" -o"$dir" > /dev/null
+
+  if ! 7z x "$iso" -o"$dir" > /dev/null; then
+    error "Failed to extract ISO file!"
+    exit 66
+  fi
+
+  #ETFS="boot.img"
+  #len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
+  #offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
+
+  #if ! dd if="$ISO" of="$dir/boot.img" bs=2048 "count=$len" "skip=$offset" status=none; then
+  # error "Failed to extract boot image from ISO!"
+  # exit 67
+  #fi
 
   if [ ! -f "$dir/$ETFS" ] || [ ! -f "$dir/$EFISYS" ]; then
 
@@ -362,15 +377,9 @@ selectXML() {
   else
 
     if [ -z "$name" ]; then
-      warn "failed to detect Windows version from image, $FB"
+      warn "failed to determine Windows version from image, $FB"
     else
-      if [[ "${name,,}" == "windows 7" ]]; then
-        BOOT_MODE="windows_legacy"
-        warn "detected Windows 7 image, $FB"
-        return 1
-      else
-        warn "failed to detect Windows version from string '$name', $FB"
-      fi
+      warn "failed to determine Windows version from string '$name', $FB"
     fi
 
   fi
@@ -392,6 +401,7 @@ updateImage() {
 
   if [ ! -f "$loc" ]; then
     warn "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB"
+    BOOT_MODE="windows_legacy"
     return 1
   fi
 
@@ -404,7 +414,10 @@ updateImage() {
     index="2"
   fi
 
-  wimlib-imagex update "$loc" "$index" --command "add $asset /autounattend.xml" > /dev/null
+  if ! wimlib-imagex update "$loc" "$index" --command "add $asset /autounattend.xml" > /dev/null; then
+    warn "failed to add XML to ISO image, $FB"
+    return 1
+  fi
 
   return 0
 }
@@ -429,14 +442,29 @@ buildImage() {
   space_gb=$(( (space + 1073741823)/1073741824 ))
 
   if (( size > space )); then
-    error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB." && exit 63
+    error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB."
+    return 1
   fi
 
-  genisoimage -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -quiet -V "$label" -udf \
-                         -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$out" -allow-limited-size "$dir"
+  if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
+
+    if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
+                                 -udf -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -allow-limited-size -quiet "$dir"; then
+      return 1
+    fi
+
+  else
+
+    if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
+                                 -udf -allow-limited-size -quiet  "$dir"; then
+      return 1
+    fi
+
+  fi
 
   if [ -f "$STORAGE/$BASE" ]; then
-    error "File $STORAGE/$BASE does already exist?!" && exit 64
+    error "File $STORAGE/$BASE does already exist?!"
+    return 1
   fi
 
   mv "$out" "$STORAGE/$BASE"
