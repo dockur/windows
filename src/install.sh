@@ -115,6 +115,8 @@ finishInstall() {
 
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
     touch "$STORAGE/windows.bios"
+  else
+    rm -f "$STORAGE/windows.bios"
   fi
 
   rm -rf "$TMP"
@@ -231,8 +233,7 @@ downloadImage() {
 
     cd "$TMP"
     if ! /run/mido.sh "$url"; then
-      error "Failed to download $url"
-      exit 68
+      return 1
     fi
     cd /run
 
