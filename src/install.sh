@@ -467,7 +467,7 @@ buildImage() {
     error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB."
     return 1
   fi
-  
+
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
 
     if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
