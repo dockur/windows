@@ -266,6 +266,7 @@ extractImage() {
       warn "failed to locate file 'efisys_noprompt.bin' in ISO image, $FB"
     fi
 
+    BOOT_MODE="windows_legacy"
     return 1
   fi
 
@@ -342,6 +343,7 @@ selectXML() {
       warn "failed to detect Windows version from image, $FB"
     else
       if [[ "${name,,}" == "windows 7" ]]; then
+        BOOT_MODE="windows_legacy"
         warn "detected Windows 7 image, $FB"
       else
         warn "failed to detect Windows version from string '$name', $FB"
