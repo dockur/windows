@@ -20,6 +20,9 @@ fi
 [[ "${VERSION,,}" == "win81" ]] && VERSION="win81x64"
 [[ "${VERSION,,}" == "win8" ]] && VERSION="win81x64"
 
+[[ "${VERSION,,}" == "7" ]] && VERSION="win7x64-ultimate"
+[[ "${VERSION,,}" == "win7" ]] && VERSION="win7x64-ultimate"
+
 [[ "${VERSION,,}" == "22" ]] && VERSION="win2022-eval"
 [[ "${VERSION,,}" == "2022" ]] && VERSION="win2022-eval"
 [[ "${VERSION,,}" == "win22" ]] && VERSION="win2022-eval"
@@ -34,6 +37,10 @@ fi
 [[ "${VERSION,,}" == "2016" ]] && VERSION="win2016-eval"
 [[ "${VERSION,,}" == "win16" ]] && VERSION="win2016-eval"
 [[ "${VERSION,,}" == "win2016" ]] && VERSION="win2016-eval"
+
+if [[ "${VERSION,,}" == "tiny11" ]]; then
+  VERSION="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
+fi
 
 CUSTOM="custom.iso"
 
