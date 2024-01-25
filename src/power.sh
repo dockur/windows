@@ -118,7 +118,7 @@ _graceful_shutdown() {
 
   local remove_iso=""
 
-  if [ ! -f "$STORAGE/windows.bios" ]; then
+  if [ ! -f "$STORAGE/windows.old" ]; then
     if [ ! -f "$STORAGE/windows.boot" ] && [ -f "$QEMU_PTY" ]; then
       if grep -Fq "Windows Boot Manager" "$QEMU_PTY"; then
         [ -f "$STORAGE/$BASE" ] && remove_iso="y"
