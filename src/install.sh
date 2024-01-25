@@ -326,7 +326,14 @@ selectXML() {
   local tag result name name2 detected
 
   XML=""
-  [[ "$MANUAL" == [Yy1]* ]] && return 0
+  if [[ "$MANUAL" == [Yy1]* ]]; then
+
+    if [[ "$BASE" == "win7x64"* ]]; then
+      BOOT_MODE="windows_legacy"
+    fi
+
+    return 0
+  fi
 
   if [[ "$EXTERNAL" != [Yy1]* ]] && [ -z "$CUSTOM" ]; then
     XML="$VERSION.xml"
@@ -413,7 +420,7 @@ updateImage() {
     return 1
   fi
 
-  if [[ "$3" == "win7"* ]]; then
+  if [[ "$3" == "win7x64"* ]]; then
 
     ETFS="boot.img"
     BOOT_MODE="windows_legacy"
