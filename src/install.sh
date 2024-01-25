@@ -361,7 +361,7 @@ selectXML() {
 
     if [ -f "/run/assets/$detected.xml" ]; then
       XML="$detected.xml"
-      echo "Detected image of type '$detected', which supports automatic installation."
+      echo "Detected image of type '$detected'."
     else
       warn "detected image of type '$detected', but no matching XML file exists, $FB."
     fi
@@ -412,7 +412,7 @@ updateImage() {
     return 1
   fi
 
-  if [[ "$2" == "win7x64-ultimate.xml" ]]; then
+  if [[ "$2" == "win7"* ]]; then
 
     ETFS="boot.img"
     BOOT_MODE="windows_legacy"
