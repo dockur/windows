@@ -261,7 +261,7 @@ extractImage() {
 
   local iso="$1"
   local dir="$2"
-  local size size_gb space space_gb len offset
+  local size size_gb space space_gb
 
   local msg="Extracting downloaded ISO image..."
   [ -n "$CUSTOM" ] && msg="Extracting local ISO image..."
@@ -286,15 +286,6 @@ extractImage() {
     error "Failed to extract ISO file!"
     exit 66
   fi
-
-  #ETFS="boot.img"
-  #len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
-  #offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
-
-  #if ! dd if="$ISO" of="$dir/boot.img" bs=2048 "count=$len" "skip=$offset" status=none; then
-  # error "Failed to extract boot image from ISO!"
-  # exit 67
-  #fi
 
   if [ ! -f "$dir/$ETFS" ] || [ ! -f "$dir/$EFISYS" ]; then
 
@@ -390,8 +381,9 @@ selectXML() {
 
 updateImage() {
 
-  local dir="$1"
-  local asset="$2"
+  local iso="$1"
+  local dir="$2"
+  local asset="/run/assets/$3"
   local index result
 
   [ ! -f "$asset" ] && return 0
@@ -418,6 +410,22 @@ updateImage() {
   if ! wimlib-imagex update "$loc" "$index" --command "add $asset /autounattend.xml" > /dev/null; then
     warn "failed to add XML to ISO image, $FB"
     return 1
+  fi
+
+  if [[ "$2" == "win7x64-ultimate.xml" ]]; then
+
+    ETFS="boot.img"
+    BOOT_MODE="windows_legacy"
+
+    local len offset
+    len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
+    offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
+
+    if ! dd "if=$iso" "of=$dir/boot.img" bs=2048 "count=$len" "skip=$offset" status=none; then
+      error "Failed to extract boot image from ISO!"
+      exit 67
+    fi
+
   fi
 
   return 0
@@ -501,7 +509,7 @@ if ! selectXML "$DIR"; then
   return 0
 fi
 
-if ! updateImage "$DIR" "/run/assets/$XML"; then
+if ! updateImage "$ISO" "$DIR" "$XML"; then
   abortInstall "$ISO"
   return 0
 fi
