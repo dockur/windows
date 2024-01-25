@@ -429,7 +429,7 @@ updateImage() {
     len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
     offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
 
-    if ! dd "if=$iso" "of=$dir/boot.img" bs=2048 "count=$len" "skip=$offset" status=none; then
+    if ! dd "if=$iso" "of=$dir/$ETFS" bs=2048 "count=$len" "skip=$offset" status=none; then
       error "Failed to extract boot image from ISO!"
       exit 67
     fi
@@ -444,7 +444,7 @@ buildImage() {
   local dir="$1"
   local cat="BOOT.CAT"
   local label="${BASE%.*}"
-  local size size_gb space space_gb error
+  local size size_gb space space_gb
 
   label="${label::30}"
   local out="$TMP/$label.tmp"
@@ -469,22 +469,24 @@ buildImage() {
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
 
     if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
-                                 -udf -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -allow-limited-size -quiet "$dir" 2> "$log"; then
+                     -udf -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -allow-limited-size -quiet "$dir" 2> "$log"; then
+      [ -f "$log" ] && echo "$(<"$log")"
       return 1
     fi
 
   else
 
     if !  genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
-                                 -udf -allow-limited-size -quiet  "$dir" 2> "$log"; then
+                      -udf -allow-limited-size -quiet "$dir" 2> "$log"; then
+      [ -f "$log" ] && echo "$(<"$log")"
       return 1
     fi
 
   fi
 
-  error=$(<"$log")
-  echo "$error"
-  rm -f "$log"
+  local error=""
+  [ -f "$log" ] && error="$(<"$log")"
+  [[ "$error" != "$hide" ]] && echo "$error"
 
   if [ -f "$STORAGE/$BASE" ]; then
     error "File $STORAGE/$BASE does already exist?!"
