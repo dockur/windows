@@ -361,7 +361,7 @@ selectXML() {
 
     if [ -f "/run/assets/$detected.xml" ]; then
       XML="$detected.xml"
-      echo "Detected image of type '$detected'."
+      info "Detected image of type: '$detected'"
     else
       warn "detected image of type '$detected', but no matching XML file exists, $FB."
     fi
