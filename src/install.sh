@@ -455,7 +455,7 @@ buildImage() {
   local out="$TMP/$label.tmp"
   rm -f "$out"
 
-  local msg="Generating updated ISO image..."
+  local msg="Updating ISO image..."
   info "$msg" && html "$msg"
 
   size=$(du -h -b --max-depth=0 "$dir" | cut -f1)
