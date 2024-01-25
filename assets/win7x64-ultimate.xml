@@ -12,73 +12,48 @@
     </component>
     <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DiskConfiguration>
-        <Disk wcm:action="add">
-          <DiskID>0</DiskID>
-          <WillWipeDisk>true</WillWipeDisk>
-          <CreatePartitions>
-            <!-- Windows RE Tools partition -->
-            <CreatePartition wcm:action="add">
-              <Order>1</Order>
-              <Type>Primary</Type>
-              <Size>300</Size>
-            </CreatePartition>
-            <!-- System partition (ESP) -->
-            <CreatePartition wcm:action="add">
-              <Order>2</Order>
-              <Type>EFI</Type>
-              <Size>100</Size>
-            </CreatePartition>
-            <!-- Microsoft reserved partition (MSR) -->
-            <CreatePartition wcm:action="add">
-              <Order>3</Order>
-              <Type>MSR</Type>
-              <Size>128</Size>
-            </CreatePartition>
-            <!-- Windows partition -->
-            <CreatePartition wcm:action="add">
-              <Order>4</Order>
-              <Type>Primary</Type>
-              <Extend>true</Extend>
-            </CreatePartition>
-          </CreatePartitions>
-          <ModifyPartitions>
-            <!-- Windows RE Tools partition -->
-            <ModifyPartition wcm:action="add">
-              <Order>1</Order>
-              <PartitionID>1</PartitionID>
-              <Label>WINRE</Label>
-              <Format>NTFS</Format>
-              <TypeID>DE94BBA4-06D1-4D40-A16A-BFD50179D6AC</TypeID>
-            </ModifyPartition>
-            <!-- System partition (ESP) -->
-            <ModifyPartition wcm:action="add">
-              <Order>2</Order>
-              <PartitionID>2</PartitionID>
-              <Label>System</Label>
-              <Format>FAT32</Format>
-            </ModifyPartition>
-            <!-- MSR partition does not need to be modified -->
-            <ModifyPartition wcm:action="add">
-              <Order>3</Order>
-              <PartitionID>3</PartitionID>
-            </ModifyPartition>
-            <!-- Windows partition -->
-            <ModifyPartition wcm:action="add">
-              <Order>4</Order>
-              <PartitionID>4</PartitionID>
-              <Label>Windows</Label>
-              <Letter>C</Letter>
-              <Format>NTFS</Format>
-            </ModifyPartition>
-          </ModifyPartitions>
-        </Disk>
-      </DiskConfiguration>
+<WillShowUI>OnError</WillShowUI>
+<Disk wcm:action="add">
+<DiskID>0</DiskID>
+<WillWipeDisk>true</WillWipeDisk>
+<CreatePartitions>
+<CreatePartition wcm:action="add">
+<Order>1</Order>
+<Type>Primary</Type>
+<Size>100</Size>
+</CreatePartition>
+<CreatePartition wcm:action="add">
+<Order>2</Order>
+<Type>Primary</Type>
+<Extend>true</Extend>
+</CreatePartition>
+</CreatePartitions>
+<ModifyPartitions>
+<ModifyPartition wcm:action="add">
+<Format>NTFS</Format>
+<Label>System Reserved</Label>
+<Order>1</Order>
+<Active>true</Active>
+<PartitionID>1</PartitionID>
+<TypeID>0x27</TypeID>
+</ModifyPartition>
+<ModifyPartition wcm:action="add">
+<Active>true</Active>
+<Format>NTFS</Format>
+<Label>Windows</Label>
+<Letter>C</Letter>
+<Order>2</Order>
+<PartitionID>2</PartitionID>
+</ModifyPartition>
+</ModifyPartitions>
+</Disk>
+</DiskConfiguration>
       <ImageInstall>
         <OSImage>
           <InstallFrom>
             <MetaData wcm:action="add">
-              <Value>Windows 7 Ultimate</Value>
-              <Key>/IMAGE/NAME</Key>
+                <Key>/IMAGE/INDEX</Key>
+                <Value>1</Value>
             </MetaData>
           </InstallFrom>
           <InstallTo>
