@@ -439,12 +439,17 @@ updateImage() {
   return 0
 }
 
+capture () {
+    typeset var captured; captured="$1"; shift
+    { read $captured <<<$( { { "$@" ; } 1>&3 ; } 2>&1); } 3>&1
+}
+
 buildImage() {
 
   local dir="$1"
   local cat="BOOT.CAT"
   local label="${BASE%.*}"
-  local size size_gb space space_gb
+  local size size_gb space space_gb error
 
   label="${label::30}"
   local out="$TMP/$label.tmp"
@@ -465,14 +470,14 @@ buildImage() {
 
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
 
-    if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
+    if ! capture error genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
                                  -udf -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -allow-limited-size -quiet "$dir"; then
       return 1
     fi
 
   else
 
-    if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
+    if ! capture error genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
                                  -udf -allow-limited-size -quiet  "$dir"; then
       return 1
     fi
