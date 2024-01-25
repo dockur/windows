@@ -115,9 +115,9 @@ finishInstall() {
   cp /run/version "$STORAGE/windows.ver"
 
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
-    touch "$STORAGE/windows.bios"
+    touch "$STORAGE/windows.old"
   else
-    rm -f "$STORAGE/windows.bios"
+    rm -f "$STORAGE/windows.old"
   fi
 
   rm -rf "$TMP"
@@ -505,7 +505,7 @@ buildImage() {
 
 if ! startInstall; then
 
-  if [ -f "$STORAGE/windows.bios" ]; then
+  if [ -f "$STORAGE/windows.old" ]; then
     BOOT_MODE="windows_legacy"
   fi
 
