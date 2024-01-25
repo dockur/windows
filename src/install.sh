@@ -110,6 +110,18 @@ finishInstall() {
   return 0
 }
 
+abortInstall() {
+
+  local iso="$1"
+
+  if [[ "$iso" != "$STORAGE/$BASE" ]]; then
+    mv -f "$iso" "$STORAGE/$BASE"
+  fi
+
+  finishInstall "$STORAGE/$BASE"
+  return 0
+}
+
 startInstall() {
 
   local magic
@@ -210,9 +222,8 @@ downloadImage() {
     /run/mido.sh "$url"
     cd /run
 
-    [ ! -f "$iso" ] && error "Failed to download $url" && exit 61
+    [ ! -f "$iso" ] && return 1
     return 0
-
   fi
 
   info "Downloading $BASE as boot image..."
@@ -227,8 +238,8 @@ downloadImage() {
   { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
 
   (( rc != 0 )) && error "Failed to download $url, reason: $rc" && exit 60
-  [ ! -f "$iso" ] && error "Failed to download $url" && exit 61
 
+  [ ! -f "$iso" ] && return 1
   return 0
 }
 
@@ -270,8 +281,6 @@ extractImage() {
     return 1
   fi
 
-  [ -z "$CUSTOM" ] && rm -f "$iso"
-
   return 0
 }
 
@@ -311,7 +320,8 @@ selectXML() {
 
   if [ ! -f "$loc" ]; then
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
-    return 0
+    BOOT_MODE="windows_legacy"
+    return 1
   fi
 
   tag="DISPLAYNAME"
@@ -345,6 +355,7 @@ selectXML() {
       if [[ "${name,,}" == "windows 7" ]]; then
         BOOT_MODE="windows_legacy"
         warn "detected Windows 7 image, $FB"
+        return 1
       else
         warn "failed to detect Windows version from string '$name', $FB"
       fi
@@ -369,7 +380,7 @@ updateImage() {
 
   if [ ! -f "$loc" ]; then
     warn "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB"
-    return 0
+    return 1
   fi
 
   info "Adding XML file for automatic installation..."
@@ -412,10 +423,8 @@ buildImage() {
   genisoimage -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -quiet -V "$label" -udf \
                          -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -o "$out" -allow-limited-size "$dir"
 
-  [ -n "$CUSTOM" ] && rm -f "$STORAGE/$CUSTOM"
-
   if [ -f "$STORAGE/$BASE" ]; then
-    error "File $STORAGE/$BASE does already exist ?!" && exit 64
+    error "File $STORAGE/$BASE does already exist?!" && exit 64
   fi
 
   mv "$out" "$STORAGE/$BASE"
@@ -430,25 +439,33 @@ if ! startInstall; then
 fi
 
 if [ ! -f "$ISO" ]; then
-  downloadImage "$ISO" "$VERSION"
+  if ! downloadImage "$ISO" "$VERSION"; then
+    error "Failed to download $VERSION"
+    exit 61
+  fi
 fi
 
 if ! extractImage "$ISO" "$DIR"; then
-
-  if [[ "$ISO" != "$STORAGE/$BASE" ]]; then
-    mv -f "$ISO" "$STORAGE/$BASE"
-  fi
-
-  finishInstall "$STORAGE/$BASE"
+  abortInstall "$ISO"
   return 0
-
 fi
 
-selectXML "$DIR"
+if ! selectXML "$DIR"; then
+  abortInstall "$ISO"
+  return 0
+fi
 
-updateImage "$DIR" "/run/assets/$XML"
+if ! updateImage "$DIR" "/run/assets/$XML"; then
+  abortInstall "$ISO"
+  return 0
+fi
 
-buildImage "$DIR"
+rm -f "$ISO"
+
+if ! buildImage "$DIR"; then
+  error "Failed to build image!"
+  exit 65
+fi
 
 finishInstall "$STORAGE/$BASE"
 
