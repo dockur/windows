@@ -22,6 +22,7 @@ fi
 
 [[ "${VERSION,,}" == "7" ]] && VERSION="win7x64-ultimate"
 [[ "${VERSION,,}" == "win7" ]] && VERSION="win7x64-ultimate"
+[[ "${VERSION,,}" == "win7x64" ]] && VERSION="win7x64-ultimate"
 
 [[ "${VERSION,,}" == "22" ]] && VERSION="win2022-eval"
 [[ "${VERSION,,}" == "2022" ]] && VERSION="win2022-eval"
