@@ -120,7 +120,7 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
 
   * ### How do I perform a manual installation?
 
-    It's best to use the automatic installation, as it optimizes all settings for use with this container. However, if you insist on performing the installation manually, start a clean container with the following environment variable:
+    It's best to use the automatic installation, as it optimizes various settings for use with this container. However, if you insist on performing the installation manually, start a clean container with the following environment variable:
 
     ```yaml
     environment:
