@@ -331,7 +331,7 @@ findVersion() {
   [[ "${name,,}" == *"server 2019"* ]] && detected="win2019-eval"
   [[ "${name,,}" == *"server 2016"* ]] && detected="win2016-eval"
   [[ "${name,,}" == *"windows 7"* ]] && detected="win7x64"
-  
+
   if [[ "${name,,}" == *"windows 10"* ]]; then
     if [[ "${name,,}" == *"enterprise ltsc"* ]]; then
       detected="win10x64-ltsc"
