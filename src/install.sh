@@ -55,11 +55,6 @@ if [[ "${VERSION,,}" == "win7x64" ]]; then
   VERSION="https://dl.bobpony.com/windows/7/en_windows_7_with_sp1_x64.iso"
 fi
 
-if [[ "${VERSION,,}" == "micro11" ]]; then
-  MANUAL="Y"
-  VERSION="https://dl.bobpony.com/windows/unofficial/micro11.iso"
-fi
-
 if [[ "${VERSION,,}" == "vista" ]]; then
   MANUAL="Y"
   BOOT_MODE="windows_legacy"
