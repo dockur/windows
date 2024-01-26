@@ -74,18 +74,18 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
 
     Select from the values below:
     
-    | Value  | Description  | Download  |
-    |---|---|---|
-    | ```win11```      | Windows 11 Pro       | Microsoft       |
-    | ```win10```      | Windows 10 Pro       | Microsoft       |
-    | ```ltsc10```      | Windows 10 LTSC       | Microsoft       |
-    | ```win81```      | Windows 8.1 Pro       | Microsoft       |
-    | ```win7```      | Windows 7 Pro       | Archive.org       |
-    | ```win22```      | Windows Server 2022       | Microsoft       |
-    | ```win19```      | Windows Server 2019       | Microsoft       |
-    | ```win16```      | Windows Server 2016       | Microsoft       |
-    | ```tiny11```      | Tiny 11       | Archive.org       |
-    | ```tiny10```      | Tiny 10       | Archive.org       |
+    | **Value**  | **Description**  | **Size**  | **Server**  | **Speed**  |
+    |---|---|---|---|---|
+    | ```win11```      | Windows 11 Pro       | 6.4 GB       | Microsoft       | Fast       |
+    | ```win10```      | Windows 10 Pro       | 5.8 GB       | Microsoft       | Fast       |
+    | ```ltsc10```      | Windows 10 LTSC       | 4.6 GB       | Microsoft       | Fast       |
+    | ```win81```      | Windows 8.1 Pro       | 4.2 GB       | Microsoft       | Fast       |
+    | ```win7```      | Windows 7 Ultimate       | 5.5 GB       | Archive.org       | Slow       |
+    | ```win22```      | Windows Server 2022       | 4.7 GB       | Microsoft       | Fast       |
+    | ```win19```      | Windows Server 2019       | 5.3 GB       | Microsoft       | Fast       |
+    | ```win16```      | Windows Server 2016       | 6.5 GB       | Microsoft       | Fast       |
+    | ```tiny10```      | Tiny 10      | 3.6 GB       | Archive.org      | Slow       |
+    | ```tiny11```      | Tiny 11 Core      | 2.1 GB       | Archive.org       | Slow       |
   
   * ### How do I increase the amount of CPU or RAM?
 
