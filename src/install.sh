@@ -20,9 +20,8 @@ fi
 [[ "${VERSION,,}" == "win81" ]] && VERSION="win81x64"
 [[ "${VERSION,,}" == "win8" ]] && VERSION="win81x64"
 
-[[ "${VERSION,,}" == "7" ]] && VERSION="win7x64-ultimate"
-[[ "${VERSION,,}" == "win7" ]] && VERSION="win7x64-ultimate"
-[[ "${VERSION,,}" == "win7x64" ]] && VERSION="win7x64-ultimate"
+[[ "${VERSION,,}" == "7" ]] && VERSION="win7x64"
+[[ "${VERSION,,}" == "win7" ]] && VERSION="win7x64"
 
 [[ "${VERSION,,}" == "22" ]] && VERSION="win2022-eval"
 [[ "${VERSION,,}" == "2022" ]] && VERSION="win2022-eval"
@@ -50,6 +49,10 @@ fi
 
 if [[ "${VERSION,,}" == "tiny10" ]]; then
   VERSION="https://archive.org/download/tiny-10-23-h2/tiny10%20x64%2023h2.iso"
+fi
+
+if [[ "${VERSION,,}" == "win7x64" ]]; then
+  VERSION="https://dl.bobpony.com/windows/7/en_windows_7_with_sp1_x64.iso"
 fi
 
 CUSTOM="custom.iso"
