@@ -49,7 +49,7 @@ if [[ "${VERSION,,}" == "win10x64-enterprise-ltsc-eval" ]]; then
 fi
 
 if [[ "${VERSION,,}" == "tiny10" ]]; then
-  DETECTED="win10x64-enterprise-ltsc-eval"
+  DETECTED="win10x64-ltsc"
   VERSION="https://archive.org/download/tiny-10-23-h2/tiny10%20x64%2023h2.iso"
 fi
 
