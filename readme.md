@@ -86,6 +86,7 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
     | ```win16```      | Windows Server 2016       | Microsoft       | Fast       | 6.5 GB       |
     | ```tiny10```      | Tiny 10      | Archive.org      | Slow       | 3.6 GB       |
     | ```tiny11```      | Tiny 11 Core      | Archive.org      | Slow       | 2.1 GB       |
+    | ```micro11```      | Micro 11      | Bob Pony      | Medium       | 0.6 GB       |
   
   * ### How do I increase the amount of CPU or RAM?
 
