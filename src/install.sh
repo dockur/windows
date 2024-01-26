@@ -365,14 +365,13 @@ detectImage() {
     else
       DETECTED="win10x64-ltsc"
     fi
-    if [[ "$MANUAL" != [Yy1]* ]]; then
-      if [ -f "/run/assets/$DETECTED.xml" ]; then
-        XML="$DETECTED.xml"
-      else
-        warn "image type is '$DETECTED', but no matching XML file exists, $FB."
-      fi
+    [[ "$MANUAL" == [Yy1]* ]] && return 0
+    if [ -f "/run/assets/$DETECTED.xml" ]; then
+      XML="$DETECTED.xml"
+      return 0
+    else
+      warn "image type is '$DETECTED', but no matching XML file exists!"
     fi
-    return 0
   fi
 
   info "Detecting Windows version from ISO image..."
