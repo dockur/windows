@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 : "${MANUAL:=""}"
+: "${DETECTED:=""}"
 : "${VERSION:="win11x64"}"
 
 if [[ "${VERSION}" == \"*\" || "${VERSION}" == \'*\' ]]; then
@@ -20,9 +21,8 @@ fi
 [[ "${VERSION,,}" == "win81" ]] && VERSION="win81x64"
 [[ "${VERSION,,}" == "win8" ]] && VERSION="win81x64"
 
-[[ "${VERSION,,}" == "7" ]] && VERSION="win7x64-ultimate"
-[[ "${VERSION,,}" == "win7" ]] && VERSION="win7x64-ultimate"
-[[ "${VERSION,,}" == "win7x64" ]] && VERSION="win7x64-ultimate"
+[[ "${VERSION,,}" == "7" ]] && VERSION="win7x64"
+[[ "${VERSION,,}" == "win7" ]] && VERSION="win7x64"
 
 [[ "${VERSION,,}" == "22" ]] && VERSION="win2022-eval"
 [[ "${VERSION,,}" == "2022" ]] && VERSION="win2022-eval"
@@ -44,12 +44,23 @@ fi
 [[ "${VERSION,,}" == "win10-ltsc" ]] && VERSION="win10x64-enterprise-ltsc-eval"
 [[ "${VERSION,,}" == "win10x64-ltsc" ]] && VERSION="win10x64-enterprise-ltsc-eval"
 
-if [[ "${VERSION,,}" == "tiny11" ]]; then
-  VERSION="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
+if [[ "${VERSION,,}" == "win10x64-enterprise-ltsc-eval" ]]; then
+  DETECTED="win10x64-ltsc"
 fi
 
 if [[ "${VERSION,,}" == "tiny10" ]]; then
+  DETECTED="win10x64-ltsc"
   VERSION="https://archive.org/download/tiny-10-23-h2/tiny10%20x64%2023h2.iso"
+fi
+
+if [[ "${VERSION,,}" == "win7x64" ]]; then
+  DETECTED="win7x64"
+  VERSION="https://dl.bobpony.com/windows/7/en_windows_7_with_sp1_x64.iso"
+fi
+
+if [[ "${VERSION,,}" == "tiny11" ]]; then
+  DETECTED="win11x64"
+  VERSION="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
 fi
 
 CUSTOM="custom.iso"
@@ -297,18 +308,6 @@ extractImage() {
     exit 66
   fi
 
-  if [ ! -f "$dir/$ETFS" ] || [ ! -f "$dir/$EFISYS" ]; then
-
-    if [ ! -f "$dir/$ETFS" ]; then
-      warn "failed to locate file 'etfsboot.com' in ISO image, $FB"
-    else
-      warn "failed to locate file 'efisys_noprompt.bin' in ISO image, $FB"
-    fi
-
-    BOOT_MODE="windows_legacy"
-    return 1
-  fi
-
   return 0
 }
 
@@ -319,11 +318,12 @@ findVersion() {
 
   [[ "${name,,}" == *"windows 11"* ]] && detected="win11x64"
   [[ "${name,,}" == *"windows 8"* ]] && detected="win81x64"
+  [[ "${name,,}" == *"windows 7"* ]] && detected="win7x64"
+  [[ "${name,,}" == *"windows vista"* ]] && detected="winvistax64"
   [[ "${name,,}" == *"server 2022"* ]] && detected="win2022-eval"
   [[ "${name,,}" == *"server 2019"* ]] && detected="win2019-eval"
   [[ "${name,,}" == *"server 2016"* ]] && detected="win2016-eval"
-  [[ "${name,,}" == *"windows 7"* ]] && detected="win7x64-ultimate"
-  
+
   if [[ "${name,,}" == *"windows 10"* ]]; then
     if [[ "${name,,}" == *"enterprise ltsc"* ]]; then
       detected="win10x64-ltsc"
@@ -338,30 +338,29 @@ findVersion() {
 
 detectImage() {
 
-  local dir="$1"
-  local tag result name name2
-
   XML=""
-  DETECTED=""
 
-  if [[ "$EXTERNAL" != [Yy1]* ]] && [ -z "$CUSTOM" ]; then
-    if [[ "${VERSION,,}" != "win10x64-enterprise-ltsc-eval" ]]; then
+  if [ -n "$CUSTOM" ]; then
+    DETECTED=""
+  else
+    if [ -z "$DETECTED" ] && [[ "$EXTERNAL" != [Yy1]* ]]; then
       DETECTED="$VERSION"
-    else
-      DETECTED="win10x64-ltsc"
     fi
-    if [[ "$MANUAL" != [Yy1]* ]]; then
-      if [ -f "/run/assets/$DETECTED.xml" ]; then
-        XML="$DETECTED.xml"
-      else
-        warn "image type is '$DETECTED', but no matching XML file exists, $FB."
-      fi
+  fi
+
+  if [ -n "$DETECTED" ]; then
+    if [ -f "/run/assets/$DETECTED.xml" ]; then
+      [[ "$MANUAL" != [Yy1]* ]] && XML="$DETECTED.xml"
+      return 0
     fi
+    warn "image type is '$DETECTED', but no matching XML file exists!"
     return 0
   fi
 
   info "Detecting Windows version from ISO image..."
 
+  local dir="$1"
+  local tag result name name2
   local loc="$dir/sources/install.wim"
   [ ! -f "$loc" ] && loc="$dir/sources/install.esd"
 
@@ -410,7 +409,21 @@ prepareImage() {
   local iso="$1"
   local dir="$2"
 
-  [[ "${DETECTED,,}" != "win7x64"* ]] && return 0
+  if [[ "${BOOT_MODE,,}" == "windows" ]]; then
+    if [[ "${DETECTED,,}" != "win7x64"* ]] && [[ "${DETECTED,,}" != "winvistax64"* ]]; then
+
+      if [ -f "$dir/$ETFS" ] && [ -f "$dir/$EFISYS" ]; then
+        return 0
+      fi
+
+      if [ ! -f "$dir/$ETFS" ]; then
+        warn "failed to locate file 'etfsboot.com' in ISO image, falling back to legacy boot!"
+      else
+        warn "failed to locate file 'efisys_noprompt.bin' in ISO image, falling back to legacy boot!"
+      fi
+
+    fi
+  fi
 
   ETFS="boot.img"
   BOOT_MODE="windows_legacy"
