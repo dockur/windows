@@ -314,11 +314,12 @@ findVersion() {
 
   [[ "${name,,}" == *"windows 11"* ]] && detected="win11x64"
   [[ "${name,,}" == *"windows 8"* ]] && detected="win81x64"
+  [[ "${name,,}" == *"windows 7"* ]] && detected="win7x64"
+  [[ "${name,,}" == *"windows vista"* ]] && detected="winvistax64"
+  [[ "${name,,}" == *"windows xp"* ]] && detected="winxpx64"
   [[ "${name,,}" == *"server 2022"* ]] && detected="win2022-eval"
   [[ "${name,,}" == *"server 2019"* ]] && detected="win2019-eval"
   [[ "${name,,}" == *"server 2016"* ]] && detected="win2016-eval"
-  [[ "${name,,}" == *"windows 7"* ]] && detected="win7x64"
-  [[ "${name,,}" == *"windows vista"* ]] && detected="winvistax64"
 
   if [[ "${name,,}" == *"windows 10"* ]]; then
     if [[ "${name,,}" == *"enterprise ltsc"* ]]; then
@@ -410,7 +411,7 @@ prepareImage() {
   local dir="$2"
 
   if [[ "${DETECTED,,}" != "win7x64"* ]] && [[ "${BOOT_MODE,,}" == "windows" ]]; then
-    if [[ "${DETECTED,,}" != "win7x64"* ]] && [[ "${DETECTED,,}" != "winxpx64"* ]]; then
+    if [[ "${DETECTED,,}" != "winvistax64"* ]] && [[ "${DETECTED,,}" != "winxpx64"* ]]; then
 
       if [ -f "$dir/$ETFS" ] && [ -f "$dir/$EFISYS" ]; then
         return 0
