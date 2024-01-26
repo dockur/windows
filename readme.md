@@ -74,10 +74,10 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
     
     Select from the values below:
     
-    - ```win11``` = Windows 11
-    - ```win10``` = Windows 10
+    - ```win11``` = Windows 11 Pro
+    - ```win10``` = Windows 10 Pro
     - ```ltsc10``` = Windows 10 LTSC
-    - ```win81``` = Windows 8.1
+    - ```win81``` = Windows 8.1 Pro
     - ```win22``` = Windows Server 2022
     - ```win19``` = Windows Server 2019
     - ```win16``` = Windows Server 2016
