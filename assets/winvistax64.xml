@@ -5,10 +5,9 @@
       <SetupUILanguage>
         <UILanguage>en-US</UILanguage>
       </SetupUILanguage>
-      <InputLocale>1033:00000409</InputLocale>
+      <InputLocale>0409:00000409</InputLocale>
       <SystemLocale>en-US</SystemLocale>
       <UILanguage>en-US</UILanguage>
-      <UILanguageFallback>en-US</UILanguageFallback>
       <UserLocale>en-US</UserLocale>
     </component>
     <component name="Microsoft-Windows-Setup" processorArchitecture="x86" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
