@@ -116,31 +116,31 @@
           <Path>D:\viostor\w10\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="2">
-          <Path>D:\NetKVM\w8.1\amd64</Path>
+          <Path>D:\NetKVM\w10\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="3">
-          <Path>D:\Balloon\w8.1\amd64</Path>
+          <Path>D:\Balloon\w10\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="4">
-          <Path>D:\pvpanic\w8.1\amd64</Path>
+          <Path>D:\pvpanic\w10\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="5">
-          <Path>D:\qemupciserial\w8.1\amd64</Path>
+          <Path>D:\qemupciserial\w10\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="6">
-          <Path>D:\qxldod\w8.1\amd64</Path>
+          <Path>D:\qxldod\w10\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="7">
-          <Path>D:\vioinput\w8.1\amd64</Path>
+          <Path>D:\vioinput\w10\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="8">
-          <Path>D:\viorng\w8.1\amd64</Path>
+          <Path>D:\viorng\w10\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="9">
           <Path>D:\vioscsi\w10\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="10">
-          <Path>D:\vioserial\w8.1\amd64</Path>
+          <Path>D:\vioserial\w10\amd64</Path>
         </PathAndCredentials>
       </DriverPaths>
     </component>
