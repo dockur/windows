@@ -345,7 +345,11 @@ detectImage() {
   DETECTED=""
 
   if [[ "$EXTERNAL" != [Yy1]* ]] && [ -z "$CUSTOM" ]; then
-    DETECTED="$VERSION"
+    if [[ "${VERSION,,}" != "win10x64-enterprise-ltsc-eval" ]]; then
+      DETECTED="$VERSION"
+    else
+      DETECTED="win10x64-ltsc"
+    fi
     if [[ "$MANUAL" != [Yy1]* ]]; then
       if [ -f "/run/assets/$DETECTED.xml" ]; then
         XML="$DETECTED.xml"
