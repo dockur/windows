@@ -44,9 +44,8 @@ fi
 [[ "${VERSION,,}" == "win10-ltsc" ]] && VERSION="win10x64-enterprise-ltsc-eval"
 [[ "${VERSION,,}" == "win10x64-ltsc" ]] && VERSION="win10x64-enterprise-ltsc-eval"
 
-if [[ "${VERSION,,}" == "tiny11" ]]; then
-  DETECTED="win11x64"
-  VERSION="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
+if [[ "${VERSION,,}" == "win10x64-enterprise-ltsc-eval" ]]; then
+  DETECTED="win10x64-ltsc"
 fi
 
 if [[ "${VERSION,,}" == "tiny10" ]]; then
@@ -57,6 +56,11 @@ fi
 if [[ "${VERSION,,}" == "win7x64" ]]; then
   DETECTED="win7x64"
   VERSION="https://dl.bobpony.com/windows/7/en_windows_7_with_sp1_x64.iso"
+fi
+
+if [[ "${VERSION,,}" == "tiny11" ]]; then
+  DETECTED="win11x64"
+  VERSION="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
 fi
 
 CUSTOM="custom.iso"
@@ -341,11 +345,7 @@ detectImage() {
     DETECTED=""
   else
     if [ -z "$DETECTED" ] && [[ "$EXTERNAL" != [Yy1]* ]]; then
-      if [[ "${VERSION,,}" != "win10x64-enterprise-ltsc-eval" ]]; then
-        DETECTED="$VERSION"
-      else
-        DETECTED="win10x64-ltsc"
-      fi
+      DETECTED="$VERSION"
     fi
   fi
 
