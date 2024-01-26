@@ -39,8 +39,16 @@ fi
 [[ "${VERSION,,}" == "win16" ]] && VERSION="win2016-eval"
 [[ "${VERSION,,}" == "win2016" ]] && VERSION="win2016-eval"
 
+[[ "${VERSION,,}" == "ltsc10" ]] && VERSION="win10x64-enterprise-ltsc-eval"
+[[ "${VERSION,,}" == "win10-ltsc" ]] && VERSION="win10x64-enterprise-ltsc-eval"
+[[ "${VERSION,,}" == "win10x64-ltsc" ]] && VERSION="win10x64-enterprise-ltsc-eval"
+
 if [[ "${VERSION,,}" == "tiny11" ]]; then
   VERSION="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
+fi
+
+if [[ "${VERSION,,}" == "tiny10" ]]; then
+  VERSION="https://archive.org/download/tiny-10-23-h2/tiny10%20x64%2023h2.iso"
 fi
 
 CUSTOM="custom.iso"
@@ -309,12 +317,19 @@ findVersion() {
   local detected=""
 
   [[ "${name,,}" == *"windows 11"* ]] && detected="win11x64"
-  [[ "${name,,}" == *"windows 10"* ]] && detected="win10x64"
   [[ "${name,,}" == *"windows 8"* ]] && detected="win81x64"
   [[ "${name,,}" == *"server 2022"* ]] && detected="win2022-eval"
   [[ "${name,,}" == *"server 2019"* ]] && detected="win2019-eval"
   [[ "${name,,}" == *"server 2016"* ]] && detected="win2016-eval"
   [[ "${name,,}" == *"windows 7"* ]] && detected="win7x64-ultimate"
+  
+  if [[ "${name,,}" == *"windows 10"* ]]; then
+    if [[ "${name,,}" == *"enterprise ltsc"* ]]; then
+      detected="win10x64-ltsc"
+    else
+      detected="win10x64"
+    fi
+  fi
 
   echo "$detected"
   return 0
