@@ -320,7 +320,6 @@ findVersion() {
   [[ "${name,,}" == *"windows 8"* ]] && detected="win81x64"
   [[ "${name,,}" == *"windows 7"* ]] && detected="win7x64"
   [[ "${name,,}" == *"windows vista"* ]] && detected="winvistax64"
-  [[ "${name,,}" == *"windows xp"* ]] && detected="winxpx64"
   [[ "${name,,}" == *"server 2022"* ]] && detected="win2022-eval"
   [[ "${name,,}" == *"server 2019"* ]] && detected="win2019-eval"
   [[ "${name,,}" == *"server 2016"* ]] && detected="win2016-eval"
