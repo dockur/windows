@@ -16,7 +16,7 @@ RUN apt-get update \
 
 COPY ./src /run/
 COPY ./assets /run/assets
-ADD https://github.com/qemus/virtiso/raw/master/virtio-win.zip /run/drivers.zip
+ADD https://github.com/qemus/virtiso/releases/download/v0.1.240/virtio-win-0.1.240.iso /run/drivers.iso
 RUN chmod +x /run/*.sh
 
 EXPOSE 8006 3389
