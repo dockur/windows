@@ -77,11 +77,13 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
     
     - ```win11``` = Windows 11
     - ```win10``` = Windows 10
+    - ```ltsc10``` = Windows 10 LTSC
     - ```win81``` = Windows 8.1
     - ```win22``` = Windows Server 2022
     - ```win19``` = Windows Server 2019
     - ```win16``` = Windows Server 2016
     - ```tiny11``` = Tiny 11 (Slow download)
+    - ```tiny10``` = Tiny 10 (Slow download)
     - ```win7``` = Windows 7 (Slow download)
   
   * ### How do I increase the amount of CPU or RAM?
