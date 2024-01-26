@@ -304,17 +304,6 @@ extractImage() {
     exit 66
   fi
 
-  if [ ! -f "$dir/$ETFS" ] || [ ! -f "$dir/$EFISYS" ]; then
-
-    if [ ! -f "$dir/$ETFS" ]; then
-      warn "failed to locate file 'etfsboot.com' in ISO image, $FB"
-    else
-      warn "failed to locate file 'efisys_noprompt.bin' in ISO image, $FB"
-    fi
-
-    BOOT_MODE="windows_legacy"
-  fi
-
   return 0
 }
 
@@ -329,8 +318,6 @@ findVersion() {
   [[ "${name,,}" == *"server 2019"* ]] && detected="win2019-eval"
   [[ "${name,,}" == *"server 2016"* ]] && detected="win2016-eval"
   [[ "${name,,}" == *"windows 7"* ]] && detected="win7x64"
-  [[ "${name,,}" == *"windows vista"* ]] && detected="winvistax64"
-  [[ "${name,,}" == *"windows xp"* ]] && detected="winxpx64"
 
   if [[ "${name,,}" == *"windows 10"* ]]; then
     if [[ "${name,,}" == *"enterprise ltsc"* ]]; then
@@ -422,7 +409,17 @@ prepareImage() {
   local dir="$2"
 
   if [[ "${DETECTED,,}" != "win7x64"* ]]; then
-    return 0
+  
+    if [ -f "$dir/$ETFS" ] && [ -f "$dir/$EFISYS" ]; then
+      return 0
+    fi
+    
+    if [ ! -f "$dir/$ETFS" ]; then
+      warn "failed to locate file 'etfsboot.com' in ISO image, falling back to legacy boot!"
+    else
+      warn "failed to locate file 'efisys_noprompt.bin' in ISO image, falling back to legacy boot!"
+    fi
+
   fi
   
   ETFS="boot.img"
