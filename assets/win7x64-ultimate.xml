@@ -195,7 +195,7 @@
       <OOBE>
         <HideEULAPage>true</HideEULAPage>
         <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
-        <NetworkLocation>Home</NetworkLocation>
+        <NetworkLocation>Other</NetworkLocation>
         <ProtectYourPC>3</ProtectYourPC>
         <SkipUserOOBE>true</SkipUserOOBE>
         <SkipMachineOOBE>true</SkipMachineOOBE>
@@ -215,6 +215,11 @@
           <Order>3</Order>
           <CommandLine>cmd /C POWERCFG -H OFF</CommandLine>
           <Description>Disable Hibernation</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>4</Order>
+          <CommandLine>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\NewNetworks" /v NetworkList /t REG_MULTI_SZ /d "" /f</CommandLine>
+          <Description>Disable Network Discovery popup</Description>
         </SynchronousCommand>
       </FirstLogonCommands>
     </component>
