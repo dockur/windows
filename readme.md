@@ -71,19 +71,21 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
     environment:
       VERSION: "win11"
     ```
-    
+
     Select from the values below:
     
-    - ```win11``` = Windows 11 Pro
-    - ```win10``` = Windows 10 Pro
-    - ```ltsc10``` = Windows 10 LTSC
-    - ```win81``` = Windows 8.1 Pro
-    - ```win22``` = Windows Server 2022
-    - ```win19``` = Windows Server 2019
-    - ```win16``` = Windows Server 2016
-    - ```tiny11``` = Tiny 11 (Slow download)
-    - ```tiny10``` = Tiny 10 (Slow download)
-    - ```win7``` = Windows 7 (Slow download)
+    | Value  | Description  | Download  |
+    |---|---|---|
+    | ```win11```      | Windows 11 Pro       | Microsoft       |
+    | ```win10```      | Windows 10 Pro       | Microsoft       |
+    | ```ltsc10```      | Windows 10 LTSC       | Microsoft       |
+    | ```win81```      | Windows 8.1 Pro       | Microsoft       |
+    | ```win7```      | Windows 7 Pro       | Archive.org       |
+    | ```win22```      | Windows Server 2022       | Microsoft       |
+    | ```win19```      | Windows Server 2019       | Microsoft       |
+    | ```win16```      | Windows Server 2016       | Microsoft       |
+    | ```tiny11```      | Tiny 11       | Archive.org       |
+    | ```tiny10```      | Tiny 10       | Archive.org       |
   
   * ### How do I increase the amount of CPU or RAM?
 
