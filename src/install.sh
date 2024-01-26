@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 : "${MANUAL:=""}"
+: "${DETECTED:=""}"
 : "${VERSION:="win11x64"}"
 
 if [[ "${VERSION}" == \"*\" || "${VERSION}" == \'*\' ]]; then
@@ -22,6 +23,12 @@ fi
 
 [[ "${VERSION,,}" == "7" ]] && VERSION="win7x64"
 [[ "${VERSION,,}" == "win7" ]] && VERSION="win7x64"
+
+[[ "${VERSION,,}" == "vista" ]] && VERSION="winvistax64"
+[[ "${VERSION,,}" == "winvista" ]] && VERSION="winvistax64"
+
+[[ "${VERSION,,}" == "xp" ]] && VERSION="winxpx64"
+[[ "${VERSION,,}" == "winxp" ]] && VERSION="winxpx64"
 
 [[ "${VERSION,,}" == "22" ]] && VERSION="win2022-eval"
 [[ "${VERSION,,}" == "2022" ]] && VERSION="win2022-eval"
@@ -44,25 +51,28 @@ fi
 [[ "${VERSION,,}" == "win10x64-ltsc" ]] && VERSION="win10x64-enterprise-ltsc-eval"
 
 if [[ "${VERSION,,}" == "tiny11" ]]; then
+  DETECTED="win11x64"
   VERSION="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
 fi
 
 if [[ "${VERSION,,}" == "tiny10" ]]; then
+  DETECTED="win10x64-enterprise-ltsc-eval"
   VERSION="https://archive.org/download/tiny-10-23-h2/tiny10%20x64%2023h2.iso"
 fi
 
 if [[ "${VERSION,,}" == "win7x64" ]]; then
+  DETECTED="win7x64"
   VERSION="https://dl.bobpony.com/windows/7/en_windows_7_with_sp1_x64.iso"
 fi
 
-if [[ "${VERSION,,}" == "vista" ]]; then
-  MANUAL="Y"
+if [[ "${VERSION,,}" == "winvistax64" ]]; then
+  DETECTED="winvistax64"
   BOOT_MODE="windows_legacy"
   VERSION="https://dl.bobpony.com/windows/vista/en_windows_vista_sp2_x64_dvd_342267.iso"
 fi
 
-if [[ "${VERSION,,}" == "xp" ]]; then
-  MANUAL="Y"
+if [[ "${VERSION,,}" == "winxpx64" ]]; then
+  DETECTED="winxpx64"
   BOOT_MODE="windows_legacy"
   VERSION="https://dl.bobpony.com/windows/xp/professional/en_win_xp_pro_x64_vl.iso"
 fi
@@ -321,7 +331,6 @@ extractImage() {
     fi
 
     BOOT_MODE="windows_legacy"
-    return 1
   fi
 
   return 0
@@ -338,6 +347,8 @@ findVersion() {
   [[ "${name,,}" == *"server 2019"* ]] && detected="win2019-eval"
   [[ "${name,,}" == *"server 2016"* ]] && detected="win2016-eval"
   [[ "${name,,}" == *"windows 7"* ]] && detected="win7x64"
+  [[ "${name,,}" == *"windows vista"* ]] && detected="winvistax64"
+  [[ "${name,,}" == *"windows xp"* ]] && detected="winxpx64"
 
   if [[ "${name,,}" == *"windows 10"* ]]; then
     if [[ "${name,,}" == *"enterprise ltsc"* ]]; then
@@ -354,24 +365,31 @@ findVersion() {
 detectImage() {
 
   local dir="$1"
+  local try=""
   local tag result name name2
 
   XML=""
-  DETECTED=""
 
-  if [[ "$EXTERNAL" != [Yy1]* ]] && [ -z "$CUSTOM" ]; then
-    if [[ "${VERSION,,}" != "win10x64-enterprise-ltsc-eval" ]]; then
-      DETECTED="$VERSION"
-    else
-      DETECTED="win10x64-ltsc"
+  if [ -n "$DETECTED" ]; then
+    try="y"
+  else
+    if [[ "$EXTERNAL" != [Yy1]* ]] && [ -z "$CUSTOM" ]; then
+      if [[ "${VERSION,,}" != "win10x64-enterprise-ltsc-eval" ]]; then
+        DETECTED="$VERSION"
+      else
+        DETECTED="win10x64-ltsc"
+      fi
+      try="y"
     fi
+  fi
+
+  if [[ "$try" == "y" ]]; then
     [[ "$MANUAL" == [Yy1]* ]] && return 0
     if [ -f "/run/assets/$DETECTED.xml" ]; then
       XML="$DETECTED.xml"
       return 0
-    else
-      warn "image type is '$DETECTED', but no matching XML file exists!"
     fi
+    warn "image type is '$DETECTED', but no matching XML file exists!"
   fi
 
   info "Detecting Windows version from ISO image..."
@@ -424,8 +442,10 @@ prepareImage() {
   local iso="$1"
   local dir="$2"
 
-  [[ "${DETECTED,,}" != "win7x64"* ]] && return 0
-
+  if [[ "${DETECTED,,}" != "win7x64"* ]] && [[ "${DETECTED,,}" != "winvistax64"* ]] && [[ "${DETECTED,,}" != "winxpx64"* ]]; then
+    return 0
+  fi
+  
   ETFS="boot.img"
   BOOT_MODE="windows_legacy"
 
