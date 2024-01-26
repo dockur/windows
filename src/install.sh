@@ -60,6 +60,18 @@ if [[ "${VERSION,,}" == "micro11" ]]; then
   VERSION="https://dl.bobpony.com/windows/unofficial/micro11.iso"
 fi
 
+if [[ "${VERSION,,}" == "vista" ]]; then
+  MANUAL="Y"
+  BOOT_MODE="windows_legacy"
+  VERSION="https://dl.bobpony.com/windows/vista/en_windows_vista_sp2_x64_dvd_342267.iso"
+fi
+
+if [[ "${VERSION,,}" == "xp" ]]; then
+  MANUAL="Y"
+  BOOT_MODE="windows_legacy"
+  VERSION="https://dl.bobpony.com/windows/xp/professional/en_win_xp_pro_x64_vl.iso"
+fi
+
 CUSTOM="custom.iso"
 
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.iso"
