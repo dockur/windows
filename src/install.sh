@@ -408,7 +408,7 @@ prepareImage() {
   local iso="$1"
   local dir="$2"
 
-  if [[ "${DETECTED,,}" != "win7x64"* ]]; then
+  if [[ "${DETECTED,,}" != "win7x64"* ]] && [[ "${BOOT_MODE,,}" == "windows" ]]; then
   
     if [ -f "$dir/$ETFS" ] && [ -f "$dir/$EFISYS" ]; then
       return 0
