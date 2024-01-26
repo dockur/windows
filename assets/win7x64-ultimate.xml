@@ -216,11 +216,6 @@
           <CommandLine>cmd /C POWERCFG -H OFF</CommandLine>
           <Description>Disable Hibernation</Description>
         </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>4</Order>
-          <CommandLine>msiexec /i D:\virtio-win-gt-x64.msi /qb!</CommandLine>
-          <Description>Install VirtIO drivers</Description>
-        </SynchronousCommand>
       </FirstLogonCommands>
     </component>
   </settings>
