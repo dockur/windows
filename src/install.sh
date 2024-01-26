@@ -24,12 +24,6 @@ fi
 [[ "${VERSION,,}" == "7" ]] && VERSION="win7x64"
 [[ "${VERSION,,}" == "win7" ]] && VERSION="win7x64"
 
-[[ "${VERSION,,}" == "vista" ]] && VERSION="winvistax64"
-[[ "${VERSION,,}" == "winvista" ]] && VERSION="winvistax64"
-
-[[ "${VERSION,,}" == "xp" ]] && VERSION="winxpx64"
-[[ "${VERSION,,}" == "winxp" ]] && VERSION="winxpx64"
-
 [[ "${VERSION,,}" == "22" ]] && VERSION="win2022-eval"
 [[ "${VERSION,,}" == "2022" ]] && VERSION="win2022-eval"
 [[ "${VERSION,,}" == "win22" ]] && VERSION="win2022-eval"
@@ -63,18 +57,6 @@ fi
 if [[ "${VERSION,,}" == "win7x64" ]]; then
   DETECTED="win7x64"
   VERSION="https://dl.bobpony.com/windows/7/en_windows_7_with_sp1_x64.iso"
-fi
-
-if [[ "${VERSION,,}" == "winvistax64" ]]; then
-  DETECTED="winvistax64"
-  BOOT_MODE="windows_legacy"
-  VERSION="https://dl.bobpony.com/windows/vista/en_windows_vista_sp2_x64_dvd_342267.iso"
-fi
-
-if [[ "${VERSION,,}" == "winxpx64" ]]; then
-  DETECTED="winxpx64"
-  BOOT_MODE="windows_legacy"
-  VERSION="https://dl.bobpony.com/windows/xp/professional/en_win_xp_pro_x64_vl.iso"
 fi
 
 CUSTOM="custom.iso"
