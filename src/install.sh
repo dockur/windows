@@ -346,36 +346,33 @@ findVersion() {
 
 detectImage() {
 
-  local dir="$1"
-  local try=""
-  local tag result name name2
-
   XML=""
 
-  if [ -n "$DETECTED" ]; then
-    try="y"
+  if [ -n "$CUSTOM" ]; then
+    DETECTED=""
   else
-    if [[ "$EXTERNAL" != [Yy1]* ]] && [ -z "$CUSTOM" ]; then
+    if [ -z "$DETECTED" ] && [[ "$EXTERNAL" != [Yy1]* ]]; then
       if [[ "${VERSION,,}" != "win10x64-enterprise-ltsc-eval" ]]; then
         DETECTED="$VERSION"
       else
         DETECTED="win10x64-ltsc"
       fi
-      try="y"
     fi
   fi
 
-  if [[ "$try" == "y" ]]; then
-    [[ "$MANUAL" == [Yy1]* ]] && return 0
+  if [ -n "$DETECTED" ]; then
     if [ -f "/run/assets/$DETECTED.xml" ]; then
-      XML="$DETECTED.xml"
+      [[ "$MANUAL" != [Yy1]* ]] && XML="$DETECTED.xml"
       return 0
     fi
     warn "image type is '$DETECTED', but no matching XML file exists!"
+    return 0
   fi
 
   info "Detecting Windows version from ISO image..."
 
+  local dir="$1"
+  local tag result name name2
   local loc="$dir/sources/install.wim"
   [ ! -f "$loc" ] && loc="$dir/sources/install.esd"
 
@@ -424,7 +421,7 @@ prepareImage() {
   local iso="$1"
   local dir="$2"
 
-  if [[ "${DETECTED,,}" != "win7x64"* ]] && [[ "${DETECTED,,}" != "winvistax64"* ]] && [[ "${DETECTED,,}" != "winxpx64"* ]]; then
+  if [[ "${DETECTED,,}" != "win7x64"* ]]; then
     return 0
   fi
   
