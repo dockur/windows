@@ -415,16 +415,16 @@ prepareImage() {
       if [ -f "$dir/$ETFS" ] && [ -f "$dir/$EFISYS" ]; then
         return 0
       fi
-    
+
       if [ ! -f "$dir/$ETFS" ]; then
         warn "failed to locate file 'etfsboot.com' in ISO image, falling back to legacy boot!"
       else
         warn "failed to locate file 'efisys_noprompt.bin' in ISO image, falling back to legacy boot!"
       fi
-  
+
     fi
   fi
-  
+
   ETFS="boot.img"
   BOOT_MODE="windows_legacy"
 
