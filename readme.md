@@ -149,7 +149,7 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
 
     - Once you see the desktop, open File Explorer and navigate to the CD-ROM drive (E:). Double-click on ```virtio-win-gt-x64.msi``` and proceed to install the VirtIO drivers.
 
-    - Now your Windows installation is ready for use. Enjoy it, and don't forget to star this repo!
+    Enjoy your brand new machine, and don't forget to star this repo!
 
   * ### How do I install a custom image?
 
