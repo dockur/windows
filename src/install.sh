@@ -177,7 +177,7 @@ abortInstall() {
 
 startInstall() {
 
-  local magic ver desc
+  local magic desc
   local msg="Windows is being started, please wait..."
 
   if [ -f "$STORAGE/$CUSTOM" ]; then
@@ -202,8 +202,8 @@ startInstall() {
       if ! skipInstall && [ ! -f "$STORAGE/$BASE" ]; then
       
         desc=$(printVersion "$VERSION")
-        [ -z "$desc" ] && ver="" || ver="$desc "
-        msg="Windows ${ver}is being downloaded, please wait..."
+        [ -z "$desc" ] && desc="Windows"
+        msg="$desc is being downloaded, please wait..."
       fi
 
     else
