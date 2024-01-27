@@ -74,19 +74,19 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
     
     | **Value**  | **Description**  | **Server**  | **Transfer**  | **Size**  |
     |---|---|---|---|---|
-    | `win11`      | Windows 11 Pro       | Microsoft       | Fast       | 6.4 GB       |
-    | `win10`      | Windows 10 Pro       | Microsoft       | Fast       | 5.8 GB       |
-    | `ltsc10`      | Windows 10 LTSC       | Microsoft       | Fast       | 4.6 GB       |
-    | `win81`      | Windows 8.1 Pro       | Microsoft       | Fast       | 4.2 GB       |
-    | `win7`      | Windows 7 SP1       | Bob Pony      | Medium       | 3.0 GB       |
+    | `win11`   | Windows 11 Pro      | Microsoft    | Fast       | 6.4 GB    |
+    | `win10`   | Windows 10 Pro      | Microsoft    | Fast       | 5.8 GB    |
+    | `ltsc10`  | Windows 10 LTSC     | Microsoft    | Fast       | 4.6 GB    |
+    | `win81`   | Windows 8.1 Pro     | Microsoft    | Fast       | 4.2 GB    |
+    | `win7`    | Windows 7 SP1       | Bob Pony     | Medium     | 3.0 GB    |
     ||||||
-    | `win22`      | Windows Server 2022       | Microsoft       | Fast       | 4.7 GB       |
-    | `win19`      | Windows Server 2019       | Microsoft       | Fast       | 5.3 GB       |
-    | `win16`      | Windows Server 2016       | Microsoft       | Fast       | 6.5 GB       |
+    | `win22`   | Windows Server 2022 | Microsoft    | Fast       | 4.7 GB    |
+    | `win19`   | Windows Server 2019 | Microsoft    | Fast       | 5.3 GB    |
+    | `win16`   | Windows Server 2016 | Microsoft    | Fast       | 6.5 GB    |
     ||||||
-    | `core11`      | Tiny 11 Core      | Archive.org      | Slow       | 2.1 GB       |
-    | `tiny11`      | Tiny 11      | Archive.org      | Slow       | 3.8 GB       |
-    | `tiny10`      | Tiny 10      | Archive.org      | Slow       | 3.6 GB       |
+    | `core11`  | Tiny 11 Core        | Archive.org  | Slow       | 2.1 GB    |
+    | `tiny11`  | Tiny 11             | Archive.org  | Slow       | 3.8 GB    |
+    | `tiny10`  | Tiny 10             | Archive.org  | Slow       | 3.6 GB    |
     
   * ### How do I increase the amount of CPU or RAM?
 
@@ -137,17 +137,17 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
 
     - Start the container and connect to [port 8006](http://localhost:8006) of the container in your web browser. After the download is finished, you will see the Windows installation screen.
 
-    - Start the installation by clicking ```Install now```. On the next screen, press 'OK' when prompted to ```Load driver``` and select the ```VirtIO SCSI``` driver from the list that matches your Windows version. So for Windows 11, select ```D:\amd64\w11\vioscsi.inf``` and click 'Next'.
+    - Start the installation by clicking `Install now`. On the next screen, press 'OK' when prompted to `Load driver` and select the `VirtIO SCSI` driver from the list that matches your Windows version. So for Windows 11, select `D:\amd64\w11\vioscsi.inf` and click 'Next'.
 
     - Accept the license agreement and select your preferred Windows edition, like Home or Pro.
 
-    - Choose ```Custom: Install Windows only (advanced)```, and click ```Load driver``` on the next screen. Select 'Browse' and navigate  to the ```D:\NetKVM\w11\amd64``` folder, and click 'OK'. Select the ```VirtIO Ethernet Adapter``` from the list and click 'Next'.
+    - Choose `Custom: Install Windows only (advanced)`, and click `Load driver` on the next screen. Select 'Browse' and navigate to the `D:\NetKVM\w11\amd64` folder, and click 'OK'. Select the `VirtIO Ethernet Adapter` from the list and click 'Next'.
 
-    - Select 'Drive 0' and click 'Next'.
+    - Select `Drive 0` and click 'Next'.
 
     - Wait until Windows finishes copying files and completes the installation.
 
-    - Once you see the desktop, open File Explorer and navigate to the CD-ROM drive (E:). Double-click on ```virtio-win-gt-x64.msi``` and proceed to install the VirtIO drivers.
+    - Once you see the desktop, open File Explorer and navigate to the CD-ROM drive (E:). Double-click on `virtio-win-gt-x64.msi` and proceed to install the VirtIO drivers.
 
     Enjoy your brand new machine, and don't forget to star this repo!
 
@@ -175,7 +175,7 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
       - /dev/sdb
     ```
 
-    Use ```DEVICE``` if you want it to become your main drive, and use ```DEVICE2``` and higher to add them as secondary drives.
+    Use `DEVICE` if you want it to become your main drive, and use `DEVICE2` and higher to add them as secondary drives.
     
   * ### How do I verify if my system supports KVM?
 
