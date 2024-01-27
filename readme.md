@@ -53,15 +53,11 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
 
     Very simple! These are the steps:
     
-    - Start the container and get some coffee.
-
-    - Connect to [port 8006](http://localhost:8006) of the container in your web browser.
+    - Start the container and connect to [port 8006](http://localhost:8006) using your web browser.
 
     - Sit back and relax while the magic happens, the whole installation will be performed fully automatic.
 
-    - Once you see the desktop, your Windows installation is ready for use.
-
-    - Enjoy your brand new machine, and don't forget to star this repo!
+    - Once you see the desktop, your Windows installation is ready for use. Enjoy your brand new machine, and don't forget to star this repo!
 
   * ### How do I select the Windows version?
 
