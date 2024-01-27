@@ -52,8 +52,8 @@
         <OSImage>
           <InstallFrom>
             <MetaData wcm:action="add">
-              <Value>Windows 7 Ultimate</Value>
-              <Key>/IMAGE/NAME</Key>
+              <Value>1</Value>
+              <Key>/IMAGE/INDEX</Key>
             </MetaData>
           </InstallFrom>
           <InstallTo>
@@ -76,7 +76,7 @@
         <FullName>Docker</FullName>
         <Organization>Windows for Docker</Organization>
         <ProductKey>
-          <Key>D4F6K-QK3RD-TMVMJ-BBMRX-3MBMV</Key>
+          <Key>H7X92-3VPBB-Q799D-Y6JJ3-86WC6</Key>
           <WillShowUI>OnError</WillShowUI>
         </ProductKey>
       </UserData>

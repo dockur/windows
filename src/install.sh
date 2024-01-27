@@ -55,7 +55,7 @@ fi
 
 if [[ "${VERSION,,}" == "win7x64" ]]; then
   DETECTED="win7x64"
-  VERSION="https://dl.bobpony.com/windows/7/en_windows_7_with_sp1_x64.iso"
+  VERSION="https://dl.bobpony.com/windows/7/en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.iso"
 fi
 
 if [[ "${VERSION,,}" == "tiny11" ]]; then
