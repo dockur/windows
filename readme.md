@@ -57,7 +57,9 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
 
     - Sit back and relax while the magic happens, the whole installation will be performed fully automatic.
 
-    - Once you see the desktop, your Windows installation is ready for use. Enjoy your brand new machine, and don't forget to star this repo!
+    - Once you see the desktop, your Windows installation is ready for use.
+    
+    Enjoy your brand new machine, and don't forget to star this repo!
 
   * ### How do I select the Windows version?
 
