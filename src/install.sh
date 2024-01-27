@@ -79,6 +79,25 @@ FB="falling back to manual installation!"
 ETFS="boot/etfsboot.com"
 EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 
+printVersion() {
+
+  local id="$1"
+  local desc=""
+
+  [[ "$id" == "win7"* ]] && desc="Windows 7"
+  [[ "$id" == "win8"* ]] && desc="Windows 8"
+  [[ "$id" == "win10"* ]] && desc="Windows 10"
+  [[ "$id" == "win11"* ]] && desc="Windows 11"
+  [[ "$id" == "winvista"* ]] && desc="Windows Vista"
+  [[ "$id" == "win2022"* ]] && desc="Windows Server 2022"
+  [[ "$id" == "win2019"* ]] && desc="Windows Server 2019"
+  [[ "$id" == "win2016"* ]] && desc="Windows Server 2016"
+  [[ "$id" == "win10x64-ltsc" ]] && desc="Windows 10 LTSC"
+
+  echo "$desc"
+  return 0
+}
+
 replaceXML() {
 
   local dir="$1"
@@ -158,7 +177,7 @@ abortInstall() {
 
 startInstall() {
 
-  local magic
+  local magic ver desc
   local msg="Windows is being started, please wait..."
 
   if [ -f "$STORAGE/$CUSTOM" ]; then
@@ -181,7 +200,10 @@ startInstall() {
       BASE="$VERSION.iso"
 
       if ! skipInstall && [ ! -f "$STORAGE/$BASE" ]; then
-        msg="Windows is being downloaded, please wait..."
+      
+        desc=$(printVersion "$VERSION")
+        [ -z "$desc" ] && ver="" || ver="$desc "
+        msg="Windows ${ver}is being downloaded, please wait..."
       fi
 
     else
@@ -282,9 +304,15 @@ extractImage() {
 
   local iso="$1"
   local dir="$2"
+  local desc="downloaded ISO"
   local size size_gb space space_gb
 
-  local msg="Extracting downloaded ISO image..."
+  if [[ "$EXTERNAL" != [Yy1]* ]] && [ -z "$CUSTOM" ]; then
+    desc=$(printVersion "$VERSION")
+    [ -z "$desc" ] && desc="downloaded ISO"
+  fi
+
+  local msg="Extracting $desc image..."
   [ -n "$CUSTOM" ] && msg="Extracting local ISO image..."
   info "$msg" && html "$msg"
 
@@ -336,25 +364,6 @@ getVersion() {
   return 0
 }
 
-printVersion() {
-
-  local id="$1"
-  local desc=""
-
-  [[ "$id" == "win7"* ]] && desc="Windows 7"
-  [[ "$id" == "win8"* ]] && desc="Windows 8"
-  [[ "$id" == "win10"* ]] && desc="Windows 10"
-  [[ "$id" == "win11"* ]] && desc="Windows 11"
-  [[ "$id" == "winvista"* ]] && desc="Windows Vista"
-  [[ "$id" == "win2022"* ]] && desc="Windows Server 2022"
-  [[ "$id" == "win2019"* ]] && desc="Windows Server 2019"
-  [[ "$id" == "win2016"* ]] && desc="Windows Server 2016"
-  [[ "$id" == "win10x64-ltsc" ]] && desc="Windows 10 LTSC"
-
-  echo "$desc"
-  return 0
-}
-
 detectImage() {
 
   XML=""
@@ -378,7 +387,7 @@ detectImage() {
     dsc=$(printVersion "$DETECTED")
     [ -z "$dsc" ] && dsc="$DETECTED"
 
-    warn "image type is '$dsc', but no matching XML file exists!"
+    warn "got $desc, but no matching XML file exists, $FB."
     return 0
   fi
 
@@ -409,27 +418,22 @@ detectImage() {
 
   fi
 
-  if [ -n "$DETECTED" ]; then
-
-    desc=$(printVersion "$DETECTED")
-    [ -z "$desc" ] && desc="$DETECTED"
-
-    if [ -f "/run/assets/$DETECTED.xml" ]; then
-      [[ "$MANUAL" != [Yy1]* ]] && XML="$DETECTED.xml"
-      info "Detected image of type: '$desc'"
-    else
-      warn "detected image of type '$desc', but no matching XML file exists, $FB."
-    fi
-
-  else
-
-    if [ -z "$name" ]; then
-      warn "failed to determine Windows version from image, $FB"
-    else
-      warn "failed to determine Windows version from string '$name', $FB"
-    fi
-
+  if [ -z "$DETECTED" ]; then
+    warn "failed to determine Windows version from string '$name', $FB"
+    return 0
   fi
+
+  desc=$(printVersion "$DETECTED")
+  [ -z "$desc" ] && desc="$DETECTED"
+
+  if [ -f "/run/assets/$DETECTED.xml" ]; then
+    [[ "$MANUAL" != [Yy1]* ]] && XML="$DETECTED.xml"
+    info "Detected: $desc"
+  else
+    warn "detected $desc, but no matching XML file exists, $FB."
+  fi
+
+  return 0
 }
 
 prepareImage() {
@@ -510,13 +514,16 @@ buildImage() {
   local cat="BOOT.CAT"
   local label="${BASE%.*}"
   local log="/run/shm/iso.log"
-  local size size_gb space space_gb
+  local size size_gb space space_gb desc
 
   label="${label::30}"
   local out="$TMP/$label.tmp"
   rm -f "$out"
 
-  local msg="Updating ISO image..."
+  desc=$(printVersion "$DETECTED")
+  [ -z "$desc" ] && desc="ISO"
+
+  local msg="Building $desc image..."
   info "$msg" && html "$msg"
 
   size=$(du -h -b --max-depth=0 "$dir" | cut -f1)
