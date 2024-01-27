@@ -49,148 +49,148 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
 
 ## FAQ
 
-  * ### How do I use it?
+* ### How do I use it?
 
-    Very simple! These are the steps:
-    
-    - Start the container and connect to [port 8006](http://localhost:8006) using your web browser.
+  Very simple! These are the steps:
+  
+  - Start the container and connect to [port 8006](http://localhost:8006) using your web browser.
 
-    - Sit back and relax while the magic happens, the whole installation will be performed fully automatic.
+  - Sit back and relax while the magic happens, the whole installation will be performed fully automatic.
 
-    - Once you see the desktop, your Windows installation is ready for use.
-    
-    Enjoy your brand new machine, and don't forget to star this repo!
+  - Once you see the desktop, your Windows installation is ready for use.
+  
+  Enjoy your brand new machine, and don't forget to star this repo!
 
-  * ### How do I select the Windows version?
+* ### How do I select the Windows version?
 
-    By default, Windows 11 will be installed. But you can add the `VERSION` environment variable to your compose file, in order to specify an alternative Windows version to download:
+  By default, Windows 11 will be installed. But you can add the `VERSION` environment variable to your compose file, in order to specify an alternative Windows version to download:
 
-    ```yaml
-    environment:
-      VERSION: "win11"
-    ```
+  ```yaml
+  environment:
+    VERSION: "win11"
+  ```
 
-    Select from the values below:
-    
-    | **Value**  | **Description**  | **Server**  | **Transfer**  | **Size**  |
-    |---|---|---|---|---|
-    | `win11`   | Windows 11 Pro      | Microsoft    | Fast       | 6.4 GB    |
-    | `win10`   | Windows 10 Pro      | Microsoft    | Fast       | 5.8 GB    |
-    | `ltsc10`  | Windows 10 LTSC     | Microsoft    | Fast       | 4.6 GB    |
-    | `win81`   | Windows 8.1 Pro     | Microsoft    | Fast       | 4.2 GB    |
-    | `win7`    | Windows 7 SP1       | Bob Pony     | Medium     | 3.0 GB    |
-    ||||||
-    | `win22`   | Windows Server 2022 | Microsoft    | Fast       | 4.7 GB    |
-    | `win19`   | Windows Server 2019 | Microsoft    | Fast       | 5.3 GB    |
-    | `win16`   | Windows Server 2016 | Microsoft    | Fast       | 6.5 GB    |
-    ||||||
-    | `core11`  | Tiny 11 Core        | Archive.org  | Slow       | 2.1 GB    |
-    | `tiny11`  | Tiny 11             | Archive.org  | Slow       | 3.8 GB    |
-    | `tiny10`  | Tiny 10             | Archive.org  | Slow       | 3.6 GB    |
-    
-  * ### How do I increase the amount of CPU or RAM?
+  Select from the values below:
+  
+  | **Value**  | **Description**  | **Server**  | **Transfer**  | **Size**  |
+  |---|---|---|---|---|
+  | `win11`   | Windows 11 Pro      | Microsoft    | Fast       | 6.4 GB    |
+  | `win10`   | Windows 10 Pro      | Microsoft    | Fast       | 5.8 GB    |
+  | `ltsc10`  | Windows 10 LTSC     | Microsoft    | Fast       | 4.6 GB    |
+  | `win81`   | Windows 8.1 Pro     | Microsoft    | Fast       | 4.2 GB    |
+  | `win7`    | Windows 7 SP1       | Bob Pony     | Medium     | 3.0 GB    |
+  ||||||
+  | `win22`   | Windows Server 2022 | Microsoft    | Fast       | 4.7 GB    |
+  | `win19`   | Windows Server 2019 | Microsoft    | Fast       | 5.3 GB    |
+  | `win16`   | Windows Server 2016 | Microsoft    | Fast       | 6.5 GB    |
+  ||||||
+  | `core11`  | Tiny 11 Core        | Archive.org  | Slow       | 2.1 GB    |
+  | `tiny11`  | Tiny 11             | Archive.org  | Slow       | 3.8 GB    |
+  | `tiny10`  | Tiny 10             | Archive.org  | Slow       | 3.6 GB    |
+  
+* ### How do I increase the amount of CPU or RAM?
 
-    By default, 2 CPU cores and 4 GB of RAM are allocated to the container, as those are the minimum requirements of Windows 11.
+  By default, 2 CPU cores and 4 GB of RAM are allocated to the container, as those are the minimum requirements of Windows 11.
 
-    To increase this, add the following environment variables:
+  To increase this, add the following environment variables:
 
-    ```yaml
-    environment:
-      RAM_SIZE: "8G"
-      CPU_CORES: "4"
-    ```
+  ```yaml
+  environment:
+    RAM_SIZE: "8G"
+    CPU_CORES: "4"
+  ```
 
-  * ### How do I change the size of the disk?
+* ### How do I change the size of the disk?
 
-    To expand the default size of 64 GB, add the `DISK_SIZE` setting to your compose file and set it to your preferred capacity:
+  To expand the default size of 64 GB, add the `DISK_SIZE` setting to your compose file and set it to your preferred capacity:
 
-    ```yaml
-    environment:
-      DISK_SIZE: "256G"
-    ```
-    
-    This can also be used to resize the existing disk to a larger capacity without any data loss.
-    
-  * ### How do I change the storage location?
+  ```yaml
+  environment:
+    DISK_SIZE: "256G"
+  ```
+  
+  This can also be used to resize the existing disk to a larger capacity without any data loss.
+  
+* ### How do I change the storage location?
 
-    To change the storage location, include the following bind mount in your compose file:
+  To change the storage location, include the following bind mount in your compose file:
 
-    ```yaml
-    volumes:
-      - /var/win:/storage
-    ```
+  ```yaml
+  volumes:
+    - /var/win:/storage
+  ```
 
-    Replace the example path `/var/win` with the desired storage folder.
+  Replace the example path `/var/win` with the desired storage folder.
 
-  * ### How do I perform a manual installation?
+* ### How do I perform a manual installation?
 
-    It's best to use the automatic installation, as it optimizes various settings for use with this container.
+  It's best to use the automatic installation, as it optimizes various settings for use with this container.
 
-    However, if you insist on performing the installation manually, start a clean container with the following environment variable:
+  However, if you insist on performing the installation manually, start a clean container with the following environment variable:
 
-    ```yaml
-    environment:
-      MANUAL: "Y"
-    ```
+  ```yaml
+  environment:
+    MANUAL: "Y"
+  ```
 
-    Then follow these steps:
+  Then follow these steps:
 
-    - Start the container and connect to [port 8006](http://localhost:8006) of the container in your web browser. After the download is finished, you will see the Windows installation screen.
+  - Start the container and connect to [port 8006](http://localhost:8006) of the container in your web browser. After the download is finished, you will see the Windows installation screen.
 
-    - Start the installation by clicking `Install now`. On the next screen, press 'OK' when prompted to `Load driver` and select the `VirtIO SCSI` driver from the list that matches your Windows version. So for Windows 11, select `D:\amd64\w11\vioscsi.inf` and click 'Next'.
+  - Start the installation by clicking `Install now`. On the next screen, press 'OK' when prompted to `Load driver` and select the `VirtIO SCSI` driver from the list that matches your Windows version. So for Windows 11, select `D:\amd64\w11\vioscsi.inf` and click 'Next'.
 
-    - Accept the license agreement and select your preferred Windows edition, like Home or Pro.
+  - Accept the license agreement and select your preferred Windows edition, like Home or Pro.
 
-    - Choose `Custom: Install Windows only (advanced)`, and click `Load driver` on the next screen. Select 'Browse' and navigate to the `D:\NetKVM\w11\amd64` folder, and click 'OK'. Select the `VirtIO Ethernet Adapter` from the list and click 'Next'.
+  - Choose `Custom: Install Windows only (advanced)`, and click `Load driver` on the next screen. Select 'Browse' and navigate to the `D:\NetKVM\w11\amd64` folder, and click 'OK'. Select the `VirtIO Ethernet Adapter` from the list and click 'Next'.
 
-    - Select `Drive 0` and click 'Next'.
+  - Select `Drive 0` and click 'Next'.
 
-    - Wait until Windows finishes copying files and completes the installation.
+  - Wait until Windows finishes copying files and completes the installation.
 
-    - Once you see the desktop, open File Explorer and navigate to the CD-ROM drive (E:). Double-click on `virtio-win-gt-x64.msi` and proceed to install the VirtIO drivers.
+  - Once you see the desktop, open File Explorer and navigate to the CD-ROM drive (E:). Double-click on `virtio-win-gt-x64.msi` and proceed to install the VirtIO drivers.
 
-    Enjoy your brand new machine, and don't forget to star this repo!
+  Enjoy your brand new machine, and don't forget to star this repo!
 
-  * ### How do I install a custom image?
+* ### How do I install a custom image?
 
-    In order to download a custom ISO image, start a clean container with the URL specified in the `VERSION` environment variable:
-    
-    ```yaml
-    environment:
-      VERSION: "https://example.com/win.iso"
-    ```
+  In order to download a custom ISO image, start a clean container with the URL specified in the `VERSION` environment variable:
+  
+  ```yaml
+  environment:
+    VERSION: "https://example.com/win.iso"
+  ```
 
-    Alternatively, you can also rename a local file to `custom.iso` and place it in an empty `/storage` folder to skip the download.
+  Alternatively, you can also rename a local file to `custom.iso` and place it in an empty `/storage` folder to skip the download.
 
-  * ### How do I pass-through a disk?
+* ### How do I pass-through a disk?
 
-    It is possible to pass-through disk devices directly by adding them to your compose file in this way:
+  It is possible to pass-through disk devices directly by adding them to your compose file in this way:
 
-    ```yaml
-    environment:
-      DEVICE: "/dev/sda"
-      DEVICE2: "/dev/sdb"
-    devices:
-      - /dev/sda
-      - /dev/sdb
-    ```
+  ```yaml
+  environment:
+    DEVICE: "/dev/sda"
+    DEVICE2: "/dev/sdb"
+  devices:
+    - /dev/sda
+    - /dev/sdb
+  ```
 
-    Use `DEVICE` if you want it to become your main drive, and use `DEVICE2` and higher to add them as secondary drives.
-    
-  * ### How do I verify if my system supports KVM?
+  Use `DEVICE` if you want it to become your main drive, and use `DEVICE2` and higher to add them as secondary drives.
+  
+* ### How do I verify if my system supports KVM?
 
-    To verify if your system supports KVM, run the following commands:
+  To verify if your system supports KVM, run the following commands:
 
-    ```bash
-    sudo apt install cpu-checker
-    sudo kvm-ok
-    ```
+  ```bash
+  sudo apt install cpu-checker
+  sudo kvm-ok
+  ```
 
-    If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check the virtualization settings in the BIOS.
+  If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check the virtualization settings in the BIOS.
 
-  * ### Is this project legal?
+* ### Is this project legal?
 
-    Yes, this project contains only open-source code and does not distribute any copyrighted material. Neither does it try to circumvent any copyright protection measures. So under all applicable laws, this project would be considered legal. 
+  Yes, this project contains only open-source code and does not distribute any copyrighted material. Neither does it try to circumvent any copyright protection measures. So under all applicable laws, this project would be considered legal. 
 
 ## Disclaimer
 
