@@ -48,19 +48,24 @@ if [[ "${VERSION,,}" == "win10x64-enterprise-ltsc-eval" ]]; then
   DETECTED="win10x64-ltsc"
 fi
 
-if [[ "${VERSION,,}" == "tiny10" ]]; then
-  DETECTED="win10x64-ltsc"
-  VERSION="https://archive.org/download/tiny-10-23-h2/tiny10%20x64%2023h2.iso"
-fi
-
 if [[ "${VERSION,,}" == "win7x64" ]]; then
   DETECTED="win7x64"
   VERSION="https://dl.bobpony.com/windows/7/en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.iso"
 fi
 
-if [[ "${VERSION,,}" == "tiny11" ]]; then
+if [[ "${VERSION,,}" == "core11" ]]; then
   DETECTED="win11x64"
   VERSION="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
+fi
+
+if [[ "${VERSION,,}" == "tiny11" ]]; then
+  DETECTED="win11x64"
+  VERSION="https://archive.org/download/tiny11-2311/tiny11%202311%20x64.iso"
+fi
+
+if [[ "${VERSION,,}" == "tiny10" ]]; then
+  DETECTED="win10x64-ltsc"
+  VERSION="https://archive.org/download/tiny-10-23-h2/tiny10%20x64%2023h2.iso"
 fi
 
 CUSTOM="custom.iso"
