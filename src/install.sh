@@ -272,7 +272,7 @@ downloadImage() {
   fi
 
   { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
-  (( rc != 0 )) && error "Failed to download $url, reason: $rc" && exit 60
+  (( rc != 0 )) && error "Failed to download $url , reason: $rc" && exit 60
 
   [ ! -f "$iso" ] && return 1
   return 0
