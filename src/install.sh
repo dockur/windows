@@ -200,7 +200,7 @@ startInstall() {
       BASE="$VERSION.iso"
 
       if ! skipInstall && [ ! -f "$STORAGE/$BASE" ]; then
-      
+
         desc=$(printVersion "$VERSION")
         [ -z "$desc" ] && desc="Windows"
         msg="$desc is being downloaded, please wait..."
@@ -353,7 +353,7 @@ getVersion() {
   [[ "${name,,}" == *"server 2016"* ]] && detected="win2016-eval"
 
   if [[ "${name,,}" == *"windows 10"* ]]; then
-    if [[ "${name,,}" == *"enterprise ltsc"* ]]; then
+    if [[ "${name,,}" == *"ltsc"* ]]; then
       detected="win10x64-ltsc"
     else
       detected="win10x64"
