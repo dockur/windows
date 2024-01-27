@@ -79,6 +79,25 @@ FB="falling back to manual installation!"
 ETFS="boot/etfsboot.com"
 EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 
+printVersion() {
+
+  local id="$1"
+  local desc=""
+
+  [[ "$id" == "win7"* ]] && desc="Windows 7"
+  [[ "$id" == "win8"* ]] && desc="Windows 8"
+  [[ "$id" == "win10"* ]] && desc="Windows 10"
+  [[ "$id" == "win11"* ]] && desc="Windows 11"
+  [[ "$id" == "winvista"* ]] && desc="Windows Vista"
+  [[ "$id" == "win2022"* ]] && desc="Windows Server 2022"
+  [[ "$id" == "win2019"* ]] && desc="Windows Server 2019"
+  [[ "$id" == "win2016"* ]] && desc="Windows Server 2016"
+  [[ "$id" == "win10x64-ltsc" ]] && desc="Windows 10 LTSC"
+
+  echo "$desc"
+  return 0
+}
+
 replaceXML() {
 
   local dir="$1"
@@ -158,7 +177,7 @@ abortInstall() {
 
 startInstall() {
 
-  local magic
+  local magic desc
   local msg="Windows is being started, please wait..."
 
   if [ -f "$STORAGE/$CUSTOM" ]; then
@@ -181,7 +200,10 @@ startInstall() {
       BASE="$VERSION.iso"
 
       if ! skipInstall && [ ! -f "$STORAGE/$BASE" ]; then
-        msg="Windows is being downloaded, please wait..."
+      
+        desc=$(printVersion "$VERSION")
+        [ -z "$desc" ] && desc="Windows"
+        msg="$desc is being downloaded, please wait..."
       fi
 
     else
@@ -282,9 +304,15 @@ extractImage() {
 
   local iso="$1"
   local dir="$2"
+  local desc="downloaded ISO"
   local size size_gb space space_gb
 
-  local msg="Extracting downloaded ISO image..."
+  if [[ "$EXTERNAL" != [Yy1]* ]] && [ -z "$CUSTOM" ]; then
+    desc=$(printVersion "$VERSION")
+    [ -z "$desc" ] && desc="downloaded ISO"
+  fi
+
+  local msg="Extracting $desc image..."
   [ -n "$CUSTOM" ] && msg="Extracting local ISO image..."
   info "$msg" && html "$msg"
 
@@ -311,14 +339,14 @@ extractImage() {
   return 0
 }
 
-findVersion() {
+getVersion() {
 
   local name="$1"
   local detected=""
 
-  [[ "${name,,}" == *"windows 11"* ]] && detected="win11x64"
-  [[ "${name,,}" == *"windows 8"* ]] && detected="win81x64"
   [[ "${name,,}" == *"windows 7"* ]] && detected="win7x64"
+  [[ "${name,,}" == *"windows 8"* ]] && detected="win81x64"
+  [[ "${name,,}" == *"windows 11"* ]] && detected="win11x64"
   [[ "${name,,}" == *"windows vista"* ]] && detected="winvistax64"
   [[ "${name,,}" == *"server 2022"* ]] && detected="win2022-eval"
   [[ "${name,,}" == *"server 2019"* ]] && detected="win2019-eval"
@@ -349,18 +377,24 @@ detectImage() {
   fi
 
   if [ -n "$DETECTED" ]; then
+
     if [ -f "/run/assets/$DETECTED.xml" ]; then
       [[ "$MANUAL" != [Yy1]* ]] && XML="$DETECTED.xml"
       return 0
     fi
-    warn "image type is '$DETECTED', but no matching XML file exists!"
+
+    local dsc
+    dsc=$(printVersion "$DETECTED")
+    [ -z "$dsc" ] && dsc="$DETECTED"
+
+    warn "got $desc, but no matching XML file exists, $FB."
     return 0
   fi
 
   info "Detecting Windows version from ISO image..."
 
   local dir="$1"
-  local tag result name name2
+  local tag result name name2 desc
   local loc="$dir/sources/install.wim"
   [ ! -f "$loc" ] && loc="$dir/sources/install.esd"
 
@@ -373,35 +407,33 @@ detectImage() {
   tag="DISPLAYNAME"
   result=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
   name=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$result")
-  DETECTED=$(findVersion "$name")
+  DETECTED=$(getVersion "$name")
 
   if [ -z "$DETECTED" ]; then
 
     tag="PRODUCTNAME"
     name2=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$result")
     [ -z "$name" ] && name="$name2"
-    DETECTED=$(findVersion "$name2")
+    DETECTED=$(getVersion "$name2")
 
   fi
 
-  if [ -n "$DETECTED" ]; then
+  if [ -z "$DETECTED" ]; then
+    warn "failed to determine Windows version from string '$name', $FB"
+    return 0
+  fi
 
-    if [ -f "/run/assets/$DETECTED.xml" ]; then
-      [[ "$MANUAL" != [Yy1]* ]] && XML="$DETECTED.xml"
-      info "Detected image of type: '$DETECTED'"
-    else
-      warn "detected image of type '$DETECTED', but no matching XML file exists, $FB."
-    fi
+  desc=$(printVersion "$DETECTED")
+  [ -z "$desc" ] && desc="$DETECTED"
 
+  if [ -f "/run/assets/$DETECTED.xml" ]; then
+    [[ "$MANUAL" != [Yy1]* ]] && XML="$DETECTED.xml"
+    info "Detected: $desc"
   else
-
-    if [ -z "$name" ]; then
-      warn "failed to determine Windows version from image, $FB"
-    else
-      warn "failed to determine Windows version from string '$name', $FB"
-    fi
-
+    warn "detected $desc, but no matching XML file exists, $FB."
   fi
+
+  return 0
 }
 
 prepareImage() {
@@ -482,13 +514,16 @@ buildImage() {
   local cat="BOOT.CAT"
   local label="${BASE%.*}"
   local log="/run/shm/iso.log"
-  local size size_gb space space_gb
+  local size size_gb space space_gb desc
 
   label="${label::30}"
   local out="$TMP/$label.tmp"
   rm -f "$out"
 
-  local msg="Updating ISO image..."
+  desc=$(printVersion "$DETECTED")
+  [ -z "$desc" ] && desc="ISO"
+
+  local msg="Building $desc image..."
   info "$msg" && html "$msg"
 
   size=$(du -h -b --max-depth=0 "$dir" | cut -f1)
