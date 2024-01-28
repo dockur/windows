@@ -293,31 +293,26 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>6</Order>
-          <CommandLine>reg.exe add "HKCU\Control Panel\Desktop" /v "ScreenSaveActive" /t REG_DWORD /d 0 /f</CommandLine>
-          <Description>Disable screensaver</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>7</Order>
           <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Network\NewNetworkWindowOff" /f</CommandLine>
           <Description>Disable Network Discovery popup</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>8</Order>
+          <Order>7</Order>
           <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Network\NetworkLocationWizard" /v "HideWizard" /t REG_DWORD /d 1 /f</CommandLine>
           <Description>Disable Network Discovery popup</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>9</Order>
+          <Order>8</Order>
           <CommandLine>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v "HideFirstRunExperience" /t REG_DWORD /d 1 /f</CommandLine>
           <Description>Disable first-run experience in Edge</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>10</Order>
+          <Order>9</Order>
           <CommandLine>reg.exe add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "HideFileExt" /t REG_DWORD /d 0 /f</CommandLine>
           <Description>Show file extensions in Explorer</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>11</Order>
+          <Order>10</Order>
           <CommandLine>msiexec /i E:\virtio-win-gt-x64.msi /qb!</CommandLine>
           <Description>Install VirtIO drivers</Description>
         </SynchronousCommand>
