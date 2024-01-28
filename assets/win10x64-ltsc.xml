@@ -16,56 +16,42 @@
           <DiskID>0</DiskID>
           <WillWipeDisk>true</WillWipeDisk>
           <CreatePartitions>
-            <!-- Windows RE Tools partition -->
-            <CreatePartition wcm:action="add">
-              <Order>1</Order>
-              <Type>Primary</Type>
-              <Size>256</Size>
-            </CreatePartition>
             <!-- System partition (ESP) -->
             <CreatePartition wcm:action="add">
-              <Order>2</Order>
+              <Order>1</Order>
               <Type>EFI</Type>
               <Size>128</Size>
             </CreatePartition>
             <!-- Microsoft reserved partition (MSR) -->
             <CreatePartition wcm:action="add">
-              <Order>3</Order>
+              <Order>2</Order>
               <Type>MSR</Type>
               <Size>128</Size>
             </CreatePartition>
             <!-- Windows partition -->
             <CreatePartition wcm:action="add">
-              <Order>4</Order>
+              <Order>3</Order>
               <Type>Primary</Type>
               <Extend>true</Extend>
             </CreatePartition>
           </CreatePartitions>
           <ModifyPartitions>
-            <!-- Windows RE Tools partition -->
+            <!-- System partition (ESP) -->
             <ModifyPartition wcm:action="add">
               <Order>1</Order>
               <PartitionID>1</PartitionID>
-              <Label>WINRE</Label>
-              <Format>NTFS</Format>
-              <TypeID>DE94BBA4-06D1-4D40-A16A-BFD50179D6AC</TypeID>
-            </ModifyPartition>
-            <!-- System partition (ESP) -->
-            <ModifyPartition wcm:action="add">
-              <Order>2</Order>
-              <PartitionID>2</PartitionID>
               <Label>System</Label>
               <Format>FAT32</Format>
             </ModifyPartition>
             <!-- MSR partition does not need to be modified -->
             <ModifyPartition wcm:action="add">
-              <Order>3</Order>
-              <PartitionID>3</PartitionID>
+              <Order>2</Order>
+              <PartitionID>2</PartitionID>
             </ModifyPartition>
             <!-- Windows partition -->
             <ModifyPartition wcm:action="add">
-              <Order>4</Order>
-              <PartitionID>4</PartitionID>
+              <Order>3</Order>
+              <PartitionID>3</PartitionID>
               <Label>Windows</Label>
               <Letter>C</Letter>
               <Format>NTFS</Format>
@@ -83,7 +69,7 @@
           </InstallFrom>
           <InstallTo>
             <DiskID>0</DiskID>
-            <PartitionID>4</PartitionID>
+            <PartitionID>3</PartitionID>
           </InstallTo>
           <InstallToAvailablePartition>false</InstallToAvailablePartition>
         </OSImage>
@@ -399,6 +385,16 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>10</Order>
+          <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Power" /v "HibernateFileSizePercent" /t REG_DWORD /d 0 /f</CommandLine>
+          <Description>Zero Hibernation File</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>11</Order>
+          <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Power" /v "HibernateEnabled" /t REG_DWORD /d 0 /f</CommandLine>
+          <Description>Disable Hibernation Mode</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>12</Order>
           <CommandLine>msiexec /i E:\virtio-win-gt-x64.msi /qb!</CommandLine>
           <Description>Install VirtIO drivers</Description>
         </SynchronousCommand>
