@@ -142,13 +142,13 @@
         <PathAndCredentials wcm:action="add" wcm:keyValue="10">
           <Path>D:\vioserial\w10\amd64</Path>
         </PathAndCredentials>
-        <PathAndCredentials wcm:action="add" wcm:keyValue="10">
+        <PathAndCredentials wcm:action="add" wcm:keyValue="11">
           <Path>D:\viogpudo\w10\amd64</Path>
         </PathAndCredentials>
-        <PathAndCredentials wcm:action="add" wcm:keyValue="10">
+        <PathAndCredentials wcm:action="add" wcm:keyValue="12">
           <Path>D:\sriov\w10\amd64</Path>
         </PathAndCredentials>
-        <PathAndCredentials wcm:action="add" wcm:keyValue="10">
+        <PathAndCredentials wcm:action="add" wcm:keyValue="13">
           <Path>D:\viofs\w10\amd64</Path>
         </PathAndCredentials>
       </DriverPaths>
