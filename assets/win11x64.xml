@@ -414,7 +414,7 @@
         <SynchronousCommand wcm:action="add">
           <Order>14</Order>
           <CommandLine>fsutil.exe behavior set disableLastAccess 1</CommandLine>
-          <Description>Disable writing last access times</Description
+          <Description>Disable writing last access times</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>15</Order>
