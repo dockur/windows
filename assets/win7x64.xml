@@ -200,6 +200,8 @@
         <SkipUserOOBE>true</SkipUserOOBE>
         <SkipMachineOOBE>true</SkipMachineOOBE>
       </OOBE>
+      <RegisteredOrganization>Dockur</RegisteredOrganization>
+      <RegisteredOwner>Windows for Docker</RegisteredOwner>
       <FirstLogonCommands>
         <SynchronousCommand wcm:action="add">
           <Order>1</Order>
