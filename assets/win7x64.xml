@@ -143,7 +143,6 @@
         <Manufacturer>Dockur</Manufacturer>
         <Model>Windows for Docker</Model>
       </OEMInformation>
-      <OEMName>Windows for Docker</OEMName>
     </component>
     <component name="Microsoft-Windows-ErrorReportingCore" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DisableWER>1</DisableWER>
