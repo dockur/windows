@@ -168,6 +168,9 @@
     <component name="Microsoft-Windows-ErrorReportingCore" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DisableWER>1</DisableWER>
     </component>
+    <component name="Microsoft-Windows-SystemSettingsThreshold" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <DisplayNetworkSelection>false</DisplayNetworkSelection>
+    </component>
     <component name="Microsoft-Windows-IE-InternetExplorer" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DisableAccelerators>true</DisableAccelerators>
       <DisableFirstRunWizard>true</DisableFirstRunWizard>
