@@ -171,14 +171,6 @@
       <UILanguage>en-US</UILanguage>
       <UserLocale>en-US</UserLocale>
     </component>
-    <component name="Microsoft-Windows-Deployment" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <RunSynchronous>
-        <RunSynchronousCommand wcm:action="add">
-          <Order>1</Order>
-          <Path>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f</Path>
-        </RunSynchronousCommand>
-      </RunSynchronous>
-    </component>
     <component name="Microsoft-Windows-TerminalServices-LocalSessionManager" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <fDenyTSConnections>false</fDenyTSConnections>
     </component>
@@ -285,16 +277,11 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>11</Order>
-          <CommandLine>netsh.exe advfirewall firewall set rule group="Remote Desktop" new enable=Yes</CommandLine>
-          <Description>Enable RDP in firewall</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>12</Order>
           <CommandLine>fsutil.exe behavior set disableLastAccess 1</CommandLine>
           <Description>Disable writing last access times</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>13</Order>
+          <Order>12</Order>
           <CommandLine>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\NewNetworks" /v NetworkList /t REG_MULTI_SZ /d "" /f</CommandLine>
           <Description>Disable Network Discovery popup</Description>
         </SynchronousCommand>
