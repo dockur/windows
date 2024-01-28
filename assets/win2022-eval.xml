@@ -282,19 +282,16 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>3</Order>
-          <RequiresUserInput>false</RequiresUserInput>
           <CommandLine>cmd /C wmic useraccount where name="Docker" set PasswordExpires=false</CommandLine>
           <Description>Password Never Expires</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>4</Order>
-          <RequiresUserInput>false</RequiresUserInput>
           <CommandLine>cmd /C POWERCFG -H OFF</CommandLine>
           <Description>Disable Hibernation</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>5</Order>
-          <RequiresUserInput>false</RequiresUserInput>
           <CommandLine>cmd /C POWERCFG -X -monitor-timeout-ac 0</CommandLine>
           <Description>Disable monitor blanking</Description>
         </SynchronousCommand>
