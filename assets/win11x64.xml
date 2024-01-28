@@ -153,6 +153,15 @@
         <PathAndCredentials wcm:action="add" wcm:keyValue="10">
           <Path>D:\vioserial\w11\amd64</Path>
         </PathAndCredentials>
+        <PathAndCredentials wcm:action="add" wcm:keyValue="10">
+          <Path>D:\viogpudo\w11\amd64</Path>
+        </PathAndCredentials>
+        <PathAndCredentials wcm:action="add" wcm:keyValue="10">
+          <Path>D:\sriov\w11\amd64</Path>
+        </PathAndCredentials>
+        <PathAndCredentials wcm:action="add" wcm:keyValue="10">
+          <Path>D:\viofs\w11\amd64</Path>
+        </PathAndCredentials>
       </DriverPaths>
     </component>
   </settings>
