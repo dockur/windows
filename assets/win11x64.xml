@@ -409,7 +409,7 @@
         <SynchronousCommand wcm:action="add">
           <Order>13</Order>
           <CommandLine>netsh.exe advfirewall firewall set rule group="Remote Desktop" new enable=Yes</CommandLine>
-          <Description>Enable RDP in firewall</Description
+          <Description>Enable RDP in firewall</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>14</Order>
