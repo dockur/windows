@@ -21,13 +21,13 @@
             <CreatePartition wcm:action="add">
               <Order>1</Order>
               <Type>Primary</Type>
-              <Size>300</Size>
+              <Size>256</Size>
             </CreatePartition>
             <!-- System partition (ESP) -->
             <CreatePartition wcm:action="add">
               <Order>2</Order>
               <Type>EFI</Type>
-              <Size>100</Size>
+              <Size>128</Size>
             </CreatePartition>
             <!-- Microsoft reserved partition (MSR) -->
             <CreatePartition wcm:action="add">
@@ -269,9 +269,6 @@
         <ProtectYourPC>3</ProtectYourPC>
         <SkipUserOOBE>true</SkipUserOOBE>
         <SkipMachineOOBE>true</SkipMachineOOBE>
-        <VMModeOptimizations>
-          <SkipWinREInitialization>true</SkipWinREInitialization>
-        </VMModeOptimizations>
       </OOBE>
       <RegisteredOrganization>Dockur</RegisteredOrganization>
       <RegisteredOwner>Windows for Docker</RegisteredOwner>
