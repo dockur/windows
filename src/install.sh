@@ -98,6 +98,8 @@ printVersion() {
   [[ "$id" == "win2022"* ]] && desc="Windows Server 2022"
   [[ "$id" == "win2019"* ]] && desc="Windows Server 2019"
   [[ "$id" == "win2016"* ]] && desc="Windows Server 2016"
+  [[ "$id" == "win2012"* ]] && desc="Windows Server 2012"
+  [[ "$id" == "win2008"* ]] && desc="Windows Server 2008"
   [[ "$id" == "win10x64-ltsc" ]] && desc="Windows 10 LTSC"
 
   echo "$desc"
@@ -358,7 +360,9 @@ getVersion() {
   [[ "${name,,}" == *"server 2022"* ]] && detected="win2022-eval"
   [[ "${name,,}" == *"server 2019"* ]] && detected="win2019-eval"
   [[ "${name,,}" == *"server 2016"* ]] && detected="win2016-eval"
-
+  [[ "${name,,}" == *"server 2012"* ]] && detected="win2012-eval"
+  [[ "${name,,}" == *"server 2008"* ]] && detected="win2008-eval"
+  
   if [[ "${name,,}" == *"windows 10"* ]]; then
     if [[ "${name,,}" == *"ltsc"* ]]; then
       detected="win10x64-ltsc"
