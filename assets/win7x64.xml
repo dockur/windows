@@ -150,7 +150,7 @@
     <component name="Microsoft-Windows-IE-InternetExplorer" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DisableAccelerators>true</DisableAccelerators>
       <DisableFirstRunWizard>true</DisableFirstRunWizard>
-      <Home_Page>about:blank</Home_Page>
+      <Home_Page>https://google.com</Home_Page>
       <Help_Page>about:blank</Help_Page>
     </component>
     <component name="Microsoft-Windows-IE-InternetExplorer" processorArchitecture="wow64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
