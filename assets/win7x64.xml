@@ -103,7 +103,7 @@
           <Path>D:\qemupciserial\w7\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="6">
-          <Path>D:\qxldod\w7\amd64</Path>
+          <Path>D:\qxldod\w8\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="7">
           <Path>D:\vioinput\w7\amd64</Path>
