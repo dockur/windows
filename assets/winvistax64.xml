@@ -96,6 +96,25 @@
       <SkipAutoActivation>true</SkipAutoActivation>
     </component>
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <ComputerName>*</ComputerName>
+      <OEMInformation>
+        <Manufacturer>Dockur</Manufacturer>
+        <Model>Windows for Docker</Model>
+      </OEMInformation>
+    </component>
+    <component name="Microsoft-Windows-IE-InternetExplorer" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <DisableAccelerators>true</DisableAccelerators>
+      <DisableFirstRunWizard>true</DisableFirstRunWizard>
+      <Home_Page>https://google.com</Home_Page>
+      <Help_Page>about:blank</Help_Page>
+    </component>
+    <component name="Microsoft-Windows-IE-InternetExplorer" processorArchitecture="wow64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <DisableAccelerators>true</DisableAccelerators>
+      <DisableFirstRunWizard>true</DisableFirstRunWizard>
+      <Home_Page>https://google.com</Home_Page>
+      <Help_Page>about:blank</Help_Page>
+    </component>
+    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <ComputerName>Docker</ComputerName>
       <ProductKey>VMCB9-FDRV6-6CDQM-RV23K-RP8F7</ProductKey>
       <TimeZone>UTC</TimeZone>
