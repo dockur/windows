@@ -80,9 +80,10 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
   | `win81`   | Windows 8.1 Pro     | Microsoft    | Fast       | 4.2 GB    |
   | `win7`    | Windows 7 SP1       | Bob Pony     | Medium     | 3.0 GB    |
   ||||||
-  | `win22`   | Windows Server 2022 | Microsoft    | Fast       | 4.7 GB    |
-  | `win19`   | Windows Server 2019 | Microsoft    | Fast       | 5.3 GB    |
-  | `win16`   | Windows Server 2016 | Microsoft    | Fast       | 6.5 GB    |
+  | `2022`   | Windows Server 2022 | Microsoft    | Fast       | 4.7 GB    |
+  | `2019`   | Windows Server 2019 | Microsoft    | Fast       | 5.3 GB    |
+  | `2016`   | Windows Server 2016 | Microsoft    | Fast       | 6.5 GB    |
+  | `2012`   | Windows Server 2012 | Microsoft    | Fast       | 4.3 GB    |
   ||||||
   | `core11`  | Tiny 11 Core        | Archive.org  | Slow       | 2.1 GB    |
   | `tiny11`  | Tiny 11             | Archive.org  | Slow       | 3.8 GB    |

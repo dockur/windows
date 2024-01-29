@@ -39,6 +39,10 @@ fi
 [[ "${VERSION,,}" == "win16" ]] && VERSION="win2016-eval"
 [[ "${VERSION,,}" == "win2016" ]] && VERSION="win2016-eval"
 
+[[ "${VERSION,,}" == "2012" ]] && VERSION="win2012r2-eval"
+[[ "${VERSION,,}" == "w12r2" ]] && VERSION="win2012r2-eval"
+[[ "${VERSION,,}" == "win2012" ]] && VERSION="win2012r2-eval"
+
 [[ "${VERSION,,}" == "ltsc10" ]] && VERSION="win10x64-enterprise-ltsc-eval"
 [[ "${VERSION,,}" == "10ltsc" ]] && VERSION="win10x64-enterprise-ltsc-eval"
 [[ "${VERSION,,}" == "win10-ltsc" ]] && VERSION="win10x64-enterprise-ltsc-eval"
@@ -161,8 +165,8 @@ getVersion() {
   [[ "${name,,}" == *"server 2022"* ]] && detected="win2022-eval"
   [[ "${name,,}" == *"server 2019"* ]] && detected="win2019-eval"
   [[ "${name,,}" == *"server 2016"* ]] && detected="win2016-eval"
-  [[ "${name,,}" == *"server 2012"* ]] && detected="win2012-eval"
-  [[ "${name,,}" == *"server 2008"* ]] && detected="win2008-eval"
+  [[ "${name,,}" == *"server 2012"* ]] && detected="win2012r2-eval"
+  [[ "${name,,}" == *"server 2008"* ]] && detected="win2008r2"
 
   if [[ "${name,,}" == *"windows 10"* ]]; then
     if [[ "${name,,}" == *"ltsc"* ]]; then
