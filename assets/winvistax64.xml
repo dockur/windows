@@ -49,6 +49,12 @@
       </DiskConfiguration>
       <ImageInstall>
         <OSImage>
+          <InstallFrom>
+            <MetaData wcm:action="add">
+              <Value>Windows Vista Ultimate</Value>
+              <Key>/IMAGE/NAME</Key>
+            </MetaData>
+          </InstallFrom>
           <InstallTo>
             <DiskID>0</DiskID>
             <PartitionID>2</PartitionID>
