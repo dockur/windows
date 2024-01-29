@@ -98,43 +98,43 @@
     <component name="Microsoft-Windows-PnpCustomizationsWinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DriverPaths>
         <PathAndCredentials wcm:action="add" wcm:keyValue="1">
-          <Path>D:\viostor\2k12\amd64</Path>
+          <Path>D:\viostor\2k16\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="2">
-          <Path>D:\NetKVM\2k12\amd64</Path>
+          <Path>D:\NetKVM\2k16\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="3">
-          <Path>D:\Balloon\2k12\amd64</Path>
+          <Path>D:\Balloon\2k16\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="4">
-          <Path>D:\pvpanic\2k12\amd64</Path>
+          <Path>D:\pvpanic\2k16\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="5">
-          <Path>D:\qemupciserial\2k12\amd64</Path>
+          <Path>D:\qemupciserial\2k16\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="6">
-          <Path>D:\qxldod\2k12\amd64</Path>
+          <Path>D:\qxldod\2k16\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="7">
-          <Path>D:\vioinput\2k12\amd64</Path>
+          <Path>D:\vioinput\2k16\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="8">
-          <Path>D:\viorng\2k12\amd64</Path>
+          <Path>D:\viorng\2k16\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="9">
-          <Path>D:\vioscsi\2k12\amd64</Path>
+          <Path>D:\vioscsi\2k16\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="10">
-          <Path>D:\vioserial\2k12\amd64</Path>
+          <Path>D:\vioserial\2k16\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="11">
-          <Path>D:\viogpudo\2k12\amd64</Path>
+          <Path>D:\viogpudo\2k16\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="12">
-          <Path>D:\sriov\2k12\amd64</Path>
+          <Path>D:\sriov\2k16\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="13">
-          <Path>D:\viofs\2k12\amd64</Path>
+          <Path>D:\viofs\2k16\amd64</Path>
         </PathAndCredentials>
       </DriverPaths>
     </component>
