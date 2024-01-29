@@ -64,7 +64,7 @@ fi
 
 if [[ "${VERSION,,}" == "winvistax64" ]]; then
   DETECTED="winvistax64"
-  VERSION="https://dl.bobpony.com/windows/7/en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.iso"
+  VERSION="https://dl.bobpony.com/windows/vista/en_windows_vista_sp2_x64_dvd_342267.iso"
 fi
 
 if [[ "${VERSION,,}" == "core11" ]]; then
