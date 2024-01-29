@@ -74,30 +74,6 @@
         <PathAndCredentials wcm:action="add" wcm:keyValue="2">
           <Path>D:\NetKVM\2k8\amd64</Path>
         </PathAndCredentials>
-        <PathAndCredentials wcm:action="add" wcm:keyValue="3">
-          <Path>D:\Balloon\2k8\amd64</Path>
-        </PathAndCredentials>
-        <PathAndCredentials wcm:action="add" wcm:keyValue="4">
-          <Path>D:\pvpanic\2k8\amd64</Path>
-        </PathAndCredentials>
-        <PathAndCredentials wcm:action="add" wcm:keyValue="5">
-          <Path>D:\qemupciserial\2k8\amd64</Path>
-        </PathAndCredentials>
-        <PathAndCredentials wcm:action="add" wcm:keyValue="6">
-          <Path>D:\qxldod\w8\amd64</Path>
-        </PathAndCredentials>
-        <PathAndCredentials wcm:action="add" wcm:keyValue="7">
-          <Path>D:\vioinput\2k8\amd64</Path>
-        </PathAndCredentials>
-        <PathAndCredentials wcm:action="add" wcm:keyValue="8">
-          <Path>D:\viorng\2k8\amd64</Path>
-        </PathAndCredentials>
-        <PathAndCredentials wcm:action="add" wcm:keyValue="9">
-          <Path>D:\vioscsi\2k8\amd64</Path>
-        </PathAndCredentials>
-        <PathAndCredentials wcm:action="add" wcm:keyValue="10">
-          <Path>D:\vioserial\2k8\amd64</Path>
-        </PathAndCredentials>
       </DriverPaths>
     </component>
   </settings>
