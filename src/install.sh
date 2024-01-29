@@ -143,7 +143,7 @@ getName() {
   [[ "${file,,}" == *"server_2019"* ]] && desc="Windows Server 2019"
   [[ "${file,,}" == *"server_2022"* ]] && desc="Windows Server 2022"
   [[ "${file,,}" == *"server_2025"* ]] && desc="Windows Server 2025"
-  
+
   echo "$desc"
   return 0
 }
@@ -163,7 +163,7 @@ getVersion() {
   [[ "${name,,}" == *"server 2016"* ]] && detected="win2016-eval"
   [[ "${name,,}" == *"server 2012"* ]] && detected="win2012-eval"
   [[ "${name,,}" == *"server 2008"* ]] && detected="win2008-eval"
-  
+
   if [[ "${name,,}" == *"windows 10"* ]]; then
     if [[ "${name,,}" == *"ltsc"* ]]; then
       detected="win10x64-ltsc"
