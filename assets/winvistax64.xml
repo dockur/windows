@@ -63,7 +63,6 @@
           <InstallToAvailablePartition>false</InstallToAvailablePartition>
         </OSImage>
       </ImageInstall>
-      <EnableFirewall>false</EnableFirewall>
       <UserData>
         <AcceptEula>true</AcceptEula>
         <FullName>Docker</FullName>
