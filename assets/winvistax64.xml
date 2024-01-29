@@ -114,8 +114,6 @@
       </OEMInformation>
       <RegisteredOrganization>Dockur</RegisteredOrganization>
       <RegisteredOwner>Windows for Docker</RegisteredOwner>
-      <ShowWindowsLive>false</ShowWindowsLive>
-      <StartPanelOff>false</StartPanelOff>
     </component>
   </settings>
   <settings pass="oobeSystem">
@@ -159,8 +157,6 @@
       </OOBE>
       <RegisteredOrganization>Dockur</RegisteredOrganization>
       <RegisteredOwner>Windows for Docker</RegisteredOwner>
-      <ShowWindowsLive>false</ShowWindowsLive>
-      <StartPanelOff>false</StartPanelOff>
       <FirstLogonCommands>
         <SynchronousCommand wcm:action="add">
           <Order>1</Order>
@@ -236,6 +232,11 @@
           <Order>15</Order>
           <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f</CommandLine>
           <Description>Enable RDP</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>16</Order>
+          <CommandLine>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Windows\Sidebar" /v "TurnOffSidebar" /t REG_DWORD /d 1 /f</CommandLine>
+          <Description>Turn off sidebar</Description>
         </SynchronousCommand>
       </FirstLogonCommands>
     </component>
