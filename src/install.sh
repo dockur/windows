@@ -454,7 +454,7 @@ detectImage() {
     dsc=$(printVersion "$DETECTED")
     [ -z "$dsc" ] && dsc="$DETECTED"
 
-    warn "got $desc, but no matching XML file exists, $FB."
+    warn "got $dsc, but no matching XML file exists, $FB."
     return 0
   fi
 
@@ -508,7 +508,7 @@ prepareImage() {
   local iso="$1"
   local dir="$2"
 
-  if [[ "${BOOT_MODE,,}" == "windows" ]]; then
+  if [[ "${BOOT_MODE,,}" == "windows" ]] && [[ "${DETECTED,,}" != "win2008"* ]]; then
     if [[ "${DETECTED,,}" != "win7x64"* ]] && [[ "${DETECTED,,}" != "winvistax64"* ]]; then
 
       if [ -f "$dir/$ETFS" ] && [ -f "$dir/$EFISYS" ]; then
