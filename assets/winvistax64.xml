@@ -95,12 +95,6 @@
     </component>
   </settings>
   <settings pass="specialize">
-    <component name="Microsoft-Windows-TerminalServices-LocalSessionManager" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <fDenyTSConnections>false</fDenyTSConnections>
-    </component>
-    <component name="Microsoft-Windows-SystemRestore-Main" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <DisableSR>1</DisableSR>
-    </component>
     <component name="Microsoft-Windows-Security-Licensing-SLC-UX" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <SkipAutoActivation>true</SkipAutoActivation>
     </component>
@@ -114,6 +108,12 @@
       </OEMInformation>
       <RegisteredOrganization>Dockur</RegisteredOrganization>
       <RegisteredOwner>Windows for Docker</RegisteredOwner>
+    </component>
+    <component name="Microsoft-Windows-TerminalServices-LocalSessionManager" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <fDenyTSConnections>false</fDenyTSConnections>
+    </component>
+    <component name="Microsoft-Windows-SystemRestore-Main" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <DisableSR>1</DisableSR>
     </component>
   </settings>
   <settings pass="oobeSystem">
