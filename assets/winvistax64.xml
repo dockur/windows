@@ -237,6 +237,11 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>14</Order>
+          <CommandLine>netsh.exe Advfirewall set allprofiles state off</CommandLine>
+          <Description>Disable firewall</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>15</Order>
           <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f</CommandLine>
           <Description>Enable RDP</Description>
         </SynchronousCommand>
