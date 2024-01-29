@@ -115,20 +115,23 @@
       <UserAccounts>
         <LocalAccounts>
           <LocalAccount wcm:action="add">
+            <Name>Docker</Name>
+            <Group>Administrators</Group>
             <Password>
               <Value />
               <PlainText>true</PlainText>
             </Password>
-            <Description />
-            <DisplayName>Docker</DisplayName>
-            <Group>Administrators</Group>
-            <Name>Docker</Name>
           </LocalAccount>
         </LocalAccounts>
+        <AdministratorPassword>
+          <Value>password</Value>
+          <PlainText>true</PlainText>
+        </AdministratorPassword>
       </UserAccounts>
       <AutoLogon>
         <Username>Docker</Username>
         <Enabled>true</Enabled>
+        <LogonCount>1</LogonCount>
         <Password>
           <Value />
           <PlainText>true</PlainText>
