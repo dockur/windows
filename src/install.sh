@@ -18,8 +18,8 @@ fi
 [[ "${VERSION,,}" == "8" ]] && VERSION="win81x64"
 [[ "${VERSION,,}" == "81" ]] && VERSION="win81x64"
 [[ "${VERSION,,}" == "8.1" ]] && VERSION="win81x64"
-[[ "${VERSION,,}" == "win81" ]] && VERSION="win81x64"
 [[ "${VERSION,,}" == "win8" ]] && VERSION="win81x64"
+[[ "${VERSION,,}" == "win81" ]] && VERSION="win81x64"
 
 [[ "${VERSION,,}" == "7" ]] && VERSION="win7x64"
 [[ "${VERSION,,}" == "win7" ]] && VERSION="win7x64"
@@ -103,6 +103,76 @@ printVersion() {
   [[ "$id" == "win10x64-ltsc" ]] && desc="Windows 10 LTSC"
 
   echo "$desc"
+  return 0
+}
+
+getName() {
+
+  local file="$1"
+  local desc=""
+
+  [[ "${file,,}" == "win11"* ]] && desc="Windows 11"
+  [[ "${file,,}" == "win10"* ]] && desc="Windows 10"
+  [[ "${file,,}" == "win8.1"* ]] && desc="Windows 8"
+  [[ "${file,,}" == "win8"* ]] && desc="Windows 8"
+  [[ "${file,,}" == "win7"* ]] && desc="Windows 7"
+  [[ "${file,,}" == "tiny10"* ]] && desc="Tiny 10"
+  [[ "${file,,}" == "tiny11"* ]] && desc="Tiny 11"
+  [[ "${file,,}" == "tiny11_core"* ]] && desc="Tiny 11 Core"
+  [[ "${file,,}" == *"windows11"* ]] && desc="Windows 11"
+  [[ "${file,,}" == *"windows10"* ]] && desc="Windows 10"
+  [[ "${file,,}" == *"windows8.1"* ]] && desc="Windows 8"
+  [[ "${file,,}" == *"windows8"* ]] && desc="Windows 8"
+  [[ "${file,,}" == *"windows7"* ]] && desc="Windows 7"
+  [[ "${file,,}" == *"windows_11"* ]] && desc="Windows 11"
+  [[ "${file,,}" == *"windows_10"* ]] && desc="Windows 10"
+  [[ "${file,,}" == *"windows_8.1"* ]] && desc="Windows 8"
+  [[ "${file,,}" == *"windows_8"* ]] && desc="Windows 8"
+  [[ "${file,,}" == *"windows_7"* ]] && desc="Windows 7"
+  [[ "${file,,}" == *"windows_xp"* ]] && desc="Windows XP"
+  [[ "${file,,}" == *"windows_vista"* ]] && desc="Windows Vista"
+  [[ "${file,,}" == *"server2008"* ]] && desc="Windows Server 2008"
+  [[ "${file,,}" == *"server2012"* ]] && desc="Windows Server 2012"
+  [[ "${file,,}" == *"server2016"* ]] && desc="Windows Server 2016"
+  [[ "${file,,}" == *"server2019"* ]] && desc="Windows Server 2019"
+  [[ "${file,,}" == *"server2022"* ]] && desc="Windows Server 2022"
+  [[ "${file,,}" == *"server2025"* ]] && desc="Windows Server 2025"
+  [[ "${file,,}" == *"server_2008"* ]] && desc="Windows Server 2008"
+  [[ "${file,,}" == *"server_2012"* ]] && desc="Windows Server 2012"
+  [[ "${file,,}" == *"server_2016"* ]] && desc="Windows Server 2016"
+  [[ "${file,,}" == *"server_2019"* ]] && desc="Windows Server 2019"
+  [[ "${file,,}" == *"server_2022"* ]] && desc="Windows Server 2022"
+  [[ "${file,,}" == *"server_2025"* ]] && desc="Windows Server 2025"
+
+  echo "$desc"
+  return 0
+}
+
+getVersion() {
+
+  local name="$1"
+  local detected=""
+
+  [[ "${name,,}" == *"windows 7"* ]] && detected="win7x64"
+  [[ "${name,,}" == *"windows 8"* ]] && detected="win81x64"
+  [[ "${name,,}" == *"windows 11"* ]] && detected="win11x64"
+  [[ "${name,,}" == *"windows vista"* ]] && detected="winvistax64"
+  [[ "${name,,}" == *"server 2025"* ]] && detected="win2025-eval"
+  [[ "${name,,}" == *"server 2022"* ]] && detected="win2022-eval"
+  [[ "${name,,}" == *"server 2019"* ]] && detected="win2019-eval"
+  [[ "${name,,}" == *"server 2016"* ]] && detected="win2016-eval"
+  [[ "${name,,}" == *"server 2012"* ]] && detected="win2012-eval"
+  [[ "${name,,}" == *"server 2008"* ]] && detected="win2008-eval"
+
+  if [[ "${name,,}" == *"windows 10"* ]]; then
+    if [[ "${name,,}" == *"ltsc"* ]]; then
+      detected="win10x64-ltsc"
+    else
+      detected="win10x64"
+    fi
+  fi
+
+  echo "$detected"
   return 0
 }
 
@@ -265,8 +335,7 @@ downloadImage() {
   local iso="$1"
   local url="$2"
   local file="$iso"
-  local desc="$BASE"
-  local rc progress
+  local desc rc progress
 
   rm -f "$iso"
 
@@ -275,6 +344,11 @@ downloadImage() {
     file="$iso.PART"
     desc=$(printVersion "$VERSION")
     [ -z "$desc" ] && desc="Windows"
+
+  else
+
+    desc=$(getName "$BASE")
+    [ -z "$desc" ] && desc="$BASE"
 
   fi
 
@@ -350,34 +424,6 @@ extractImage() {
     exit 66
   fi
 
-  return 0
-}
-
-getVersion() {
-
-  local name="$1"
-  local detected=""
-
-  [[ "${name,,}" == *"windows 7"* ]] && detected="win7x64"
-  [[ "${name,,}" == *"windows 8"* ]] && detected="win81x64"
-  [[ "${name,,}" == *"windows 11"* ]] && detected="win11x64"
-  [[ "${name,,}" == *"windows vista"* ]] && detected="winvistax64"
-  [[ "${name,,}" == *"server 2025"* ]] && detected="win2025-eval"
-  [[ "${name,,}" == *"server 2022"* ]] && detected="win2022-eval"
-  [[ "${name,,}" == *"server 2019"* ]] && detected="win2019-eval"
-  [[ "${name,,}" == *"server 2016"* ]] && detected="win2016-eval"
-  [[ "${name,,}" == *"server 2012"* ]] && detected="win2012-eval"
-  [[ "${name,,}" == *"server 2008"* ]] && detected="win2008-eval"
-  
-  if [[ "${name,,}" == *"windows 10"* ]]; then
-    if [[ "${name,,}" == *"ltsc"* ]]; then
-      detected="win10x64-ltsc"
-    else
-      detected="win10x64"
-    fi
-  fi
-
-  echo "$detected"
   return 0
 }
 
