@@ -117,14 +117,6 @@
       <ShowWindowsLive>false</ShowWindowsLive>
       <StartPanelOff>false</StartPanelOff>
     </component>
-    <component name="Networking-MPSSVC-Svc" processorArchitecture="amd" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <DomainProfile_EnableFirewall>false</DomainProfile_EnableFirewall>
-      <PrivateProfile_EnableFirewall>false</PrivateProfile_EnableFirewall>
-      <PublicProfile_EnableFirewall>false</PublicProfile_EnableFirewall>
-      <DomainProfile_DisableNotifications>true</DomainProfile_DisableNotifications>
-      <PrivateProfile_DisableNotifications>true</PrivateProfile_DisableNotifications>
-      <PublicProfile_DisableNotifications>true</PublicProfile_DisableNotifications>
-    </component>
   </settings>
   <settings pass="oobeSystem">
     <component name="Microsoft-Windows-International-Core" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
