@@ -264,51 +264,53 @@ downloadImage() {
 
   local iso="$1"
   local url="$2"
-  local msg desc progress
-  local finish="Download finished successfully..."
+  local file="$iso"
+  local desc="$BASE"
+  local rc progress
 
   rm -f "$iso"
+  
+  if [[ "$EXTERNAL" != [Yy1]* ]]; then
+
+    file="$iso.PART"
+    desc=$(printVersion "$VERSION")
+    [ -z "$desc" ] && desc="Windows"
+
+  fi
+
+  local msg="Downloading $desc..."
+  info "$msg" && html "$msg"
+
+  /run/progress.sh "$file" "Downloading $desc ([P])..." &
 
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
-    desc=$(printVersion "$VERSION")
-    [ -z "$desc" ] && desc="Windows"
-    msg="Downloading $desc..."
-    info "$msg" && html "$msg"
-    /run/progress.sh "$iso.PART" "Downloading $desc ([P])..." &
-
     cd "$TMP"
-    if ! /run/mido.sh "$url"; then
-      fKill "progress.sh"
-      return 1
-    fi
+    { /run/mido.sh "$url"; rc=$?; } || :
     cd /run
 
     fKill "progress.sh"
-    [ ! -f "$iso" ] && return 1
+    (( rc != 0 )) && return 1
 
-    html "$finish"
-    return 0
-  fi
-
-  msg="Downloading $BASE ..."
-  info "$msg" && html "$msg"
-
-  # Check if running with interactive TTY or redirected to docker log
-  if [ -t 1 ]; then
-    progress="--progress=bar:noscroll"
   else
-    progress="--progress=dot:giga"
+
+    # Check if running with interactive TTY or redirected to docker log
+    if [ -t 1 ]; then
+      progress="--progress=bar:noscroll"
+    else
+      progress="--progress=dot:giga"
+    fi
+
+    { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
+
+    fKill "progress.sh"
+    (( rc != 0 )) && error "Failed to download $url , reason: $rc" && exit 60
+
   fi
 
-  /run/progress.sh "$iso" "Downloading $BASE ([P])..." &
-  { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
-
-  fKill "progress.sh"
-  (( rc != 0 )) && error "Failed to download $url , reason: $rc" && exit 60
   [ ! -f "$iso" ] && return 1
 
-  html "$finish"
+  html "Download finished successfully..."
   return 0
 }
 
