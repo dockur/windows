@@ -185,8 +185,7 @@ abortInstall() {
 
 startInstall() {
 
-  local magic desc
-  local msg="Windows is being started, please wait..."
+  html "Starting Windows..."
 
   if [ -f "$STORAGE/$CUSTOM" ]; then
 
@@ -207,22 +206,11 @@ startInstall() {
 
       BASE="$VERSION.iso"
 
-      if ! skipInstall && [ ! -f "$STORAGE/$BASE" ]; then
-
-        desc=$(printVersion "$VERSION")
-        [ -z "$desc" ] && desc="Windows"
-        msg="$desc is being downloaded, please wait..."
-      fi
-
     else
 
       BASE=$(basename "${VERSION%%\?*}")
       : "${BASE//+/ }"; printf -v BASE '%b' "${_//%/\\x}"
       BASE=$(echo "$BASE" | sed -e 's/[^A-Za-z0-9._-]/_/g')
-
-      if ! skipInstall && [ ! -f "$STORAGE/$BASE" ]; then
-        msg="Image '$BASE' is being downloaded, please wait..."
-      fi
 
     fi
 
@@ -230,13 +218,12 @@ startInstall() {
 
   fi
 
-  html "$msg"
-
   [ -z "$MANUAL" ] && MANUAL="N"
 
   if [ -f "$STORAGE/$BASE" ]; then
 
     # Check if the ISO was already processed by our script
+    local magic=""
     magic=$(dd if="$STORAGE/$BASE" seek=0 bs=1 count=1 status=none | tr -d '\000')
     magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
 
@@ -277,34 +264,53 @@ downloadImage() {
 
   local iso="$1"
   local url="$2"
-  local progress
+  local file="$iso"
+  local desc="$BASE"
+  local rc progress
+
   rm -f "$iso"
 
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
+    file="$iso.PART"
+    desc=$(printVersion "$VERSION")
+    [ -z "$desc" ] && desc="Windows"
+
+  fi
+
+  local msg="Downloading $desc..."
+  info "$msg" && html "$msg"
+
+  /run/progress.sh "$file" "Downloading $desc ([P])..." &
+
+  if [[ "$EXTERNAL" != [Yy1]* ]]; then
+
     cd "$TMP"
-    if ! /run/mido.sh "$url"; then
-      return 1
-    fi
+    { /run/mido.sh "$url"; rc=$?; } || :
     cd /run
 
-    [ ! -f "$iso" ] && return 1
-    return 0
-  fi
+    fKill "progress.sh"
+    (( rc != 0 )) && return 1
 
-  info "Downloading $BASE as boot image..."
-
-  # Check if running with interactive TTY or redirected to docker log
-  if [ -t 1 ]; then
-    progress="--progress=bar:noscroll"
   else
-    progress="--progress=dot:giga"
-  fi
 
-  { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
-  (( rc != 0 )) && error "Failed to download $url , reason: $rc" && exit 60
+    # Check if running with interactive TTY or redirected to docker log
+    if [ -t 1 ]; then
+      progress="--progress=bar:noscroll"
+    else
+      progress="--progress=dot:giga"
+    fi
+
+    { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
+
+    fKill "progress.sh"
+    (( rc != 0 )) && error "Failed to download $url , reason: $rc" && exit 60
+
+  fi
 
   [ ! -f "$iso" ] && return 1
+
+  html "Download finished successfully..."
   return 0
 }
 
