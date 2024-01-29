@@ -185,8 +185,7 @@ abortInstall() {
 
 startInstall() {
 
-  local magic desc
-  local msg="Windows is being started, please wait..."
+  html "Starting Windows..."
 
   if [ -f "$STORAGE/$CUSTOM" ]; then
 
@@ -207,22 +206,11 @@ startInstall() {
 
       BASE="$VERSION.iso"
 
-      if ! skipInstall && [ ! -f "$STORAGE/$BASE" ]; then
-
-        desc=$(printVersion "$VERSION")
-        [ -z "$desc" ] && desc="Windows"
-        msg="Downloading $desc..."
-      fi
-
     else
 
       BASE=$(basename "${VERSION%%\?*}")
       : "${BASE//+/ }"; printf -v BASE '%b' "${_//%/\\x}"
       BASE=$(echo "$BASE" | sed -e 's/[^A-Za-z0-9._-]/_/g')
-
-      if ! skipInstall && [ ! -f "$STORAGE/$BASE" ]; then
-        msg="Downloading $BASE ..."
-      fi
 
     fi
 
@@ -230,13 +218,12 @@ startInstall() {
 
   fi
 
-  html "$msg"
-
   [ -z "$MANUAL" ] && MANUAL="N"
 
   if [ -f "$STORAGE/$BASE" ]; then
 
     # Check if the ISO was already processed by our script
+    local magic=""
     magic=$(dd if="$STORAGE/$BASE" seek=0 bs=1 count=1 status=none | tr -d '\000')
     magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
 
