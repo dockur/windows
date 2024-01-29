@@ -17,3 +17,7 @@ jobs:
         with:
          path: "assets"
          file-endings: ".xml"
+      - name: Lint Dockerfile
+        uses: hadolint/hadolint-action@v2.1.0
+        with:
+          dockerfile: Dockerfile
