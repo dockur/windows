@@ -75,10 +75,13 @@
     <component name="Microsoft-Windows-PnpCustomizationsWinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DriverPaths>
         <PathAndCredentials wcm:action="add" wcm:keyValue="1">
-          <Path>D:\vioscsi\2k8\amd64</Path>
+          <Path>D:\viostor\2k8\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="2">
           <Path>D:\NetKVM\2k8\amd64</Path>
+        </PathAndCredentials>
+        <PathAndCredentials wcm:action="add" wcm:keyValue="1">
+          <Path>D:\vioscsi\2k8\amd64</Path>
         </PathAndCredentials>
       </DriverPaths>
     </component>
