@@ -71,7 +71,6 @@
           <Key>VMCB9-FDRV6-6CDQM-RV23K-RP8F7</Key>
         </ProductKey>
       </UserData>
-      <EnableFirewall>false</EnableFirewall>
     </component>
     <component name="Microsoft-Windows-PnpCustomizationsWinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DriverPaths>
