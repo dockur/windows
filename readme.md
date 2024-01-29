@@ -79,6 +79,7 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
   | `ltsc10`  | Windows 10 LTSC     | Microsoft    | Fast       | 4.6 GB    |
   | `win81`   | Windows 8.1 Pro     | Microsoft    | Fast       | 4.2 GB    |
   | `win7`    | Windows 7 SP1       | Bob Pony     | Medium     | 3.0 GB    |
+  | `vista`    | Windows Vista SP2       | Bob Pony     | Medium     | 3.6 GB    |
   ||||||
   | `2022`   | Windows Server 2022 | Microsoft    | Fast       | 4.7 GB    |
   | `2019`   | Windows Server 2019 | Microsoft    | Fast       | 5.3 GB    |
