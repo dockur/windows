@@ -269,7 +269,7 @@ downloadImage() {
   local rc progress
 
   rm -f "$iso"
-  
+
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
     file="$iso.PART"
