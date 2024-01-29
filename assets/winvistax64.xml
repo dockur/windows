@@ -88,34 +88,34 @@
     <component name="Microsoft-Windows-PnpCustomizationsWinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DriverPaths>
         <PathAndCredentials wcm:action="add" wcm:keyValue="1">
-          <Path>D:\viostor\w2k8\amd64</Path>
+          <Path>D:\viostor\2k8\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="2">
-          <Path>D:\NetKVM\w2k8\amd64</Path>
+          <Path>D:\NetKVM\2k8\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="3">
-          <Path>D:\Balloon\w2k8\amd64</Path>
+          <Path>D:\Balloon\2k8\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="4">
-          <Path>D:\pvpanic\w2k8\amd64</Path>
+          <Path>D:\pvpanic\2k8\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="5">
-          <Path>D:\qemupciserial\w2k8\amd64</Path>
+          <Path>D:\qemupciserial\2k8\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="6">
-          <Path>D:\qxldod\w2k8\amd64</Path>
+          <Path>D:\qxldod\w8\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="7">
-          <Path>D:\vioinput\w2k8\amd64</Path>
+          <Path>D:\vioinput\2k8\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="8">
-          <Path>D:\viorng\w2k8\amd64</Path>
+          <Path>D:\viorng\2k8\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="9">
-          <Path>D:\vioscsi\w2k8\amd64</Path>
+          <Path>D:\vioscsi\2k8\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="10">
-          <Path>D:\vioserial\w2k8\amd64</Path>
+          <Path>D:\vioserial\2k8\amd64</Path>
         </PathAndCredentials>
       </DriverPaths>
     </component>
