@@ -40,8 +40,10 @@ fi
 [[ "${VERSION,,}" == "win2016" ]] && VERSION="win2016-eval"
 
 [[ "${VERSION,,}" == "2012" ]] && VERSION="win2012r2-eval"
-[[ "${VERSION,,}" == "w12r2" ]] && VERSION="win2012r2-eval"
 [[ "${VERSION,,}" == "win2012" ]] && VERSION="win2012r2-eval"
+
+[[ "${VERSION,,}" == "2008" ]] && VERSION="win2008r2"
+[[ "${VERSION,,}" == "win2008" ]] && VERSION="win2008r2"
 
 [[ "${VERSION,,}" == "ltsc10" ]] && VERSION="win10x64-enterprise-ltsc-eval"
 [[ "${VERSION,,}" == "10ltsc" ]] && VERSION="win10x64-enterprise-ltsc-eval"
