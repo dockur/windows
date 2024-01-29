@@ -6,6 +6,7 @@ on:
       - '**/*.xml'
       - '.github/workflows/test.yml'
       - '.github/workflows/check.yml'
+      - 'Dockerfile'
 
 name: "Test"
 permissions: {}

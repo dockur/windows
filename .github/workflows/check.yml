@@ -17,3 +17,9 @@ jobs:
         with:
          path: "assets"
          file-endings: ".xml"
+      - name: Lint Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          ignore: DL3008
+          failure-threshold: warning
