@@ -276,6 +276,13 @@ downloadImage() {
     desc=$(printVersion "$VERSION")
     [ -z "$desc" ] && desc="Windows"
 
+  else
+
+    [[ "${desc}" == "tiny10_"* ]] && desc="Tiny 10"
+    [[ "${desc}" == "tiny11_"* ]] && desc="Tiny 11"
+    [[ "${desc}" == "tiny11_core"* ]] && desc="Tiny 11 Core"
+    [[ "${desc}" == *"windows_7_"* ]] && desc="Windows 7"
+
   fi
 
   local msg="Downloading $desc..."
