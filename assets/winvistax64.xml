@@ -35,7 +35,6 @@
               <Order>1</Order>
               <Active>true</Active>
               <PartitionID>1</PartitionID>
-              <TypeID>0x27</TypeID>
             </ModifyPartition>
             <ModifyPartition wcm:action="add">
               <Active>true</Active>
@@ -52,142 +51,83 @@
         <OSImage>
           <InstallFrom>
             <MetaData wcm:action="add">
-              <Value>1</Value>
-              <Key>/IMAGE/INDEX</Key>
+              <Value>Windows Vista Ultimate</Value>
+              <Key>/IMAGE/NAME</Key>
             </MetaData>
           </InstallFrom>
           <InstallTo>
             <DiskID>0</DiskID>
             <PartitionID>2</PartitionID>
           </InstallTo>
+          <WillShowUI>OnError</WillShowUI>
           <InstallToAvailablePartition>false</InstallToAvailablePartition>
         </OSImage>
       </ImageInstall>
-      <DynamicUpdate>
-        <Enable>true</Enable>
-        <WillShowUI>Never</WillShowUI>
-      </DynamicUpdate>
-      <UpgradeData>
-        <Upgrade>false</Upgrade>
-        <WillShowUI>Never</WillShowUI>
-      </UpgradeData>
       <UserData>
         <AcceptEula>true</AcceptEula>
         <FullName>Docker</FullName>
         <Organization>Windows for Docker</Organization>
         <ProductKey>
-          <Key>H7X92-3VPBB-Q799D-Y6JJ3-86WC6</Key>
-          <WillShowUI>OnError</WillShowUI>
+          <Key>VMCB9-FDRV6-6CDQM-RV23K-RP8F7</Key>
         </ProductKey>
       </UserData>
-      <EnableFirewall>false</EnableFirewall>
-      <Diagnostics>
-        <OptIn>false</OptIn>
-      </Diagnostics>
     </component>
     <component name="Microsoft-Windows-PnpCustomizationsWinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DriverPaths>
         <PathAndCredentials wcm:action="add" wcm:keyValue="1">
-          <Path>D:\viostor\w7\amd64</Path>
+          <Path>D:\viostor\2k8\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="2">
-          <Path>D:\NetKVM\w7\amd64</Path>
+          <Path>D:\NetKVM\2k8\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="3">
-          <Path>D:\Balloon\w7\amd64</Path>
-        </PathAndCredentials>
-        <PathAndCredentials wcm:action="add" wcm:keyValue="4">
-          <Path>D:\pvpanic\w7\amd64</Path>
-        </PathAndCredentials>
-        <PathAndCredentials wcm:action="add" wcm:keyValue="5">
-          <Path>D:\qemupciserial\w7\amd64</Path>
-        </PathAndCredentials>
-        <PathAndCredentials wcm:action="add" wcm:keyValue="6">
-          <Path>D:\qxldod\w8\amd64</Path>
-        </PathAndCredentials>
-        <PathAndCredentials wcm:action="add" wcm:keyValue="7">
-          <Path>D:\vioinput\w7\amd64</Path>
-        </PathAndCredentials>
-        <PathAndCredentials wcm:action="add" wcm:keyValue="8">
-          <Path>D:\viorng\w7\amd64</Path>
-        </PathAndCredentials>
-        <PathAndCredentials wcm:action="add" wcm:keyValue="9">
-          <Path>D:\vioscsi\w7\amd64</Path>
-        </PathAndCredentials>
-        <PathAndCredentials wcm:action="add" wcm:keyValue="10">
-          <Path>D:\vioserial\w7\amd64</Path>
+          <Path>D:\vioscsi\2k8\amd64</Path>
         </PathAndCredentials>
       </DriverPaths>
     </component>
   </settings>
-  <settings pass="offlineServicing">
-    <component name="Microsoft-Windows-LUA-Settings" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <EnableLUA>false</EnableLUA>
-    </component>
-  </settings>
   <settings pass="generalize">
-    <component name="Microsoft-Windows-PnPSysprep" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-PnpSysprep" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <PersistAllDeviceInstalls>true</PersistAllDeviceInstalls>
     </component>
-    <component name="Microsoft-Windows-Security-SPP" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-Security-Licensing-SLC" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <SkipRearm>1</SkipRearm>
     </component>
   </settings>
   <settings pass="specialize">
-    <component name="Microsoft-Windows-Security-SPP-UX" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-Security-Licensing-SLC-UX" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <SkipAutoActivation>true</SkipAutoActivation>
     </component>
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <ComputerName>*</ComputerName>
+      <ProductKey>VMCB9-FDRV6-6CDQM-RV23K-RP8F7</ProductKey>
+      <TimeZone>Pacific Standard Time</TimeZone>
       <OEMInformation>
         <Manufacturer>Dockur</Manufacturer>
         <Model>Windows for Docker</Model>
       </OEMInformation>
-    </component>
-    <component name="Microsoft-Windows-ErrorReportingCore" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <DisableWER>1</DisableWER>
-    </component>
-    <component name="Microsoft-Windows-IE-InternetExplorer" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <DisableAccelerators>true</DisableAccelerators>
-      <DisableFirstRunWizard>true</DisableFirstRunWizard>
-      <Home_Page>https://google.com</Home_Page>
-      <Help_Page>about:blank</Help_Page>
-    </component>
-    <component name="Microsoft-Windows-IE-InternetExplorer" processorArchitecture="wow64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <DisableAccelerators>true</DisableAccelerators>
-      <DisableFirstRunWizard>true</DisableFirstRunWizard>
-      <Home_Page>https://google.com</Home_Page>
-      <Help_Page>about:blank</Help_Page>
-    </component>
-    <component name="Microsoft-Windows-SQMApi" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <CEIPEnabled>0</CEIPEnabled>
+      <RegisteredOrganization>Dockur</RegisteredOrganization>
+      <RegisteredOwner>Windows for Docker</RegisteredOwner>
     </component>
     <component name="Microsoft-Windows-SystemRestore-Main" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DisableSR>1</DisableSR>
     </component>
-    <component name="Microsoft-Windows-International-Core" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <InputLocale>0409:00000409</InputLocale>
-      <SystemLocale>en-US</SystemLocale>
-      <UILanguage>en-US</UILanguage>
-      <UserLocale>en-US</UserLocale>
-    </component>
     <component name="Microsoft-Windows-TerminalServices-LocalSessionManager" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <fDenyTSConnections>false</fDenyTSConnections>
     </component>
-    <component name="Microsoft-Windows-TerminalServices-RDP-WinStationExtensions" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <UserAuthentication>0</UserAuthentication>
-    </component>
-    <component name="Networking-MPSSVC-Svc" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <FirewallGroups>
-        <FirewallGroup wcm:action="add" wcm:keyValue="RemoteDesktop">
-          <Active>true</Active>
-          <Group>Remote Desktop</Group>
-          <Profile>all</Profile>
-        </FirewallGroup>
-      </FirewallGroups>
-    </component>
   </settings>
   <settings pass="oobeSystem">
+    <component name="Microsoft-Windows-International-Core" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <InputLocale>0409:00000409</InputLocale>
+      <UILanguage>en-US</UILanguage>
+      <UserLocale>en-US</UserLocale>
+    </component>
+    <component name="Microsoft-Windows-IE-InternetExplorer" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <Home_Page>about:blank</Home_Page>
+    </component>
+    <component name="Microsoft-Windows-SQMApi" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <CEIPEnabled>0</CEIPEnabled>
+    </component>
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <UserAccounts>
         <LocalAccounts>
@@ -216,11 +156,10 @@
       </AutoLogon>
       <OOBE>
         <HideEULAPage>true</HideEULAPage>
-        <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
         <NetworkLocation>Other</NetworkLocation>
         <ProtectYourPC>3</ProtectYourPC>
         <SkipUserOOBE>true</SkipUserOOBE>
-        <SkipMachineOOBE>true</SkipMachineOOBE>
+        <SkipMachineOOBE>false</SkipMachineOOBE>
       </OOBE>
       <RegisteredOrganization>Dockur</RegisteredOrganization>
       <RegisteredOwner>Windows for Docker</RegisteredOwner>
@@ -284,6 +223,26 @@
           <Order>12</Order>
           <CommandLine>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\NewNetworks" /v NetworkList /t REG_MULTI_SZ /d "" /f</CommandLine>
           <Description>Disable Network Discovery popup</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>13</Order>
+          <CommandLine>netsh.exe advfirewall firewall set rule group="Remote Desktop" new enable=Yes</CommandLine>
+          <Description>Add RDP in firewall</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>14</Order>
+          <CommandLine>netsh.exe Advfirewall set allprofiles state off</CommandLine>
+          <Description>Disable firewall</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>15</Order>
+          <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f</CommandLine>
+          <Description>Enable RDP</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>16</Order>
+          <CommandLine>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Windows\Sidebar" /v "TurnOffSidebar" /t REG_DWORD /d 1 /f</CommandLine>
+          <Description>Turn off sidebar</Description>
         </SynchronousCommand>
       </FirstLogonCommands>
     </component>

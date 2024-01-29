@@ -24,6 +24,9 @@ fi
 [[ "${VERSION,,}" == "7" ]] && VERSION="win7x64"
 [[ "${VERSION,,}" == "win7" ]] && VERSION="win7x64"
 
+[[ "${VERSION,,}" == "vista" ]] && VERSION="winvistax64"
+[[ "${VERSION,,}" == "winvista" ]] && VERSION="winvistax64"
+
 [[ "${VERSION,,}" == "22" ]] && VERSION="win2022-eval"
 [[ "${VERSION,,}" == "2022" ]] && VERSION="win2022-eval"
 [[ "${VERSION,,}" == "win22" ]] && VERSION="win2022-eval"
@@ -57,6 +60,11 @@ fi
 if [[ "${VERSION,,}" == "win7x64" ]]; then
   DETECTED="win7x64"
   VERSION="https://dl.bobpony.com/windows/7/en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.iso"
+fi
+
+if [[ "${VERSION,,}" == "winvistax64" ]]; then
+  DETECTED="winvistax64"
+  VERSION="https://dl.bobpony.com/windows/vista/en_windows_vista_sp2_x64_dvd_342267.iso"
 fi
 
 if [[ "${VERSION,,}" == "core11" ]]; then
@@ -122,6 +130,8 @@ getName() {
   [[ "${file,,}" == "win8.1"* ]] && desc="Windows 8"
   [[ "${file,,}" == "win8"* ]] && desc="Windows 8"
   [[ "${file,,}" == "win7"* ]] && desc="Windows 7"
+  [[ "${file,,}" == "winxp"* ]] && desc="Windows XP"
+  [[ "${file,,}" == "winvista"* ]] && desc="Windows Vista"
   [[ "${file,,}" == "tiny10"* ]] && desc="Tiny 10"
   [[ "${file,,}" == "tiny11"* ]] && desc="Tiny 11"
   [[ "${file,,}" == "tiny11_core"* ]] && desc="Tiny 11 Core"
@@ -130,6 +140,8 @@ getName() {
   [[ "${file,,}" == *"windows8.1"* ]] && desc="Windows 8"
   [[ "${file,,}" == *"windows8"* ]] && desc="Windows 8"
   [[ "${file,,}" == *"windows7"* ]] && desc="Windows 7"
+  [[ "${file,,}" == *"windowsxp"* ]] && desc="Windows XP"
+  [[ "${file,,}" == *"windowsvista"* ]] && desc="Windows Vista"
   [[ "${file,,}" == *"windows_11"* ]] && desc="Windows 11"
   [[ "${file,,}" == *"windows_10"* ]] && desc="Windows 10"
   [[ "${file,,}" == *"windows_8.1"* ]] && desc="Windows 8"
