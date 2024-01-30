@@ -72,7 +72,7 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
 
   Select from the values below:
   
-  | **Value**  | **Description**  | **Server**  | **Transfer**  | **Size**  |
+  | **Value**  | **Description**  | **Source**  | **Transfer**  | **Size**  |
   |---|---|---|---|---|
   | `win11`   | Windows 11 Pro      | Microsoft    | Fast       | 6.4 GB    |
   | `win10`   | Windows 10 Pro      | Microsoft    | Fast       | 5.8 GB    |
