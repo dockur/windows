@@ -165,6 +165,57 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
 
   Alternatively, you can also rename a local file to `custom.iso` and place it in an empty `/storage` folder to skip the download.
 
+* ### How do I assign an individual IP address to the container?
+
+  By default, the container uses bridge networking, which shares the IP address with the host. 
+
+  If you want to assign an individual IP address to the container, you can create a macvlan network as follows:
+
+  ```bash
+  docker network create -d macvlan \
+      --subnet=192.168.0.0/24 \
+      --gateway=192.168.0.1 \
+      --ip-range=192.168.0.100/28 \
+      -o parent=eth0 vlan
+  ```
+  
+  Be sure to modify these values to match your local subnet. 
+
+  Once you have created the network, change your compose file to look as follows:
+
+  ```yaml
+  services:
+    windows:
+      container_name: windows
+      ..<snip>..
+      networks:
+        vlan:
+          ipv4_address: 192.168.0.100
+
+  networks:
+    vlan:
+      external: true
+  ```
+ 
+  An added benefit of this approach is that you won't have to perform any port mapping anymore, since all ports will be exposed by default.
+
+  Please note that this IP address won't be accessible from the Docker host due to the design of macvlan, which doesn't permit communication between the two. If this is a concern, you need to create a [second macvlan](https://blog.oddbit.com/post/2018-03-12-using-docker-macvlan-networks/#host-access) as a workaround.
+
+* ### How can Windows acquire an IP address from my router?
+
+  After configuring the container for macvlan (see above), it is possible for Windows to become part of your home network by requesting an IP from your router, just like a real PC.
+
+  To enable this mode, add the following lines to your compose file:
+
+  ```yaml
+  environment:
+    DHCP: "Y"
+  device_cgroup_rules:
+    - 'c *:* rwm'
+  ```
+
+  Please note that in this mode, the container and Windows will each have their own separate IPs. The container will keep the macvlan IP, and Windows will use the DHCP IP.
+  
 * ### How do I pass-through a disk?
 
   It is possible to pass-through disk devices directly by adding them to your compose file in this way:
