@@ -27,6 +27,9 @@ fi
 [[ "${VERSION,,}" == "vista" ]] && VERSION="winvistax64"
 [[ "${VERSION,,}" == "winvista" ]] && VERSION="winvistax64"
 
+[[ "${VERSION,,}" == "xp" ]] && VERSION="winxp86"
+[[ "${VERSION,,}" == "winxp" ]] && VERSION="winxp86"
+
 [[ "${VERSION,,}" == "22" ]] && VERSION="win2022-eval"
 [[ "${VERSION,,}" == "2022" ]] && VERSION="win2022-eval"
 [[ "${VERSION,,}" == "win22" ]] && VERSION="win2022-eval"
@@ -65,6 +68,11 @@ fi
 if [[ "${VERSION,,}" == "winvistax64" ]]; then
   DETECTED="winvistax64"
   VERSION="https://dl.bobpony.com/windows/vista/en_windows_vista_sp2_x64_dvd_342267.iso"
+fi
+
+if [[ "${VERSION,,}" == "winxp86" ]]; then
+  DETECTED="winxp86"
+  VERSION="https://dl.bobpony.com/windows/xp/professional/en_windows_xp_professional_with_service_pack_3_x86_cd_vl_x14-73974.iso"
 fi
 
 if [[ "${VERSION,,}" == "core11" ]]; then
@@ -107,6 +115,7 @@ printVersion() {
   [[ "$id" == "win8"* ]] && desc="Windows 8"
   [[ "$id" == "win10"* ]] && desc="Windows 10"
   [[ "$id" == "win11"* ]] && desc="Windows 11"
+  [[ "$id" == "winxp"* ]] && desc="Windows XP"
   [[ "$id" == "winvista"* ]] && desc="Windows Vista"
   [[ "$id" == "win2025"* ]] && desc="Windows Server 2025"
   [[ "$id" == "win2022"* ]] && desc="Windows Server 2022"
