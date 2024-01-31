@@ -532,6 +532,100 @@ detectImage() {
   return 0
 }
 
+prepareXP() {
+
+  local iso="$1"
+  local dir="$2"
+
+  BOOT_MODE="windows_legacy"
+  ETFS="[BOOT]/Boot-NoEmul.img"
+
+  local drivers="$TMP/drivers"
+  rm -rf "$drivers"
+
+  if ! 7z x /run/drivers.iso -o"$drivers" > /dev/null; then
+    error "Failed to extract driver ISO file!"
+    exit 66
+  fi
+
+  cp "$drivers/viostor/xp/x86/viostor.sys" "$dir/I386/viostor.sys"
+
+  mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor"
+  cp "$drivers/viostor/xp/x86/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor/viostor.cat"
+  cp "$drivers/viostor/xp/x86/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor/viostor.sys"
+  cp "$drivers/viostor/xp/x86/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor/viostor.inf"
+
+  sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.x86\]/s/$/\nviostor.sys=1,,,,,_x,4_,4,1,,,1,4/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device WinXP 32-bit\"/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4&DEV_1001&SUBSYS_00000000=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4&DEV_1001&SUBSYS_00020000=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4&DEV_1001&SUBSYS_00021AF4=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4&DEV_1001&SUBSYS_00000000=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
+
+  local sif="$dir/I386/WINNT.SIF"
+  {       echo "[Data]"
+          echo "MsDosInitiated=\"0\""
+          echo "AutomaticUpdates=\"Yes\""
+          echo "UnattendedInstall=\"Yes\""
+          echo ""
+          echo "[Unattended]"
+          echo "UnattendSwitch=Yes"
+          echo "UnattendMode=FullUnattended"
+          echo "FileSystem=NTFS"
+          echo "OemSkipEula=Yes"
+          echo "OemPreinstall=Yes"
+          echo "Repartition=No"
+          echo "WaitForReboot=\"No\""
+          echo "DriverSigningPolicy=\"Ignore\""
+          echo "NonDriverSigningPolicy=\"Ignore\""
+          echo "OemPnPDriversPath=\"Drivers\viostor;\""
+          echo ""
+          echo "[GuiUnattended]"
+          echo "OEMSkipRegional=1"
+          echo "OemSkipWelcome=1"
+          echo "AdminPassword=*"
+          echo "TimeZone=0"
+          echo ""
+          echo "[UserData]"
+          echo "FullName=\"Docker\""
+          echo "ComputerName=\"-PC\""
+          echo "OrgName=\"Windows for Docker\""
+          echo "ProductKey=xxxx-xxxx-xxxx-xxxx"
+          echo ""
+          echo "[Identification]"
+          echo "JoinWorkgroup"
+          echo ""
+          echo "[Networking]"
+          echo "InstallDefaultComponents=Yes"
+          echo ""
+          echo "[RegionalSettings]"
+          echo "Language=00000409"
+  } > "$sif"
+
+  return 0
+}
+
+prepareWin7() {
+
+  local iso="$1"
+  local dir="$2"
+
+  ETFS="boot.img"
+  BOOT_MODE="windows_legacy"
+
+  local len offset
+  len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
+  offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
+
+  if ! dd "if=$iso" "of=$dir/$ETFS" bs=2048 "count=$len" "skip=$offset" status=none; then
+    error "Failed to extract boot image from ISO!"
+    exit 67
+  fi
+
+  return 0
+}
+
 prepareImage() {
 
   local iso="$1"
@@ -556,86 +650,15 @@ prepareImage() {
   fi
 
   if [[ "${DETECTED,,}" == "winxpx86"* ]]; then
-
-    local drivers="$TMP/drivers"
-    rm -rf "$drivers"
-
-    if ! 7z x /run/drivers.iso -o"$drivers" > /dev/null; then
-      error "Failed to extract driver ISO file!"
-      exit 66
+    if ! prepareXP "$iso" "$dir"; then
+      err "Failed to prepare Windows XP ISO!"
+      return 1
     fi
-
-    sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$dir/I386/TXTSETUP.SIF"
-    sed -i '/^\[SourceDisksFiles.x86\]/s/$/\nviostor.sys=1,,,,,_x,4_,4,1,,,1,4/' "$dir/I386/TXTSETUP.SIF"
-    sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device WinXP 32-bit\"/' "$dir/I386/TXTSETUP.SIF"
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4&DEV_1001&SUBSYS_00000000=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4&DEV_1001&SUBSYS_00020000=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4&DEV_1001&SUBSYS_00021AF4=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4&DEV_1001&SUBSYS_00000000=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
-
-    local sif="$dir/I386/WINNT.SIF"
-    {       echo "[Data]"
-            echo "MsDosInitiated=\"0\""
-            echo "AutomaticUpdates=\"Yes\""
-            echo "UnattendedInstall=\"Yes\""
-            echo ""
-            echo "[Unattended]"
-            echo "UnattendSwitch=Yes"
-            echo "UnattendMode=FullUnattended"
-            echo "FileSystem=NTFS"
-            echo "OemSkipEula=Yes"
-            echo "OemPreinstall=Yes"
-            echo "Repartition=No"
-            echo "WaitForReboot=\"No\""
-            echo "DriverSigningPolicy=\"Ignore\""
-            echo "NonDriverSigningPolicy=\"Ignore\""
-            echo "OemPnPDriversPath=\"Drivers\viostor;\""
-            echo ""
-            echo "[GuiUnattended]"
-            echo "OEMSkipRegional=1"
-            echo "OemSkipWelcome=1"
-            echo "AdminPassword=*"
-            echo "TimeZone=0"
-            echo ""
-            echo "[UserData]"
-            echo "FullName=\"Docker\""
-            echo "ComputerName=\"-PC\""
-            echo "OrgName=\"Windows for Docker\""
-            echo "ProductKey=xxxx-xxxx-xxxx-xxxx"
-            echo ""
-            echo "[Identification]"
-            echo "JoinWorkgroup"
-            echo ""
-            echo "[Networking]"
-            echo "InstallDefaultComponents=Yes"
-            echo ""
-            echo "[RegionalSettings]"
-            echo "Language=00000409"
-    } > "$sif"
-
-    cp "$drivers/viostor/xp/x86/viostor.sys" "$dir/I386/viostor.sys"
-
-    mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor"
-    cp "$drivers/viostor/xp/x86/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor/viostor.cat"
-    cp "$drivers/viostor/xp/x86/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor/viostor.sys"
-    cp "$drivers/viostor/xp/x86/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor/viostor.inf"
-
-    BOOT_MODE="windows_legacy"
-    ETFS="[BOOT]/Boot-NoEmul.img"
-
-    return 0
-  fi
-
-  ETFS="boot.img"
-  BOOT_MODE="windows_legacy"
-
-  local len offset
-  len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
-  offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
-
-  if ! dd "if=$iso" "of=$dir/$ETFS" bs=2048 "count=$len" "skip=$offset" status=none; then
-    error "Failed to extract boot image from ISO!"
-    exit 67
+  else
+    if ! prepareWin7 "$iso" "$dir"; then
+      err "Failed to prepare Windows 7 ISO!"
+      return 1
+    fi
   fi
 
   return 0
