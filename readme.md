@@ -230,6 +230,17 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
   ```
 
   Use `DEVICE` if you want it to become your main drive, and use `DEVICE2` and higher to add them as secondary drives.
+
+* ### How do I pass-through a USB device?
+
+  To pass-through a USB device, first lookup its vendor and product id via the `lsusb` command, then add them to your compose file like this:
+
+  ```yaml
+  environment:
+    ARGUMENTS: "-device usb-host,vendorid=0x1234,productid=0x1234"
+  devices:
+    - /dev/bus/usb
+  ```
   
 * ### How do I verify if my system supports KVM?
 
