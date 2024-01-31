@@ -27,8 +27,8 @@ fi
 [[ "${VERSION,,}" == "vista" ]] && VERSION="winvistax64"
 [[ "${VERSION,,}" == "winvista" ]] && VERSION="winvistax64"
 
-[[ "${VERSION,,}" == "xp" ]] && VERSION="winxp86"
-[[ "${VERSION,,}" == "winxp" ]] && VERSION="winxp86"
+[[ "${VERSION,,}" == "xp" ]] && VERSION="winxpx86"
+[[ "${VERSION,,}" == "winxp" ]] && VERSION="winxpx86"
 
 [[ "${VERSION,,}" == "22" ]] && VERSION="win2022-eval"
 [[ "${VERSION,,}" == "2022" ]] && VERSION="win2022-eval"
@@ -70,8 +70,8 @@ if [[ "${VERSION,,}" == "winvistax64" ]]; then
   VERSION="https://dl.bobpony.com/windows/vista/en_windows_vista_sp2_x64_dvd_342267.iso"
 fi
 
-if [[ "${VERSION,,}" == "winxp86" ]]; then
-  DETECTED="winxp86"
+if [[ "${VERSION,,}" == "winxpx86" ]]; then
+  DETECTED="winxpx86"
   VERSION="https://dl.bobpony.com/windows/xp/professional/en_windows_xp_professional_with_service_pack_3_x86_cd_vl_x14-73974.iso"
 fi
 
@@ -489,9 +489,15 @@ detectImage() {
   [ ! -f "$loc" ] && loc="$dir/sources/install.esd"
 
   if [ ! -f "$loc" ]; then
-    warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
-    BOOT_MODE="windows_legacy"
-    return 1
+    if [ -f "$dir/SETUPXP.HTM" ]; then
+      DETECTED="winxpx86"
+      info "Detected: Windows XP"
+      return 0
+    else
+      warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
+      BOOT_MODE="windows_legacy"
+      return 1
+    fi
   fi
 
   tag="DISPLAYNAME"
@@ -549,7 +555,7 @@ prepareImage() {
     fi
   fi
 
-  if [[ "${DETECTED,,}" == "winxp86"* ]]; then
+  if [[ "${DETECTED,,}" == "winxpx86"* ]]; then
 
     local drivers="$TMP/drivers"
     rm -rf "$drivers"
@@ -559,29 +565,30 @@ prepareImage() {
       exit 66
     fi
 
-    sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$dir/i386/txtSetup.sif"
-    sed -i '/^\[SourceDisksFiles.x86\]/s/$/\nviostor.sys=1,,,,,_x,4_,4,1,,,1,4/' "$dir/i386/txtSetup.sif"
-    sed -i '/^\[SCSI\]/s/$/\nviostor=\”Red Hat VirtIO SCSI Disk Device WinXP/32-bit\”/' "$dir/i386/txtSetup.sif"
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\VEN_1AF4&DEV_1001&SUBSYS_00000000=\”viostor\”/' "$dir/i386/txtSetup.sif"
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\VEN_1AF4&DEV_1001&SUBSYS_00020000=\”viostor\”/' "$dir/i386/txtSetup.sif"
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\VEN_1AF4&DEV_1001&SUBSYS_00021AF4=\”viostor\”/' "$dir/i386/txtSetup.sif"
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\VEN_1AF4&DEV_1001&SUBSYS_00000000=\”viostor\”/' "$dir/i386/txtSetup.sif"
+    sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$dir/I386/TXTSETUP.SIF"
+    sed -i '/^\[SourceDisksFiles.x86\]/s/$/\nviostor.sys=1,,,,,_x,4_,4,1,,,1,4/' "$dir/I386/TXTSETUP.SIF"
+    sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device WinXP 32-bit\"/' "$dir/I386/TXTSETUP.SIF"
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4&DEV_1001&SUBSYS_00000000=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4&DEV_1001&SUBSYS_00020000=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4&DEV_1001&SUBSYS_00021AF4=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4&DEV_1001&SUBSYS_00000000=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
 
-    cp "$drivers/viostor/xp/x86/viostor.sys" "$dir/i386/viostor.sys"
-
-    local sif="$dir/i386/winnt.sif"
+    local sif="$dir/I386/WINNT.SIF"
     {       echo "[Data]"
             echo "MsDosInitiated=\"0\""
+            echo "AutomaticUpdates=\"Yes\""
             echo "UnattendedInstall=\"Yes\""
             echo ""
             echo "[Unattended]"
-            echo "UnattendMode=DefaultHide"
-            echo "FileSystem=*"
+            echo "UnattendSwitch=Yes"
+            echo "UnattendMode=FullUnattended"
+            echo "FileSystem=NTFS"
             echo "OemSkipEula=Yes"
             echo "OemPreinstall=Yes"
             echo "Repartition=No"
             echo "WaitForReboot=\"No\""
             echo "DriverSigningPolicy=\"Ignore\""
+            echo "NonDriverSigningPolicy=\"Ignore\""
             echo "OemPnPDriversPath=\"Drivers\viostor;\""
             echo ""
             echo "[GuiUnattended]"
@@ -592,6 +599,7 @@ prepareImage() {
             echo ""
             echo "[UserData]"
             echo "FullName=\"Docker\""
+            echo "ComputerName=\"-PC\""
             echo "OrgName=\"Windows for Docker\""
             echo "ProductKey=xxxx-xxxx-xxxx-xxxx"
             echo ""
@@ -605,24 +613,19 @@ prepareImage() {
             echo "Language=00000409"
     } > "$sif"
 
-    cp "$drivers/viostor/xp/x86/viostor.sys" "$dir/i386/viostor.sys"
-    
-    mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor"
-    cp "$dir/\$OEM\$/\$1/Drivers/viostor/viostor.cat"
-    cp "$dir/\$OEM\$/\$1/Drivers/viostor/viostor.sys"
-    cp "$dir/\$OEM\$/\$1/Drivers/viostor/viostor.inf"
+    cp "$drivers/viostor/xp/x86/viostor.sys" "$dir/I386/viostor.sys"
 
-    info "X" 
-    cat "$dir/i386/txtSetup.sif"
-    info "X"
-    cat "$dir/i386/winnt.sif"
-    info "X"
-    ls "$dir"
-    
-    echo "done"
-    exit 51
+    mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor"
+    cp "$drivers/viostor/xp/x86/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor/viostor.cat"
+    cp "$drivers/viostor/xp/x86/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor/viostor.sys"
+    cp "$drivers/viostor/xp/x86/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor/viostor.inf"
+
+    BOOT_MODE="windows_legacy"
+    ETFS="[BOOT]/Boot-NoEmul.img"
+
+    return 0
   fi
-  
+
   ETFS="boot.img"
   BOOT_MODE="windows_legacy"
 
@@ -712,13 +715,25 @@ buildImage() {
 
   else
 
-    if !  genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
-                      -udf -allow-limited-size -quiet "$dir" 2> "$log"; then
-      [ -f "$log" ] && echo "$(<"$log")"
-      return 1
-    fi
+    if [[ "${DETECTED,,}" != "winxpx86"* ]]; then
 
+      if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
+                       -udf -allow-limited-size -quiet "$dir" 2> "$log"; then
+        [ -f "$log" ] && echo "$(<"$log")"
+        return 1
+      fi
+
+    else
+
+      if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -boot-load-seg 1984 -boot-load-size 4 -c "$cat" -iso-level 2 -J -l -D -N -joliet-long \
+                       -relaxed-filenames -V "$label" -quiet "$dir" 2> "$log"; then
+        [ -f "$log" ] && echo "$(<"$log")"
+        return 1
+      fi
+
+    fi
   fi
+
 
   local error=""
   local hide="Warning: creating filesystem that does not conform to ISO-9660."
