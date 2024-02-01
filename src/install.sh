@@ -490,15 +490,16 @@ detectImage() {
   [ ! -f "$loc" ] && loc="$dir/sources/install.esd"
 
   if [ ! -f "$loc" ]; then
+  
     if [ -f "$dir/WIN51" ] || [ -f "$dir/SETUPXP.HTM" ]; then
       DETECTED="winxpx86"
       info "Detected: Windows XP"
       return 0
-    else
-      warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
-      BOOT_MODE="windows_legacy"
-      return 1
     fi
+  
+    warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
+    BOOT_MODE="windows_legacy"
+    return 1
   fi
 
   tag="DISPLAYNAME"
