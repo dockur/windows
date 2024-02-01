@@ -537,6 +537,7 @@ prepareXP() {
   local iso="$1"
   local dir="$2"
 
+  MACHINE="pc-q35-2.12"
   BOOT_MODE="windows_legacy"
   ETFS="[BOOT]/Boot-NoEmul.img"
 
@@ -548,11 +549,6 @@ prepareXP() {
     exit 66
   fi
 
-  cd "$drivers"
-  wget https://github.com/Skulltrail192/One-Core-API-Binaries/raw/master/Packages/x86/Driver%20Installer/Drivers/storahci.sys
-  wget https://raw.githubusercontent.com/Skulltrail192/One-Core-API-Binaries/master/Packages/x86/Driver%20Installer/inf/storahci.inf
-  cd /run
-
   cp "$drivers/viostor/xp/x86/viostor.sys" "$dir/I386"
 
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor"
@@ -561,34 +557,44 @@ prepareXP() {
   cp "$drivers/viostor/xp/x86/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor"
 
   sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.x86\]/s/$/\nviostor.sys=1,,,,,_x,4_,4,1,,,1,4/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.x86\]/s/$/\nviostor.sys=1,,,,,,4_,4,1,,,1,4/' "$dir/I386/TXTSETUP.SIF"
   sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device WinXP 32-bit\"/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4&DEV_1001&SUBSYS_00000000=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4&DEV_1001&SUBSYS_00020000=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4&DEV_1001&SUBSYS_00021AF4=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4&DEV_1001&SUBSYS_00000000=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00020000=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
 
-  cp "$drivers/storahci.sys" "$dir/I386"
+  mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata"
+  if ! 7z x /run/sata.zip -o"$dir/\$OEM\$/\$1/Drivers/sata" > /dev/null; then
+    return 1
+  fi
+  
+  if ! 7z x /run/sata.zip -o"$dir/I386" > /dev/null; then
+    return 1
+  fi
 
-  mkdir -p "$dir/\$OEM\$/\$1/Drivers/storahci"
-  cp "$drivers/storahci.inf" "$dir/\$OEM\$/\$1/Drivers/storahci"
-  cp "$drivers/storahci.sys" "$dir/\$OEM\$/\$1/Drivers/storahci"
+  sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.x86\]/s/$/\niaStor.cat = 1,,,,,,,1,0,0/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.x86\]/s/$/\niaStor.inf = 1,,,,,,,1,0,0/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.x86\]/s/$/\niaStor.sys = 1,,,,,,4_,4,1,,,1,4/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.x86\]/s/$/\niaStor.sys = 1,,,,,,,1,0,0/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.x86\]/s/$/\niaahci.cat = 1,,,,,,,1,0,0/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.x86\]/s/$/\niaAHCI.inf = 1,,,,,,,1,0,0/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$dir/I386/TXTSETUP.SIF"
+  
+  cp "/run/acpi.sys" "$dir/I386"
 
-  sed -i '/^\[SCSI.Load\]/s/$/\nstorahci=storahci.sys,4/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.x86\]/s/$/\nstorahci.sys=1,,,,,_x,4_,4,1,,,1,4/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[SCSI\]/s/$/\nstorahci=\"Standard SATA AHCI Controller\"/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086&DEV_0106&SUBSYS_00000000=\"storahci\"/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086&DEV_010601&SUBSYS_00000000=\"storahci\"/' "$dir/I386/TXTSETUP.SIF"
+  rm -f "$dir/I386/winnt.sif"
+  rm -f "$dir/I386/Winnt.sif"
+  rm -f "$dir/I386/winnt.SIF"
+  rm -f "$dir/I386/WinNT.sif"
+  rm -f "$dir/I386/WINNT.sif"
+  rm -f "$dir/I386/WINNT.SIF"
 
-  rm "$dir/I386/winnt.sif"
-  rm "$dir/I386/Winnt.sif"
-  rm "$dir/I386/WinNT.sif"
-  rm "$dir/I386/WINNT.sif"
-  rm "$dir/I386/WINNT.SIF"
-
-  local sif="$dir/I386/winnt.sif"
-  {       echo ";SetupMgrTag"
-          echo "[Data]"
+  local sif="$dir/I386/WINNT.SIF"
+  {       echo "[Data]"
           echo "AutoPartition=1"
           echo "MsDosInitiated=\"0\""
           echo "UnattendedInstall=\"Yes\""
@@ -604,7 +610,7 @@ prepareXP() {
           echo "WaitForReboot=\"No\""
           echo "DriverSigningPolicy=\"Ignore\""
           echo "NonDriverSigningPolicy=\"Ignore\""
-          echo "OemPnPDriversPath=\"Drivers\viostor;\""
+          echo "OemPnPDriversPath=\"Drivers\viostor;Drivers\sata""
           echo "NoWaitAfterTextMode=1"
           echo "NoWaitAfterGUIMode=1"
           echo "FileSystem-ConvertNTFS"
@@ -633,8 +639,6 @@ prepareXP() {
           echo "[RegionalSettings]"
           echo "Language=00000409"
   } > "$sif"
-
-#  ARGUMENTS="-device isa-fdc -blockdev driver=file,node-name=f0,filename=/run/drivers.vfd -device floppy,drive=f0"
 
   return 0
 }
