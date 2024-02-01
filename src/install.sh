@@ -548,12 +548,17 @@ prepareXP() {
     exit 66
   fi
 
-  cp "$drivers/viostor/xp/x86/viostor.sys" "$dir/I386/viostor.sys"
+  cd /run/drivers
+  wget https://github.com/Skulltrail192/One-Core-API-Binaries/raw/master/Packages/x86/Driver%20Installer/Drivers/storahci.sys
+  wget https://raw.githubusercontent.com/Skulltrail192/One-Core-API-Binaries/master/Packages/x86/Driver%20Installer/inf/storahci.inf
+  cd /run
+
+  cp "$drivers/viostor.sys" "$dir/I386"
 
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor"
-  cp "$drivers/viostor/xp/x86/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor/viostor.cat"
-  cp "$drivers/viostor/xp/x86/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor/viostor.sys"
-  cp "$drivers/viostor/xp/x86/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor/viostor.inf"
+  cp "$drivers/viostor/xp/x86/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor"
+  cp "$drivers/viostor/xp/x86/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor"
+  cp "$drivers/viostor/xp/x86/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor"
 
   sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$dir/I386/TXTSETUP.SIF"
   sed -i '/^\[SourceDisksFiles.x86\]/s/$/\nviostor.sys=1,,,,,_x,4_,4,1,,,1,4/' "$dir/I386/TXTSETUP.SIF"
@@ -563,8 +568,22 @@ prepareXP() {
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4&DEV_1001&SUBSYS_00021AF4=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4&DEV_1001&SUBSYS_00000000=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
 
-  local sif="$dir/I386/WINNT.SIF"
-  {       echo "[Data]"
+  cp "$drivers/storachi.sys" "$dir/I386"
+
+  mkdir -p "$dir/\$OEM\$/\$1/Drivers/storachi"
+  cp "$drivers/storachi.inf" "$dir/\$OEM\$/\$1/Drivers/storachi"
+  cp "$drivers/storachi.sys" "$dir/\$OEM\$/\$1/Drivers/storachi"
+
+  sed -i '/^\[SCSI.Load\]/s/$/\nstorachi=storachi.sys,4/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.x86\]/s/$/\nstorachi.sys=1,,,,,_x,4_,4,1,,,1,4/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[SCSI\]/s/$/\nstorachi=\"Standard SATA AHCI Controller\"/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086&DEV_0106&SUBSYS_00000000=\"storachi\"/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086&DEV_010601&SUBSYS_00000000=\"storachi\"/' "$dir/I386/TXTSETUP.SIF"
+
+  local sif="$dir/I386/winnt.sif"
+  {       echo ";SetupMgrTag"
+          echo "[Data]"
+          echo "AutoPartition=1"
           echo "MsDosInitiated=\"0\""
           echo "AutomaticUpdates=\"Yes\""
           echo "UnattendedInstall=\"Yes\""
@@ -575,23 +594,29 @@ prepareXP() {
           echo "FileSystem=NTFS"
           echo "OemSkipEula=Yes"
           echo "OemPreinstall=Yes"
-          echo "Repartition=No"
+          echo "Repartition=Yes"
           echo "WaitForReboot=\"No\""
           echo "DriverSigningPolicy=\"Ignore\""
           echo "NonDriverSigningPolicy=\"Ignore\""
           echo "OemPnPDriversPath=\"Drivers\viostor;\""
+          echo "NoWaitAfterTextMode=1"
+          echo "NoWaitAfterGUIMode=1"
+          echo "FileSystem-ConvertNTFS"
+          echo "ExtendOemPartition=0"
           echo ""
           echo "[GuiUnattended]"
           echo "OEMSkipRegional=1"
           echo "OemSkipWelcome=1"
           echo "AdminPassword=*"
           echo "TimeZone=0"
+          echo "AutoLogon=Yes"
+          echo "AutoLogonCount=1"
           echo ""
           echo "[UserData]"
           echo "FullName=\"Docker\""
-          echo "ComputerName=\"-PC\""
+          echo "ComputerName=\"Docker\""
           echo "OrgName=\"Windows for Docker\""
-          echo "ProductKey=xxxx-xxxx-xxxx-xxxx"
+          echo "ProductKey=M6TF9-8XQ2M-YQK9F-7TBB2-XGG88"
           echo ""
           echo "[Identification]"
           echo "JoinWorkgroup"
@@ -602,6 +627,8 @@ prepareXP() {
           echo "[RegionalSettings]"
           echo "Language=00000409"
   } > "$sif"
+
+#  ARGUMENTS="-device isa-fdc -blockdev driver=file,node-name=f0,filename=/run/drivers.vfd -device floppy,drive=f0"
 
   return 0
 }
