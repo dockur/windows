@@ -662,7 +662,7 @@ prepareXP() {
   return 0
 }
 
-prepareWin7() {
+prepareLegacy() {
 
   local iso="$1"
   local dir="$2"
@@ -705,14 +705,14 @@ prepareImage() {
     fi
   fi
 
-  if [[ "${DETECTED,,}" == "winxpx86"* ]]; then
+  if [[ "${DETECTED,,}" == "winxp"* ]]; then
     if ! prepareXP "$iso" "$dir"; then
       error "Failed to prepare Windows XP ISO!"
       return 1
     fi
   else
-    if ! prepareWin7 "$iso" "$dir"; then
-      error "Failed to prepare Windows 7 ISO!"
+    if ! prepareLegacy "$iso" "$dir"; then
+      error "Failed to prepare Windows ISO!"
       return 1
     fi
   fi
