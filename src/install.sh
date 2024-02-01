@@ -548,12 +548,12 @@ prepareXP() {
     exit 66
   fi
 
-  cd /run/drivers
+  cd "$drivers"
   wget https://github.com/Skulltrail192/One-Core-API-Binaries/raw/master/Packages/x86/Driver%20Installer/Drivers/storahci.sys
   wget https://raw.githubusercontent.com/Skulltrail192/One-Core-API-Binaries/master/Packages/x86/Driver%20Installer/inf/storahci.inf
   cd /run
 
-  cp "$drivers/viostor.sys" "$dir/I386"
+  cp "$drivers/viostor/xp/x86/viostor.sys" "$dir/I386"
 
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor"
   cp "$drivers/viostor/xp/x86/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor"
@@ -568,25 +568,31 @@ prepareXP() {
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4&DEV_1001&SUBSYS_00021AF4=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4&DEV_1001&SUBSYS_00000000=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
 
-  cp "$drivers/storachi.sys" "$dir/I386"
+  cp "$drivers/storahci.sys" "$dir/I386"
 
-  mkdir -p "$dir/\$OEM\$/\$1/Drivers/storachi"
-  cp "$drivers/storachi.inf" "$dir/\$OEM\$/\$1/Drivers/storachi"
-  cp "$drivers/storachi.sys" "$dir/\$OEM\$/\$1/Drivers/storachi"
+  mkdir -p "$dir/\$OEM\$/\$1/Drivers/storahci"
+  cp "$drivers/storahci.inf" "$dir/\$OEM\$/\$1/Drivers/storahci"
+  cp "$drivers/storahci.sys" "$dir/\$OEM\$/\$1/Drivers/storahci"
 
-  sed -i '/^\[SCSI.Load\]/s/$/\nstorachi=storachi.sys,4/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.x86\]/s/$/\nstorachi.sys=1,,,,,_x,4_,4,1,,,1,4/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[SCSI\]/s/$/\nstorachi=\"Standard SATA AHCI Controller\"/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086&DEV_0106&SUBSYS_00000000=\"storachi\"/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086&DEV_010601&SUBSYS_00000000=\"storachi\"/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[SCSI.Load\]/s/$/\nstorahci=storahci.sys,4/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.x86\]/s/$/\nstorahci.sys=1,,,,,_x,4_,4,1,,,1,4/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[SCSI\]/s/$/\nstorahci=\"Standard SATA AHCI Controller\"/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086&DEV_0106&SUBSYS_00000000=\"storahci\"/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086&DEV_010601&SUBSYS_00000000=\"storahci\"/' "$dir/I386/TXTSETUP.SIF"
+
+  rm "$dir/I386/winnt.sif"
+  rm "$dir/I386/Winnt.sif"
+  rm "$dir/I386/WinNT.sif"
+  rm "$dir/I386/WINNT.sif"
+  rm "$dir/I386/WINNT.SIF"
 
   local sif="$dir/I386/winnt.sif"
   {       echo ";SetupMgrTag"
           echo "[Data]"
           echo "AutoPartition=1"
           echo "MsDosInitiated=\"0\""
-          echo "AutomaticUpdates=\"Yes\""
           echo "UnattendedInstall=\"Yes\""
+          echo "AutomaticUpdates=\"Yes\""
           echo ""
           echo "[Unattended]"
           echo "UnattendSwitch=Yes"
