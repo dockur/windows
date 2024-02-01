@@ -490,7 +490,7 @@ detectImage() {
   [ ! -f "$loc" ] && loc="$dir/sources/install.esd"
 
   if [ ! -f "$loc" ]; then
-    if [ -f "$dir/SETUPXP.HTM" ]; then
+    if [ -f "$dir/WIN51" ] || [ -f "$dir/SETUPXP.HTM" ]; then
       DETECTED="winxpx86"
       info "Detected: Windows XP"
       return 0
@@ -537,6 +537,13 @@ prepareXP() {
 
   local iso="$1"
   local dir="$2"
+  local arch="x86"
+  local target="$dir/I386"
+
+  if [ -d "$dir/AMD64" ]; then
+    arch="amd64"
+    target="$dir/AMD64"
+  fi
 
   MACHINE="pc-q35-2.10"
   BOOT_MODE="windows_legacy"
@@ -550,50 +557,50 @@ prepareXP() {
     exit 66
   fi
 
-  cp "$drivers/viostor/xp/x86/viostor.sys" "$dir/I386"
+  cp "$drivers/viostor/xp/$arch/viostor.sys" "$target"
 
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor"
-  cp "$drivers/viostor/xp/x86/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor"
-  cp "$drivers/viostor/xp/x86/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor"
-  cp "$drivers/viostor/xp/x86/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor"
+  cp "$drivers/viostor/xp/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor"
+  cp "$drivers/viostor/xp/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor"
+  cp "$drivers/viostor/xp/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor"
 
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/NetKVM"
-  cp "$drivers/NetKVM/xp/x86/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
-  cp "$drivers/NetKVM/xp/x86/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
-  cp "$drivers/NetKVM/xp/x86/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+  cp "$drivers/NetKVM/xp/$arch/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+  cp "$drivers/NetKVM/xp/$arch/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+  cp "$drivers/NetKVM/xp/$arch/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
 
-  sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.x86\]/s/$/\nviostor.sys=1,,,,,,4_,4,1,,,1,4/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device WinXP 32-bit\"/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00020000=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.$arch\]/s/$/\nviostor.sys=1,,,,,,4_,4,1,,,1,4/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device\"/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00020000=\"viostor\"/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$target/TXTSETUP.SIF"
 
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata"
 
-  cp -a "$drivers/sata/xp/x86/." "$dir/\$OEM\$/\$1/Drivers/sata"
-  cp -a "$drivers/sata/xp/x86/." "$dir/I386"
+  cp -a "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata"
+  cp -a "$drivers/sata/xp/$arch/." "$target"
 
-  sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.x86\]/s/$/\niaStor.cat = 1,,,,,,,1,0,0/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.x86\]/s/$/\niaStor.inf = 1,,,,,,,1,0,0/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.x86\]/s/$/\niaStor.sys = 1,,,,,,4_,4,1,,,1,4/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.x86\]/s/$/\niaStor.sys = 1,,,,,,,1,0,0/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.x86\]/s/$/\niaahci.cat = 1,,,,,,,1,0,0/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.x86\]/s/$/\niaAHCI.inf = 1,,,,,,,1,0,0/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$dir/I386/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$dir/I386/TXTSETUP.SIF"
+  sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.$arch\]/s/$/\niaStor.cat = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.$arch\]/s/$/\niaStor.inf = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.$arch\]/s/$/\niaStor.sys = 1,,,,,,4_,4,1,,,1,4/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.$arch\]/s/$/\niaStor.sys = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.$arch\]/s/$/\niaahci.cat = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.$arch\]/s/$/\niaAHCI.inf = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$target/TXTSETUP.SIF"
 
-  rm -f "$dir/I386/winnt.sif"
-  rm -f "$dir/I386/Winnt.sif"
-  rm -f "$dir/I386/winnt.SIF"
-  rm -f "$dir/I386/WinNT.sif"
-  rm -f "$dir/I386/WINNT.sif"
-  rm -f "$dir/I386/WINNT.SIF"
+  rm -f "$target/winnt.sif"
+  rm -f "$target/Winnt.sif"
+  rm -f "$target/winnt.SIF"
+  rm -f "$target/WinNT.sif"
+  rm -f "$target/WINNT.sif"
+  rm -f "$target/WINNT.SIF"
 
-  local sif="$dir/I386/WINNT.SIF"
+  local sif="$target/WINNT.SIF"
   {       echo "[Data]"
           echo "AutoPartition=1"
           echo "MsDosInitiated=\"0\""
@@ -775,7 +782,7 @@ buildImage() {
 
   else
 
-    if [[ "${DETECTED,,}" != "winxpx86"* ]]; then
+    if [[ "${DETECTED,,}" != "winxp"* ]]; then
 
       if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
                        -udf -allow-limited-size -quiet "$dir" 2> "$log"; then
@@ -793,7 +800,6 @@ buildImage() {
 
     fi
   fi
-
 
   local error=""
   local hide="Warning: creating filesystem that does not conform to ISO-9660."
