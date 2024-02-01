@@ -374,13 +374,13 @@ consumer_download() {
 
     if ! [ "$iso_download_link_html" ]; then
         # This should only happen if there's been some change to how this API works
-        echo_err "Microsoft servers gave us an empty response to our request for an automated download. Please manually download this ISO in a web browser: $url"
+        echo_err "Microsoft servers gave us an empty response to our request for an automated download. Please check the FAQ on how to boot from a local file and manually download this ISO in a web browser: $url"
         manual_verification="true"
         return 1
     fi
 
     if echo "$iso_download_link_html" | grep -q "We are unable to complete your request at this time."; then
-        echo_err "Microsoft blocked the automated download request based on your IP address. Please manually download this ISO in a web browser here: $url"
+        echo_err "Microsoft blocked the automated download request based on your IP address. Please check the FAQ on how to boot from a local file and manually download this ISO in a web browser here: $url"
         manual_verification="true"
         return 1
     fi
@@ -392,7 +392,7 @@ consumer_download() {
 
     if ! [ "$iso_download_link" ]; then
         # This should only happen if there's been some change to the download endpoint web address
-        echo_err "Microsoft servers gave us no download link to our request for an automated download. Please manually download this ISO in a web browser: $url"
+        echo_err "Microsoft servers gave us no download link to our request for an automated download. Please check the FAQ on how to boot from a local file and manually download this ISO in a web browser: $url"
         manual_verification="true"
         return 1
     fi

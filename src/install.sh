@@ -27,6 +27,9 @@ fi
 [[ "${VERSION,,}" == "vista" ]] && VERSION="winvistax64"
 [[ "${VERSION,,}" == "winvista" ]] && VERSION="winvistax64"
 
+[[ "${VERSION,,}" == "xp" ]] && VERSION="winxpx86"
+[[ "${VERSION,,}" == "winxp" ]] && VERSION="winxpx86"
+
 [[ "${VERSION,,}" == "22" ]] && VERSION="win2022-eval"
 [[ "${VERSION,,}" == "2022" ]] && VERSION="win2022-eval"
 [[ "${VERSION,,}" == "win22" ]] && VERSION="win2022-eval"
@@ -67,6 +70,11 @@ if [[ "${VERSION,,}" == "winvistax64" ]]; then
   VERSION="https://dl.bobpony.com/windows/vista/en_windows_vista_sp2_x64_dvd_342267.iso"
 fi
 
+if [[ "${VERSION,,}" == "winxpx86" ]]; then
+  DETECTED="winxpx86"
+  VERSION="https://dl.bobpony.com/windows/xp/professional/en_windows_xp_professional_with_service_pack_3_x86_cd_vl_x14-73974.iso"
+fi
+
 if [[ "${VERSION,,}" == "core11" ]]; then
   DETECTED="win11x64"
   VERSION="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
@@ -92,6 +100,7 @@ CUSTOM="custom.iso"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.IMG"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.IMG"
 
+MACHINE="q35"
 TMP="$STORAGE/tmp"
 DIR="$TMP/unpack"
 FB="falling back to manual installation!"
@@ -107,6 +116,7 @@ printVersion() {
   [[ "$id" == "win8"* ]] && desc="Windows 8"
   [[ "$id" == "win10"* ]] && desc="Windows 10"
   [[ "$id" == "win11"* ]] && desc="Windows 11"
+  [[ "$id" == "winxp"* ]] && desc="Windows XP"
   [[ "$id" == "winvista"* ]] && desc="Windows Vista"
   [[ "$id" == "win2025"* ]] && desc="Windows Server 2025"
   [[ "$id" == "win2022"* ]] && desc="Windows Server 2022"
@@ -250,7 +260,7 @@ finishInstall() {
   cp /run/version "$STORAGE/windows.ver"
 
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
-    touch "$STORAGE/windows.old"
+    echo "$MACHINE" > "$STORAGE/windows.old"
   else
     rm -f "$STORAGE/windows.old"
   fi
@@ -448,6 +458,7 @@ extractImage() {
 detectImage() {
 
   XML=""
+  local dir="$1"
 
   if [ -n "$CUSTOM" ]; then
     DETECTED=""
@@ -464,22 +475,32 @@ detectImage() {
       return 0
     fi
 
-    local dsc
-    dsc=$(printVersion "$DETECTED")
-    [ -z "$dsc" ] && dsc="$DETECTED"
+    if [[ "${DETECTED,,}" != "winxp"* ]]; then
 
-    warn "got $dsc, but no matching XML file exists, $FB."
+      local dsc
+      dsc=$(printVersion "$DETECTED")
+      [ -z "$dsc" ] && dsc="$DETECTED"
+
+      warn "got $dsc, but no matching XML file exists, $FB."
+    fi
+
     return 0
   fi
 
   info "Detecting Windows version from ISO image..."
 
-  local dir="$1"
+  if [ -f "$dir/WIN51" ] || [ -f "$dir/SETUPXP.HTM" ]; then
+    DETECTED="winxpx86"
+    info "Detected: Windows XP"
+    return 0
+  fi
+
   local tag result name name2 desc
   local loc="$dir/sources/install.wim"
   [ ! -f "$loc" ] && loc="$dir/sources/install.esd"
 
   if [ ! -f "$loc" ]; then
+
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
     BOOT_MODE="windows_legacy"
     return 1
@@ -517,26 +538,136 @@ detectImage() {
   return 0
 }
 
-prepareImage() {
+prepareXP() {
 
   local iso="$1"
   local dir="$2"
+  local arch="x86"
+  local target="$dir/I386"
 
-  if [[ "${BOOT_MODE,,}" == "windows" ]] && [[ "${DETECTED,,}" != "win2008"* ]]; then
-    if [[ "${DETECTED,,}" != "win7x64"* ]] && [[ "${DETECTED,,}" != "winvistax64"* ]]; then
-
-      if [ -f "$dir/$ETFS" ] && [ -f "$dir/$EFISYS" ]; then
-        return 0
-      fi
-
-      if [ ! -f "$dir/$ETFS" ]; then
-        warn "failed to locate file 'etfsboot.com' in ISO image, falling back to legacy boot!"
-      else
-        warn "failed to locate file 'efisys_noprompt.bin' in ISO image, falling back to legacy boot!"
-      fi
-
-    fi
+  if [ -d "$dir/AMD64" ]; then
+    arch="amd64"
+    target="$dir/AMD64"
   fi
+
+  MACHINE="pc-q35-2.10"
+  BOOT_MODE="windows_legacy"
+  ETFS="[BOOT]/Boot-NoEmul.img"
+
+  [[ "$MANUAL" == [Yy1]* ]] && return 0
+
+  local drivers="$TMP/drivers"
+  rm -rf "$drivers"
+
+  if ! 7z x /run/drivers.iso -o"$drivers" > /dev/null; then
+    error "Failed to extract driver ISO file!"
+    exit 66
+  fi
+
+  cp "$drivers/viostor/xp/$arch/viostor.sys" "$target"
+
+  mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor"
+  cp "$drivers/viostor/xp/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor"
+  cp "$drivers/viostor/xp/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor"
+  cp "$drivers/viostor/xp/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor"
+
+  mkdir -p "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+  cp "$drivers/NetKVM/xp/$arch/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+  cp "$drivers/NetKVM/xp/$arch/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+  cp "$drivers/NetKVM/xp/$arch/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+
+  sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\nviostor.sys=1,,,,,,4_,4,1,,,1,4/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device\"/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00020000=\"viostor\"/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$target/TXTSETUP.SIF"
+
+  mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata"
+
+  cp -a "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata"
+  cp -a "$drivers/sata/xp/$arch/." "$target"
+
+  sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.cat = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.inf = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,4_,4,1,,,1,4/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaahci.cat = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaAHCI.inf = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$target/TXTSETUP.SIF"
+
+  rm -f "$target/winnt.sif"
+  rm -f "$target/Winnt.sif"
+  rm -f "$target/winnt.SIF"
+  rm -f "$target/WinNT.sif"
+  rm -f "$target/WINNT.sif"
+  rm -f "$target/WINNT.SIF"
+
+  local key="M6TF9-8XQ2M-YQK9F-7TBB2-XGG88"
+  [[ "${arch,,}" == "amd64" ]] && key="B66VY-4D94T-TPPD4-43F72-8X4FY"
+
+  local sif="$target/WINNT.SIF"
+  {       echo "[Data]"
+          echo "AutoPartition=1"
+          echo "MsDosInitiated=\"0\""
+          echo "UnattendedInstall=\"Yes\""
+          echo "AutomaticUpdates=\"Yes\""
+          echo ""
+          echo "[Unattended]"
+          echo "UnattendSwitch=Yes"
+          echo "UnattendMode=FullUnattended"
+          echo "FileSystem=NTFS"
+          echo "OemSkipEula=Yes"
+          echo "OemPreinstall=Yes"
+          echo "Repartition=Yes"
+          echo "WaitForReboot=\"No\""
+          echo "DriverSigningPolicy=\"Ignore\""
+          echo "NonDriverSigningPolicy=\"Ignore\""
+          echo "OemPnPDriversPath=\"Drivers\viostor;Drivers\NetKVM;Drivers\sata\""
+          echo "NoWaitAfterTextMode=1"
+          echo "NoWaitAfterGUIMode=1"
+          echo "FileSystem-ConvertNTFS"
+          echo "ExtendOemPartition=0"
+          echo "Hibernation=\"No\""
+          echo ""
+          echo "[GuiUnattended]"
+          echo "OEMSkipRegional=1"
+          echo "OemSkipWelcome=1"
+          echo "AdminPassword=*"
+          echo "TimeZone=0"
+          echo "AutoLogon=Yes"
+          echo "AutoLogonCount=99999"
+          echo ""
+          echo "[UserData]"
+          echo "FullName=\"Docker\""
+          echo "ComputerName=\"*\""
+          echo "OrgName=\"Windows for Docker\""
+          echo "ProductKey=$key"
+          echo ""
+          echo "[Identification]"
+          echo "JoinWorkgroup"
+          echo ""
+          echo "[Networking]"
+          echo "InstallDefaultComponents=Yes"
+          echo ""
+          echo "[RegionalSettings]"
+          echo "Language=00000409"
+          echo ""
+          echo "[TerminalServices]"
+          echo "AllowConnections=1"
+  } > "$sif"
+
+  return 0
+}
+
+prepareLegacy() {
+
+  local iso="$1"
+  local dir="$2"
 
   ETFS="boot.img"
   BOOT_MODE="windows_legacy"
@@ -548,6 +679,44 @@ prepareImage() {
   if ! dd "if=$iso" "of=$dir/$ETFS" bs=2048 "count=$len" "skip=$offset" status=none; then
     error "Failed to extract boot image from ISO!"
     exit 67
+  fi
+
+  return 0
+}
+
+prepareImage() {
+
+  local iso="$1"
+  local dir="$2"
+
+  if [[ "${BOOT_MODE,,}" == "windows" ]]; then
+    if [[ "${DETECTED,,}" != "winxp"* ]] && [[ "${DETECTED,,}" != "win2008"* ]]; then
+      if [[ "${DETECTED,,}" != "winvista"* ]] && [[ "${DETECTED,,}" != "win7"* ]]; then
+
+        if [ -f "$dir/$ETFS" ] && [ -f "$dir/$EFISYS" ]; then
+          return 0
+        fi
+
+        if [ ! -f "$dir/$ETFS" ]; then
+          warn "failed to locate file 'etfsboot.com' in ISO image, falling back to legacy boot!"
+        else
+          warn "failed to locate file 'efisys_noprompt.bin' in ISO image, falling back to legacy boot!"
+        fi
+
+      fi
+    fi
+  fi
+
+  if [[ "${DETECTED,,}" == "winxp"* ]]; then
+    if ! prepareXP "$iso" "$dir"; then
+      error "Failed to prepare Windows XP ISO!"
+      return 1
+    fi
+  else
+    if ! prepareLegacy "$iso" "$dir"; then
+      error "Failed to prepare Windows ISO!"
+      return 1
+    fi
   fi
 
   return 0
@@ -627,12 +796,23 @@ buildImage() {
 
   else
 
-    if !  genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
-                      -udf -allow-limited-size -quiet "$dir" 2> "$log"; then
-      [ -f "$log" ] && echo "$(<"$log")"
-      return 1
-    fi
+    if [[ "${DETECTED,,}" != "winxp"* ]]; then
 
+      if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
+                       -udf -allow-limited-size -quiet "$dir" 2> "$log"; then
+        [ -f "$log" ] && echo "$(<"$log")"
+        return 1
+      fi
+
+    else
+
+      if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -boot-load-seg 1984 -boot-load-size 4 -c "$cat" -iso-level 2 -J -l -D -N -joliet-long \
+                       -relaxed-filenames -V "$label" -quiet "$dir" 2> "$log"; then
+        [ -f "$log" ] && echo "$(<"$log")"
+        return 1
+      fi
+
+    fi
   fi
 
   local error=""
@@ -655,6 +835,8 @@ buildImage() {
 if ! startInstall; then
 
   if [ -f "$STORAGE/windows.old" ]; then
+    MACHINE=$(<"$STORAGE/windows.old")
+    [ -z "$MACHINE" ] && MACHINE="q35"
     BOOT_MODE="windows_legacy"
   fi
 
