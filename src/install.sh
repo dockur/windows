@@ -659,9 +659,6 @@ prepareXP() {
           echo ""
           echo "[TerminalServices]"
           echo "AllowConnections=1"
-          echo ""
-          echo "[URL]"
-          echo "Home_Page=http://www.google.com"
   } > "$sif"
 
   return 0
