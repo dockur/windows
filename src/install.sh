@@ -603,7 +603,7 @@ prepareXP() {
   rm -f "$target/WINNT.SIF"
 
   local key="M6TF9-8XQ2M-YQK9F-7TBB2-XGG88"
-  [[ "${arch,,} == "amd64" ]] && key="B66VY-4D94T-TPPD4-43F72-8X4FY"
+  [[ "${arch,,}" == "amd64" ]] && key="B66VY-4D94T-TPPD4-43F72-8X4FY"
 
   local sif="$target/WINNT.SIF"
   {       echo "[Data]"
