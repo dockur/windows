@@ -100,6 +100,7 @@ CUSTOM="custom.iso"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.IMG"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.IMG"
 
+MACHINE="q35"
 TMP="$STORAGE/tmp"
 DIR="$TMP/unpack"
 FB="falling back to manual installation!"
@@ -259,7 +260,7 @@ finishInstall() {
   cp /run/version "$STORAGE/windows.ver"
 
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
-    touch "$STORAGE/windows.old"
+    echo "$MACHINE" > "$STORAGE/windows.old"
   else
     rm -f "$STORAGE/windows.old"
   fi
@@ -537,7 +538,7 @@ prepareXP() {
   local iso="$1"
   local dir="$2"
 
-  MACHINE="pc-q35-2.12"
+  MACHINE="pc-q35-2.10"
   BOOT_MODE="windows_legacy"
   ETFS="[BOOT]/Boot-NoEmul.img"
 
@@ -556,6 +557,11 @@ prepareXP() {
   cp "$drivers/viostor/xp/x86/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor"
   cp "$drivers/viostor/xp/x86/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor"
 
+  mkdir -p "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+  cp "$drivers/NetKVM/xp/x86/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+  cp "$drivers/NetKVM/xp/x86/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+  cp "$drivers/NetKVM/xp/x86/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+
   sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$dir/I386/TXTSETUP.SIF"
   sed -i '/^\[SourceDisksFiles.x86\]/s/$/\nviostor.sys=1,,,,,,4_,4,1,,,1,4/' "$dir/I386/TXTSETUP.SIF"
   sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device WinXP 32-bit\"/' "$dir/I386/TXTSETUP.SIF"
@@ -565,13 +571,9 @@ prepareXP() {
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$dir/I386/TXTSETUP.SIF"
 
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata"
-  if ! 7z x /run/sata.zip -o"$dir/\$OEM\$/\$1/Drivers/sata" > /dev/null; then
-    return 1
-  fi
-  
-  if ! 7z x /run/sata.zip -o"$dir/I386" > /dev/null; then
-    return 1
-  fi
+
+  cp -a "$drivers/sata/xp/x86/." "$dir/\$OEM\$/\$1/Drivers/sata"
+  cp -a "$drivers/sata/xp/x86/." "$dir/I386"
 
   sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$dir/I386/TXTSETUP.SIF"
   sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$dir/I386/TXTSETUP.SIF"
@@ -583,8 +585,6 @@ prepareXP() {
   sed -i '/^\[SourceDisksFiles.x86\]/s/$/\niaAHCI.inf = 1,,,,,,,1,0,0/' "$dir/I386/TXTSETUP.SIF"
   sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$dir/I386/TXTSETUP.SIF"
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$dir/I386/TXTSETUP.SIF"
-  
-  cp "/run/acpi.sys" "$dir/I386"
 
   rm -f "$dir/I386/winnt.sif"
   rm -f "$dir/I386/Winnt.sif"
@@ -610,7 +610,7 @@ prepareXP() {
           echo "WaitForReboot=\"No\""
           echo "DriverSigningPolicy=\"Ignore\""
           echo "NonDriverSigningPolicy=\"Ignore\""
-          echo "OemPnPDriversPath=\"Drivers\viostor;Drivers\sata""
+          echo "OemPnPDriversPath=\"Drivers\viostor;Drivers\NetKVM;Drivers\sata\""
           echo "NoWaitAfterTextMode=1"
           echo "NoWaitAfterGUIMode=1"
           echo "FileSystem-ConvertNTFS"
@@ -688,12 +688,12 @@ prepareImage() {
 
   if [[ "${DETECTED,,}" == "winxpx86"* ]]; then
     if ! prepareXP "$iso" "$dir"; then
-      err "Failed to prepare Windows XP ISO!"
+      error "Failed to prepare Windows XP ISO!"
       return 1
     fi
   else
     if ! prepareWin7 "$iso" "$dir"; then
-      err "Failed to prepare Windows 7 ISO!"
+      error "Failed to prepare Windows 7 ISO!"
       return 1
     fi
   fi
@@ -815,6 +815,8 @@ buildImage() {
 if ! startInstall; then
 
   if [ -f "$STORAGE/windows.old" ]; then
+    MACHINE=$(<"$STORAGE/windows.old")
+    [ -z "$MACHINE" ] && MACHINE="q35"
     BOOT_MODE="windows_legacy"
   fi
 
