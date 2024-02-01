@@ -458,6 +458,7 @@ extractImage() {
 detectImage() {
 
   XML=""
+  local dir="$1"
 
   if [ -n "$CUSTOM" ]; then
     DETECTED=""
@@ -474,28 +475,31 @@ detectImage() {
       return 0
     fi
 
-    local dsc
-    dsc=$(printVersion "$DETECTED")
-    [ -z "$dsc" ] && dsc="$DETECTED"
+    if [[ "${DETECTED,,}" != "winxp"* ]]; then
 
-    warn "got $dsc, but no matching XML file exists, $FB."
+      local dsc
+      dsc=$(printVersion "$DETECTED")
+      [ -z "$dsc" ] && dsc="$DETECTED"
+
+      warn "got $dsc, but no matching XML file exists, $FB."
+    fi
+
     return 0
   fi
 
   info "Detecting Windows version from ISO image..."
 
-  local dir="$1"
+  if [ -f "$dir/WIN51" ] || [ -f "$dir/SETUPXP.HTM" ]; then
+    DETECTED="winxpx86"
+    info "Detected: Windows XP"
+    return 0
+  fi
+
   local tag result name name2 desc
   local loc="$dir/sources/install.wim"
   [ ! -f "$loc" ] && loc="$dir/sources/install.esd"
 
   if [ ! -f "$loc" ]; then
-
-    if [ -f "$dir/WIN51" ] || [ -f "$dir/SETUPXP.HTM" ]; then
-      DETECTED="winxpx86"
-      info "Detected: Windows XP"
-      return 0
-    fi
 
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
     BOOT_MODE="windows_legacy"
