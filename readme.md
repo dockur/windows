@@ -126,6 +126,17 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
 
   Replace the example path `/var/win` with the desired storage folder.
 
+* ### How do I install a custom image?
+
+  In order to download a custom ISO image, start a clean container with the URL specified in the `VERSION` environment variable:
+  
+  ```yaml
+  environment:
+    VERSION: "https://example.com/win.iso"
+  ```
+
+  Alternatively, you can also rename a local file to `custom.iso` and place it in an empty `/storage` folder to skip the download.
+
 * ### How do I perform a manual installation?
 
   It's best to use the automatic installation, as it optimizes various settings for use with this container.
@@ -154,17 +165,6 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
   - Once you see the desktop, open File Explorer and navigate to the CD-ROM drive (E:). Double-click on `virtio-win-gt-x64.msi` and proceed to install the VirtIO drivers.
 
   Enjoy your brand new machine, and don't forget to star this repo!
-
-* ### How do I install a custom image?
-
-  In order to download a custom ISO image, start a clean container with the URL specified in the `VERSION` environment variable:
-  
-  ```yaml
-  environment:
-    VERSION: "https://example.com/win.iso"
-  ```
-
-  Alternatively, you can also rename a local file to `custom.iso` and place it in an empty `/storage` folder to skip the download.
 
 * ### How do I assign an individual IP address to the container?
 
