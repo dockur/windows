@@ -364,7 +364,7 @@ getESD() {
   local dir="$1"
   local file="$2"
   local architecture="x64"
-  local winCatalog space space_gb size
+  local winCatalog size
 
   case "${VERSION,,}" in
     win11x64)
@@ -385,17 +385,7 @@ getESD() {
   rm -rf "$dir"
   mkdir -p "$dir"
 
-  space=$(df --output=avail -B 1 "$dir" | tail -n 1)
-  space_gb=$(( (space + 1073741823)/1073741824 ))
-
-  if (( 12884901888 > space )); then
-    error "Not enough free space in $STORAGE, have $space_gb GB available but need at least 12 GB."
-    return 1
-  fi
-
   local wFile="catalog.cab"
-
-  mkdir -p "$dir"
 
   { wget "$winCatalog" -O "$dir/$wFile" -q --no-check-certificate; rc=$?; } || :
   (( rc != 0 )) && error "Failed to download $winCatalog , reason: $rc" && return 1
@@ -461,46 +451,44 @@ downloadImage() {
 
   local msg="Downloading $desc..."
   info "$msg" && html "$msg"
-
   /run/progress.sh "$file" "Downloading $desc ([P])..." &
 
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
-    #cd "$TMP"
-    #{ /run/mido.sh "$url"; rc=$?; } || :
-    #cd /run
-    rc=5
+    cd "$TMP"
+    { /run/mido.sh "$url"; rc=$?; } || :
+    cd /run
 
     fKill "progress.sh"
-    
+
     if (( rc == 0 )); then
 
       [ ! -f "$iso" ] && return 1
 
       html "Download finished successfully..."
-      return 0    
+      return 0
     fi
 
     if [[ "$VERSION" != "win10x64"* ]] && [[ "$VERSION" != "win11x64" ]]; then
       return 1
     fi
 
-    info "Failed to download $desc via Mido, will try a different method now..."
+    info "Failed to download $desc using Mido, will try a different method now..."
 
     ISO="$TMP/$VERSION.esd"
+    iso="$ISO"
     file="$ISO"
-    rm -f "$file"
+    rm -f "$iso"
 
-    /run/progress.sh "$file" "Downloading $desc ([P])..." &
-      
-    if ! getESD "$TMP/esd" "$file"; then
+    if ! getESD "$TMP/esd" "$iso"; then
       return 1
     fi
 
     url="$ESD_URL"
-    info "$url"
-    exit 44
-  
+    msg="Downloading $desc..."
+    info "$msg" && html "$msg"
+    /run/progress.sh "$iso" "Downloading $desc ([P])..." &
+
   fi
 
   # Check if running with interactive TTY or redirected to docker log
@@ -531,7 +519,7 @@ extractESD() {
   local msg="Extracting $desc bootdisk..."
   info "$msg" && html "$msg"
 
-  size=$(stat -c%s "$iso")
+  size=16106127360
   size_gb=$(( (size + 1073741823)/1073741824 ))
   space=$(df --output=avail -B 1 "$TMP" | tail -n 1)
   space_gb=$(( (space + 1073741823)/1073741824 ))
@@ -550,9 +538,9 @@ extractESD() {
   local esdImageCount
   esdImageCount=$(wimlib-imagex info "${iso}" | awk '/Image Count:/ {print $3}')
 
-  wimlib-imagex apply "$iso" 1 "${dir}" --nocheck --compress=none --quiet 2>/dev/null || {
+  wimlib-imagex apply "$iso" 1 "${dir}" --quiet 2>/dev/null || {
     retVal=$?
-    error "Extract of boot files failed" && return $retVal
+    error "Extracting bootdisk failed" && return $retVal
   }
 
   local bootWimFile="${dir}/sources/boot.wim"
@@ -561,7 +549,7 @@ extractESD() {
   local msg="Extracting $desc environment..."
   info "$msg" && html "$msg"
 
-  wimlib-imagex export "${iso}" 2 "${bootWimFile}" --nocheck --compress=none --quiet || {
+  wimlib-imagex export "${iso}" 2 "${bootWimFile}" --compress=LZX --chunk-size 32K --quiet || {
     retVal=$?
     error "Adding WinPE failed" && return ${retVal}
   }
@@ -569,7 +557,7 @@ extractESD() {
   local msg="Extracting $desc setup..."
   info "$msg" && html "$msg"
 
-  wimlib-imagex export "${iso}" 3 "$bootWimFile" --nocheck --compress=none --boot --quiet || {
+  wimlib-imagex export "${iso}" 3 "$bootWimFile" --compress=LZX --chunk-size 32K --boot --quiet || {
    retVal=$?
    error "Adding Windows Setup failed" && return ${retVal}
   }
@@ -580,10 +568,10 @@ extractESD() {
   local edition imageIndex imageEdition
 
   case "${VERSION,,}" in
-    win11arm)
+    win11x64)
       edition="11 pro"
       ;;
-    win10arm)
+    win10x64)
       edition="10 pro"
       ;;
     *)
@@ -594,16 +582,16 @@ extractESD() {
 
   for (( imageIndex=4; imageIndex<=esdImageCount; imageIndex++ )); do
     imageEdition=$(wimlib-imagex info "${iso}" ${imageIndex} | grep '^Description:' | sed 's/Description:[ \t]*//')
-    error "$imageEdition"
     [[ "${imageEdition,,}" != *"$edition"* ]] && continue
-    wimlib-imagex export "${iso}" ${imageIndex} "${installWimFile}" --nocheck --compress=none --quiet || {
+    wimlib-imagex export "${iso}" ${imageIndex} "${installWimFile}" --compress=LZMS --chunk-size 128K --quiet || {
       retVal=$?
       error "Addition of ${imageIndex} to the image failed" && return $retVal
     }
-    break
+    return 0
   done
 
-  return 0
+  error "Failed to find product in install.wim!"
+  return 1
 }
 
 extractImage() {
