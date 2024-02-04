@@ -100,6 +100,7 @@ CUSTOM="custom.iso"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.IMG"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.IMG"
 
+ESD_URL=""
 MACHINE="q35"
 TMP="$STORAGE/tmp"
 DIR="$TMP/unpack"
@@ -358,6 +359,84 @@ startInstall() {
   return 0
 }
 
+getESD() {
+
+  local dir="$1"
+  local file="$2"
+  local architecture="AMD64"
+  local winCatalog space space_gb size
+
+  case "${VERSION,,}" in
+    win11x64)
+      winCatalog="https://go.microsoft.com/fwlink?linkid=2156292"
+      ;;
+    win10x64)
+      winCatalog="https://go.microsoft.com/fwlink/?LinkId=841361"
+      ;;
+    *)
+      error "Invalid ESD version specified: $VERSION"
+      return 1
+      ;;
+  esac
+
+  local msg="Downloading product information from Microsoft..."
+  info "$msg" && html "$msg"
+
+  rm -rf "$dir"
+  mkdir -p "$dir"
+
+  space=$(df --output=avail -B 1 "$dir" | tail -n 1)
+  space_gb=$(( (space + 1073741823)/1073741824 ))
+
+  if (( 12884901888 > space )); then
+    error "Not enough free space in $STORAGE, have $space_gb GB available but need at least 12 GB."
+    return 1
+  fi
+
+  local wFile="catalog.cab"
+
+  mkdir -p "$dir"
+
+  { wget "$winCatalog" -O "$dir/$wFile" -q --no-check-certificate; rc=$?; } || :
+  (( rc != 0 )) && error "Failed to download $winCatalog , reason: $rc" && return 1
+
+  cd "$dir"
+
+  if ! cabextract "$wFile" > /dev/null; then
+    cd /run
+    error "Failed to extract CAB file!" && return 1
+  fi
+
+  cd /run
+
+  if [ ! -f "$dir/products.xml" ]; then
+    error "Failed to find products.xml!" && return 1
+  fi
+
+  local esdLang="en-us"
+  local editionName="Professional"
+  local edQuery='//File[Architecture="'${architecture}'"][Edition="'${editionName}'"]'
+
+  echo -e '<Catalog>' > "${dir}/products_filter.xml"
+  xpath -q -n -e "${edQuery}" "${dir}/products.xml" >> "${dir}/products_filter.xml" 2>/dev/null
+  echo -e '</Catalog>'>> "${dir}/products_filter.xml"
+  xpath -q -n -e '//File[LanguageCode="'${esdLang}'"]' "${dir}/products_filter.xml" >"${dir}/esd_edition.xml"
+
+  size=$(stat -c%s "${dir}/esd_edition.xml")
+  if ((size<20)); then
+    error "Invalid esd_edition.xml file!" && return 1
+  fi
+
+  ESD_URL=$(xpath -n -q -e '//FilePath' "${dir}/esd_edition.xml" | sed -E -e 's/<[\/]?FilePath>//g')
+
+  if [ -z "$ESD_URL" ]; then
+    error "Failed to find ESD url!" && return 1
+  fi
+
+  rm -rf "$dir"
+  return 0
+}
+
 downloadImage() {
 
   local iso="$1"
@@ -387,28 +466,53 @@ downloadImage() {
 
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
-    cd "$TMP"
-    { /run/mido.sh "$url"; rc=$?; } || :
-    cd /run
+    #cd "$TMP"
+    #{ /run/mido.sh "$url"; rc=$?; } || :
+    #cd /run
+    rc=5
 
     fKill "progress.sh"
-    (( rc != 0 )) && return 1
+    
+    if (( rc == 0 )); then
 
-  else
+      [ ! -f "$iso" ] && return 1
 
-    # Check if running with interactive TTY or redirected to docker log
-    if [ -t 1 ]; then
-      progress="--progress=bar:noscroll"
-    else
-      progress="--progress=dot:giga"
+      html "Download finished successfully..."
+      return 0    
     fi
 
-    { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
+    if [[ "$VERSION" != "win10x64"* ]] && [[ "$VERSION" != "win11x64" ]]; then
+      return 1
+    fi
 
-    fKill "progress.sh"
-    (( rc != 0 )) && error "Failed to download $url , reason: $rc" && exit 60
+    info "Failed to download $desc via Mido, will try a different method now..."
 
+    ISO="$TMP/$VERSION.esd"
+    file="$ISO"
+
+    /run/progress.sh "$file" "Downloading $desc ([P])..." &
+      
+    if ! getESD "$TMP/esd" "$file"; then
+      return 1
+    fi
+
+    url="$ESD_URL"
+    info "$url"
+    exit 44
+  
   fi
+
+  # Check if running with interactive TTY or redirected to docker log
+  if [ -t 1 ]; then
+    progress="--progress=bar:noscroll"
+  else
+    progress="--progress=dot:giga"
+  fi
+
+  { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
+
+  fKill "progress.sh"
+  (( rc != 0 )) && error "Failed to download $url , reason: $rc" && exit 60
 
   [ ! -f "$iso" ] && return 1
 
