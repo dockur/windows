@@ -12,7 +12,7 @@ RUN apt-get update \
         wimtools \
         cabextract \
         genisoimage \
-        libxml-xpath-perl \
+        libxml2-utils \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
