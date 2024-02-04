@@ -384,7 +384,6 @@ getESD() {
 
   rm -rf "$dir"
   mkdir -p "$dir"
-  rm -f "$file"
 
   space=$(df --output=avail -B 1 "$dir" | tail -n 1)
   space_gb=$(( (space + 1073741823)/1073741824 ))
@@ -419,16 +418,16 @@ getESD() {
   local edQuery='//File[Architecture="'${architecture}'"][Edition="'${editionName}'"]'
 
   echo -e '<Catalog>' > "${dir}/products_filter.xml"
-  xpath -q -n -e "${edQuery}" "${dir}/products.xml" >> "${dir}/products_filter.xml" 2>/dev/null
+  xmllint --nonet --xpath "${edQuery}" "${dir}/products.xml" >> "${dir}/products_filter.xml" 2>/dev/null
   echo -e '</Catalog>'>> "${dir}/products_filter.xml"
-  xpath -q -n -e '//File[LanguageCode="'${esdLang}'"]' "${dir}/products_filter.xml" >"${dir}/esd_edition.xml"
+  xmllint --nonet --xpath '//File[LanguageCode="'${esdLang}'"]' "${dir}/products_filter.xml" >"${dir}/esd_edition.xml"
 
   size=$(stat -c%s "${dir}/esd_edition.xml")
   if ((size<20)); then
-    error "Invalid esd_edition.xml file!" && return 1
+    error "Failed to find Windows product!" && return 1
   fi
 
-  ESD_URL=$(xpath -n -q -e '//FilePath' "${dir}/esd_edition.xml" | sed -E -e 's/<[\/]?FilePath>//g')
+  ESD_URL=$(xmllint --nonet --xpath '//FilePath' "${dir}/esd_edition.xml" | sed -E -e 's/<[\/]?FilePath>//g')
 
   if [ -z "$ESD_URL" ]; then
     error "Failed to find ESD url!" && return 1
@@ -490,6 +489,7 @@ downloadImage() {
 
     ISO="$TMP/$VERSION.esd"
     file="$ISO"
+    rm -f "$file"
 
     /run/progress.sh "$file" "Downloading $desc ([P])..." &
       
