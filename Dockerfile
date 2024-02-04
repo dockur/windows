@@ -10,7 +10,9 @@ RUN apt-get update \
         curl \
         7zip \
         wimtools \
+        cabextract \
         genisoimage \
+        libxml-xpath-perl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
