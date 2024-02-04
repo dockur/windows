@@ -525,16 +525,23 @@ extractESD() {
 
   local iso="$1"
   local dir="$2"
-  local size desc
+  local size size_gb space space_gb desc
 
   desc=$(printVersion "$VERSION")
   local msg="Extracting $desc bootdisk..."
   info "$msg" && html "$msg"
 
   size=$(stat -c%s "$iso")
+  size_gb=$(( (size + 1073741823)/1073741824 ))
+  space=$(df --output=avail -B 1 "$TMP" | tail -n 1)
+  space_gb=$(( (space + 1073741823)/1073741824 ))
 
   if ((size<10000000)); then
     error "Invalid ESD file: Size is smaller than 10 MB" && exit 62
+  fi
+
+  if (( size > space )); then
+    error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB." && exit 63
   fi
 
   rm -rf "$dir"
@@ -605,6 +612,14 @@ extractImage() {
   local dir="$2"
   local desc="downloaded ISO"
   local size size_gb space space_gb
+
+  if [[ "${iso,,}" == *".esd" ]]; then
+    if ! extractESD "$iso" "$dir"; then
+      error "Failed to extract ESD file!"
+      exit 67
+    fi
+    return 0
+  fi
 
   if [[ "$EXTERNAL" != [Yy1]* ]] && [ -z "$CUSTOM" ]; then
     desc=$(printVersion "$VERSION")
