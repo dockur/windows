@@ -100,6 +100,7 @@ CUSTOM="custom.iso"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.IMG"
 [ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.IMG"
 
+ESD_URL=""
 MACHINE="q35"
 TMP="$STORAGE/tmp"
 DIR="$TMP/unpack"
@@ -358,6 +359,74 @@ startInstall() {
   return 0
 }
 
+getESD() {
+
+  local dir="$1"
+  local file="$2"
+  local architecture="x64"
+  local winCatalog size
+
+  case "${VERSION,,}" in
+    win11x64)
+      winCatalog="https://go.microsoft.com/fwlink?linkid=2156292"
+      ;;
+    win10x64)
+      winCatalog="https://go.microsoft.com/fwlink/?LinkId=841361"
+      ;;
+    *)
+      error "Invalid ESD version specified: $VERSION"
+      return 1
+      ;;
+  esac
+
+  local msg="Downloading product information from Microsoft..."
+  info "$msg" && html "$msg"
+
+  rm -rf "$dir"
+  mkdir -p "$dir"
+
+  local wFile="catalog.cab"
+
+  { wget "$winCatalog" -O "$dir/$wFile" -q --no-check-certificate; rc=$?; } || :
+  (( rc != 0 )) && error "Failed to download $winCatalog , reason: $rc" && return 1
+
+  cd "$dir"
+
+  if ! cabextract "$wFile" > /dev/null; then
+    cd /run
+    error "Failed to extract CAB file!" && return 1
+  fi
+
+  cd /run
+
+  if [ ! -f "$dir/products.xml" ]; then
+    error "Failed to find products.xml!" && return 1
+  fi
+
+  local esdLang="en-us"
+  local editionName="Professional"
+  local edQuery='//File[Architecture="'${architecture}'"][Edition="'${editionName}'"]'
+
+  echo -e '<Catalog>' > "${dir}/products_filter.xml"
+  xmllint --nonet --xpath "${edQuery}" "${dir}/products.xml" >> "${dir}/products_filter.xml" 2>/dev/null
+  echo -e '</Catalog>'>> "${dir}/products_filter.xml"
+  xmllint --nonet --xpath '//File[LanguageCode="'${esdLang}'"]' "${dir}/products_filter.xml" >"${dir}/esd_edition.xml"
+
+  size=$(stat -c%s "${dir}/esd_edition.xml")
+  if ((size<20)); then
+    error "Failed to find Windows product!" && return 1
+  fi
+
+  ESD_URL=$(xmllint --nonet --xpath '//FilePath' "${dir}/esd_edition.xml" | sed -E -e 's/<[\/]?FilePath>//g')
+
+  if [ -z "$ESD_URL" ]; then
+    error "Failed to find ESD url!" && return 1
+  fi
+
+  rm -rf "$dir"
+  return 0
+}
+
 downloadImage() {
 
   local iso="$1"
@@ -382,7 +451,6 @@ downloadImage() {
 
   local msg="Downloading $desc..."
   info "$msg" && html "$msg"
-
   /run/progress.sh "$file" "Downloading $desc ([P])..." &
 
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
@@ -392,28 +460,138 @@ downloadImage() {
     cd /run
 
     fKill "progress.sh"
-    (( rc != 0 )) && return 1
 
-  else
+    if (( rc == 0 )); then
 
-    # Check if running with interactive TTY or redirected to docker log
-    if [ -t 1 ]; then
-      progress="--progress=bar:noscroll"
-    else
-      progress="--progress=dot:giga"
+      [ ! -f "$iso" ] && return 1
+
+      html "Download finished successfully..."
+      return 0
     fi
 
-    { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
+    if [[ "$VERSION" != "win10x64"* ]] && [[ "$VERSION" != "win11x64" ]]; then
+      return 1
+    fi
 
-    fKill "progress.sh"
-    (( rc != 0 )) && error "Failed to download $url , reason: $rc" && exit 60
+    info "Failed to download $desc using Mido, will try a different method now..."
+
+    ISO="$TMP/$VERSION.esd"
+    iso="$ISO"
+    file="$ISO"
+    rm -f "$iso"
+
+    if ! getESD "$TMP/esd" "$iso"; then
+      return 1
+    fi
+
+    url="$ESD_URL"
+    msg="Downloading $desc..."
+    info "$msg" && html "$msg"
+    /run/progress.sh "$iso" "Downloading $desc ([P])..." &
 
   fi
+
+  # Check if running with interactive TTY or redirected to docker log
+  if [ -t 1 ]; then
+    progress="--progress=bar:noscroll"
+  else
+    progress="--progress=dot:giga"
+  fi
+
+  { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
+
+  fKill "progress.sh"
+  (( rc != 0 )) && error "Failed to download $url , reason: $rc" && exit 60
 
   [ ! -f "$iso" ] && return 1
 
   html "Download finished successfully..."
   return 0
+}
+
+extractESD() {
+
+  local iso="$1"
+  local dir="$2"
+  local size size_gb space space_gb desc
+
+  desc=$(printVersion "$VERSION")
+  local msg="Extracting $desc bootdisk..."
+  info "$msg" && html "$msg"
+
+  size=16106127360
+  size_gb=$(( (size + 1073741823)/1073741824 ))
+  space=$(df --output=avail -B 1 "$TMP" | tail -n 1)
+  space_gb=$(( (space + 1073741823)/1073741824 ))
+
+  if ((size<10000000)); then
+    error "Invalid ESD file: Size is smaller than 10 MB" && exit 62
+  fi
+
+  if (( size > space )); then
+    error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB." && exit 63
+  fi
+
+  rm -rf "$dir"
+  mkdir -p "$dir"
+
+  local esdImageCount
+  esdImageCount=$(wimlib-imagex info "${iso}" | awk '/Image Count:/ {print $3}')
+
+  wimlib-imagex apply "$iso" 1 "${dir}" --quiet 2>/dev/null || {
+    retVal=$?
+    error "Extracting bootdisk failed" && return $retVal
+  }
+
+  local bootWimFile="${dir}/sources/boot.wim"
+  local installWimFile="${dir}/sources/install.wim"
+
+  local msg="Extracting $desc environment..."
+  info "$msg" && html "$msg"
+
+  wimlib-imagex export "${iso}" 2 "${bootWimFile}" --compress=LZX --chunk-size 32K --quiet || {
+    retVal=$?
+    error "Adding WinPE failed" && return ${retVal}
+  }
+
+  local msg="Extracting $desc setup..."
+  info "$msg" && html "$msg"
+
+  wimlib-imagex export "${iso}" 3 "$bootWimFile" --compress=LZX --chunk-size 32K --boot --quiet || {
+   retVal=$?
+   error "Adding Windows Setup failed" && return ${retVal}
+  }
+
+  local msg="Extracting $desc image..."
+  info "$msg" && html "$msg"
+
+  local edition imageIndex imageEdition
+
+  case "${VERSION,,}" in
+    win11x64)
+      edition="11 pro"
+      ;;
+    win10x64)
+      edition="10 pro"
+      ;;
+    *)
+      error "Invalid version specified: $VERSION"
+      return 1
+      ;;
+  esac
+
+  for (( imageIndex=4; imageIndex<=esdImageCount; imageIndex++ )); do
+    imageEdition=$(wimlib-imagex info "${iso}" ${imageIndex} | grep '^Description:' | sed 's/Description:[ \t]*//')
+    [[ "${imageEdition,,}" != *"$edition"* ]] && continue
+    wimlib-imagex export "${iso}" ${imageIndex} "${installWimFile}" --compress=LZMS --chunk-size 128K --quiet || {
+      retVal=$?
+      error "Addition of ${imageIndex} to the image failed" && return $retVal
+    }
+    return 0
+  done
+
+  error "Failed to find product in install.wim!"
+  return 1
 }
 
 extractImage() {
@@ -422,6 +600,14 @@ extractImage() {
   local dir="$2"
   local desc="downloaded ISO"
   local size size_gb space space_gb
+
+  if [[ "${iso,,}" == *".esd" ]]; then
+    if ! extractESD "$iso" "$dir"; then
+      error "Failed to extract ESD file!"
+      exit 67
+    fi
+    return 0
+  fi
 
   if [[ "$EXTERNAL" != [Yy1]* ]] && [ -z "$CUSTOM" ]; then
     desc=$(printVersion "$VERSION")
