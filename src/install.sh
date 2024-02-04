@@ -384,6 +384,7 @@ getESD() {
 
   rm -rf "$dir"
   mkdir -p "$dir"
+  rm -f "$file"
 
   space=$(df --output=avail -B 1 "$dir" | tail -n 1)
   space_gb=$(( (space + 1073741823)/1073741824 ))
