@@ -521,6 +521,84 @@ downloadImage() {
   return 0
 }
 
+extractESD() {
+
+  local iso="$1"
+  local dir="$2"
+  local size desc
+
+  desc=$(printVersion "$VERSION")
+  local msg="Extracting $desc bootdisk..."
+  info "$msg" && html "$msg"
+
+  size=$(stat -c%s "$iso")
+
+  if ((size<10000000)); then
+    error "Invalid ESD file: Size is smaller than 10 MB" && exit 62
+  fi
+
+  rm -rf "$dir"
+  mkdir -p "$dir"
+
+  local esdImageCount
+  esdImageCount=$(wimlib-imagex info "${iso}" | awk '/Image Count:/ {print $3}')
+
+  wimlib-imagex apply "$iso" 1 "${dir}" --nocheck --compress=none --quiet 2>/dev/null || {
+    retVal=$?
+    error "Extract of boot files failed" && return $retVal
+  }
+
+  local bootWimFile="${dir}/sources/boot.wim"
+  local installWimFile="${dir}/sources/install.wim"
+
+  local msg="Extracting $desc environment..."
+  info "$msg" && html "$msg"
+
+  wimlib-imagex export "${iso}" 2 "${bootWimFile}" --nocheck --compress=none --quiet || {
+    retVal=$?
+    error "Adding WinPE failed" && return ${retVal}
+  }
+
+  local msg="Extracting $desc setup..."
+  info "$msg" && html "$msg"
+
+  wimlib-imagex export "${iso}" 3 "$bootWimFile" --nocheck --compress=none --boot --quiet || {
+   retVal=$?
+   error "Adding Windows Setup failed" && return ${retVal}
+  }
+
+  local msg="Extracting $desc image..."
+  info "$msg" && html "$msg"
+
+  local edition imageIndex imageEdition
+
+  case "${VERSION,,}" in
+    win11arm)
+      edition="11 pro"
+      ;;
+    win10arm)
+      edition="10 pro"
+      ;;
+    *)
+      error "Invalid version specified: $VERSION"
+      return 1
+      ;;
+  esac
+
+  for (( imageIndex=4; imageIndex<=esdImageCount; imageIndex++ )); do
+    imageEdition=$(wimlib-imagex info "${iso}" ${imageIndex} | grep '^Description:' | sed 's/Description:[ \t]*//')
+    error "$imageEdition"
+    [[ "${imageEdition,,}" != *"$edition"* ]] && continue
+    wimlib-imagex export "${iso}" ${imageIndex} "${installWimFile}" --nocheck --compress=none --quiet || {
+      retVal=$?
+      error "Addition of ${imageIndex} to the image failed" && return $retVal
+    }
+    break
+  done
+
+  return 0
+}
+
 extractImage() {
 
   local iso="$1"
