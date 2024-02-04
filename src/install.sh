@@ -363,7 +363,7 @@ getESD() {
 
   local dir="$1"
   local file="$2"
-  local architecture="AMD64"
+  local architecture="x64"
   local winCatalog space space_gb size
 
   case "${VERSION,,}" in
