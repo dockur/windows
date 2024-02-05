@@ -41,8 +41,8 @@ finish() {
     done
   fi
 
-  if [ ! -f "$STORAGE/windows.old" ]; then
-    if [ ! -f "$STORAGE/windows.boot" ] && [ -f "$QEMU_PTY" ]; then
+  if [ ! -f "$STORAGE/windows.old" ] && [ ! -f "$STORAGE/windows.boot" ]; then
+    if [ -f "$QEMU_PTY" ]; then
       if grep -Fq "$BOOT_LINE" "$QEMU_PTY"; then
         rm -f "$STORAGE/$BASE"
         touch "$STORAGE/windows.boot"
@@ -126,8 +126,8 @@ _graceful_shutdown() {
     finish "$code" && return "$code"
   fi
 
-  if [ ! -f "$STORAGE/windows.old" ]; then
-    if [ ! -f "$STORAGE/windows.boot" ] && [ -f "$QEMU_PTY" ]; then
+  if [ ! -f "$STORAGE/windows.old" ] && [ ! -f "$STORAGE/windows.boot" ]; then
+    if [ -f "$QEMU_PTY" ]; then
       if ! grep -Fq "$BOOT_LINE" "$QEMU_PTY"; then
         info "Cannot send ACPI signal during Windows setup, aborting..."
         finish "$code" && return "$code"
