@@ -137,18 +137,18 @@ _graceful_shutdown() {
     finish "$code" && return "$code"
   fi
 
+  local abort="Cannot send ACPI signal during Windows setup, aborting..."
+
   if [ -f "$QEMU_PTY" ] && [ ! -f "$STORAGE/windows.boot" ]; then
     if [ ! -f "$STORAGE/windows.old" ]; then
       if ! grep -Fq "$BOOT_LINE" "$QEMU_PTY"; then
-        info "Cannot send ACPI signal during Windows setup, aborting..."
-        finish "$code" && return "$code"
+        info "$abort" && finish "$code" && return "$code"
       fi
     else
       local last
       last=$(tail -n 1 "$QEMU_PTY")
       if [[ "${last,,}" != "${BIOS_LINE,,}" ]]; then
-        info "Cannot send ACPI signal during Windows setup, aborting..."
-        finish "$code" && return "$code"
+        info "$abort" && finish "$code" && return "$code"
       fi    
     fi
   fi
