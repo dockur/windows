@@ -11,8 +11,10 @@ QEMU_PTY="/run/shm/qemu.pty"
 QEMU_LOG="/run/shm/qemu.log"
 QEMU_OUT="/run/shm/qemu.out"
 QEMU_END="/run/shm/qemu.end"
-BOOT_LINE="Windows Boot Manager"
 
+BIOS_LINE="Booting from Hard Disk..."
+BOOT_LINE="Windows Boot Manager"
+ 
 rm -f /run/shm/qemu.*
 touch "$QEMU_LOG"
 
@@ -41,11 +43,20 @@ finish() {
     done
   fi
 
-  if [ ! -f "$STORAGE/windows.old" ] && [ ! -f "$STORAGE/windows.boot" ]; then
+  if [ -f "$STORAGE/$BASE" ] && [ ! -f "$STORAGE/windows.boot" ]; then
     if [ -f "$QEMU_PTY" ]; then
-      if grep -Fq "$BOOT_LINE" "$QEMU_PTY"; then
-        rm -f "$STORAGE/$BASE"
-        touch "$STORAGE/windows.boot"
+      if [ ! -f "$STORAGE/windows.old" ]; then
+        if grep -Fq "$BOOT_LINE" "$QEMU_PTY"; then
+          rm -f "$STORAGE/$BASE"
+          touch "$STORAGE/windows.boot"
+        fi
+      else
+        local last
+        last=$(tail -n 1 "$QEMU_PTY")
+        if [[ "${last,,}" == "${BIOS_LINE,,}" ]]; then
+          rm -f "$STORAGE/$BASE"
+          touch "$STORAGE/windows.boot"
+        fi
       fi
     fi
   fi
@@ -126,12 +137,19 @@ _graceful_shutdown() {
     finish "$code" && return "$code"
   fi
 
-  if [ ! -f "$STORAGE/windows.old" ] && [ ! -f "$STORAGE/windows.boot" ]; then
-    if [ -f "$QEMU_PTY" ]; then
+  if [ -f "$QEMU_PTY" ] && [ ! -f "$STORAGE/windows.boot" ]; then
+    if [ ! -f "$STORAGE/windows.old" ]; then
       if ! grep -Fq "$BOOT_LINE" "$QEMU_PTY"; then
         info "Cannot send ACPI signal during Windows setup, aborting..."
         finish "$code" && return "$code"
       fi
+    else
+      local last
+      last=$(tail -n 1 "$QEMU_PTY")
+      if [[ "${last,,}" != "${BIOS_LINE,,}" ]]; then
+        info "Cannot send ACPI signal during Windows setup, aborting..."
+        finish "$code" && return "$code"
+      fi    
     fi
   fi
 
