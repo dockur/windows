@@ -26,7 +26,7 @@ ready() {
 
   [ -f "$STORAGE/windows.boot" ] && return 0
   [ ! -f "$QEMU_PTY" ] && return 1
-  
+
   if [ -f "$STORAGE/windows.old" ]; then
     local last
     local bios="Booting from Hard Disk..."
@@ -40,7 +40,7 @@ ready() {
   local line="Windows Boot Manager"
   if grep -Fq "$line" "$QEMU_PTY"; then
     return 0
-  fi  
+  fi
 
   return 1
 }
