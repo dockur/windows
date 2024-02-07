@@ -9,7 +9,10 @@ RUN apt-get update \
     && apt-get --no-install-recommends -y install \
         curl \
         7zip \
+        wsdd \
+        samba \
         wimtools \
+        dos2unix \
         cabextract \
         genisoimage \
         libxml2-utils \
