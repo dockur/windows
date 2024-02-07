@@ -3,6 +3,10 @@ set -Eeuo pipefail
 
 [[ "$DHCP" == [Yy1]* ]] && return 0
 
+SHARE="$STORAGE/shared"
+mkdir -p "$SHARE"
+chmod -R 777 "$SHARE"
+
 {      echo "[global]"
         echo "    server string = Dockur"
         echo "    netbios name = dockur"
@@ -20,9 +24,9 @@ set -Eeuo pipefail
         echo "    printcap name = /dev/null"
         echo "    disable spoolss = yes"
         echo ""
-        echo "[Storage]"
-        echo "    path = /storage"
-        echo "    comment = Storage"
+        echo "[Shared]"
+        echo "    path = $SHARE"
+        echo "    comment = Shared"
         echo "    writable = yes"
         echo "    guest ok = yes"
         echo "    guest only = yes"
