@@ -9,6 +9,8 @@ RUN apt-get update \
     && apt-get --no-install-recommends -y install \
         curl \
         7zip \
+        wsdd \
+        samba \
         wimtools \
         cabextract \
         genisoimage \
