@@ -4,15 +4,15 @@ set -Eeuo pipefail
 [[ "$DHCP" == [Yy1]* ]] && return 0
 
 {      echo "[global]"
+        echo "    server string = Dockur"
         echo "    netbios name = dockur"
         echo "    workgroup = WORKGROUP"
-        echo "    server string = Dockur"
         echo "    interfaces = dockerbridge"
         echo "    bind interfaces only = yes"
         echo "    security = user"
         echo "    guest account = nobody"
         echo "    map to guest = Bad User"
-        echo "    server min protocol = SMB2"
+        echo "    #server min protocol = SMB2"
         echo ""
         echo "    # disable printing services"
         echo "    load printers = no"
@@ -20,17 +20,17 @@ set -Eeuo pipefail
         echo "    printcap name = /dev/null"
         echo "    disable spoolss = yes"
         echo ""
-        echo "[data]"
+        echo "[Storage]"
         echo "    path = /storage"
         echo "    comment = Storage"
         echo "    writable = yes"
         echo "    guest ok = yes"
         echo "    guest only = yes"
-        echo "    create mode = 0777"
-        echo "    directory mode = 0777"
-  } > "/etc/samba/smb.conf"
+        echo "    force user = root"
+        echo "    force group = root"
+} > "/etc/samba/smb.conf"
 
-  smbd -D
-  wsdd -i dockerbridge -n Host -p
+smbd -D
+wsdd -i dockerbridge -p -n "host.local" &
 
-  return 0
+return 0
