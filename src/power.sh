@@ -29,8 +29,8 @@ ready() {
 
   if [ -f "$STORAGE/windows.old" ]; then
     local last
-    local bios="Booting from Hard Disk"
-    last=$(grep "^B.*" "$QEMU_PTY" | tail -1)
+    local bios="Booting from Hard"
+    last=$(grep "^Booting.*" "$QEMU_PTY" | tail -1)
     if [[ "${last,,}" == "${bios,,}"* ]]; then
       return 0
     fi
