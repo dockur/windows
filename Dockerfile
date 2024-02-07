@@ -12,6 +12,7 @@ RUN apt-get update \
         wsdd \
         samba \
         wimtools \
+        dos2unix \
         cabextract \
         genisoimage \
         libxml2-utils \
