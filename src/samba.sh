@@ -4,8 +4,11 @@ set -Eeuo pipefail
 [[ "$DHCP" == [Yy1]* ]] && return 0
 
 SHARE="$STORAGE/shared"
+
 mkdir -p "$SHARE"
 chmod -R 777 "$SHARE"
+
+SAMBA="/etc/samba/smb.conf"
 
 {      echo "[global]"
         echo "    server string = Dockur"
@@ -32,29 +35,28 @@ chmod -R 777 "$SHARE"
         echo "    guest only = yes"
         echo "    force user = root"
         echo "    force group = root"
-} > "/etc/samba/smb.conf"
+} > "$SAMBA"
 
-{      echo "------------------------------------------------" 
-        echo "$APP for Docker v$(</run/version)..."
-        echo "For support visit $SUPPORT"
-        echo "------------------------------------------------"
+{      echo "--------------------------------------------------------" 
+        echo "  $APP for Docker v$(</run/version)..."
+        echo "  For support visit $SUPPORT"
+        echo "--------------------------------------------------------"
         echo ""
         echo "Using this folder you can share files with the host machine."
         echo ""
         echo "To change the storage location, include the following bind mount in your compose file:"
         echo ""
-        echo "  volumes:"
-        echo "    - /home/user/example:/storage/shared"
+        echo "    volumes:"
+        echo "      - \"/home/user/example:/storage/shared\""
         echo ""
         echo "Or in your run command:"
         echo ""
-        echo "  -v \"/home/user/example:/storage/shared\""
+        echo "    -v \"/home/user/example:/storage/shared\""
         echo ""
         echo "Replace the example path /home/user/example with the desired storage folder."
         echo ""
-} > "$SHARE/readme.txt"
+} | unix2dos > "$SHARE/readme.txt"
 
-unix2dos "$SHARE/readme.txt"
 smbd -D
 wsdd -i dockerbridge -p -n "host.local" &
 
