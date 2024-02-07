@@ -54,6 +54,7 @@ chmod -R 777 "$SHARE"
         echo ""
 } > "$SHARE/readme.txt"
 
+unix2dos "$SHARE/readme.txt"
 smbd -D
 wsdd -i dockerbridge -p -n "host.local" &
 
