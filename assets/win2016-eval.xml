@@ -318,6 +318,11 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>12</Order>
+          <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" /v "AllowInsecureGuestAuth" /t REG_DWORD /d 1 /f</CommandLine>
+          <Description>Allow guest access to network shares</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>13</Order>
           <CommandLine>msiexec /i E:\virtio-win-gt-x64.msi /qb!</CommandLine>
           <Description>Install VirtIO drivers</Description>
         </SynchronousCommand>
