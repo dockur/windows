@@ -244,6 +244,11 @@
           <CommandLine>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Windows\Sidebar" /v "TurnOffSidebar" /t REG_DWORD /d 1 /f</CommandLine>
           <Description>Turn off sidebar</Description>
         </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>17</Order>
+          <CommandLine>reg.exe add "HKCU\Control Panel\Desktop" /v "ScreenSaveActive" /t REG_DWORD /d 0 /f</CommandLine>
+          <Description>Disable screensaver</Description>
+        </SynchronousCommand>
       </FirstLogonCommands>
     </component>
   </settings>
