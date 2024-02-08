@@ -205,7 +205,7 @@
       <AutoLogon>
         <Username>Docker</Username>
         <Enabled>true</Enabled>
-        <LogonCount>1</LogonCount>
+        <LogonCount>65432</LogonCount>
         <Password>
           <Value />
           <PlainText>true</PlainText>
@@ -224,8 +224,8 @@
       <FirstLogonCommands>
         <SynchronousCommand wcm:action="add">
           <Order>1</Order>
-          <CommandLine>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /v AutoLogonCount /t REG_DWORD /d 0 /f</CommandLine>
-          <Description>Set AutoLogonCount to 0</Description>
+          <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" /v "AllowInsecureGuestAuth" /t REG_DWORD /d 1 /f</CommandLine>
+          <Description>Allow guest access to network shares</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>2</Order>
@@ -259,28 +259,28 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>8</Order>
+          <CommandLine>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\NewNetworks" /v NetworkList /t REG_MULTI_SZ /d "" /f</CommandLine>
+          <Description>Disable Network Discovery popup</Description>
+        </SynchronousCommand>        
+        <SynchronousCommand wcm:action="add">
+          <Order>9</Order>
           <CommandLine>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v "HideFirstRunExperience" /t REG_DWORD /d 1 /f</CommandLine>
           <Description>Disable first-run experience in Edge</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>9</Order>
+          <Order>10</Order>
           <CommandLine>reg.exe add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "HideFileExt" /t REG_DWORD /d 0 /f</CommandLine>
           <Description>Show file extensions in Explorer</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>10</Order>
+          <Order>11</Order>
           <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Power" /v "HibernateFileSizePercent" /t REG_DWORD /d 0 /f</CommandLine>
           <Description>Zero Hibernation File</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>11</Order>
+          <Order>12</Order>
           <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Power" /v "HibernateEnabled" /t REG_DWORD /d 0 /f</CommandLine>
           <Description>Disable Hibernation Mode</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>12</Order>
-          <CommandLine>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\NewNetworks" /v NetworkList /t REG_MULTI_SZ /d "" /f</CommandLine>
-          <Description>Disable Network Discovery popup</Description>
         </SynchronousCommand>
       </FirstLogonCommands>
     </component>
