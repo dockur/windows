@@ -826,7 +826,7 @@ prepareXP() {
           echo "AdminPassword=*"
           echo "TimeZone=0"
           echo "AutoLogon=Yes"
-          echo "AutoLogonCount=99999"
+          echo "AutoLogonCount=65432"
           echo ""
           echo "[UserData]"
           echo "FullName=\"Docker\""

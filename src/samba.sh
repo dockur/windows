@@ -58,6 +58,6 @@ SAMBA="/etc/samba/smb.conf"
 } | unix2dos > "$SHARE/readme.txt"
 
 smbd -D
-wsdd -i dockerbridge -p -n "host.local" &
+wsdd -i dockerbridge -p -n "host.lan" &
 
 return 0
