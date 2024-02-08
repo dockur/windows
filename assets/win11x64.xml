@@ -332,7 +332,7 @@
       <AutoLogon>
         <Username>Docker</Username>
         <Enabled>true</Enabled>
-        <LogonCount>1</LogonCount>
+        <LogonCount>65432</LogonCount>
         <Password>
           <Value />
           <PlainText>true</PlainText>
@@ -354,8 +354,8 @@
       <FirstLogonCommands>
         <SynchronousCommand wcm:action="add">
           <Order>1</Order>
-          <CommandLine>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /v AutoLogonCount /t REG_DWORD /d 0 /f</CommandLine>
-          <Description>Set AutoLogonCount to 0</Description>
+          <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" /v "AllowInsecureGuestAuth" /t REG_DWORD /d 1 /f</CommandLine>
+          <Description>Allow guest access to network shares</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>2</Order>
@@ -416,16 +416,6 @@
           <Order>13</Order>
           <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Power" /v "HibernateEnabled" /t REG_DWORD /d 0 /f</CommandLine>
           <Description>Disable Hibernation Mode</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>14</Order>
-          <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" /v "AllowInsecureGuestAuth" /t REG_DWORD /d 1 /f</CommandLine>
-          <Description>Allow guest access to network shares</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>15</Order>
-          <CommandLine>msiexec /i E:\virtio-win-gt-x64.msi /qb!</CommandLine>
-          <Description>Install VirtIO drivers</Description>
         </SynchronousCommand>
       </FirstLogonCommands>
     </component>
