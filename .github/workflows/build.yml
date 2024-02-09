@@ -92,3 +92,15 @@ jobs:
         uses: action-pack/bump@v2
         with:
           token: ${{ secrets.REPO_ACCESS_TOKEN }}
+      -
+        name: Send mail
+        uses: action-pack/send-mail@v1
+        with:
+          to: ${{secrets.MAILTO}}
+          from: Github Actions <${{secrets.MAILTO}}>
+          connection_url: ${{secrets.MAIL_CONNECTION}}
+          subject: Build of ${{ github.event.repository.name }} v${{ steps.meta.outputs.version }} completed
+          body: |
+              The build job of ${{ github.event.repository.name }} v${{ steps.meta.outputs.version }} was completed successfully! 
+              
+              See https://github.com/${{ github.repository }}/actions for more information.
