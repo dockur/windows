@@ -15,9 +15,9 @@ Windows in a docker container.
 
 ## Features
 
- - ISO downloader
- - KVM acceleration
- - Web-based viewer
+- ISO downloader
+- KVM acceleration
+- Web-based viewer
 
 ## Usage
 
@@ -49,19 +49,19 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
 
 ## FAQ
 
-* ### How do I use it?
+- ### How do I use it?
 
   Very simple! These are the steps:
-  
+
   - Start the container and connect to [port 8006](http://localhost:8006) using your web browser.
 
   - Sit back and relax while the magic happens, the whole installation will be performed fully automatic.
 
   - Once you see the desktop, your Windows installation is ready for use.
-  
+
   Enjoy your brand new machine, and don't forget to star this repo!
 
-* ### How do I select the Windows version?
+- ### How do I select the Windows version?
 
   By default, Windows 11 will be installed. But you can add the `VERSION` environment variable to your compose file, in order to specify an alternative Windows version to be downloaded:
 
@@ -71,30 +71,30 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
   ```
 
   Select from the values below:
-  
-  | **Value**  | **Description**  | **Source**  | **Transfer**  | **Size**  |
-  |---|---|---|---|---|
-  | `win11`   | Windows 11 Pro         | Microsoft    | Fast    | 6.4 GB    |
-  | `win10`   | Windows 10 Pro         | Microsoft    | Fast    | 5.8 GB    |
-  | `ltsc10`  | Windows 10 LTSC        | Microsoft    | Fast    | 4.6 GB    |
-  | `win81`   | Windows 8.1 Pro        | Microsoft    | Fast    | 4.2 GB    |
-  | `win7`    | Windows 7 SP1          | Bob Pony     | Medium  | 3.0 GB    |
-  | `vista`   | Windows Vista SP2      | Bob Pony     | Medium  | 3.6 GB    |
-  | `winxp`   | Windows XP SP3         | Bob Pony     | Medium  | 0.6 GB    |
-  ||||||
-  | `2022`    | Windows Server 2022    | Microsoft    | Fast    | 4.7 GB    |
-  | `2019`    | Windows Server 2019    | Microsoft    | Fast    | 5.3 GB    |
-  | `2016`    | Windows Server 2016    | Microsoft    | Fast    | 6.5 GB    |
-  | `2012`    | Windows Server 2012 R2 | Microsoft    | Fast    | 4.3 GB    |
-  | `2008`    | Windows Server 2008 R2 | Microsoft    | Fast    | 3.0 GB    |
-  ||||||
-  | `core11`  | Tiny 11 Core           | Archive.org  | Slow    | 2.1 GB    |
-  | `tiny11`  | Tiny 11                | Archive.org  | Slow    | 3.8 GB    |
-  | `tiny10`  | Tiny 10                | Archive.org  | Slow    | 3.6 GB    |
+
+  | **Value** | **Description**        | **Source**  | **Transfer** | **Size** |
+  | --------- | ---------------------- | ----------- | ------------ | -------- |
+  | `win11`   | Windows 11 Pro         | Microsoft   | Fast         | 6.4 GB   |
+  | `win10`   | Windows 10 Pro         | Microsoft   | Fast         | 5.8 GB   |
+  | `ltsc10`  | Windows 10 LTSC        | Microsoft   | Fast         | 4.6 GB   |
+  | `win81`   | Windows 8.1 Pro        | Microsoft   | Fast         | 4.2 GB   |
+  | `win7`    | Windows 7 SP1          | Bob Pony    | Medium       | 3.0 GB   |
+  | `vista`   | Windows Vista SP2      | Bob Pony    | Medium       | 3.6 GB   |
+  | `winxp`   | Windows XP SP3         | Bob Pony    | Medium       | 0.6 GB   |
+  |           |                        |             |              |          |
+  | `2022`    | Windows Server 2022    | Microsoft   | Fast         | 4.7 GB   |
+  | `2019`    | Windows Server 2019    | Microsoft   | Fast         | 5.3 GB   |
+  | `2016`    | Windows Server 2016    | Microsoft   | Fast         | 6.5 GB   |
+  | `2012`    | Windows Server 2012 R2 | Microsoft   | Fast         | 4.3 GB   |
+  | `2008`    | Windows Server 2008 R2 | Microsoft   | Fast         | 3.0 GB   |
+  |           |                        |             |              |          |
+  | `core11`  | Tiny 11 Core           | Archive.org | Slow         | 2.1 GB   |
+  | `tiny11`  | Tiny 11                | Archive.org | Slow         | 3.8 GB   |
+  | `tiny10`  | Tiny 10                | Archive.org | Slow         | 3.6 GB   |
 
   To install ARM64 versions of Windows use [dockur/windows-arm](https://github.com/dockur/windows-arm/).
 
-* ### How do I increase the amount of CPU or RAM?
+- ### How do I increase the amount of CPU or RAM?
 
   By default, 2 CPU cores and 4 GB of RAM are allocated to the container, as those are the minimum requirements of Windows 11.
 
@@ -106,7 +106,7 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
     CPU_CORES: "4"
   ```
 
-* ### How do I change the size of the disk?
+- ### How do I change the size of the disk?
 
   To expand the default size of 64 GB, add the `DISK_SIZE` setting to your compose file and set it to your preferred capacity:
 
@@ -114,10 +114,10 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
   environment:
     DISK_SIZE: "256G"
   ```
-  
+
   This can also be used to resize the existing disk to a larger capacity without any data loss.
-  
-* ### How do I change the storage location?
+
+- ### How do I change the storage location?
 
   To change the storage location, include the following bind mount in your compose file:
 
@@ -128,16 +128,16 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
 
   Replace the example path `/var/win` with the desired storage folder.
 
-* ### How do I share files with the host?
+- ### How do I share files with the host?
 
   Open File Explorer and click on the Network section, you will see a computer called `host.lan`, double-click it and it will show a folder called `Data`.
 
   Inside this folder you can access any files that are placed in `/storage/shared` (see above) on the host.
 
-* ### How do I install a custom image?
+- ### How do I install a custom image?
 
   In order to download a custom ISO image, start a clean container with the URL specified in the `VERSION` environment variable:
-  
+
   ```yaml
   environment:
     VERSION: "https://example.com/win.iso"
@@ -145,7 +145,7 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
 
   Alternatively, you can also rename a local file to `custom.iso` and place it in an empty `/storage` folder to skip the download.
 
-* ### How do I perform a manual installation?
+- ### How do I perform a manual installation?
 
   It's best to use the automatic installation, as it optimizes various settings for use with this container.
 
@@ -174,9 +174,9 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
 
   Enjoy your brand new machine, and don't forget to star this repo!
 
-* ### How do I assign an individual IP address to the container?
+- ### How do I assign an individual IP address to the container?
 
-  By default, the container uses bridge networking, which shares the IP address with the host. 
+  By default, the container uses bridge networking, which shares the IP address with the host.
 
   If you want to assign an individual IP address to the container, you can create a macvlan network as follows:
 
@@ -187,8 +187,8 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
       --ip-range=192.168.0.100/28 \
       -o parent=eth0 vlan
   ```
-  
-  Be sure to modify these values to match your local subnet. 
+
+  Be sure to modify these values to match your local subnet.
 
   Once you have created the network, change your compose file to look as follows:
 
@@ -205,12 +205,12 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
     vlan:
       external: true
   ```
- 
+
   An added benefit of this approach is that you won't have to perform any port mapping anymore, since all ports will be exposed by default.
 
   Please note that this IP address won't be accessible from the Docker host due to the design of macvlan, which doesn't permit communication between the two. If this is a concern, you need to create a [second macvlan](https://blog.oddbit.com/post/2018-03-12-using-docker-macvlan-networks/#host-access) as a workaround.
 
-* ### How can Windows acquire an IP address from my router?
+- ### How can Windows acquire an IP address from my router?
 
   After configuring the container for macvlan (see above), it is possible for Windows to become part of your home network by requesting an IP from your router, just like a real PC.
 
@@ -220,12 +220,12 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
   environment:
     DHCP: "Y"
   device_cgroup_rules:
-    - 'c *:* rwm'
+    - "c *:* rwm"
   ```
 
   Please note that in this mode, the container and Windows will each have their own separate IPs. The container will keep the macvlan IP, and Windows will use the DHCP IP.
-  
-* ### How do I pass-through a disk?
+
+- ### How do I pass-through a disk?
 
   It is possible to pass-through disk devices directly by adding them to your compose file in this way:
 
@@ -240,7 +240,7 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
 
   Use `DEVICE` if you want it to become your main drive, and use `DEVICE2` and higher to add them as secondary drives.
 
-* ### How do I pass-through a USB device?
+- ### How do I pass-through a USB device?
 
   To pass-through a USB device, first lookup its vendor and product id via the `lsusb` command, then add them to your compose file like this:
 
@@ -250,8 +250,8 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
   devices:
     - /dev/bus/usb
   ```
-  
-* ### How do I verify if my system supports KVM?
+
+- ### How do I verify if my system supports KVM?
 
   To verify if your system supports KVM, run the following commands:
 
@@ -262,11 +262,14 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
 
   If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check the virtualization settings in the BIOS.
 
-* ### Is this project legal?
+  **If you receive an "OK" message, it indicates that your system supports KVM. However, if it is not functioning properly, try running Docker with sudo privilege.**
+
+- ### Is this project legal?
 
   Yes, this project contains only open-source code and does not distribute any copyrighted material. Neither does it try to circumvent any copyright protection measures. So under all applicable laws, this project would be considered legal.
 
 ## Stars
+
 [![Stars](https://starchart.cc/dockur/windows.svg?variant=adaptive)](https://starchart.cc/dockur/windows)
 
 ## Disclaimer
@@ -276,7 +279,6 @@ The product names, logos, brands, and other trademarks referred to within this p
 [build_url]: https://github.com/dockur/windows/
 [hub_url]: https://hub.docker.com/r/dockurr/windows/
 [tag_url]: https://hub.docker.com/r/dockurr/windows/tags
-
 [Build]: https://github.com/dockur/windows/actions/workflows/build.yml/badge.svg
 [Size]: https://img.shields.io/docker/image-size/dockurr/windows/latest?color=066da5&label=size
 [Pulls]: https://img.shields.io/docker/pulls/dockurr/windows.svg?style=flat&label=pulls&logo=docker
