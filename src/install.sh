@@ -90,8 +90,9 @@ if [[ "${VERSION,,}" == "tiny10" ]]; then
   VERSION="https://archive.org/download/tiny-10-23-h2/tiny10%20x64%2023h2.iso"
 fi
 
-CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso | head -n 1 | xargs basename)
-[ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.img | head -n 1 | xargs basename)
+CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso -printf "%f\n" | head -n 1)
+[ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname boot.iso -printf "%f\n" | head -n 1)
+[ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.img -printf "%f\n" | head -n 1)
 
 ESD_URL=""
 MACHINE="q35"
