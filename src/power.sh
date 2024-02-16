@@ -50,6 +50,8 @@ finish() {
   local pid
   local reason=$1
 
+  touch "$QEMU_END"
+
   if [ -f "$QEMU_PID" ]; then
 
     pid=$(<"$QEMU_PID")
