@@ -797,7 +797,8 @@ prepareXP() {
   [[ "${arch,,}" == "amd64" ]] && key="B66VY-4D94T-TPPD4-43F72-8X4FY"
 
   local sif="$target/WINNT.SIF"
-  {       echo "[Data]"
+
+  {      echo "[Data]"
           echo "AutoPartition=1"
           echo "MsDosInitiated=\"0\""
           echo "UnattendedInstall=\"Yes\""
@@ -850,7 +851,7 @@ prepareXP() {
           echo ""
           echo "[TerminalServices]"
           echo "AllowConnections=1"
-  } > "$sif"
+  } | unix2dos > "$sif"
 
   return 0
 }
