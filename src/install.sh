@@ -90,15 +90,8 @@ if [[ "${VERSION,,}" == "tiny10" ]]; then
   VERSION="https://archive.org/download/tiny-10-23-h2/tiny10%20x64%2023h2.iso"
 fi
 
-CUSTOM="custom.iso"
-
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.iso"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.ISO"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.ISO"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.img"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.img"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.IMG"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.IMG"
+CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso | head -n 1 | xargs basename)
+[ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.img | head -n 1 | xargs basename)
 
 ESD_URL=""
 MACHINE="q35"
@@ -202,31 +195,6 @@ getVersion() {
   fi
 
   echo "$detected"
-  return 0
-}
-
-replaceXML() {
-
-  local dir="$1"
-  local asset="$2"
-
-  local path="$dir/autounattend.xml"
-  [ -f "$path" ] && cp "$asset" "$path"
-  path="$dir/Autounattend.xml"
-  [ -f "$path" ] && cp "$asset" "$path"
-  path="$dir/AutoUnattend.xml"
-  [ -f "$path" ] && cp "$asset" "$path"
-  path="$dir/autounattend.XML"
-  [ -f "$path" ] && cp "$asset" "$path"
-  path="$dir/Autounattend.XML"
-  [ -f "$path" ] && cp "$asset" "$path"
-  path="$dir/AutoUnattend.XML"
-  [ -f "$path" ] && cp "$asset" "$path"
-  path="$dir/AUTOUNATTEND.xml"
-  [ -f "$path" ] && cp "$asset" "$path"
-  path="$dir/AUTOUNATTEND.XML"
-  [ -f "$path" ] && cp "$asset" "$path"
-
   return 0
 }
 
@@ -916,7 +884,9 @@ updateImage() {
   local index result
 
   [ ! -f "$asset" ] && return 0
-  replaceXML "$dir" "$asset"
+
+  local path=$(find "$dir" -maxdepth 1 -type f -iname autounattend.xml | head -n 1)
+  [ -n "$path" ] && cp "$asset" "$path"
 
   local loc="$dir/sources/boot.wim"
   [ ! -f "$loc" ] && loc="$dir/sources/boot.esd"
