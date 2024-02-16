@@ -282,6 +282,7 @@ startInstall() {
 
     fi
 
+    [[ "${BASE,,}" == "boot."* ]] && BASE="windows.iso"
     [[ "${BASE,,}" == "custom."* ]] && BASE="windows.iso"
 
   fi
