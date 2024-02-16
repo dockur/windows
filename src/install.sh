@@ -786,17 +786,10 @@ prepareXP() {
   sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$target/TXTSETUP.SIF"
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$target/TXTSETUP.SIF"
 
-  rm -f "$target/winnt.sif"
-  rm -f "$target/Winnt.sif"
-  rm -f "$target/winnt.SIF"
-  rm -f "$target/WinNT.sif"
-  rm -f "$target/WINNT.sif"
-  rm -f "$target/WINNT.SIF"
-
   local key="M6TF9-8XQ2M-YQK9F-7TBB2-XGG88"
   [[ "${arch,,}" == "amd64" ]] && key="B66VY-4D94T-TPPD4-43F72-8X4FY"
 
-  local sif="$target/WINNT.SIF"
+  find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
   {      echo "[Data]"
           echo "AutoPartition=1"
@@ -851,8 +844,9 @@ prepareXP() {
           echo ""
           echo "[TerminalServices]"
           echo "AllowConnections=1"
-  } | unix2dos > "$sif"
+  } | unix2dos > "$target/WINNT.SIF"
 
+  rm -rf "$drivers"
   return 0
 }
 
