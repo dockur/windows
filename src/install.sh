@@ -90,15 +90,9 @@ if [[ "${VERSION,,}" == "tiny10" ]]; then
   VERSION="https://archive.org/download/tiny-10-23-h2/tiny10%20x64%2023h2.iso"
 fi
 
-CUSTOM="custom.iso"
-
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.iso"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.ISO"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.ISO"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.img"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="Custom.img"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="custom.IMG"
-[ ! -f "$STORAGE/$CUSTOM" ] && CUSTOM="CUSTOM.IMG"
+CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso -printf "%f\n" | head -n 1)
+[ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname boot.iso -printf "%f\n" | head -n 1)
+[ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.img -printf "%f\n" | head -n 1)
 
 ESD_URL=""
 MACHINE="q35"
@@ -205,31 +199,6 @@ getVersion() {
   return 0
 }
 
-replaceXML() {
-
-  local dir="$1"
-  local asset="$2"
-
-  local path="$dir/autounattend.xml"
-  [ -f "$path" ] && cp "$asset" "$path"
-  path="$dir/Autounattend.xml"
-  [ -f "$path" ] && cp "$asset" "$path"
-  path="$dir/AutoUnattend.xml"
-  [ -f "$path" ] && cp "$asset" "$path"
-  path="$dir/autounattend.XML"
-  [ -f "$path" ] && cp "$asset" "$path"
-  path="$dir/Autounattend.XML"
-  [ -f "$path" ] && cp "$asset" "$path"
-  path="$dir/AutoUnattend.XML"
-  [ -f "$path" ] && cp "$asset" "$path"
-  path="$dir/AUTOUNATTEND.xml"
-  [ -f "$path" ] && cp "$asset" "$path"
-  path="$dir/AUTOUNATTEND.XML"
-  [ -f "$path" ] && cp "$asset" "$path"
-
-  return 0
-}
-
 hasDisk() {
 
   [ -b "${DEVICE:-}" ] && return 0
@@ -313,6 +282,7 @@ startInstall() {
 
     fi
 
+    [[ "${BASE,,}" == "boot."* ]] && BASE="windows.iso"
     [[ "${BASE,,}" == "custom."* ]] && BASE="windows.iso"
 
   fi
@@ -681,12 +651,19 @@ detectImage() {
     return 0
   fi
 
+  local src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
+
+  if [ ! -d "$src" ]; then
+    warn "failed to locate 'sources' folder in ISO image, $FB"
+    BOOT_MODE="windows_legacy"
+    return 1
+  fi
+
   local tag result name name2 desc
-  local loc="$dir/sources/install.wim"
-  [ ! -f "$loc" ] && loc="$dir/sources/install.esd"
+  local loc=$(find "$src" -maxdepth 1 -type f -iname install.wim | head -n 1)
+  [ ! -f "$loc" ] && loc=$(find "$src" -maxdepth 1 -type f -iname install.esd | head -n 1)
 
   if [ ! -f "$loc" ]; then
-
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
     BOOT_MODE="windows_legacy"
     return 1
@@ -786,17 +763,10 @@ prepareXP() {
   sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$target/TXTSETUP.SIF"
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$target/TXTSETUP.SIF"
 
-  rm -f "$target/winnt.sif"
-  rm -f "$target/Winnt.sif"
-  rm -f "$target/winnt.SIF"
-  rm -f "$target/WinNT.sif"
-  rm -f "$target/WINNT.sif"
-  rm -f "$target/WINNT.SIF"
-
   local key="M6TF9-8XQ2M-YQK9F-7TBB2-XGG88"
   [[ "${arch,,}" == "amd64" ]] && key="B66VY-4D94T-TPPD4-43F72-8X4FY"
 
-  local sif="$target/WINNT.SIF"
+  find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
   {      echo "[Data]"
           echo "AutoPartition=1"
@@ -851,8 +821,9 @@ prepareXP() {
           echo ""
           echo "[TerminalServices]"
           echo "AllowConnections=1"
-  } | unix2dos > "$sif"
+  } | unix2dos > "$target/WINNT.SIF"
 
+  rm -rf "$drivers"
   return 0
 }
 
@@ -863,6 +834,8 @@ prepareLegacy() {
 
   ETFS="boot.img"
   BOOT_MODE="windows_legacy"
+
+  rm -f "$dir/$ETFS"
 
   local len offset
   len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
@@ -922,10 +895,20 @@ updateImage() {
   local index result
 
   [ ! -f "$asset" ] && return 0
-  replaceXML "$dir" "$asset"
 
-  local loc="$dir/sources/boot.wim"
-  [ ! -f "$loc" ] && loc="$dir/sources/boot.esd"
+  local path=$(find "$dir" -maxdepth 1 -type f -iname autounattend.xml | head -n 1)
+  [ -n "$path" ] && cp "$asset" "$path"
+
+  local src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
+
+  if [ ! -d "$src" ]; then
+    warn "failed to locate 'sources' folder in ISO image, $FB"
+    BOOT_MODE="windows_legacy"
+    return 1
+  fi
+
+  local loc=$(find "$src" -maxdepth 1 -type f -iname boot.wim | head -n 1)
+  [ ! -f "$loc" ] && loc=$(find "$src" -maxdepth 1 -type f -iname boot.esd | head -n 1)
 
   if [ ! -f "$loc" ]; then
     warn "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB"
