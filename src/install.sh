@@ -651,12 +651,19 @@ detectImage() {
     return 0
   fi
 
+  local src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
+
+  if [ ! -d "$src" ]; then
+    warn "failed to locate 'sources' folder in ISO image, $FB"
+    BOOT_MODE="windows_legacy"
+    return 1
+  fi
+
   local tag result name name2 desc
-  local loc="$dir/sources/install.wim"
-  [ ! -f "$loc" ] && loc="$dir/sources/install.esd"
+  local loc=$(find "$src" -maxdepth 1 -type f -iname install.wim | head -n 1)
+  [ ! -f "$loc" ] && loc=$(find "$src" -maxdepth 1 -type f -iname install.esd | head -n 1)
 
   if [ ! -f "$loc" ]; then
-
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
     BOOT_MODE="windows_legacy"
     return 1
@@ -828,6 +835,8 @@ prepareLegacy() {
   ETFS="boot.img"
   BOOT_MODE="windows_legacy"
 
+  rm -f "$dir/$ETFS"
+
   local len offset
   len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
   offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
@@ -890,8 +899,16 @@ updateImage() {
   local path=$(find "$dir" -maxdepth 1 -type f -iname autounattend.xml | head -n 1)
   [ -n "$path" ] && cp "$asset" "$path"
 
-  local loc="$dir/sources/boot.wim"
-  [ ! -f "$loc" ] && loc="$dir/sources/boot.esd"
+  local src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
+
+  if [ ! -d "$src" ]; then
+    warn "failed to locate 'sources' folder in ISO image, $FB"
+    BOOT_MODE="windows_legacy"
+    return 1
+  fi
+
+  local loc=$(find "$src" -maxdepth 1 -type f -iname boot.wim | head -n 1)
+  [ ! -f "$loc" ] && loc=$(find "$src" -maxdepth 1 -type f -iname boot.esd | head -n 1)
 
   if [ ! -f "$loc" ]; then
     warn "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB"
