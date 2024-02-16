@@ -651,7 +651,8 @@ detectImage() {
     return 0
   fi
 
-  local src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
+  local src loc tag result name name2 desc
+  src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
 
   if [ ! -d "$src" ]; then
     warn "failed to locate 'sources' folder in ISO image, $FB"
@@ -659,8 +660,7 @@ detectImage() {
     return 1
   fi
 
-  local tag result name name2 desc
-  local loc=$(find "$src" -maxdepth 1 -type f -iname install.wim | head -n 1)
+  loc=$(find "$src" -maxdepth 1 -type f -iname install.wim | head -n 1)
   [ ! -f "$loc" ] && loc=$(find "$src" -maxdepth 1 -type f -iname install.esd | head -n 1)
 
   if [ ! -f "$loc" ]; then
@@ -892,14 +892,14 @@ updateImage() {
   local iso="$1"
   local dir="$2"
   local asset="/run/assets/$3"
-  local index result
+  local path src loc index result
 
   [ ! -f "$asset" ] && return 0
 
-  local path=$(find "$dir" -maxdepth 1 -type f -iname autounattend.xml | head -n 1)
+  path=$(find "$dir" -maxdepth 1 -type f -iname autounattend.xml | head -n 1)
   [ -n "$path" ] && cp "$asset" "$path"
 
-  local src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
+  src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
 
   if [ ! -d "$src" ]; then
     warn "failed to locate 'sources' folder in ISO image, $FB"
@@ -907,7 +907,7 @@ updateImage() {
     return 1
   fi
 
-  local loc=$(find "$src" -maxdepth 1 -type f -iname boot.wim | head -n 1)
+  loc=$(find "$src" -maxdepth 1 -type f -iname boot.wim | head -n 1)
   [ ! -f "$loc" ] && loc=$(find "$src" -maxdepth 1 -type f -iname boot.esd | head -n 1)
 
   if [ ! -f "$loc" ]; then
