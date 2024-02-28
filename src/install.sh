@@ -72,7 +72,7 @@ fi
 
 if [[ "${VERSION,,}" == "winxpx86" ]]; then
   DETECTED="winxpx86"
-  VERSION="https://dl.bobpony.com/windows/xp/professional/en_windows_xp_professional_with_service_pack_3_x86_cd_vl_x14-73974.iso"
+  VERSION="https://dl.bobpony.com/windows/xp/professional/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
 fi
 
 if [[ "${VERSION,,}" == "core11" ]]; then
@@ -763,8 +763,8 @@ prepareXP() {
   sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$target/TXTSETUP.SIF"
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$target/TXTSETUP.SIF"
 
-  local key="M6TF9-8XQ2M-YQK9F-7TBB2-XGG88"
-  [[ "${arch,,}" == "amd64" ]] && key="B66VY-4D94T-TPPD4-43F72-8X4FY"
+  # Windows XP Pro generic key (no activation)
+  local key="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
