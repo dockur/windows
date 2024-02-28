@@ -571,7 +571,7 @@ verify_media() {
     # IMPORTANT: These checksums are not necessarily subject to being updated
     # Unfortunately, the maintenance burden would be too large and even if I did there would still be some time gap between Microsoft releasing a new ISO and me updating the checksum (also, users would have to update this script)
     # For these reasons, I've opted for a slightly more manual verification where you have to look up the checksum to see if it's a well-known Windows ISO checksum
-    # Ultimately, you have to trust Microsft because they could still include a backdoor in the verified ISO (keeping Windows air gapped could help with this)
+    # Ultimately, you have to trust Microsoft because they could still include a backdoor in the verified ISO (keeping Windows air gapped could help with this)
     # Community contributions for these checksums are welcome
     #
     # Leading backslash is to avoid prepending a newline while maintaining alignment
