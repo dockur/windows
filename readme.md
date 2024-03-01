@@ -96,7 +96,7 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
 * ### How do I connect using RDP?
 
-  The web-viewer is mainly ment to be used during installation, as its picture quality is low, and it has no audio or clipboard for example.
+  The web-viewer is mainly meant to be used during installation, as its picture quality is low, and it has no audio or clipboard for example.
 
   So for a better experience you can connect using any Microsoft Remote Desktop client to the IP of the container, using the username `docker` and by leaving the password empty.
 
