@@ -93,6 +93,13 @@ jobs:
         with:
           token: ${{ secrets.REPO_ACCESS_TOKEN }}
       -
+        name: Push to Gitlab mirror
+        uses: action-pack/gitlab-sync@v3
+        with:
+          url: ${{ secrets.GITLAB_URL }}
+          token: ${{ secrets.GITLAB_TOKEN }}
+          username: ${{ secrets.GITLAB_USERNAME }}
+      -
         name: Send mail
         uses: action-pack/send-mail@v1
         with:
