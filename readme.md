@@ -227,6 +227,8 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
   ```yaml
   environment:
     DHCP: "Y"
+  devices:
+    - /dev/vhost-net
   device_cgroup_rules:
     - 'c *:* rwm'
   ```
