@@ -854,7 +854,7 @@ prepareImage() {
   local iso="$1"
   local dir="$2"
 
-  if [[ "${BOOT_MODE,,}" == "windows" ]]; then
+  if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
     if [[ "${DETECTED,,}" != "winxp"* ]] && [[ "${DETECTED,,}" != "win2008"* ]]; then
       if [[ "${DETECTED,,}" != "winvista"* ]] && [[ "${DETECTED,,}" != "win7"* ]]; then
 
