@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+: "${BOOT_MODE:="windows"}"
+
 APP="Windows"
-BOOT_MODE="windows"
 SUPPORT="https://github.com/dockur/windows"
 
 cd /run
