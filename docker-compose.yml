@@ -13,3 +13,14 @@ services:
       - 3389:3389/udp
     stop_grace_period: 2m
     restart: on-failure
+    environment:
+      RAM_SIZE: "8G"
+      CPU_CORES: "4"
+      DISK_ZISE: "256G"
+      VERSION: "win7"
+    volumes:
+      - /var/win:/storage
+    environment:
+      ARGUMENTS: "-device usb-host,vendorid=0x1234,productid=0x1234"
+    devices:
+      - /dev/bus/usb
