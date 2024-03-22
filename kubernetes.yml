@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: windows-pod
+  labels:
+    name: windows-pod
+spec:
+  containers:
+    - name: windows
+      image: dockurr/windows
+      ports:
+        - containerPort: 8006
+        - containerPort: 3389
+          protocol: TCP
+      resources:
+        limits:
+          devices.kubevirt.io/kvm: 1
+      securityContext:
+        privileged: true
+      env:
+        - name: RAM_SIZE
+          value: 16G
+        - name: CPU_CORES
+          value: "8"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: windows-service
+spec:
+  type: NodePort
+  selector:
+    name: windows-pod
+  ports:
+    - name: tcp-8006
+      protocol: TCP
+      port: 8006
+      targetPort: 8006
+      nodePort: 48006
+    - name: tcp-3389
+      protocol: TCP
+      port: 3389
+      targetPort: 3389
+      nodePort: 43389
