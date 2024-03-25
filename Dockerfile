@@ -1,23 +1,26 @@
 FROM scratch
-COPY --from=qemux/qemu-docker:4.18 / /
+COPY --from=qemux/qemu-docker:4.19 / /
 
 ARG DEBCONF_NOWARNINGS "yes"
 ARG DEBIAN_FRONTEND "noninteractive"
 ARG DEBCONF_NONINTERACTIVE_SEEN "true"
 
-RUN apt-get update \
-    && apt-get --no-install-recommends -y install \
+RUN apt-get update && \
+    apt-get --no-install-recommends -y install \
         curl \
         7zip \
         wsdd \
         samba \
-        wimtools \
         dos2unix \
         cabextract \
         genisoimage \
-        libxml2-utils \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+        libxml2-utils && \
+    echo "deb http://deb.debian.org/debian/ sid main" >> /etc/apt/sources.list.d/sid.list && \
+    echo -e "Package: *\nPin: release n=trixie\nPin-Priority: 900\nPackage: *\nPin: release n=sid\nPin-Priority: 400" | tee /etc/apt/preferences.d/preferences > /dev/null && \
+    apt-get update && \
+    apt-get -t sid --no-install-recommends -y install wimtools && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY ./src /run/
 COPY ./assets /run/assets
