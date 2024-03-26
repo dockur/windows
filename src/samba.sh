@@ -23,7 +23,7 @@ SAMBA="/etc/samba/smb.conf"
         echo "    security = user"
         echo "    guest account = nobody"
         echo "    map to guest = Bad User"
-        echo "    server min protocol = SMB2"
+        echo "    server min protocol = NT1"
         echo ""
         echo "    # disable printing services"
         echo "    load printers = no"
@@ -41,7 +41,7 @@ SAMBA="/etc/samba/smb.conf"
         echo "    force group = root"
 } > "$SAMBA"
 
-{      echo "--------------------------------------------------------" 
+{      echo "--------------------------------------------------------"
         echo " $APP for Docker v$(</run/version)..."
         echo " For support visit $SUPPORT"
         echo "--------------------------------------------------------"
@@ -61,7 +61,23 @@ SAMBA="/etc/samba/smb.conf"
         echo ""
 } | unix2dos > "$SHARE/readme.txt"
 
-smbd -D
-wsdd -i dockerbridge -p -n "host.lan" &
+! smbd && smbd --debug-stdout
+
+isXP="N"
+
+if [ -f "$STORAGE/windows.old" ]; then
+  MT=$(<"$STORAGE/windows.old")
+  if [[ "${MT,,}" == "pc-q35-2"* ]]; then
+    isXP="Y"
+  fi
+fi
+
+if [[ "$isXP" == [Yy1]* ]]; then
+  # Enable NetBIOS on Windows XP
+  ! nmbd && nmbd --debug-stdout
+else
+  # Enable Web Service Discovery
+  wsdd -i dockerbridge -p -n "host.lan" &
+fi
 
 return 0
