@@ -877,6 +877,8 @@ prepareXP() {
   {       echo "[COMMANDS]"
           echo "\"REGEDIT /s install.reg\""
           echo "\"Wscript admin.vbs\""
+          echo "\"POWERCFG -H OFF\""
+          echo "\"POWERCFG -X -monitor-timeout-ac 0\""
   } | unix2dos > "$dir/\$OEM\$/cmdlines.txt"
 
   rm -rf "$drivers"
