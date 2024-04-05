@@ -850,7 +850,7 @@ prepareXP() {
           echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa]"
           echo "\"LimitBlankPasswordUse\"=dword:00000000"
           echo ""
-          echo "[HKEY_USERS\.DEFAULT\Control Panel\Desktop]"
+          echo "[HKEY_CURRENT_USER\Control Panel\Desktop]"
           echo "\"ScreenSaveActive\"=\"0\""
           echo ""
           echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Applets\Tour]"
