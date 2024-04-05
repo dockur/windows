@@ -857,6 +857,9 @@ prepareXP() {
           echo "[HKEY_CURRENT_USER\Software\Policies\Microsoft\Windows\Control Panel\Desktop]"
           echo "\"ScreenSaveActive\"=dword:00000000"
           echo ""
+          echo "[HKEY_USERS\S-1-5-21-1949423839-386240697-2482714523-1115\Control Panel\PowerCfg]"
+          echo "\"CurrentPowerPolicy\"=\"2\""
+          echo ""
           echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Applets\Tour]"
           echo "\"RunCount\"=dword:00000000"
           echo ""
@@ -881,8 +884,6 @@ prepareXP() {
   {       echo "[COMMANDS]"
           echo "\"REGEDIT /s install.reg\""
           echo "\"Wscript admin.vbs\""
-          echo "\"POWERCFG -H OFF\""
-          echo "\"POWERCFG -X -monitor-timeout-ac 0\""
   } | unix2dos > "$dir/\$OEM\$/cmdlines.txt"
 
   rm -rf "$drivers"
