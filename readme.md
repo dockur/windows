@@ -25,7 +25,7 @@ Windows in a Docker container.
 
 ## Usage
 
-Via `docker-compose.yml`
+Via Docker Compose:
 
 ```yaml
 version: "3"
@@ -47,7 +47,7 @@ services:
     restart: on-failure
 ```
 
-Via `docker run`
+Via Docker CLI:
 
 ```bash
 docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-timeout 120 dockurr/windows
