@@ -18,3 +18,4 @@ services:
 environment:
   RAM_SIZE: "8G"
   CPU_CORES: "4"
+  VERSION: "win11"
