@@ -16,6 +16,6 @@ services:
     stop_grace_period: 2m
     restart: on-failure
 environment:
-  RAM_SIZE: "8G"
+  RAM_SIZE: "4G"
   CPU_CORES: "4"
-  VERSION: "win11"
+  VERSION: "winxp"
