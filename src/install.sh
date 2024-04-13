@@ -316,6 +316,7 @@ startInstall() {
 
   fi
 
+  rm -rf "$TMP"
   mkdir -p "$TMP"
 
   if [ ! -f "$STORAGE/$CUSTOM" ]; then
@@ -325,7 +326,6 @@ startInstall() {
     ISO="$STORAGE/$CUSTOM"
   fi
 
-  rm -f "$TMP/$BASE"
   return 0
 }
 
@@ -444,6 +444,9 @@ downloadImage() {
     fi
 
     info "Failed to download $desc using Mido, will try a different method now..."
+
+    rm -rf "$TMP"
+    mkdir -p "$TMP"
 
     ISO="$TMP/$VERSION.esd"
     iso="$ISO"
@@ -573,6 +576,7 @@ extractImage() {
 
   if [[ "${iso,,}" == *".esd" ]]; then
     if ! extractESD "$iso" "$dir"; then
+      rm -f "$iso"
       error "Failed to extract ESD file!"
       exit 67
     fi
@@ -604,6 +608,7 @@ extractImage() {
   rm -rf "$dir"
 
   if ! 7z x "$iso" -o"$dir" > /dev/null; then
+    rm -f "$iso"
     error "Failed to extract ISO file!"
     exit 66
   fi
