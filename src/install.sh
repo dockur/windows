@@ -573,6 +573,8 @@ extractImage() {
 
   if [[ "${iso,,}" == *".esd" ]]; then
     if ! extractESD "$iso" "$dir"; then
+      rm -f "$iso"
+      rm -rf "$TMP"
       error "Failed to extract ESD file!"
       exit 67
     fi
@@ -605,6 +607,8 @@ extractImage() {
 
   if ! 7z x "$iso" -o"$dir" > /dev/null; then
     error "Failed to extract ISO file!"
+    rm -f "$iso"
+    rm -rf "$TMP"
     exit 66
   fi
 
