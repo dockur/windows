@@ -1080,7 +1080,8 @@ if ! startInstall; then
   return 0
 fi
 
-if [ ! -f "$ISO" ]; then
+if [ ! -s "$ISO" ]; then
+  rm -f "$ISO"
   if ! downloadImage "$ISO" "$VERSION"; then
     error "Failed to download $VERSION"
     exit 61
