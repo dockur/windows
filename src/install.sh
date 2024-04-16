@@ -204,7 +204,7 @@ hasDisk() {
 
   [ -b "${DEVICE:-}" ] && return 0
 
-  if [ -f "$STORAGE/data.img" ] || [ -f "$STORAGE/data.qcow2" ]; then
+  if [ -s "$STORAGE/data.img" ] || [ -s "$STORAGE/data.qcow2" ]; then
     return 0
   fi
 
@@ -310,6 +310,8 @@ startInstall() {
 
   else
 
+    rm -f "$STORAGE/$BASE"
+
     if skipInstall; then
       BASE=""
       return 1
@@ -370,7 +372,7 @@ getESD() {
 
   cd /run
 
-  if [ ! -f "$dir/products.xml" ]; then
+  if [ ! -s "$dir/products.xml" ]; then
     error "Failed to find products.xml!" && return 1
   fi
 
@@ -434,7 +436,7 @@ downloadImage() {
 
     if (( rc == 0 )); then
 
-      [ ! -f "$iso" ] && return 1
+      [ ! -s "$iso" ] && return 1
 
       html "Download finished successfully..."
       return 0
@@ -477,7 +479,7 @@ downloadImage() {
   fKill "progress.sh"
   (( rc != 0 )) && error "Failed to download $url , reason: $rc" && exit 60
 
-  [ ! -f "$iso" ] && return 1
+  [ ! -s "$iso" ] && return 1
 
   html "Download finished successfully..."
   return 0
@@ -632,7 +634,7 @@ detectImage() {
 
   if [ -n "$DETECTED" ]; then
 
-    if [ -f "/run/assets/$DETECTED.xml" ]; then
+    if [ -s "/run/assets/$DETECTED.xml" ]; then
       [[ "$MANUAL" != [Yy1]* ]] && XML="$DETECTED.xml"
       return 0
     fi
@@ -651,7 +653,7 @@ detectImage() {
 
   info "Detecting Windows version from ISO image..."
 
-  if [ -f "$dir/WIN51" ] || [ -f "$dir/SETUPXP.HTM" ]; then
+  if [ -s "$dir/WIN51" ] || [ -s "$dir/SETUPXP.HTM" ]; then
     DETECTED="winxpx86"
     info "Detected: Windows XP"
     return 0
@@ -667,9 +669,9 @@ detectImage() {
   fi
 
   loc=$(find "$src" -maxdepth 1 -type f -iname install.wim | head -n 1)
-  [ ! -f "$loc" ] && loc=$(find "$src" -maxdepth 1 -type f -iname install.esd | head -n 1)
+  [ ! -s "$loc" ] && loc=$(find "$src" -maxdepth 1 -type f -iname install.esd | head -n 1)
 
-  if [ ! -f "$loc" ]; then
+  if [ ! -s "$loc" ]; then
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
     BOOT_MODE="windows_legacy"
     return 1
@@ -697,7 +699,7 @@ detectImage() {
   desc=$(printVersion "$DETECTED")
   [ -z "$desc" ] && desc="$DETECTED"
 
-  if [ -f "/run/assets/$DETECTED.xml" ]; then
+  if [ -s "/run/assets/$DETECTED.xml" ]; then
     [[ "$MANUAL" != [Yy1]* ]] && XML="$DETECTED.xml"
     info "Detected: $desc"
   else
@@ -917,7 +919,7 @@ prepareImage() {
     if [[ "${DETECTED,,}" != "winxp"* ]] && [[ "${DETECTED,,}" != "win2008"* ]]; then
       if [[ "${DETECTED,,}" != "winvista"* ]] && [[ "${DETECTED,,}" != "win7"* ]]; then
 
-        if [ -f "$dir/$ETFS" ] && [ -f "$dir/$EFISYS" ]; then
+        if [ -s "$dir/$ETFS" ] && [ -s "$dir/$EFISYS" ]; then
           return 0
         fi
 
@@ -953,7 +955,7 @@ updateImage() {
   local asset="/run/assets/$3"
   local path src loc index result
 
-  [ ! -f "$asset" ] && return 0
+  [ ! -s "$asset" ] && return 0
 
   path=$(find "$dir" -maxdepth 1 -type f -iname autounattend.xml | head -n 1)
   [ -n "$path" ] && cp "$asset" "$path"
@@ -967,9 +969,9 @@ updateImage() {
   fi
 
   loc=$(find "$src" -maxdepth 1 -type f -iname boot.wim | head -n 1)
-  [ ! -f "$loc" ] && loc=$(find "$src" -maxdepth 1 -type f -iname boot.esd | head -n 1)
+  [ ! -s "$loc" ] && loc=$(find "$src" -maxdepth 1 -type f -iname boot.esd | head -n 1)
 
-  if [ ! -f "$loc" ]; then
+  if [ ! -s "$loc" ]; then
     warn "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB"
     BOOT_MODE="windows_legacy"
     return 1
@@ -1024,7 +1026,7 @@ buildImage() {
 
     if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
                      -udf -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -allow-limited-size -quiet "$dir" 2> "$log"; then
-      [ -f "$log" ] && echo "$(<"$log")"
+      [ -s "$log" ] && echo "$(<"$log")"
       return 1
     fi
 
@@ -1034,7 +1036,7 @@ buildImage() {
 
       if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
                        -udf -allow-limited-size -quiet "$dir" 2> "$log"; then
-        [ -f "$log" ] && echo "$(<"$log")"
+        [ -s "$log" ] && echo "$(<"$log")"
         return 1
       fi
 
@@ -1042,7 +1044,7 @@ buildImage() {
 
       if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -boot-load-seg 1984 -boot-load-size 4 -c "$cat" -iso-level 2 -J -l -D -N -joliet-long \
                        -relaxed-filenames -V "$label" -quiet "$dir" 2> "$log"; then
-        [ -f "$log" ] && echo "$(<"$log")"
+        [ -s "$log" ] && echo "$(<"$log")"
         return 1
       fi
 
@@ -1052,7 +1054,7 @@ buildImage() {
   local error=""
   local hide="Warning: creating filesystem that does not conform to ISO-9660."
 
-  [ -f "$log" ] && error="$(<"$log")"
+  [ -s "$log" ] && error="$(<"$log")"
   [[ "$error" != "$hide" ]] && echo "$error"
 
   if [ -f "$STORAGE/$BASE" ]; then
