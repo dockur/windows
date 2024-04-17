@@ -25,7 +25,7 @@ body:
     validations:
       required: true
   - type: textarea
-    id: log
+    id: compose
     attributes:
       label: Docker Compose file
       description: The Docker Compose file (or otherwise `run` command) of the container
