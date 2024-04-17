@@ -37,7 +37,7 @@ body:
       label: Docker log
       description: The Docker logfile of the container
     validations:
-      required: true    
+      required: true
   - type: textarea
     id: screenshot
     attributes:
