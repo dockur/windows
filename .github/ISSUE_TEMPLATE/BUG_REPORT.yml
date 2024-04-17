@@ -41,7 +41,7 @@ body:
   - type: textarea
     id: screenshot
     attributes:
-      label: Screenshots
+      label: Screenshots (optional)
       description: Screenshot of the problem
     validations:
       required: false
