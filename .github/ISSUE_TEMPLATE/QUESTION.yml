@@ -1,0 +1,17 @@
+name: "? Question"
+description: General questions about the container
+title: "Question: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a question about Windows for Docker?
+        Please make sure to check the [FAQ](https://github.com/dockur/windows/blob/master/readme.md) first!
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What's the question you have about the container?
+    validations:
+      required: true
