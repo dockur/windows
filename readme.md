@@ -156,7 +156,54 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
   environment:
     VERSION: "https://example.com/win.iso"
   ```
-
+  
+  or
+  
+  1. add nginx service and change env VERSION
+  
+  2. then upload custom.iso to your host machine like /opt/windows/win7
+  
+  3. restart docker container (will pull nginx at first time)
+  
+  ```shell
+  root@focus:/opt/windows/win7# ls -alh
+  total 3.0G
+  drwxrwxrwx 2 root root 4.0K Apr 17 03:12 .
+  drwxr-xr-x 5 root root 4.0K Apr 17 03:08 ..
+  -rw-r--r-- 1 root root 3.0G Apr 15 03:52 custom.iso
+  root@focus:/opt/windows/win7#
+  ```
+  
+  ```yaml
+  version: "3"
+  services:
+    windows:
+      container_name: windows
+      image: dockurr/windows
+      environment:
+        VERSION: "http://nginx/custom.iso"
+      devices:
+        - /dev/kvm
+      cap_add:
+        - NET_ADMIN
+      ports:
+        - 8006:8006
+        - 3389:3389/tcp
+        - 3389:3389/udp
+      stop_grace_period: 2m
+      restart: on-failure
+      volumes:
+        - "/opt/windows/win7:/storage"
+  
+    nginx:
+      container_name: nginx
+      image: nginx
+      ports:
+        - "80:80"
+      volumes:
+        - "/opt/windows/win7:/usr/share/nginx/html"
+  ```
+  
   Alternatively, you can also rename a local file to `custom.iso` and place it in an empty `/storage` folder to skip the download.
 
 * ### How do I perform a manual installation?
