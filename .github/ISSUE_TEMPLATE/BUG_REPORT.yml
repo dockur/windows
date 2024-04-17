@@ -14,7 +14,7 @@ body:
     id: cpu
     attributes:
       label: Machine specifications
-      description: The processor and RAM amount of your machine
+      description: The processor and RAM amount in your machine.
       placeholder: e.g. Intel N5105 / 16 GB 
     validations:
       required: true
@@ -22,7 +22,7 @@ body:
     id: os
     attributes:
       label: Operating system
-      description: The Linux distribution and kernel version as shown by `uname -a`
+      description: The Linux distribution and kernel version as shown by `uname -a`.
       placeholder: e.g. Ubuntu 24.04 / Kernel 6.8.0-22-generic
     validations:
       required: true
@@ -30,7 +30,7 @@ body:
     id: docker
     attributes:
       label: Docker version
-      description: The Docker version as shown by `docker -v` 
+      description: The Docker version as shown by `docker -v`.
       placeholder: e.g. Docker version 26.0.1, build d260a54
     validations:
       required: true
@@ -44,7 +44,7 @@ body:
   - type: textarea
     id: compose
     attributes:
-      label: Docker compose file
+      label: Docker compose
       description: The Docker compose file (or otherwise `run` command).
     validations:
       required: true
