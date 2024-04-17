@@ -93,7 +93,7 @@ fi
 CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso -printf "%f\n" | head -n 1)
 [ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname boot.iso -printf "%f\n" | head -n 1)
 [ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.img -printf "%f\n" | head -n 1)
-[ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname "${VERSION/\/storage\//}" -printf "%f\n" | head -n 1)
+[ -z "$CUSTOM" ] && [[ "${VERSION,,}" != "http"* ]] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname "${VERSION/\/storage\//}" -printf "%f\n" | head -n 1)
 
 ESD_URL=""
 MACHINE="q35"
