@@ -1,6 +1,6 @@
 name: "? Question"
 description: General questions about the container
-title: "Question: "
+title: "[Question]: "
 labels: ["question"]
 body:
   - type: markdown
