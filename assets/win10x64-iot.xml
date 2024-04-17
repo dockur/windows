@@ -352,7 +352,7 @@
           <Order>3</Order>
           <CommandLine>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device" /v "DevicePasswordLessBuildVersion" /t REG_DWORD /d 0 /f</CommandLine>
           <Description>Enable option for passwordless sign-in</Description>
-        </SynchronousCommand>        
+        </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>4</Order>
           <CommandLine>cmd /C wmic useraccount where name="Docker" set PasswordExpires=false</CommandLine>
