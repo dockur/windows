@@ -1,0 +1,47 @@
+name: "\U0001F41E Bug Report"
+description: Create a report to help us improve the container
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: input
+    id: os
+    attributes:
+      label: OS version
+      description: The Linux distribution and kernel version as shown by `uname -a` 
+    validations:
+      required: true
+  - type: input
+    id: docker
+    attributes:
+      label: Docker version
+      description: The Docker version as shown by `docker -v` 
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: A clear and concise description of what the problem is.
+    validations:
+      required: true
+  - type: textarea
+    id: compose
+    attributes:
+      label: Docker Compose file
+      description: The Docker Compose file (or otherwise `run` command) of the container
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Docker log
+      description: The Docker logfile of the container
+    validations:
+      required: true
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshots
+      description: Screenshot of the problem
+    validations:
+      required: false
