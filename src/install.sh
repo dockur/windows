@@ -123,8 +123,11 @@ printVersion() {
   [[ "$id" == "win2016"* ]] && desc="Windows Server 2016"
   [[ "$id" == "win2012"* ]] && desc="Windows Server 2012"
   [[ "$id" == "win2008"* ]] && desc="Windows Server 2008"
-  [[ "$id" == "win10x64-ltsc" ]] && desc="Windows 10 LTSC"
-
+  [[ "$id" == "win10x64-iot" ]] && desc="Windows 10 IoT"
+  [[ "$id" == "win11x64-iot" ]] && desc="Windows 11 IoT"
+  [[ "$id" == "win10x64-ltsc" ]] && desc="Windows 10 LTSC"  
+  [[ "$id" == "win11x64-ltsc" ]] && desc="Windows 11 LTSC"
+  
   echo "$desc"
   return 0
 }
@@ -184,18 +187,23 @@ getVersion() {
   [[ "${name,,}" == *"windows 8"* ]] && detected="win81x64"
   [[ "${name,,}" == *"windows 11"* ]] && detected="win11x64"
   [[ "${name,,}" == *"windows vista"* ]] && detected="winvistax64"
+
+  [[ "${name,,}" == *"server 2008"* ]] && detected="win2008r2"
   [[ "${name,,}" == *"server 2025"* ]] && detected="win2025-eval"
   [[ "${name,,}" == *"server 2022"* ]] && detected="win2022-eval"
   [[ "${name,,}" == *"server 2019"* ]] && detected="win2019-eval"
   [[ "${name,,}" == *"server 2016"* ]] && detected="win2016-eval"
   [[ "${name,,}" == *"server 2012"* ]] && detected="win2012r2-eval"
-  [[ "${name,,}" == *"server 2008"* ]] && detected="win2008r2"
 
   if [[ "${name,,}" == *"windows 10"* ]]; then
-    if [[ "${name,,}" == *"ltsc"* ]]; then
-      detected="win10x64-ltsc"
+    if [[ "${name,,}" == *" iot "* ]]; then
+      detected="win10x64-iot"
     else
-      detected="win10x64"
+      if [[ "${name,,}" == *"ltsc"* ]]; then
+        detected="win10x64-ltsc"
+      else
+        detected="win10x64"
+      fi
     fi
   fi
 
