@@ -3,11 +3,27 @@ description: Create a report to help us improve the container
 title: "[Bug]: "
 labels: ["bug"]
 body:
+  - type: checkboxes
+    attributes:
+      label: Is there an existing issue for this?
+      description: Please search to see if an issue already exists for the bug you encountered.
+      options:
+      - label: I have searched the existing issues
+        required: true
+  - type: input
+    id: cpu
+    attributes:
+      label: Machine specifications
+      description: The processor and RAM amount of your machine
+      placeholder: e.g. Intel N5105 / 16 GB 
+    validations:
+      required: true
   - type: input
     id: os
     attributes:
-      label: OS version
-      description: The Linux distribution and kernel version as shown by `uname -a` 
+      label: Operating system
+      description: The Linux distribution and kernel version as shown by `uname -a`
+      placeholder: e.g. Ubuntu 24.04 / Kernel 6.8.0-22-generic
     validations:
       required: true
   - type: input
@@ -15,33 +31,34 @@ body:
     attributes:
       label: Docker version
       description: The Docker version as shown by `docker -v` 
+      placeholder: e.g. Docker version 26.0.1, build d260a54
     validations:
       required: true
   - type: textarea
     id: summary
     attributes:
-      label: Summary
-      description: A clear and concise description of what the problem is.
+      label: Description
+      description: A clear and concise description of the problem.
     validations:
       required: true
   - type: textarea
     id: compose
     attributes:
-      label: Docker Compose file
-      description: The Docker Compose file (or otherwise `run` command) of the container
+      label: Docker compose file
+      description: The Docker compose file (or otherwise `run` command).
     validations:
       required: true
   - type: textarea
     id: log
     attributes:
       label: Docker log
-      description: The Docker logfile of the container
+      description: The Docker logfile of the container.
     validations:
       required: true
   - type: textarea
     id: screenshot
     attributes:
       label: Screenshots (optional)
-      description: Screenshot of the problem
+      description: Screenshots of the problem.
     validations:
       required: false
