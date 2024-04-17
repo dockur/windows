@@ -87,7 +87,7 @@
         <FullName>Docker</FullName>
         <Organization>Windows for Docker</Organization>
         <ProductKey>
-          <Key>KBN8V-HFGQ4-MGXVD-347P6-PDQGT</Key>
+          <Key />
         </ProductKey>
       </UserData>
       <EnableFirewall>false</EnableFirewall>
