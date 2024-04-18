@@ -95,7 +95,9 @@ CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso -printf "%f\n" | 
 [ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.img -printf "%f\n" | head -n 1)
 
 if [ -z "$CUSTOM" ] && [[ "${VERSION,,}" != "http"* ]]; then
-  CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname "${VERSION/\/storage\//}" -printf "%f\n" | head -n 1)
+  FN="${VERSION/\/storage\//}"
+  [[ "$FN" == "."* ]] && FN="${FN:1}"
+  CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname "$FN" -printf "%f\n" | head -n 1)
 fi
 
 ESD_URL=""
