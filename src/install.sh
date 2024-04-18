@@ -250,10 +250,8 @@ finishInstall() {
     rm -f "$STORAGE/windows.old"
   fi
 
-  if [[ "${BOOT_MODE,,}" == "windows" ]] && [[ "${DETECTED,,}" == "win11"* ]]; then
-    if [[ "$MANUAL" == [Yy1]* ]] || [[ "$aborted" == [Yy1]* ]]; then
-      BOOT_MODE="windows_secure"
-    fi
+  if [[ "$MANUAL" == [Yy1]* ]] || [[ "$aborted" == [Yy1]* ]]; then
+    [[ "${DETECTED,,}" == "win11"* ]] && TPM="Y"
   fi
 
   rm -rf "$TMP"
