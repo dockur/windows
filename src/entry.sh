@@ -33,6 +33,7 @@ fi
 
 terminal
 tail -fn +0 "$QEMU_LOG" 2>/dev/null &
+( sleep 6; [ ! -f "$QEMU_END" ] && info "Windows started succesfully, visit http://localhost:8006/ to view the screen..." ) &
 cat "$QEMU_TERM" 2> /dev/null | tee "$QEMU_PTY" &
 wait $! || :
 
