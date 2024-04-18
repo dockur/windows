@@ -236,6 +236,7 @@ skipInstall() {
 finishInstall() {
 
   local iso="$1"
+  local aborted="$2"
 
   # Mark ISO as prepared via magic byte
   printf '\x16' | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none
@@ -247,6 +248,12 @@ finishInstall() {
     echo "$MACHINE" > "$STORAGE/windows.old"
   else
     rm -f "$STORAGE/windows.old"
+  fi
+
+  if [[ "${BOOT_MODE,,}" == "windows" ]] && [[ "${DETECTED,,}" == "win11"* ]]; then
+    if [[ "$MANUAL" == [Yy1]* ]] || [[ "$aborted" == [Yy1]* ]]; then
+      BOOT_MODE="windows_secure"
+    fi
   fi
 
   rm -rf "$TMP"
@@ -261,7 +268,7 @@ abortInstall() {
     mv -f "$iso" "$STORAGE/$BASE"
   fi
 
-  finishInstall "$STORAGE/$BASE"
+  finishInstall "$STORAGE/$BASE" "Y"
   return 0
 }
 
@@ -312,7 +319,7 @@ startInstall() {
 
     if [[ "$magic" == "16" ]]; then
 
-      if hasDisk || [[ "$MANUAL" = [Yy1]* ]]; then
+      if hasDisk || [[ "$MANUAL" == [Yy1]* ]]; then
         return 1
       fi
 
@@ -1128,7 +1135,7 @@ if ! buildImage "$DIR"; then
   exit 65
 fi
 
-finishInstall "$STORAGE/$BASE"
+finishInstall "$STORAGE/$BASE" "N"
 
 html "Successfully prepared image for installation..."
 return 0
