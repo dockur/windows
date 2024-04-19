@@ -1096,8 +1096,9 @@ bootWindows() {
   local creation="1.10"
   local minimal="2.14"
 
-  if [ -s "$STORAGE/windows.ver" ]; then
+  if [ -f "$STORAGE/windows.ver" ]; then
     creation=$(<"$STORAGE/windows.ver")
+    [[ "${creation}" != *"."* ]] && creation="$minimal"
   fi
 
   # Force secure boot on installations created prior to v2.14
