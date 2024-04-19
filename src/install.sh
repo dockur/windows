@@ -250,8 +250,9 @@ finishInstall() {
     rm -f "$STORAGE/windows.old"
   fi
 
+  # Enable secure boot + TPM on manual installs as Win11 requires
   if [[ "$MANUAL" == [Yy1]* ]] || [[ "$aborted" == [Yy1]* ]]; then
-    [[ "${DETECTED,,}" == "win11"* ]] && TPM="Y"
+    [[ "${DETECTED,,}" == "win11"* ]] && BOOT_MODE="windows_secure"
   fi
 
   rm -rf "$TMP"
@@ -1084,9 +1085,7 @@ buildImage() {
   return 0
 }
 
-######################################
-
-if ! startInstall; then
+bootWindows() {
 
   if [ -f "$STORAGE/windows.old" ]; then
     MACHINE=$(<"$STORAGE/windows.old")
@@ -1094,7 +1093,39 @@ if ! startInstall; then
     BOOT_MODE="windows_legacy"
   fi
 
+  local creation="1.10"
+  local minimal="2.14"
+
+  if [ -f "$STORAGE/windows.ver" ]; then
+    creation=$(<"$STORAGE/windows.ver")
+    [[ "${creation}" != *"."* ]] && creation="$minimal"
+  fi
+
+  # Force secure boot on installs created prior to v2.14
+  if (( $(echo "$creation < $minimal" | bc -l) )); then
+    if [[ "${BOOT_MODE,,}" == "windows" ]]; then
+      BOOT_MODE="windows_secure"
+      if [ -f "$STORAGE/windows.rom" ] && [ ! -f "$STORAGE/$BOOT_MODE.rom" ]; then
+        mv "$STORAGE/windows.rom" "$STORAGE/$BOOT_MODE.rom"
+      fi
+      if [ -f "$STORAGE/windows.vars" ] && [ ! -f "$STORAGE/$BOOT_MODE.vars" ]; then
+        mv "$STORAGE/windows.vars" "$STORAGE/$BOOT_MODE.vars"
+      fi
+    fi
+  fi
+
   rm -rf "$TMP"
+
+  return 0
+}
+
+######################################
+
+if ! startInstall; then
+  if ! bootWindows; then
+    error "Failed to boot Windows!"
+    exit 68
+  fi
   return 0
 fi
 

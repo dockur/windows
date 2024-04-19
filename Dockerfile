@@ -1,5 +1,5 @@
 FROM scratch
-COPY --from=qemux/qemu-docker:4.23 / /
+COPY --from=qemux/qemu-docker:4.24 / /
 
 ARG DEBCONF_NOWARNINGS "yes"
 ARG DEBIAN_FRONTEND "noninteractive"
@@ -7,6 +7,7 @@ ARG DEBCONF_NONINTERACTIVE_SEEN "true"
 
 RUN apt-get update && \
     apt-get --no-install-recommends -y install \
+        bc \
         curl \
         7zip \
         wsdd \
