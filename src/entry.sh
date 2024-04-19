@@ -21,12 +21,8 @@ cd /run
 
 trap - ERR
 
-info "Booting $APP using $VERS..."
+info "Booting ${APP}${BOOT_DESC} on ${CPU} using QEMU v${VERS} with kernel $(uname -r)..."
 [[ "$DEBUG" == [Yy1]* ]] && echo "Arguments: $ARGS" && echo
-
-if [[ "$CONSOLE" == [Yy]* ]]; then
-  exec qemu-system-x86_64 ${ARGS:+ $ARGS}
-fi
 
 { qemu-system-x86_64 ${ARGS:+ $ARGS} >"$QEMU_OUT" 2>"$QEMU_LOG"; rc=$?; } || :
 (( rc != 0 )) && error "$(<"$QEMU_LOG")" && exit 15
