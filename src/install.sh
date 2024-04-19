@@ -1102,8 +1102,14 @@ bootWindows() {
 
   # Fall back to secure boot on installations created prior to v2.14
   if (( $(echo "$creation < $minimal" | bc -l) )); then
-    if [[ "${BOOT_MODE,,}" == "windows" ]] || [[ "${BOOT_MODE,,}" == "windows_plain" ]]; then
+    if [[ "${BOOT_MODE,,}" == "windows" ]] && [ -f "$STORAGE/windows.rom" ]; then
       BOOT_MODE="windows_secure"
+      if [ -f "$STORAGE/windows.rom" ] && [ ! -f "$STORAGE/$BOOT_MODE.rom" ]; then
+        mv "$STORAGE/windows.rom" "$STORAGE/$BOOT_MODE.rom"
+      fi
+      if [ -f "$STORAGE/windows.vars" ] && [ ! -f "$STORAGE/$BOOT_MODE.vars" ]; then
+        mv "$STORAGE/windows.vars" "$STORAGE/$BOOT_MODE.vars"
+      fi
     fi
   fi
 
