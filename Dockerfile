@@ -7,6 +7,7 @@ ARG DEBCONF_NONINTERACTIVE_SEEN "true"
 
 RUN apt-get update && \
     apt-get --no-install-recommends -y install \
+        bc \
         curl \
         7zip \
         wsdd \
