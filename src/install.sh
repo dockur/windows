@@ -250,7 +250,7 @@ finishInstall() {
     rm -f "$STORAGE/windows.old"
   fi
 
-  # Fall back to secure boot when ISO has not been modified 
+  # Enable secure boot + TPM on manual installs as Win11 requires
   if [[ "$MANUAL" == [Yy1]* ]] || [[ "$aborted" == [Yy1]* ]]; then
     [[ "${DETECTED,,}" == "win11"* ]] && BOOT_MODE="windows_secure"
   fi
@@ -1101,7 +1101,7 @@ bootWindows() {
     [[ "${creation}" != *"."* ]] && creation="$minimal"
   fi
 
-  # Force secure boot on installations created prior to v2.14
+  # Force secure boot on installs created prior to v2.14
   if (( $(echo "$creation < $minimal" | bc -l) )); then
     if [[ "${BOOT_MODE,,}" == "windows" ]]; then
       BOOT_MODE="windows_secure"
