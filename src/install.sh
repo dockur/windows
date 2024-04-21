@@ -129,6 +129,9 @@ printVersion() {
   [[ "$id" == "win11x64-iot" ]] && desc="Windows 11 IoT"
   [[ "$id" == "win10x64-ltsc" ]] && desc="Windows 10 LTSC"
   [[ "$id" == "win11x64-ltsc" ]] && desc="Windows 11 LTSC"
+  [[ "$id" == "win81x64-enterprise-eval" ]] && desc="Windows 8 Enterprise"
+  [[ "$id" == "win10x64-enterprise-eval" ]] && desc="Windows 10 Enterprise"
+  [[ "$id" == "win11x64-enterprise-eval" ]] && desc="Windows 11 Enterprise"
 
   echo "$desc"
   return 0
@@ -187,7 +190,6 @@ getVersion() {
 
   [[ "${name,,}" == *"windows 7"* ]] && detected="win7x64"
   [[ "${name,,}" == *"windows 8"* ]] && detected="win81x64"
-  [[ "${name,,}" == *"windows 11"* ]] && detected="win11x64"
   [[ "${name,,}" == *"windows vista"* ]] && detected="winvistax64"
 
   [[ "${name,,}" == *"server 2008"* ]] && detected="win2008r2"
@@ -196,6 +198,14 @@ getVersion() {
   [[ "${name,,}" == *"server 2019"* ]] && detected="win2019-eval"
   [[ "${name,,}" == *"server 2016"* ]] && detected="win2016-eval"
   [[ "${name,,}" == *"server 2012"* ]] && detected="win2012r2-eval"
+
+  if [[ "${name,,}" == *"windows 11"* ]]; then
+    if [[ "${name,,}" == *"enterprise evaluation"* ]]; then
+      detected="win11x64-enterprise-eval"
+    else
+      detected="win11x64"
+    fi
+  fi
 
   if [[ "${name,,}" == *"windows 10"* ]]; then
     if [[ "${name,,}" == *" iot "* ]]; then
