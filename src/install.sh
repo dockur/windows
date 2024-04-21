@@ -296,11 +296,6 @@ startInstall() {
 
   [ -z "$MANUAL" ] && MANUAL="N"
 
-  if skipInstall; then
-    BASE=""
-    return 1
-  fi
-
   if [ -f "$STORAGE/$CUSTOM" ]; then
 
     EXTERNAL="Y"
@@ -347,6 +342,11 @@ startInstall() {
     EXTERNAL="Y"
     CUSTOM="$BASE"
 
+  fi
+
+  if skipInstall; then
+    [ ! -f "$STORAGE/$BASE" ] && BASE=""
+    return 1
   fi
 
   rm -rf "$TMP"
