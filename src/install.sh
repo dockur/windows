@@ -214,7 +214,11 @@ getVersion() {
       if [[ "${name,,}" == *"ltsc"* ]]; then
         detected="win10x64-ltsc"
       else
-        detected="win10x64"
+        if [[ "${name,,}" == *"enterprise evaluation"* ]]; then
+          detected="win10x64-enterprise-eval"
+        else
+          detected="win10x64"
+        fi
       fi
     fi
   fi
