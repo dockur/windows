@@ -90,7 +90,8 @@ if [[ "${VERSION,,}" == "tiny10" ]]; then
   VERSION="https://archive.org/download/tiny-10-23-h2/tiny10%20x64%2023h2.iso"
 fi
 
-CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso -printf "%f\n" | head -n 1)
+CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname windows.iso -printf "%f\n" | head -n 1)
+[ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso -printf "%f\n" | head -n 1)
 [ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname boot.iso -printf "%f\n" | head -n 1)
 [ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.img -printf "%f\n" | head -n 1)
 
@@ -319,10 +320,6 @@ startInstall() {
       BASE=$(echo "$BASE" | sed -e 's/[^A-Za-z0-9._-]/_/g')
 
     fi
-
-    [[ "${BASE,,}" == "boot."* ]] && BASE="windows.iso"
-    [[ "${BASE,,}" == "custom."* ]] && BASE="windows.iso"
-
   fi
 
   [ -z "$MANUAL" ] && MANUAL="N"
@@ -346,8 +343,6 @@ startInstall() {
     CUSTOM="$BASE"
 
   else
-
-    rm -f "$STORAGE/$BASE"
 
     if skipInstall; then
       BASE=""
@@ -1175,7 +1170,9 @@ if ! updateImage "$ISO" "$DIR" "$XML"; then
   return 0
 fi
 
-rm -f "$ISO"
+if ! rm -f "$ISO" 2> /dev/null; then
+  BASE="windows.iso"
+fi
 
 if ! buildImage "$DIR"; then
   error "Failed to build image!"
