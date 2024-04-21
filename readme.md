@@ -157,7 +157,22 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
     VERSION: "https://example.com/win.iso"
   ```
 
-  Alternatively, you can also rename a local file to `custom.iso` and place it in an empty `/storage` folder to skip the download.
+  #### Using a local copy
+  Alternatively, you can also place an `.iso` place in an empty `./storage` folder to skip the download.
+  Make sure to:
+  1. Rename `your_image_name.iso` with the actual name of your local `.iso` file.
+  2. Mount the host directory to the container
+
+  ```yaml
+   windows:
+     environment:
+         # Specify the path to the ISO in the mounted volume
+         VERSION: "./storage/your_image_name.iso"
+     volumes:
+         # Mount the host directory to the container
+         # Replace `github/windows/storage` with host directory
+         - ~/github/windows/storage:/storage
+  ```
 
 * ### How do I perform a manual installation?
 
