@@ -294,6 +294,13 @@ startInstall() {
 
   html "Starting Windows..."
 
+  [ -z "$MANUAL" ] && MANUAL="N"
+
+  if skipInstall; then
+    BASE=""
+    return 1
+  fi
+
   if [ -f "$STORAGE/$CUSTOM" ]; then
 
     EXTERNAL="Y"
@@ -322,8 +329,6 @@ startInstall() {
     fi
   fi
 
-  [ -z "$MANUAL" ] && MANUAL="N"
-
   if [ -f "$STORAGE/$BASE" ]; then
 
     # Check if the ISO was already processed by our script
@@ -341,13 +346,6 @@ startInstall() {
 
     EXTERNAL="Y"
     CUSTOM="$BASE"
-
-  else
-
-    if skipInstall; then
-      BASE=""
-      return 1
-    fi
 
   fi
 
