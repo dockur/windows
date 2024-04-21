@@ -1170,6 +1170,8 @@ fi
 
 if ! rm -f "$ISO" 2> /dev/null; then
   BASE="windows.iso"
+  ISO="$STORAGE/$BASE"
+  rm -f  "$ISO"
 fi
 
 if ! buildImage "$DIR"; then
