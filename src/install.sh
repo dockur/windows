@@ -144,7 +144,6 @@ getName() {
 
   [[ "${file,,}" == "win11"* ]] && desc="Windows 11"
   [[ "${file,,}" == "win10"* ]] && desc="Windows 10"
-  [[ "${file,,}" == "win8.1"* ]] && desc="Windows 8"
   [[ "${file,,}" == "win8"* ]] && desc="Windows 8"
   [[ "${file,,}" == "win7"* ]] && desc="Windows 7"
   [[ "${file,,}" == "winxp"* ]] && desc="Windows XP"
@@ -154,14 +153,12 @@ getName() {
   [[ "${file,,}" == "tiny11_core"* ]] && desc="Tiny 11 Core"
   [[ "${file,,}" == *"windows11"* ]] && desc="Windows 11"
   [[ "${file,,}" == *"windows10"* ]] && desc="Windows 10"
-  [[ "${file,,}" == *"windows8.1"* ]] && desc="Windows 8"
   [[ "${file,,}" == *"windows8"* ]] && desc="Windows 8"
   [[ "${file,,}" == *"windows7"* ]] && desc="Windows 7"
   [[ "${file,,}" == *"windowsxp"* ]] && desc="Windows XP"
   [[ "${file,,}" == *"windowsvista"* ]] && desc="Windows Vista"
   [[ "${file,,}" == *"windows_11"* ]] && desc="Windows 11"
   [[ "${file,,}" == *"windows_10"* ]] && desc="Windows 10"
-  [[ "${file,,}" == *"windows_8.1"* ]] && desc="Windows 8"
   [[ "${file,,}" == *"windows_8"* ]] && desc="Windows 8"
   [[ "${file,,}" == *"windows_7"* ]] && desc="Windows 7"
   [[ "${file,,}" == *"windows_xp"* ]] && desc="Windows XP"
@@ -189,7 +186,6 @@ getVersion() {
   local detected=""
 
   [[ "${name,,}" == *"windows 7"* ]] && detected="win7x64"
-  [[ "${name,,}" == *"windows 8"* ]] && detected="win81x64"
   [[ "${name,,}" == *"windows vista"* ]] && detected="winvistax64"
 
   [[ "${name,,}" == *"server 2008"* ]] && detected="win2008r2"
@@ -198,6 +194,14 @@ getVersion() {
   [[ "${name,,}" == *"server 2019"* ]] && detected="win2019-eval"
   [[ "${name,,}" == *"server 2016"* ]] && detected="win2016-eval"
   [[ "${name,,}" == *"server 2012"* ]] && detected="win2012r2-eval"
+
+  if [[ "${name,,}" == *"windows 8"* ]]; then
+    if [[ "${name,,}" == *"enterprise evaluation"* ]]; then
+      detected="win81x64-enterprise-eval"
+    else
+      detected="win81x64"
+    fi
+  fi
 
   if [[ "${name,,}" == *"windows 11"* ]]; then
     if [[ "${name,,}" == *"enterprise evaluation"* ]]; then
