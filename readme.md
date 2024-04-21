@@ -157,7 +157,14 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
     VERSION: "https://example.com/win.iso"
   ```
 
-  Alternatively, you can also rename a local file to `custom.iso` and place it in an empty `/storage` folder to skip the download.
+  Alternatively, you can also use a local file directly, and skip the download, by binding it in your compose file in this way:
+  
+  ```yaml
+  volumes:
+    - /home/user/example.iso:/storage/custom.iso
+  ```
+
+  Replace the example path `/home/user/example.iso` with the filename of the desired ISO file.
 
 * ### How do I perform a manual installation?
 
