@@ -257,9 +257,11 @@ finishInstall() {
   local iso="$1"
   local aborted="$2"
 
-  # Mark ISO as prepared via magic byte
-  if ! printf '\x16' | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none; then
-    error "Failed to set magic byte!"
+  if [ -w "$iso" ]; then
+    # Mark ISO as prepared via magic byte
+    if ! printf '\x16' | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none; then
+      error "Failed to set magic byte!"
+    fi
   fi
 
   rm -f "$STORAGE/windows.boot"
@@ -1170,7 +1172,9 @@ if ! updateImage "$ISO" "$DIR" "$XML"; then
   return 0
 fi
 
-if ! rm -f "$ISO" 2> /dev/null; then
+if [ -w "$ISO" ]; then
+  rm -f "$ISO"
+else
   BASE="windows.iso"
   ISO="$STORAGE/$BASE"
   rm -f  "$ISO"
