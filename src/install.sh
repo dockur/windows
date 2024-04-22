@@ -262,7 +262,7 @@ finishInstall() {
     return 1
   fi
 
-  if [ -w "$iso" ]; then
+  if [ -w "$iso" ] && [[ "$aborted" != [Yy1]* ]]; then
     # Mark ISO as prepared via magic byte
     if ! printf '\x16' | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none; then
       error "Failed to set magic byte!"
@@ -1126,6 +1126,12 @@ bootWindows() {
     return 0
   fi
 
+  if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then
+    BOOT_MODE=$(<"$STORAGE/windows.mode")
+    rm -rf "$TMP"
+    return 0
+  fi
+
   local creation="1.10"
   local minimal="2.14"
 
@@ -1138,16 +1144,13 @@ bootWindows() {
   if (( $(echo "$creation < $minimal" | bc -l) )); then
     if [[ "${BOOT_MODE,,}" == "windows" ]]; then
       BOOT_MODE="windows_secure"
+      echo "$BOOT_MODE" > "$STORAGE/windows.mode"
       if [ -f "$STORAGE/windows.rom" ] && [ ! -f "$STORAGE/$BOOT_MODE.rom" ]; then
         mv "$STORAGE/windows.rom" "$STORAGE/$BOOT_MODE.rom"
       fi
       if [ -f "$STORAGE/windows.vars" ] && [ ! -f "$STORAGE/$BOOT_MODE.vars" ]; then
         mv "$STORAGE/windows.vars" "$STORAGE/$BOOT_MODE.vars"
       fi
-    fi
-  else
-    if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then
-      BOOT_MODE=$(<"$STORAGE/windows.mode")
     fi
   fi
 
