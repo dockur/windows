@@ -258,7 +258,9 @@ finishInstall() {
   local aborted="$2"
 
   # Mark ISO as prepared via magic byte
-  printf '\x16' | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none
+  if ! printf '\x16' | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none; then
+    error "Failed to set magic byte!"
+  fi
 
   rm -f "$STORAGE/windows.boot"
   cp /run/version "$STORAGE/windows.ver"
