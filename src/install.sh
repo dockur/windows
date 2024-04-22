@@ -257,6 +257,11 @@ finishInstall() {
   local iso="$1"
   local aborted="$2"
 
+  if [ ! -s "$iso" ] || [ ! -f "$iso" ]; then
+    error "Failed to find ISO: $iso"
+    return 1
+  fi
+
   if [ -w "$iso" ]; then
     # Mark ISO as prepared via magic byte
     if ! printf '\x16' | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none; then
@@ -290,7 +295,11 @@ abortInstall() {
     mv -f "$iso" "$STORAGE/$BASE"
   fi
 
-  finishInstall "$STORAGE/$BASE" "Y"
+  if ! finishInstall "$STORAGE/$BASE" "Y"; then
+    error "Failed to finish installation!"
+    exit 69
+  fi
+
   return 0
 }
 
@@ -1185,7 +1194,10 @@ if ! buildImage "$DIR"; then
   exit 65
 fi
 
-finishInstall "$STORAGE/$BASE" "N"
+if ! finishInstall "$STORAGE/$BASE" "N"; then
+  error "Failed to finish installation!"
+  exit 69
+fi
 
 html "Successfully prepared image for installation..."
 return 0
