@@ -266,6 +266,7 @@ finishInstall() {
     # Mark ISO as prepared via magic byte
     if ! printf '\x16' | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none; then
       error "Failed to set magic byte!"
+      return 1
     fi
   fi
 
@@ -280,7 +281,10 @@ finishInstall() {
 
   # Enable secure boot + TPM on manual installs as Win11 requires
   if [[ "$MANUAL" == [Yy1]* ]] || [[ "$aborted" == [Yy1]* ]]; then
-    [[ "${DETECTED,,}" == "win11"* ]] && BOOT_MODE="windows_secure"
+    if [[ "${DETECTED,,}" == "win11"* ]]; then
+      BOOT_MODE="windows_secure"
+      echo "$BOOT_MODE" > "$STORAGE/windows.mode"
+    fi
   fi
 
   rm -rf "$TMP"
@@ -292,7 +296,10 @@ abortInstall() {
   local iso="$1"
 
   if [[ "$iso" != "$STORAGE/$BASE" ]]; then
-    mv -f "$iso" "$STORAGE/$BASE"
+    if ! mv -f "$iso" "$STORAGE/$BASE"; then
+      error "Failed to move ISO: $iso"
+      exit 69
+    fi
   fi
 
   if ! finishInstall "$STORAGE/$BASE" "Y"; then
@@ -1115,6 +1122,8 @@ bootWindows() {
     MACHINE=$(<"$STORAGE/windows.old")
     [ -z "$MACHINE" ] && MACHINE="q35"
     BOOT_MODE="windows_legacy"
+    rm -rf "$TMP"
+    return 0
   fi
 
   local creation="1.10"
@@ -1136,10 +1145,13 @@ bootWindows() {
         mv "$STORAGE/windows.vars" "$STORAGE/$BOOT_MODE.vars"
       fi
     fi
+  else
+    if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then
+      BOOT_MODE=$(<"$STORAGE/windows.mode")
+    fi
   fi
 
   rm -rf "$TMP"
-
   return 0
 }
 
