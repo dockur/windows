@@ -344,7 +344,7 @@ startInstall() {
     magic=$(dd if="$STORAGE/$BASE" seek=0 bs=1 count=1 status=none | tr -d '\000')
     magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
 
-    if [[ "$magic" == "16" ]]; then
+    if [[ "$magic" == "16" ]] || [ ! -w "$STORAGE/$BASE" ]; then
 
       if hasDisk || [[ "$MANUAL" == [Yy1]* ]]; then
         return 1
