@@ -344,6 +344,11 @@ startInstall() {
     fi
   fi
 
+  if skipInstall; then
+    [ ! -f "$STORAGE/$BASE" ] && BASE=""
+    return 1
+  fi
+
   if [ -f "$STORAGE/$BASE" ]; then
 
     # Check if the ISO was already processed by our script
@@ -362,11 +367,6 @@ startInstall() {
     EXTERNAL="Y"
     CUSTOM="$BASE"
 
-  fi
-
-  if skipInstall; then
-    [ ! -f "$STORAGE/$BASE" ] && BASE=""
-    return 1
   fi
 
   rm -rf "$TMP"
