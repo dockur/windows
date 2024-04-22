@@ -1196,9 +1196,7 @@ if ! updateImage "$ISO" "$DIR" "$XML"; then
   return 0
 fi
 
-if [ -w "$ISO" ]; then
-  rm -f "$ISO"
-else
+if ! rm -f "$ISO" 2> /dev/null; then
   BASE="windows.iso"
   ISO="$STORAGE/$BASE"
   rm -f  "$ISO"
