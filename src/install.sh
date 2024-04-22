@@ -90,7 +90,8 @@ if [[ "${VERSION,,}" == "tiny10" ]]; then
   VERSION="https://archive.org/download/tiny-10-23-h2/tiny10%20x64%2023h2.iso"
 fi
 
-CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso -printf "%f\n" | head -n 1)
+CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname windows.iso -printf "%f\n" | head -n 1)
+[ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso -printf "%f\n" | head -n 1)
 [ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname boot.iso -printf "%f\n" | head -n 1)
 [ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.img -printf "%f\n" | head -n 1)
 
@@ -256,8 +257,18 @@ finishInstall() {
   local iso="$1"
   local aborted="$2"
 
-  # Mark ISO as prepared via magic byte
-  printf '\x16' | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none
+  if [ ! -s "$iso" ] || [ ! -f "$iso" ]; then
+    error "Failed to find ISO: $iso"
+    return 1
+  fi
+
+  if [ -w "$iso" ] && [[ "$aborted" != [Yy1]* ]]; then
+    # Mark ISO as prepared via magic byte
+    if ! printf '\x16' | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none; then
+      error "Failed to set magic byte!"
+      return 1
+    fi
+  fi
 
   rm -f "$STORAGE/windows.boot"
   cp /run/version "$STORAGE/windows.ver"
@@ -270,7 +281,10 @@ finishInstall() {
 
   # Enable secure boot + TPM on manual installs as Win11 requires
   if [[ "$MANUAL" == [Yy1]* ]] || [[ "$aborted" == [Yy1]* ]]; then
-    [[ "${DETECTED,,}" == "win11"* ]] && BOOT_MODE="windows_secure"
+    if [[ "${DETECTED,,}" == "win11"* ]]; then
+      BOOT_MODE="windows_secure"
+      echo "$BOOT_MODE" > "$STORAGE/windows.mode"
+    fi
   fi
 
   rm -rf "$TMP"
@@ -282,16 +296,25 @@ abortInstall() {
   local iso="$1"
 
   if [[ "$iso" != "$STORAGE/$BASE" ]]; then
-    mv -f "$iso" "$STORAGE/$BASE"
+    if ! mv -f "$iso" "$STORAGE/$BASE"; then
+      error "Failed to move ISO: $iso"
+      exit 69
+    fi
   fi
 
-  finishInstall "$STORAGE/$BASE" "Y"
+  if ! finishInstall "$STORAGE/$BASE" "Y"; then
+    error "Failed to finish installation!"
+    exit 69
+  fi
+
   return 0
 }
 
 startInstall() {
 
   html "Starting Windows..."
+
+  [ -z "$MANUAL" ] && MANUAL="N"
 
   if [ -f "$STORAGE/$CUSTOM" ]; then
 
@@ -319,13 +342,7 @@ startInstall() {
       BASE=$(echo "$BASE" | sed -e 's/[^A-Za-z0-9._-]/_/g')
 
     fi
-
-    [[ "${BASE,,}" == "boot."* ]] && BASE="windows.iso"
-    [[ "${BASE,,}" == "custom."* ]] && BASE="windows.iso"
-
   fi
-
-  [ -z "$MANUAL" ] && MANUAL="N"
 
   if [ -f "$STORAGE/$BASE" ]; then
 
@@ -345,15 +362,11 @@ startInstall() {
     EXTERNAL="Y"
     CUSTOM="$BASE"
 
-  else
+  fi
 
-    rm -f "$STORAGE/$BASE"
-
-    if skipInstall; then
-      BASE=""
-      return 1
-    fi
-
+  if skipInstall; then
+    [ ! -f "$STORAGE/$BASE" ] && BASE=""
+    return 1
   fi
 
   rm -rf "$TMP"
@@ -1109,6 +1122,14 @@ bootWindows() {
     MACHINE=$(<"$STORAGE/windows.old")
     [ -z "$MACHINE" ] && MACHINE="q35"
     BOOT_MODE="windows_legacy"
+    rm -rf "$TMP"
+    return 0
+  fi
+
+  if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then
+    BOOT_MODE=$(<"$STORAGE/windows.mode")
+    rm -rf "$TMP"
+    return 0
   fi
 
   local creation="1.10"
@@ -1123,6 +1144,7 @@ bootWindows() {
   if (( $(echo "$creation < $minimal" | bc -l) )); then
     if [[ "${BOOT_MODE,,}" == "windows" ]]; then
       BOOT_MODE="windows_secure"
+      echo "$BOOT_MODE" > "$STORAGE/windows.mode"
       if [ -f "$STORAGE/windows.rom" ] && [ ! -f "$STORAGE/$BOOT_MODE.rom" ]; then
         mv "$STORAGE/windows.rom" "$STORAGE/$BOOT_MODE.rom"
       fi
@@ -1133,7 +1155,6 @@ bootWindows() {
   fi
 
   rm -rf "$TMP"
-
   return 0
 }
 
@@ -1175,14 +1196,21 @@ if ! updateImage "$ISO" "$DIR" "$XML"; then
   return 0
 fi
 
-rm -f "$ISO"
+if ! rm -f "$ISO" 2> /dev/null; then
+  BASE="windows.iso"
+  ISO="$STORAGE/$BASE"
+  rm -f  "$ISO"
+fi
 
 if ! buildImage "$DIR"; then
   error "Failed to build image!"
   exit 65
 fi
 
-finishInstall "$STORAGE/$BASE" "N"
+if ! finishInstall "$STORAGE/$BASE" "N"; then
+  error "Failed to finish installation!"
+  exit 69
+fi
 
 html "Successfully prepared image for installation..."
 return 0
