@@ -469,7 +469,7 @@ doMido() {
   fKill "progress.sh"
 
   if (( rc == 0 )) && [ -f "$iso" ]; then
-    if [ $(stat -c%s "$iso") -gt 100000000 ]; then
+    if [ "$(stat -c%s "$iso")" -gt 100000000 ]; then
       html "Download finished successfully..." && return 0
     fi
   fi
@@ -505,7 +505,7 @@ downloadFile() {
   fKill "progress.sh"
 
   if (( rc == 0 )) && [ -f "$iso" ]; then
-    if [ $(stat -c%s "$iso") -gt 100000000 ]; then
+    if [ "$(stat -c%s "$iso")" -gt 100000000 ]; then
       html "Download finished successfully..." && return 0
     fi
   fi
@@ -597,7 +597,7 @@ extractESD() {
   local msg="Extracting $desc bootdisk..."
   info "$msg" && html "$msg"
 
-  if [ $(stat -c%s "$iso") -lt 100000000 ]; then
+  if [ "$(stat -c%s "$iso")" -lt 100000000 ]; then
     error "Invalid ESD file: Size is smaller than 100 MB" && return 1
   fi
 
