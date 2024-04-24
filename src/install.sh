@@ -540,7 +540,7 @@ downloadImage() {
         ;;
     esac
 
-    info "Failed to download $desc from Microsoft, will try a different method now..."
+    info "Failed to download $desc from Microsoft, will try another mirror now..."
 
     rm -f "$iso"
     rm -rf "$TMP"
