@@ -113,7 +113,7 @@ EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 printVersion() {
 
   local id="$1"
-  local desc=""
+  local desc="$2"
 
   [[ "$id" == "win7"* ]] && desc="Windows 7"
   [[ "$id" == "win8"* ]] && desc="Windows 8"
@@ -135,6 +135,8 @@ printVersion() {
   [[ "$id" == "win10x64-enterprise-eval" ]] && desc="Windows 10 Enterprise"
   [[ "$id" == "win11x64-enterprise-eval" ]] && desc="Windows 11 Enterprise"
 
+  [ -z "$desc" ] && desc="Windows"
+
   echo "$desc"
   return 0
 }
@@ -142,7 +144,7 @@ printVersion() {
 getName() {
 
   local file="$1"
-  local desc=""
+  local desc="$2"
 
   [[ "${file,,}" == "win11"* ]] && desc="Windows 11"
   [[ "${file,,}" == "win10"* ]] && desc="Windows 10"
@@ -177,6 +179,8 @@ getName() {
   [[ "${file,,}" == *"server_2019"* ]] && desc="Windows Server 2019"
   [[ "${file,,}" == *"server_2022"* ]] && desc="Windows Server 2022"
   [[ "${file,,}" == *"server_2025"* ]] && desc="Windows Server 2025"
+
+  [ -z "$desc" ] && desc="Windows"
 
   echo "$desc"
   return 0
@@ -455,13 +459,11 @@ downloadImage() {
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
     file="$iso.PART"
-    desc=$(printVersion "$VERSION")
-    [ -z "$desc" ] && desc="Windows"
+    desc=$(printVersion "$VERSION" "Windows")
 
   else
 
-    desc=$(getName "$BASE")
-    [ -z "$desc" ] && desc="$BASE"
+    desc=$(getName "$BASE" "$BASE")
 
   fi
 
@@ -574,7 +576,7 @@ extractESD() {
   local dir="$2"
   local size size_gb space space_gb desc
 
-  desc=$(printVersion "$VERSION")
+  desc=$(printVersion "$VERSION" "Windows")
   local msg="Extracting $desc bootdisk..."
   info "$msg" && html "$msg"
 
@@ -664,8 +666,7 @@ extractImage() {
   fi
 
   if [[ "$EXTERNAL" != [Yy1]* ]] && [ -z "$CUSTOM" ]; then
-    desc=$(printVersion "$VERSION")
-    [ -z "$desc" ] && desc="downloaded ISO"
+    desc=$(printVersion "$VERSION" "downloaded ISO")
   fi
 
   local msg="Extracting $desc image..."
@@ -720,8 +721,7 @@ detectImage() {
     if [[ "${DETECTED,,}" != "winxp"* ]]; then
 
       local dsc
-      dsc=$(printVersion "$DETECTED")
-      [ -z "$dsc" ] && dsc="$DETECTED"
+      dsc=$(printVersion "$DETECTED" "$DETECTED")
 
       warn "got $dsc, but no matching XML file exists, $FB."
     fi
@@ -770,8 +770,7 @@ detectImage() {
     warn "failed to determine Windows version from string '$name', $FB" && return 0
   fi
 
-  desc=$(printVersion "$DETECTED")
-  [ -z "$desc" ] && desc="$DETECTED"
+  desc=$(printVersion "$DETECTED" "$DETECTED")
 
   if [ -f "/run/assets/$DETECTED.xml" ]; then
     [[ "$MANUAL" != [Yy1]* ]] && XML="$DETECTED.xml"
@@ -1074,8 +1073,7 @@ buildImage() {
   local out="$TMP/$label.tmp"
   rm -f "$out"
 
-  desc=$(printVersion "$DETECTED")
-  [ -z "$desc" ] && desc="ISO"
+  desc=$(printVersion "$DETECTED" "ISO")
 
   local msg="Building $desc image..."
   info "$msg" && html "$msg"
