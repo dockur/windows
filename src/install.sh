@@ -483,18 +483,18 @@ downloadImage() {
       fi
     fi
 
-    if [[ "$VERSION" != "win10x64"* ]] && [[ "$VERSION" != "win11x64" ]]; then
+    if [[ "$VERSION" != "win10x64" ]] && [[ "$VERSION" != "win11x64" ]]; then
       error "Failed to download $desc" && return 1
     fi
 
     info "Failed to download $desc using Mido, will try a different method now..."
 
+    rm -f "$iso"
     rm -rf "$TMP"
     mkdir -p "$TMP"
 
     ISO="$TMP/$VERSION.esd"
     iso="$ISO"
-    file="$ISO"
     rm -f "$iso"
 
     if ! getESD "$TMP/esd" "$iso"; then
@@ -523,6 +523,46 @@ downloadImage() {
   if [ -f "$iso" ]; then
     if [ $(stat -c%s "$iso") -gt 100000000 ]; then
       html "Download finished successfully..." && return 0
+    fi
+  fi
+
+  if [[ "$EXTERNAL" != [Yy1]* ]]; then
+
+    case "${VERSION,,}" in
+      "win11${ARCH,,}")
+        url="https://dl.bobpony.com/windows/11/en-us_windows_11_23h2_x64.iso"
+        ;;
+      "win10${ARCH,,}")
+        url="https://dl.bobpony.com/windows/10/en-us_windows_10_22h2_x64.iso"
+        ;;
+      *)
+        error "Failed to download $url" && return 1
+        ;;
+    esac
+
+    info "Failed to download $desc from Microsoft, will try a different method now..."
+
+    rm -f "$iso"
+    rm -rf "$TMP"
+    mkdir -p "$TMP"
+
+    ISO="$TMP/$BASE"
+    iso="$ISO"
+    rm -f "$iso"
+
+    msg="Downloading $desc..."
+    info "$msg" && html "$msg"
+    /run/progress.sh "$iso" "Downloading $desc ([P])..." &
+
+    { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
+
+    fKill "progress.sh"
+    (( rc != 0 )) && error "Failed to download $url , reason: $rc" && return 1
+
+    if [ -f "$iso" ]; then
+      if [ $(stat -c%s "$iso") -gt 100000000 ]; then
+        html "Download finished successfully..." && return 0
+      fi
     fi
   fi
 
