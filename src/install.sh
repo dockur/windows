@@ -503,12 +503,12 @@ downloadImage() {
     rm -rf "$TMP"
     mkdir -p "$TMP"
 
+    rc=99
     ISO="$TMP/$VERSION.esd"
     iso="$ISO"
     rm -f "$iso"
 
     url=""
-    rc=99
 
     if getESD "$TMP/esd" "$iso"; then
       url="$ESD_URL"
@@ -538,10 +538,10 @@ downloadImage() {
 
     case "${VERSION,,}" in
       "win11${ARCHI,,}")
-        url="https://dl.bobpony.com/windows/11/en-us_windows_11_23h2_${ARCHI}.iso"
+        url="https://dl.bobpony.com/windows/11/en-us_windows_11_23h2_${ARCHI,,}.iso"
         ;;
       "win10${ARCHI,,}")
-        url="https://dl.bobpony.com/windows/10/en-us_windows_10_22h2_${ARCHI}.iso"
+        url="https://dl.bobpony.com/windows/10/en-us_windows_10_22h2_${ARCHI,,}.iso"
         ;;
       *)
         (( rc != 99 )) && error "Failed to download $url , reason: $rc"
