@@ -518,9 +518,8 @@ downloadImage() {
   { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
 
   fKill "progress.sh"
-  (( rc != 0 )) && error "Failed to download $url , reason: $rc" && return 1
 
-  if [ -f "$iso" ]; then
+  if (( rc == 0 )) && [ -f "$iso" ]; then
     if [ $(stat -c%s "$iso") -gt 100000000 ]; then
       html "Download finished successfully..." && return 0
     fi
@@ -536,7 +535,7 @@ downloadImage() {
         url="https://dl.bobpony.com/windows/10/en-us_windows_10_22h2_x64.iso"
         ;;
       *)
-        error "Failed to download $url" && return 1
+        error "Failed to download $url , reason: $rc" && return 1
         ;;
     esac
 
@@ -557,16 +556,16 @@ downloadImage() {
     { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
 
     fKill "progress.sh"
-    (( rc != 0 )) && error "Failed to download $url , reason: $rc" && return 1
 
-    if [ -f "$iso" ]; then
+    if (( rc == 0 )) && [ -f "$iso" ]; then
       if [ $(stat -c%s "$iso") -gt 100000000 ]; then
         html "Download finished successfully..." && return 0
       fi
     fi
+
   fi
 
-  error "Failed to download $url" && return 1
+  error "Failed to download $url , reason: $rc" && return 1
 }
 
 extractESD() {
