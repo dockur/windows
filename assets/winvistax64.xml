@@ -222,30 +222,35 @@
         <SynchronousCommand wcm:action="add">
           <Order>12</Order>
           <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Power" /v "HibernateEnabled" /t REG_DWORD /d 0 /f</CommandLine>
-          <Description>Disable Hibernation Mode</Description>
+          <Description>Disable Hibernation</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>13</Order>
+          <CommandLine>cmd /C POWERCFG -X -standby-timeout-ac 0</CommandLine>
+          <Description>Disable Sleep</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>14</Order>
           <CommandLine>netsh.exe advfirewall firewall set rule group="Remote Desktop" new enable=Yes</CommandLine>
           <Description>Add RDP in firewall</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>14</Order>
+          <Order>15</Order>
           <CommandLine>netsh.exe Advfirewall set allprofiles state off</CommandLine>
           <Description>Disable firewall</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>15</Order>
+          <Order>16</Order>
           <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f</CommandLine>
           <Description>Enable RDP</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>16</Order>
+          <Order>17</Order>
           <CommandLine>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Windows\Sidebar" /v "TurnOffSidebar" /t REG_DWORD /d 1 /f</CommandLine>
           <Description>Turn off sidebar</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>17</Order>
+          <Order>18</Order>
           <CommandLine>reg.exe add "HKCU\Control Panel\Desktop" /v "ScreenSaveActive" /t REG_DWORD /d 0 /f</CommandLine>
           <Description>Disable screensaver</Description>
         </SynchronousCommand>
