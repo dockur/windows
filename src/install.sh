@@ -386,7 +386,6 @@ startInstall() {
 getESD() {
 
   local dir="$1"
-  local file="$2"
   local winCatalog size
 
   case "${VERSION,,}" in
@@ -449,12 +448,44 @@ getESD() {
   return 0
 }
 
-downloadImage() {
+doMido() {
 
   local iso="$1"
   local url="$2"
-  local rc=99
-  local msg desc progress
+  local desc="$3"
+  local rc
+
+  rm -f "$iso"
+  rm -f "$iso.PART"
+
+  local msg="Downloading $desc..."
+  info "$msg" && html "$msg"
+  /run/progress.sh "$iso.PART" "Downloading $desc ([P])..." &
+
+  cd "$TMP"
+  { /run/mido.sh "$url"; rc=$?; } || :
+  cd /run
+
+  fKill "progress.sh"
+
+  if (( rc == 0 )) && [ -f "$iso" ]; then
+    if [ $(stat -c%s "$iso") -gt 100000000 ]; then
+      html "Download finished successfully..." && return 0
+    fi
+  fi
+
+  rm -f "$iso"
+  rm -f "$iso.PART"
+
+  return 1
+}
+
+downloadFile() {
+
+  local iso="$1"
+  local url="$2"
+  local desc="$3"
+  local rc progress
 
   rm -f "$iso"
 
@@ -464,6 +495,32 @@ downloadImage() {
   else
     progress="--progress=dot:giga"
   fi
+
+  local msg="Downloading $desc..."
+  info "$msg" && html "$msg"
+  /run/progress.sh "$iso" "Downloading $desc ([P])..." &
+
+  { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
+
+  fKill "progress.sh"
+
+  if (( rc == 0 )) && [ -f "$iso" ]; then
+    if [ $(stat -c%s "$iso") -gt 100000000 ]; then
+      html "Download finished successfully..." && return 0
+    fi
+  fi
+
+  rm -f "$iso"
+  error "Failed to download $url , reason: $rc"
+
+  return 1
+}
+
+downloadImage() {
+
+  local iso="$1"
+  local url="$2"
+  local rc desc
 
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
@@ -476,106 +533,57 @@ downloadImage() {
   fi
 
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
+  
+    doMido "$iso" "$url" "$desc" && return 0
 
-    msg="Downloading $desc..."
-    info "$msg" && html "$msg"
-    /run/progress.sh "$iso.PART" "Downloading $desc ([P])..." &
-
-    cd "$TMP"
-    { /run/mido.sh "$url"; rc=$?; } || :
-    cd /run
-
-    fKill "progress.sh"
-
-    if (( rc == 0 )) && [ -f "$iso" ]; then
-      if [ $(stat -c%s "$iso") -gt 100000000 ]; then
-        html "Download finished successfully..." && return 0
-      fi
-    fi
-
-    if [[ "$VERSION" != "win10x64" ]] && [[ "$VERSION" != "win11x64" ]]; then
+    if [[ "$VERSION" != "win10${PLATFORM,,}" ]] && [[ "$VERSION" != "win11${PLATFORM,,}" ]]; then
       return 1
     fi
 
     info "Failed to download $desc using Mido, will try a different method now..."
 
-    rm -f "$iso"
     rm -rf "$TMP"
     mkdir -p "$TMP"
 
-    rc=99
     ISO="$TMP/$VERSION.esd"
     iso="$ISO"
-    rm -f "$iso"
 
-    url=""
-
-    if getESD "$TMP/esd" "$iso"; then
+    if ! getESD "$TMP/esd"; then
+      url=""
+    else
       url="$ESD_URL"
     fi
 
   fi
 
   if [ -n "$url" ]; then
-
-    msg="Downloading $desc..."
-    info "$msg" && html "$msg"
-    /run/progress.sh "$iso" "Downloading $desc ([P])..." &
-
-    { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
-
-    fKill "progress.sh"
-
-    if (( rc == 0 )) && [ -f "$iso" ]; then
-      if [ $(stat -c%s "$iso") -gt 100000000 ]; then
-        html "Download finished successfully..." && return 0
-      fi
-    fi
-
+    downloadFile "$iso" "$url" "$desc" && return 0
   fi
 
-  if [[ "$EXTERNAL" != [Yy1]* ]]; then
+  [[ "$EXTERNAL" == [Yy1]* ]] && return 1
 
-    case "${VERSION,,}" in
-      "win11${PLATFORM,,}")
-        url="https://dl.bobpony.com/windows/11/en-us_windows_11_23h2_${PLATFORM,,}.iso"
-        ;;
-      "win10${PLATFORM,,}")
-        url="https://dl.bobpony.com/windows/10/en-us_windows_10_22h2_${PLATFORM,,}.iso"
-        ;;
-      *)
-        (( rc != 99 )) && error "Failed to download $url , reason: $rc"
-        return 1
-        ;;
-    esac
+  case "${VERSION,,}" in
+    "win11${PLATFORM,,}")
+      url="https://dl.bobpony.com/windows/11/en-us_windows_11_23h2_${PLATFORM,,}.iso"
+      ;;
+    "win10${PLATFORM,,}")
+      url="https://dl.bobpony.com/windows/10/en-us_windows_10_22h2_${PLATFORM,,}.iso"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 
-    info "Failed to download $desc from Microsoft, will try another mirror now..."
+  info "Failed to download $desc from Microsoft, will try another mirror now..."
 
-    rm -f "$iso"
-    rm -rf "$TMP"
-    mkdir -p "$TMP"
+  rm -rf "$TMP"
+  mkdir -p "$TMP"
 
-    ISO="$TMP/$BASE"
-    iso="$ISO"
-    rm -f "$iso"
+  ISO="$TMP/$BASE"
+  iso="$ISO"
 
-    msg="Downloading $desc..."
-    info "$msg" && html "$msg"
-    /run/progress.sh "$iso" "Downloading $desc ([P])..." &
+  downloadFile "$iso" "$url" "$desc" && return 0
 
-    { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
-
-    fKill "progress.sh"
-
-    if (( rc == 0 )) && [ -f "$iso" ]; then
-      if [ $(stat -c%s "$iso") -gt 100000000 ]; then
-        html "Download finished successfully..." && return 0
-      fi
-    fi
-
-  fi
-
-  (( rc != 99 )) && error "Failed to download $url , reason: $rc"
   return 1
 }
 
