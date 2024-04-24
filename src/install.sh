@@ -102,6 +102,7 @@ if [ -z "$CUSTOM" ] && [[ "${VERSION,,}" != "http"* ]]; then
 fi
 
 ESD_URL=""
+ARCH="x64"
 MACHINE="q35"
 TMP="$STORAGE/tmp"
 DIR="$TMP/unpack"
@@ -380,14 +381,13 @@ getESD() {
 
   local dir="$1"
   local file="$2"
-  local architecture="x64"
   local winCatalog size
 
   case "${VERSION,,}" in
-    win11x64)
+    "win11${ARCH,,}")
       winCatalog="https://go.microsoft.com/fwlink?linkid=2156292"
       ;;
-    win10x64)
+    "win10${ARCH,,}")
       winCatalog="https://go.microsoft.com/fwlink/?LinkId=841361"
       ;;
     *)
@@ -421,7 +421,7 @@ getESD() {
 
   local esdLang="en-us"
   local editionName="Professional"
-  local edQuery='//File[Architecture="'${architecture}'"][Edition="'${editionName}'"]'
+  local edQuery='//File[Architecture="'${ARCH}'"][Edition="'${editionName}'"]'
 
   echo -e '<Catalog>' > "${dir}/products_filter.xml"
   xmllint --nonet --xpath "${edQuery}" "${dir}/products.xml" >> "${dir}/products_filter.xml" 2>/dev/null
@@ -588,10 +588,10 @@ extractESD() {
   local edition imageIndex imageEdition
 
   case "${VERSION,,}" in
-    win11x64)
+    "win11${ARCH,,}")
       edition="11 pro"
       ;;
-    win10x64)
+    "win10${ARCH,,}")
       edition="10 pro"
       ;;
     *)
