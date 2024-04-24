@@ -392,7 +392,12 @@
         <SynchronousCommand wcm:action="add">
           <Order>12</Order>
           <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Power" /v "HibernateEnabled" /t REG_DWORD /d 0 /f</CommandLine>
-          <Description>Disable Hibernation Mode</Description>
+          <Description>Disable Hibernation</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>13</Order>
+          <CommandLine>cmd /C POWERCFG -X -standby-timeout-ac 0</CommandLine>
+          <Description>Disable Sleep</Description>
         </SynchronousCommand>
       </FirstLogonCommands>
     </component>
