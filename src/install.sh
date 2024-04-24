@@ -533,7 +533,7 @@ downloadImage() {
   fi
 
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
-  
+
     doMido "$iso" "$url" "$desc" && return 0
 
     if [[ "$VERSION" != "win10${PLATFORM,,}" ]] && [[ "$VERSION" != "win11${PLATFORM,,}" ]]; then
