@@ -102,7 +102,7 @@ if [ -z "$CUSTOM" ] && [[ "${VERSION,,}" != "http"* ]]; then
 fi
 
 ESD_URL=""
-ARCH="x64"
+ARCHI="x64"
 MACHINE="q35"
 TMP="$STORAGE/tmp"
 DIR="$TMP/unpack"
@@ -384,10 +384,10 @@ getESD() {
   local winCatalog size
 
   case "${VERSION,,}" in
-    "win11${ARCH,,}")
+    "win11${ARCHI,,}")
       winCatalog="https://go.microsoft.com/fwlink?linkid=2156292"
       ;;
-    "win10${ARCH,,}")
+    "win10${ARCHI,,}")
       winCatalog="https://go.microsoft.com/fwlink/?LinkId=841361"
       ;;
     *)
@@ -421,7 +421,7 @@ getESD() {
 
   local esdLang="en-us"
   local editionName="Professional"
-  local edQuery='//File[Architecture="'${ARCH}'"][Edition="'${editionName}'"]'
+  local edQuery='//File[Architecture="'${ARCHI}'"][Edition="'${editionName}'"]'
 
   echo -e '<Catalog>' > "${dir}/products_filter.xml"
   xmllint --nonet --xpath "${edQuery}" "${dir}/products.xml" >> "${dir}/products_filter.xml" 2>/dev/null
@@ -529,10 +529,10 @@ downloadImage() {
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
     case "${VERSION,,}" in
-      "win11${ARCH,,}")
+      "win11${ARCHI,,}")
         url="https://dl.bobpony.com/windows/11/en-us_windows_11_23h2_x64.iso"
         ;;
-      "win10${ARCH,,}")
+      "win10${ARCHI,,}")
         url="https://dl.bobpony.com/windows/10/en-us_windows_10_22h2_x64.iso"
         ;;
       *)
