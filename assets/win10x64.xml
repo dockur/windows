@@ -444,6 +444,11 @@
           <CommandLine>reg.exe add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "ShowTaskViewButton" /t REG_DWORD /d 0 /f</CommandLine>
           <Description>Disable taskview button</Description>
         </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>19</Order>
+          <CommandLine>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v "NoAutoUpdate" /t REG_DWORD /d 1 /f</CommandLine>
+          <Description>Turn off Windows Update auto download</Description>
+        </SynchronousCommand>
       </FirstLogonCommands>
     </component>
   </settings>
