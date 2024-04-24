@@ -399,6 +399,11 @@
           <CommandLine>cmd /C POWERCFG -X -standby-timeout-ac 0</CommandLine>
           <Description>Disable Sleep</Description>
         </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>14</Order>
+          <CommandLine>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services" /v "fAllowUnlistedRemotePrograms" /t REG_DWORD /d 1 /f</CommandLine>
+          <Description>Enable RemoteAPP to launch unlisted programs</Description>
+        </SynchronousCommand>
       </FirstLogonCommands>
     </component>
   </settings>
