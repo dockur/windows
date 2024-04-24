@@ -628,10 +628,10 @@ extractESD() {
   local edition imageIndex imageEdition
 
   case "${VERSION,,}" in
-    "win11${ARCH,,}")
+    "win11${ARCHI,,}")
       edition="11 pro"
       ;;
-    "win10${ARCH,,}")
+    "win10${ARCHI,,}")
       edition="10 pro"
       ;;
     *)
