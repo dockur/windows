@@ -351,6 +351,9 @@
       </OOBE>
       <RegisteredOrganization>Dockur</RegisteredOrganization>
       <RegisteredOwner>Windows for Docker</RegisteredOwner>
+      <StartTiles>
+        <PromoteOEMTiles>false</PromoteOEMTiles>
+      </StartTiles>
       <FirstLogonCommands>
         <SynchronousCommand wcm:action="add">
           <Order>1</Order>
