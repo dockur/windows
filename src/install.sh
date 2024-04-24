@@ -2,8 +2,10 @@
 set -Eeuo pipefail
 
 : "${MANUAL:=""}"
+: "${VERSION:=""}"
 : "${DETECTED:=""}"
-: "${VERSION:="win11x64"}"
+
+[ -z "$VERSION" ] && VERSION="win11x64"
 
 if [[ "${VERSION}" == \"*\" || "${VERSION}" == \'*\' ]]; then
   VERSION="${VERSION:1:-1}"
@@ -451,14 +453,20 @@ downloadImage() {
 
   local iso="$1"
   local url="$2"
-  local file="$iso"
-  local desc rc progress
+  local rc=99
+  local msg desc progress
 
   rm -f "$iso"
 
+  # Check if running with interactive TTY or redirected to docker log
+  if [ -t 1 ]; then
+    progress="--progress=bar:noscroll"
+  else
+    progress="--progress=dot:giga"
+  fi
+
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
-    file="$iso.PART"
     desc=$(printVersion "$VERSION" "Windows")
 
   else
@@ -467,12 +475,12 @@ downloadImage() {
 
   fi
 
-  local msg="Downloading $desc..."
-  info "$msg" && html "$msg"
-  /run/progress.sh "$file" "Downloading $desc ([P])..." &
-
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
-
+  
+    msg="Downloading $desc..."
+    info "$msg" && html "$msg"
+    /run/progress.sh "$iso.PART" "Downloading $desc ([P])..." &
+  
     cd "$TMP"
     { /run/mido.sh "$url"; rc=$?; } || :
     cd /run
@@ -486,7 +494,7 @@ downloadImage() {
     fi
 
     if [[ "$VERSION" != "win10x64" ]] && [[ "$VERSION" != "win11x64" ]]; then
-      error "Failed to download $desc" && return 1
+      return 1
     fi
 
     info "Failed to download $desc using Mido, will try a different method now..."
@@ -499,45 +507,45 @@ downloadImage() {
     iso="$ISO"
     rm -f "$iso"
 
-    if ! getESD "$TMP/esd" "$iso"; then
-      return 1
+    url=""
+    rc=99
+
+    if getESD "$TMP/esd" "$iso"; then
+      url="$ESD_URL"
     fi
 
-    url="$ESD_URL"
+  fi
+
+  if [ -n "$url" ]; then
+
     msg="Downloading $desc..."
     info "$msg" && html "$msg"
     /run/progress.sh "$iso" "Downloading $desc ([P])..." &
 
-  fi
+    { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
 
-  # Check if running with interactive TTY or redirected to docker log
-  if [ -t 1 ]; then
-    progress="--progress=bar:noscroll"
-  else
-    progress="--progress=dot:giga"
-  fi
+    fKill "progress.sh"
 
-  { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
-
-  fKill "progress.sh"
-
-  if (( rc == 0 )) && [ -f "$iso" ]; then
-    if [ $(stat -c%s "$iso") -gt 100000000 ]; then
-      html "Download finished successfully..." && return 0
+    if (( rc == 0 )) && [ -f "$iso" ]; then
+      if [ $(stat -c%s "$iso") -gt 100000000 ]; then
+        html "Download finished successfully..." && return 0
+      fi
     fi
+
   fi
 
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
     case "${VERSION,,}" in
       "win11${ARCHI,,}")
-        url="https://dl.bobpony.com/windows/11/en-us_windows_11_23h2_x64.iso"
+        url="https://dl.bobpony.com/windows/11/en-us_windows_11_23h2_${ARCHI}.iso"
         ;;
       "win10${ARCHI,,}")
-        url="https://dl.bobpony.com/windows/10/en-us_windows_10_22h2_x64.iso"
+        url="https://dl.bobpony.com/windows/10/en-us_windows_10_22h2_${ARCHI}.iso"
         ;;
       *)
-        error "Failed to download $url , reason: $rc" && return 1
+        (( rc != 99 )) && error "Failed to download $url , reason: $rc"
+        return 1
         ;;
     esac
 
@@ -567,7 +575,8 @@ downloadImage() {
 
   fi
 
-  error "Failed to download $url , reason: $rc" && return 1
+  (( rc != 99 )) && error "Failed to download $url , reason: $rc"
+  return 1
 }
 
 extractESD() {
