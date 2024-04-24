@@ -408,15 +408,20 @@
         <SynchronousCommand wcm:action="add">
           <Order>12</Order>
           <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Power" /v "HibernateEnabled" /t REG_DWORD /d 0 /f</CommandLine>
-          <Description>Disable Hibernation Mode</Description>
+          <Description>Disable Hibernation</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>13</Order>
+          <CommandLine>cmd /C POWERCFG -X -standby-timeout-ac 0</CommandLine>
+          <Description>Disable Sleep</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>14</Order>
           <CommandLine>reg.exe add "HKCU\Control Panel\UnsupportedHardwareNotificationCache" /v SV1 /d 0 /t REG_DWORD /f</CommandLine>
           <Description>Disable unsupported hardware notifications</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>14</Order>
+          <Order>15</Order>
           <CommandLine>reg.exe add "HKCU\Control Panel\UnsupportedHardwareNotificationCache" /v SV2 /d 0 /t REG_DWORD /f</CommandLine>
           <Description>Disable unsupported hardware notifications</Description>
         </SynchronousCommand>        
