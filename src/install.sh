@@ -476,11 +476,11 @@ downloadImage() {
   fi
 
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
-  
+
     msg="Downloading $desc..."
     info "$msg" && html "$msg"
     /run/progress.sh "$iso.PART" "Downloading $desc ([P])..." &
-  
+
     cd "$TMP"
     { /run/mido.sh "$url"; rc=$?; } || :
     cd /run
