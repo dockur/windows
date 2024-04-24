@@ -104,8 +104,8 @@ if [ -z "$CUSTOM" ] && [[ "${VERSION,,}" != "http"* ]]; then
 fi
 
 ESD_URL=""
-ARCHI="x64"
 MACHINE="q35"
+PLATFORM="x64"
 TMP="$STORAGE/tmp"
 DIR="$TMP/unpack"
 FB="falling back to manual installation!"
@@ -390,10 +390,10 @@ getESD() {
   local winCatalog size
 
   case "${VERSION,,}" in
-    "win11${ARCHI,,}")
+    "win11${PLATFORM,,}")
       winCatalog="https://go.microsoft.com/fwlink?linkid=2156292"
       ;;
-    "win10${ARCHI,,}")
+    "win10${PLATFORM,,}")
       winCatalog="https://go.microsoft.com/fwlink/?LinkId=841361"
       ;;
     *)
@@ -427,7 +427,7 @@ getESD() {
 
   local esdLang="en-us"
   local editionName="Professional"
-  local edQuery='//File[Architecture="'${ARCHI}'"][Edition="'${editionName}'"]'
+  local edQuery='//File[Architecture="'${PLATFORM}'"][Edition="'${editionName}'"]'
 
   echo -e '<Catalog>' > "${dir}/products_filter.xml"
   xmllint --nonet --xpath "${edQuery}" "${dir}/products.xml" >> "${dir}/products_filter.xml" 2>/dev/null
@@ -537,11 +537,11 @@ downloadImage() {
   if [[ "$EXTERNAL" != [Yy1]* ]]; then
 
     case "${VERSION,,}" in
-      "win11${ARCHI,,}")
-        url="https://dl.bobpony.com/windows/11/en-us_windows_11_23h2_${ARCHI,,}.iso"
+      "win11${PLATFORM,,}")
+        url="https://dl.bobpony.com/windows/11/en-us_windows_11_23h2_${PLATFORM,,}.iso"
         ;;
-      "win10${ARCHI,,}")
-        url="https://dl.bobpony.com/windows/10/en-us_windows_10_22h2_${ARCHI,,}.iso"
+      "win10${PLATFORM,,}")
+        url="https://dl.bobpony.com/windows/10/en-us_windows_10_22h2_${PLATFORM,,}.iso"
         ;;
       *)
         (( rc != 99 )) && error "Failed to download $url , reason: $rc"
@@ -638,10 +638,10 @@ extractESD() {
   local edition imageIndex imageEdition
 
   case "${VERSION,,}" in
-    "win11${ARCHI,,}")
+    "win11${PLATFORM,,}")
       edition="11 pro"
       ;;
-    "win10${ARCHI,,}")
+    "win10${PLATFORM,,}")
       edition="10 pro"
       ;;
     *)
