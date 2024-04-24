@@ -258,15 +258,13 @@ finishInstall() {
   local aborted="$2"
 
   if [ ! -s "$iso" ] || [ ! -f "$iso" ]; then
-    error "Failed to find ISO: $iso"
-    return 1
+    error "Failed to find ISO: $iso" && return 1
   fi
 
   if [ -w "$iso" ] && [[ "$aborted" != [Yy1]* ]]; then
     # Mark ISO as prepared via magic byte
     if ! printf '\x16' | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none; then
-      error "Failed to set magic byte!"
-      return 1
+      error "Failed to set magic byte!" && return 1
     fi
   fi
 
@@ -297,17 +295,13 @@ abortInstall() {
 
   if [[ "$iso" != "$STORAGE/$BASE" ]]; then
     if ! mv -f "$iso" "$STORAGE/$BASE"; then
-      error "Failed to move ISO: $iso"
-      exit 69
+      error "Failed to move ISO: $iso" && return 1
     fi
   fi
 
-  if ! finishInstall "$STORAGE/$BASE" "Y"; then
-    error "Failed to finish installation!"
-    exit 69
-  fi
+  finishInstall "$STORAGE/$BASE" "Y" && return 0
 
-  return 0
+  return 1
 }
 
 startInstall() {
@@ -397,8 +391,7 @@ getESD() {
       winCatalog="https://go.microsoft.com/fwlink/?LinkId=841361"
       ;;
     *)
-      error "Invalid ESD version specified: $VERSION"
-      return 1
+      error "Invalid ESD version specified: $VERSION" && return 1
       ;;
   esac
 
@@ -443,7 +436,7 @@ getESD() {
   ESD_URL=$(xmllint --nonet --xpath '//FilePath' "${dir}/esd_edition.xml" | sed -E -e 's/<[\/]?FilePath>//g')
 
   if [ -z "$ESD_URL" ]; then
-    error "Failed to find ESD url!" && return 1
+    error "Failed to find ESD URL!" && return 1
   fi
 
   rm -rf "$dir"
@@ -484,16 +477,14 @@ downloadImage() {
 
     fKill "progress.sh"
 
-    if (( rc == 0 )); then
-
-      [ ! -s "$iso" ] || [ ! -f "$iso" ] && return 1
-
-      html "Download finished successfully..."
-      return 0
+    if (( rc == 0 )) && [ -f "$iso" ]; then
+      if [ $(stat -c%s "$iso") -gt 100000000 ]; then
+        html "Download finished successfully..." && return 0
+      fi
     fi
 
     if [[ "$VERSION" != "win10x64"* ]] && [[ "$VERSION" != "win11x64" ]]; then
-      return 1
+      error "Failed to download $desc" && return 1
     fi
 
     info "Failed to download $desc using Mido, will try a different method now..."
@@ -527,12 +518,15 @@ downloadImage() {
   { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
 
   fKill "progress.sh"
-  (( rc != 0 )) && error "Failed to download $url , reason: $rc" && exit 60
+  (( rc != 0 )) && error "Failed to download $url , reason: $rc" && return 1
 
-  [ ! -s "$iso" ] || [ ! -f "$iso" ] && return 1
+  if [ -f "$iso" ]; then
+    if [ $(stat -c%s "$iso") -gt 100000000 ]; then
+      html "Download finished successfully..." && return 0
+    fi
+  fi
 
-  html "Download finished successfully..."
-  return 0
+  error "Failed to download $url" && return 1
 }
 
 extractESD() {
@@ -545,21 +539,21 @@ extractESD() {
   local msg="Extracting $desc bootdisk..."
   info "$msg" && html "$msg"
 
-  size=16106127360
-  size_gb=$(( (size + 1073741823)/1073741824 ))
-  space=$(df --output=avail -B 1 "$TMP" | tail -n 1)
-  space_gb=$(( (space + 1073741823)/1073741824 ))
-
-  if ((size<10000000)); then
-    error "Invalid ESD file: Size is smaller than 10 MB" && exit 62
-  fi
-
-  if (( size > space )); then
-    error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB." && exit 63
+  if [ $(stat -c%s "$iso") -lt 100000000 ]; then
+    error "Invalid ESD file: Size is smaller than 100 MB" && return 1
   fi
 
   rm -rf "$dir"
   mkdir -p "$dir"
+
+  size=16106127360
+  size_gb=$(( (size + 1073741823)/1073741824 ))
+  space=$(df --output=avail -B 1 "$dir" | tail -n 1)
+  space_gb=$(( (space + 1073741823)/1073741824 ))
+
+  if (( size > space )); then
+    error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB." && return 1
+  fi
 
   local esdImageCount
   esdImageCount=$(wimlib-imagex info "${iso}" | awk '/Image Count:/ {print $3}')
@@ -601,8 +595,7 @@ extractESD() {
       edition="10 pro"
       ;;
     *)
-      error "Invalid version specified: $VERSION"
-      return 1
+      error "Invalid version specified: $VERSION" && return 1
       ;;
   esac
 
@@ -616,8 +609,7 @@ extractESD() {
     return 0
   done
 
-  error "Failed to find product in install.wim!"
-  return 1
+  error "Failed to find product in install.wim!" && return 1
 }
 
 extractImage() {
@@ -628,12 +620,8 @@ extractImage() {
   local size size_gb space space_gb
 
   if [[ "${iso,,}" == *".esd" ]]; then
-    if ! extractESD "$iso" "$dir"; then
-      rm -f "$iso"
-      error "Failed to extract ESD file!"
-      exit 67
-    fi
-    return 0
+    extractESD "$iso" "$dir" && return 0
+    return 1 
   fi
 
   if [[ "$EXTERNAL" != [Yy1]* ]] && [ -z "$CUSTOM" ]; then
@@ -645,25 +633,26 @@ extractImage() {
   [ -n "$CUSTOM" ] && msg="Extracting local ISO image..."
   info "$msg" && html "$msg"
 
+  rm -rf "$dir"
+  mkdir -p "$dir"
+
   size=$(stat -c%s "$iso")
   size_gb=$(( (size + 1073741823)/1073741824 ))
-  space=$(df --output=avail -B 1 "$TMP" | tail -n 1)
+  space=$(df --output=avail -B 1 "$dir" | tail -n 1)
   space_gb=$(( (space + 1073741823)/1073741824 ))
 
-  if ((size<10000000)); then
-    error "Invalid ISO file: Size is smaller than 10 MB" && exit 62
+  if ((size<100000000)); then
+    error "Invalid ISO file: Size is smaller than 100 MB" && return 1
   fi
 
   if (( size > space )); then
-    error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB." && exit 63
+    error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB." && return 1
   fi
 
   rm -rf "$dir"
 
   if ! 7z x "$iso" -o"$dir" > /dev/null; then
-    rm -f "$iso"
-    error "Failed to extract ISO file!"
-    exit 66
+    error "Failed to extract ISO file: $iso" && return 1
   fi
 
   return 0
@@ -705,26 +694,23 @@ detectImage() {
 
   if [ -f "$dir/WIN51" ] || [ -f "$dir/SETUPXP.HTM" ]; then
     DETECTED="winxpx86"
-    info "Detected: Windows XP"
-    return 0
+    info "Detected: Windows XP" && return 0
   fi
 
   local src loc tag result name name2 desc
   src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
 
   if [ ! -d "$src" ]; then
-    warn "failed to locate 'sources' folder in ISO image, $FB"
     BOOT_MODE="windows_legacy"
-    return 1
+    warn "failed to locate 'sources' folder in ISO image, $FB" && return 1
   fi
 
   loc=$(find "$src" -maxdepth 1 -type f -iname install.wim | head -n 1)
   [ ! -f "$loc" ] && loc=$(find "$src" -maxdepth 1 -type f -iname install.esd | head -n 1)
 
   if [ ! -f "$loc" ]; then
-    warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
     BOOT_MODE="windows_legacy"
-    return 1
+    warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB" && return 1
   fi
 
   tag="DISPLAYNAME"
@@ -742,8 +728,7 @@ detectImage() {
   fi
 
   if [ -z "$DETECTED" ]; then
-    warn "failed to determine Windows version from string '$name', $FB"
-    return 0
+    warn "failed to determine Windows version from string '$name', $FB" && return 0
   fi
 
   desc=$(printVersion "$DETECTED")
@@ -781,8 +766,7 @@ prepareXP() {
   rm -rf "$drivers"
 
   if ! 7z x /run/drivers.iso -o"$drivers" > /dev/null; then
-    error "Failed to extract driver ISO file!"
-    exit 66
+    error "Failed to extract driver ISO file!" && exit 66
   fi
 
   cp "$drivers/viostor/xp/$arch/viostor.sys" "$target"
@@ -953,8 +937,7 @@ prepareLegacy() {
   offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
 
   if ! dd "if=$iso" "of=$dir/$ETFS" bs=2048 "count=$len" "skip=$offset" status=none; then
-    error "Failed to extract boot image from ISO!"
-    exit 67
+    error "Failed to extract boot image from ISO!" && exit 67
   fi
 
   return 0
@@ -985,13 +968,11 @@ prepareImage() {
 
   if [[ "${DETECTED,,}" == "winxp"* ]]; then
     if ! prepareXP "$iso" "$dir"; then
-      error "Failed to prepare Windows XP ISO!"
-      return 1
+      error "Failed to prepare Windows XP ISO!" && return 1
     fi
   else
     if ! prepareLegacy "$iso" "$dir"; then
-      error "Failed to prepare Windows ISO!"
-      return 1
+      error "Failed to prepare Windows ISO!" && return 1
     fi
   fi
 
@@ -1013,18 +994,16 @@ updateImage() {
   src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
 
   if [ ! -d "$src" ]; then
-    warn "failed to locate 'sources' folder in ISO image, $FB"
     BOOT_MODE="windows_legacy"
-    return 1
+    warn "failed to locate 'sources' folder in ISO image, $FB" && return 1
   fi
 
   loc=$(find "$src" -maxdepth 1 -type f -iname boot.wim | head -n 1)
   [ ! -f "$loc" ] && loc=$(find "$src" -maxdepth 1 -type f -iname boot.esd | head -n 1)
 
   if [ ! -f "$loc" ]; then
-    warn "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB"
     BOOT_MODE="windows_legacy"
-    return 1
+    warn "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB" && return 1
   fi
 
   info "Adding XML file for automatic installation..."
@@ -1037,8 +1016,7 @@ updateImage() {
   fi
 
   if ! wimlib-imagex update "$loc" "$index" --command "add $asset /autounattend.xml" > /dev/null; then
-    warn "failed to add XML to ISO image, $FB"
-    return 1
+    warn "failed to add XML to ISO image, $FB" && return 1
   fi
 
   return 0
@@ -1047,6 +1025,7 @@ updateImage() {
 buildImage() {
 
   local dir="$1"
+  local failed="N"
   local cat="BOOT.CAT"
   local label="${BASE%.*}"
   local log="/run/shm/iso.log"
@@ -1068,16 +1047,14 @@ buildImage() {
   space_gb=$(( (space + 1073741823)/1073741824 ))
 
   if (( size > space )); then
-    error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB."
-    return 1
+    error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB." && return 1
   fi
 
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
 
     if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
                      -udf -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -allow-limited-size -quiet "$dir" 2> "$log"; then
-      [ -s "$log" ] && echo "$(<"$log")"
-      return 1
+      failed="Y"
     fi
 
   else
@@ -1086,19 +1063,22 @@ buildImage() {
 
       if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
                        -udf -allow-limited-size -quiet "$dir" 2> "$log"; then
-        [ -s "$log" ] && echo "$(<"$log")"
-        return 1
+        failed="Y"
       fi
 
     else
 
       if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -boot-load-seg 1984 -boot-load-size 4 -c "$cat" -iso-level 2 -J -l -D -N -joliet-long \
                        -relaxed-filenames -V "$label" -quiet "$dir" 2> "$log"; then
-        [ -s "$log" ] && echo "$(<"$log")"
-        return 1
+        failed="Y"
       fi
 
     fi
+  fi
+
+  if [[ "$failed" != "N" ]]; then
+    [ -s "$log" ] && echo "$(<"$log")"
+    error "Failed to build image!" && return 1
   fi
 
   local error=""
@@ -1108,8 +1088,7 @@ buildImage() {
   [[ "$error" != "$hide" ]] && echo "$error"
 
   if [ -f "$STORAGE/$BASE" ]; then
-    error "File $STORAGE/$BASE does already exist?!"
-    return 1
+    error "File $STORAGE/$BASE does already exist?!" && return 1
   fi
 
   mv "$out" "$STORAGE/$BASE"
@@ -1161,39 +1140,35 @@ bootWindows() {
 ######################################
 
 if ! startInstall; then
-  if ! bootWindows; then
-    error "Failed to boot Windows!"
-    exit 68
-  fi
-  return 0
+  bootWindows && return 0
+  exit 68
 fi
 
 if [ ! -s "$ISO" ] || [ ! -f "$ISO" ]; then
-  rm -f "$ISO"
   if ! downloadImage "$ISO" "$VERSION"; then
-    error "Failed to download $VERSION"
+    rm -f "$ISO"
     exit 61
   fi
 fi
 
 if ! extractImage "$ISO" "$DIR"; then
-  abortInstall "$ISO"
-  return 0
+  rm -f "$ISO"
+  exit 62
 fi
 
 if ! detectImage "$DIR"; then
-  abortInstall "$ISO"
-  return 0
+  abortInstall "$ISO" && return 0
+  exit 60
 fi
 
 if ! prepareImage "$ISO" "$DIR"; then
-  abortInstall "$ISO"
-  return 0
+  abortInstall "$ISO" && return 0
+  exit 60
 fi
 
 if ! updateImage "$ISO" "$DIR" "$XML"; then
-  abortInstall "$ISO"
-  return 0
+  abortInstall "$ISO" && return 0
+  exit 60
 fi
 
 if ! rm -f "$ISO" 2> /dev/null; then
@@ -1203,12 +1178,10 @@ if ! rm -f "$ISO" 2> /dev/null; then
 fi
 
 if ! buildImage "$DIR"; then
-  error "Failed to build image!"
   exit 65
 fi
 
 if ! finishInstall "$STORAGE/$BASE" "N"; then
-  error "Failed to finish installation!"
   exit 69
 fi
 
