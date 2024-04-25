@@ -200,7 +200,7 @@ handle_curl_error() {
         # https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_08_02
         $((error_code <= 125)))
             # Must be some other server or network error (possibly with this specific request/file)
-            # This is when accounting for all possible errors in the curl manual assuming a correctly formed curl command and HTTP(S) request, using only the curl features we're using, and a sane build
+            # This is when accounting for all possible errors in the curl manual assuming a correctly formed curl command and an HTTP(S) request, using only the curl features we're using, and a sane build
             echo_err "Miscellaneous server or network error!"
             ;;
         126 | 127)
@@ -246,7 +246,7 @@ scurl_file() {
         handle_curl_error "$error_code"
         error_action=$?
 
-        # Clean up and make sure future resumes don't happen from bad download resume files
+        # Clean up and make sure a future resume doesn't happen from a bad download resume file
         if [ -f "$out_file" ]; then
             # If file is empty, bad HTTP code, or bad download resume file
             if [ ! -s "$out_file" ] || [ "$error_code" = 22 ] || [ "$error_code" = 36 ]; then
