@@ -461,6 +461,11 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>22</Order>
+          <CommandLine>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Search" /v "SearchOnTaskbarMode" /t REG_DWORD /d 0 /f</CommandLine>
+          <Description>Disable search box in the taskbar</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>23</Order>
           <CommandLine>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v "NoAutoUpdate" /t REG_DWORD /d 1 /f</CommandLine>
           <Description>Turn off Windows Update auto download</Description>
         </SynchronousCommand>
