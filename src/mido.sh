@@ -675,7 +675,7 @@ ending_summary() {
         done
 
         # shellcheck disable=SC2086
-        echo_err "$(word_count $media_download_failed_list) attempted download(s) failed!"
+        echo_err "Attempted download failed!"
     fi
 
     # Exit codes
