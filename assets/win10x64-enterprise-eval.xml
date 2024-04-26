@@ -429,41 +429,36 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>16</Order>
-          <CommandLine>reg.exe add "HKCU\SOFTWARE\Policies\Microsoft\Windows\Windows Search" /v "AllowCortana" /t REG_DWORD /d 0 /f</CommandLine>
-          <Description>Disable Cortana in search</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>17</Order>
           <CommandLine>reg.exe add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Search" /v "SearchboxTaskbarMode" /t REG_DWORD /d 0 /f</CommandLine>
           <Description>Remove Search from the Taskbar</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>18</Order>
+          <Order>17</Order>
           <CommandLine>reg.exe add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "ShowTaskViewButton" /t REG_DWORD /d 0 /f</CommandLine>
           <Description>Remove Task View from the Taskbar</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>19</Order>
+          <Order>18</Order>
           <CommandLine>reg.exe add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "TaskbarDa" /t REG_DWORD /d 0 /f</CommandLine>
           <Description>Remove Widgets from the Taskbar</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>20</Order>
+          <Order>19</Order>
           <CommandLine>reg.exe add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "TaskbarMn" /t REG_DWORD /d 0 /f</CommandLine>
           <Description>Remove Chat from the Taskbar</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>21</Order>
+          <Order>20</Order>
           <CommandLine>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v "NoAutoUpdate" /t REG_DWORD /d 1 /f</CommandLine>
           <Description>Turn off Windows Update auto download</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>22</Order>
+          <Order>21</Order>
           <CommandLine>netsh advfirewall firewall set rule group="Network Discovery" new enable=Yes</CommandLine>
           <Description>Enable Network Discovery</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>23</Order>
+          <Order>22</Order>
           <CommandLine>netsh advfirewall firewall set rule group="File and Printer Sharing" new enable=Yes</CommandLine>
           <Description>Enable File Sharing</Description>
         </SynchronousCommand>
