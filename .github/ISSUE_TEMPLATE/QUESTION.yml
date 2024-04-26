@@ -6,8 +6,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        Have a question about Windows for Docker?
-        Please make sure to check the [FAQ](https://github.com/dockur/windows/blob/master/readme.md) first!
+        Have a general question about Windows for Docker?
+        Please do not use this form for technical issues.
+        And make sure to check the [FAQ](https://github.com/dockur/windows/blob/master/readme.md) first!
   - type: textarea
     id: question
     attributes:
