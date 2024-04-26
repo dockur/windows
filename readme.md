@@ -181,7 +181,7 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
   It's best to use the automatic installation, as it optimizes various settings for use with this container. These tweaks will give you maximum performance and prevent common issues.
 
-  However, if you insist on performing the installation manually, start a clean container with the following environment variable:
+  However, if you insist on performing the installation manually, start a fresh container with the following environment variable:
 
   ```yaml
   environment:
