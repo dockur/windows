@@ -469,6 +469,11 @@
           <CommandLine>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v "NoAutoUpdate" /t REG_DWORD /d 1 /f</CommandLine>
           <Description>Turn off Windows Update auto download</Description>
         </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>24</Order>
+          <CommandLine>netsh advfirewall firewall set rule group="Network Discovery" new enable=Yes</CommandLine>
+          <Description>Enable Network Discovery and File Sharing</Description>
+        </SynchronousCommand>
       </FirstLogonCommands>
     </component>
   </settings>

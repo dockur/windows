@@ -489,11 +489,16 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>24</Order>
+          <CommandLine>netsh advfirewall firewall set rule group="Network Discovery" new enable=Yes</CommandLine>
+          <Description>Enable Network Discovery and File Sharing</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>25</Order>
           <CommandLine>reg.exe add "HKCU\Control Panel\UnsupportedHardwareNotificationCache" /v SV1 /d 0 /t REG_DWORD /f</CommandLine>
           <Description>Disable unsupported hardware notifications</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>25</Order>
+          <Order>26</Order>
           <CommandLine>reg.exe add "HKCU\Control Panel\UnsupportedHardwareNotificationCache" /v SV2 /d 0 /t REG_DWORD /f</CommandLine>
           <Description>Disable unsupported hardware notifications</Description>
         </SynchronousCommand>
