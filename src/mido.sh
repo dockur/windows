@@ -200,7 +200,7 @@ handle_curl_error() {
         # https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_08_02
         $((error_code <= 125)))
             # Must be some other server or network error (possibly with this specific request/file)
-            # This is when accounting for all possible errors in the curl manual assuming a correctly formed curl command and HTTP(S) request, using only the curl features we're using, and a sane build
+            # This is when accounting for all possible errors in the curl manual assuming a correctly formed curl command and an HTTP(S) request, using only the curl features we're using, and a sane build
             echo_err "Miscellaneous server or network error!"
             ;;
         126 | 127)
@@ -246,7 +246,7 @@ scurl_file() {
         handle_curl_error "$error_code"
         error_action=$?
 
-        # Clean up and make sure future resumes don't happen from bad download resume files
+        # Clean up and make sure a future resume doesn't happen from a bad download resume file
         if [ -f "$out_file" ]; then
             # If file is empty, bad HTTP code, or bad download resume file
             if [ ! -s "$out_file" ] || [ "$error_code" = 22 ] || [ "$error_code" = 36 ]; then
@@ -374,13 +374,13 @@ consumer_download() {
 
     if ! [ "$iso_download_link_html" ]; then
         # This should only happen if there's been some change to how this API works
-        echo_err "Microsoft servers gave us an empty response to our request for an automated download. Please check the FAQ on how to boot from a local file and manually download this ISO in a web browser: $url"
+        echo_err "Microsoft servers gave us an empty response to our request for an automated download."
         manual_verification="true"
         return 1
     fi
 
     if echo "$iso_download_link_html" | grep -q "We are unable to complete your request at this time."; then
-        echo_err "Microsoft blocked the automated download request based on your IP address. Please check the FAQ on how to boot from a local file and manually download this ISO in a web browser here: $url"
+        echo_err "Microsoft blocked the automated download request based on your IP address."
         manual_verification="true"
         return 1
     fi
@@ -392,12 +392,12 @@ consumer_download() {
 
     if ! [ "$iso_download_link" ]; then
         # This should only happen if there's been some change to the download endpoint web address
-        echo_err "Microsoft servers gave us no download link to our request for an automated download. Please check the FAQ on how to boot from a local file and manually download this ISO in a web browser: $url"
+        echo_err "Microsoft servers gave us no download link to our request for an automated download."
         manual_verification="true"
         return 1
     fi
 
-    echo_ok "Got latest ISO download link (valid for 24 hours): $iso_download_link"
+    #echo_ok "Got latest ISO download link (valid for 24 hours): $iso_download_link"
 
     # Download ISO
     scurl_file "$out_file" "1.3" "$iso_download_link"
@@ -458,7 +458,7 @@ enterprise_eval_download() {
     # Limit untrusted size for input validation
     iso_download_link="$(echo "$iso_download_link" | head -c 1024)"
 
-    echo_ok "Got latest ISO download link: $iso_download_link"
+    #echo_ok "Got latest ISO download link: $iso_download_link"
 
     # Use highest TLS version for endpoints that support it
     case "$iso_download_link" in
@@ -675,7 +675,7 @@ ending_summary() {
         done
 
         # shellcheck disable=SC2086
-        echo_err "$(word_count $media_download_failed_list) attempted download(s) failed! Please re-run Mido with these arguments to try downloading again (any partial downloads will be resumed):$media_download_failed_argument_list"
+        echo_err "Attempted download failed!"
     fi
 
     # Exit codes
@@ -716,7 +716,7 @@ handle_exit() {
 
     if [ "$exit_code" != 0 ] || [ "$signal" ]; then
         echo "" >&2
-        echo_err "Mido was exited abruptly! PARTially downloaded or UNVERIFIED Windows media may exist. Please re-run this Mido command and do not use the bad media."
+        echo_err "Mido was exited abruptly!"
     fi
 
     if [ "$exit_code" != 0 ]; then
