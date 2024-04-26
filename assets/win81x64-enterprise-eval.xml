@@ -319,7 +319,12 @@
         <SynchronousCommand wcm:action="add">
           <Order>15</Order>
           <CommandLine>netsh advfirewall firewall set rule group="Network Discovery" new enable=Yes</CommandLine>
-          <Description>Enable Network Discovery and File Sharing</Description>
+          <Description>Enable Network Discovery</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>16</Order>
+          <CommandLine>netsh advfirewall firewall set rule group="File and Printer Sharing" new enable=Yes</CommandLine>
+          <Description>Enable File Sharing</Description>
         </SynchronousCommand>
       </FirstLogonCommands>
     </component>
