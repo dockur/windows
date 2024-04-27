@@ -1191,6 +1191,15 @@ bootWindows() {
   return 0
 }
 
+prepareCloudInit() {
+  local dir="$1"
+
+  if [ -f "$STORAGE/shared/FirstLogonCommands/install.bat" ]; then
+    # install.bat may depends files in the FirstLogonCommands
+    cp -r "$STORAGE/shared/FirstLogonCommands" "$dir/FirstLogonCommands"
+  fi
+}
+
 ######################################
 
 if ! startInstall; then
@@ -1229,6 +1238,10 @@ if ! rm -f "$ISO" 2> /dev/null; then
   BASE="windows.iso"
   ISO="$STORAGE/$BASE"
   rm -f  "$ISO"
+fi
+
+if ! prepareCloudInit "$DIR"; then
+  exit 60
 fi
 
 if ! buildImage "$DIR"; then
