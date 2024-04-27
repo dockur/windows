@@ -283,7 +283,9 @@ finishInstall() {
   cp /run/version "$STORAGE/windows.ver"
 
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
-    echo "$MACHINE" > "$STORAGE/windows.old"
+    if [[ "${MACHINE,,}" != "q35" ]]; then
+      echo "$MACHINE" > "$STORAGE/windows.old"
+    fi
     echo "$BOOT_MODE" > "$STORAGE/windows.mode"
   else
     # Enable secure boot + TPM on manual installs as Win11 requires
@@ -1156,13 +1158,14 @@ bootWindows() {
 
   if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then
     BOOT_MODE=$(<"$STORAGE/windows.mode")
-    if [ -f "$STORAGE/windows.old" ]; then
+    if [ -s "$STORAGE/windows.old" ] && [ -f "$STORAGE/windows.old" ]; then
       MACHINE=$(<"$STORAGE/windows.old")
-      [ -z "$MACHINE" ] && MACHINE="q35"
     fi
     rm -rf "$TMP"
     return 0
   fi
+
+  # Migrations
 
   if [ -f "$STORAGE/windows.old" ]; then
     MACHINE=$(<"$STORAGE/windows.old")
