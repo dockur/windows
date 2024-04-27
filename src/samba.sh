@@ -8,7 +8,11 @@ set -Eeuo pipefail
 
 hostname="host.lan"
 interface="dockerbridge"
-[[ "$DHCP" == [Yy1]* ]] && interface="$VM_NET_DEV"
+
+if [[ "$DHCP" == [Yy1]* ]]; then
+  hostname="$IP"
+  interface="$VM_NET_DEV"
+fi
 
 share="$STORAGE/shared"
 
