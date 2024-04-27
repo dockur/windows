@@ -3,22 +3,23 @@ set -Eeuo pipefail
 
 : "${SAMBA:="Y"}"
 
-[[ "$DHCP" == [Yy1]* ]] && return 0
 [[ "$SAMBA" != [Yy1]* ]] && return 0
 [[ "$NETWORK" != [Yy1]* ]] && return 0
 
-SHARE="$STORAGE/shared"
+local hostname="host.lan"
+local interface="dockerbridge"
+[[ "$DHCP" == [Yy1]* ]] && interface="$VM_NET_DEV"
 
-mkdir -p "$SHARE"
-chmod -R 777 "$SHARE"
+local share="$STORAGE/shared"
 
-SAMBA="/etc/samba/smb.conf"
+mkdir -p "$share"
+[ -z "$(ls -A "$share")" ] && chmod -R 777 "$share"
 
 {      echo "[global]"
         echo "    server string = Dockur"
-        echo "    netbios name = dockur"
+        echo "    netbios name = $hostname"
         echo "    workgroup = WORKGROUP"
-        echo "    interfaces = dockerbridge"
+        echo "    interfaces = $interface"
         echo "    bind interfaces only = yes"
         echo "    security = user"
         echo "    guest account = nobody"
@@ -32,14 +33,14 @@ SAMBA="/etc/samba/smb.conf"
         echo "    disable spoolss = yes"
         echo ""
         echo "[Data]"
-        echo "    path = $SHARE"
+        echo "    path = $share"
         echo "    comment = Shared"
         echo "    writable = yes"
         echo "    guest ok = yes"
         echo "    guest only = yes"
         echo "    force user = root"
         echo "    force group = root"
-} > "$SAMBA"
+} > "/etc/samba/smb.conf"
 
 {      echo "--------------------------------------------------------"
         echo " $APP for Docker v$(</run/version)..."
@@ -59,7 +60,7 @@ SAMBA="/etc/samba/smb.conf"
         echo ""
         echo "Replace the example path /home/user/example with the desired storage folder."
         echo ""
-} | unix2dos > "$SHARE/readme.txt"
+} | unix2dos > "$share/readme.txt"
 
 ! smbd && smbd --debug-stdout
 
@@ -77,7 +78,7 @@ if [[ "$isXP" == [Yy1]* ]]; then
   ! nmbd && nmbd --debug-stdout
 else
   # Enable Web Service Discovery
-  wsdd -i dockerbridge -p -n "host.lan" &
+  wsdd -i "$interface" -p -n "$hostname" &
 fi
 
 return 0
