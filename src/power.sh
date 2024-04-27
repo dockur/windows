@@ -6,13 +6,14 @@ set -Eeuo pipefail
 QEMU_TERM=""
 QEMU_PORT=7100
 QEMU_TIMEOUT=110
-QEMU_PID="/run/shm/qemu.pid"
-QEMU_PTY="/run/shm/qemu.pty"
-QEMU_LOG="/run/shm/qemu.log"
-QEMU_OUT="/run/shm/qemu.out"
-QEMU_END="/run/shm/qemu.end"
+QEMU_DIR="/run/shm"
+QEMU_PID="$QEMU_DIR/qemu.pid"
+QEMU_PTY="$QEMU_DIR/qemu.pty"
+QEMU_LOG="$QEMU_DIR/qemu.log"
+QEMU_OUT="$QEMU_DIR/qemu.out"
+QEMU_END="$QEMU_DIR/qemu.end"
 
-rm -f /run/shm/qemu.*
+rm -f "$QEMU_DIR/qemu.*"
 touch "$QEMU_LOG"
 
 _trap() {
