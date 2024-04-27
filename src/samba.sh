@@ -6,11 +6,11 @@ set -Eeuo pipefail
 [[ "$SAMBA" != [Yy1]* ]] && return 0
 [[ "$NETWORK" != [Yy1]* ]] && return 0
 
-local hostname="host.lan"
-local interface="dockerbridge"
+hostname="host.lan"
+interface="dockerbridge"
 [[ "$DHCP" == [Yy1]* ]] && interface="$VM_NET_DEV"
 
-local share="$STORAGE/shared"
+share="$STORAGE/shared"
 
 mkdir -p "$share"
 [ -z "$(ls -A "$share")" ] && chmod -R 777 "$share"
