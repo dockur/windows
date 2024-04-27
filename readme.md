@@ -164,7 +164,7 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
     - /home/user/example.iso:/storage/custom.iso
   ```
 
-  Replace the example path `/home/user/example.iso` with the filename of the desired ISO file.
+  Replace the example path `/home/user/example.iso` with the filename of the desired ISO file. The value of `VERSION` will be ignored in this case.
 
 * ### How do I customize the installation?
 
