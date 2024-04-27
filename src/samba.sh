@@ -68,12 +68,11 @@ isXP="N"
 
 if [ -f "$STORAGE/windows.old" ]; then
   MT=$(<"$STORAGE/windows.old")
-  if [[ "${MT,,}" == "pc-q35-2"* ]]; then
-    isXP="Y"
-  fi
+  [[ "${MT,,}" == "pc-q35-2"* ]] && isXP="Y"
 fi
 
 if [[ "$isXP" == [Yy1]* ]]; then
+  [[ "$DHCP" == [Yy1]* ]] && return 0
   # Enable NetBIOS on Windows XP
   ! nmbd && nmbd --debug-stdout
 else
