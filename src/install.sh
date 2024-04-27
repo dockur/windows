@@ -275,20 +275,25 @@ finishInstall() {
     fi
   fi
 
+  rm -f "$STORAGE/windows.ver"
+  rm -f "$STORAGE/windows.old"
   rm -f "$STORAGE/windows.boot"
+  rm -f "$STORAGE/windows.mode"
+
   cp /run/version "$STORAGE/windows.ver"
 
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
-    echo "$MACHINE" > "$STORAGE/windows.old"
+    if [[ "${MACHINE,,}" != "q35" ]]; then
+      echo "$MACHINE" > "$STORAGE/windows.old"
+    fi
+    echo "$BOOT_MODE" > "$STORAGE/windows.mode"
   else
-    rm -f "$STORAGE/windows.old"
-  fi
-
-  # Enable secure boot + TPM on manual installs as Win11 requires
-  if [[ "$MANUAL" == [Yy1]* ]] || [[ "$aborted" == [Yy1]* ]]; then
-    if [[ "${DETECTED,,}" == "win11"* ]]; then
-      BOOT_MODE="windows_secure"
-      echo "$BOOT_MODE" > "$STORAGE/windows.mode"
+    # Enable secure boot + TPM on manual installs as Win11 requires
+    if [[ "$MANUAL" == [Yy1]* ]] || [[ "$aborted" == [Yy1]* ]]; then
+      if [[ "${DETECTED,,}" == "win11"* ]]; then
+        BOOT_MODE="windows_secure"
+        echo "$BOOT_MODE" > "$STORAGE/windows.mode"
+      fi
     fi
   fi
 
@@ -1151,16 +1156,22 @@ buildImage() {
 
 bootWindows() {
 
-  if [ -f "$STORAGE/windows.old" ]; then
-    MACHINE=$(<"$STORAGE/windows.old")
-    [ -z "$MACHINE" ] && MACHINE="q35"
-    BOOT_MODE="windows_legacy"
+  if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then
+    BOOT_MODE=$(<"$STORAGE/windows.mode")
+    if [ -s "$STORAGE/windows.old" ] && [ -f "$STORAGE/windows.old" ]; then
+      MACHINE=$(<"$STORAGE/windows.old")
+    fi
     rm -rf "$TMP"
     return 0
   fi
 
-  if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then
-    BOOT_MODE=$(<"$STORAGE/windows.mode")
+  # Migrations
+
+  if [ -f "$STORAGE/windows.old" ]; then
+    MACHINE=$(<"$STORAGE/windows.old")
+    [ -z "$MACHINE" ] && MACHINE="q35"
+    BOOT_MODE="windows_legacy"
+    echo "$BOOT_MODE" > "$STORAGE/windows.mode"
     rm -rf "$TMP"
     return 0
   fi

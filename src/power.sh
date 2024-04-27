@@ -28,7 +28,7 @@ ready() {
   [ -f "$STORAGE/windows.boot" ] && return 0
   [ ! -s "$QEMU_PTY" ] && return 1
 
-  if [ -f "$STORAGE/windows.old" ]; then
+  if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
     local last
     local bios="Booting from Hard"
     last=$(grep "^Booting.*" "$QEMU_PTY" | tail -1)
