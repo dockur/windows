@@ -359,11 +359,11 @@ downloadImage() {
   url=$(getLink "$version")
   
   if [ -z "$url" ]; then
-    ! isMido && error "Invalid version specified: $version"
+    ! isMido "$version" && error "Invalid version specified: $version"
     return 1
   fi
     
-  info "Failed to download $desc from Microsoft, will try another mirror now..."
+  isMido "$version" && info "Failed to download $desc from Microsoft, will try another mirror now..."
 
   ISO="$TMP/$BASE"
   iso="$ISO"
