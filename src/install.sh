@@ -171,6 +171,7 @@ detectCustom() {
     CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname "$FN" -printf "%f\n" | head -n 1)
   fi
 
+  return 0
 }
 
 getESD() {
