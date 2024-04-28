@@ -488,9 +488,9 @@
           <Description>Disable unsupported hardware notifications</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>201</Order>
-          <CommandLine>cmd.exe /c for %v in (A B D E F G H I J K L M N O P Q R S T U V W X Y Z) do if exist "%v:\FirstLogonCommands\install.bat" "%v:\FirstLogonCommands\install.bat"</CommandLine>
-          <Description>Execute FirstLogonCommands\install.bat</Description>
+          <Order>24</Order>
+          <CommandLine>cmd.exe /c if exist "C:\OEM\install.bat" "C:\OEM\install.bat"</CommandLine>
+          <Description>Execute custom script from OEM folder</Description>
         </SynchronousCommand>
       </FirstLogonCommands>
     </component>
