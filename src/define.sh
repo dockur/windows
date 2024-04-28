@@ -4,6 +4,7 @@ set -Eeuo pipefail
 : "${MANUAL:=""}"
 : "${VERSION:=""}"
 : "${DETECTED:=""}"
+: "${PLATFORM:="x64"}"
 
 getLink() {
 
@@ -24,41 +25,41 @@ getLink() {
     "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval")
       url="$host/windows/10/en-us_windows_10_enterprise_ltsc_2021_${PLATFORM,,}_dvd_d289cf96.iso"
       ;;
-    "win81x64")
-      url="$host/windows/8.x/8.1/en_windows_8.1_with_update_x64_dvd_6051480.iso"
+    "win81${PLATFORM,,}")
+      url="$host/windows/8.x/8.1/en_windows_8.1_with_update_${PLATFORM,,}_dvd_6051480.iso"
       ;;
     "win2022-eval")
-      url="$host/windows/server/2022/en-us_windows_server_2022_updated_jan_2024_x64_dvd_2b7a0c9f.iso"
+      url="$host/windows/server/2022/en-us_windows_server_2022_updated_jan_2024_${PLATFORM,,}_dvd_2b7a0c9f.iso"
       ;;
     "win2019-eval")
-      url="$host/windows/server/2019/en-us_windows_server_2019_updated_aug_2021_x64_dvd_a6431a28.iso"
+      url="$host/windows/server/2019/en-us_windows_server_2019_updated_aug_2021_${PLATFORM,,}_dvd_a6431a28.iso"
       ;;
     "win2016-eval")
-      url="$host/windows/server/2016/en_windows_server_2016_updated_feb_2018_x64_dvd_11636692.iso"
+      url="$host/windows/server/2016/en_windows_server_2016_updated_feb_2018_${PLATFORM,,}_dvd_11636692.iso"
       ;;
     "win2012r2-eval")
-      url="$host/windows/server/2012r2/en_windows_server_2012_r2_with_update_x64_dvd_6052708-004.iso"
+      url="$host/windows/server/2012r2/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708-004.iso"
       ;;
     "win2008r2")
-      url="$host/windows/server/2008r2/en_windows_server_2008_r2_with_sp1_x64_dvd_617601-018.iso"
+      url="$host/windows/server/2008r2/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601-018.iso"
       ;;
-    "win7x64")
-      url="$host/windows/7/en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.iso"
+    "win7${PLATFORM,,}")
+      url="$host/windows/7/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
       ;;
-    "winvistax64")
-      url="$host/windows/vista/en_windows_vista_sp2_x64_dvd_342267.iso"
+    "winvista${PLATFORM,,}")
+      url="$host/windows/vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
       ;;
     "winxpx86")
       url="$host/windows/xp/professional/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
       ;;
     "core11")
-      url="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
+      url="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20${PLATFORM,,}%20beta%201.iso"
       ;;
     "tiny11")
-      url="https://archive.org/download/tiny11-2311/tiny11%202311%20x64.iso"
+      url="https://archive.org/download/tiny11-2311/tiny11%202311%20${PLATFORM,,}.iso"
       ;;
     "tiny10")
-      url="https://archive.org/download/tiny-10-23-h2/tiny10%20x64%2023h2.iso"
+      url="https://archive.org/download/tiny-10-23-h2/tiny10%20${PLATFORM,,}%2023h2.iso"
       ;;
     *)
       return 0
@@ -79,19 +80,19 @@ parseVersion() {
 
   case "${VERSION,,}" in
     "11" | "win11")
-      VERSION="win11${PLATFORM}"
+      VERSION="win11${PLATFORM,,}"
       ;;
     "10" | "win10")
-      VERSION="win10${PLATFORM}"
+      VERSION="win10${PLATFORM,,}"
       ;;
     "8" | "81" | "8.1" | "win8" | "win81")
-      VERSION="win81x64"
+      VERSION="win81${PLATFORM,,}"
       ;;
     "7" | "win7")
-      VERSION="win7x64"
+      VERSION="win7${PLATFORM,,}"
       ;;
     "vista" | "winvista")
-      VERSION="winvistax64"
+      VERSION="winvista${PLATFORM,,}"
       ;;
     "xp" | "winxp")
       VERSION="winxpx86"
@@ -111,28 +112,28 @@ parseVersion() {
     "2008" | "win2008")
       VERSION="win2008r2"
       ;;
-    "iot10" | "10iot" | "win10-iot" | "win10x64-iot")
-      VERSION="win10x64-enterprise-iot-eval"
+    "iot10" | "10iot" | "win10-iot" | "win10${PLATFORM,,}-iot")
+      VERSION="win10${PLATFORM,,}-enterprise-iot-eval"
       ;;
-    "ltsc10" | "10ltsc" | "win10-ltsc" | "win10x64-ltsc")
-      VERSION="win10x64-enterprise-ltsc-eval"
+    "ltsc10" | "10ltsc" | "win10-ltsc" | "win10${PLATFORM,,}-ltsc")
+      VERSION="win10${PLATFORM,,}-enterprise-ltsc-eval"
       ;;
   esac
 
-  if [[ "${VERSION,,}" == "win10x64-enterprise-iot-eval" ]]; then
-    DETECTED="win10x64-iot"
+  if [[ "${VERSION,,}" == "win10${PLATFORM,,}-enterprise-iot-eval" ]]; then
+    DETECTED="win10${PLATFORM,,}-iot"
   fi
 
-  if [[ "${VERSION,,}" == "win10x64-enterprise-ltsc-eval" ]]; then
-    DETECTED="win10x64-ltsc"
+  if [[ "${VERSION,,}" == "win10${PLATFORM,,}-enterprise-ltsc-eval" ]]; then
+    DETECTED="win10${PLATFORM,,}-ltsc"
   fi
 
-  if [[ "${VERSION,,}" == "win7x64" ]]; then
+  if [[ "${VERSION,,}" == "win7${PLATFORM,,}" ]]; then
     DETECTED="$VERSION"
     VERSION=$(getLink "$VERSION")
   fi
 
-  if [[ "${VERSION,,}" == "winvistax64" ]]; then
+  if [[ "${VERSION,,}" == "winvista${PLATFORM,,}" ]]; then
     DETECTED="$VERSION"
     VERSION=$(getLink "$VERSION")
   fi
@@ -143,17 +144,17 @@ parseVersion() {
   fi
 
   if [[ "${VERSION,,}" == "core11" ]]; then
-    DETECTED="win11x64"
+    DETECTED="win11${PLATFORM,,}"
     VERSION=$(getLink "$VERSION")
   fi
 
   if [[ "${VERSION,,}" == "tiny11" ]]; then
-    DETECTED="win11x64"
+    DETECTED="win11${PLATFORM,,}"
     VERSION=$(getLink "$VERSION")
   fi
 
   if [[ "${VERSION,,}" == "tiny10" ]]; then
-    DETECTED="win10x64-ltsc"
+    DETECTED="win10${PLATFORM,,}-ltsc"
     VERSION=$(getLink "$VERSION")
   fi
 
@@ -177,13 +178,13 @@ printVersion() {
   [[ "$id" == "win2016"* ]] && desc="Windows Server 2016"
   [[ "$id" == "win2012"* ]] && desc="Windows Server 2012"
   [[ "$id" == "win2008"* ]] && desc="Windows Server 2008"
-  [[ "$id" == "win10x64-iot" ]] && desc="Windows 10 IoT"
-  [[ "$id" == "win11x64-iot" ]] && desc="Windows 11 IoT"
-  [[ "$id" == "win10x64-ltsc" ]] && desc="Windows 10 LTSC"
-  [[ "$id" == "win11x64-ltsc" ]] && desc="Windows 11 LTSC"
-  [[ "$id" == "win81x64-enterprise-eval" ]] && desc="Windows 8 Enterprise"
-  [[ "$id" == "win10x64-enterprise-eval" ]] && desc="Windows 10 Enterprise"
-  [[ "$id" == "win11x64-enterprise-eval" ]] && desc="Windows 11 Enterprise"
+  [[ "$id" == "win10${PLATFORM,,}-iot" ]] && desc="Windows 10 IoT"
+  [[ "$id" == "win11${PLATFORM,,}-iot" ]] && desc="Windows 11 IoT"
+  [[ "$id" == "win10${PLATFORM,,}-ltsc" ]] && desc="Windows 10 LTSC"
+  [[ "$id" == "win11${PLATFORM,,}-ltsc" ]] && desc="Windows 11 LTSC"
+  [[ "$id" == "win81${PLATFORM,,}-enterprise-eval" ]] && desc="Windows 8 Enterprise"
+  [[ "$id" == "win10${PLATFORM,,}-enterprise-eval" ]] && desc="Windows 10 Enterprise"
+  [[ "$id" == "win11${PLATFORM,,}-enterprise-eval" ]] && desc="Windows 11 Enterprise"
 
   [ -z "$desc" ] && desc="Windows"
 
@@ -241,8 +242,8 @@ getVersion() {
   local name="$1"
   local detected=""
 
-  [[ "${name,,}" == *"windows 7"* ]] && detected="win7x64"
-  [[ "${name,,}" == *"windows vista"* ]] && detected="winvistax64"
+  [[ "${name,,}" == *"windows 7"* ]] && detected="win7${PLATFORM,,}"
+  [[ "${name,,}" == *"windows vista"* ]] && detected="winvista${PLATFORM,,}"
 
   [[ "${name,,}" == *"server 2008"* ]] && detected="win2008r2"
   [[ "${name,,}" == *"server 2025"* ]] && detected="win2025-eval"
@@ -253,31 +254,31 @@ getVersion() {
 
   if [[ "${name,,}" == *"windows 8"* ]]; then
     if [[ "${name,,}" == *"enterprise evaluation"* ]]; then
-      detected="win81x64-enterprise-eval"
+      detected="win81${PLATFORM,,}-enterprise-eval"
     else
-      detected="win81x64"
+      detected="win81${PLATFORM,,}"
     fi
   fi
 
   if [[ "${name,,}" == *"windows 11"* ]]; then
     if [[ "${name,,}" == *"enterprise evaluation"* ]]; then
-      detected="win11x64-enterprise-eval"
+      detected="win11${PLATFORM,,}-enterprise-eval"
     else
-      detected="win11x64"
+      detected="win11${PLATFORM,,}"
     fi
   fi
 
   if [[ "${name,,}" == *"windows 10"* ]]; then
     if [[ "${name,,}" == *" iot "* ]]; then
-      detected="win10x64-iot"
+      detected="win10${PLATFORM,,}-iot"
     else
       if [[ "${name,,}" == *"ltsc"* ]]; then
-        detected="win10x64-ltsc"
+        detected="win10${PLATFORM,,}-ltsc"
       else
         if [[ "${name,,}" == *"enterprise evaluation"* ]]; then
-          detected="win10x64-enterprise-eval"
+          detected="win10${PLATFORM,,}-enterprise-eval"
         else
-          detected="win10x64"
+          detected="win10${PLATFORM,,}"
         fi
       fi
     fi
