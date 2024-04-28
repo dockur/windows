@@ -675,7 +675,7 @@ ending_summary() {
         done
 
         # shellcheck disable=SC2086
-        echo_err "Attempted download failed!"
+        # echo_err "Attempted download failed!"
     fi
 
     # Exit codes
