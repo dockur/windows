@@ -168,9 +168,7 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
 * ### How do I customize the installation?
 
-  You can customize any part of the automatic installation, and even execute certain commands at boot if needed.
-
-  Download the XML file corresponding to your Windows version, for example [win11x64.xml](https://raw.githubusercontent.com/dockur/windows/master/assets/win11x64.xml). Then apply your modifications to it, and add this line to your compose file:
+  You can customize every setting used by the automatic installation. Download the XML file corresponding to your Windows version, for example [win11x64.xml](https://raw.githubusercontent.com/dockur/windows/master/assets/win11x64.xml). Then apply your modifications to it, and add this line to your compose file:
 
   ```yaml
   volumes:
@@ -178,6 +176,17 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
   ```
 
   Replace the example path `/home/user/custom.xml` with the filename of the modified XML file.
+
+* ### How do I run a script after installation?
+
+  To run your own script after installation, you can create a file called `install.bat` and place it in a folder together with other files it needs (programs to install for example). Then bind it in your compose file like this:
+
+  ```yaml
+  volumes:
+    -  /home/user/example:/storage/oem
+  ```
+
+  The example path `/home/user/example` will be copied to `C:\OEM` during installation and the containing `install.bat` will be executed.
 
 * ### How do I perform a manual installation?
 

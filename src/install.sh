@@ -1082,6 +1082,35 @@ updateImage() {
   return 0
 }
 
+copyOEM() {
+  local dir="$1"
+  local folder="$STORAGE/oem"
+  local src
+
+  [ ! -d "$folder" ] && folder="$STORAGE/OEM"
+  [ ! -d "$folder" ] && folder="$STORAGE/shared/oem"
+  [ ! -d "$folder" ] && folder="$STORAGE/shared/OEM"
+  [ ! -d "$folder" ] && return 0
+
+  local msg="Copying OEM folder to image..."
+  info "$msg" && html "$msg"
+
+  src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
+
+  if [ ! -d "$src" ]; then
+    error "failed to locate 'sources' folder in ISO image!" && return 1
+  fi
+
+  local dest="$src/\$OEM\$/\$1/"
+  mkdir -p "$dest"
+
+  if ! cp -r "$folder" "$dest"; then
+    error "Failed to copy OEM folder!" && return 1
+  fi
+
+  return 0
+}
+
 buildImage() {
 
   local dir="$1"
@@ -1240,6 +1269,10 @@ if ! rm -f "$ISO" 2> /dev/null; then
   BASE="windows.iso"
   ISO="$STORAGE/$BASE"
   rm -f  "$ISO"
+fi
+
+if ! copyOEM "$DIR"; then
+  exit 63
 fi
 
 if ! buildImage "$DIR"; then

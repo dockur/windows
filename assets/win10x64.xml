@@ -464,6 +464,11 @@
           <CommandLine>netsh advfirewall firewall set rule group="File and Printer Sharing" new enable=Yes</CommandLine>
           <Description>Enable File Sharing</Description>
         </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>23</Order>
+          <CommandLine>cmd /C if exist "C:\OEM\install.bat" start "Install" "cmd /C C:\OEM\install.bat"</CommandLine>
+          <Description>Execute custom script from the OEM folder if exists</Description>
+        </SynchronousCommand>
       </FirstLogonCommands>
     </component>
   </settings>

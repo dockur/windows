@@ -485,6 +485,11 @@
           <CommandLine>reg.exe add "HKCU\Control Panel\UnsupportedHardwareNotificationCache" /v SV2 /d 0 /t REG_DWORD /f</CommandLine>
           <Description>Disable unsupported hardware notifications</Description>
         </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>24</Order>
+          <CommandLine>cmd /C if exist "C:\OEM\install.bat" start "Install" "cmd /C C:\OEM\install.bat"</CommandLine>
+          <Description>Execute custom script from the OEM folder if exists</Description>
+        </SynchronousCommand>
       </FirstLogonCommands>
     </component>
   </settings>
