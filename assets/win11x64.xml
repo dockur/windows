@@ -479,18 +479,18 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>22</Order>
+          <CommandLine>cmd.exe /c if exist "C:\OEM\install.bat" start "Install" "C:\OEM\install.bat"</CommandLine>
+          <Description>Execute custom script from the OEM folder if exists</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>23</Order>
           <CommandLine>reg.exe add "HKCU\Control Panel\UnsupportedHardwareNotificationCache" /v SV1 /d 0 /t REG_DWORD /f</CommandLine>
           <Description>Disable unsupported hardware notifications</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>23</Order>
+          <Order>24</Order>
           <CommandLine>reg.exe add "HKCU\Control Panel\UnsupportedHardwareNotificationCache" /v SV2 /d 0 /t REG_DWORD /f</CommandLine>
           <Description>Disable unsupported hardware notifications</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>24</Order>
-          <CommandLine>cmd.exe /c if exist "C:\OEM\install.bat" "C:\OEM\install.bat"</CommandLine>
-          <Description>Execute custom script from OEM folder</Description>
         </SynchronousCommand>
       </FirstLogonCommands>
     </component>
