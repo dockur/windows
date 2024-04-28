@@ -9,6 +9,7 @@ SUPPORT="https://github.com/dockur/windows"
 cd /run
 
 . reset.sh      # Initialize system
+. define.sh     # Define versions
 . install.sh    # Run installation
 . disk.sh       # Initialize disks
 . display.sh    # Initialize graphics
