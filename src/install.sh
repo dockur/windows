@@ -177,9 +177,10 @@ detectCustom() {
 getESD() {
 
   local dir="$1"
+  local version="$2"
   local winCatalog size
 
-  case "${VERSION,,}" in
+  case "${version,,}" in
     "win11${PLATFORM,,}")
       winCatalog="https://go.microsoft.com/fwlink?linkid=2156292"
       ;;
@@ -187,7 +188,7 @@ getESD() {
       winCatalog="https://go.microsoft.com/fwlink/?LinkId=841361"
       ;;
     *)
-      error "Invalid ESD version specified: $VERSION" && return 1
+      error "Invalid ESD version specified: $version" && return 1
       ;;
   esac
 
@@ -242,7 +243,7 @@ getESD() {
 doMido() {
 
   local iso="$1"
-  local url="$2"
+  local version="$2"
   local desc="$3"
   local rc
 
@@ -254,7 +255,7 @@ doMido() {
   /run/progress.sh "$iso.PART" "Downloading $desc ([P])..." &
 
   cd "$TMP"
-  { /run/mido.sh "$url"; rc=$?; } || :
+  { /run/mido.sh "${version,,}"; rc=$?; } || :
   cd /run
 
   fKill "progress.sh"
@@ -310,39 +311,37 @@ downloadFile() {
 downloadImage() {
 
   local iso="$1"
-  local url="$2"
+  local version="$2"
+  local url=""
   local rc desc
 
-  if [[ "$EXTERNAL" != [Yy1]* ]]; then
+  if [[ "${version,,}" != "http"* ]]; then
 
-    desc=$(printVersion "$VERSION" "Windows")
+    desc=$(printVersion "$version" "Windows")
 
   else
 
+    url="$version"
     desc=$(getName "$BASE" "$BASE")
 
   fi
 
-  if [[ "$EXTERNAL" != [Yy1]* ]]; then
+  if [ -z "$url" ]; then
 
-    doMido "$iso" "$url" "$desc" && return 0
+    doMido "$iso" "$version" "$desc" && return 0
 
-    if [[ "$VERSION" != "win10${PLATFORM,,}" ]] && [[ "$VERSION" != "win11${PLATFORM,,}" ]]; then
-      return 1
-    fi
+    if [[ "${version,,}" == "win10${PLATFORM,,}" ]] || [[ "$version" == "win11${PLATFORM,,}" ]]; then
 
-    info "Failed to download $desc using Mido, will try a different method now..."
+      info "Failed to download $desc using Mido, will try a different method now..."
 
-    rm -rf "$TMP"
-    mkdir -p "$TMP"
+      ISO="$TMP/$version.esd"
+      iso="$ISO"
 
-    ISO="$TMP/$VERSION.esd"
-    iso="$ISO"
+      rm -rf "$TMP"
+      mkdir -p "$TMP"
 
-    if ! getESD "$TMP/esd"; then
-      url=""
-    else
-      url="$ESD_URL"
+      getESD "$TMP/esd" "$version" && url="$ESD_URL"
+
     fi
 
   fi
@@ -351,27 +350,18 @@ downloadImage() {
     downloadFile "$iso" "$url" "$desc" && return 0
   fi
 
-  [[ "$EXTERNAL" == [Yy1]* ]] && return 1
+  [[ "${version,,}" == "http"* ]] && return 1
 
-  case "${VERSION,,}" in
-    "win11${PLATFORM,,}")
-      url="https://dl.bobpony.com/windows/11/en-us_windows_11_23h2_${PLATFORM,,}.iso"
-      ;;
-    "win10${PLATFORM,,}")
-      url="https://dl.bobpony.com/windows/10/en-us_windows_10_22h2_${PLATFORM,,}.iso"
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-
+  url=$(getLink "$version")
+  [ -z "$url" ] && return 1
+    
   info "Failed to download $desc from Microsoft, will try another mirror now..."
-
-  rm -rf "$TMP"
-  mkdir -p "$TMP"
 
   ISO="$TMP/$BASE"
   iso="$ISO"
+
+  rm -rf "$TMP"
+  mkdir -p "$TMP"
 
   downloadFile "$iso" "$url" "$desc" && return 0
 
