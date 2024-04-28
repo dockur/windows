@@ -1094,7 +1094,7 @@ copyOEM() {
     error "failed to locate 'sources' folder in ISO image!" && return 1
   fi
 
-  local dest="$src/\$OEM\$/\$1/OEM"
+  local dest="$src/\$OEM\$/\$1/"
   mkdir -p "$dest"
 
   if ! cp -r "$folder" "$dest"; then
