@@ -120,6 +120,8 @@ startInstall() {
     fi
   fi
 
+  ! migrateFiles "$BASE" "$VERSION" && error "Migration failed!" && exit 57
+
   if skipInstall; then
     [ ! -f "$STORAGE/$BASE" ] && BASE=""
     return 1
