@@ -67,6 +67,29 @@ getLink() {
   return 0
 }
 
+migrateFiles() {
+
+  local base="$1"
+  local version="$2"
+  local file=""
+
+  [ -f "$STORAGE/$base" ] && return 0
+
+  [[ "${version,,}" == "tiny10" ]] && file="tiny10_${PLATFORM,,}_23h2.iso"
+  [[ "${version,,}" == "tiny11" ]] && file="tiny11_2311_${PLATFORM,,}.iso"
+  [[ "${version,,}" == "core11" ]] && file="tiny11_core_${PLATFORM,,}_beta_1.iso"
+  [[ "${version,,}" == "winxpx86" ]] && file="en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
+  [[ "${version,,}" == "winvista${PLATFORM,,}" ]] && file="en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
+  [[ "${version,,}" == "win7${PLATFORM,,}" ]] && file="en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"    
+    
+  [ -z "$file" ] && return 0
+  [ ! -f "$STORAGE/$file" ] && return 0
+
+  ! mv "$STORAGE/$file" "$STORAGE/$base" && return 1
+
+  return 0
+}
+
 parseVersion() {
 
   [ -z "$VERSION" ] && VERSION="win11"
