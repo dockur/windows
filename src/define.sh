@@ -8,6 +8,8 @@ set -Eeuo pipefail
 
 getLink() {
 
+  # Fallbacks for users who cannot connect to Microsoft servers
+
   local id="$1"
   local url=""
   local host="https://dl.bobpony.com"
@@ -102,13 +104,22 @@ parseVersion() {
     "11" | "win11")
       VERSION="win11${PLATFORM,,}"
       ;;
+    "11e" | "win11e")
+      VERSION="win11${PLATFORM,,}-enterprise-eval"
+      ;;
     "10" | "win10")
       VERSION="win10${PLATFORM,,}"
+      ;;
+    "10e" | "win10e")
+      VERSION="win10${PLATFORM,,}-enterprise-eval"
       ;;
     "8" | "81" | "8.1" | "win8" | "win81")
       VERSION="win81${PLATFORM,,}"
       ;;
-    "7" | "win7")
+    "8e" | "81e" | "8.1e" | "win8e" | "win81e")
+      VERSION="win8${PLATFORM,,}-enterprise-eval"
+      ;;
+    "7" | "7e" | "win7" | "win7e")
       VERSION="win7${PLATFORM,,}"
       ;;
     "vista" | "winvista")
@@ -132,51 +143,21 @@ parseVersion() {
     "2008" | "win2008")
       VERSION="win2008r2"
       ;;
-    "iot10" | "10iot" | "win10-iot" | "win10${PLATFORM,,}-iot")
+    "core11" | "tiny11")
+      DETECTED="win11${PLATFORM,,}"
+      ;;
+   "tiny10")
+      DETECTED="win10${PLATFORM,,}-ltsc"
+      ;;
+    "iot10" | "10iot" | "win10-iot" | "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval")
+      DETECTED="win10${PLATFORM,,}-iot"
       VERSION="win10${PLATFORM,,}-enterprise-iot-eval"
       ;;
-    "ltsc10" | "10ltsc" | "win10-ltsc" | "win10${PLATFORM,,}-ltsc")
+    "ltsc10" | "10ltsc" | "win10-ltsc" | "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval")
+      DETECTED="win10${PLATFORM,,}-ltsc"
       VERSION="win10${PLATFORM,,}-enterprise-ltsc-eval"
       ;;
   esac
-
-  if [[ "${VERSION,,}" == "win10${PLATFORM,,}-enterprise-iot-eval" ]]; then
-    DETECTED="win10${PLATFORM,,}-iot"
-  fi
-
-  if [[ "${VERSION,,}" == "win10${PLATFORM,,}-enterprise-ltsc-eval" ]]; then
-    DETECTED="win10${PLATFORM,,}-ltsc"
-  fi
-
-  if [[ "${VERSION,,}" == "win7${PLATFORM,,}" ]]; then
-    DETECTED="$VERSION"
-    VERSION=$(getLink "$VERSION")
-  fi
-
-  if [[ "${VERSION,,}" == "winvista${PLATFORM,,}" ]]; then
-    DETECTED="$VERSION"
-    VERSION=$(getLink "$VERSION")
-  fi
-
-  if [[ "${VERSION,,}" == "winxpx86" ]]; then
-    DETECTED="$VERSION"
-    VERSION=$(getLink "$VERSION")
-  fi
-
-  if [[ "${VERSION,,}" == "core11" ]]; then
-    DETECTED="win11${PLATFORM,,}"
-    VERSION=$(getLink "$VERSION")
-  fi
-
-  if [[ "${VERSION,,}" == "tiny11" ]]; then
-    DETECTED="win11${PLATFORM,,}"
-    VERSION=$(getLink "$VERSION")
-  fi
-
-  if [[ "${VERSION,,}" == "tiny10" ]]; then
-    DETECTED="win10${PLATFORM,,}-ltsc"
-    VERSION=$(getLink "$VERSION")
-  fi
 
   return 0
 }
