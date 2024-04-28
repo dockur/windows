@@ -61,9 +61,6 @@ getLink() {
     "tiny10")
       url="https://archive.org/download/tiny-10-23-h2/tiny10%20${PLATFORM,,}%2023h2.iso"
       ;;
-    *)
-      return 0
-      ;;
   esac
 
   echo "$url"
