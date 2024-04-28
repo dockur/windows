@@ -1077,6 +1077,30 @@ updateImage() {
   return 0
 }
 
+copyOEM() {
+  local dir="$1"
+  local folder="$STORAGE/OEM"
+  local src
+
+  [ ! -d "$folder" ] && folder="$STORAGE/shared/OEM"
+  [ ! -d "$folder" ] && return 0
+
+  src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
+
+  if [ ! -d "$src" ]; then
+    error "failed to locate 'sources' folder in ISO image!" && return 1
+  fi
+
+  local dest="$src/\$OEM\$/\$1/OEM"
+  mkdir -p "$dest"
+
+  if ! cp -r "$folder" "$dest"; then
+    error "Failed to copy OEM folder!" && return 1
+  fi
+
+  return 0
+}
+
 buildImage() {
 
   local dir="$1"
@@ -1191,15 +1215,6 @@ bootWindows() {
   return 0
 }
 
-prepareCloudInit() {
-  local dir="$1"
-
-  if [ -f "$STORAGE/shared/FirstLogonCommands/install.bat" ]; then
-    # install.bat may depends files in the FirstLogonCommands
-    cp -r "$STORAGE/shared/FirstLogonCommands" "$dir/FirstLogonCommands"
-  fi
-}
-
 ######################################
 
 if ! startInstall; then
@@ -1240,8 +1255,8 @@ if ! rm -f "$ISO" 2> /dev/null; then
   rm -f  "$ISO"
 fi
 
-if ! prepareCloudInit "$DIR"; then
-  exit 60
+if ! copyOEM "$DIR"; then
+  exit 63
 fi
 
 if ! buildImage "$DIR"; then
