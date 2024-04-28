@@ -1085,6 +1085,9 @@ copyOEM() {
   [ ! -d "$folder" ] && folder="$STORAGE/shared/OEM"
   [ ! -d "$folder" ] && return 0
 
+  local msg="Copying OEM folder to image..."
+  info "$msg" && html "$msg"
+
   src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
 
   if [ ! -d "$src" ]; then
