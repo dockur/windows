@@ -117,7 +117,7 @@ parseVersion() {
       VERSION="win81${PLATFORM,,}"
       ;;
     "8e" | "81e" | "8.1e" | "win8e" | "win81e")
-      VERSION="win8${PLATFORM,,}-enterprise-eval"
+      VERSION="win81${PLATFORM,,}-enterprise-eval"
       ;;
     "7" | "7e" | "win7" | "win7e")
       VERSION="win7${PLATFORM,,}"
