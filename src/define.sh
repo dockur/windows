@@ -311,12 +311,47 @@ getVersion() {
   [[ "${name,,}" == *"windows 7"* ]] && detected="win7${PLATFORM,,}"
   [[ "${name,,}" == *"windows vista"* ]] && detected="winvista${PLATFORM,,}"
 
+  if [[ "${name,,}" == *"server 2025"* ]]; then
+    if [[ "${name,,}" == *"evaluation"* ]]; then
+      detected="win2025-eval"
+    else
+      detected="win2025"
+    fi
+  fi
+
+  if [[ "${name,,}" == *"server 2022"* ]]; then
+    if [[ "${name,,}" == *"evaluation"* ]]; then
+      detected="win2022-eval"
+    else
+      detected="win2022"
+    fi
+  fi
+
+  if [[ "${name,,}" == *"server 2019"* ]]; then
+    if [[ "${name,,}" == *"evaluation"* ]]; then
+      detected="win2019-eval"
+    else
+      detected="win2019"
+    fi
+  fi
+
+  if [[ "${name,,}" == *"server 2016"* ]]; then
+    if [[ "${name,,}" == *"evaluation"* ]]; then
+      detected="win2016-eval"
+    else
+      detected="win2016"
+    fi
+  fi
+
+  if [[ "${name,,}" == *"server 2012"* ]]; then
+    if [[ "${name,,}" == *"evaluation"* ]]; then
+      detected="win2012r2-eval"
+    else
+      detected="win2012r2"
+    fi
+  fi
+
   [[ "${name,,}" == *"server 2008"* ]] && detected="win2008r2"
-  [[ "${name,,}" == *"server 2025"* ]] && detected="win2025-eval"
-  [[ "${name,,}" == *"server 2022"* ]] && detected="win2022-eval"
-  [[ "${name,,}" == *"server 2019"* ]] && detected="win2019-eval"
-  [[ "${name,,}" == *"server 2016"* ]] && detected="win2016-eval"
-  [[ "${name,,}" == *"server 2012"* ]] && detected="win2012r2-eval"
 
   if [[ "${name,,}" == *"windows 8"* ]]; then
     if [[ "${name,,}" == *"enterprise evaluation"* ]]; then
