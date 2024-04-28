@@ -328,9 +328,11 @@ downloadImage() {
 
   if [ -z "$url" ]; then
 
-    doMido "$iso" "$version" "$desc" && return 0
+    if isMido "$version"; then
+      doMido "$iso" "$version" "$desc" && return 0
+    fi
 
-    if [[ "${version,,}" == "win10${PLATFORM,,}" ]] || [[ "$version" == "win11${PLATFORM,,}" ]]; then
+    if isESD "$version"; then
 
       info "Failed to download $desc using Mido, will try a different method now..."
 
@@ -353,7 +355,11 @@ downloadImage() {
   [[ "${version,,}" == "http"* ]] && return 1
 
   url=$(getLink "$version")
-  [ -z "$url" ] && return 1
+  
+  if [ -z "$url" ]; then
+    ! isMido && error "Invalid version specified: $version"
+    return 1
+  fi
     
   info "Failed to download $desc from Microsoft, will try another mirror now..."
 
