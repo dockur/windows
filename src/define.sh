@@ -158,6 +158,56 @@ parseVersion() {
   return 0
 }
 
+isESD() {
+
+  local id="$1"
+
+  case "${id,,}" in
+    "win11${PLATFORM,,}")
+      return 0
+      ;;
+    "win10${PLATFORM,,}")
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+isMido() {
+
+  local id="$1"
+
+  case "${id,,}" in
+    "win11${PLATFORM,,}" | "win11${PLATFORM,,}-enterprise-eval")
+      return 0
+      ;;
+    "win10${PLATFORM,,}" | "win10${PLATFORM,,}-enterprise-eval" | "win10${PLATFORM,,}-enterprise-ltsc-eval")
+      return 0
+      ;;
+    "win81${PLATFORM,,}" | "win81${PLATFORM,,}-enterprise-eval")
+      return 0
+      ;;
+    "win2022-eval")
+      return 0
+      ;;
+    "win2019-eval")
+      return 0
+      ;;
+    "win2016-eval")
+      return 0
+      ;;
+    "win2012r2-eval")
+      return 0
+      ;;
+    "win2008r2")
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
 printVersion() {
 
   local id="$1"
@@ -175,10 +225,15 @@ printVersion() {
   [[ "$id" == "win2016"* ]] && desc="Windows Server 2016"
   [[ "$id" == "win2012"* ]] && desc="Windows Server 2012"
   [[ "$id" == "win2008"* ]] && desc="Windows Server 2008"
+
   [[ "$id" == "win10${PLATFORM,,}-iot" ]] && desc="Windows 10 IoT"
   [[ "$id" == "win11${PLATFORM,,}-iot" ]] && desc="Windows 11 IoT"
   [[ "$id" == "win10${PLATFORM,,}-ltsc" ]] && desc="Windows 10 LTSC"
   [[ "$id" == "win11${PLATFORM,,}-ltsc" ]] && desc="Windows 11 LTSC"
+  [[ "$id" == "win10${PLATFORM,,}-enterprise-iot-eval" ]] && desc="Windows 10 IoT"
+  [[ "$id" == "win11${PLATFORM,,}-enterprise-iot-eval" ]] && desc="Windows 11 IoT"
+  [[ "$id" == "win10${PLATFORM,,}-enterprise-ltsc-eval" ]] && desc="Windows 10 LTSC"
+  [[ "$id" == "win11${PLATFORM,,}-enterprise-ltsc-eval" ]] && desc="Windows 11 LTSC"
   [[ "$id" == "win81${PLATFORM,,}-enterprise-eval" ]] && desc="Windows 8 Enterprise"
   [[ "$id" == "win10${PLATFORM,,}-enterprise-eval" ]] && desc="Windows 10 Enterprise"
   [[ "$id" == "win11${PLATFORM,,}-enterprise-eval" ]] && desc="Windows 11 Enterprise"
@@ -228,7 +283,17 @@ getName() {
   [[ "${file,,}" == *"server_2022"* ]] && desc="Windows Server 2022"
   [[ "${file,,}" == *"server_2025"* ]] && desc="Windows Server 2025"
 
-  [ -z "$desc" ] && desc="Windows"
+  if [ -z "$desc" ]; then
+    desc="Windows"
+  else
+    if [[ "$desc" == "Windows 1"* ]] && [[ "${file,,}" == *"_iot_"* ]]; then
+      desc="$desc IoT"
+    else
+      if [[ "$desc" == "Windows 1"* ]] && [[ "${file,,}" == *"_ltsc_"* ]]; then
+        desc="$desc LTSC"
+      fi
+    fi
+  fi
 
   echo "$desc"
   return 0
