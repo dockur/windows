@@ -30,16 +30,20 @@ getLink() {
     "win81${PLATFORM,,}")
       url="$host/windows/8.x/8.1/en_windows_8.1_with_update_${PLATFORM,,}_dvd_6051480.iso"
       ;;
-    "win2022-eval")
+    "win2022" | "win2022-eval")
+      DETECTED="win2022"
       url="$host/windows/server/2022/en-us_windows_server_2022_updated_jan_2024_${PLATFORM,,}_dvd_2b7a0c9f.iso"
       ;;
-    "win2019-eval")
+    "win2019" | "win2019-eval")
+      DETECTED="win2019"
       url="$host/windows/server/2019/en-us_windows_server_2019_updated_aug_2021_${PLATFORM,,}_dvd_a6431a28.iso"
       ;;
-    "win2016-eval")
+    "win2016" | "win2016-eval")
+      DETECTED="win2016"
       url="$host/windows/server/2016/en_windows_server_2016_updated_feb_2018_${PLATFORM,,}_dvd_11636692.iso"
       ;;
-    "win2012r2-eval")
+    "win2012r2" | "win2012r2-eval")
+      DETECTED="win2012r2"
       url="$host/windows/server/2012r2/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708-004.iso"
       ;;
     "win2008r2")
@@ -312,64 +316,44 @@ getVersion() {
   [[ "${name,,}" == *"windows vista"* ]] && detected="winvista${PLATFORM,,}"
 
   if [[ "${name,,}" == *"server 2025"* ]]; then
-    if [[ "${name,,}" == *"evaluation"* ]]; then
-      detected="win2025-eval"
-    else
-      detected="win2025"
-    fi
+    detected="win2025"
+    [[ "${name,,}" == *"evaluation"* ]] && detected="win2025-eval"
   fi
 
   if [[ "${name,,}" == *"server 2022"* ]]; then
-    if [[ "${name,,}" == *"evaluation"* ]]; then
-      detected="win2022-eval"
-    else
-      detected="win2022"
-    fi
+    detected="win2022"
+    [[ "${name,,}" == *"evaluation"* ]] && detected="win2022-eval"
   fi
 
   if [[ "${name,,}" == *"server 2019"* ]]; then
-    if [[ "${name,,}" == *"evaluation"* ]]; then
-      detected="win2019-eval"
-    else
-      detected="win2019"
-    fi
+    detected="win2019"
+    [[ "${name,,}" == *"evaluation"* ]] && detected="win2019-eval"
   fi
 
   if [[ "${name,,}" == *"server 2016"* ]]; then
-    if [[ "${name,,}" == *"evaluation"* ]]; then
-      detected="win2016-eval"
-    else
-      detected="win2016"
-    fi
+    detected="win2016"
+    [[ "${name,,}" == *"evaluation"* ]] && detected="win2016-eval"
   fi
 
   if [[ "${name,,}" == *"server 2012"* ]]; then
-    if [[ "${name,,}" == *"evaluation"* ]]; then
-      detected="win2012r2-eval"
-    else
-      detected="win2012r2"
-    fi
+    detected="win2012r2"
+    [[ "${name,,}" == *"evaluation"* ]] && detected="win2012r2-eval"
   fi
 
   [[ "${name,,}" == *"server 2008"* ]] && detected="win2008r2"
 
   if [[ "${name,,}" == *"windows 8"* ]]; then
-    if [[ "${name,,}" == *"enterprise evaluation"* ]]; then
-      detected="win81${PLATFORM,,}-enterprise-eval"
-    else
-      detected="win81${PLATFORM,,}"
-    fi
+    detected="win81${PLATFORM,,}"
+    [[ "${name,,}" == *"enterprise evaluation"* ]] && detected="win81${PLATFORM,,}-enterprise-eval"
   fi
 
   if [[ "${name,,}" == *"windows 11"* ]]; then
-    if [[ "${name,,}" == *"enterprise evaluation"* ]]; then
-      detected="win11${PLATFORM,,}-enterprise-eval"
-    else
-      detected="win11${PLATFORM,,}"
-    fi
+    detected="win11${PLATFORM,,}"
+    [[ "${name,,}" == *"enterprise evaluation"* ]] && detected="win11${PLATFORM,,}-enterprise-eval"
   fi
 
   if [[ "${name,,}" == *"windows 10"* ]]; then
+    detected="win10${PLATFORM,,}"
     if [[ "${name,,}" == *" iot "* ]]; then
       detected="win10${PLATFORM,,}-iot"
     else
@@ -378,8 +362,6 @@ getVersion() {
       else
         if [[ "${name,,}" == *"enterprise evaluation"* ]]; then
           detected="win10${PLATFORM,,}-enterprise-eval"
-        else
-          detected="win10${PLATFORM,,}"
         fi
       fi
     fi
