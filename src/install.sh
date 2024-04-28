@@ -5,104 +5,6 @@ set -Eeuo pipefail
 : "${VERSION:=""}"
 : "${DETECTED:=""}"
 
-[ -z "$VERSION" ] && VERSION="win11x64"
-
-if [[ "${VERSION}" == \"*\" || "${VERSION}" == \'*\' ]]; then
-  VERSION="${VERSION:1:-1}"
-fi
-
-[[ "${VERSION,,}" == "11" ]] && VERSION="win11x64"
-[[ "${VERSION,,}" == "win11" ]] && VERSION="win11x64"
-
-[[ "${VERSION,,}" == "10" ]] && VERSION="win10x64"
-[[ "${VERSION,,}" == "win10" ]] && VERSION="win10x64"
-
-[[ "${VERSION,,}" == "8" ]] && VERSION="win81x64"
-[[ "${VERSION,,}" == "81" ]] && VERSION="win81x64"
-[[ "${VERSION,,}" == "8.1" ]] && VERSION="win81x64"
-[[ "${VERSION,,}" == "win8" ]] && VERSION="win81x64"
-[[ "${VERSION,,}" == "win81" ]] && VERSION="win81x64"
-
-[[ "${VERSION,,}" == "7" ]] && VERSION="win7x64"
-[[ "${VERSION,,}" == "win7" ]] && VERSION="win7x64"
-
-[[ "${VERSION,,}" == "vista" ]] && VERSION="winvistax64"
-[[ "${VERSION,,}" == "winvista" ]] && VERSION="winvistax64"
-
-[[ "${VERSION,,}" == "xp" ]] && VERSION="winxpx86"
-[[ "${VERSION,,}" == "winxp" ]] && VERSION="winxpx86"
-
-[[ "${VERSION,,}" == "22" ]] && VERSION="win2022-eval"
-[[ "${VERSION,,}" == "2022" ]] && VERSION="win2022-eval"
-[[ "${VERSION,,}" == "win22" ]] && VERSION="win2022-eval"
-[[ "${VERSION,,}" == "win2022" ]] && VERSION="win2022-eval"
-
-[[ "${VERSION,,}" == "19" ]] && VERSION="win2019-eval"
-[[ "${VERSION,,}" == "2019" ]] && VERSION="win2019-eval"
-[[ "${VERSION,,}" == "win19" ]] && VERSION="win2019-eval"
-[[ "${VERSION,,}" == "win2019" ]] && VERSION="win2019-eval"
-
-[[ "${VERSION,,}" == "16" ]] && VERSION="win2016-eval"
-[[ "${VERSION,,}" == "2016" ]] && VERSION="win2016-eval"
-[[ "${VERSION,,}" == "win16" ]] && VERSION="win2016-eval"
-[[ "${VERSION,,}" == "win2016" ]] && VERSION="win2016-eval"
-
-[[ "${VERSION,,}" == "2012" ]] && VERSION="win2012r2-eval"
-[[ "${VERSION,,}" == "win2012" ]] && VERSION="win2012r2-eval"
-
-[[ "${VERSION,,}" == "2008" ]] && VERSION="win2008r2"
-[[ "${VERSION,,}" == "win2008" ]] && VERSION="win2008r2"
-
-[[ "${VERSION,,}" == "ltsc10" ]] && VERSION="win10x64-enterprise-ltsc-eval"
-[[ "${VERSION,,}" == "10ltsc" ]] && VERSION="win10x64-enterprise-ltsc-eval"
-[[ "${VERSION,,}" == "win10-ltsc" ]] && VERSION="win10x64-enterprise-ltsc-eval"
-[[ "${VERSION,,}" == "win10x64-ltsc" ]] && VERSION="win10x64-enterprise-ltsc-eval"
-
-if [[ "${VERSION,,}" == "win10x64-enterprise-ltsc-eval" ]]; then
-  DETECTED="win10x64-ltsc"
-fi
-
-if [[ "${VERSION,,}" == "win7x64" ]]; then
-  DETECTED="win7x64"
-  VERSION="https://dl.bobpony.com/windows/7/en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.iso"
-fi
-
-if [[ "${VERSION,,}" == "winvistax64" ]]; then
-  DETECTED="winvistax64"
-  VERSION="https://dl.bobpony.com/windows/vista/en_windows_vista_sp2_x64_dvd_342267.iso"
-fi
-
-if [[ "${VERSION,,}" == "winxpx86" ]]; then
-  DETECTED="winxpx86"
-  VERSION="https://dl.bobpony.com/windows/xp/professional/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
-fi
-
-if [[ "${VERSION,,}" == "core11" ]]; then
-  DETECTED="win11x64"
-  VERSION="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
-fi
-
-if [[ "${VERSION,,}" == "tiny11" ]]; then
-  DETECTED="win11x64"
-  VERSION="https://archive.org/download/tiny11-2311/tiny11%202311%20x64.iso"
-fi
-
-if [[ "${VERSION,,}" == "tiny10" ]]; then
-  DETECTED="win10x64-ltsc"
-  VERSION="https://archive.org/download/tiny-10-23-h2/tiny10%20x64%2023h2.iso"
-fi
-
-CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname windows.iso -printf "%f\n" | head -n 1)
-[ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso -printf "%f\n" | head -n 1)
-[ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname boot.iso -printf "%f\n" | head -n 1)
-[ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.img -printf "%f\n" | head -n 1)
-
-if [ -z "$CUSTOM" ] && [[ "${VERSION,,}" != "http"* ]]; then
-  FN="${VERSION/\/storage\//}"
-  [[ "$FN" == "."* ]] && FN="${FN:1}"
-  CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname "$FN" -printf "%f\n" | head -n 1)
-fi
-
 ESD_URL=""
 MACHINE="q35"
 PLATFORM="x64"
@@ -111,6 +13,161 @@ DIR="$TMP/unpack"
 FB="falling back to manual installation!"
 ETFS="boot/etfsboot.com"
 EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
+
+getLink() {
+
+  local id="$1"
+  local url=""
+  local host="https://dl.bobpony.com"
+
+  case "${id,,}" in
+    "win11${PLATFORM,,}")
+      url="$host/windows/11/en-us_windows_11_23h2_${PLATFORM,,}.iso"
+      ;;
+    "win10${PLATFORM,,}")
+      url="$host/windows/10/en-us_windows_10_22h2_${PLATFORM,,}.iso"
+      ;;
+    "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval")
+      url="$host/windows/10/en-us_windows_10_iot_enterprise_ltsc_2021_${PLATFORM,,}_dvd_257ad90f.iso"
+      ;;
+    "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval")
+      url="$host/windows/10/en-us_windows_10_enterprise_ltsc_2021_${PLATFORM,,}_dvd_d289cf96.iso"
+      ;;
+    "win81x64")
+      url="$host/windows/8.x/8.1/en_windows_8.1_with_update_x64_dvd_6051480.iso"
+      ;;
+    "win2022-eval")
+      url="$host/windows/server/2022/en-us_windows_server_2022_updated_jan_2024_x64_dvd_2b7a0c9f.iso"
+      ;;
+    "win2019-eval")
+      url="$host/windows/server/2019/en-us_windows_server_2019_updated_aug_2021_x64_dvd_a6431a28.iso"
+      ;;
+    "win2016-eval")
+      url="$host/windows/server/2016/en_windows_server_2016_updated_feb_2018_x64_dvd_11636692.iso"
+      ;;
+    "win2012r2-eval")
+      url="$host/windows/server/2012r2/en_windows_server_2012_r2_with_update_x64_dvd_6052708-004.iso"
+      ;;
+    "win2008r2")
+      url="$host/windows/server/2008r2/en_windows_server_2008_r2_with_sp1_x64_dvd_617601-018.iso"
+      ;;
+    "win7x64")
+      url="$host/windows/7/en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.iso"
+      ;;
+    "winvistax64")
+      url="$host/windows/vista/en_windows_vista_sp2_x64_dvd_342267.iso"
+      ;;
+    "winxpx86")
+      url="$host/windows/xp/professional/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
+      ;;
+    "core11")
+      url="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
+      ;;
+    "tiny11")
+      url="https://archive.org/download/tiny11-2311/tiny11%202311%20x64.iso"
+      ;;
+    "tiny10")
+      url="https://archive.org/download/tiny-10-23-h2/tiny10%20x64%2023h2.iso"
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+
+  echo "$url"
+  return 0
+}
+
+parseVersion() {
+
+  [ -z "$VERSION" ] && VERSION="win11"
+
+  if [[ "${VERSION}" == \"*\" || "${VERSION}" == \'*\' ]]; then
+    VERSION="${VERSION:1:-1}"
+  fi
+
+  case "${VERSION,,}" in
+    "11" | "win11")
+      VERSION="win11${PLATFORM}"
+      ;;
+    "10" | "win10")
+      VERSION="win10${PLATFORM}"
+      ;;
+    "8" | "81" | "8.1" | "win8" | "win81")
+      VERSION="win81x64"
+      ;;
+    "7" | "win7")
+      VERSION="win7x64"
+      ;;
+    "vista" | "winvista")
+      VERSION="winvistax64"
+      ;;
+    "xp" | "winxp")
+      VERSION="winxpx86"
+      ;;
+    "22" | "2022" | "win22" | "win2022")
+      VERSION="win2022-eval"
+      ;;
+    "19" | "2019" | "win19" | "win2019")
+      VERSION="win2019-eval"
+      ;;
+    "16" | "2016" | "win16" | "win2016")
+      VERSION="win2016-eval"
+      ;;
+    "2012" | "win2012")
+      VERSION="win2012r2-eval"
+      ;;
+    "2008" | "win2008")
+      VERSION="win2008r2"
+      ;;
+    "iot10" | "10iot" | "win10-iot" | "win10x64-iot")
+      VERSION="win10x64-enterprise-iot-eval"
+      ;;
+    "ltsc10" | "10ltsc" | "win10-ltsc" | "win10x64-ltsc")
+      VERSION="win10x64-enterprise-ltsc-eval"
+      ;;
+  esac
+
+  if [[ "${VERSION,,}" == "win10x64-enterprise-iot-eval" ]]; then
+    DETECTED="win10x64-iot"
+  fi
+
+  if [[ "${VERSION,,}" == "win10x64-enterprise-ltsc-eval" ]]; then
+    DETECTED="win10x64-ltsc"
+  fi
+
+  if [[ "${VERSION,,}" == "win7x64" ]]; then
+    DETECTED="$VERSION"
+    VERSION=$(getLink "$VERSION")
+  fi
+
+  if [[ "${VERSION,,}" == "winvistax64" ]]; then
+    DETECTED="$VERSION"
+    VERSION=$(getLink "$VERSION")
+  fi
+
+  if [[ "${VERSION,,}" == "winxpx86" ]]; then
+    DETECTED="$VERSION"
+    VERSION=$(getLink "$VERSION")
+  fi
+
+  if [[ "${VERSION,,}" == "core11" ]]; then
+    DETECTED="win11x64"
+    VERSION=$(getLink "$VERSION")
+  fi
+
+  if [[ "${VERSION,,}" == "tiny11" ]]; then
+    DETECTED="win11x64"
+    VERSION=$(getLink "$VERSION")
+  fi
+
+  if [[ "${VERSION,,}" == "tiny10" ]]; then
+    DETECTED="win10x64-ltsc"
+    VERSION=$(getLink "$VERSION")
+  fi
+
+  return 0
+}
 
 printVersion() {
 
@@ -257,6 +314,21 @@ skipInstall() {
   fi
 
   return 1
+}
+
+detectCustom() {
+
+  CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname windows.iso -printf "%f\n" | head -n 1)
+  [ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso -printf "%f\n" | head -n 1)
+  [ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname boot.iso -printf "%f\n" | head -n 1)
+  [ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.img -printf "%f\n" | head -n 1)
+
+  if [ -z "$CUSTOM" ] && [[ "${VERSION,,}" != "http"* ]]; then
+    FN="${VERSION/\/storage\//}"
+    [[ "$FN" == "."* ]] && FN="${FN:1}"
+    CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname "$FN" -printf "%f\n" | head -n 1)
+  fi
+
 }
 
 finishInstall() {
@@ -1232,6 +1304,9 @@ bootWindows() {
 }
 
 ######################################
+
+! parseVersion && exit 58
+! detectCustom && exit 59
 
 if ! startInstall; then
   bootWindows && return 0
