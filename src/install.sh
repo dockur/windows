@@ -339,7 +339,11 @@ downloadImage() {
     error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
   fi
 
-  desc=$(printVersion "$version" "Windows")
+  if [[ "${PLATFORM,,}" == "x64" ]]; then
+    desc=$(printVersion "$version" "Windows")
+  else
+    desc=$(printVersion "$version" "Windows for ${PLATFORM}")
+  fi
 
   if isMido "$version"; then
     tried="y"
@@ -998,12 +1002,13 @@ buildImage() {
 
 bootWindows() {
 
+  rm -rf "$TMP"
+
   if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then
     BOOT_MODE=$(<"$STORAGE/windows.mode")
     if [ -s "$STORAGE/windows.old" ] && [ -f "$STORAGE/windows.old" ]; then
       [[ "${PLATFORM,,}" == "x64" ]] && MACHINE=$(<"$STORAGE/windows.old")
     fi
-    rm -rf "$TMP"
     return 0
   fi
 
@@ -1016,7 +1021,6 @@ bootWindows() {
     [ -z "$MACHINE" ] && MACHINE="q35"
     BOOT_MODE="windows_legacy"
     echo "$BOOT_MODE" > "$STORAGE/windows.mode"
-    rm -rf "$TMP"
     return 0
   fi
 
@@ -1042,7 +1046,6 @@ bootWindows() {
     fi
   fi
 
-  rm -rf "$TMP"
   return 0
 }
 
