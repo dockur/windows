@@ -586,4 +586,47 @@ configXP() {
   return 0
 }
 
+prepareXP() {
+
+  local iso="$1"
+  local dir="$2"
+  local arch="x86"
+  local target="$dir/I386"
+
+  if [ -d "$dir/AMD64" ]; then
+    arch="amd64"
+    target="$dir/AMD64"
+  fi
+
+  MACHINE="pc-q35-2.10"
+  BOOT_MODE="windows_legacy"
+  ETFS="[BOOT]/Boot-NoEmul.img"
+
+  [[ "$MANUAL" == [Yy1]* ]] && return 0
+  configXP "$dir" "$arch" "$target" && return 0
+  
+  error "Failed to generate XP configuration files!" && exit 66
+}
+
+prepareLegacy() {
+
+  local iso="$1"
+  local dir="$2"
+
+  ETFS="boot.img"
+  BOOT_MODE="windows_legacy"
+
+  rm -f "$dir/$ETFS"
+
+  local len offset
+  len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
+  offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
+
+  if ! dd "if=$iso" "of=$dir/$ETFS" bs=2048 "count=$len" "skip=$offset" status=none; then
+    error "Failed to extract boot image from ISO!" && exit 67
+  fi
+
+  return 0
+}
+
 return 0
