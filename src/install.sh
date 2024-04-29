@@ -202,7 +202,7 @@ getESD() {
 
   local wFile="catalog.cab"
 
-  { wget "$winCatalog" -O "$dir/$wFile" -q --no-check-certificate; rc=$?; } || :
+  { wget "$winCatalog" -O "$dir/$wFile" -q; rc=$?; } || :
   (( rc != 0 )) && error "Failed to download $winCatalog , reason: $rc" && return 1
 
   cd "$dir"
@@ -294,7 +294,7 @@ downloadFile() {
   info "$msg" && html "$msg"
   /run/progress.sh "$iso" "Downloading $desc ([P])..." &
 
-  { wget "$url" -O "$iso" -q --no-check-certificate --show-progress "$progress"; rc=$?; } || :
+  { wget "$url" -O "$iso" -q --show-progress "$progress"; rc=$?; } || :
 
   fKill "progress.sh"
 
