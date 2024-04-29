@@ -865,7 +865,7 @@ updateImage() {
     warn "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB" && return 1
   fi
 
-  info "Adding XML file for automatic installation..."
+  info "Adding "$(basename $asset)" for automatic installation..."
 
   index="1"
   result=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
