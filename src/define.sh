@@ -76,6 +76,55 @@ parseVersion() {
   return 0
 }
 
+validVersion() {
+
+  local id="$1"
+
+  case "${id,,}" in
+    "win11${PLATFORM,,}" | "win11${PLATFORM,,}-enterprise-eval")
+      return 0
+      ;;
+    "win10${PLATFORM,,}" | "win10${PLATFORM,,}-enterprise-eval")
+      return 0
+      ;;
+    "win10${PLATFORM,,}-enterprise-iot-eval" | "win10${PLATFORM,,}-enterprise-ltsc-eval")
+      return 0
+      ;;
+    "win81${PLATFORM,,}" | "win81${PLATFORM,,}-enterprise-eval")
+      return 0
+      ;;
+    "win2022-eval")
+      return 0
+      ;;
+    "win2019-eval")
+      return 0
+      ;;
+    "win2016-eval")
+      return 0
+      ;;
+    "win2012r2-eval")
+      return 0
+      ;;
+    "win2008r2")
+      return 0
+      ;;
+    "win7${PLATFORM,,}")
+      return 0
+      ;;
+    "winvista${PLATFORM,,}")
+      return 0
+      ;;
+    "winxpx86")
+      return 0
+      ;;
+    "core11" | "tiny11" | "tiny10")
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
 isESD() {
 
   local id="$1"
@@ -279,55 +328,6 @@ getVersion() {
 
   echo "$detected"
   return 0
-}
-
-validVersion() {
-
-  local id="$1"
-
-  case "${id,,}" in
-    "win11${PLATFORM,,}" | "win11${PLATFORM,,}-enterprise-eval")
-      return 0
-      ;;
-    "win10${PLATFORM,,}" | "win10${PLATFORM,,}-enterprise-eval")
-      return 0
-      ;;
-    "win10${PLATFORM,,}-enterprise-iot-eval" | "win10${PLATFORM,,}-enterprise-ltsc-eval")
-      return 0
-      ;;
-    "win81${PLATFORM,,}" | "win81${PLATFORM,,}-enterprise-eval")
-      return 0
-      ;;
-    "win2022-eval")
-      return 0
-      ;;
-    "win2019-eval")
-      return 0
-      ;;
-    "win2016-eval")
-      return 0
-      ;;
-    "win2012r2-eval")
-      return 0
-      ;;
-    "win2008r2")
-      return 0
-      ;;
-    "win7${PLATFORM,,}")
-      return 0
-      ;;
-    "winvista${PLATFORM,,}")
-      return 0
-      ;;
-    "winxpx86")
-      return 0
-      ;;
-    "core11" | "tiny11" | "tiny10")
-      return 0
-      ;;
-  esac
-
-  return 1
 }
 
 getLink() {
