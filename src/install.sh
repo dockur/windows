@@ -2,7 +2,6 @@
 set -Eeuo pipefail
 
 ESD_URL=""
-MACHINE="q35"
 TMP="$STORAGE/tmp"
 DIR="$TMP/unpack"
 FB="falling back to manual installation!"
