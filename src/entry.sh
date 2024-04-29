@@ -29,8 +29,8 @@ info "Booting ${APP}${BOOT_DESC}..."
 (( rc != 0 )) && error "$(<"$QEMU_LOG")" && exit 15
 
 terminal
+( sleep 10; boot ) &
 tail -fn +0 "$QEMU_LOG" 2>/dev/null &
-( sleep 10; [ ! -f "$QEMU_END" ] && info "Windows started succesfully, visit http://localhost:8006/ to view the screen..." ) &
 cat "$QEMU_TERM" 2> /dev/null | tee "$QEMU_PTY" &
 wait $! || :
 
