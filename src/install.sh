@@ -52,17 +52,19 @@ finishInstall() {
 
   cp /run/version "$STORAGE/windows.ver"
 
-  if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
-    if [[ "${MACHINE,,}" != "q35" ]]; then
-      echo "$MACHINE" > "$STORAGE/windows.old"
-    fi
-    echo "$BOOT_MODE" > "$STORAGE/windows.mode"
-  else
-    # Enable secure boot + TPM on manual installs as Win11 requires
-    if [[ "$MANUAL" == [Yy1]* ]] || [[ "$aborted" == [Yy1]* ]]; then
-      if [[ "${DETECTED,,}" == "win11"* ]]; then
-        BOOT_MODE="windows_secure"
-        echo "$BOOT_MODE" > "$STORAGE/windows.mode"
+  if [[ "${PLATFORM,,}" == "x64" ]]; then
+    if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+      if [[ "${MACHINE,,}" != "q35" ]]; then
+        echo "$MACHINE" > "$STORAGE/windows.old"
+      fi
+      echo "$BOOT_MODE" > "$STORAGE/windows.mode"
+    else
+      # Enable secure boot + TPM on manual installs as Win11 requires
+      if [[ "$MANUAL" == [Yy1]* ]] || [[ "$aborted" == [Yy1]* ]]; then
+        if [[ "${DETECTED,,}" == "win11"* ]]; then
+          BOOT_MODE="windows_secure"
+          echo "$BOOT_MODE" > "$STORAGE/windows.mode"
+        fi
       fi
     fi
   fi
@@ -120,10 +122,13 @@ startInstall() {
     fi
   fi
 
-  ! migrateFiles "$BASE" "$VERSION" && error "Migration failed!" && exit 57
+  if [[ "${PLATFORM,,}" == "x64" ]]; then
+    ! migrateFiles "$BASE" "$VERSION" && error "Migration failed!" && exit 57
+  fi
 
   if skipInstall; then
     [ ! -f "$STORAGE/$BASE" ] && BASE=""
+    [[ "${PLATFORM,,}" == "arm64" ]] && VGA="virtio-gpu"
     return 1
   fi
 
@@ -153,6 +158,9 @@ startInstall() {
   if [ ! -f "$STORAGE/$CUSTOM" ]; then
     CUSTOM=""
     ISO="$TMP/$BASE"
+    if [[ "${PLATFORM,,}" == "arm64" ]]; then
+      [[ "$EXTERNAL" != [Yy1]* ]] && ISO="$TMP/$VERSION.esd"
+    fi
   else
     ISO="$STORAGE/$CUSTOM"
   fi
@@ -557,16 +565,18 @@ detectImage() {
 
   info "Detecting Windows version from ISO image..."
 
-  if [ -f "$dir/WIN51" ] || [ -f "$dir/SETUPXP.HTM" ]; then
-    DETECTED="winxpx86"
-    info "Detected: Windows XP" && return 0
+  if [[ "${PLATFORM,,}" == "x64" ]]; then
+    if [ -f "$dir/WIN51" ] || [ -f "$dir/SETUPXP.HTM" ]; then
+      DETECTED="winxpx86"
+      info "Detected: Windows XP" && return 0
+    fi
   fi
 
   local src loc tag result name name2 desc
   src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
 
   if [ ! -d "$src" ]; then
-    BOOT_MODE="windows_legacy"
+    [[ "${PLATFORM,,}" == "x64" ]] && BOOT_MODE="windows_legacy"
     warn "failed to locate 'sources' folder in ISO image, $FB" && return 1
   fi
 
@@ -574,7 +584,7 @@ detectImage() {
   [ ! -f "$loc" ] && loc=$(find "$src" -maxdepth 1 -type f -iname install.esd | head -n 1)
 
   if [ ! -f "$loc" ]; then
-    BOOT_MODE="windows_legacy"
+    [[ "${PLATFORM,,}" == "x64" ]] && BOOT_MODE="windows_legacy"
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB" && return 1
   fi
 
@@ -858,7 +868,7 @@ updateImage() {
   src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
 
   if [ ! -d "$src" ]; then
-    BOOT_MODE="windows_legacy"
+    [[ "${PLATFORM,,}" == "x64" ]] && BOOT_MODE="windows_legacy"
     warn "failed to locate 'sources' folder in ISO image, $FB" && return 1
   fi
 
@@ -866,7 +876,7 @@ updateImage() {
   [ ! -f "$loc" ] && loc=$(find "$src" -maxdepth 1 -type f -iname boot.esd | head -n 1)
 
   if [ ! -f "$loc" ]; then
-    BOOT_MODE="windows_legacy"
+    [[ "${PLATFORM,,}" == "x64" ]] && BOOT_MODE="windows_legacy"
     warn "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB" && return 1
   fi
 
@@ -992,13 +1002,15 @@ bootWindows() {
   if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then
     BOOT_MODE=$(<"$STORAGE/windows.mode")
     if [ -s "$STORAGE/windows.old" ] && [ -f "$STORAGE/windows.old" ]; then
-      MACHINE=$(<"$STORAGE/windows.old")
+      [[ "${PLATFORM,,}" == "x64" ]] && MACHINE=$(<"$STORAGE/windows.old")
     fi
     rm -rf "$TMP"
     return 0
   fi
 
   # Migrations
+
+  [[ "${PLATFORM,,}" != "x64" ]] && return 0
 
   if [ -f "$STORAGE/windows.old" ]; then
     MACHINE=$(<"$STORAGE/windows.old")
