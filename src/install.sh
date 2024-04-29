@@ -687,6 +687,8 @@ prepareImage() {
     fi
   fi
 
+  [[ "${PLATFORM,,}" == "arm64" ]] && return 1
+
   if [[ "${DETECTED,,}" == "winxp"* ]]; then
     if ! prepareXP "$iso" "$dir"; then
       error "Failed to prepare Windows XP ISO!" && return 1
