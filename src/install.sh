@@ -190,7 +190,7 @@ getESD() {
       winCatalog="https://go.microsoft.com/fwlink/?LinkId=841361"
       ;;
     *)
-      error "Invalid ESD version specified: $version" && return 1
+      error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
       ;;
   esac
 
@@ -201,6 +201,9 @@ getESD() {
   mkdir -p "$dir"
 
   local wFile="catalog.cab"
+  local xFile="products.xml"
+  local eFile="esd_edition.xml"
+  local fFile="products_filter.xml"
 
   { wget "$winCatalog" -O "$dir/$wFile" -q; rc=$?; } || :
   (( rc != 0 )) && error "Failed to download $winCatalog , reason: $rc" && return 1
@@ -209,33 +212,33 @@ getESD() {
 
   if ! cabextract "$wFile" > /dev/null; then
     cd /run
-    error "Failed to extract CAB file!" && return 1
+    error "Failed to extract $wFile!" && return 1
   fi
 
   cd /run
 
-  if [ ! -s "$dir/products.xml" ]; then
-    error "Failed to find products.xml!" && return 1
+  if [ ! -s "$dir/$xFile" ]; then
+    error "Failed to find $xFile in $wFile!" && return 1
   fi
 
   local esdLang="en-us"
   local editionName="Professional"
   local edQuery='//File[Architecture="'${PLATFORM}'"][Edition="'${editionName}'"]'
 
-  echo -e '<Catalog>' > "${dir}/products_filter.xml"
-  xmllint --nonet --xpath "${edQuery}" "${dir}/products.xml" >> "${dir}/products_filter.xml" 2>/dev/null
-  echo -e '</Catalog>'>> "${dir}/products_filter.xml"
-  xmllint --nonet --xpath '//File[LanguageCode="'${esdLang}'"]' "${dir}/products_filter.xml" >"${dir}/esd_edition.xml"
+  echo -e '<Catalog>' > "$dir/$fFile"
+  xmllint --nonet --xpath "${edQuery}" "$dir/$xFile" >> "$dir/$fFile" 2>/dev/null
+  echo -e '</Catalog>'>> "$dir/$fFile"
+  xmllint --nonet --xpath '//File[LanguageCode="'${esdLang}'"]' "$dir/$fFile" >"$dir/$eFile"
 
-  size=$(stat -c%s "${dir}/esd_edition.xml")
+  size=$(stat -c%s "$dir/$eFile")
   if ((size<20)); then
-    error "Failed to find Windows product!" && return 1
+    error "Failed to find Windows product in $eFile!" && return 1
   fi
 
-  ESD_URL=$(xmllint --nonet --xpath '//FilePath' "${dir}/esd_edition.xml" | sed -E -e 's/<[\/]?FilePath>//g')
+  ESD_URL=$(xmllint --nonet --xpath '//FilePath' "$dir/$eFile" | sed -E -e 's/<[\/]?FilePath>//g')
 
   if [ -z "$ESD_URL" ]; then
-    error "Failed to find ESD URL!" && return 1
+    error "Failed to find ESD URL in $eFile!" && return 1
   fi
 
   rm -rf "$dir"
@@ -326,7 +329,7 @@ downloadImage() {
   fi
 
   if ! validVersion "$version"; then
-    error "Invalid VERSION, value \"$version\" is not recognized!" && return 1
+    error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
   fi
 
   desc=$(printVersion "$version" "Windows")
@@ -395,9 +398,10 @@ extractESD() {
 
   local iso="$1"
   local dir="$2"
+  local version="$3"
+  local desc="$4"
   local size size_gb space space_gb desc
 
-  desc=$(printVersion "$VERSION" "Windows")
   local msg="Extracting $desc bootdisk..."
   info "$msg" && html "$msg"
 
@@ -422,7 +426,7 @@ extractESD() {
 
   wimlib-imagex apply "$iso" 1 "${dir}" --quiet 2>/dev/null || {
     retVal=$?
-    error "Extracting bootdisk failed" && return $retVal
+    error "Extracting $desc bootdisk failed" && return $retVal
   }
 
   local bootWimFile="${dir}/sources/boot.wim"
@@ -449,7 +453,7 @@ extractESD() {
 
   local edition imageIndex imageEdition
 
-  case "${VERSION,,}" in
+  case "${version,,}" in
     "win11${PLATFORM,,}")
       edition="11 pro"
       ;;
@@ -457,7 +461,7 @@ extractESD() {
       edition="10 pro"
       ;;
     *)
-      error "Invalid version specified: $VERSION" && return 1
+      error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
       ;;
   esac
 
@@ -466,7 +470,7 @@ extractESD() {
     [[ "${imageEdition,,}" != *"$edition"* ]] && continue
     wimlib-imagex export "${iso}" ${imageIndex} "${installWimFile}" --compress=LZMS --chunk-size 128K --quiet || {
       retVal=$?
-      error "Addition of ${imageIndex} to the image failed" && return $retVal
+      error "Addition of ${imageIndex} to the $desc image failed" && return $retVal
     }
     return 0
   done
@@ -478,16 +482,17 @@ extractImage() {
 
   local iso="$1"
   local dir="$2"
+  local version="$3"
   local desc="downloaded ISO"
   local size size_gb space space_gb
 
-  if [[ "${iso,,}" == *".esd" ]]; then
-    extractESD "$iso" "$dir" && return 0
-    return 1
+  if [[ "$EXTERNAL" != [Yy1]* ]] && [ -z "$CUSTOM" ]; then
+    desc=$(printVersion "$version" "downloaded ISO")
   fi
 
-  if [[ "$EXTERNAL" != [Yy1]* ]] && [ -z "$CUSTOM" ]; then
-    desc=$(printVersion "$VERSION" "downloaded ISO")
+  if [[ "${iso,,}" == *".esd" ]]; then
+    extractESD "$iso" "$dir" "$version" "$desc" && return 0
+    return 1
   fi
 
   local msg="Extracting $desc image..."
@@ -544,7 +549,7 @@ detectImage() {
       local dsc
       dsc=$(printVersion "$DETECTED" "$DETECTED")
 
-      warn "got $dsc, but no matching XML file exists, $FB."
+      warn "got $dsc, but no matching $DETECTED.xml file exists, $FB."
     fi
 
     return 0
@@ -597,7 +602,7 @@ detectImage() {
     [[ "$MANUAL" != [Yy1]* ]] && XML="$DETECTED.xml"
     info "Detected: $desc"
   else
-    warn "detected $desc, but no matching XML file exists, $FB."
+    warn "detected $desc, but no matching $DETECTED.xml file exists, $FB."
   fi
 
   return 0
@@ -875,7 +880,7 @@ updateImage() {
   fi
 
   if ! wimlib-imagex update "$loc" "$index" --command "add $asset /autounattend.xml" > /dev/null; then
-    warn "failed to add XML to ISO image, $FB" && return 1
+    warn "failed to add "$(basename $asset)" to ISO image, $FB" && return 1
   fi
 
   return 0
@@ -1047,7 +1052,7 @@ if [ ! -s "$ISO" ] || [ ! -f "$ISO" ]; then
   fi
 fi
 
-if ! extractImage "$ISO" "$DIR"; then
+if ! extractImage "$ISO" "$DIR" "$VERSION"; then
   rm -f "$ISO"
   exit 62
 fi
