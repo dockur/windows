@@ -314,50 +314,44 @@ downloadImage() {
 
   local iso="$1"
   local version="$2"
-  local url=""
   local tried="n"
-  local rc desc
+  local url desc
 
   if [[ "${version,,}" == "http"* ]]; then
 
-    url="$version"
     desc=$(getName "$BASE" "$BASE")
-
-  else
-
-    if ! validVersion "$version"; then
-      error "Invalid VERSION value: $version" && return 1
-    fi
-
-    desc=$(printVersion "$version" "Windows")
-
-    if isMido "$version"; then
-      tried="y"
-      doMido "$iso" "$version" "$desc" && return 0
-    fi
-
-    if isESD "$version"; then
-
-      [[ "$tried" != "n" ]] && info "Failed to download $desc using Mido, will try a different method now..."
-
-      ISO="$TMP/$version.esd"
-      iso="$ISO"
-
-      tried="y"
-      rm -rf "$TMP"
-      mkdir -p "$TMP"
-
-      getESD "$TMP/esd" "$version" && url="$ESD_URL"
-
-    fi
+    downloadFile "$iso" "$version" "$desc" && return 0
+    return 1
 
   fi
 
-  if [ -n "$url" ]; then
-    downloadFile "$iso" "$url" "$desc" && return 0
+  if ! validVersion "$version"; then
+    error "Invalid VERSION value: $version" && return 1
   fi
 
-  [[ "${version,,}" == "http"* ]] && return 1
+  desc=$(printVersion "$version" "Windows")
+
+  if isMido "$version"; then
+    tried="y"
+    doMido "$iso" "$version" "$desc" && return 0
+  fi
+
+  if isESD "$version"; then
+
+    [[ "$tried" != "n" ]] && info "Failed to download $desc using Mido, will try a different method now..."
+
+    ISO="$TMP/$version.esd"
+    iso="$ISO"
+
+    tried="y"
+    rm -rf "$TMP"
+    mkdir -p "$TMP"
+
+    if getESD "$TMP/esd" "$version"; then
+      downloadFile "$iso" "$ESD_URL" "$desc" && return 0
+    fi
+
+  fi
 
   ISO="$TMP/$BASE"
   iso="$ISO"
