@@ -6,96 +6,6 @@ set -Eeuo pipefail
 : "${DETECTED:=""}"
 : "${PLATFORM:="x64"}"
 
-getLink() {
-
-  # Fallbacks for users who cannot connect to Microsoft servers
-
-  local id="$1"
-  local url=""
-  local host="https://dl.bobpony.com"
-
-  case "${id,,}" in
-    "win11${PLATFORM,,}")
-      url="$host/windows/11/en-us_windows_11_23h2_${PLATFORM,,}.iso"
-      ;;
-    "win10${PLATFORM,,}")
-      url="$host/windows/10/en-us_windows_10_22h2_${PLATFORM,,}.iso"
-      ;;
-    "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval")
-      url="$host/windows/10/en-us_windows_10_iot_enterprise_ltsc_2021_${PLATFORM,,}_dvd_257ad90f.iso"
-      ;;
-    "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval")
-      url="$host/windows/10/en-us_windows_10_enterprise_ltsc_2021_${PLATFORM,,}_dvd_d289cf96.iso"
-      ;;
-    "win81${PLATFORM,,}")
-      url="$host/windows/8.x/8.1/en_windows_8.1_with_update_${PLATFORM,,}_dvd_6051480.iso"
-      ;;
-    "win2022" | "win2022-eval")
-      DETECTED="win2022"
-      url="$host/windows/server/2022/en-us_windows_server_2022_updated_jan_2024_${PLATFORM,,}_dvd_2b7a0c9f.iso"
-      ;;
-    "win2019" | "win2019-eval")
-      DETECTED="win2019"
-      url="$host/windows/server/2019/en-us_windows_server_2019_updated_aug_2021_${PLATFORM,,}_dvd_a6431a28.iso"
-      ;;
-    "win2016" | "win2016-eval")
-      DETECTED="win2016"
-      url="$host/windows/server/2016/en_windows_server_2016_updated_feb_2018_${PLATFORM,,}_dvd_11636692.iso"
-      ;;
-    "win2012r2" | "win2012r2-eval")
-      DETECTED="win2012r2"
-      url="$host/windows/server/2012r2/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708-004.iso"
-      ;;
-    "win2008r2")
-      url="$host/windows/server/2008r2/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601-018.iso"
-      ;;
-    "win7${PLATFORM,,}")
-      url="$host/windows/7/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
-      ;;
-    "winvista${PLATFORM,,}")
-      url="$host/windows/vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
-      ;;
-    "winxpx86")
-      url="$host/windows/xp/professional/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
-      ;;
-    "core11")
-      url="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20${PLATFORM,,}%20beta%201.iso"
-      ;;
-    "tiny11")
-      url="https://archive.org/download/tiny11-2311/tiny11%202311%20${PLATFORM,,}.iso"
-      ;;
-    "tiny10")
-      url="https://archive.org/download/tiny-10-23-h2/tiny10%20${PLATFORM,,}%2023h2.iso"
-      ;;
-  esac
-
-  echo "$url"
-  return 0
-}
-
-migrateFiles() {
-
-  local base="$1"
-  local version="$2"
-  local file=""
-
-  [ -f "$STORAGE/$base" ] && return 0
-
-  [[ "${version,,}" == "tiny10" ]] && file="tiny10_${PLATFORM,,}_23h2.iso"
-  [[ "${version,,}" == "tiny11" ]] && file="tiny11_2311_${PLATFORM,,}.iso"
-  [[ "${version,,}" == "core11" ]] && file="tiny11_core_${PLATFORM,,}_beta_1.iso"
-  [[ "${version,,}" == "winxpx86" ]] && file="en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
-  [[ "${version,,}" == "winvista${PLATFORM,,}" ]] && file="en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
-  [[ "${version,,}" == "win7${PLATFORM,,}" ]] && file="en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"    
-    
-  [ -z "$file" ] && return 0
-  [ ! -f "$STORAGE/$file" ] && return 0
-
-  ! mv "$STORAGE/$file" "$STORAGE/$base" && return 1
-
-  return 0
-}
-
 parseVersion() {
 
   [ -z "$VERSION" ] && VERSION="win11"
@@ -368,6 +278,96 @@ getVersion() {
   fi
 
   echo "$detected"
+  return 0
+}
+
+getLink() {
+
+  # Fallbacks for users who cannot connect to Microsoft servers
+
+  local id="$1"
+  local url=""
+  local host="https://dl.bobpony.com"
+
+  case "${id,,}" in
+    "win11${PLATFORM,,}")
+      url="$host/windows/11/en-us_windows_11_23h2_${PLATFORM,,}.iso"
+      ;;
+    "win10${PLATFORM,,}")
+      url="$host/windows/10/en-us_windows_10_22h2_${PLATFORM,,}.iso"
+      ;;
+    "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval")
+      url="$host/windows/10/en-us_windows_10_iot_enterprise_ltsc_2021_${PLATFORM,,}_dvd_257ad90f.iso"
+      ;;
+    "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval")
+      url="$host/windows/10/en-us_windows_10_enterprise_ltsc_2021_${PLATFORM,,}_dvd_d289cf96.iso"
+      ;;
+    "win81${PLATFORM,,}")
+      url="$host/windows/8.x/8.1/en_windows_8.1_with_update_${PLATFORM,,}_dvd_6051480.iso"
+      ;;
+    "win2022" | "win2022-eval")
+      DETECTED="win2022"
+      url="$host/windows/server/2022/en-us_windows_server_2022_updated_jan_2024_${PLATFORM,,}_dvd_2b7a0c9f.iso"
+      ;;
+    "win2019" | "win2019-eval")
+      DETECTED="win2019"
+      url="$host/windows/server/2019/en-us_windows_server_2019_updated_aug_2021_${PLATFORM,,}_dvd_a6431a28.iso"
+      ;;
+    "win2016" | "win2016-eval")
+      DETECTED="win2016"
+      url="$host/windows/server/2016/en_windows_server_2016_updated_feb_2018_${PLATFORM,,}_dvd_11636692.iso"
+      ;;
+    "win2012r2" | "win2012r2-eval")
+      DETECTED="win2012r2"
+      url="$host/windows/server/2012r2/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708-004.iso"
+      ;;
+    "win2008r2")
+      url="$host/windows/server/2008r2/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601-018.iso"
+      ;;
+    "win7${PLATFORM,,}")
+      url="$host/windows/7/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
+      ;;
+    "winvista${PLATFORM,,}")
+      url="$host/windows/vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
+      ;;
+    "winxpx86")
+      url="$host/windows/xp/professional/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
+      ;;
+    "core11")
+      url="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20${PLATFORM,,}%20beta%201.iso"
+      ;;
+    "tiny11")
+      url="https://archive.org/download/tiny11-2311/tiny11%202311%20${PLATFORM,,}.iso"
+      ;;
+    "tiny10")
+      url="https://archive.org/download/tiny-10-23-h2/tiny10%20${PLATFORM,,}%2023h2.iso"
+      ;;
+  esac
+
+  echo "$url"
+  return 0
+}
+
+migrateFiles() {
+
+  local base="$1"
+  local version="$2"
+  local file=""
+
+  [ -f "$STORAGE/$base" ] && return 0
+
+  [[ "${version,,}" == "tiny10" ]] && file="tiny10_${PLATFORM,,}_23h2.iso"
+  [[ "${version,,}" == "tiny11" ]] && file="tiny11_2311_${PLATFORM,,}.iso"
+  [[ "${version,,}" == "core11" ]] && file="tiny11_core_${PLATFORM,,}_beta_1.iso"
+  [[ "${version,,}" == "winxpx86" ]] && file="en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
+  [[ "${version,,}" == "winvista${PLATFORM,,}" ]] && file="en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
+  [[ "${version,,}" == "win7${PLATFORM,,}" ]] && file="en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"    
+    
+  [ -z "$file" ] && return 0
+  [ ! -f "$STORAGE/$file" ] && return 0
+
+  ! mv "$STORAGE/$file" "$STORAGE/$base" && return 1
+
   return 0
 }
 
