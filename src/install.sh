@@ -638,11 +638,9 @@ prepareXP() {
   ETFS="[BOOT]/Boot-NoEmul.img"
 
   [[ "$MANUAL" == [Yy1]* ]] && return 0
-
-  ! configXP "$dir" "$target" && error "Failed to generate XP configuration files!" && exit 66
-
-  rm -rf "$drivers"
-  return 0
+  configXP "$dir" "$arch" "$target" && return 0
+  
+  error "Failed to generate XP configuration files!" && exit 66
 }
 
 prepareLegacy() {
