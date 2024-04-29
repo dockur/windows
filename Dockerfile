@@ -10,7 +10,6 @@ RUN apt-get update && \
         bc \
         curl \
         7zip \
-        aria2 \
         wsdd \
         samba \
         dos2unix \
