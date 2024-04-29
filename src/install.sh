@@ -326,7 +326,7 @@ downloadImage() {
   fi
 
   if ! validVersion "$version"; then
-    error "Invalid VERSION value: $version" && return 1
+    error "Invalid VERSION, value \"$version\" is not recognized!" && return 1
   fi
 
   desc=$(printVersion "$version" "Windows")
