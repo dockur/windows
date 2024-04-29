@@ -23,6 +23,21 @@ _trap() {
   done
 }
 
+boot() {
+
+  [ -f "$QEMU_END" ] && return 0
+
+  if [ -s "$QEMU_PTY" ]; then
+    if grep -iq " hard" "$QEMU_PTY"; then
+      info "Windows started succesfully, visit http://localhost:8006/ to view the screen..."
+      return 0
+    fi
+  fi
+
+  error "Timeout while waiting for QEMU to boot the machine!"
+  return 0
+}
+
 ready() {
 
   [ -f "$STORAGE/windows.boot" ] && return 0
