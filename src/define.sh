@@ -293,7 +293,7 @@ getVersion() {
     [[ "${name,,}" == *"enterprise"* ]] && detected="win7${PLATFORM,,}-enterprise"
   fi
 
-  [[ "${name,,}" == *"windows vista"* ]]; then
+  if [[ "${name,,}" == *"windows vista"* ]]; then
     detected="winvista${PLATFORM,,}"
     [[ "${name,,}" == *"ultimate"* ]] && detected="winvista${PLATFORM,,}-ultimate"
   fi
