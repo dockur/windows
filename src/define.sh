@@ -580,6 +580,7 @@ configXP() {
 
   # Windows XP Pro generic key (no activation)
   local key="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
+  [[ "${arch,,}" == "amd64" ]] && key="VCFQD-V9FX9-46WVH-K3CD4-4J3JM"
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
