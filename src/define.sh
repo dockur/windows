@@ -78,55 +78,6 @@ parseVersion() {
   return 0
 }
 
-validVersion() {
-
-  local id="$1"
-
-  case "${id,,}" in
-    "win11${PLATFORM,,}" | "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval")
-      return 0
-      ;;
-    "win10${PLATFORM,,}" | "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval")
-      return 0
-      ;;
-    "win10${PLATFORM,,}-enterprise-iot-eval" | "win10${PLATFORM,,}-enterprise-ltsc-eval")
-      return 0
-      ;;
-    "win81${PLATFORM,,}" | "win81${PLATFORM,,}-enterprise" | "win81${PLATFORM,,}-enterprise-eval")
-      return 0
-      ;;
-    "win2022-eval")
-      return 0
-      ;;
-    "win2019-eval")
-      return 0
-      ;;
-    "win2016-eval")
-      return 0
-      ;;
-    "win2012r2-eval")
-      return 0
-      ;;
-    "win2008r2")
-      return 0
-      ;;
-    "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise")
-      return 0
-      ;;
-    "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-ultimate")
-      return 0
-      ;;
-    "winxpx86")
-      return 0
-      ;;
-    "core11" | "tiny11" | "tiny10")
-      return 0
-      ;;
-  esac
-
-  return 1
-}
-
 isESD() {
 
   local id="$1"
@@ -157,19 +108,47 @@ isMido() {
     "win81${PLATFORM,,}" | "win81${PLATFORM,,}-enterprise-eval")
       return 0
       ;;
-    "win2022-eval")
+    "win2022-eval" | "win2019-eval" | "win2016-eval" | "win2012r2-eval" | "win2008r2")
       return 0
       ;;
-    "win2019-eval")
+  esac
+
+  return 1
+}
+
+validVersion() {
+
+  local id="$1"
+
+  isESD "$id" && return 0
+  isMido "$id" && return 0
+
+  case "${id,,}" in
+    "win11${PLATFORM,,}" | "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval")
       return 0
       ;;
-    "win2016-eval")
+    "win10${PLATFORM,,}" | "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval")
       return 0
       ;;
-    "win2012r2-eval")
+    "win10${PLATFORM,,}-enterprise-iot-eval" | "win10${PLATFORM,,}-enterprise-ltsc-eval")
       return 0
       ;;
-    "win2008r2")
+    "win81${PLATFORM,,}" | "win81${PLATFORM,,}-enterprise" | "win81${PLATFORM,,}-enterprise-eval")
+      return 0
+      ;;
+    "win2022-eval" | "win2019-eval" | "win2016-eval" | "win2012r2-eval" | "win2008r2")
+      return 0
+      ;;
+    "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise")
+      return 0
+      ;;
+    "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-ultimate")
+      return 0
+      ;;
+    "winxpx86")
+      return 0
+      ;;
+    "core11" | "tiny11" | "tiny10")
       return 0
       ;;
   esac
