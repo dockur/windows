@@ -262,7 +262,7 @@ doMido() {
   rm -f "$iso"
   rm -f "$iso.PART"
 
-  local msg="Downloading $desc from Microsoft server..."
+  local msg="Downloading $desc..."
   info "$msg" && html "$msg"
   /run/progress.sh "$iso.PART" "Downloading $desc ([P])..." &
 
