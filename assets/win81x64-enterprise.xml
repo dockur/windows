@@ -68,7 +68,7 @@
           <InstallFrom>
             <MetaData wcm:action="add">
               <Key>/IMAGE/NAME</Key>
-              <Value>Windows 8.1x Enterprise</Value>
+              <Value>Windows 8.1 Enterprise</Value>
             </MetaData>
           </InstallFrom>
           <InstallToAvailablePartition>false</InstallToAvailablePartition>
