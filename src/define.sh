@@ -389,7 +389,7 @@ getLink() {
       url="$host/windows/vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
       ;;
     "winxpx86")
-      url="$host/windows/xp/professional/en_windows_xp_professional_with_service_pack_3_x86_cd_vl_x14-73974.iso"
+      url="$host/windows/xp/professional/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
       ;;
     "winxpx64")
       url="$host/windows/xp/professional/en_win_xp_pro_${PLATFORM,,}_vl.iso"
@@ -477,6 +477,9 @@ secondLink() {
       ;;
     "winxpx86")
       url="$host/en_windows_xp_professional_with_service_pack_3_x86_cd_vl_x14-73974.iso"
+      ;;
+    "winxpx64")
+      url="$host/en_win_xp_pro_${PLATFORM,,}_with_sp2_vl_x13-41611.iso"
       ;;
     "core11")
       url="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20${PLATFORM,,}%20beta%201.iso"
@@ -586,17 +589,17 @@ configXP() {
   sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$target/TXTSETUP.SIF"
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$target/TXTSETUP.SIF"
 
-  local key pid setup
+  # Windows XP Pro generic key (no activation)
+  local key="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
+
+  local pid setup
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini | head -n 1)
   pid=$(<"$setup")
-  pid="${pid:(-3)}"
+  pid="${pid:(-4)}"
+  pid="${pid:0:3}"
 
   if [[ "$pid" == "270" ]]; then
-    key="XCYBK-2B3KV-G8T8F-WXJM7-WCTYT"
-    [[ "${arch,,}" == "amd64" ]] && key="VCFQD-V9FX9-46WVH-K3CD4-4J3JM" 
-  else
-    key="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
-    [[ "${arch,,}" == "amd64" ]] && key="J3TQR-Y79H8-QM8X8-3JD8K-9KXWM"
+    info "Warning: this ISO requires a volume license, it will reject the generic key during installation."
   fi
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
