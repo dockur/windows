@@ -37,6 +37,10 @@ parseVersion() {
       VERSION="win7${PLATFORM,,}"
       DETECTED="win7${PLATFORM,,}-enterprise"
       ;;
+    "7p" | "7pro" | "win7p" | "win7pro" | "windows 7 pro")
+      VERSION="win7${PLATFORM,,}-pro"
+      DETECTED="win7${PLATFORM,,}"
+      ;;
     "vista" | "winvista" | "windowsvista" | "windows vista")
       VERSION="winvista${PLATFORM,,}"
       DETECTED="winvista${PLATFORM,,}-ultimate"
@@ -193,12 +197,15 @@ getVersion() {
 
   if [[ "${name,,}" == *"windows 7"* ]]; then
     detected="win7${PLATFORM,,}"
+    [[ "${name,,}" == *"professional"* ]] && detected="win7${PLATFORM,,}"
+    [[ "${name,,}" == *"ultimate"* ]] && detected="win7${PLATFORM,,}-ultimate"
     [[ "${name,,}" == *"enterprise"* ]] && detected="win7${PLATFORM,,}-enterprise"
   fi
 
   if [[ "${name,,}" == *"windows vista"* ]]; then
     detected="winvista${PLATFORM,,}"
     [[ "${name,,}" == *"ultimate"* ]] && detected="winvista${PLATFORM,,}-ultimate"
+    [[ "${name,,}" == *"enterprise"* ]] && detected="winvista${PLATFORM,,}-enterprise"
   fi
 
   if [[ "${name,,}" == *"server 2025"* ]]; then
@@ -375,6 +382,9 @@ getLink() {
     "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise")
       url="$host/windows/7/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
       ;;
+    "win7${PLATFORM,,}-pro")
+      url="$host/windows/7/en_windows_7_with_sp1_${PLATFORM,,}.iso"
+      ;;
     "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-ultimate")
       url="$host/windows/vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
       ;;
@@ -453,8 +463,17 @@ secondLink() {
     "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise")
       url="$host/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
       ;;
+    "win7${PLATFORM,,}-pro")
+      url="$host/en_windows_7_professional_with_sp1_${PLATFORM,,}_dvd_u_676939.iso"
+      ;;
+    "win7${PLATFORM,,}-ultimate")
+      url="$host/en_windows_7_ultimate_with_sp1_${PLATFORM,,}_dvd_u_677332.iso"
+      ;;
     "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-ultimate")
       url="$host/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
+      ;;
+    "winvista${PLATFORM,,}-enterprise")
+      url="$host/en_windows_vista_enterprise_sp2_${PLATFORM,,}_dvd_342332.iso"
       ;;
     "winxpx86")
       url="$host/en_windows_xp_professional_with_service_pack_3_x86_cd_vl_x14-73974.iso"
@@ -567,20 +586,18 @@ configXP() {
   sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$target/TXTSETUP.SIF"
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$target/TXTSETUP.SIF"
 
-  local setup=""
+  local key pid setup
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini | head -n 1)
+  pid=$(<"$setup")
+  pid="${pid:(-3)}"
 
-  if [ -f "$setup" ]; then
-    sed -i -e 's/=76588270/=76588335/g' "$setup"
-    sed -i -e 's/=76487270/=76487335/g' "$setup"
-    sed -i -e 's/=55274270/=55274335/g' "$setup"
-    sed -i -e 's/=51883270/=51882335/g' "$setup"
-    sed -i -e 's/=55274000/=55274335/g' "$setup"
+  if [[ "$pid" == "270" ]]; then
+    key="XCYBK-2B3KV-G8T8F-WXJM7-WCTYT"
+    [[ "${arch,,}" == "amd64" ]] && key="VCFQD-V9FX9-46WVH-K3CD4-4J3JM" 
+  else
+    key="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
+    [[ "${arch,,}" == "amd64" ]] && key="J3TQR-Y79H8-QM8X8-3JD8K-9KXWM"
   fi
-
-  # Windows XP Pro generic key (no activation)
-  local key="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
-  [[ "${arch,,}" == "amd64" ]] && key="VCFQD-V9FX9-46WVH-K3CD4-4J3JM"
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
