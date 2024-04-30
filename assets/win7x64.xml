@@ -52,7 +52,7 @@
         <OSImage>
           <InstallFrom>
             <MetaData wcm:action="add">
-              <Value>Windows 7 Pro</Value>
+              <Value>Windows 7 Enterprise</Value>
               <Key>/IMAGE/NAME</Key>
             </MetaData>
           </InstallFrom>
@@ -76,7 +76,7 @@
         <FullName>Docker</FullName>
         <Organization>Windows for Docker</Organization>
         <ProductKey>
-          <Key>HYF8J-CVRMY-CM74G-RPHKF-PW487</Key>
+          <Key>H7X92-3VPBB-Q799D-Y6JJ3-86WC6</Key>
           <WillShowUI>OnError</WillShowUI>
         </ProductKey>
       </UserData>
