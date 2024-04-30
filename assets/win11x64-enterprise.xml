@@ -66,12 +66,6 @@
             <PartitionID>3</PartitionID>
           </InstallTo>
           <InstallToAvailablePartition>false</InstallToAvailablePartition>
-          <InstallFrom>
-            <MetaData wcm:action="add">
-              <Key>/IMAGE/NAME</Key>
-              <Value>Windows 11 Enterprise</Value>
-            </MetaData>
-          </InstallFrom>
         </OSImage>
       </ImageInstall>
       <DynamicUpdate>
@@ -86,6 +80,9 @@
         <AcceptEula>true</AcceptEula>
         <FullName>Docker</FullName>
         <Organization>Windows for Docker</Organization>
+        <ProductKey>
+          <Key>NPPR9-FWDCX-D2C8J-H872K-2YT43</Key>
+        </ProductKey>
       </UserData>
       <EnableFirewall>false</EnableFirewall>
       <Diagnostics>
