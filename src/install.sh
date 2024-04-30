@@ -301,6 +301,7 @@ downloadFile() {
   fi
 
   domain=$(echo "$url" | awk -F/ '{print $3}')
+  domain=$(expr match "$domain" '.*\.\(.*\..*\)')
   local msg="Downloading $desc from $domain..."
 
   info "$msg" && html "$msg"
