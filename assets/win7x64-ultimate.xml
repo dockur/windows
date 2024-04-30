@@ -52,8 +52,8 @@
         <OSImage>
           <InstallFrom>
             <MetaData wcm:action="add">
-              <Value>1</Value>
-              <Key>/IMAGE/INDEX</Key>
+              <Value>Windows 7 Ultimate</Value>
+              <Key>/IMAGE/NAME</Key>
             </MetaData>
           </InstallFrom>
           <InstallTo>
