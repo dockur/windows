@@ -684,7 +684,7 @@ prepareXP() {
 
   [[ "$MANUAL" == [Yy1]* ]] && return 0
   configXP "$dir" "$arch" "$target" && return 0
-  
+
   error "Failed to generate XP configuration files!" && exit 66
 }
 
