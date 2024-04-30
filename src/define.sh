@@ -168,17 +168,15 @@ getName() {
   [[ "${file,,}" == *"server 2022"* ]] && desc="Windows Server 2022"
   [[ "${file,,}" == *"server 2025"* ]] && desc="Windows Server 2025"
 
-  if [ -z "$desc" ]; then
-    desc="Windows"
+  if [[ "$desc" == "Windows 1"* ]] && [[ "${file,,}" == *"_iot_"* ]]; then
+    desc="$desc IoT"
   else
-    if [[ "$desc" == "Windows 1"* ]] && [[ "${file,,}" == *"_iot_"* ]]; then
-      desc="$desc IoT"
-    else
-      if [[ "$desc" == "Windows 1"* ]] && [[ "${file,,}" == *"_ltsc_"* ]]; then
-        desc="$desc LTSC"
-      fi
+    if [[ "$desc" == "Windows 1"* ]] && [[ "${file,,}" == *"_ltsc_"* ]]; then
+      desc="$desc LTSC"
     fi
   fi
+
+  [ -z "$desc" ] && desc="Windows"
 
   echo "$desc"
   return 0
