@@ -509,9 +509,14 @@ migrateFiles() {
 configXP() {
 
   local dir="$1"
-  local arch="$2"
-  local target="$3"
+  local arch="x86"
+  local target="$dir/I386"
   local drivers="$TMP/drivers"
+
+  if [ -d "$dir/AMD64" ]; then
+    arch="amd64"
+    target="$dir/AMD64"
+  fi
 
   rm -rf "$drivers"
 
@@ -555,9 +560,19 @@ configXP() {
   sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$target/TXTSETUP.SIF"
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$target/TXTSETUP.SIF"
 
+  local setup=""
+  setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini | head -n 1)
+
+  if [ -f "$setup" ]; then
+    sed -i -e 's/=76588270/=76588335/g' "$setup"
+    sed -i -e 's/=76487270/=76487335/g' "$setup"
+    sed -i -e 's/=55274270/=55274335/g' "$setup"
+    sed -i -e 's/=51883270/=51882335/g' "$setup"
+    sed -i -e 's/=55274000/=55274335/g' "$setup"
+  fi
+
   # Windows XP Pro generic key (no activation)
-  #local key="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
-  local key="XP8BF-F8HPF-PY6BX-K24PJ-TWT6M"
+  local key="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
@@ -677,20 +692,13 @@ prepareXP() {
 
   local iso="$1"
   local dir="$2"
-  local arch="x86"
-  local target="$dir/I386"
-
-  if [ -d "$dir/AMD64" ]; then
-    arch="amd64"
-    target="$dir/AMD64"
-  fi
 
   MACHINE="pc-q35-2.10"
   BOOT_MODE="windows_legacy"
   ETFS="[BOOT]/Boot-NoEmul.img"
 
   [[ "$MANUAL" == [Yy1]* ]] && return 0
-  configXP "$dir" "$arch" "$target" && return 0
+  configXP "$dir" && return 0
 
   error "Failed to generate XP configuration files!" && exit 66
 }
