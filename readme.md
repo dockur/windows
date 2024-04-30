@@ -87,7 +87,7 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
   | `win10e`   | Windows 10 Enterprise | 5.2 GB    |
   | `win81`   | Windows 8.1 Pro        | 4.2 GB    |
   | `win81e`   | Windows 8.1 Enterprise | 3.8 GB    |
-  | `win7`    | Windows 7 SP1          | 3.0 GB    |
+  | `win7`    | Windows 7 SP1 Enterprise | 3.0 GB    |
   | `vista`   | Windows Vista SP2      | 3.6 GB    |
   | `winxp`   | Windows XP SP3         | 0.6 GB    |
   ||||
