@@ -332,7 +332,86 @@ getVersion() {
 
 getLink() {
 
-  # Fallbacks for users who cannot connect to Microsoft servers
+  # Fallbacks for users who cannot connect to the Microsoft servers
+
+  local id="$1"
+  local url=""
+  local host="https://drive.massgrave.dev"
+
+  case "${id,,}" in
+    "win11${PLATFORM,,}")
+      url="$host/en-us_windows_11_consumer_editions_version_23h2_updated_april_2024_${PLATFORM,,}_dvd_d986680b.iso"
+      ;;
+    "win11${PLATFORM,,}-enterprise-eval")
+      url="$host/en-us_windows_11_business_editions_version_23h2_updated_april_2024_${PLATFORM,,}_dvd_349cd577.iso"
+      ;;
+    "win11${PLATFORM,,}-iot" | "win11${PLATFORM,,}-enterprise-iot-eval")
+      url="$host/en-us_windows_11_iot_enterprise_version_23h2_${PLATFORM,,}_dvd_fb37549c.iso"
+      ;;
+    "win10${PLATFORM,,}")
+      url="$host/en-us_windows_10_consumer_editions_version_22h2_updated_april_2024_${PLATFORM,,}_dvd_9a92dc89.iso"
+      ;;
+    "win10${PLATFORM,,}-enterprise-eval")
+      url="$host/en-us_windows_10_business_editions_version_22h2_updated_april_2024_${PLATFORM,,}_dvd_c00090a7.iso"
+      ;;
+    "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval")
+      url="$host/en-us_windows_10_iot_enterprise_ltsc_2021_${PLATFORM,,}_dvd_257ad90f.iso"
+      ;;
+    "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval")
+      url="$host/en-us_windows_10_enterprise_ltsc_2021_${PLATFORM,,}_dvd_d289cf96.iso"
+      ;;
+    "win81${PLATFORM,,}")
+      url="$host/en_windows_8.1_pro_vl_with_update_${PLATFORM,,}_dvd_6050880.iso"
+      ;;
+    "win81${PLATFORM,,}-enterprise-eval")
+      url="$host/en_windows_8.1_enterprise_with_update_${PLATFORM,,}_dvd_6054382.iso"
+      ;;
+    "win2022" | "win2022-eval")
+      DETECTED="win2022"
+      url="$host/en-us_windows_server_2022_updated_april_2024_${PLATFORM,,}_dvd_164349f3.iso"
+      ;;
+    "win2019" | "win2019-eval")
+      DETECTED="win2019"
+      url="$host/en_windows_server_2019_${PLATFORM,,}_dvd_4cb967d8.iso"
+      ;;
+    "win2016" | "win2016-eval")
+      DETECTED="win2016"
+      url="$host/en_windows_server_2016_${PLATFORM,,}_dvd_9327751.iso"
+      ;;
+    "win2012r2" | "win2012r2-eval")
+      DETECTED="win2012r2"
+      url="$host/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708.iso"
+      ;;
+    "win2008r2")
+      url="$host/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601.iso"
+      ;;
+    "win7${PLATFORM,,}")
+      url="$host/en_windows_7_ultimate_with_sp1_${PLATFORM,,}_dvd_u_677332.iso"
+      ;;
+    "winvista${PLATFORM,,}")
+      url="$host/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
+      ;;
+    "winxpx86")
+      url="$host/en_windows_xp_professional_with_service_pack_3_x86_cd_vl_x14-73974.iso"
+      ;;
+    "core11")
+      url="https://file.cnxiaobai.com/Windows/%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny11%20core%20x64%20beta%201.iso"
+      ;;
+    "tiny11")
+      url="https://file.cnxiaobai.com/Windows/%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny11%202311%20x64.iso"
+      ;;
+    "tiny10")
+      url="https://file.cnxiaobai.com/Windows/%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny10%2023H2%20x64.iso"
+      ;;
+  esac
+
+  echo "$url"
+  return 0
+}
+
+secondLink() {
+
+  # Fallbacks for users who cannot connect to the Microsoft servers
 
   local id="$1"
   local url=""
