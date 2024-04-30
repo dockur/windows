@@ -53,10 +53,10 @@ finishInstall() {
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
     if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+      echo "$BOOT_MODE" > "$STORAGE/windows.mode"
       if [[ "${MACHINE,,}" != "q35" ]]; then
         echo "$MACHINE" > "$STORAGE/windows.old"
       fi
-      echo "$BOOT_MODE" > "$STORAGE/windows.mode"
     else
       # Enable secure boot + TPM on manual installs as Win11 requires
       if [[ "$MANUAL" == [Yy1]* ]] || [[ "$aborted" == [Yy1]* ]]; then
@@ -102,18 +102,14 @@ startInstall() {
 
     CUSTOM=""
 
-    if [[ "${VERSION,,}" == "http"* ]]; then
-      EXTERNAL="Y"
-    else
+    if [[ "${VERSION,,}" != "http"* ]]; then
+
       EXTERNAL="N"
-    fi
-
-    if [[ "$EXTERNAL" != [Yy1]* ]]; then
-
       BASE="$VERSION.iso"
 
     else
 
+      EXTERNAL="Y"
       BASE=$(basename "${VERSION%%\?*}")
       : "${BASE//+/ }"; printf -v BASE '%b' "${_//%/\\x}"
       BASE=$(echo "$BASE" | sed -e 's/[^A-Za-z0-9._-]/_/g')
@@ -297,9 +293,11 @@ downloadFile() {
     progress="--progress=dot:giga"
   fi
 
+  local msg="Downloading $desc..."
+
   domain=$(echo "$url" | awk -F/ '{print $3}')
   domain=$(expr match "$domain" '.*\.\(.*\..*\)')
-  local msg="Downloading $desc from $domain..."
+  [[ "${domain,,}" != *"microsoft.com" ]] && msg="Downloading $desc from $domain..."
 
   info "$msg" && html "$msg"
   /run/progress.sh "$iso" "Downloading $desc ([P])..." &
@@ -355,23 +353,19 @@ downloadImage() {
 
   if isESD "$version"; then
 
-    [[ "$tried" != "n" ]] && info "Failed to download $desc using Mido, will try a different method now..."
-
-    ISO="$TMP/$version.esd"
-    iso="$ISO"
-    rm -rf "$TMP"
-    mkdir -p "$TMP"
+    if [[ "$tried" != "n" ]]; then
+      info "Failed to download $desc using Mido, will try a diferent method now..."
+    fi
 
     tried="y"
 
     if getESD "$TMP/esd" "$version"; then
-      downloadFile "$iso" "$ESD_URL" "$desc" && return 0
+      ISO="$TMP/$version.esd"
+      downloadFile "$ISO" "$ESD_URL" "$desc" && return 0
+      ISO="$TMP/$BASE"
     fi
 
   fi
-
-  ISO="$TMP/$BASE"
-  iso="$ISO"
 
   url=$(getLink "$version")
 
@@ -382,9 +376,6 @@ downloadImage() {
     fi
 
     tried="y"
-    rm -rf "$TMP"
-    mkdir -p "$TMP"
-
     downloadFile "$iso" "$url" "$desc" && return 0
 
   fi
@@ -398,9 +389,6 @@ downloadImage() {
     fi
 
     tried="y"
-    rm -rf "$TMP"
-    mkdir -p "$TMP"
-
     downloadFile "$iso" "$url" "$desc" && return 0
 
   fi
