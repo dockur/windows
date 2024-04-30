@@ -65,12 +65,6 @@
             <DiskID>0</DiskID>
             <PartitionID>3</PartitionID>
           </InstallTo>
-          <InstallFrom>
-            <MetaData wcm:action="add">
-              <Key>/IMAGE/NAME</Key>
-              <Value>Windows 10 Enterprise</Value>
-            </MetaData>
-          </InstallFrom>
           <InstallToAvailablePartition>false</InstallToAvailablePartition>
         </OSImage>
       </ImageInstall>
@@ -86,6 +80,9 @@
         <AcceptEula>true</AcceptEula>
         <FullName>Docker</FullName>
         <Organization>Windows for Docker</Organization>
+        <ProductKey>
+          <Key>NPPR9-FWDCX-D2C8J-H872K-2YT43</Key>
+        </ProductKey>
       </UserData>
       <EnableFirewall>false</EnableFirewall>
       <Diagnostics>
