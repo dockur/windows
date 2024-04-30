@@ -88,6 +88,7 @@ printVersion() {
   [[ "$id" == "win10"* ]] && desc="Windows 10"
   [[ "$id" == "win11"* ]] && desc="Windows 11"
   [[ "$id" == "winxp"* ]] && desc="Windows XP"
+  [[ "$id" == "winxpx64" ]] && desc="Windows XP (x64)"
   [[ "$id" == "winvista"* ]] && desc="Windows Vista"
   [[ "$id" == "win2025"* ]] && desc="Windows Server 2025"
   [[ "$id" == "win2022"* ]] && desc="Windows Server 2022"
@@ -376,6 +377,9 @@ getLink() {
       ;;
     "winxpx86")
       url="$host/windows/xp/professional/en_windows_xp_professional_with_service_pack_3_x86_cd_vl_x14-73974.iso"
+      ;;
+    "winxpx64")
+      url="$host/windows/xp/professional/en_win_xp_pro_${PLATFORM,,}_vl.iso"
       ;;
     "core11")
       url="https://file.cnxiaobai.com/Windows/%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny11%20core%20${PLATFORM,,}%20beta%201.iso"
