@@ -92,7 +92,7 @@ validVersion() {
     "win10${PLATFORM,,}-enterprise-iot-eval" | "win10${PLATFORM,,}-enterprise-ltsc-eval")
       return 0
       ;;
-    "win81${PLATFORM,,}" | "win81${PLATFORM,,}-enterprise-eval")
+    "win81${PLATFORM,,}" | "win81${PLATFORM,,}-enterprise" | "win81${PLATFORM,,}-enterprise-eval")
       return 0
       ;;
     "win2022-eval")
@@ -110,10 +110,10 @@ validVersion() {
     "win2008r2")
       return 0
       ;;
-    "win7${PLATFORM,,}")
+    "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise")
       return 0
       ;;
-    "winvista${PLATFORM,,}")
+    "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-ultimate")
       return 0
       ;;
     "winxpx86")
@@ -242,6 +242,12 @@ getName() {
   [[ "${file,,}" == *"windows_7"* ]] && desc="Windows 7"
   [[ "${file,,}" == *"windows_xp"* ]] && desc="Windows XP"
   [[ "${file,,}" == *"windows_vista"* ]] && desc="Windows Vista"
+  [[ "${file,,}" == *"windows 11"* ]] && desc="Windows 11"
+  [[ "${file,,}" == *"windows 10"* ]] && desc="Windows 10"
+  [[ "${file,,}" == *"windows 8"* ]] && desc="Windows 8"
+  [[ "${file,,}" == *"windows 7"* ]] && desc="Windows 7"
+  [[ "${file,,}" == *"windows xp"* ]] && desc="Windows XP"
+  [[ "${file,,}" == *"windows vista"* ]] && desc="Windows Vista"
   [[ "${file,,}" == *"server2008"* ]] && desc="Windows Server 2008"
   [[ "${file,,}" == *"server2012"* ]] && desc="Windows Server 2012"
   [[ "${file,,}" == *"server2016"* ]] && desc="Windows Server 2016"
@@ -254,6 +260,12 @@ getName() {
   [[ "${file,,}" == *"server_2019"* ]] && desc="Windows Server 2019"
   [[ "${file,,}" == *"server_2022"* ]] && desc="Windows Server 2022"
   [[ "${file,,}" == *"server_2025"* ]] && desc="Windows Server 2025"
+  [[ "${file,,}" == *"server 2008"* ]] && desc="Windows Server 2008"
+  [[ "${file,,}" == *"server 2012"* ]] && desc="Windows Server 2012"
+  [[ "${file,,}" == *"server 2016"* ]] && desc="Windows Server 2016"
+  [[ "${file,,}" == *"server 2019"* ]] && desc="Windows Server 2019"
+  [[ "${file,,}" == *"server 2022"* ]] && desc="Windows Server 2022"
+  [[ "${file,,}" == *"server 2025"* ]] && desc="Windows Server 2025"
 
   if [ -z "$desc" ]; then
     desc="Windows"
@@ -276,8 +288,15 @@ getVersion() {
   local name="$1"
   local detected=""
 
-  [[ "${name,,}" == *"windows 7"* ]] && detected="win7${PLATFORM,,}"
-  [[ "${name,,}" == *"windows vista"* ]] && detected="winvista${PLATFORM,,}"
+  if [[ "${name,,}" == *"windows 7"* ]]; then
+    detected="win7${PLATFORM,,}"
+    [[ "${name,,}" == *"enterprise"* ]] && detected="win7${PLATFORM,,}-enterprise"
+  fi
+
+  [[ "${name,,}" == *"windows vista"* ]]; then
+    detected="winvista${PLATFORM,,}"
+    [[ "${name,,}" == *"ultimate"* ]] && detected="winvista${PLATFORM,,}-ultimate"
+  fi
 
   if [[ "${name,,}" == *"server 2025"* ]]; then
     detected="win2025"
@@ -311,11 +330,13 @@ getVersion() {
 
   if [[ "${name,,}" == *"windows 8"* ]]; then
     detected="win81${PLATFORM,,}"
+    [[ "${name,,}" == *"enterprise"* ]] && detected="win81${PLATFORM,,}-enterprise"
     [[ "${name,,}" == *"enterprise evaluation"* ]] && detected="win81${PLATFORM,,}-enterprise-eval"
   fi
 
   if [[ "${name,,}" == *"windows 11"* ]]; then
     detected="win11${PLATFORM,,}"
+    [[ "${name,,}" == *"enterprise"* ]] && detected="win11${PLATFORM,,}-enterprise"
     [[ "${name,,}" == *"enterprise evaluation"* ]] && detected="win11${PLATFORM,,}-enterprise-eval"
   fi
 
@@ -327,9 +348,8 @@ getVersion() {
       if [[ "${name,,}" == *"ltsc"* ]]; then
         detected="win10${PLATFORM,,}-ltsc"
       else
-        if [[ "${name,,}" == *"enterprise evaluation"* ]]; then
-          detected="win10${PLATFORM,,}-enterprise-eval"
-        fi
+        [[ "${name,,}" == *"enterprise"* ]] && detected="win10${PLATFORM,,}-enterprise"
+        [[ "${name,,}" == *"enterprise evaluation"* ]] && detected="win10${PLATFORM,,}-enterprise-eval"
       fi
     fi
   fi
@@ -349,6 +369,9 @@ switchEdition() {
     "win10${PLATFORM,,}-enterprise-eval")
       DETECTED="win10${PLATFORM,,}-enterprise"
       ;;
+    "win81${PLATFORM,,}-enterprise-eval")
+      DETECTED="win81${PLATFORM,,}-enterprise"
+      ;;
     "win2022-eval")
       DETECTED="win2022"
       ;;
@@ -360,6 +383,9 @@ switchEdition() {
       ;;
     "win2012r2-eval")
       DETECTED="win2012r2"
+      ;;
+    "win2008r2-eval")
+      DETECTED="win2008r2"
       ;;
   esac
 
@@ -417,10 +443,10 @@ getLink() {
     "win2008r2" | "win2008r2-eval")
       url="$host/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601.iso"
       ;;
-    "win7${PLATFORM,,}")
+    "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise")
       url="$host/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
       ;;
-    "winvista${PLATFORM,,}")
+    "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-ultimate")
       url="$host/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
       ;;
     "winxpx86")
@@ -480,10 +506,10 @@ secondLink() {
     "win2008r2" | "win2008r2-eval")
       url="$host/windows/server/2008r2/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601-018.iso"
       ;;
-    "win7${PLATFORM,,}")
+    "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise")
       url="$host/windows/7/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
       ;;
-    "winvista${PLATFORM,,}")
+    "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-ultimate")
       url="$host/windows/vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
       ;;
     "winxpx86")
