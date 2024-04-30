@@ -52,7 +52,7 @@
         <OSImage>
           <InstallFrom>
             <MetaData wcm:action="add">
-              <Value>Windows Vista Enterprise</Value>
+              <Value>Windows 7 Enterprise</Value>
               <Key>/IMAGE/NAME</Key>
             </MetaData>
           </InstallFrom>
