@@ -88,8 +88,8 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
   | `win81`   | Windows 8.1 Pro        | 4.2 GB    |
   | `win81e`   | Windows 8.1 Enterprise | 3.8 GB    |
   | `win7`    | Windows 7 Enterprise | 3.0 GB    |
-  | `vista`   | Windows Vista SP2      | 3.6 GB    |
-  | `winxp`   | Windows XP SP3         | 0.6 GB    |
+  | `vista`   | Windows Vista Ultimate | 3.6 GB    |
+  | `winxp`   | Windows XP Professional | 0.6 GB    |
   ||||
   | `2022`    | Windows Server 2022    | 4.7 GB    |
   | `2019`    | Windows Server 2019    | 5.3 GB    |
