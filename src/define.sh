@@ -330,6 +330,28 @@ getVersion() {
   return 0
 }
 
+switchEdition() {
+
+  local id="$1"
+
+  case "${id,,}" in
+    "win2022-eval")
+      DETECTED="win2022"
+      ;;
+    "win2019-eval")
+      DETECTED="win2019"
+      ;;
+    "win2016-eval")
+      DETECTED="win2016"
+      ;;
+    "win2012r2-eval")
+      DETECTED="win2012r2"
+      ;;
+  esac
+
+  return 0
+}
+
 getLink() {
 
   # Fallbacks for users who cannot connect to the Microsoft servers
@@ -367,19 +389,15 @@ getLink() {
       url="$host/en_windows_8.1_enterprise_with_update_${PLATFORM,,}_dvd_6054382.iso"
       ;;
     "win2022" | "win2022-eval")
-      DETECTED="win2022"
       url="$host/en-us_windows_server_2022_updated_april_2024_${PLATFORM,,}_dvd_164349f3.iso"
       ;;
     "win2019" | "win2019-eval")
-      DETECTED="win2019"
       url="$host/en_windows_server_2019_${PLATFORM,,}_dvd_4cb967d8.iso"
       ;;
     "win2016" | "win2016-eval")
-      DETECTED="win2016"
       url="$host/en_windows_server_2016_${PLATFORM,,}_dvd_9327751.iso"
       ;;
     "win2012r2" | "win2012r2-eval")
-      DETECTED="win2012r2"
       url="$host/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708.iso"
       ;;
     "win2008r2")
@@ -434,19 +452,15 @@ secondLink() {
       url="$host/windows/8.x/8.1/en_windows_8.1_with_update_${PLATFORM,,}_dvd_6051480.iso"
       ;;
     "win2022" | "win2022-eval")
-      DETECTED="win2022"
       url="$host/windows/server/2022/en-us_windows_server_2022_updated_jan_2024_${PLATFORM,,}_dvd_2b7a0c9f.iso"
       ;;
     "win2019" | "win2019-eval")
-      DETECTED="win2019"
       url="$host/windows/server/2019/en-us_windows_server_2019_updated_aug_2021_${PLATFORM,,}_dvd_a6431a28.iso"
       ;;
     "win2016" | "win2016-eval")
-      DETECTED="win2016"
       url="$host/windows/server/2016/en_windows_server_2016_updated_feb_2018_${PLATFORM,,}_dvd_11636692.iso"
       ;;
     "win2012r2" | "win2012r2-eval")
-      DETECTED="win2012r2"
       url="$host/windows/server/2012r2/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708-004.iso"
       ;;
     "win2008r2")
