@@ -459,14 +459,15 @@ secondLink() {
 validVersion() {
 
   local id="$1"
+  local url
 
   isESD "$id" && return 0
   isMido "$id" && return 0
 
-  local url=$(getLink "$id")
+  url=$(getLink "$id")
   [ -n "$url" ] && return 0
 
-  local url=$(secondLink "$id")
+  url=$(secondLink "$id")
   [ -n "$url" ] && return 0
 
   return 1
