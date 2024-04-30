@@ -529,6 +529,7 @@ extractImage() {
 detectImage() {
 
   XML=""
+  local dsc
   local dir="$1"
 
   if [ -n "$CUSTOM" ]; then
@@ -548,7 +549,6 @@ detectImage() {
 
     if [[ "${DETECTED,,}" != "winxp"* ]]; then
 
-      local dsc
       dsc=$(printVersion "$DETECTED" "$DETECTED")
 
       warn "got $dsc, but no matching file called $DETECTED.xml exists, $FB."
@@ -561,8 +561,14 @@ detectImage() {
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
     if [ -f "$dir/WIN51" ] || [ -f "$dir/SETUPXP.HTM" ]; then
-      DETECTED="winxpx86"
-      info "Detected: Windows XP" && return 0
+      if [ -d "$dir/AMD64" ]; then
+        DETECTED="winxpx64"
+      else
+        DETECTED="winxpx86"
+      fi
+      dsc=$(printVersion "$DETECTED" "$DETECTED")
+      info "Detected: $dsc"
+      return 0
     fi
   fi
 
