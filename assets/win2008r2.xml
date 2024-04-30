@@ -75,6 +75,9 @@
         <AcceptEula>true</AcceptEula>
         <FullName>Docker</FullName>
         <Organization>Windows for Docker</Organization>
+        <ProductKey>
+          <Key>YC6KT-GKW9T-YTKYR-T4X34-R7VHC</Key>
+        </ProductKey>
       </UserData>
       <EnableFirewall>false</EnableFirewall>
       <Diagnostics>
