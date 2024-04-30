@@ -569,7 +569,7 @@ detectImage() {
       local dsc
       dsc=$(printVersion "$DETECTED" "$DETECTED")
 
-      warn "got $dsc, but no matching $DETECTED.xml file exists, $FB."
+      warn "got $dsc, but no matching file called $DETECTED.xml exists, $FB."
     fi
 
     return 0
