@@ -86,20 +86,12 @@ printVersion() {
   local id="$1"
   local desc="$2"
 
+  [[ "$id" == "win7"* ]] && desc="Windows 7"
   [[ "$id" == "win8"* ]] && desc="Windows 8"
   [[ "$id" == "win10"* ]] && desc="Windows 10"
   [[ "$id" == "win11"* ]] && desc="Windows 11"
-
   [[ "$id" == "winxp"* ]] && desc="Windows XP"
-  [[ "$id" == "winxpx64" ]] && desc="Windows XP x64"
-
   [[ "$id" == "winvista"* ]] && desc="Windows Vista"
-  [[ "$id" == "winvistax64-ultimate" ]] && desc="Windows Vista Ultimate"
-  [[ "$id" == "winvistax64-enterprise" ]] && desc="Windows Vista Enterprise"
-
-  [[ "$id" == "win7"* ]] && desc="Windows 7"
-  [[ "$id" == "win7x64-ultimate" ]] && desc="Windows 7 Ultimate"
-  [[ "$id" == "win7x64-enterprise" ]] && desc="Windows 7 Enterprise"
 
   [[ "$id" == "win2025"* ]] && desc="Windows Server 2025"
   [[ "$id" == "win2022"* ]] && desc="Windows Server 2022"
@@ -107,21 +99,6 @@ printVersion() {
   [[ "$id" == "win2016"* ]] && desc="Windows Server 2016"
   [[ "$id" == "win2012"* ]] && desc="Windows Server 2012"
   [[ "$id" == "win2008"* ]] && desc="Windows Server 2008"
-
-  [[ "$id" == "win10${PLATFORM,,}-iot" ]] && desc="Windows 10 IoT"
-  [[ "$id" == "win11${PLATFORM,,}-iot" ]] && desc="Windows 11 IoT"
-  [[ "$id" == "win10${PLATFORM,,}-ltsc" ]] && desc="Windows 10 LTSC"
-  [[ "$id" == "win11${PLATFORM,,}-ltsc" ]] && desc="Windows 11 LTSC"
-  [[ "$id" == "win81${PLATFORM,,}-enterprise" ]] && desc="Windows 8 Enterprise"
-  [[ "$id" == "win10${PLATFORM,,}-enterprise" ]] && desc="Windows 10 Enterprise"
-  [[ "$id" == "win11${PLATFORM,,}-enterprise" ]] && desc="Windows 11 Enterprise"
-  [[ "$id" == "win10${PLATFORM,,}-enterprise-iot-eval" ]] && desc="Windows 10 IoT"
-  [[ "$id" == "win11${PLATFORM,,}-enterprise-iot-eval" ]] && desc="Windows 11 IoT"
-  [[ "$id" == "win10${PLATFORM,,}-enterprise-ltsc-eval" ]] && desc="Windows 10 LTSC"
-  [[ "$id" == "win11${PLATFORM,,}-enterprise-ltsc-eval" ]] && desc="Windows 11 LTSC"
-  [[ "$id" == "win81${PLATFORM,,}-enterprise-eval" ]] && desc="Windows 8 Enterprise"
-  [[ "$id" == "win10${PLATFORM,,}-enterprise-eval" ]] && desc="Windows 10 Enterprise"
-  [[ "$id" == "win11${PLATFORM,,}-enterprise-eval" ]] && desc="Windows 11 Enterprise"
 
   [ -z "$desc" ] && desc="Windows"
 
@@ -179,14 +156,6 @@ getName() {
   [[ "${file,,}" == *"server 2019"* ]] && desc="Windows Server 2019"
   [[ "${file,,}" == *"server 2022"* ]] && desc="Windows Server 2022"
   [[ "${file,,}" == *"server 2025"* ]] && desc="Windows Server 2025"
-
-  if [[ "$desc" == "Windows 1"* ]] && [[ "${file,,}" == *"_iot_"* ]]; then
-    desc="$desc IoT"
-  else
-    if [[ "$desc" == "Windows 1"* ]] && [[ "${file,,}" == *"_ltsc_"* ]]; then
-      desc="$desc LTSC"
-    fi
-  fi
 
   [ -z "$desc" ] && desc="Windows"
 
