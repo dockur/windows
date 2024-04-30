@@ -44,6 +44,9 @@ parseVersion() {
     "xp" | "winxp" | "windowsxp" | "windows xp")
       VERSION="winxpx86"
       ;;
+    "xp64" | "winxp64")
+      VERSION="winxpx64"
+      ;;
     "22" | "2022" | "win22" | "win2022" | "windows2022" | "windows 2022")
       VERSION="win2022-eval"
       ;;
