@@ -157,9 +157,6 @@ startInstall() {
   if [ ! -f "$STORAGE/$CUSTOM" ]; then
     CUSTOM=""
     ISO="$TMP/$BASE"
-    if [[ "${PLATFORM,,}" == "arm64" ]]; then
-      [[ "$EXTERNAL" != [Yy1]* ]] && ISO="$TMP/$VERSION.esd"
-    fi
   else
     ISO="$STORAGE/$CUSTOM"
   fi
@@ -358,15 +355,12 @@ downloadImage() {
 
   if isESD "$version"; then
 
-    if [[ "${PLATFORM,,}" == "x64" ]]; then
+    [[ "$tried" != "n" ]] && info "Failed to download $desc using Mido, will try a different method now..."
 
-      [[ "$tried" != "n" ]] && info "Failed to download $desc using Mido, will try a different method now..."
-
-      ISO="$TMP/$version.esd"
-      iso="$ISO"
-      rm -rf "$TMP"
-      mkdir -p "$TMP"
-    fi
+    ISO="$TMP/$version.esd"
+    iso="$ISO"
+    rm -rf "$TMP"
+    mkdir -p "$TMP"
 
     tried="y"
 
@@ -624,7 +618,7 @@ detectImage() {
     [[ "$MANUAL" != [Yy1]* ]] && XML="$DETECTED.xml"
     info "Detected: $desc"
   else
-    warn "detected $desc, but no matching $DETECTED.xml file exists, $FB."
+    warn "detected $desc, but no matching file called $DETECTED.xml exists, $FB."
   fi
 
   return 0
