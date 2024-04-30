@@ -37,17 +37,9 @@ parseVersion() {
       VERSION="win7${PLATFORM,,}"
       DETECTED="win7${PLATFORM,,}-enterprise"
       ;;
-    "7p" | "7pro" | "win7p" | "win7pro" | "windows 7 pro")
-      VERSION="win7${PLATFORM,,}-pro"
-      DETECTED="win7${PLATFORM,,}"
-      ;;
     "vista" | "winvista" | "windowsvista" | "windows vista")
       VERSION="winvista${PLATFORM,,}"
       DETECTED="winvista${PLATFORM,,}-ultimate"
-      ;;
-    "vistae" | "winvistae" | "windowsvistae")
-      VERSION="winvista${PLATFORM,,}-enterprise"
-      DETECTED="winvista${PLATFORM,,}-enterprise"
       ;;
     "xp" | "winxp" | "windowsxp" | "windows xp")
       VERSION="winxpx86"
@@ -101,6 +93,7 @@ printVersion() {
   [[ "$id" == "winxp"* ]] && desc="Windows XP"
   [[ "$id" == "winxpx64" ]] && desc="Windows XP (x64)"
   [[ "$id" == "winvista"* ]] && desc="Windows Vista"
+
   [[ "$id" == "win2025"* ]] && desc="Windows Server 2025"
   [[ "$id" == "win2022"* ]] && desc="Windows Server 2022"
   [[ "$id" == "win2019"* ]] && desc="Windows Server 2019"
@@ -201,7 +194,6 @@ getVersion() {
 
   if [[ "${name,,}" == *"windows 7"* ]]; then
     detected="win7${PLATFORM,,}"
-    [[ "${name,,}" == *"professional"* ]] && detected="win7${PLATFORM,,}"
     [[ "${name,,}" == *"ultimate"* ]] && detected="win7${PLATFORM,,}-ultimate"
     [[ "${name,,}" == *"enterprise"* ]] && detected="win7${PLATFORM,,}-enterprise"
   fi
@@ -386,9 +378,6 @@ getLink() {
     "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise")
       url="$host/windows/7/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
       ;;
-    "win7${PLATFORM,,}-pro")
-      url="$host/windows/7/en_windows_7_with_sp1_${PLATFORM,,}.iso"
-      ;;
     "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-ultimate")
       url="$host/windows/vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
       ;;
@@ -467,17 +456,8 @@ secondLink() {
     "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise")
       url="$host/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
       ;;
-    "win7${PLATFORM,,}-pro")
-      url="$host/en_windows_7_professional_with_sp1_${PLATFORM,,}_dvd_u_676939.iso"
-      ;;
-    "win7${PLATFORM,,}-ultimate")
-      url="$host/en_windows_7_ultimate_with_sp1_${PLATFORM,,}_dvd_u_677332.iso"
-      ;;
     "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-ultimate")
       url="$host/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
-      ;;
-    "winvista${PLATFORM,,}-enterprise")
-      url="$host/en_windows_vista_enterprise_sp2_${PLATFORM,,}_dvd_342332.iso"
       ;;
     "winxpx86")
       url="$host/en_windows_xp_professional_with_service_pack_3_x86_cd_vl_x14-73974.iso"
