@@ -459,7 +459,7 @@ secondLink() {
       url="$host/windows/vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
       ;;
     "winxpx86")
-      url="$host/windows/xp/professional/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
+      url="$host/windows/xp/professional/en_windows_xp_professional_with_service_pack_3_x86_cd_vl_x14-73974.iso"
       ;;
     "core11")
       url="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20${PLATFORM,,}%20beta%201.iso"
@@ -548,8 +548,9 @@ configXP() {
   sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$target/TXTSETUP.SIF"
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$target/TXTSETUP.SIF"
 
- # Windows XP Pro generic key (no activation)
-  local key="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
+  # Windows XP Pro generic key (no activation)
+  #local key="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
+  local key="XP8BF-F8HPF-PY6BX-K24PJ-TWT6M"
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
