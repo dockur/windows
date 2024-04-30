@@ -661,7 +661,7 @@ updateImage() {
   local iso="$1"
   local dir="$2"
   local asset="/run/assets/$3"
-  local path src loc index result
+  local path src loc xml index result
 
   [ ! -s "$asset" ] || [ ! -f "$asset" ] && return 0
 
@@ -683,7 +683,7 @@ updateImage() {
     warn "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB" && return 1
   fi
 
-  local xml=$(basename "$asset")
+  xml=$(basename "$asset")
   info "Adding $xml for automatic installation..."
 
   index="1"
