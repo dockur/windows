@@ -35,9 +35,11 @@ parseVersion() {
       ;;
     "7" | "7e" | "win7" | "win7e")
       VERSION="win7${PLATFORM,,}"
+      DETECTED="win7${PLATFORM,,}-enterprise"
       ;;
     "vista" | "winvista")
       VERSION="winvista${PLATFORM,,}"
+      DETECTED="winvista${PLATFORM,,}-ultimate"
       ;;
     "xp" | "winxp")
       VERSION="winxpx86"
@@ -335,6 +337,12 @@ switchEdition() {
   local id="$1"
 
   case "${id,,}" in
+    "win11${PLATFORM,,}-enterprise-eval")
+      DETECTED="win11${PLATFORM,,}-enterprise"
+      ;;
+    "win10${PLATFORM,,}-enterprise-eval")
+      DETECTED="win10${PLATFORM,,}-enterprise"
+      ;;
     "win2022-eval")
       DETECTED="win2022"
       ;;
