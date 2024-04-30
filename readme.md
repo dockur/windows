@@ -278,15 +278,12 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
   It is possible to pass-through disk devices directly by adding them to your compose file in this way:
 
   ```yaml
-  environment:
-    DEVICE: "/dev/sda"
-    DEVICE2: "/dev/sdb"
   devices:
-    - /dev/sda
-    - /dev/sdb
+    - /dev/sda:/dev/disk1
+    - /dev/sdb:/dev/disk2
   ```
 
-  Use `DEVICE` if you want it to become your main drive, and use `DEVICE2` and higher to add them as secondary drives.
+  Use `/dev/disk1` if you want it to become your main drive, and use `/dev/disk2` and higher to add them as secondary drives.
 
 * ### How do I pass-through a USB device?
 
