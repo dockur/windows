@@ -78,7 +78,7 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
   Select from the values below:
   
-  | **Value**  | **Description**  | **Edition**  | **Size**  |
+  | **Value**  | **Version**  | **Edition**  | **Size**  |
   |---|---|---|---|
   | `win11`   | Windows 11 | Professional | 6.4 GB    |
   | `win11e`   | Windows 11 | Enterprise | 5.8 GB    |
