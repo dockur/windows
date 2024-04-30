@@ -53,10 +53,10 @@ parseVersion() {
     "16" | "2016" | "win16" | "win2016" | "windows2016" | "windows 2016")
       VERSION="win2016-eval"
       ;;
-    "2012" | "win2012" | "windows2012" | "windows 2012")
+    "2012" | "2012r2" | "win2012" | "win2012r2" | "windows2012" | "windows 2012")
       VERSION="win2012r2-eval"
       ;;
-    "2008" | "win2008" | "windows2008" | "windows 2008")
+    "2008" | "2008r2" | "win2008" | "win2008r2" | "windows2008" | "windows 2008")
       VERSION="win2008r2"
       ;;
     "core11" | "core 11" | "tiny11" | "tiny 11")
