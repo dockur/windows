@@ -34,13 +34,13 @@ finishInstall() {
   local aborted="$2"
 
   if [ ! -s "$iso" ] || [ ! -f "$iso" ]; then
-    error "Failed to find ISO: $iso" && return 1
+    error "Failed to find ISO file: $iso" && return 1
   fi
 
   if [ -w "$iso" ] && [[ "$aborted" != [Yy1]* ]]; then
     # Mark ISO as prepared via magic byte
     if ! printf '\x16' | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none; then
-      error "Failed to set magic byte!" && return 1
+      error "Failed to set magic byte in ISO file: $iso" && return 1
     fi
   fi
 
@@ -78,7 +78,7 @@ abortInstall() {
 
   if [[ "$iso" != "$STORAGE/$BASE" ]]; then
     if ! mv -f "$iso" "$STORAGE/$BASE"; then
-      error "Failed to move ISO: $iso" && return 1
+      error "Failed to move ISO file: $iso" && return 1
     fi
   fi
 
@@ -855,13 +855,13 @@ fi
 
 if [ ! -s "$ISO" ] || [ ! -f "$ISO" ]; then
   if ! downloadImage "$ISO" "$VERSION"; then
-    rm -f "$ISO"
+    rm -f "$ISO" 2> /dev/null || true
     exit 61
   fi
 fi
 
 if ! extractImage "$ISO" "$DIR" "$VERSION"; then
-  rm -f "$ISO"
+  rm -f "$ISO" 2> /dev/null || true
   exit 62
 fi
 
