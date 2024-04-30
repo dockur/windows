@@ -80,16 +80,16 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
   
   | **Value**  | **Version**  | **Edition**  | **Size**  |
   |---|---|---|---|
-  | `win11`   | Windows 11 | Professional | 6.4 GB    |
+  | `win11`   | Windows 11 | Pro | 6.4 GB    |
   | `win11e`   | Windows 11 | Enterprise | 5.8 GB    |
-  | `win10`   | Windows 10 | Professional | 5.8 GB    |
+  | `win10`   | Windows 10 | Pro | 5.8 GB    |
   | `ltsc10`  | Windows 10 | LTSC       | 4.6 GB    |
   | `win10e`   | Windows 10 | Enterprise | 5.2 GB    |
-  | `win81`   | Windows 8.1 | Professional | 4.2 GB    |
+  | `win81`   | Windows 8.1 | Pro | 4.2 GB    |
   | `win81e`   | Windows 8.1 | Enterprise | 3.8 GB    |
   | `win7`    | Windows 7 | Enterprise | 3.0 GB    |
   | `vista`   | Windows Vista | Ultimate | 3.6 GB    |
-  | `winxp`   | Windows XP | Professional | 0.6 GB    |
+  | `winxp`   | Windows XP | Pro | 0.6 GB    |
   |||||
   | `2022`    | Windows Server 2022    | Standard | 4.7 GB    |
   | `2019`    | Windows Server 2019    | Standard | 5.3 GB    |
