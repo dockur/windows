@@ -386,7 +386,7 @@ getLink() {
       url="$host/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601.iso"
       ;;
     "win7${PLATFORM,,}")
-      url="$host/en_windows_7_ultimate_with_sp1_${PLATFORM,,}_dvd_u_677332.iso"
+      url="$host/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
       ;;
     "winvista${PLATFORM,,}")
       url="$host/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
