@@ -296,7 +296,7 @@ downloadFile() {
   local msg="Downloading $desc..."
 
   domain=$(echo "$url" | awk -F/ '{print $3}')
-  domain=$(expr match "$domain" '.*\.\(.*\..*\)')
+  domain=$(expr "$domain" : '.*\.\(.*\..*\)')
   [[ "${domain,,}" != *"microsoft.com" ]] && msg="Downloading $desc from $domain..."
 
   info "$msg" && html "$msg"
@@ -683,7 +683,8 @@ updateImage() {
     warn "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB" && return 1
   fi
 
-  info "Adding "$(basename $asset)" for automatic installation..."
+  local xml=$(basename "$asset")
+  info "Adding $xml for automatic installation..."
 
   index="1"
   result=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
@@ -693,7 +694,7 @@ updateImage() {
   fi
 
   if ! wimlib-imagex update "$loc" "$index" --command "add $asset /autounattend.xml" > /dev/null; then
-    warn "failed to add "$(basename $asset)" to ISO image, $FB" && return 1
+    warn "failed to add $xml to ISO image, $FB" && return 1
   fi
 
   return 0
