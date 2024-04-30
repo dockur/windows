@@ -301,7 +301,10 @@ getVersion() {
     [[ "${name,,}" == *"evaluation"* ]] && detected="win2012r2-eval"
   fi
 
-  [[ "${name,,}" == *"server 2008"* ]] && detected="win2008r2"
+  if [[ "${name,,}" == *"server 2008"* ]]; then
+    detected="win2008r2"
+    [[ "${name,,}" == *"evaluation"* ]] && detected="win2008r2-eval"
+  fi
 
   if [[ "${name,,}" == *"windows 8"* ]]; then
     detected="win81${PLATFORM,,}"
@@ -408,7 +411,7 @@ getLink() {
     "win2012r2" | "win2012r2-eval")
       url="$host/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708.iso"
       ;;
-    "win2008r2")
+    "win2008r2" | "win2008r2-eval")
       url="$host/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601.iso"
       ;;
     "win7${PLATFORM,,}")
@@ -471,7 +474,7 @@ secondLink() {
     "win2012r2" | "win2012r2-eval")
       url="$host/windows/server/2012r2/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708-004.iso"
       ;;
-    "win2008r2")
+    "win2008r2" | "win2008r2-eval")
       url="$host/windows/server/2008r2/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601-018.iso"
       ;;
     "win7${PLATFORM,,}")
