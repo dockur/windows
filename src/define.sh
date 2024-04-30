@@ -45,10 +45,14 @@ parseVersion() {
       VERSION="winvista${PLATFORM,,}"
       DETECTED="winvista${PLATFORM,,}-ultimate"
       ;;
+    "vistae" | "winvistae" | "windowsvistae")
+      VERSION="winvista${PLATFORM,,}-enterprise"
+      DETECTED="winvista${PLATFORM,,}-enterprise"
+      ;;
     "xp" | "winxp" | "windowsxp" | "windows xp")
       VERSION="winxpx86"
       ;;
-    "xp64" | "winxp64")
+    "xp64" | "winxp64" | "windowsxp64")
       VERSION="winxpx64"
       ;;
     "22" | "2022" | "win22" | "win2022" | "windows2022" | "windows 2022")
