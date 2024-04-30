@@ -15,54 +15,54 @@ parseVersion() {
   fi
 
   case "${VERSION,,}" in
-    "11" | "win11")
+    "11" | "win11" | "windows11" | "windows 11")
       VERSION="win11${PLATFORM,,}"
       ;;
-    "11e" | "win11e")
+    "11e" | "win11e" | "windows11e" | "windows 11e")
       VERSION="win11${PLATFORM,,}-enterprise-eval"
       ;;
-    "10" | "win10")
+    "10" | "win10" | "windows10" | "windows 10")
       VERSION="win10${PLATFORM,,}"
       ;;
-    "10e" | "win10e")
+    "10e" | "win10e" | "windows10e" | "windows 10e")
       VERSION="win10${PLATFORM,,}-enterprise-eval"
       ;;
-    "8" | "81" | "8.1" | "win8" | "win81")
+    "8" | "81" | "8.1" | "win8" | "win81" | "windows 8" | "windows 8.1")
       VERSION="win81${PLATFORM,,}"
       ;;
-    "8e" | "81e" | "8.1e" | "win8e" | "win81e")
+    "8e" | "81e" | "8.1e" | "win8e" | "win81e" | "windows8e" | "windows 8e")
       VERSION="win81${PLATFORM,,}-enterprise-eval"
       ;;
-    "7" | "7e" | "win7" | "win7e")
+    "7" | "7e" | "win7" | "win7e" | "windows7" | "windows 7")
       VERSION="win7${PLATFORM,,}"
       DETECTED="win7${PLATFORM,,}-enterprise"
       ;;
-    "vista" | "winvista")
+    "vista" | "winvista" | "windowsvista" | "windows vista")
       VERSION="winvista${PLATFORM,,}"
       DETECTED="winvista${PLATFORM,,}-ultimate"
       ;;
-    "xp" | "winxp")
+    "xp" | "winxp" | "windowsxp" | "windows xp")
       VERSION="winxpx86"
       ;;
-    "22" | "2022" | "win22" | "win2022")
+    "22" | "2022" | "win22" | "win2022" | "windows2022" | "windows 2022")
       VERSION="win2022-eval"
       ;;
-    "19" | "2019" | "win19" | "win2019")
+    "19" | "2019" | "win19" | "win2019" | "windows2019" | "windows 2019")
       VERSION="win2019-eval"
       ;;
-    "16" | "2016" | "win16" | "win2016")
+    "16" | "2016" | "win16" | "win2016" | "windows2016" | "windows 2016")
       VERSION="win2016-eval"
       ;;
-    "2012" | "win2012")
+    "2012" | "win2012" | "windows2012" | "windows 2012")
       VERSION="win2012r2-eval"
       ;;
-    "2008" | "win2008")
+    "2008" | "win2008" | "windows2008" | "windows 2008")
       VERSION="win2008r2"
       ;;
-    "core11" | "tiny11")
+    "core11" | "core 11" | "tiny11" | "tiny 11")
       DETECTED="win11${PLATFORM,,}"
       ;;
-   "tiny10")
+   "tiny10" | "tiny 10")
       DETECTED="win10${PLATFORM,,}-ltsc"
       ;;
     "iot10" | "10iot" | "win10-iot" | "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval")
@@ -83,10 +83,10 @@ validVersion() {
   local id="$1"
 
   case "${id,,}" in
-    "win11${PLATFORM,,}" | "win11${PLATFORM,,}-enterprise-eval")
+    "win11${PLATFORM,,}" | "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval")
       return 0
       ;;
-    "win10${PLATFORM,,}" | "win10${PLATFORM,,}-enterprise-eval")
+    "win10${PLATFORM,,}" | "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval")
       return 0
       ;;
     "win10${PLATFORM,,}-enterprise-iot-eval" | "win10${PLATFORM,,}-enterprise-ltsc-eval")
@@ -378,7 +378,7 @@ getLink() {
     "win11${PLATFORM,,}")
       url="$host/en-us_windows_11_consumer_editions_version_23h2_updated_april_2024_${PLATFORM,,}_dvd_d986680b.iso"
       ;;
-    "win11${PLATFORM,,}-enterprise-eval")
+    "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval")
       url="$host/en-us_windows_11_business_editions_version_23h2_updated_april_2024_${PLATFORM,,}_dvd_349cd577.iso"
       ;;
     "win11${PLATFORM,,}-iot" | "win11${PLATFORM,,}-enterprise-iot-eval")
@@ -387,7 +387,7 @@ getLink() {
     "win10${PLATFORM,,}")
       url="$host/en-us_windows_10_consumer_editions_version_22h2_updated_april_2024_${PLATFORM,,}_dvd_9a92dc89.iso"
       ;;
-    "win10${PLATFORM,,}-enterprise-eval")
+    "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval")
       url="$host/en-us_windows_10_business_editions_version_22h2_updated_april_2024_${PLATFORM,,}_dvd_c00090a7.iso"
       ;;
     "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval")
@@ -399,7 +399,7 @@ getLink() {
     "win81${PLATFORM,,}")
       url="$host/en_windows_8.1_pro_vl_with_update_${PLATFORM,,}_dvd_6050880.iso"
       ;;
-    "win81${PLATFORM,,}-enterprise-eval")
+    "win81${PLATFORM,,}-enterprise" | "win81${PLATFORM,,}-enterprise-eval")
       url="$host/en_windows_8.1_enterprise_with_update_${PLATFORM,,}_dvd_6054382.iso"
       ;;
     "win2022" | "win2022-eval")
