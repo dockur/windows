@@ -78,25 +78,28 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
   Select from the values below:
   
-  | **Value**  | **Description**  | **Source**  | **Transfer**  | **Size**  |
-  |---|---|---|---|---|
-  | `win11`   | Windows 11 Pro         | Microsoft    | Fast    | 6.4 GB    |
-  | `win10`   | Windows 10 Pro         | Microsoft    | Fast    | 5.8 GB    |
-  | `ltsc10`  | Windows 10 LTSC        | Microsoft    | Fast    | 4.6 GB    |
-  | `win81`   | Windows 8.1 Pro        | Microsoft    | Fast    | 4.2 GB    |
-  | `win7`    | Windows 7 SP1          | Bob Pony     | Medium  | 3.0 GB    |
-  | `vista`   | Windows Vista SP2      | Bob Pony     | Medium  | 3.6 GB    |
-  | `winxp`   | Windows XP SP3         | Bob Pony     | Medium  | 0.6 GB    |
-  ||||||
-  | `2022`    | Windows Server 2022    | Microsoft    | Fast    | 4.7 GB    |
-  | `2019`    | Windows Server 2019    | Microsoft    | Fast    | 5.3 GB    |
-  | `2016`    | Windows Server 2016    | Microsoft    | Fast    | 6.5 GB    |
-  | `2012`    | Windows Server 2012 R2 | Microsoft    | Fast    | 4.3 GB    |
-  | `2008`    | Windows Server 2008 R2 | Microsoft    | Fast    | 3.0 GB    |
-  ||||||
-  | `core11`  | Tiny 11 Core           | Archive.org  | Slow    | 2.1 GB    |
-  | `tiny11`  | Tiny 11                | Archive.org  | Slow    | 3.8 GB    |
-  | `tiny10`  | Tiny 10                | Archive.org  | Slow    | 3.6 GB    |
+  | **Value**  | **Version**  | **Edition**  | **Size**  |
+  |---|---|---|---|
+  | `win11`   | Windows 11 | Pro | 6.4 GB    |
+  | `win11e`   | Windows 11 | Enterprise | 5.8 GB    |
+  | `win10`   | Windows 10 | Pro | 5.8 GB    |
+  | `ltsc10`  | Windows 10 | LTSC       | 4.6 GB    |
+  | `win10e`   | Windows 10 | Enterprise | 5.2 GB    |
+  | `win81`   | Windows 8.1 | Pro | 4.2 GB    |
+  | `win81e`   | Windows 8.1 | Enterprise | 3.8 GB    |
+  | `win7`    | Windows 7 | Enterprise | 3.0 GB    |
+  | `vista`   | Windows Vista | Ultimate | 3.6 GB    |
+  | `winxp`   | Windows XP | Pro | 0.6 GB    |
+  |||||
+  | `2022`    | Windows Server 2022    | Standard | 4.7 GB    |
+  | `2019`    | Windows Server 2019    | Standard | 5.3 GB    |
+  | `2016`    | Windows Server 2016    | Standard | 6.5 GB    |
+  | `2012`    | Windows Server 2012   | Standard | 4.3 GB    |
+  | `2008`    | Windows Server 2008   | Standard | 3.0 GB    |
+  |||||
+  | `core11`  | Tiny 11        | Core | 2.1 GB    |
+  | `tiny11`  | Tiny 11         | 2311 | 3.8 GB    |
+  | `tiny10`  | Tiny 10         | 23H2 | 3.6 GB    |
 
   To install ARM64 versions of Windows use [dockur/windows-arm](https://github.com/dockur/windows-arm/).
 

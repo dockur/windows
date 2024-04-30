@@ -8,54 +8,42 @@
       <InputLocale>0409:00000409</InputLocale>
       <SystemLocale>en-US</SystemLocale>
       <UILanguage>en-US</UILanguage>
-      <UILanguageFallback>en-US</UILanguageFallback>
       <UserLocale>en-US</UserLocale>
     </component>
     <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DiskConfiguration>
+        <WillShowUI>OnError</WillShowUI>
         <Disk wcm:action="add">
           <DiskID>0</DiskID>
           <WillWipeDisk>true</WillWipeDisk>
           <CreatePartitions>
-            <!-- System partition (ESP) -->
             <CreatePartition wcm:action="add">
               <Order>1</Order>
-              <Type>EFI</Type>
-              <Size>128</Size>
+              <Type>Primary</Type>
+              <Size>100</Size>
             </CreatePartition>
-            <!-- Microsoft reserved partition (MSR) -->
             <CreatePartition wcm:action="add">
               <Order>2</Order>
-              <Type>MSR</Type>
-              <Size>128</Size>
-            </CreatePartition>
-            <!-- Windows partition -->
-            <CreatePartition wcm:action="add">
-              <Order>3</Order>
               <Type>Primary</Type>
               <Extend>true</Extend>
             </CreatePartition>
           </CreatePartitions>
           <ModifyPartitions>
-            <!-- System partition (ESP) -->
             <ModifyPartition wcm:action="add">
+              <Format>NTFS</Format>
+              <Label>System Reserved</Label>
               <Order>1</Order>
+              <Active>true</Active>
               <PartitionID>1</PartitionID>
-              <Label>System</Label>
-              <Format>FAT32</Format>
+              <TypeID>0x27</TypeID>
             </ModifyPartition>
-            <!-- MSR partition does not need to be modified -->
             <ModifyPartition wcm:action="add">
-              <Order>2</Order>
-              <PartitionID>2</PartitionID>
-            </ModifyPartition>
-            <!-- Windows partition -->
-            <ModifyPartition wcm:action="add">
-              <Order>3</Order>
-              <PartitionID>3</PartitionID>
+              <Active>true</Active>
+              <Format>NTFS</Format>
               <Label>Windows</Label>
               <Letter>C</Letter>
-              <Format>NTFS</Format>
+              <Order>2</Order>
+              <PartitionID>2</PartitionID>
             </ModifyPartition>
           </ModifyPartitions>
         </Disk>
@@ -64,15 +52,14 @@
         <OSImage>
           <InstallFrom>
             <MetaData wcm:action="add">
-              <Key>/IMAGE/NAME</Key>
-              <Value>Windows Server 2019 SERVERSTANDARD</Value>
+              <Value>1</Value>
+              <Key>/IMAGE/INDEX</Key>
             </MetaData>
           </InstallFrom>
           <InstallTo>
             <DiskID>0</DiskID>
-            <PartitionID>3</PartitionID>
+            <PartitionID>2</PartitionID>
           </InstallTo>
-          <WillShowUI>OnError</WillShowUI>
           <InstallToAvailablePartition>false</InstallToAvailablePartition>
         </OSImage>
       </ImageInstall>
@@ -97,43 +84,34 @@
     <component name="Microsoft-Windows-PnpCustomizationsWinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DriverPaths>
         <PathAndCredentials wcm:action="add" wcm:keyValue="1">
-          <Path>D:\viostor\2k19\amd64</Path>
+          <Path>D:\viostor\2k8R2\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="2">
-          <Path>D:\NetKVM\2k19\amd64</Path>
+          <Path>D:\NetKVM\2k8R2\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="3">
-          <Path>D:\Balloon\2k19\amd64</Path>
+          <Path>D:\Balloon\2k8R2\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="4">
-          <Path>D:\pvpanic\2k19\amd64</Path>
+          <Path>D:\pvpanic\2k8R2\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="5">
-          <Path>D:\qemupciserial\2k19\amd64</Path>
+          <Path>D:\qemupciserial\2k8R2\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="6">
-          <Path>D:\qxldod\2k19\amd64</Path>
+          <Path>D:\qxldod\2k8R2\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="7">
-          <Path>D:\vioinput\2k19\amd64</Path>
+          <Path>D:\vioinput\2k8R2\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="8">
-          <Path>D:\viorng\2k19\amd64</Path>
+          <Path>D:\viorng\2k8R2\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="9">
-          <Path>D:\vioscsi\2k19\amd64</Path>
+          <Path>D:\vioscsi\2k8R2\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="10">
-          <Path>D:\vioserial\2k19\amd64</Path>
-        </PathAndCredentials>
-        <PathAndCredentials wcm:action="add" wcm:keyValue="11">
-          <Path>D:\viogpudo\2k19\amd64</Path>
-        </PathAndCredentials>
-        <PathAndCredentials wcm:action="add" wcm:keyValue="12">
-          <Path>D:\sriov\2k19\amd64</Path>
-        </PathAndCredentials>
-        <PathAndCredentials wcm:action="add" wcm:keyValue="13">
-          <Path>D:\viofs\2k19\amd64</Path>
+          <Path>D:\vioserial\2k8R2\amd64</Path>
         </PathAndCredentials>
       </DriverPaths>
     </component>
@@ -160,12 +138,7 @@
       <OEMInformation>
         <Manufacturer>Dockur</Manufacturer>
         <Model>Windows for Docker</Model>
-        <SupportHours>24/7</SupportHours>
-        <SupportPhone />
-        <SupportProvider>Dockur</SupportProvider>
-        <SupportURL>https://github.com/dockur/windows/issues</SupportURL>
       </OEMInformation>
-      <OEMName>Windows for Docker</OEMName>
     </component>
     <component name="Microsoft-Windows-ErrorReportingCore" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DisableWER>1</DisableWER>
@@ -192,14 +165,7 @@
       <InputLocale>0409:00000409</InputLocale>
       <SystemLocale>en-US</SystemLocale>
       <UILanguage>en-US</UILanguage>
-      <UILanguageFallback>en-US</UILanguageFallback>
       <UserLocale>en-US</UserLocale>
-    </component>
-    <component name="Microsoft-Windows-ServerManager-SvrMgrNc" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <DoNotOpenServerManagerAtLogon>true</DoNotOpenServerManagerAtLogon>
-    </component>
-    <component name="Microsoft-Windows-OutOfBoxExperience" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <DoNotOpenInitialConfigurationTasksAtLogon>true</DoNotOpenInitialConfigurationTasksAtLogon>
     </component>
     <component name="Microsoft-Windows-TerminalServices-LocalSessionManager" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <fDenyTSConnections>false</fDenyTSConnections>
@@ -218,12 +184,6 @@
     </component>
   </settings>
   <settings pass="oobeSystem">
-    <component name="Microsoft-Windows-SecureStartup-FilterDriver" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <PreventDeviceEncryption>true</PreventDeviceEncryption>
-    </component>
-    <component name="Microsoft-Windows-EnhancedStorage-Adm" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <TCGSecurityActivationDisabled>1</TCGSecurityActivationDisabled>
-    </component>
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <UserAccounts>
         <LocalAccounts>
@@ -252,9 +212,6 @@
       </AutoLogon>
       <OOBE>
         <HideEULAPage>true</HideEULAPage>
-        <HideLocalAccountScreen>true</HideLocalAccountScreen>
-        <HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
-        <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
         <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
         <NetworkLocation>Other</NetworkLocation>
         <ProtectYourPC>3</ProtectYourPC>
@@ -276,34 +233,34 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>3</Order>
-          <CommandLine>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device" /v "DevicePasswordLessBuildVersion" /t REG_DWORD /d 0 /f</CommandLine>
-          <Description>Enable option for passwordless sign-in</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>4</Order>
           <CommandLine>cmd /C wmic useraccount where name="Docker" set PasswordExpires=false</CommandLine>
           <Description>Password Never Expires</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>5</Order>
+          <Order>4</Order>
           <CommandLine>cmd /C POWERCFG -H OFF</CommandLine>
           <Description>Disable Hibernation</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>6</Order>
+          <Order>5</Order>
           <CommandLine>cmd /C POWERCFG -X -monitor-timeout-ac 0</CommandLine>
           <Description>Disable monitor blanking</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>7</Order>
+          <Order>6</Order>
           <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Network\NewNetworkWindowOff" /f</CommandLine>
           <Description>Disable Network Discovery popup</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>8</Order>
+          <Order>7</Order>
           <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Network\NetworkLocationWizard" /v "HideWizard" /t REG_DWORD /d 1 /f</CommandLine>
           <Description>Disable Network Discovery popup</Description>
         </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>8</Order>
+          <CommandLine>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\NewNetworks" /v NetworkList /t REG_MULTI_SZ /d "" /f</CommandLine>
+          <Description>Disable Network Discovery popup</Description>
+        </SynchronousCommand>        
         <SynchronousCommand wcm:action="add">
           <Order>9</Order>
           <CommandLine>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v "HideFirstRunExperience" /t REG_DWORD /d 1 /f</CommandLine>
@@ -336,46 +293,16 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>15</Order>
-          <CommandLine>reg.exe add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Cortana" /v "IsAvailable" /t REG_DWORD /d 0 /f</CommandLine>
-          <Description>Disable Cortana</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>16</Order>
-          <CommandLine>reg.exe add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Search" /v "SearchboxTaskbarMode" /t REG_DWORD /d 0 /f</CommandLine>
-          <Description>Remove Search from the Taskbar</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>17</Order>
-          <CommandLine>reg.exe add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "ShowTaskViewButton" /t REG_DWORD /d 0 /f</CommandLine>
-          <Description>Remove Task View from the Taskbar</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>18</Order>
-          <CommandLine>reg.exe add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "TaskbarDa" /t REG_DWORD /d 0 /f</CommandLine>
-          <Description>Remove Widgets from the Taskbar</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>19</Order>
-          <CommandLine>reg.exe add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "TaskbarMn" /t REG_DWORD /d 0 /f</CommandLine>
-          <Description>Remove Chat from the Taskbar</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>20</Order>
-          <CommandLine>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v "NoAutoUpdate" /t REG_DWORD /d 1 /f</CommandLine>
-          <Description>Turn off Windows Update auto download</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>21</Order>
           <CommandLine>netsh advfirewall firewall set rule group="Network Discovery" new enable=Yes</CommandLine>
           <Description>Enable Network Discovery</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>22</Order>
+          <Order>16</Order>
           <CommandLine>netsh advfirewall firewall set rule group="File and Printer Sharing" new enable=Yes</CommandLine>
           <Description>Enable File Sharing</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>23</Order>
+          <Order>17</Order>
           <CommandLine>cmd /C if exist "C:\OEM\install.bat" start "Install" "cmd /C C:\OEM\install.bat"</CommandLine>
           <Description>Execute custom script from the OEM folder if exists</Description>
         </SynchronousCommand>

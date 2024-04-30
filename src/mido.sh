@@ -673,9 +673,6 @@ ending_summary() {
         for media in $media_download_failed_list; do
             media_download_failed_argument_list="$media_download_failed_argument_list ${media%%.iso}"
         done
-
-        # shellcheck disable=SC2086
-        echo_err "Attempted download failed!"
     fi
 
     # Exit codes
