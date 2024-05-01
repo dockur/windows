@@ -130,6 +130,7 @@ getName() {
   [[ "${file,,}" == "winvista"* ]] && desc="Windows Vista"
   [[ "${file,,}" == "tiny10"* ]] && desc="Tiny 10"
   [[ "${file,,}" == "tiny11"* ]] && desc="Tiny 11"
+  [[ "${file,,}" == "tiny11core"* ]] && desc="Tiny 11 Core"
   [[ "${file,,}" == "tiny11_core"* ]] && desc="Tiny 11 Core"
   [[ "${file,,}" == *"windows11"* ]] && desc="Windows 11"
   [[ "${file,,}" == *"windows10"* ]] && desc="Windows 10"
