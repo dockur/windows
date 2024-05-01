@@ -27,10 +27,10 @@ parseVersion() {
     "10e" | "win10e" | "windows10e" | "windows 10e")
       VERSION="win10${PLATFORM,,}-enterprise-eval"
       ;;
-    "8" | "81" | "8.1" | "win8" | "win81" | "windows 8" | "windows 8.1")
+    "8" | "81" | "8.1" | "win8" | "win81" | "windows 8")
       VERSION="win81${PLATFORM,,}"
       ;;
-    "8e" | "81e" | "8.1e" | "win8e" | "win81e" | "windows8e" | "windows 8e")
+    "8e" | "81e" | "8.1e" | "win8e" | "win81e" | "windows 8e")
       VERSION="win81${PLATFORM,,}-enterprise-eval"
       ;;
     "7" | "7e" | "win7" | "win7e" | "windows7" | "windows 7")
@@ -41,10 +41,10 @@ parseVersion() {
       VERSION="winvista${PLATFORM,,}"
       DETECTED="winvista${PLATFORM,,}-ultimate"
       ;;
-    "xp" | "winxp" | "windowsxp" | "windows xp")
+    "xp" | "xp32" | "winxp" | "windowsxp" | "windows xp")
       VERSION="winxpx86"
       ;;
-    "xp64" | "winxp64" | "windowsxp64")
+    "xp64" | "winxp64" | "windowsxp64" | "windows xp 64")
       VERSION="winxpx64"
       ;;
     "22" | "2022" | "win22" | "win2022" | "windows2022" | "windows 2022")
@@ -62,10 +62,16 @@ parseVersion() {
     "2008" | "2008r2" | "win2008" | "win2008r2" | "windows2008" | "windows 2008")
       VERSION="win2008r2"
       ;;
-    "core11" | "core 11" | "tiny11" | "tiny 11")
+    "core11" | "core 11")
+      VERSION="core11"
+      DETECTED="win11${PLATFORM,,}"
+      ;;
+    "tiny11" | "tiny 11")
+      VERSION="tiny11"
       DETECTED="win11${PLATFORM,,}"
       ;;
    "tiny10" | "tiny 10")
+      VERSION="tiny10"
       DETECTED="win10${PLATFORM,,}-ltsc"
       ;;
     "iot10" | "10iot" | "win10-iot" | "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval")
