@@ -521,23 +521,23 @@ getLink() {
 
   local url=""
   local index="$1"
-  local version="$2"
+  local id="$2"
 
   case "${index,,}" in
     "1")
-      url=$(getLink1 "$version")
+      url=$(getLink1 "$id")
       ;;
     "2")
-      url=$(getLink2 "$version")
+      url=$(getLink2 "$id")
       ;;
     "3")
-      url=$(getLink3 "$version")
+      url=$(getLink3 "$id")
       ;;
     "4")
-      url=$(getLink4 "$version")
+      url=$(getLink4 "$id")
       ;;
     "5")
-      url=$(getLink5 "$version")
+      url=$(getLink5 "$id")
       ;;
   esac
 
@@ -553,11 +553,13 @@ validVersion() {
   isESD "$id" && return 0
   isMido "$id" && return 0
 
-  url=$(getLink "$id")
-  [ -n "$url" ] && return 0
+  for i in {1..9}
+  do   
 
-  url=$(secondLink "$id")
-  [ -n "$url" ] && return 0
+    url=$(getLink "$i" "$id")
+    [ -n "$url" ] && return 0
+
+  done
 
   return 1
 }
