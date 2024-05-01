@@ -332,7 +332,7 @@ downloadImage() {
 
   if [[ "${version,,}" == "http"* ]]; then
 
-    desc=$(getName "$BASE" "$BASE")
+    desc=$(getName "$BASE")
     downloadFile "$iso" "$version" "$desc" && return 0
     return 1
 
