@@ -138,7 +138,7 @@ getName() {
     "win10"*| "win_10"* | *"windows10"* | *"windows_10"* )
       id="win10${PLATFORM,,}"
       ;;
-    "win11"* | "win_11"*  *"windows11"* | *"windows_11"* )
+    "win11"* | "win_11"* | *"windows11"* | *"windows_11"* )
       id="win11${PLATFORM,,}"
       ;;
     *"winxp"* | *"win_xp"* | *"windowsxp"* | *"windows_xp"* )
