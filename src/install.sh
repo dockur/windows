@@ -277,7 +277,7 @@ verifyFile() {
   local version="$2"
   local hash check
 
-  info "Calculating SHA256 checksum of the downloaded ISO file..."
+  info "Calculating SHA256 checksum of the ISO file..."
 
   hash=$(sha256sum "$iso" | cut -f1 -d' ')
   [ -n "$version" ] && check=$(getHash "$version")
