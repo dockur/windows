@@ -320,7 +320,7 @@ downloadFile() {
   dots=$(echo $domain | grep -o "." | wc -l)
   (( dots > 1 )) && domain=$(expr "$domain" : '.*\.\(.*\..*\)')
 
-  if [ -n "$domain" ] && [[ "${domain,,}" != *"microsoft.com" ]];
+  if [ -n "$domain" ] && [[ "${domain,,}" != *"microsoft.com" ]]; then
     msg="Downloading $desc from $domain..."
   fi
 
