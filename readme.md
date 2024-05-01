@@ -180,6 +180,16 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
   Replace the example path `/home/user/custom.xml` with the filename of the modified XML file.
 
+
+  NOTE: If you are using a custom image (custom.iso) you can customize the settings for the automatic isntallation by providing a custom.xml file in your compose file. For example, add the following line inside your compose file:
+
+  ```yaml
+  volumes:
+    -  /home/user/custom.xml:/run/assets/custom.xml
+  ```
+  
+  Replace the example path `/home/user/custom.xml` with the filename of the modified XML file.
+
 * ### How do I run a script after installation?
 
   To run your own script after installation, you can create a file called `install.bat` and place it in a folder together with other files it needs (programs to install for example). Then bind it in your compose file like this:
