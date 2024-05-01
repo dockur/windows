@@ -596,7 +596,7 @@ detectImage() {
 
       dsc=$(printVersion "$DETECTED" "$DETECTED")
 
-      warn "got $dsc, but no matching answer file called $DETECTED.xml exists, $FB."
+      warn "detected $dsc, but its answer file does not exist ($DETECTED.xml), $FB."
     fi
 
     return 0
@@ -646,7 +646,7 @@ detectImage() {
     [[ "$MANUAL" != [Yy1]* ]] && XML="$DETECTED.xml"
     info "Detected: $desc"
   else
-    warn "detected $desc, but no matching answer file called $DETECTED.xml exists, $FB."
+    warn "detected $desc, but no answer file exists for its edition ($DETECTED.xml), $FB."
   fi
 
   return 0
