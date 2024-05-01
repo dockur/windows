@@ -317,7 +317,7 @@ downloadFile() {
   local msg="Downloading $desc..."
 
   domain=$(echo "$url" | awk -F/ '{print $3}')
-  dots=$(echo $domain | grep -o "." | wc -l)
+  dots=$(echo "$domain" | tr -cd '.' | wc -c)
   (( dots > 1 )) && domain=$(expr "$domain" : '.*\.\(.*\..*\)')
 
   if [ -n "$domain" ] && [[ "${domain,,}" != *"microsoft.com" ]]; then
