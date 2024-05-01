@@ -603,6 +603,7 @@ detectImage() {
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB" && return 1
   fi
 
+  name2=""
   tag="DISPLAYNAME"
   result=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
   name=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$result")
@@ -612,13 +613,12 @@ detectImage() {
 
     tag="PRODUCTNAME"
     name2=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$result")
-    [ -z "$name" ] && name="$name2"
     DETECTED=$(getVersion "$name2")
 
   fi
 
   if [ -z "$DETECTED" ]; then
-    warn "failed to determine Windows version from string '$name', $FB" && return 0
+    warn "failed to determine Windows version from displayname '$name' or productname '$name2' , $FB" && return 0
   fi
 
   desc=$(printVersion "$DETECTED" "$DETECTED")
