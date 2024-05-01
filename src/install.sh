@@ -533,7 +533,11 @@ detectImage() {
   local dir="$1"
 
   if [ -n "$CUSTOM" ]; then
-    DETECTED=""
+    if [ -f "/run/assets/custom.xml" ]; then
+      DETECTED="custom"
+    else
+      DETECTED=""
+    fi
   else
     if [ -z "$DETECTED" ] && [[ "$EXTERNAL" != [Yy1]* ]]; then
       DETECTED="$VERSION"
