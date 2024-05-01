@@ -272,12 +272,37 @@ doMido() {
   return 1
 }
 
+verifyFile() {
+  local iso="$1"
+  local version="$2"
+  local hash check
+
+  info "Calculating SHA256 checksum of the downloaded ISO file..."
+
+  hash=$(sha256sum "$iso" | cut -f1 -d' ')
+  [ -n "$version" ] && check=$(getHash "$version")
+
+  if [ -z "$check" ]; then
+    info "The sha256 checksum is: $hash , but have no value available for comparison." && return 0
+  fi
+
+  if [[ "$hash" == "$check" ]]; then
+    info "Succesfully verified that the checksum was correct!" && return 0
+  fi
+
+  error "Invalid sha256 checksum: $hash , expected value is: $check"
+
+  rm -f "$iso"
+  return 1
+}
+
 downloadFile() {
 
   local iso="$1"
   local url="$2"
   local desc="$3"
-  local rc progress domain hash
+  local version="$4"
+  local rc progress domain
 
   rm -f "$iso"
 
@@ -304,17 +329,15 @@ downloadFile() {
   if (( rc == 0 )) && [ -f "$iso" ]; then
     if [ "$(stat -c%s "$iso")" -gt 100000000 ]; then
       if [[ "$VERIFY" == [Yy1]* ]]; then
-        info "Calculating SHA256 sum of downloaded ISO..."
-        hash=$(sha256sum "$iso" | cut -f1 -d' ')
-        info "Result: $hash"
+        ! verifyFile "$iso" "$version" && return 1
       fi
       html "Download finished successfully..." && return 0
     fi
   fi
 
-  rm -f "$iso"
   error "Failed to download $url , reason: $rc"
 
+  rm -f "$iso"
   return 1
 }
 
@@ -328,7 +351,7 @@ downloadImage() {
   if [[ "${version,,}" == "http"* ]]; then
 
     desc=$(getName "$BASE")
-    downloadFile "$iso" "$version" "$desc" && return 0
+    downloadFile "$iso" "$version" "$desc" "" && return 0
     return 1
 
   fi
@@ -357,7 +380,7 @@ downloadImage() {
 
     if getESD "$TMP/esd" "$version"; then
       ISO="$TMP/$version.esd"
-      downloadFile "$ISO" "$ESD_URL" "$desc" && return 0
+      downloadFile "$ISO" "$ESD_URL" "$desc" "" && return 0
       ISO="$TMP/$BASE"
     fi
 
@@ -372,7 +395,7 @@ downloadImage() {
         info "Failed to download $desc, will try another mirror now..."
       fi
       tried="y"
-      downloadFile "$iso" "$url" "$desc" && return 0
+      downloadFile "$iso" "$url" "$desc" "$version" && return 0
     fi
 
   done
