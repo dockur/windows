@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+LABEL=""
 ESD_URL=""
 TMP="$STORAGE/tmp"
 DIR="$TMP/unpack"
@@ -183,15 +184,9 @@ getESD() {
   local winCatalog size
 
   case "${version,,}" in
-    "win11${PLATFORM,,}")
-      winCatalog="https://go.microsoft.com/fwlink?linkid=2156292"
-      ;;
-    "win10${PLATFORM,,}")
-      winCatalog="https://go.microsoft.com/fwlink/?LinkId=841361"
-      ;;
-    *)
-      error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
-      ;;
+    "win11${PLATFORM,,}" ) winCatalog="https://go.microsoft.com/fwlink?linkid=2156292" ;;
+    "win10${PLATFORM,,}" ) winCatalog="https://go.microsoft.com/fwlink/?LinkId=841361" ;;
+    *) error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1 ;;
   esac
 
   local msg="Downloading product information from Microsoft..."
@@ -440,21 +435,21 @@ extractESD() {
    error "Adding Windows Setup failed" && return ${retVal}
   }
 
+  if [[ "${PLATFORM,,}" == "x64" ]]; then
+    LABEL="CCCOMA_X64FRE_EN-US_DV9"
+  else
+    LABEL="CPBA_A64FRE_EN-US_DV9"
+  fi
+
   local msg="Extracting $desc image..."
   info "$msg" && html "$msg"
 
   local edition imageIndex imageEdition
 
   case "${version,,}" in
-    "win11${PLATFORM,,}")
-      edition="11 pro"
-      ;;
-    "win10${PLATFORM,,}")
-      edition="10 pro"
-      ;;
-    *)
-      error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
-      ;;
+    "win11${PLATFORM,,}" ) edition="11 pro" ;;
+    "win10${PLATFORM,,}" ) edition="10 pro" ;;
+    *) error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1 ;;
   esac
 
   for (( imageIndex=4; imageIndex<=esdImageCount; imageIndex++ )); do
@@ -512,6 +507,8 @@ extractImage() {
   if ! 7z x "$iso" -o"$dir" > /dev/null; then
     error "Failed to extract ISO file: $iso" && return 1
   fi
+
+  LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p')
 
   return 0
 }
@@ -724,12 +721,10 @@ buildImage() {
   local dir="$1"
   local failed="N"
   local cat="BOOT.CAT"
-  local label="${BASE%.*}"
   local log="/run/shm/iso.log"
   local size size_gb space space_gb desc
+  local out="$TMP/${BASE%.*}.tmp"
 
-  label="${label::30}"
-  local out="$TMP/$label.tmp"
   rm -f "$out"
 
   desc=$(printVersion "$DETECTED" "ISO")
@@ -746,9 +741,11 @@ buildImage() {
     error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB." && return 1
   fi
 
+  [ -z "$LABEL" ] && LABEL="${BASE%.*}"
+
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
 
-    if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
+    if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -V "${LABEL::30}" \
                      -udf -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -allow-limited-size -quiet "$dir" 2> "$log"; then
       failed="Y"
     fi
@@ -757,7 +754,7 @@ buildImage() {
 
     if [[ "${DETECTED,,}" != "winxp"* ]]; then
 
-      if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "$label" \
+      if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "${LABEL::30}" \
                        -udf -allow-limited-size -quiet "$dir" 2> "$log"; then
         failed="Y"
       fi
@@ -765,7 +762,7 @@ buildImage() {
     else
 
       if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -boot-load-seg 1984 -boot-load-size 4 -c "$cat" -iso-level 2 -J -l -D -N -joliet-long \
-                       -relaxed-filenames -V "$label" -quiet "$dir" 2> "$log"; then
+                       -relaxed-filenames -V "${LABEL::30}" -quiet "$dir" 2> "$log"; then
         failed="Y"
       fi
 
