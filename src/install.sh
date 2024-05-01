@@ -368,7 +368,7 @@ downloadImage() {
 
   fi
 
-  for i in {1..9}
+  for i in {1..MIRRORS}
   do
 
     url=$(getLink "$i" "$version")
