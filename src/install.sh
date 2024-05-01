@@ -541,6 +541,36 @@ extractImage() {
   return 0
 }
 
+parseVersion() {
+  local xml="$1"
+  local name name2 name3
+
+  local tag="DISPLAYNAME"
+  name=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml")
+
+  DETECTED=$(getVersion "$name")
+  [ -n "$DETECTED" ] && return 0
+
+  tag="PRODUCTNAME"
+  name2=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml")
+  [[ "$name2" == *"Operating System"* ]] && name2=""
+
+  DETECTED=$(getVersion "$name2")
+  [ -n "$DETECTED" ] && return 0
+
+  tag="NAME"
+  name3=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml")
+
+  DETECTED=$(getVersion "$name3")
+  [ -n "$DETECTED" ] && return 0
+
+  [ -n "$name3" ] && info "Unknown name: '$name3'"
+  [ -n "$name" ] && info "Unknown displayname: '$name'"
+  [ -n "$name2" ] && info "Unknown productname: '$name2'"
+
+  return 1
+}
+
 detectImage() {
 
   XML=""
@@ -587,7 +617,7 @@ detectImage() {
     fi
   fi
 
-  local src loc tag result name name2 desc
+  local src loc result desc
   src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
 
   if [ ! -d "$src" ]; then
@@ -603,23 +633,9 @@ detectImage() {
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB" && return 1
   fi
 
-  tag="DISPLAYNAME"
   result=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
-  name=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$result")
-  DETECTED=$(getVersion "$name")
 
-  if [ -z "$DETECTED" ]; then
-
-    tag="PRODUCTNAME"
-    name2=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$result")
-    [[ "$name2" == *"Operating System"* ]] && name2=""
-    DETECTED=$(getVersion "$name2")
-
-  fi
-
-  if [ -z "$DETECTED" ]; then
-    [ -n "$name" ] && info "Unknown displayname: '$name'"
-    [ -n "$name2" ] && info "Unknown productname: '$name2'"
+  if ! parseVersion "$result"; then
     warn "failed to determine Windows version from image, $FB"
     return 0
   fi
