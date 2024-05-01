@@ -107,6 +107,10 @@ printVersion() {
   [[ "$id" == "win2012"* ]] && desc="Windows Server 2012"
   [[ "$id" == "win2008"* ]] && desc="Windows Server 2008"
 
+  [[ "$id" == "tiny11"* ]] && desc="Tiny 11"
+  [[ "$id" == "tiny10"* ]] && desc="Tiny 10"
+  [[ "$id" == "core11"* ]] && desc="Core 11"
+
   [ -z "$desc" ] && desc="Windows"
 
   echo "$desc"
@@ -554,7 +558,7 @@ validVersion() {
   isMido "$id" && return 0
 
   for i in {1..9}
-  do   
+  do
 
     url=$(getLink "$i" "$id")
     [ -n "$url" ] && return 0
