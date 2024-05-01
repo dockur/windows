@@ -318,59 +318,50 @@ getLink() {
 
   local id="$1"
   local url=""
-  local host="https://dl.bobpony.com"
+  local host="https://dl.bobpony.com/windows"
 
   case "${id,,}" in
     "win11${PLATFORM,,}")
-      url="$host/windows/11/en-us_windows_11_23h2_${PLATFORM,,}.iso"
+      url="$host/11/en-us_windows_11_23h2_${PLATFORM,,}.iso"
       ;;
     "win10${PLATFORM,,}")
-      url="$host/windows/10/en-us_windows_10_22h2_${PLATFORM,,}.iso"
+      url="$host/10/en-us_windows_10_22h2_${PLATFORM,,}.iso"
       ;;
     "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval")
-      url="$host/windows/10/en-us_windows_10_iot_enterprise_ltsc_2021_${PLATFORM,,}_dvd_257ad90f.iso"
+      url="$host/10/en-us_windows_10_iot_enterprise_ltsc_2021_${PLATFORM,,}_dvd_257ad90f.iso"
       ;;
     "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval")
-      url="$host/windows/10/en-us_windows_10_enterprise_ltsc_2021_${PLATFORM,,}_dvd_d289cf96.iso"
+      url="$host/10/en-us_windows_10_enterprise_ltsc_2021_${PLATFORM,,}_dvd_d289cf96.iso"
       ;;
     "win81${PLATFORM,,}")
-      url="$host/windows/8.x/8.1/en_windows_8.1_with_update_${PLATFORM,,}_dvd_6051480.iso"
+      url="$host/8.x/8.1/en_windows_8.1_with_update_${PLATFORM,,}_dvd_6051480.iso"
       ;;
     "win2022" | "win2022-eval")
-      url="$host/windows/server/2022/en-us_windows_server_2022_updated_jan_2024_${PLATFORM,,}_dvd_2b7a0c9f.iso"
+      url="$host/server/2022/en-us_windows_server_2022_updated_jan_2024_${PLATFORM,,}_dvd_2b7a0c9f.iso"
       ;;
     "win2019" | "win2019-eval")
-      url="$host/windows/server/2019/en-us_windows_server_2019_updated_aug_2021_${PLATFORM,,}_dvd_a6431a28.iso"
+      url="$host/server/2019/en-us_windows_server_2019_updated_aug_2021_${PLATFORM,,}_dvd_a6431a28.iso"
       ;;
     "win2016" | "win2016-eval")
-      url="$host/windows/server/2016/en_windows_server_2016_updated_feb_2018_${PLATFORM,,}_dvd_11636692.iso"
+      url="$host/server/2016/en_windows_server_2016_updated_feb_2018_${PLATFORM,,}_dvd_11636692.iso"
       ;;
     "win2012r2" | "win2012r2-eval")
-      url="$host/windows/server/2012r2/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708-004.iso"
+      url="$host/server/2012r2/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708-004.iso"
       ;;
     "win2008r2" | "win2008r2-eval")
-      url="$host/windows/server/2008r2/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601-018.iso"
+      url="$host/server/2008r2/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601-018.iso"
       ;;
     "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise")
-      url="$host/windows/7/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
+      url="$host/7/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
       ;;
     "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-ultimate")
-      url="$host/windows/vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
+      url="$host/vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
       ;;
     "winxpx86")
-      url="$host/windows/xp/professional/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
+      url="$host/xp/professional/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
       ;;
     "winxpx64")
-      url="$host/windows/xp/professional/en_win_xp_pro_${PLATFORM,,}_vl.iso"
-      ;;
-    "core11")
-      url="https://file.cnxiaobai.com/Windows/%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny11%20core%20${PLATFORM,,}%20beta%201.iso"
-      ;;
-    "tiny11")
-      url="https://file.cnxiaobai.com/Windows/%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny11%202311%20${PLATFORM,,}.iso"
-      ;;
-    "tiny10")
-      url="https://file.cnxiaobai.com/Windows/%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny10%2023H2%20${PLATFORM,,}.iso"
+      url="$host/xp/professional/en_win_xp_pro_${PLATFORM,,}_vl.iso"
       ;;
   esac
 
@@ -378,7 +369,88 @@ getLink() {
   return 0
 }
 
-secondLink() {
+getLink2() {
+
+  local id="$1"
+  local url=""
+  local host="https://files.dog/MSDN"
+
+  case "${id,,}" in
+    "win81${PLATFORM,,}")
+      url="$host/Windows%208.1%20with%20Update/en_windows_8.1_with_update_${PLATFORM,,}_dvd_6051480.iso"
+      ;;
+    "win81${PLATFORM,,}-enterprise" | "win81${PLATFORM,,}-enterprise-eval")
+      url="$host/Windows%208.1%20with%20Update/en_windows_8.1_enterprise_with_update_${PLATFORM,,}_dvd_6054382.iso"
+      ;;
+    "win2012r2" | "win2012r2-eval")
+      url="$host/Windows%20Server%202012%20R2%20with%20Update/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708.iso"
+      ;;
+    "win2008r2" | "win2008r2-eval")
+      url="$host/Windows%20Server%202008%20R2/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601.iso"
+      ;;
+    "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise")
+      url="$host/Windows%207/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
+      ;;
+    "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-ultimate")
+      url="$host/Windows%20Vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
+      ;;
+    "winxpx86")
+      url="$host/Windows%20XP/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
+      ;;
+    "winxpx64")
+      url="$host/Windows%20XP/en_win_xp_pro_${PLATFORM,,}_vl.iso"
+      ;;
+  esac
+
+  echo "$url"
+  return 0
+}
+
+getLink3() {
+
+  local id="$1"
+  local url=""
+  local host="https://file.cnxiaobai.com/Windows"
+
+  case "${id,,}" in
+    "core11")
+      url="$host/%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny11%20core%20${PLATFORM,,}%20beta%201.iso"
+      ;;
+    "tiny11")
+      url="$host/%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny11%202311%20${PLATFORM,,}.iso"
+      ;;
+    "tiny10")
+      url="$host/%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny10%2023H2%20${PLATFORM,,}.iso"
+      ;;
+  esac
+
+  echo "$url"
+  return 0
+}
+
+getLink4() {
+
+  local id="$1"
+  local url=""
+  local host="https://archive.org/download"
+
+  case "${id,,}" in
+    "core11")
+      url="$host/tiny-11-core-x-64-beta-1/tiny11%20core%20${PLATFORM,,}%20beta%201.iso"
+      ;;
+    "tiny11")
+      url="$host/tiny11-2311/tiny11%202311%20${PLATFORM,,}.iso"
+      ;;
+    "tiny10")
+      url="$host/tiny-10-23-h2/tiny10%20${PLATFORM,,}%2023h2.iso"
+      ;;
+  esac
+
+  echo "$url"
+  return 0
+}
+
+getLink5() {
 
   # Fallbacks for users who cannot connect to the Microsoft servers
 
@@ -408,9 +480,6 @@ secondLink() {
     "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval")
       url="$host/en-us_windows_10_enterprise_ltsc_2021_${PLATFORM,,}_dvd_d289cf96.iso"
       ;;
-    "win81${PLATFORM,,}")
-      url="$host/en_windows_8.1_pro_vl_with_update_${PLATFORM,,}_dvd_6050880.iso"
-      ;;
     "win81${PLATFORM,,}-enterprise" | "win81${PLATFORM,,}-enterprise-eval")
       url="$host/en_windows_8.1_enterprise_with_update_${PLATFORM,,}_dvd_6054382.iso"
       ;;
@@ -434,21 +503,6 @@ secondLink() {
       ;;
     "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-ultimate")
       url="$host/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
-      ;;
-    "winxpx86")
-      url="$host/en_windows_xp_professional_with_service_pack_3_x86_cd_vl_x14-73974.iso"
-      ;;
-    "winxpx64")
-      url="$host/en_win_xp_pro_${PLATFORM,,}_with_sp2_vl_x13-41611.iso"
-      ;;
-    "core11")
-      url="https://archive.org/download/tiny-11-core-x-64-beta-1/tiny11%20core%20${PLATFORM,,}%20beta%201.iso"
-      ;;
-    "tiny11")
-      url="https://archive.org/download/tiny11-2311/tiny11%202311%20${PLATFORM,,}.iso"
-      ;;
-    "tiny10")
-      url="https://archive.org/download/tiny-10-23-h2/tiny10%20${PLATFORM,,}%2023h2.iso"
       ;;
   esac
 
