@@ -541,7 +541,7 @@ extractImage() {
   return 0
 }
 
-parseVersion() {
+detectVersion() {
   local xml="$1"
   local name name2 name3
 
@@ -635,7 +635,7 @@ detectImage() {
 
   result=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
 
-  if ! parseVersion "$result"; then
+  if ! detectVersion "$result"; then
     warn "failed to determine Windows version from image, $FB"
     return 0
   fi
