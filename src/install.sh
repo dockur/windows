@@ -607,6 +607,24 @@ detectImage() {
   fi
 
   if [ -z "$DETECTED" ]; then
+
+    tag="NAME"
+    name3=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$result")
+    [ -z "$name" ] && name="$name3"
+    DETECTED=$(getVersion "$name3")
+
+  fi
+
+  if [ -z "$DETECTED" ]; then
+
+    tag="DESCRIPTION"
+    name4=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$result")
+    [ -z "$name" ] && name="$name4"
+    DETECTED=$(getVersion "$name4")
+
+  fi
+
+  if [ -z "$DETECTED" ]; then
     warn "failed to determine Windows version from string '$name', $FB" && return 0
   fi
 
