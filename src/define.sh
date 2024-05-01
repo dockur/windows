@@ -165,7 +165,6 @@ getVersion() {
           *" home"* ) id="$id-home" ;;
           *" starter"* ) id="$id-starter" ;;
           *" ultimate"* ) id="$id-ultimate" ;;
-          *" business"* ) id="$id-business" ;;
           *" enterprise"* ) id="$id-enterprise" ;;
         esac
       ;;
