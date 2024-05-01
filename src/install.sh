@@ -373,7 +373,7 @@ downloadImage() {
   fi
 
   for i in {1..9}
-  do   
+  do
 
     url=$(getLink "$i" "$version")
 
