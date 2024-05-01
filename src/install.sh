@@ -278,6 +278,7 @@ verifyFile() {
   local hash=""
   local check=""
 
+  html "Verifying downloaded ISO..."
   info "Calculating SHA256 checksum of the ISO file..."
 
   hash=$(sha256sum "$iso" | cut -f1 -d' ')
