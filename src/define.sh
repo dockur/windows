@@ -687,10 +687,9 @@ prepareXP() {
   local dir="$2"
 
   MACHINE="pc-q35-2.10"
-  BOOT_MODE="windows_legacy"
   ETFS="[BOOT]/Boot-NoEmul.img"
-
   [[ "$MANUAL" == [Yy1]* ]] && return 0
+
   configXP "$dir" && return 0
 
   error "Failed to generate XP configuration files!" && exit 66
@@ -702,8 +701,6 @@ prepareLegacy() {
   local dir="$2"
 
   ETFS="boot.img"
-  BOOT_MODE="windows_legacy"
-
   rm -f "$dir/$ETFS"
 
   local len offset
