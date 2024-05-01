@@ -282,7 +282,7 @@ downloadFile() {
   local iso="$1"
   local url="$2"
   local desc="$3"
-  local rc progress domain
+  local rc progress domain hash
 
   rm -f "$iso"
 
@@ -308,6 +308,11 @@ downloadFile() {
 
   if (( rc == 0 )) && [ -f "$iso" ]; then
     if [ "$(stat -c%s "$iso")" -gt 100000000 ]; then
+      if [[ "$VERIFY" == [Yy1]* ]]; then
+        info "Calculating SHA256 sum of downloaded ISO..."
+        hash=$(sha256sum "$iso")
+        info "Result: $hash"
+      fi
       html "Download finished successfully..." && return 0
     fi
   fi
