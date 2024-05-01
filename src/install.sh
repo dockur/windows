@@ -566,7 +566,7 @@ detectImage() {
 
       dsc=$(printVersion "$DETECTED" "$DETECTED")
 
-      warn "got $dsc, but no matching file called $DETECTED.xml exists, $FB."
+      warn "got $dsc, but no matching answer file called $DETECTED.xml exists, $FB."
     fi
 
     return 0
@@ -603,7 +603,6 @@ detectImage() {
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB" && return 1
   fi
 
-  name2=""
   tag="DISPLAYNAME"
   result=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
   name=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$result")
@@ -613,12 +612,16 @@ detectImage() {
 
     tag="PRODUCTNAME"
     name2=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$result")
+    [[ "$name2" == *"Operating System"* ]] && name2=""
     DETECTED=$(getVersion "$name2")
 
   fi
 
   if [ -z "$DETECTED" ]; then
-    warn "failed to determine Windows version from displayname '$name' or productname '$name2' , $FB" && return 0
+    [ -n "$name" ] && info "Unknown displayname: '$name'"
+    [ -n "$name2" ] && info "Unknown productname: '$name2'"
+    warn "failed to determine Windows version from image, $FB"
+    return 0
   fi
 
   desc=$(printVersion "$DETECTED" "$DETECTED")
@@ -627,7 +630,7 @@ detectImage() {
     [[ "$MANUAL" != [Yy1]* ]] && XML="$DETECTED.xml"
     info "Detected: $desc"
   else
-    warn "detected $desc, but no matching file called $DETECTED.xml exists, $FB."
+    warn "detected $desc, but no matching answer file called $DETECTED.xml exists, $FB."
   fi
 
   return 0
@@ -709,7 +712,7 @@ updateImage() {
   fi
 
   if ! wimlib-imagex update "$loc" "$index" --command "add $asset /autounattend.xml" > /dev/null; then
-    warn "failed to add $xml to ISO image, $FB" && return 1
+    warn "failed to add answer file $xml to ISO image, $FB" && return 1
   fi
 
   return 0
