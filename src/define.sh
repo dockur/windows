@@ -604,17 +604,22 @@ configXP() {
   sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$target/TXTSETUP.SIF"
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$target/TXTSETUP.SIF"
 
-  # Windows XP Pro generic key (no activation)
-  local key="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
-
-  local pid setup
+  local key pid setup
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini | head -n 1)
   pid=$(<"$setup")
   pid="${pid:(-4)}"
   pid="${pid:0:3}"
 
   if [[ "$pid" == "270" ]]; then
-    info "Warning: this ISO requires a volume license, it will reject the generic key during installation."
+    info "Warning: this XP version requires a volume license, it will reject the generic key during installation."
+  fi
+
+  if [[ "${arch,,}" == "x86" ]]; then
+    # Windows XP Pro x86 generic key (no activation)
+    key="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
+  else
+    # Windows XP Pro x64 generic key (no activation)
+    key="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
   fi
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
