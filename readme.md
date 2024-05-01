@@ -201,6 +201,37 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
   - Once you see the desktop, open File Explorer and navigate to the CD-ROM drive (E:). Double-click on `virtio-win-gt-x64.msi` and proceed to install the VirtIO drivers.
 
   Enjoy your brand new machine, and don't forget to star this repo!
+ 
+* ### How do I verify if my system supports KVM?
+
+  To verify if your system supports KVM, run the following commands:
+
+  ```bash
+  sudo apt install cpu-checker
+  sudo kvm-ok
+  ```
+
+  If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check the virtualization settings in the BIOS.
+
+* ### How do I increase the amount of CPU or RAM?
+
+  By default, 2 CPU cores and 4 GB of RAM are allocated to the container, as those are the minimum requirements of Windows 11.
+
+  If there arises a need to increase this, add the following environment variables:
+
+  ```yaml
+  environment:
+    RAM_SIZE: "8G"
+    CPU_CORES: "4"
+  ```
+
+* ### How do I connect using RDP?
+
+  The web-viewer is mainly meant to be used during installation, as its picture quality is low, and it has no audio or clipboard for example.
+
+  So for a better experience you can connect using any Microsoft Remote Desktop client to the IP of the container, using the username `docker` and by leaving the password empty.
+
+  There is a good RDP client for [Android](https://play.google.com/store/apps/details?id=com.microsoft.rdc.androidx) available from the Play Store and one for [iOS](https://apps.apple.com/nl/app/microsoft-remote-desktop/id714464092?l=en-GB) in the Apple Store. For Linux you can use [FreeRDP](https://www.freerdp.com/) and on Windows just type `mstsc` in the search box.
 
 * ### How do I assign an individual IP address to the container?
 
@@ -254,30 +285,7 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
   ```
 
   Please note that in this mode, the container and Windows will each have their own separate IPs. The container will keep the macvlan IP, and Windows will use the DHCP IP.
- 
-* ### How do I verify if my system supports KVM?
 
-  To verify if your system supports KVM, run the following commands:
-
-  ```bash
-  sudo apt install cpu-checker
-  sudo kvm-ok
-  ```
-
-  If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check the virtualization settings in the BIOS.
-
-* ### How do I increase the amount of CPU or RAM?
-
-  By default, 2 CPU cores and 4 GB of RAM are allocated to the container, as those are the minimum requirements of Windows 11.
-
-  If there arises a need to increase this, add the following environment variables:
-
-  ```yaml
-  environment:
-    RAM_SIZE: "8G"
-    CPU_CORES: "4"
-  ```
- 
 * ### How do I pass-through a disk?
 
   It is possible to pass-through disk devices directly by adding them to your compose file in this way:
