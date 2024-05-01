@@ -157,7 +157,7 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
   ```yaml
   volumes:
-    -  /home/user/custom.xml:/run/assets/custom.xml
+    -  /home/user/custom.xml:/storage/custom.xml
   ```
 
   Replace the example path `/home/user/custom.xml` with the filename of the modified XML file.
