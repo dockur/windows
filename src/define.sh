@@ -319,7 +319,7 @@ isMido() {
   return 1
 }
 
-getLink() {
+getLink1() {
 
   # Fallbacks for users who cannot connect to the Microsoft servers
 
@@ -510,6 +510,34 @@ getLink5() {
       ;;
     "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-ultimate")
       url="$host/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
+      ;;
+  esac
+
+  echo "$url"
+  return 0
+}
+
+getLink() {
+
+  local url=""
+  local index="$1"
+  local version="$2"
+
+  case "${index,,}" in
+    "1")
+      url=$(getLink1 "$version")
+      ;;
+    "2")
+      url=$(getLink2 "$version")
+      ;;
+    "3")
+      url=$(getLink3 "$version")
+      ;;
+    "4")
+      url=$(getLink4 "$version")
+      ;;
+    "5")
+      url=$(getLink5 "$version")
       ;;
   esac
 
