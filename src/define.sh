@@ -19,72 +19,52 @@ parseVersion() {
 
   case "${VERSION,,}" in
     "11" | "win11" | "windows11" | "windows 11" )
-      VERSION="win11${PLATFORM,,}"
-      ;;
+      VERSION="win11${PLATFORM,,}" ;;
     "11e" | "win11e" | "windows11e" | "windows 11e" )
-      VERSION="win11${PLATFORM,,}-enterprise-eval"
-      ;;
+      VERSION="win11${PLATFORM,,}-enterprise-eval" ;;
     "10" | "win10" | "windows10" | "windows 10" )
-      VERSION="win10${PLATFORM,,}"
-      ;;
+      VERSION="win10${PLATFORM,,}" ;;
     "10e" | "win10e" | "windows10e" | "windows 10e" )
-      VERSION="win10${PLATFORM,,}-enterprise-eval"
-      ;;
+      VERSION="win10${PLATFORM,,}-enterprise-eval" ;;
     "8" | "81" | "8.1" | "win8" | "win81" | "windows 8" )
-      VERSION="win81${PLATFORM,,}"
-      ;;
+      VERSION="win81${PLATFORM,,}" ;;
     "8e" | "81e" | "8.1e" | "win8e" | "win81e" | "windows 8e" )
-      VERSION="win81${PLATFORM,,}-enterprise-eval"
-      ;;
+      VERSION="win81${PLATFORM,,}-enterprise-eval" ;;
     "7" | "7e" | "win7" | "win7e" | "windows7" | "windows 7" )
       VERSION="win7${PLATFORM,,}"
-      DETECTED="win7${PLATFORM,,}-enterprise"
-      ;;
+      DETECTED="win7${PLATFORM,,}-enterprise" ;;
     "vista" | "winvista" | "windowsvista" | "windows vista" )
       VERSION="winvista${PLATFORM,,}"
-      DETECTED="winvista${PLATFORM,,}-enterprise"
-      ;;
+      DETECTED="winvista${PLATFORM,,}-enterprise" ;;
     "xp" | "xp32" | "winxp" | "windowsxp" | "windows xp" )
-      VERSION="winxpx86"
-      ;;
+      VERSION="winxpx86" ;;
     "xp64" | "winxp64" | "windowsxp64" | "windows xp 64" )
-      VERSION="winxpx64"
-      ;;
+      VERSION="winxpx64" ;;
     "22" | "2022" | "win22" | "win2022" | "windows2022" | "windows 2022" )
-      VERSION="win2022-eval"
-      ;;
+      VERSION="win2022-eval" ;;
     "19" | "2019" | "win19" | "win2019" | "windows2019" | "windows 2019" )
-      VERSION="win2019-eval"
-      ;;
+      VERSION="win2019-eval" ;;
     "16" | "2016" | "win16" | "win2016" | "windows2016" | "windows 2016" )
-      VERSION="win2016-eval"
-      ;;
+      VERSION="win2016-eval" ;;
     "2012" | "2012r2" | "win2012" | "win2012r2" | "windows2012" | "windows 2012" )
-      VERSION="win2012r2-eval"
-      ;;
+      VERSION="win2012r2-eval" ;;
     "2008" | "2008r2" | "win2008" | "win2008r2" | "windows2008" | "windows 2008" )
-      VERSION="win2008r2"
-      ;;
+      VERSION="win2008r2" ;;
     "core11" | "core 11" )
       VERSION="core11"
-      DETECTED="win11${PLATFORM,,}"
-      ;;
+      DETECTED="win11${PLATFORM,,}" ;;
     "tiny11" | "tiny 11" )
       VERSION="tiny11"
-      DETECTED="win11${PLATFORM,,}"
-      ;;
+      DETECTED="win11${PLATFORM,,}" ;;
    "tiny10" | "tiny 10" )
       VERSION="tiny10"
-      DETECTED="win10${PLATFORM,,}-ltsc"
-      ;;
+      DETECTED="win10${PLATFORM,,}-ltsc" ;;
     "iot10" | "10iot" | "win10-iot" | "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval" )
       DETECTED="win10${PLATFORM,,}-iot"
-      VERSION="win10${PLATFORM,,}-enterprise-iot-eval"
-      ;;
+      VERSION="win10${PLATFORM,,}-enterprise-iot-eval" ;;
     "ltsc10" | "10ltsc" | "win10-ltsc" | "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
       DETECTED="win10${PLATFORM,,}-ltsc"
-      VERSION="win10${PLATFORM,,}-enterprise-ltsc-eval"
-      ;;
+      VERSION="win10${PLATFORM,,}-enterprise-ltsc-eval" ;;
   esac
 
   return 0
@@ -130,23 +110,17 @@ getName() {
 
   case "${file/ /_}" in
     "win7"* | "win_7"* | *"windows7"* | *"windows_7"* )
-      id="win7${PLATFORM,,}"
-      ;;
+      id="win7${PLATFORM,,}" ;;
     "win8"* | "win_8"* | *"windows8"* | *"windows_8"* )
-      id="win81${PLATFORM,,}"
-      ;;
+      id="win81${PLATFORM,,}" ;;
     "win10"*| "win_10"* | *"windows10"* | *"windows_10"* )
-      id="win10${PLATFORM,,}"
-      ;;
+      id="win10${PLATFORM,,}" ;;
     "win11"* | "win_11"* | *"windows11"* | *"windows_11"* )
-      id="win11${PLATFORM,,}"
-      ;;
+      id="win11${PLATFORM,,}" ;;
     *"winxp"* | *"win_xp"* | *"windowsxp"* | *"windows_xp"* )
-      id="winxpx86"
-      ;;
+      id="winxpx86" ;;
     *"winvista"* | *"win_vista"* | *"windowsvista"* | *"windows_vista"* )
-      id="winvista${PLATFORM,,}"
-      ;;
+      id="winvista${PLATFORM,,}" ;;
     "tiny11core"* | "tiny11_core"* | "tiny_11_core"* ) id="core11" ;;
     "tiny11"* | "tiny_11"* ) id="tiny11" ;;
     "tiny10"* | "tiny_10"* ) id="tiny10" ;;
@@ -235,14 +209,11 @@ switchEdition() {
 
   case "${id,,}" in
     "win11${PLATFORM,,}-enterprise-eval" )
-      DETECTED="win11${PLATFORM,,}-enterprise"
-      ;;
+      DETECTED="win11${PLATFORM,,}-enterprise" ;;
     "win10${PLATFORM,,}-enterprise-eval" )
-      DETECTED="win10${PLATFORM,,}-enterprise"
-      ;;
+      DETECTED="win10${PLATFORM,,}-enterprise" ;;
     "win81${PLATFORM,,}-enterprise-eval" )
-      DETECTED="win81${PLATFORM,,}-enterprise"
-      ;;
+      DETECTED="win81${PLATFORM,,}-enterprise" ;;
     "win2022-eval" ) DETECTED="win2022" ;;
     "win2019-eval" ) DETECTED="win2019" ;;
     "win2016-eval" ) DETECTED="win2016" ;;
@@ -271,17 +242,13 @@ isMido() {
 
   case "${id,,}" in
     "win11${PLATFORM,,}" | "win11${PLATFORM,,}-enterprise-eval" )
-      return 0
-      ;;
+      return 0 ;;
     "win10${PLATFORM,,}" | "win10${PLATFORM,,}-enterprise-eval" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-      return 0
-      ;;
+      return 0 ;;
     "win81${PLATFORM,,}" | "win81${PLATFORM,,}-enterprise-eval" )
-      return 0
-      ;;
+      return 0 ;;
     "win2022-eval" | "win2019-eval" | "win2016-eval" | "win2012r2-eval" | "win2008r2" )
-      return 0
-      ;;
+      return 0 ;;
   esac
 
   return 1
@@ -297,50 +264,35 @@ getLink1() {
 
   case "${id,,}" in
     "win11${PLATFORM,,}" )
-      url="$host/11/en-us_windows_11_23h2_${PLATFORM,,}.iso"
-      ;;
+      url="$host/11/en-us_windows_11_23h2_${PLATFORM,,}.iso" ;;
     "win10${PLATFORM,,}" )
-      url="$host/10/en-us_windows_10_22h2_${PLATFORM,,}.iso"
-      ;;
+      url="$host/10/en-us_windows_10_22h2_${PLATFORM,,}.iso" ;;
     "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval" )
-      url="$host/10/en-us_windows_10_iot_enterprise_ltsc_2021_${PLATFORM,,}_dvd_257ad90f.iso"
-      ;;
+      url="$host/10/en-us_windows_10_iot_enterprise_ltsc_2021_${PLATFORM,,}_dvd_257ad90f.iso" ;;
     "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-      url="$host/10/en-us_windows_10_enterprise_ltsc_2021_${PLATFORM,,}_dvd_d289cf96.iso"
-      ;;
+      url="$host/10/en-us_windows_10_enterprise_ltsc_2021_${PLATFORM,,}_dvd_d289cf96.iso" ;;
     "win81${PLATFORM,,}" )
-      url="$host/8.x/8.1/en_windows_8.1_with_update_${PLATFORM,,}_dvd_6051480.iso"
-      ;;
+      url="$host/8.x/8.1/en_windows_8.1_with_update_${PLATFORM,,}_dvd_6051480.iso" ;;
     "win2022" | "win2022-eval" )
-      url="$host/server/2022/en-us_windows_server_2022_updated_jan_2024_${PLATFORM,,}_dvd_2b7a0c9f.iso"
-      ;;
+      url="$host/server/2022/en-us_windows_server_2022_updated_jan_2024_${PLATFORM,,}_dvd_2b7a0c9f.iso" ;;
     "win2019" | "win2019-eval" )
-      url="$host/server/2019/en-us_windows_server_2019_updated_aug_2021_${PLATFORM,,}_dvd_a6431a28.iso"
-      ;;
+      url="$host/server/2019/en-us_windows_server_2019_updated_aug_2021_${PLATFORM,,}_dvd_a6431a28.iso" ;;
     "win2016" | "win2016-eval" )
-      url="$host/server/2016/en_windows_server_2016_updated_feb_2018_${PLATFORM,,}_dvd_11636692.iso"
-      ;;
+      url="$host/server/2016/en_windows_server_2016_updated_feb_2018_${PLATFORM,,}_dvd_11636692.iso" ;;
     "win2012r2" | "win2012r2-eval" )
-      url="$host/server/2012r2/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708-004.iso"
-      ;;
+      url="$host/server/2012r2/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708-004.iso" ;;
     "win2008r2" | "win2008r2-eval" )
-      url="$host/server/2008r2/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601-018.iso"
-      ;;
+      url="$host/server/2008r2/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601-018.iso" ;;
     "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise" )
-      url="$host/7/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
-      ;;
+      url="$host/7/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso" ;;
     "win7${PLATFORM,,}-ultimate" )
-      url="$host/7/en_windows_7_with_sp1_${PLATFORM,,}.iso"
-      ;;
+      url="$host/7/en_windows_7_with_sp1_${PLATFORM,,}.iso" ;;
     "winvista${PLATFORM,,}-ultimate" )
-      url="$host/vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
-      ;;
+      url="$host/vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso" ;;
     "winxpx86" )
-      url="$host/xp/professional/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
-      ;;
+      url="$host/xp/professional/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso" ;;
     "winxpx64" )
-      url="$host/xp/professional/en_win_xp_pro_${PLATFORM,,}_vl.iso"
-      ;;
+      url="$host/xp/professional/en_win_xp_pro_${PLATFORM,,}_vl.iso" ;;
   esac
 
   echo "$url"
@@ -355,35 +307,25 @@ getLink2() {
 
   case "${id,,}" in
     "win81${PLATFORM,,}" )
-      url="$host/Windows%208.1%20with%20Update/en_windows_8.1_with_update_${PLATFORM,,}_dvd_6051480.iso"
-      ;;
+      url="$host/Windows%208.1%20with%20Update/en_windows_8.1_with_update_${PLATFORM,,}_dvd_6051480.iso" ;;
     "win81${PLATFORM,,}-enterprise" | "win81${PLATFORM,,}-enterprise-eval" )
-      url="$host/Windows%208.1%20with%20Update/en_windows_8.1_enterprise_with_update_${PLATFORM,,}_dvd_6054382.iso"
-      ;;
+      url="$host/Windows%208.1%20with%20Update/en_windows_8.1_enterprise_with_update_${PLATFORM,,}_dvd_6054382.iso" ;;
     "win2012r2" | "win2012r2-eval" )
-      url="$host/Windows%20Server%202012%20R2%20with%20Update/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708.iso"
-      ;;
+      url="$host/Windows%20Server%202012%20R2%20with%20Update/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708.iso" ;;
     "win2008r2" | "win2008r2-eval" )
-      url="$host/Windows%20Server%202008%20R2/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601.iso"
-      ;;
+      url="$host/Windows%20Server%202008%20R2/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601.iso" ;;
     "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise" )
-      url="$host/Windows%207/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
-      ;;
+      url="$host/Windows%207/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso" ;;
     "win7${PLATFORM,,}-ultimate" )
-      url="$host/Windows%207/en_windows_7_ultimate_with_sp1_${PLATFORM,,}_dvd_u_677332.iso"
-      ;;
+      url="$host/Windows%207/en_windows_7_ultimate_with_sp1_${PLATFORM,,}_dvd_u_677332.iso" ;;
     "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-enterprise" )
-      url="$host/Windows%20Vista/en_windows_vista_enterprise_sp2_${PLATFORM,,}_dvd_342332.iso"
-      ;;
+      url="$host/Windows%20Vista/en_windows_vista_enterprise_sp2_${PLATFORM,,}_dvd_342332.iso" ;;
     "winvista${PLATFORM,,}-ultimate" )
-      url="$host/Windows%20Vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
-      ;;
+      url="$host/Windows%20Vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso" ;;
     "winxpx86" )
-      url="$host/Windows%20XP/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
-      ;;
+      url="$host/Windows%20XP/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso" ;;
     "winxpx64" )
-      url="$host/Windows%20XP/en_win_xp_pro_${PLATFORM,,}_vl.iso"
-      ;;
+      url="$host/Windows%20XP/en_win_xp_pro_${PLATFORM,,}_vl.iso" ;;
   esac
 
   echo "$url"
@@ -397,9 +339,12 @@ getLink3() {
   local host="https://file.cnxiaobai.com/Windows"
 
   case "${id,,}" in
-    "core11" ) url="$host/%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny11%20core%20${PLATFORM,,}%20beta%201.iso" ;;
-    "tiny11" ) url="$host/%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny11%202311%20${PLATFORM,,}.iso" ;;
-    "tiny10" ) url="$host/%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny10%2023H2%20${PLATFORM,,}.iso" ;;
+    "core11" )  # sha256 78f0f44444ff95b97125b43e560a72e0d6ce0a665cf9f5573bf268191e5510c1
+      url="$host/%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny11%20core%20${PLATFORM,,}%20beta%201.iso" ;;
+    "tiny11" )   # sha256 a028800a91addc35d8ae22dce7459b67330f7d69d2f11c70f53c0fdffa5b4280
+      url="$host/%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny11%202311%20${PLATFORM,,}.iso" ;;
+    "tiny10" )   # sha256 a11116c0645d892d6a5a7c585ecc1fa13aa66f8c7cc6b03bf1f27bd16860cc35
+      url="$host/%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny10%2023H2%20${PLATFORM,,}.iso" ;;
   esac
 
   echo "$url"
@@ -413,9 +358,12 @@ getLink4() {
   local host="https://archive.org/download"
 
   case "${id,,}" in
-    "core11" ) url="$host/tiny-11-core-x-64-beta-1/tiny11%20core%20${PLATFORM,,}%20beta%201.iso" ;;
-    "tiny11" ) url="$host/tiny11-2311/tiny11%202311%20${PLATFORM,,}.iso" ;;
-    "tiny10" ) url="$host/tiny-10-23-h2/tiny10%20${PLATFORM,,}%2023h2.iso" ;;
+    "core11" )  # sha256 78f0f44444ff95b97125b43e560a72e0d6ce0a665cf9f5573bf268191e5510c1
+      url="$host/tiny-11-core-x-64-beta-1/tiny11%20core%20${PLATFORM,,}%20beta%201.iso" ;;
+    "tiny11" )  # sha256 a028800a91addc35d8ae22dce7459b67330f7d69d2f11c70f53c0fdffa5b4280
+      url="$host/tiny11-2311/tiny11%202311%20${PLATFORM,,}.iso" ;;
+    "tiny10" )  # sha256 a11116c0645d892d6a5a7c585ecc1fa13aa66f8c7cc6b03bf1f27bd16860cc35
+      url="$host/tiny-10-23-h2/tiny10%20${PLATFORM,,}%2023h2.iso" ;;
   esac
 
   echo "$url"
@@ -432,59 +380,57 @@ getLink5() {
 
   case "${id,,}" in
     "win11${PLATFORM,,}" )
-      url="$host/en-us_windows_11_consumer_editions_version_23h2_updated_april_2024_${PLATFORM,,}_dvd_d986680b.iso"
-      ;;
+      url="$host/en-us_windows_11_consumer_editions_version_23h2_updated_april_2024_${PLATFORM,,}_dvd_d986680b.iso" ;;
     "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval" )
-      url="$host/en-us_windows_11_business_editions_version_23h2_updated_april_2024_${PLATFORM,,}_dvd_349cd577.iso"
-      ;;
+      url="$host/en-us_windows_11_business_editions_version_23h2_updated_april_2024_${PLATFORM,,}_dvd_349cd577.iso" ;;
     "win11${PLATFORM,,}-iot" | "win11${PLATFORM,,}-enterprise-iot-eval" )
-      url="$host/en-us_windows_11_iot_enterprise_version_23h2_${PLATFORM,,}_dvd_fb37549c.iso"
-      ;;
+      url="$host/en-us_windows_11_iot_enterprise_version_23h2_${PLATFORM,,}_dvd_fb37549c.iso" ;;
     "win10${PLATFORM,,}" )
-      url="$host/en-us_windows_10_consumer_editions_version_22h2_updated_april_2024_${PLATFORM,,}_dvd_9a92dc89.iso"
-      ;;
+      url="$host/en-us_windows_10_consumer_editions_version_22h2_updated_april_2024_${PLATFORM,,}_dvd_9a92dc89.iso" ;;
     "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" )
-      url="$host/en-us_windows_10_business_editions_version_22h2_updated_april_2024_${PLATFORM,,}_dvd_c00090a7.iso"
-      ;;
+      url="$host/en-us_windows_10_business_editions_version_22h2_updated_april_2024_${PLATFORM,,}_dvd_c00090a7.iso" ;;
     "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval" )
-      url="$host/en-us_windows_10_iot_enterprise_ltsc_2021_${PLATFORM,,}_dvd_257ad90f.iso"
-      ;;
+      url="$host/en-us_windows_10_iot_enterprise_ltsc_2021_${PLATFORM,,}_dvd_257ad90f.iso" ;;
     "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-      url="$host/en-us_windows_10_enterprise_ltsc_2021_${PLATFORM,,}_dvd_d289cf96.iso"
-      ;;
+      url="$host/en-us_windows_10_enterprise_ltsc_2021_${PLATFORM,,}_dvd_d289cf96.iso" ;;
     "win81${PLATFORM,,}-enterprise" | "win81${PLATFORM,,}-enterprise-eval" )
-      url="$host/en_windows_8.1_enterprise_with_update_${PLATFORM,,}_dvd_6054382.iso"
-      ;;
+      url="$host/en_windows_8.1_enterprise_with_update_${PLATFORM,,}_dvd_6054382.iso" ;;
     "win2022" | "win2022-eval" )
-      url="$host/en-us_windows_server_2022_updated_april_2024_${PLATFORM,,}_dvd_164349f3.iso"
-      ;;
+      url="$host/en-us_windows_server_2022_updated_april_2024_${PLATFORM,,}_dvd_164349f3.iso" ;;
     "win2019" | "win2019-eval" )
-      url="$host/en_windows_server_2019_${PLATFORM,,}_dvd_4cb967d8.iso"
-      ;;
+      url="$host/en_windows_server_2019_${PLATFORM,,}_dvd_4cb967d8.iso" ;;
     "win2016" | "win2016-eval" )
-      url="$host/en_windows_server_2016_${PLATFORM,,}_dvd_9327751.iso"
-      ;;
+      url="$host/en_windows_server_2016_${PLATFORM,,}_dvd_9327751.iso" ;;
     "win2012r2" | "win2012r2-eval" )
-      url="$host/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708.iso"
-      ;;
+      url="$host/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708.iso" ;;
     "win2008r2" | "win2008r2-eval" )
-      url="$host/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601.iso"
-      ;;
+      url="$host/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601.iso" ;;
     "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise" )
-      url="$host/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
-      ;;
+      url="$host/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso" ;;
     "win7${PLATFORM,,}-ultimate" )
-      url="$host/en_windows_7_ultimate_with_sp1_${PLATFORM,,}_dvd_u_677332.iso"
-      ;;
+      url="$host/en_windows_7_ultimate_with_sp1_${PLATFORM,,}_dvd_u_677332.iso" ;;
     "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-enterprise" )
-      url="$host/en_windows_vista_enterprise_sp2_${PLATFORM,,}_dvd_342332.iso"
-      ;;
+      url="$host/en_windows_vista_enterprise_sp2_${PLATFORM,,}_dvd_342332.iso" ;;
     "winvista${PLATFORM,,}-ultimate" )
-      url="$host/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
-      ;;
+      url="$host/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso" ;;
   esac
 
   echo "$url"
+  return 0
+}
+
+getHash() {
+
+  local id="$1"
+  local hash=""
+
+  case "${id,,}" in
+    "core11" ) hash="78f0f44444ff95b97125b43e560a72e0d6ce0a665cf9f5573bf268191e5510c1" ;;
+    "tiny11" )  hash="a028800a91addc35d8ae22dce7459b67330f7d69d2f11c70f53c0fdffa5b4280" ;;
+    "tiny10" )  hash="a11116c0645d892d6a5a7c585ecc1fa13aa66f8c7cc6b03bf1f27bd16860cc35" ;;
+  esac
+
+  echo "$hash"
   return 0
 }
 
