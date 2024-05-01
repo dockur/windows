@@ -370,27 +370,51 @@ downloadImage() {
   url=$(getLink "$version")
 
   if [ -n "$url" ]; then
-
     if [[ "$tried" != "n" ]]; then
       info "Failed to download $desc from Microsoft, will try another mirror now..."
     fi
-
     tried="y"
     downloadFile "$iso" "$url" "$desc" && return 0
-
   fi
 
-  url=$(secondLink "$version")
+  url=$(getLink2 "$version")
 
   if [ -n "$url" ]; then
-
     if [[ "$tried" != "n" ]]; then
       info "Failed to download $desc, will try another mirror now..."
     fi
-
     tried="y"
     downloadFile "$iso" "$url" "$desc" && return 0
+  fi
 
+  url=$(getLink3 "$version")
+
+  if [ -n "$url" ]; then
+    if [[ "$tried" != "n" ]]; then
+      info "Failed to download $desc, will try another mirror now..."
+    fi
+    tried="y"
+    downloadFile "$iso" "$url" "$desc" && return 0
+  fi
+
+  url=$(getLink4 "$version")
+
+  if [ -n "$url" ]; then
+    if [[ "$tried" != "n" ]]; then
+      info "Failed to download $desc, will try another mirror now..."
+    fi
+    tried="y"
+    downloadFile "$iso" "$url" "$desc" && return 0
+  fi
+
+  url=$(getLink5 "$version")
+
+  if [ -n "$url" ]; then
+    if [[ "$tried" != "n" ]]; then
+      info "Failed to download $desc, will try another mirror now..."
+    fi
+    tried="y"
+    downloadFile "$iso" "$url" "$desc" && return 0
   fi
 
   return 1
