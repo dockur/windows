@@ -310,7 +310,7 @@ downloadFile() {
     if [ "$(stat -c%s "$iso")" -gt 100000000 ]; then
       if [[ "$VERIFY" == [Yy1]* ]]; then
         info "Calculating SHA256 sum of downloaded ISO..."
-        hash=$(sha256sum "$iso")
+        hash=$(sha256sum "$iso" | cut -f1 -d' ')
         info "Result: $hash"
       fi
       html "Download finished successfully..." && return 0
