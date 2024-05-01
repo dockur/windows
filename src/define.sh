@@ -510,8 +510,7 @@ validVersion() {
   isESD "$id" && return 0
   isMido "$id" && return 0
 
-  for i in {1..MIRRORS}
-  do
+  for ((i=1;i<=MIRRORS;i++)); do
 
     url=$(getLink "$i" "$id")
     [ -n "$url" ] && return 0
