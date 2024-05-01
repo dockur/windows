@@ -342,11 +342,7 @@ downloadImage() {
     error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
   fi
 
-  if [[ "${PLATFORM,,}" == "x64" ]]; then
-    desc=$(printVersion "$version" "Windows")
-  else
-    desc=$(printVersion "$version" "Windows for ${PLATFORM}")
-  fi
+  desc=$(printVersion "$version" "")
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
     if isMido "$version"; then
