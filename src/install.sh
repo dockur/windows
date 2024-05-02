@@ -181,7 +181,7 @@ detectCustom() {
   if [ -n "$CUSTOM" ]; then
     local size
     size="$(stat -c%s "$STORAGE/$CUSTOM")"
-    local file="windows_$size.iso"
+    local file="windows.$size.iso"
     [ -f "$STORAGE/$file" ] && CUSTOM="$file"
   fi
 
@@ -935,7 +935,7 @@ fi
 
 if ! rm -f "$ISO" 2> /dev/null; then
   size="$(stat -c%s "$ISO")"
-  BASE="windows_$size.iso"
+  BASE="windows.$size.iso"
   ISO="$STORAGE/$BASE"
   rm -f  "$ISO"
 fi
