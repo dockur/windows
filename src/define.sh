@@ -692,7 +692,8 @@ prepareXP() {
 
   configXP "$dir" && return 0
 
-  error "Failed to generate XP configuration files!" && exit 66
+  error "Failed to generate XP configuration files!"
+  return 1
 }
 
 prepareLegacy() {
@@ -707,11 +708,10 @@ prepareLegacy() {
   len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
   offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
 
-  if ! dd "if=$iso" "of=$dir/$ETFS" bs=2048 "count=$len" "skip=$offset" status=none; then
-    error "Failed to extract boot image from ISO!" && exit 67
-  fi
+  dd "if=$iso" "of=$dir/$ETFS" bs=2048 "count=$len" "skip=$offset" status=none && return 0
 
-  return 0
+  error "Failed to extract boot image from ISO!"
+  return 1
 }
 
 return 0
