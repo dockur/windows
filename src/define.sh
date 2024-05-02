@@ -122,94 +122,93 @@ printVersion() {
   return 0
 }
 
-extVersion() {
+getEdition() {
 
   local id="$1"
-  local desc="$2"
+  local desc=""
+  local edition=""
+
+  desc=$(printVersion "$id" "x")
+  [[ "$desc" == "x" ]] && echo "" && return 0
 
   case "${id,,}" in
-    "tiny11"* )
-      desc="Tiny 11" 
+    "win7${PLATFORM,,}-home"* )
+      edition="Home"
       ;;
-    "tiny10"* )
-      desc="Tiny 10"
+    "win7${PLATFORM,,}-starter"* )
+      edition="Starter"
       ;;
-    "core11"* )
-      desc="Core 11"
+    "win7${PLATFORM,,}-ultimate"* )
+      edition="Ultimate"
       ;;
-    "win7-home"* )
-      desc="Windows 7 Home"
-      ;;
-    "win7-starter"* )
-      desc="Windows 7 Starter"
-      ;;
-    "win7-ultimate"* )
-      desc="Windows 7 Ultimate"
-      ;;
-    "win7-enterprise"* )
-      desc="Windows 7 Enterprise"
+    "win7${PLATFORM,,}-enterprise"* )
+      edition="Enterprise"
       ;;
     "win7"* ) 
-      desc="Windows 7 Professional"
+      edition="Professional"
       ;;
-    "win8-enterprise-eval"* )
-      desc="Windows 8 Enterprise Evaluation"
-      ;;
-    "win8-enterprise"* )
-      desc="Windows 8 Enterprise"
+    "win8${PLATFORM,,}-enterprise"* )
+      edition="Enterprise"
       ;;
     "win8"* )
-      desc="Windows 8 Pro"
+      edition="Pro"
+      ;;
+    "win10${PLATFORM,,}-iot"* )
+      edition="IoT"
+      ;;
+    "win10${PLATFORM,,}-ltsc"* )
+      edition="LTSC"
+      ;;
+    "win10${PLATFORM,,}-home"* )
+      edition="Home"
+      ;;
+    "win10${PLATFORM,,}-education"* )
+      edition="Education"
+      ;;
+    "win10${PLATFORM,,}-enterprise"* )
+      edition="Enterprise"
       ;;
     "win10"* )
-      desc="Windows 10 Pro"
+      edition="Pro"
+      ;;
+    "win11${PLATFORM,,}-home"* )
+      edition="Home"
+      ;;
+    "win11${PLATFORM,,}-education"* )
+      edition="Education"
+      ;;
+    "win11${PLATFORM,,}-enterprise"* )
+      edition="Enterprise"
       ;;
     "win11"* )
-      desc="Windows 11 Pro" 
+      edition="Pro" 
       ;;
     "winxp"* )
-      desc="Windows XP Professional"
+      edition="Professional"
       ;;
-    "winvista-home"* )
-      desc="Windows Vista Home"
+    "winvista${PLATFORM,,}-home"* )
+      edition="Home"
       ;;
-    "winvista-starter"* )
-      desc="Windows Vista Starter"
+    "winvista${PLATFORM,,}-starter"* )
+      edition="Starter"
       ;;
-    "winvista-ultimate"* )
-      desc="Windows Vista Ultimate"
+    "winvista${PLATFORM,,}-ultimate"* )
+      edition="Ultimate"
       ;;
-    "winvista-enterprise"* )
-      desc="Windows Vista Enterprise"
+    "winvista${PLATFORM,,}-enterprise"* )
+      edition="Enterprise"
       ;;
     "winvista"* )
-      desc="Windows Vista Professional"
+      edition="Business"
       ;;
-    "win2025"* )
-      desc="Windows Server 2025 (Standard)"
+    "win2025"* | "win2022"* | "win2019"* | "win2016"* | "win2012"* | "win2008"* )
+      edition="Standard"
       ;;
-    "win2022"* )
-      desc="Windows Server 2022 (Standard)"
-      ;;
-    "win2019"* )
-      desc="Windows Server 2019 (Standard)"
-      ;;
-    "win2016"* )
-      desc="Windows Server 2016 (Standard)"
-      ;;
-    "win2012"* )
-      desc="Windows Server 2012 (Standard)"
-      ;;
-    "win2008"* )
-    desc="Windows Server 2008 (Standard)"
-    ;;
   esac
 
-  if [ -z "$desc" ]; then
-    desc="Windows"
-    [[ "${PLATFORM,,}" != "x64" ]] && desc="$desc for ${PLATFORM}"
-  fi
-
+  [[ "${id,,}" == *"-eval" ]] && edition="$edition (Evaluation)"
+  [ -n "$edition" ] && desc="$desc $edition"
+  
   echo "$desc"
   return 0
 }
