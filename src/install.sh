@@ -64,7 +64,10 @@ startInstall() {
   fi
 
   if skipInstall; then
-    [ ! -f "$STORAGE/$BASE" ] && BASE=""
+    if [ ! -f "$STORAGE/$BASE" ]; then
+      BASE="custom.iso"
+      [ ! -f "$STORAGE/$BASE" ] && BASE=""
+    fi
     [[ "${PLATFORM,,}" == "arm64" ]] && VGA="virtio-gpu"
     return 1
   fi
@@ -164,6 +167,7 @@ abortInstall() {
 detectCustom() {
 
   CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname windows.iso -printf "%f\n" | head -n 1)
+
   [ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso -printf "%f\n" | head -n 1)
   [ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname boot.iso -printf "%f\n" | head -n 1)
   [ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.img -printf "%f\n" | head -n 1)
@@ -172,6 +176,13 @@ detectCustom() {
     FN="${VERSION/\/storage\//}"
     [[ "$FN" == "."* ]] && FN="${FN:1}"
     CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname "$FN" -printf "%f\n" | head -n 1)
+  fi
+
+  if [ -n "$CUSTOM" ]; then
+    local size
+    size="$(stat -c%s "$STORAGE/$CUSTOM")"
+    local file="windows_$size.iso"
+    [ -f "$STORAGE/$file" ] && CUSTOM="$file"
   fi
 
   return 0
@@ -923,7 +934,8 @@ if ! updateImage "$ISO" "$DIR" "$XML"; then
 fi
 
 if ! rm -f "$ISO" 2> /dev/null; then
-  BASE="windows.iso"
+  size="$(stat -c%s "$ISO")"
+  BASE="windows_$size.iso"
   ISO="$STORAGE/$BASE"
   rm -f  "$ISO"
 fi
