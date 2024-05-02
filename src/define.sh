@@ -19,52 +19,72 @@ parseVersion() {
 
   case "${VERSION,,}" in
     "11" | "win11" | "windows11" | "windows 11" )
-      VERSION="win11${PLATFORM,,}" ;;
+      VERSION="win11${PLATFORM,,}"
+      ;;
     "11e" | "win11e" | "windows11e" | "windows 11e" )
-      VERSION="win11${PLATFORM,,}-enterprise-eval" ;;
+      VERSION="win11${PLATFORM,,}-enterprise-eval"
+      ;;
     "10" | "win10" | "windows10" | "windows 10" )
-      VERSION="win10${PLATFORM,,}" ;;
+      VERSION="win10${PLATFORM,,}"
+      ;;
     "10e" | "win10e" | "windows10e" | "windows 10e" )
-      VERSION="win10${PLATFORM,,}-enterprise-eval" ;;
+      VERSION="win10${PLATFORM,,}-enterprise-eval"
+      ;;
     "8" | "81" | "8.1" | "win8" | "win81" | "windows 8" )
-      VERSION="win81${PLATFORM,,}" ;;
+      VERSION="win81${PLATFORM,,}"
+      ;;
     "8e" | "81e" | "8.1e" | "win8e" | "win81e" | "windows 8e" )
-      VERSION="win81${PLATFORM,,}-enterprise-eval" ;;
+      VERSION="win81${PLATFORM,,}-enterprise-eval"
+      ;;
     "7" | "7e" | "win7" | "win7e" | "windows7" | "windows 7" )
       VERSION="win7${PLATFORM,,}"
-      DETECTED="win7${PLATFORM,,}-enterprise" ;;
+      DETECTED="win7${PLATFORM,,}-enterprise"
+      ;;
     "vista" | "winvista" | "windowsvista" | "windows vista" )
       VERSION="winvista${PLATFORM,,}"
-      DETECTED="winvista${PLATFORM,,}-enterprise" ;;
+      DETECTED="winvista${PLATFORM,,}-enterprise"
+      ;;
     "xp" | "xp32" | "winxp" | "windowsxp" | "windows xp" )
-      VERSION="winxpx86" ;;
+      VERSION="winxpx86"
+      ;;
     "xp64" | "winxp64" | "windowsxp64" | "windows xp 64" )
-      VERSION="winxpx64" ;;
+      VERSION="winxpx64"
+      ;;
     "22" | "2022" | "win22" | "win2022" | "windows2022" | "windows 2022" )
-      VERSION="win2022-eval" ;;
+      VERSION="win2022-eval"
+      ;;
     "19" | "2019" | "win19" | "win2019" | "windows2019" | "windows 2019" )
-      VERSION="win2019-eval" ;;
+      VERSION="win2019-eval"
+      ;;
     "16" | "2016" | "win16" | "win2016" | "windows2016" | "windows 2016" )
-      VERSION="win2016-eval" ;;
+      VERSION="win2016-eval"
+      ;;
     "2012" | "2012r2" | "win2012" | "win2012r2" | "windows2012" | "windows 2012" )
-      VERSION="win2012r2-eval" ;;
+      VERSION="win2012r2-eval"
+      ;;
     "2008" | "2008r2" | "win2008" | "win2008r2" | "windows2008" | "windows 2008" )
-      VERSION="win2008r2" ;;
+      VERSION="win2008r2"
+      ;;
     "core11" | "core 11" )
       VERSION="core11"
-      DETECTED="win11${PLATFORM,,}" ;;
+      DETECTED="win11${PLATFORM,,}"
+      ;;
     "tiny11" | "tiny 11" )
       VERSION="tiny11"
-      DETECTED="win11${PLATFORM,,}" ;;
+      DETECTED="win11${PLATFORM,,}"
+      ;;
    "tiny10" | "tiny 10" )
       VERSION="tiny10"
-      DETECTED="win10${PLATFORM,,}-ltsc" ;;
+      DETECTED="win10${PLATFORM,,}-ltsc"
+      ;;
     "iot10" | "10iot" | "win10-iot" | "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval" )
       DETECTED="win10${PLATFORM,,}-iot"
-      VERSION="win10${PLATFORM,,}-enterprise-iot-eval" ;;
+      VERSION="win10${PLATFORM,,}-enterprise-iot-eval"
+      ;;
     "ltsc10" | "10ltsc" | "win10-ltsc" | "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
       DETECTED="win10${PLATFORM,,}-ltsc"
-      VERSION="win10${PLATFORM,,}-enterprise-ltsc-eval" ;;
+      VERSION="win10${PLATFORM,,}-enterprise-ltsc-eval"
+      ;;
   esac
 
   return 0
@@ -102,6 +122,98 @@ printVersion() {
   return 0
 }
 
+extVersion() {
+
+  local id="$1"
+  local desc="$2"
+
+  case "${id,,}" in
+    "tiny11"* )
+      desc="Tiny 11" 
+      ;;
+    "tiny10"* )
+      desc="Tiny 10"
+      ;;
+    "core11"* )
+      desc="Core 11"
+      ;;
+    "win7-home"* )
+      desc="Windows 7 Home"
+      ;;
+    "win7-starter"* )
+      desc="Windows 7 Starter"
+      ;;
+    "win7-ultimate"* )
+      desc="Windows 7 Ultimate"
+      ;;
+    "win7-enterprise"* )
+      desc="Windows 7 Enterprise"
+      ;;
+    "win7"* ) 
+      desc="Windows 7 Professional"
+      ;;
+    "win8-enterprise-eval"* )
+      desc="Windows 8 Enterprise Evaluation"
+      ;;
+    "win8-enterprise"* )
+      desc="Windows 8 Enterprise"
+      ;;
+    "win8"* )
+      desc="Windows 8 Pro"
+      ;;
+    "win10"* )
+      desc="Windows 10 Pro"
+      ;;
+    "win11"* )
+      desc="Windows 11 Pro" 
+      ;;
+    "winxp"* )
+      desc="Windows XP Professional"
+      ;;
+    "winvista-home"* )
+      desc="Windows Vista Home"
+      ;;
+    "winvista-starter"* )
+      desc="Windows Vista Starter"
+      ;;
+    "winvista-ultimate"* )
+      desc="Windows Vista Ultimate"
+      ;;
+    "winvista-enterprise"* )
+      desc="Windows Vista Enterprise"
+      ;;
+    "winvista"* )
+      desc="Windows Vista Professional"
+      ;;
+    "win2025"* )
+      desc="Windows Server 2025 (Standard)"
+      ;;
+    "win2022"* )
+      desc="Windows Server 2022 (Standard)"
+      ;;
+    "win2019"* )
+      desc="Windows Server 2019 (Standard)"
+      ;;
+    "win2016"* )
+      desc="Windows Server 2016 (Standard)"
+      ;;
+    "win2012"* )
+      desc="Windows Server 2012 (Standard)"
+      ;;
+    "win2008"* )
+    desc="Windows Server 2008 (Standard)"
+    ;;
+  esac
+
+  if [ -z "$desc" ]; then
+    desc="Windows"
+    [[ "${PLATFORM,,}" != "x64" ]] && desc="$desc for ${PLATFORM}"
+  fi
+
+  echo "$desc"
+  return 0
+}
+
 getName() {
 
   local id=""
@@ -110,26 +222,50 @@ getName() {
 
   case "${file/ /_}" in
     "win7"* | "win_7"* | *"windows7"* | *"windows_7"* )
-      id="win7${PLATFORM,,}" ;;
+      id="win7${PLATFORM,,}"
+      ;;
     "win8"* | "win_8"* | *"windows8"* | *"windows_8"* )
-      id="win81${PLATFORM,,}" ;;
+      id="win81${PLATFORM,,}"
+      ;;
     "win10"*| "win_10"* | *"windows10"* | *"windows_10"* )
-      id="win10${PLATFORM,,}" ;;
+      id="win10${PLATFORM,,}"
+      ;;
     "win11"* | "win_11"* | *"windows11"* | *"windows_11"* )
-      id="win11${PLATFORM,,}" ;;
+      id="win11${PLATFORM,,}"
+      ;;
     *"winxp"* | *"win_xp"* | *"windowsxp"* | *"windows_xp"* )
-      id="winxpx86" ;;
+      id="winxpx86"
+      ;;
     *"winvista"* | *"win_vista"* | *"windowsvista"* | *"windows_vista"* )
-      id="winvista${PLATFORM,,}" ;;
-    "tiny11core"* | "tiny11_core"* | "tiny_11_core"* ) id="core11" ;;
-    "tiny11"* | "tiny_11"* ) id="tiny11" ;;
-    "tiny10"* | "tiny_10"* ) id="tiny10" ;;
-    *"server2025"* | *"server_2025"* ) id="win2025" ;;
-    *"server2022"* | *"server_2022"* ) id="win2022" ;;
-    *"server2019"* | *"server_2019"* ) id="win2019" ;;
-    *"server2016"* | *"server_2016"* ) id="win2016" ;;
-    *"server2012"* | *"server_2012"* ) id="win2012r2" ;;
-    *"server2008"* | *"server_2008"* ) id="win2008r2" ;;
+      id="winvista${PLATFORM,,}"
+      ;;
+    "tiny11core"* | "tiny11_core"* | "tiny_11_core"* )
+      id="core11"
+      ;;
+    "tiny11"* | "tiny_11"* )
+      id="tiny11"
+      ;;
+    "tiny10"* | "tiny_10"* )
+      id="tiny10"
+      ;;
+    *"server2025"* | *"server_2025"* )
+      id="win2025"
+      ;;
+    *"server2022"* | *"server_2022"* )
+      id="win2022"
+      ;;
+    *"server2019"* | *"server_2019"* )
+      id="win2019"
+      ;;
+    *"server2016"* | *"server_2016"* )
+      id="win2016"
+      ;;
+    *"server2012"* | *"server_2012"* )
+      id="win2012r2"
+      ;;
+    *"server2008"* | *"server_2008"* )
+      id="win2008r2"
+      ;;
   esac
 
   if [ -n "$id" ]; then
