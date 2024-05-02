@@ -145,7 +145,7 @@ printEdition() {
     "win7${PLATFORM,,}-enterprise"* )
       edition="Enterprise"
       ;;
-    "win7"* ) 
+    "win7"* )
       edition="Professional"
       ;;
     "win8${PLATFORM,,}-enterprise"* )
@@ -182,7 +182,7 @@ printEdition() {
       edition="Enterprise"
       ;;
     "win11"* )
-      edition="Pro" 
+      edition="Pro"
       ;;
     "winxp"* )
       edition="Professional"
@@ -209,7 +209,7 @@ printEdition() {
 
   [[ "${id,,}" == *"-eval" ]] && edition="$edition (Evaluation)"
   [ -n "$edition" ] && result="$result $edition"
-  
+
   echo "$result"
   return 0
 }
