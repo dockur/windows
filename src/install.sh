@@ -290,15 +290,13 @@ doMido() {
 verifyFile() {
 
   local iso="$1"
-  local version="$2"
+  local check="$2"
   local hash=""
-  local check=""
 
   html "Verifying downloaded ISO..."
   info "Calculating SHA256 checksum of the ISO file..."
 
   hash=$(sha256sum "$iso" | cut -f1 -d' ')
-  [ -n "$version" ] && check=$(getHash "$version")
 
   if [ -z "$check" ]; then
     info "The sha256 checksum is: $hash , but have no value available for comparison." && return 0
@@ -318,8 +316,8 @@ downloadFile() {
 
   local iso="$1"
   local url="$2"
-  local desc="$3"
-  local version="$4"
+  local sum="$3"
+  local desc="$4"
   local rc progress domain dots
 
   rm -f "$iso"
@@ -351,7 +349,7 @@ downloadFile() {
   if (( rc == 0 )) && [ -f "$iso" ]; then
     if [ "$(stat -c%s "$iso")" -gt 100000000 ]; then
       if [[ "$VERIFY" == [Yy1]* ]]; then
-        ! verifyFile "$iso" "$version" && return 1
+        ! verifyFile "$iso" "$sum" && return 1
       fi
       html "Download finished successfully..." && return 0
     fi
@@ -368,11 +366,11 @@ downloadImage() {
   local iso="$1"
   local version="$2"
   local tried="n"
-  local url desc
+  local url sum desc
 
   if [[ "${version,,}" == "http"* ]]; then
     desc=$(getName "$BASE")
-    downloadFile "$iso" "$version" "$desc" "" && return 0
+    downloadFile "$iso" "$version" "" "$desc" && return 0
     return 1
   fi
 
@@ -400,7 +398,7 @@ downloadImage() {
 
     if getESD "$TMP/esd" "$version"; then
       ISO="$TMP/$version.esd"
-      downloadFile "$ISO" "$ESD_URL" "$desc" "" && return 0
+      downloadFile "$ISO" "$ESD_URL" "" "$desc" && return 0
       ISO="$TMP/$BASE"
     fi
 
@@ -415,7 +413,8 @@ downloadImage() {
         info "Failed to download $desc, will try another mirror now..."
       fi
       tried="y"
-      downloadFile "$iso" "$url" "$desc" "$version" && return 0
+      sum=$(getHash "$i" "$version")
+      downloadFile "$iso" "$url" "$sum" "$desc" && return 0
     fi
 
   done
