@@ -166,24 +166,28 @@ abortInstall() {
 
 detectCustom() {
 
-  CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname windows.iso -printf "%f\n" | head -n 1)
+  CUSTOM=""
+  local file size
+
+  if [[ "${VERSION,,}" != "http"* ]]; then
+    file="${VERSION/\/storage\//}"
+    [[ "$file" == "."* ]] && file="${file:1}"
+    CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname "$file" -printf "%f\n" | head -n 1)
+  fi
 
   [ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso -printf "%f\n" | head -n 1)
-  [ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname boot.iso -printf "%f\n" | head -n 1)
   [ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.img -printf "%f\n" | head -n 1)
+  [ -z "$CUSTOM" ] && return 0
 
-  if [ -z "$CUSTOM" ] && [[ "${VERSION,,}" != "http"* ]]; then
-    FN="${VERSION/\/storage\//}"
-    [[ "$FN" == "."* ]] && FN="${FN:1}"
-    CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname "$FN" -printf "%f\n" | head -n 1)
+  size="$(stat -c%s "$STORAGE/$CUSTOM")"
+
+  if [ -z "$size" ] || [[ "$size" == "0" ]]; then
+    CUSTOM=""
+    return 0
   fi
 
-  if [ -n "$CUSTOM" ]; then
-    local size
-    size="$(stat -c%s "$STORAGE/$CUSTOM")"
-    local file="windows.$size.iso"
-    [ -f "$STORAGE/$file" ] && CUSTOM="$file"
-  fi
+  file="windows.$size.iso"
+  [ -s "$STORAGE/$file" ] && CUSTOM="$file"
 
   return 0
 }
@@ -556,11 +560,11 @@ setXML() {
   [[ "$MANUAL" == [Yy1]* ]] && return 0
 
   local file="$STORAGE/custom.xml"
-  [ -f "$file" ] && XML="$file" && return 0
+  [ -f "$file" ] && [ -s "$file" ] && XML="$file" && return 0
 
   file="$1"
   [ -z "$file" ] && file="/run/assets/$DETECTED.xml"
-  [ -f "$file" ] && XML="$file" && return 0
+  [ -f "$file" ] && [ -s "$file" ] && XML="$file" && return 0
 
   return 1
 }
@@ -618,7 +622,7 @@ detectImage() {
     setXML "" && return 0
 
     desc=$(printEdition "$DETECTED" "this version")
-    warn "no answer file found for $desc ($DETECTED.xml), $FB."
+    warn "the answer file for $desc was not found ($DETECTED.xml), $FB."
     return 0
   fi
 
@@ -650,7 +654,7 @@ detectImage() {
   result=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
 
   if ! detectVersion "$result"; then
-    msg="failed to determine Windows version from image"
+    msg="Failed to determine Windows version from image"
     setXML "" && info "${msg}!" || warn "${msg}, $FB"
     return 0
   fi
@@ -660,10 +664,10 @@ detectImage() {
   info "Detected: $desc"
   setXML "" && return 0
 
-  msg="no answer file found for $desc ($DETECTED.xml)"
+  msg="the answer file for $desc was not found ($DETECTED.xml)"
   local fallback="/run/assets/${DETECTED%%-*}.xml"
 
-  setXML "$fallback" && warn "${msg/version/edition}." || warn "${msg}, $FB."
+  setXML "$fallback" && warn "${msg}." || warn "${msg}, $FB."
   return 0
 }
 
