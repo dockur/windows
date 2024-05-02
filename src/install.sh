@@ -618,7 +618,7 @@ detectImage() {
   if [ -n "$DETECTED" ]; then
 
     [[ "${DETECTED,,}" == "winxp"* ]] && return 0
-  
+
     setXML "" && return 0
 
     desc=$(printEdition "$DETECTED" "this version")
