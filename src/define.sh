@@ -345,11 +345,14 @@ switchEdition() {
 
   case "${id,,}" in
     "win11${PLATFORM,,}-enterprise-eval" )
-      DETECTED="win11${PLATFORM,,}-enterprise" ;;
+      DETECTED="win11${PLATFORM,,}-enterprise"
+      ;;
     "win10${PLATFORM,,}-enterprise-eval" )
-      DETECTED="win10${PLATFORM,,}-enterprise" ;;
+      DETECTED="win10${PLATFORM,,}-enterprise"
+      ;;
     "win81${PLATFORM,,}-enterprise-eval" )
-      DETECTED="win81${PLATFORM,,}-enterprise" ;;
+      DETECTED="win81${PLATFORM,,}-enterprise"
+      ;;
     "win2022-eval" ) DETECTED="win2022" ;;
     "win2019-eval" ) DETECTED="win2019" ;;
     "win2016-eval" ) DETECTED="win2016" ;;
