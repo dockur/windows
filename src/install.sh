@@ -626,7 +626,7 @@ detectImage() {
     return 0
   fi
 
-  info "Detecting Windows version from ISO image..."
+  info "Detecting version from ISO image..."
 
   if [ -f "$dir/WIN51" ] || [ -f "$dir/SETUPXP.HTM" ]; then
     [ -d "$dir/AMD64" ] && DETECTED="winxpx64" || DETECTED="winxpx86"
