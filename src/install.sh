@@ -29,65 +29,6 @@ skipInstall() {
   return 1
 }
 
-finishInstall() {
-
-  local iso="$1"
-  local aborted="$2"
-
-  if [ ! -s "$iso" ] || [ ! -f "$iso" ]; then
-    error "Failed to find ISO file: $iso" && return 1
-  fi
-
-  if [ -w "$iso" ] && [[ "$aborted" != [Yy1]* ]]; then
-    # Mark ISO as prepared via magic byte
-    if ! printf '\x16' | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none; then
-      error "Failed to set magic byte in ISO file: $iso" && return 1
-    fi
-  fi
-
-  rm -f "$STORAGE/windows.ver"
-  rm -f "$STORAGE/windows.old"
-  rm -f "$STORAGE/windows.boot"
-  rm -f "$STORAGE/windows.mode"
-
-  cp /run/version "$STORAGE/windows.ver"
-
-  if [[ "${PLATFORM,,}" == "x64" ]]; then
-    if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
-      echo "$BOOT_MODE" > "$STORAGE/windows.mode"
-      if [[ "${MACHINE,,}" != "q35" ]]; then
-        echo "$MACHINE" > "$STORAGE/windows.old"
-      fi
-    else
-      # Enable secure boot + TPM on manual installs as Win11 requires
-      if [[ "$MANUAL" == [Yy1]* ]] || [[ "$aborted" == [Yy1]* ]]; then
-        if [[ "${DETECTED,,}" == "win11"* ]]; then
-          BOOT_MODE="windows_secure"
-          echo "$BOOT_MODE" > "$STORAGE/windows.mode"
-        fi
-      fi
-    fi
-  fi
-
-  rm -rf "$TMP"
-  return 0
-}
-
-abortInstall() {
-
-  local iso="$1"
-
-  if [[ "$iso" != "$STORAGE/$BASE" ]]; then
-    if ! mv -f "$iso" "$STORAGE/$BASE"; then
-      error "Failed to move ISO file: $iso" && return 1
-    fi
-  fi
-
-  finishInstall "$STORAGE/$BASE" "Y" && return 0
-
-  return 1
-}
-
 startInstall() {
 
   html "Starting Windows..."
@@ -159,6 +100,65 @@ startInstall() {
   fi
 
   return 0
+}
+
+finishInstall() {
+
+  local iso="$1"
+  local aborted="$2"
+
+  if [ ! -s "$iso" ] || [ ! -f "$iso" ]; then
+    error "Failed to find ISO file: $iso" && return 1
+  fi
+
+  if [ -w "$iso" ] && [[ "$aborted" != [Yy1]* ]]; then
+    # Mark ISO as prepared via magic byte
+    if ! printf '\x16' | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none; then
+      error "Failed to set magic byte in ISO file: $iso" && return 1
+    fi
+  fi
+
+  rm -f "$STORAGE/windows.ver"
+  rm -f "$STORAGE/windows.old"
+  rm -f "$STORAGE/windows.boot"
+  rm -f "$STORAGE/windows.mode"
+
+  cp /run/version "$STORAGE/windows.ver"
+
+  if [[ "${PLATFORM,,}" == "x64" ]]; then
+    if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+      echo "$BOOT_MODE" > "$STORAGE/windows.mode"
+      if [[ "${MACHINE,,}" != "q35" ]]; then
+        echo "$MACHINE" > "$STORAGE/windows.old"
+      fi
+    else
+      # Enable secure boot + TPM on manual installs as Win11 requires
+      if [[ "$MANUAL" == [Yy1]* ]] || [[ "$aborted" == [Yy1]* ]]; then
+        if [[ "${DETECTED,,}" == "win11"* ]]; then
+          BOOT_MODE="windows_secure"
+          echo "$BOOT_MODE" > "$STORAGE/windows.mode"
+        fi
+      fi
+    fi
+  fi
+
+  rm -rf "$TMP"
+  return 0
+}
+
+abortInstall() {
+
+  local iso="$1"
+
+  if [[ "$iso" != "$STORAGE/$BASE" ]]; then
+    if ! mv -f "$iso" "$STORAGE/$BASE"; then
+      error "Failed to move ISO file: $iso" && return 1
+    fi
+  fi
+
+  finishInstall "$STORAGE/$BASE" "Y" && return 0
+
+  return 1
 }
 
 detectCustom() {
@@ -273,6 +273,7 @@ doMido() {
 }
 
 verifyFile() {
+
   local iso="$1"
   local version="$2"
   local hash=""
@@ -355,11 +356,9 @@ downloadImage() {
   local url desc
 
   if [[ "${version,,}" == "http"* ]]; then
-
     desc=$(getName "$BASE")
     downloadFile "$iso" "$version" "$desc" "" && return 0
     return 1
-
   fi
 
   if ! validVersion "$version"; then
@@ -542,6 +541,7 @@ extractImage() {
 }
 
 detectVersion() {
+
   local xml="$1"
   local name name2 name3
 
@@ -587,15 +587,20 @@ detectImage() {
 
   if [ -n "$DETECTED" ]; then
 
+    [[ "$MANUAL" == [Yy1]* ]] && return 0
+
+    if [ -f "$STORAGE/custom.xml" ]; then
+      XML="$STORAGE/custom.xml"
+      return 0
+    fi
+  
     if [ -f "/run/assets/$DETECTED.xml" ]; then
-      [[ "$MANUAL" != [Yy1]* ]] && XML="$DETECTED.xml"
+      XML="/run/assets/$DETECTED.xml"
       return 0
     fi
 
     if [[ "${DETECTED,,}" != "winxp"* ]]; then
-
       dsc=$(printVersion "$DETECTED" "$DETECTED")
-
       warn "detected $dsc, but its answer file does not exist ($DETECTED.xml), $FB."
     fi
 
@@ -611,7 +616,7 @@ detectImage() {
       else
         DETECTED="winxpx86"
       fi
-      dsc=$(printVersion "$DETECTED" "$DETECTED")
+      dsc=$(printVersion "$DETECTED" "Windows XP")
       info "Detected: $dsc"
       return 0
     fi
@@ -636,6 +641,10 @@ detectImage() {
   result=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
 
   if ! detectVersion "$result"; then
+    if [ -f "$STORAGE/custom.xml" ]; then
+      XML="$STORAGE/custom.xml"
+      return 0
+    fi
     warn "failed to determine Windows version from image, $FB"
     return 0
   fi
@@ -643,7 +652,7 @@ detectImage() {
   desc=$(printVersion "$DETECTED" "$DETECTED")
 
   if [ -f "/run/assets/$DETECTED.xml" ]; then
-    [[ "$MANUAL" != [Yy1]* ]] && XML="$DETECTED.xml"
+    [[ "$MANUAL" != [Yy1]* ]] && XML="/run/assets/$DETECTED.xml"
     info "Detected: $desc"
   else
     warn "detected $desc, but no answer file exists for its edition ($DETECTED.xml), $FB."
@@ -656,45 +665,43 @@ prepareImage() {
 
   local iso="$1"
   local dir="$2"
+  local missing
+
+  case "${DETECTED,,}" in
+    "winxp"* | "winvista"* | "win7"* | "win2008"*)
+      [[ "${PLATFORM,,}" == "arm64" ]] && return 1
+      BOOT_MODE="windows_legacy" ;;
+  esac
 
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
-    if [[ "${DETECTED,,}" != "winxp"* ]] && [[ "${DETECTED,,}" != "win2008"* ]]; then
-      if [[ "${DETECTED,,}" != "winvista"* ]] && [[ "${DETECTED,,}" != "win7"* ]]; then
+  
+    [ -f "$dir/$ETFS" ] && [ -f "$dir/$EFISYS" ] && return 0
 
-        if [ -f "$dir/$ETFS" ] && [ -f "$dir/$EFISYS" ]; then
-          return 0
-        fi
+    missing=$(basename "$dir/$EFISYS")
+    [ ! -f "$dir/$ETFS" ] && missing=$(basename "$dir/$ETFS")
+    warn "failed to locate file '${missing,,}' in ISO image!"
 
-        if [ ! -f "$dir/$ETFS" ]; then
-          warn "failed to locate file 'etfsboot.com' in ISO image, falling back to legacy boot!"
-        else
-          warn "failed to locate file 'efisys_noprompt.bin' in ISO image, falling back to legacy boot!"
-        fi
-
-      fi
-    fi
   fi
 
   [[ "${PLATFORM,,}" == "arm64" ]] && return 1
+  BOOT_MODE="windows_legacy"
 
   if [[ "${DETECTED,,}" == "winxp"* ]]; then
-    if ! prepareXP "$iso" "$dir"; then
-      error "Failed to prepare Windows XP ISO!" && return 1
-    fi
-  else
-    if ! prepareLegacy "$iso" "$dir"; then
-      error "Failed to prepare Windows ISO!" && return 1
-    fi
+    prepareXP "$iso" "$dir" && return 0
+    error "Failed to prepare Windows XP ISO!" && return 1
   fi
 
-  return 0
+  prepareLegacy "$iso" "$dir" && return 0
+
+  error "Failed to extract boot image from ISO!"
+  return 1
 }
 
 updateImage() {
 
   local iso="$1"
   local dir="$2"
-  local asset="/run/assets/$3"
+  local asset="$3"
   local path src loc xml index result
 
   [ ! -s "$asset" ] || [ ! -f "$asset" ] && return 0
@@ -728,13 +735,14 @@ updateImage() {
   fi
 
   if ! wimlib-imagex update "$loc" "$index" --command "add $asset /autounattend.xml" > /dev/null; then
-    warn "failed to add answer file $xml to ISO image, $FB" && return 1
+    warn "failed to add answer file ($xml) to ISO image, $FB" && return 1
   fi
 
   return 0
 }
 
 copyOEM() {
+
   local dir="$1"
   local folder="$STORAGE/oem"
   local src
