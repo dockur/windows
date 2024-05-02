@@ -398,114 +398,153 @@ getLink1() {
   # Fallbacks for users who cannot connect to the Microsoft servers
 
   local id="$1"
+  local ret="$2"
   local url=""
+  local sum=""
   local host="https://dl.bobpony.com/windows"
 
   case "${id,,}" in
     "win11${PLATFORM,,}" )
+      sum="
       url="$host/11/en-us_windows_11_23h2_${PLATFORM,,}.iso" ;;
     "win10${PLATFORM,,}" )
+      sum="
       url="$host/10/en-us_windows_10_22h2_${PLATFORM,,}.iso" ;;
     "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval" )
+      sum="
       url="$host/10/en-us_windows_10_iot_enterprise_ltsc_2021_${PLATFORM,,}_dvd_257ad90f.iso" ;;
     "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
+      sum="
       url="$host/10/en-us_windows_10_enterprise_ltsc_2021_${PLATFORM,,}_dvd_d289cf96.iso" ;;
     "win81${PLATFORM,,}" )
+      sum="
       url="$host/8.x/8.1/en_windows_8.1_with_update_${PLATFORM,,}_dvd_6051480.iso" ;;
     "win2022" | "win2022-eval" )
+      sum="c3c57bb2cf723973a7dcfb1a21e97dfa035753a7f111e348ad918bb64b3114db"
       url="$host/server/2022/en-us_windows_server_2022_updated_jan_2024_${PLATFORM,,}_dvd_2b7a0c9f.iso" ;;
     "win2019" | "win2019-eval" )
+      sum="0067afe7fdc4e61f677bd8c35a209082aa917df9c117527fc4b2b52a447e89bb"
       url="$host/server/2019/en-us_windows_server_2019_updated_aug_2021_${PLATFORM,,}_dvd_a6431a28.iso" ;;
     "win2016" | "win2016-eval" )
+      sum="af06e5483c786c023123e325cea4775050324d9e1366f46850b515ae43f764be"
       url="$host/server/2016/en_windows_server_2016_updated_feb_2018_${PLATFORM,,}_dvd_11636692.iso" ;;
     "win2012r2" | "win2012r2-eval" )
+      sum="f351e89eb88a96af4626ceb3450248b8573e3ed5924a4e19ea891e6003b62e4e"
       url="$host/server/2012r2/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708-004.iso" ;;
     "win2008r2" | "win2008r2-eval" )
+      sum="dfd9890881b7e832a927c38310fb415b7ea62ac5a896671f2ce2a111998f0df8"
       url="$host/server/2008r2/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601-018.iso" ;;
     "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise" )
+      sum="ee69f3e9b86ff973f632db8e01700c5724ef78420b175d25bae6ead90f6805a7"
       url="$host/7/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso" ;;
     "win7${PLATFORM,,}-ultimate" )
+      sum="0b738b55a5ea388ad016535a5c8234daf2e5715a0638488ddd8a228a836055a1"
       url="$host/7/en_windows_7_with_sp1_${PLATFORM,,}.iso" ;;
     "winvista${PLATFORM,,}-ultimate" )
+      sum="edf9f947c5791469fd7d2d40a5dcce663efa754f91847aa1d28ed7f585675b78"
       url="$host/vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso" ;;
     "winxpx86" )
+      sum="62b6c91563bad6cd12a352aa018627c314cfc5162d8e9f8af0756a642e602a46"
       url="$host/xp/professional/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso" ;;
     "winxpx64" )
+      sum="8fac68e1e56c64ad9a2aa0ad464560282e67fa4f4dd51d09a66f4e548eb0f2d6"
       url="$host/xp/professional/en_win_xp_pro_${PLATFORM,,}_vl.iso" ;;
   esac
 
-  echo "$url"
+  [ -z "$ret" ] && echo "$url" || echo "$sum"
   return 0
 }
 
 getLink2() {
 
   local id="$1"
+  local ret="$2"
   local url=""
+  local sum=""
   local host="https://files.dog/MSDN"
 
   case "${id,,}" in
     "win81${PLATFORM,,}" )
+      # sha256 
       url="$host/Windows%208.1%20with%20Update/en_windows_8.1_with_update_${PLATFORM,,}_dvd_6051480.iso" ;;
     "win81${PLATFORM,,}-enterprise" | "win81${PLATFORM,,}-enterprise-eval" )
+      # sha256 
       url="$host/Windows%208.1%20with%20Update/en_windows_8.1_enterprise_with_update_${PLATFORM,,}_dvd_6054382.iso" ;;
     "win2012r2" | "win2012r2-eval" )
+      # sha256 
       url="$host/Windows%20Server%202012%20R2%20with%20Update/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708.iso" ;;
     "win2008r2" | "win2008r2-eval" )
+      # sha256 
       url="$host/Windows%20Server%202008%20R2/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601.iso" ;;
     "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise" )
+      # sha256 
       url="$host/Windows%207/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso" ;;
     "win7${PLATFORM,,}-ultimate" )
+      # sha256 
       url="$host/Windows%207/en_windows_7_ultimate_with_sp1_${PLATFORM,,}_dvd_u_677332.iso" ;;
     "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-enterprise" )
+      # sha256 
       url="$host/Windows%20Vista/en_windows_vista_enterprise_sp2_${PLATFORM,,}_dvd_342332.iso" ;;
     "winvista${PLATFORM,,}-ultimate" )
+      # sha256 
       url="$host/Windows%20Vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso" ;;
     "winxpx86" )
+      # sha256 
       url="$host/Windows%20XP/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso" ;;
     "winxpx64" )
+      # sha256 
       url="$host/Windows%20XP/en_win_xp_pro_${PLATFORM,,}_vl.iso" ;;
   esac
 
-  echo "$url"
+  [ -z "$ret" ] && echo "$url" || echo "$sum"
   return 0
 }
 
 getLink3() {
 
   local id="$1"
+  local ret="$2"
   local url=""
+  local sum=""
   local host="https://file.cnxiaobai.com/Windows"
 
   case "${id,,}" in
-    "core11" )  # sha256 78f0f44444ff95b97125b43e560a72e0d6ce0a665cf9f5573bf268191e5510c1
+    "core11" )
+      sum="78f0f44444ff95b97125b43e560a72e0d6ce0a665cf9f5573bf268191e5510c1"
       url="$host/%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny11%20core%20${PLATFORM,,}%20beta%201.iso" ;;
-    "tiny11" )   # sha256 a028800a91addc35d8ae22dce7459b67330f7d69d2f11c70f53c0fdffa5b4280
+    "tiny11" )
+      sum="a028800a91addc35d8ae22dce7459b67330f7d69d2f11c70f53c0fdffa5b4280"
       url="$host/%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny11%202311%20${PLATFORM,,}.iso" ;;
-    "tiny10" )   # sha256 a11116c0645d892d6a5a7c585ecc1fa13aa66f8c7cc6b03bf1f27bd16860cc35
+    "tiny10" )
+      sum="a11116c0645d892d6a5a7c585ecc1fa13aa66f8c7cc6b03bf1f27bd16860cc35"
       url="$host/%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny10%2023H2%20${PLATFORM,,}.iso" ;;
   esac
 
-  echo "$url"
+  [ -z "$ret" ] && echo "$url" || echo "$sum"
   return 0
 }
 
 getLink4() {
 
   local id="$1"
+  local ret="$2"
   local url=""
+  local sum=""
   local host="https://archive.org/download"
 
   case "${id,,}" in
-    "core11" )  # sha256 78f0f44444ff95b97125b43e560a72e0d6ce0a665cf9f5573bf268191e5510c1
+    "core11" )
+      sum="78f0f44444ff95b97125b43e560a72e0d6ce0a665cf9f5573bf268191e5510c1"
       url="$host/tiny-11-core-x-64-beta-1/tiny11%20core%20${PLATFORM,,}%20beta%201.iso" ;;
-    "tiny11" )  # sha256 a028800a91addc35d8ae22dce7459b67330f7d69d2f11c70f53c0fdffa5b4280
+    "tiny11" )
+      sum="a028800a91addc35d8ae22dce7459b67330f7d69d2f11c70f53c0fdffa5b4280"
       url="$host/tiny11-2311/tiny11%202311%20${PLATFORM,,}.iso" ;;
-    "tiny10" )  # sha256 a11116c0645d892d6a5a7c585ecc1fa13aa66f8c7cc6b03bf1f27bd16860cc35
+    "tiny10" )
+      sum="a11116c0645d892d6a5a7c585ecc1fa13aa66f8c7cc6b03bf1f27bd16860cc35"
       url="$host/tiny-10-23-h2/tiny10%20${PLATFORM,,}%2023h2.iso" ;;
   esac
 
-  echo "$url"
+  [ -z "$ret" ] && echo "$url" || echo "$sum"
   return 0
 }
 
@@ -514,62 +553,66 @@ getLink5() {
   # Fallbacks for users who cannot connect to the Microsoft servers
 
   local id="$1"
+  local ret="$2"
   local url=""
+  local sum=""
   local host="https://drive.massgrave.dev"
 
   case "${id,,}" in
     "win11${PLATFORM,,}" )
+      # sha256 
       url="$host/en-us_windows_11_consumer_editions_version_23h2_updated_april_2024_${PLATFORM,,}_dvd_d986680b.iso" ;;
     "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval" )
+      # sha256 
       url="$host/en-us_windows_11_business_editions_version_23h2_updated_april_2024_${PLATFORM,,}_dvd_349cd577.iso" ;;
     "win11${PLATFORM,,}-iot" | "win11${PLATFORM,,}-enterprise-iot-eval" )
+      # sha256 
       url="$host/en-us_windows_11_iot_enterprise_version_23h2_${PLATFORM,,}_dvd_fb37549c.iso" ;;
     "win10${PLATFORM,,}" )
+      # sha256 
       url="$host/en-us_windows_10_consumer_editions_version_22h2_updated_april_2024_${PLATFORM,,}_dvd_9a92dc89.iso" ;;
     "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" )
+      # sha256 
       url="$host/en-us_windows_10_business_editions_version_22h2_updated_april_2024_${PLATFORM,,}_dvd_c00090a7.iso" ;;
     "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval" )
+      # sha256 
       url="$host/en-us_windows_10_iot_enterprise_ltsc_2021_${PLATFORM,,}_dvd_257ad90f.iso" ;;
     "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
+      # sha256 
       url="$host/en-us_windows_10_enterprise_ltsc_2021_${PLATFORM,,}_dvd_d289cf96.iso" ;;
     "win81${PLATFORM,,}-enterprise" | "win81${PLATFORM,,}-enterprise-eval" )
+      # sha256 
       url="$host/en_windows_8.1_enterprise_with_update_${PLATFORM,,}_dvd_6054382.iso" ;;
     "win2022" | "win2022-eval" )
+      # sha256 
       url="$host/en-us_windows_server_2022_updated_april_2024_${PLATFORM,,}_dvd_164349f3.iso" ;;
     "win2019" | "win2019-eval" )
+      # sha256 
       url="$host/en_windows_server_2019_${PLATFORM,,}_dvd_4cb967d8.iso" ;;
     "win2016" | "win2016-eval" )
+      # sha256 
       url="$host/en_windows_server_2016_${PLATFORM,,}_dvd_9327751.iso" ;;
     "win2012r2" | "win2012r2-eval" )
+      # sha256 
       url="$host/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708.iso" ;;
     "win2008r2" | "win2008r2-eval" )
+      # sha256 
       url="$host/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601.iso" ;;
     "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise" )
+      # sha256 
       url="$host/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso" ;;
     "win7${PLATFORM,,}-ultimate" )
+      # sha256 
       url="$host/en_windows_7_ultimate_with_sp1_${PLATFORM,,}_dvd_u_677332.iso" ;;
     "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-enterprise" )
+      # sha256 
       url="$host/en_windows_vista_enterprise_sp2_${PLATFORM,,}_dvd_342332.iso" ;;
     "winvista${PLATFORM,,}-ultimate" )
+      # sha256 
       url="$host/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso" ;;
   esac
 
-  echo "$url"
-  return 0
-}
-
-getHash() {
-
-  local id="$1"
-  local hash=""
-
-  case "${id,,}" in
-    "core11" ) hash="78f0f44444ff95b97125b43e560a72e0d6ce0a665cf9f5573bf268191e5510c1" ;;
-    "tiny11" )  hash="a028800a91addc35d8ae22dce7459b67330f7d69d2f11c70f53c0fdffa5b4280" ;;
-    "tiny10" )  hash="a11116c0645d892d6a5a7c585ecc1fa13aa66f8c7cc6b03bf1f27bd16860cc35" ;;
-  esac
-
-  echo "$hash"
+  [ -z "$ret" ] && echo "$url" || echo "$sum"
   return 0
 }
 
@@ -580,10 +623,24 @@ getLink() {
   local func="getLink$1"
 
   if [ "$1" -gt 0 ] && [ "$1" -le "$MIRRORS" ]; then
-    url=$($func "$id")
+    url=$($func "$id" "")
   fi
 
   echo "$url"
+  return 0
+}
+
+getHash() {
+
+  local sum=""
+  local id="$2"
+  local func="getLink$1"
+
+  if [ "$1" -gt 0 ] && [ "$1" -le "$MIRRORS" ]; then
+    sum=$($func "$id" "sum")
+  fi
+
+  echo "$sum"
   return 0
 }
 
