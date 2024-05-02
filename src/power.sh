@@ -93,7 +93,9 @@ finish() {
   pid="/var/run/tpm.pid"
   [ -s "$pid" ] && pKill "$(<"$pid")"
 
-  fKill "wsdd"
+  pid="/var/run/wsdd.pid"
+  [ -s "$pid" ] && pKill "$(<"$pid")"
+
   fKill "smbd"
 
   closeNetwork
