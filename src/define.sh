@@ -688,11 +688,10 @@ prepareXP() {
 
   MACHINE="pc-q35-2.10"
   ETFS="[BOOT]/Boot-NoEmul.img"
-  [[ "$MANUAL" == [Yy1]* ]] && return 0
 
+  [[ "$MANUAL" == [Yy1]* ]] && return 0
   configXP "$dir" && return 0
 
-  error "Failed to generate XP configuration files!"
   return 1
 }
 
@@ -710,7 +709,6 @@ prepareLegacy() {
 
   dd "if=$iso" "of=$dir/$ETFS" bs=2048 "count=$len" "skip=$offset" status=none && return 0
 
-  error "Failed to extract boot image from ISO!"
   return 1
 }
 
