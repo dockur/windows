@@ -588,49 +588,45 @@ getLink5() {
   local host="https://download-market.ru/"
 
   case "${id,,}" in
-    "win11${PLATFORM,,}" )
-      sum="5bb1459034f50766ee480d895d751af73a4af30814240ae32ebc5633546a5af7"
-      url="$host/"
-      ;;
     "win10${PLATFORM,,}-education" )
       sum="x"
-      url="$host/Windows%2010%20Education/English/x64/en_windows_10_education_version_1607_updated_jul_2016_x64_dvd_9055880.iso"
+      url="$host/Windows%2010%20Education/English/${PLATFORM,,}/en_windows_10_education_version_1607_updated_jul_2016_${PLATFORM,,}_dvd_9055880.iso"
       ;;
     "win81${PLATFORM,,}" )
       sum="d8333cf427eb3318ff6ab755eb1dd9d433f0e2ae43745312c1cd23e83ca1ce51"
-      url="$host/Windows%208.1/English/x64/en_windows_8.1_with_update_x64_dvd_6051480.iso"
+      url="$host/Windows%208.1/English/${PLATFORM,,}/en_windows_8.1_with_update_${PLATFORM,,}_dvd_6051480.iso"
       ;;
     "win81${PLATFORM,,}-enterprise" | "win81${PLATFORM,,}-enterprise-eval" )
       sum="x"
-      url="$host/Windows%208.1%20Enterprise/English/x64/en_windows_8.1_enterprise_with_update_x64_dvd_6054382.iso"
+      url="$host/Windows%208.1%20Enterprise/English/${PLATFORM,,}/en_windows_8.1_enterprise_with_update_${PLATFORM,,}_dvd_6054382.iso"
       ;;
     "win2022" | "win2022-eval" )
       sum="x"
-      url="$host/Windows%20Server%202022/English/en-us_windows_server_2022_x64_dvd_620d7eac.iso"
+      url="$host/Windows%20Server%202022/English/en-us_windows_server_2022_${PLATFORM,,}_dvd_620d7eac.iso"
       ;;
     "win2019" | "win2019-eval" )
       sum="0067afe7fdc4e61f677bd8c35a209082aa917df9c117527fc4b2b52a447e89bb"
-      url="$host/Windows%20Server%202019/English/en_windows_server_2019_updated_aug_2019_x64_dvd_cdf24600.iso"
+      url="$host/Windows%20Server%202019/English/en_windows_server_2019_updated_aug_2019_${PLATFORM,,}_dvd_cdf24600.iso"
       ;;
     "win2016" | "win2016-eval" )
       sum="x"
-      url="$host/Windows%20Server%202016/English/en_windows_server_2016_x64_dvd_9327751.iso"
+      url="$host/Windows%20Server%202016/English/en_windows_server_2016_${PLATFORM,,}_dvd_9327751.iso"
       ;;
     "win2012r2" | "win2012r2-eval" )
       sum="f351e89eb88a96af4626ceb3450248b8573e3ed5924a4e19ea891e6003b62e4e"
-      url="$host/Windows%20Server%202012/English/en_windows_server_2012_r2_with_update_x64_dvd_6052708.iso"
+      url="$host/Windows%20Server%202012/English/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708.iso"
       ;;
     "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise" )
       sum="ee69f3e9b86ff973f632db8e01700c5724ef78420b175d25bae6ead90f6805a7"
-      url="$host/Windows%207%20Enterprise/English/x64/en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.iso"
+      url="$host/Windows%207%20Enterprise/English/${PLATFORM,,}/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
       ;;
     "win7${PLATFORM,,}-ultimate" )
       sum="0b738b55a5ea388ad016535a5c8234daf2e5715a0638488ddd8a228a836055a1"
-      url="$host/Windows%207%20Ultimate/English/x64/en_windows_7_ultimate_with_sp1_x64_dvd_u_677332.iso"
+      url="$host/Windows%207%20Ultimate/English/${PLATFORM,,}/en_windows_7_ultimate_with_sp1_${PLATFORM,,}_dvd_u_677332.iso"
       ;;
     "win7${PLATFORM,,}-home" | "win7${PLATFORM,,}-home-premium" )
       sum="x"
-      url="$host/Windows%207%20Home%20Premium/English/x64/en_windows_7_home_premium_with_sp1_x64_dvd_u_676549.iso"
+      url="$host/Windows%207%20Home%20Premium/English/${PLATFORM,,}/en_windows_7_home_premium_with_sp1_${PLATFORM,,}_dvd_u_676549.iso"
       ;;
     "win7${PLATFORM,,}-home-basic" )
       sum="x"
@@ -638,7 +634,7 @@ getLink5() {
       ;;
     "win7${PLATFORM,,}-pro" | "win7${PLATFORM,,}-professional" )
       sum="x"
-      url="$host/Windows%207%20Professional/English/x64/en_windows_7_professional_with_sp1_x64_dvd_u_676939.iso"
+      url="$host/Windows%207%20Professional/English/${PLATFORM,,}/en_windows_7_professional_with_sp1_${PLATFORM,,}_dvd_u_676939.iso"
       ;;
     "win7${PLATFORM,,}-starter" )
       sum="x"
@@ -666,55 +662,55 @@ getLink6() {
 
   case "${id,,}" in
     "win11${PLATFORM,,}" )
-      sum=""
+      sum="x"
       url="$host/en-us_windows_11_consumer_editions_version_23h2_updated_april_2024_${PLATFORM,,}_dvd_d986680b.iso"
       ;;
     "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval" )
-      sum=""
+      sum="x"
       url="$host/en-us_windows_11_business_editions_version_23h2_updated_april_2024_${PLATFORM,,}_dvd_349cd577.iso"
       ;;
     "win11${PLATFORM,,}-iot" | "win11${PLATFORM,,}-enterprise-iot-eval" )
-      sum=""
+      sum="x"
       url="$host/en-us_windows_11_iot_enterprise_version_23h2_${PLATFORM,,}_dvd_fb37549c.iso"
       ;;
     "win10${PLATFORM,,}" )
-      sum=""
+      sum="x"
       url="$host/en-us_windows_10_consumer_editions_version_22h2_updated_april_2024_${PLATFORM,,}_dvd_9a92dc89.iso"
       ;;
     "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" )
-      sum=""
+      sum="x"
       url="$host/en-us_windows_10_business_editions_version_22h2_updated_april_2024_${PLATFORM,,}_dvd_c00090a7.iso"
       ;;
     "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval" )
-      sum=""
+      sum="x"
       url="$host/en-us_windows_10_iot_enterprise_ltsc_2021_${PLATFORM,,}_dvd_257ad90f.iso"
       ;;
     "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-      sum=""
+      sum="x"
       url="$host/en-us_windows_10_enterprise_ltsc_2021_${PLATFORM,,}_dvd_d289cf96.iso"
       ;;
     "win81${PLATFORM,,}-enterprise" | "win81${PLATFORM,,}-enterprise-eval" )
-      sum=""
+      sum="x"
       url="$host/en_windows_8.1_enterprise_with_update_${PLATFORM,,}_dvd_6054382.iso"
       ;;
     "win2022" | "win2022-eval" )
-      sum=""
+      sum="x"
       url="$host/en-us_windows_server_2022_updated_april_2024_${PLATFORM,,}_dvd_164349f3.iso"
       ;;
     "win2019" | "win2019-eval" )
-      sum=""
+      sum="x"
       url="$host/en_windows_server_2019_${PLATFORM,,}_dvd_4cb967d8.iso"
       ;;
     "win2016" | "win2016-eval" )
-      sum=""
+      sum="4caeb24b661fcede81cd90661aec31aa69753bf49a5ac247253dd021bc1b5cbb"
       url="$host/en_windows_server_2016_${PLATFORM,,}_dvd_9327751.iso"
       ;;
     "win2012r2" | "win2012r2-eval" )
-      sum=""
+      sum="f351e89eb88a96af4626ceb3450248b8573e3ed5924a4e19ea891e6003b62e4e"
       url="$host/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708.iso"
       ;;
     "win2008r2" | "win2008r2-eval" )
-      sum=""
+      sum="dfd9890881b7e832a927c38310fb415b7ea62ac5a896671f2ce2a111998f0df8"
       url="$host/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601.iso"
       ;;
     "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise" )
