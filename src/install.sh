@@ -304,7 +304,7 @@ verifyFile() {
     info "Succesfully verified that the checksum was correct!" && return 0
   fi
 
-  error "Invalid sha256 checksum: $hash , but expected value is: $check"
+  error "Invalid sha256 checksum: $hash , but expected value is: $check ! Please report this at $SUPPORT/issues"
 
   rm -f "$iso"
   return 1
