@@ -617,8 +617,8 @@ detectImage() {
   
     setXML "" && return 0
 
-    desc=$(printVersion "$DETECTED" "$DETECTED")
-    warn "no answer file exists for this version ($DETECTED.xml), $FB."
+    desc=$(printEdition "$DETECTED" "this version")
+    warn "no answer file found for $desc ($DETECTED.xml), $FB."
     return 0
   fi
 
@@ -626,7 +626,7 @@ detectImage() {
 
   if [ -f "$dir/WIN51" ] || [ -f "$dir/SETUPXP.HTM" ]; then
     [ -d "$dir/AMD64" ] && DETECTED="winxpx64" || DETECTED="winxpx86"
-    desc=$(printVersion "$DETECTED" "Windows XP")
+    desc=$(printEdition "$DETECTED" "Windows XP")
     info "Detected: $desc"
     return 0
   fi
@@ -655,12 +655,12 @@ detectImage() {
     return 0
   fi
 
-  desc=$(printVersion "$DETECTED" "$DETECTED")
+  desc=$(printEdition "$DETECTED" "$DETECTED")
 
   info "Detected: $desc"
   setXML "" && return 0
 
-  msg="no answer file exists for this version ($DETECTED.xml)"
+  msg="no answer file found for $desc ($DETECTED.xml)"
   local fallback="/run/assets/${DETECTED%%-*}.xml"
 
   setXML "$fallback" && warn "${msg/version/edition}." || warn "${msg}, $FB."
