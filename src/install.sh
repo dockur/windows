@@ -540,6 +540,20 @@ extractImage() {
   return 0
 }
 
+setXML() {
+
+  [[ "$MANUAL" == [Yy1]* ]] && return 0
+
+  local file="$STORAGE/custom.xml"
+  [ -f "$file" ] && XML="$file" && return 0
+
+  file="$1"
+  [ -z "$file" ] && file="/run/assets/$DETECTED.xml"
+  [ -f "$file" ] && XML="$file" && return 0
+
+  return 1
+}
+
 detectVersion() {
 
   local xml="$1"
@@ -564,18 +578,19 @@ detectVersion() {
   DETECTED=$(getVersion "$name3")
   [ -n "$DETECTED" ] && return 0
 
-  [ -n "$name3" ] && info "Unknown name: '$name3'"
-  [ -n "$name" ] && info "Unknown displayname: '$name'"
-  [ -n "$name2" ] && info "Unknown productname: '$name2'"
+  [ -n "$name3" ] && warn "unknown name: '$name3'"
+  [ -n "$name" ] && warn "unknown displayname: '$name'"
+  [ -n "$name2" ] && warn "unknown productname: '$name2'"
 
   return 1
 }
 
 detectImage() {
 
-  XML=""
-  local dsc
   local dir="$1"
+  local desc msg
+
+  XML=""
 
   if [ -n "$CUSTOM" ]; then
     DETECTED=""
@@ -587,42 +602,25 @@ detectImage() {
 
   if [ -n "$DETECTED" ]; then
 
-    [[ "$MANUAL" == [Yy1]* ]] && return 0
-
-    if [ -f "$STORAGE/custom.xml" ]; then
-      XML="$STORAGE/custom.xml"
-      return 0
-    fi
+    [[ "${DETECTED,,}" == "winxp"* ]] && return 0
   
-    if [ -f "/run/assets/$DETECTED.xml" ]; then
-      XML="/run/assets/$DETECTED.xml"
-      return 0
-    fi
+    setXML "" && return 0
 
-    if [[ "${DETECTED,,}" != "winxp"* ]]; then
-      dsc=$(printVersion "$DETECTED" "$DETECTED")
-      warn "detected $dsc, but its answer file does not exist ($DETECTED.xml), $FB."
-    fi
-
+    desc=$(printVersion "$DETECTED" "$DETECTED")
+    warn "no answer file exists for this version ($DETECTED.xml), $FB."
     return 0
   fi
 
   info "Detecting Windows version from ISO image..."
 
-  if [[ "${PLATFORM,,}" == "x64" ]]; then
-    if [ -f "$dir/WIN51" ] || [ -f "$dir/SETUPXP.HTM" ]; then
-      if [ -d "$dir/AMD64" ]; then
-        DETECTED="winxpx64"
-      else
-        DETECTED="winxpx86"
-      fi
-      dsc=$(printVersion "$DETECTED" "Windows XP")
-      info "Detected: $dsc"
-      return 0
-    fi
+  if [ -f "$dir/WIN51" ] || [ -f "$dir/SETUPXP.HTM" ]; then
+    [ -d "$dir/AMD64" ] && DETECTED="winxpx64" || DETECTED="winxpx86"
+    desc=$(printVersion "$DETECTED" "Windows XP")
+    info "Detected: $desc"
+    return 0
   fi
 
-  local src loc result desc
+  local src loc result
   src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
 
   if [ ! -d "$src" ]; then
@@ -641,23 +639,20 @@ detectImage() {
   result=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
 
   if ! detectVersion "$result"; then
-    if [ -f "$STORAGE/custom.xml" ]; then
-      XML="$STORAGE/custom.xml"
-      return 0
-    fi
-    warn "failed to determine Windows version from image, $FB"
+    msg="failed to determine Windows version from image"
+    setXML "" && info "${msg}!" || warn "${msg}, $FB"
     return 0
   fi
 
   desc=$(printVersion "$DETECTED" "$DETECTED")
 
-  if [ -f "/run/assets/$DETECTED.xml" ]; then
-    [[ "$MANUAL" != [Yy1]* ]] && XML="/run/assets/$DETECTED.xml"
-    info "Detected: $desc"
-  else
-    warn "detected $desc, but no answer file exists for its edition ($DETECTED.xml), $FB."
-  fi
+  info "Detected: $desc"
+  setXML "" && return 0
 
+  msg="no answer file exists for this version ($DETECTED.xml)"
+  local fallback="/run/assets/${DETECTED%%-*}.xml"
+
+  setXML "$fallback" && warn "${msg/version/edition}." || warn "${msg}, $FB."
   return 0
 }
 
@@ -668,27 +663,25 @@ prepareImage() {
   local missing
 
   case "${DETECTED,,}" in
-    "winxp"* | "winvista"* | "win7"* | "win2008"*)
-      [[ "${PLATFORM,,}" == "arm64" ]] && return 1
+    "winxp"* )
+      BOOT_MODE="windows_legacy"
+      prepareXP "$iso" "$dir" && return 0
+      error "Failed to prepare Windows XP ISO!" && return 1
+      ;;
+    "winvista"* | "win7"* | "win2008"* )
       BOOT_MODE="windows_legacy" ;;
   esac
 
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
-  
+
     [ -f "$dir/$ETFS" ] && [ -f "$dir/$EFISYS" ] && return 0
 
     missing=$(basename "$dir/$EFISYS")
     [ ! -f "$dir/$ETFS" ] && missing=$(basename "$dir/$ETFS")
     warn "failed to locate file '${missing,,}' in ISO image!"
 
-  fi
-
-  [[ "${PLATFORM,,}" == "arm64" ]] && return 1
-  BOOT_MODE="windows_legacy"
-
-  if [[ "${DETECTED,,}" == "winxp"* ]]; then
-    prepareXP "$iso" "$dir" && return 0
-    error "Failed to prepare Windows XP ISO!" && return 1
+    [[ "${PLATFORM,,}" == "arm64" ]] && return 1
+    BOOT_MODE="windows_legacy"
   fi
 
   prepareLegacy "$iso" "$dir" && return 0
