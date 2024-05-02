@@ -122,14 +122,15 @@ printVersion() {
   return 0
 }
 
-getEdition() {
+printEdition() {
 
   local id="$1"
-  local desc=""
+  local desc="$2"
+  local result=""
   local edition=""
 
-  desc=$(printVersion "$id" "x")
-  [[ "$desc" == "x" ]] && echo "" && return 0
+  result=$(printVersion "$id" "x")
+  [[ "$result" == "x" ]] && echo "$desc" && return 0
 
   case "${id,,}" in
     "win7${PLATFORM,,}-home"* )
@@ -207,9 +208,9 @@ getEdition() {
   esac
 
   [[ "${id,,}" == *"-eval" ]] && edition="$edition (Evaluation)"
-  [ -n "$edition" ] && desc="$desc $edition"
+  [ -n "$edition" ] && result="$result $edition"
   
-  echo "$desc"
+  echo "$result"
   return 0
 }
 
