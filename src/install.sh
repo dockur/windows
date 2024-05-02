@@ -293,20 +293,18 @@ verifyFile() {
   local check="$2"
   local hash=""
 
+  [ -z "$check" ] && return 0
+
   html "Verifying downloaded ISO..."
   info "Calculating SHA256 checksum of the ISO file..."
 
   hash=$(sha256sum "$iso" | cut -f1 -d' ')
 
-  if [ -z "$check" ]; then
-    info "The sha256 checksum is: $hash , but have no value available for comparison." && return 0
-  fi
-
   if [[ "$hash" == "$check" ]]; then
     info "Succesfully verified that the checksum was correct!" && return 0
   fi
 
-  error "Invalid sha256 checksum: $hash , expected value is: $check"
+  error "Invalid sha256 checksum: $hash , but expected value is: $check"
 
   rm -f "$iso"
   return 1
@@ -348,7 +346,7 @@ downloadFile() {
 
   if (( rc == 0 )) && [ -f "$iso" ]; then
     if [ "$(stat -c%s "$iso")" -gt 100000000 ]; then
-      if [[ "$VERIFY" == [Yy1]* ]]; then
+      if [[ "$VERIFY" == [Yy1]* ]] && [ -n "$sum" ]; then
         ! verifyFile "$iso" "$sum" && return 1
       fi
       html "Download finished successfully..." && return 0
