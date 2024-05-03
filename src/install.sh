@@ -563,35 +563,58 @@ setXML() {
   return 1
 }
 
+selectVersion() {
+
+  local tag="$1"
+  local xml="$2"
+  local id find name prefer
+
+  name=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml")
+  [[ "$name" == *"Operating System"* ]] && name=""
+  [ -z "$name" ] && return 0
+
+  id=$(fromName "$name")
+  [ -z "$id" ] && info "Unknown ${tag,,}: '$name'" && return 0
+
+  prefer="$id-enterprise"
+  find=$(printEdition "$prefer" "")
+  if [ -n "$find" ] && [[ "${xml,,}" == *"<${TAG,,}>${find,,}</${TAG,,}>"* ]]; then
+    echo "$prefer" && return 0
+  fi
+
+  prefer="$id-ultimate"
+  find=$(printEdition "$prefer" "")
+  if [ -n "$find" ] && [[ "${xml,,}" == *"<${TAG,,}>${find,,}</${TAG,,}>"* ]]; then
+    echo "$prefer" && return 0
+  fi
+
+  prefer="$id"
+  find=$(printEdition "$prefer" "")
+  if [ -n "$find" ] && [[ "${xml,,}" == *"<${TAG,,}>${find,,}</${TAG,,}>"* ]]; then
+    echo "$prefer" && return 0
+  fi
+
+  prefer=$(getVersion "$name")
+  echo "$prefer"
+
+  return 0
+}
+
 detectVersion() {
 
   local xml="$1"
-  local name name2 name3
+  local id=""
 
-  local tag="DISPLAYNAME"
-  name=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml")
+  id=$(selectVersion "DISPLAYNAME" "$xml")
+  [ -n "$id" ] && echo "$id" && return 0
 
-  DETECTED=$(getVersion "$name")
-  [ -n "$DETECTED" ] && return 0
+  id=$(selectVersion "PRODUCTNAME" "$xml")
+  [ -n "$id" ] && echo "$id" && return 0
 
-  tag="PRODUCTNAME"
-  name2=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml")
-  [[ "$name2" == *"Operating System"* ]] && name2=""
+  id=$(selectVersion "NAME" "$xml")
+  [ -n "$id" ] && echo "$id" && return 0
 
-  DETECTED=$(getVersion "$name2")
-  [ -n "$DETECTED" ] && return 0
-
-  tag="NAME"
-  name3=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml")
-
-  DETECTED=$(getVersion "$name3")
-  [ -n "$DETECTED" ] && return 0
-
-  [ -n "$name3" ] && warn "unknown name: '$name3'"
-  [ -n "$name" ] && warn "unknown displayname: '$name'"
-  [ -n "$name2" ] && warn "unknown productname: '$name2'"
-
-  return 1
+  return 0
 }
 
 detectImage() {
@@ -630,7 +653,7 @@ detectImage() {
     return 0
   fi
 
-  local src loc result
+  local src loc info
   src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
 
   if [ ! -d "$src" ]; then
@@ -646,9 +669,10 @@ detectImage() {
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB" && return 1
   fi
 
-  result=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
-
-  if ! detectVersion "$result"; then
+  info=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
+  DETECTED=$(detectVersion "$info")
+  
+  if [ -z "$DETECTED" ]; then
     msg="Failed to determine Windows version from image"
     setXML "" && info "${msg}!" || warn "${msg}, $FB"
     return 0
