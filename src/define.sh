@@ -7,7 +7,7 @@ set -Eeuo pipefail
 : "${DETECTED:=""}"
 : "${PLATFORM:="x64"}"
 
-MIRRORS=6
+MIRRORS=5
 
 parseVersion() {
 
@@ -562,104 +562,6 @@ getLink3() {
 
 getLink4() {
 
-  local id="$1"
-  local ret="$2"
-  local url=""
-  local sum=""
-  local host="https://archive.org/download"
-
-  case "${id,,}" in
-    "core11" )
-      sum="78f0f44444ff95b97125b43e560a72e0d6ce0a665cf9f5573bf268191e5510c1"
-      url="$host/tiny-11-core-x-64-beta-1/tiny11%20core%20${PLATFORM,,}%20beta%201.iso"
-      ;;
-    "tiny11" )
-      sum="a028800a91addc35d8ae22dce7459b67330f7d69d2f11c70f53c0fdffa5b4280"
-      url="$host/tiny11-2311/tiny11%202311%20${PLATFORM,,}.iso"
-      ;;
-    "tiny10" )
-      sum="a11116c0645d892d6a5a7c585ecc1fa13aa66f8c7cc6b03bf1f27bd16860cc35"
-      url="$host/tiny-10-23-h2/tiny10%20${PLATFORM,,}%2023h2.iso"
-      ;;
-  esac
-
-  [ -z "$ret" ] && echo "$url" || echo "$sum"
-  return 0
-}
-
-getLink5() {
-
-  local id="$1"
-  local ret="$2"
-  local url=""
-  local sum=""
-  local host="https://download-market.ru/"
-
-  case "${id,,}" in
-    "win10${PLATFORM,,}-education" )
-      sum="x"
-      url="$host/Windows%2010%20Education/English/${PLATFORM,,}/en_windows_10_education_version_1607_updated_jul_2016_${PLATFORM,,}_dvd_9055880.iso"
-      ;;
-    "win81${PLATFORM,,}" )
-      sum="d8333cf427eb3318ff6ab755eb1dd9d433f0e2ae43745312c1cd23e83ca1ce51"
-      url="$host/Windows%208.1/English/${PLATFORM,,}/en_windows_8.1_with_update_${PLATFORM,,}_dvd_6051480.iso"
-      ;;
-    "win81${PLATFORM,,}-enterprise" | "win81${PLATFORM,,}-enterprise-eval" )
-      sum="x"
-      url="$host/Windows%208.1%20Enterprise/English/${PLATFORM,,}/en_windows_8.1_enterprise_with_update_${PLATFORM,,}_dvd_6054382.iso"
-      ;;
-    "win2022" | "win2022-eval" )
-      sum="x"
-      url="$host/Windows%20Server%202022/English/en-us_windows_server_2022_${PLATFORM,,}_dvd_620d7eac.iso"
-      ;;
-    "win2019" | "win2019-eval" )
-      sum="0067afe7fdc4e61f677bd8c35a209082aa917df9c117527fc4b2b52a447e89bb"
-      url="$host/Windows%20Server%202019/English/en_windows_server_2019_updated_aug_2019_${PLATFORM,,}_dvd_cdf24600.iso"
-      ;;
-    "win2016" | "win2016-eval" )
-      sum="x"
-      url="$host/Windows%20Server%202016/English/en_windows_server_2016_${PLATFORM,,}_dvd_9327751.iso"
-      ;;
-    "win2012r2" | "win2012r2-eval" )
-      sum="f351e89eb88a96af4626ceb3450248b8573e3ed5924a4e19ea891e6003b62e4e"
-      url="$host/Windows%20Server%202012/English/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708.iso"
-      ;;
-    "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise" )
-      sum="ee69f3e9b86ff973f632db8e01700c5724ef78420b175d25bae6ead90f6805a7"
-      url="$host/Windows%207%20Enterprise/English/${PLATFORM,,}/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
-      ;;
-    "win7${PLATFORM,,}-ultimate" )
-      sum="0b738b55a5ea388ad016535a5c8234daf2e5715a0638488ddd8a228a836055a1"
-      url="$host/Windows%207%20Ultimate/English/${PLATFORM,,}/en_windows_7_ultimate_with_sp1_${PLATFORM,,}_dvd_u_677332.iso"
-      ;;
-    "win7${PLATFORM,,}-home" | "win7${PLATFORM,,}-home-premium" )
-      sum="x"
-      url="$host/Windows%207%20Home%20Premium/English/${PLATFORM,,}/en_windows_7_home_premium_with_sp1_${PLATFORM,,}_dvd_u_676549.iso"
-      ;;
-    "win7${PLATFORM,,}-home-basic" )
-      sum="x"
-      url="$host/Windows%207%20Home%20Basic/English/en_windows_7_home_basic_with_sp1_x86_dvd_u_676470.iso"
-      ;;
-    "win7${PLATFORM,,}-pro" | "win7${PLATFORM,,}-professional" )
-      sum="x"
-      url="$host/Windows%207%20Professional/English/${PLATFORM,,}/en_windows_7_professional_with_sp1_${PLATFORM,,}_dvd_u_676939.iso"
-      ;;
-    "win7${PLATFORM,,}-starter" )
-      sum="x"
-      url="$host/Windows%207%20Starter/English/en_windows_7_starter_with_sp1_x86_dvd_u_678562.iso"
-      ;;
-    "winxpx86" )
-      sum="62b6c91563bad6cd12a352aa018627c314cfc5162d8e9f8af0756a642e602a46"
-      url="$host/Windows%20Xp%20Professional/English/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
-      ;;
-  esac
-
-  [ -z "$ret" ] && echo "$url" || echo "$sum"
-  return 0
-}
-
-getLink6() {
-
   # Fallbacks for users who cannot connect to the Microsoft servers
 
   local id="$1"
@@ -736,6 +638,37 @@ getLink6() {
     "winvista${PLATFORM,,}-ultimate" )
       sum="edf9f947c5791469fd7d2d40a5dcce663efa754f91847aa1d28ed7f585675b78"
       url="$host/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
+      ;;
+  esac
+
+  [ -z "$ret" ] && echo "$url" || echo "$sum"
+  return 0
+}
+
+getLink5() {
+
+  local id="$1"
+  local ret="$2"
+  local url=""
+  local sum=""
+  local host="https://archive.org/download"
+
+  case "${id,,}" in
+    "core11" )
+      sum="78f0f44444ff95b97125b43e560a72e0d6ce0a665cf9f5573bf268191e5510c1"
+      url="$host/tiny-11-core-x-64-beta-1/tiny11%20core%20${PLATFORM,,}%20beta%201.iso"
+      ;;
+    "tiny11" )
+      sum="a028800a91addc35d8ae22dce7459b67330f7d69d2f11c70f53c0fdffa5b4280"
+      url="$host/tiny11-2311/tiny11%202311%20${PLATFORM,,}.iso"
+      ;;
+    "tiny10" )
+      sum="a11116c0645d892d6a5a7c585ecc1fa13aa66f8c7cc6b03bf1f27bd16860cc35"
+      url="$host/tiny-10-23-h2/tiny10%20${PLATFORM,,}%2023h2.iso"
+      ;;
+    "winxpx86" )
+      sum="62b6c91563bad6cd12a352aa018627c314cfc5162d8e9f8af0756a642e602a46"
+      url="$host/XPPRO_SP3_ENU/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
       ;;
   esac
 
