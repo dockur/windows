@@ -140,6 +140,7 @@ finishInstall() {
   fi
 
   rm -rf "$TMP"
+  BOOT_INDEX=1
   return 0
 }
 
