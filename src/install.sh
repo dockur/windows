@@ -115,12 +115,12 @@ finishInstall() {
     fi
   fi
 
-  rm -f "$STORAGE/windows.ver"
   rm -f "$STORAGE/windows.old"
   rm -f "$STORAGE/windows.boot"
   rm -f "$STORAGE/windows.mode"
 
   cp /run/version "$STORAGE/windows.ver"
+  echo "$BASE" > "$STORAGE/windows.base"
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
     if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
