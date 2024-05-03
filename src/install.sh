@@ -747,9 +747,11 @@ updateImage() {
 copyOEM() {
 
   local dir="$1"
-  local folder="$STORAGE/oem"
+  local folder="/oem"
   local src
 
+  [ ! -d "$folder" ] && folder="/OEM"
+  [ ! -d "$folder" ] && folder="$STORAGE/OEM"
   [ ! -d "$folder" ] && folder="$STORAGE/OEM"
   [ ! -d "$folder" ] && folder="$STORAGE/shared/oem"
   [ ! -d "$folder" ] && folder="$STORAGE/shared/OEM"
