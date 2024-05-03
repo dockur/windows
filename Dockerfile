@@ -1,5 +1,5 @@
 FROM scratch
-COPY --from=qemux/qemu-docker:4.28 / /
+COPY --from=qemux/qemu-docker:5.00 / /
 
 ARG DEBCONF_NOWARNINGS "yes"
 ARG DEBIAN_FRONTEND "noninteractive"
