@@ -157,10 +157,10 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
   ```yaml
   volumes:
-    -  /home/user/custom.xml:/storage/custom.xml
+    -  /home/user/example.xml:/storage/custom.xml
   ```
 
-  Replace the example path `/home/user/custom.xml` with the filename of the modified XML file.
+  Replace the example path `/home/user/example.xml` with the filename of the modified XML file.
 
 * ### How do I run a script after installation?
 
@@ -292,8 +292,8 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
   ```yaml
   devices:
-    - /dev/sda:/dev/disk1
-    - /dev/sdb:/dev/disk2
+    - /dev/sdb:/dev/disk1
+    - /dev/sdc:/dev/disk2
   ```
 
   Use `/dev/disk1` if you want it to become your main drive, and use `/dev/disk2` and higher to add them as secondary drives.
