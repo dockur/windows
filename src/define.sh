@@ -221,7 +221,7 @@ printEdition() {
   return 0
 }
 
-getName() {
+fromFile() {
 
   local id=""
   local desc="$1"
@@ -283,7 +283,7 @@ getName() {
   return 0
 }
 
-getVersion() {
+fromName() {
 
   local id=""
   local name="$1"
@@ -301,6 +301,17 @@ getVersion() {
     *"windows 11"* ) id="win11${PLATFORM,,}" ;;
     *"windows vista"* ) id="winvista${PLATFORM,,}" ;;
   esac
+
+  echo "$id"
+  return 0
+}
+
+getVersion() {
+
+  local id
+  local name="$1"
+
+  id=$(fromName "$name")
 
   case "${id,,}" in
     "win7"* | "winvista"* )
