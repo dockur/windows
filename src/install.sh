@@ -362,7 +362,7 @@ downloadImage() {
   local url sum desc
 
   if [[ "${version,,}" == "http"* ]]; then
-    desc=$(getName "$BASE")
+    desc=$(fromFile "$BASE")
     downloadFile "$iso" "$version" "" "$desc" && return 0
     return 1
   fi
