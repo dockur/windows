@@ -556,6 +556,9 @@ setXML() {
   local file="$STORAGE/custom.xml"
   [ -f "$file" ] && [ -s "$file" ] && XML="$file" && return 0
 
+  file="/run/assets/custom.xml"
+  [ -f "$file" ] && [ -s "$file" ] && XML="$file" && return 0
+
   file="$1"
   [ -z "$file" ] && file="/run/assets/$DETECTED.xml"
   [ -f "$file" ] && [ -s "$file" ] && XML="$file" && return 0
@@ -577,26 +580,26 @@ selectVersion() {
   [ -z "$id" ] && info "Unknown ${tag,,}: '$name'" && return 0
 
   prefer="$id-enterprise"
-  find=$(printEdition "$prefer" "")
+  [ -f "/run/assets/$prefer.xml" ] && find=$(printEdition "$prefer" "") || find=""
   if [ -n "$find" ] && [[ "${xml,,}" == *"<${tag,,}>${find,,}</${tag,,}>"* ]]; then
     echo "$prefer" && return 0
   fi
 
   prefer="$id-ultimate"
-  find=$(printEdition "$prefer" "")
+  [ -f "/run/assets/$prefer.xml" ] && find=$(printEdition "$prefer" "") || find=""
   if [ -n "$find" ] && [[ "${xml,,}" == *"<${tag,,}>${find,,}</${tag,,}>"* ]]; then
     echo "$prefer" && return 0
   fi
 
   prefer="$id"
-  find=$(printEdition "$prefer" "")
+  [ -f "/run/assets/$prefer.xml" ] && find=$(printEdition "$prefer" "") || find=""
   if [ -n "$find" ] && [[ "${xml,,}" == *"<${tag,,}>${find,,}</${tag,,}>"* ]]; then
     echo "$prefer" && return 0
   fi
 
   prefer=$(getVersion "$name")
-  echo "$prefer"
 
+  echo "$prefer"
   return 0
 }
 
