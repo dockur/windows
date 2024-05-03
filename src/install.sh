@@ -172,7 +172,8 @@ detectCustom() {
   if [[ "${VERSION,,}" != "http"* ]]; then
     file="${VERSION/\/storage\//}"
     [[ "$file" == "."* ]] && file="${file:1}"
-    CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname "$file" -printf "%f\n" | head -n 1)
+    [[ "$file" == *"/"* ]] && file=""
+    [ -n "$file" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname "$file" -printf "%f\n" | head -n 1)
   fi
 
   [ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso -printf "%f\n" | head -n 1)
