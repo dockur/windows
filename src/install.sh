@@ -578,19 +578,19 @@ selectVersion() {
 
   prefer="$id-enterprise"
   find=$(printEdition "$prefer" "")
-  if [ -n "$find" ] && [[ "${xml,,}" == *"<${TAG,,}>${find,,}</${TAG,,}>"* ]]; then
+  if [ -n "$find" ] && [[ "${xml,,}" == *"<${tag,,}>${find,,}</${tag,,}>"* ]]; then
     echo "$prefer" && return 0
   fi
 
   prefer="$id-ultimate"
   find=$(printEdition "$prefer" "")
-  if [ -n "$find" ] && [[ "${xml,,}" == *"<${TAG,,}>${find,,}</${TAG,,}>"* ]]; then
+  if [ -n "$find" ] && [[ "${xml,,}" == *"<${tag,,}>${find,,}</${tag,,}>"* ]]; then
     echo "$prefer" && return 0
   fi
 
   prefer="$id"
   find=$(printEdition "$prefer" "")
-  if [ -n "$find" ] && [[ "${xml,,}" == *"<${TAG,,}>${find,,}</${TAG,,}>"* ]]; then
+  if [ -n "$find" ] && [[ "${xml,,}" == *"<${tag,,}>${find,,}</${tag,,}>"* ]]; then
     echo "$prefer" && return 0
   fi
 
