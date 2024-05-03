@@ -77,6 +77,10 @@ parseVersion() {
       VERSION="tiny10"
       DETECTED="win10${PLATFORM,,}-ltsc"
       ;;
+    "iot11" | "11iot" | "win11-iot" | "win11${PLATFORM,,}-iot" | "win11${PLATFORM,,}-enterprise-iot-eval" )
+      DETECTED="win11${PLATFORM,,}-iot"
+      VERSION="win11${PLATFORM,,}-enterprise-iot-eval"
+      ;;
     "iot10" | "10iot" | "win10-iot" | "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval" )
       DETECTED="win10${PLATFORM,,}-iot"
       VERSION="win10${PLATFORM,,}-enterprise-iot-eval"
@@ -171,6 +175,9 @@ printEdition() {
       ;;
     "win10"* )
       edition="Pro"
+      ;;
+    "win11${PLATFORM,,}-iot"* )
+      edition="IoT"
       ;;
     "win11${PLATFORM,,}-home"* )
       edition="Home"
@@ -322,6 +329,7 @@ getVersion() {
       ;;
     "win11"* )
        case "${name,,}" in
+          *" iot"* ) id="$id-iot" ;;
           *" home"* ) id="$id-home" ;;
           *" education"* ) id="$id-education" ;;
           *" enterprise evaluation"* ) id="$id-enterprise-eval" ;;
@@ -662,43 +670,43 @@ getLink6() {
 
   case "${id,,}" in
     "win11${PLATFORM,,}" )
-      sum="x"
+      sum="a6c21313210182e0315054789a2b658b77394d5544b69b5341075492f89f51e5"
       url="$host/en-us_windows_11_consumer_editions_version_23h2_updated_april_2024_${PLATFORM,,}_dvd_d986680b.iso"
       ;;
     "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval" )
-      sum="x"
+      sum="3d4d388d6ffa371956304fa7401347b4535fd10e3137978a8f7750b790a43521"
       url="$host/en-us_windows_11_business_editions_version_23h2_updated_april_2024_${PLATFORM,,}_dvd_349cd577.iso"
       ;;
     "win11${PLATFORM,,}-iot" | "win11${PLATFORM,,}-enterprise-iot-eval" )
-      sum="x"
+      sum="5d9b86ad467bc89f488d1651a6c5ad3656a7ea923f9f914510657a24c501bb86"
       url="$host/en-us_windows_11_iot_enterprise_version_23h2_${PLATFORM,,}_dvd_fb37549c.iso"
       ;;
     "win10${PLATFORM,,}" )
-      sum="x"
+      sum="b072627c9b8d9f62af280faf2a8b634376f91dc73ea1881c81943c151983aa4a"
       url="$host/en-us_windows_10_consumer_editions_version_22h2_updated_april_2024_${PLATFORM,,}_dvd_9a92dc89.iso"
       ;;
     "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" )
-      sum="x"
+      sum="05fe9de04c2626bd00fbe69ad19129b2dbb75a93a2fe030ebfb2256d937ceab8"
       url="$host/en-us_windows_10_business_editions_version_22h2_updated_april_2024_${PLATFORM,,}_dvd_c00090a7.iso"
       ;;
     "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval" )
-      sum="x"
+      sum="a0334f31ea7a3e6932b9ad7206608248f0bd40698bfb8fc65f14fc5e4976c160"
       url="$host/en-us_windows_10_iot_enterprise_ltsc_2021_${PLATFORM,,}_dvd_257ad90f.iso"
       ;;
     "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-      sum="x"
+      sum="c90a6df8997bf49e56b9673982f3e80745058723a707aef8f22998ae6479597d"
       url="$host/en-us_windows_10_enterprise_ltsc_2021_${PLATFORM,,}_dvd_d289cf96.iso"
       ;;
     "win81${PLATFORM,,}-enterprise" | "win81${PLATFORM,,}-enterprise-eval" )
-      sum="x"
+      sum="c3c604c03677504e8905090a8ce5bb1dde76b6fd58e10f32e3a25bef21b2abe1"
       url="$host/en_windows_8.1_enterprise_with_update_${PLATFORM,,}_dvd_6054382.iso"
       ;;
     "win2022" | "win2022-eval" )
-      sum="x"
+      sum="7f41d603224e8a0bf34ba957d3abf0a02437ab75000dd758b5ce3f050963e91f"
       url="$host/en-us_windows_server_2022_updated_april_2024_${PLATFORM,,}_dvd_164349f3.iso"
       ;;
     "win2019" | "win2019-eval" )
-      sum="x"
+      sum="4c5dd63efee50117986a2e38d4b3a3fbaf3c1c15e2e7ea1d23ef9d8af148dd2d"
       url="$host/en_windows_server_2019_${PLATFORM,,}_dvd_4cb967d8.iso"
       ;;
     "win2016" | "win2016-eval" )
