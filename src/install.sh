@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-LABEL=""
-ESD_URL=""
 TMP="$STORAGE/tmp"
 DIR="$TMP/unpack"
 FB="falling back to manual installation!"
@@ -37,7 +35,6 @@ startInstall() {
 
   if [ -f "$STORAGE/$CUSTOM" ]; then
 
-    EXTERNAL="Y"
     BASE="$CUSTOM"
 
   else
@@ -46,12 +43,10 @@ startInstall() {
 
     if [[ "${VERSION,,}" != "http"* ]]; then
 
-      EXTERNAL="N"
       BASE="$VERSION.iso"
 
     else
 
-      EXTERNAL="Y"
       BASE=$(basename "${VERSION%%\?*}")
       : "${BASE//+/ }"; printf -v BASE '%b' "${_//%/\\x}"
       BASE=$(echo "$BASE" | sed -e 's/[^A-Za-z0-9._-]/_/g')
@@ -87,7 +82,6 @@ startInstall() {
 
     fi
 
-    EXTERNAL="Y"
     CUSTOM="$BASE"
 
   fi
@@ -246,9 +240,9 @@ getESD() {
     error "Failed to find Windows product in $eFile!" && return 1
   fi
 
-  ESD_URL=$(xmllint --nonet --xpath '//FilePath' "$dir/$eFile" | sed -E -e 's/<[\/]?FilePath>//g')
+  ESD=$(xmllint --nonet --xpath '//FilePath' "$dir/$eFile" | sed -E -e 's/<[\/]?FilePath>//g')
 
-  if [ -z "$ESD_URL" ]; then
+  if [ -z "$ESD" ]; then
     error "Failed to find ESD URL in $eFile!" && return 1
   fi
 
@@ -397,7 +391,7 @@ downloadImage() {
 
     if getESD "$TMP/esd" "$version"; then
       ISO="$TMP/$version.esd"
-      downloadFile "$ISO" "$ESD_URL" "" "$desc" && return 0
+      downloadFile "$ISO" "$ESD" "" "$desc" && return 0
       ISO="$TMP/$BASE"
     fi
 
@@ -510,11 +504,14 @@ extractImage() {
   local iso="$1"
   local dir="$2"
   local version="$3"
-  local desc="downloaded ISO"
+  local desc="local ISO"
   local size size_gb space space_gb
 
-  if [[ "$EXTERNAL" != [Yy1]* ]] && [ -z "$CUSTOM" ]; then
-    desc=$(printVersion "$version" "downloaded ISO")
+  if [ -z "$CUSTOM" ]; then
+    desc="downloaded ISO"
+    if [[ "$version" != "http"* ]]; then
+      desc=$(printVersion "$version" "$desc")
+    fi
   fi
 
   if [[ "${iso,,}" == *".esd" ]]; then
@@ -523,7 +520,6 @@ extractImage() {
   fi
 
   local msg="Extracting $desc image..."
-  [ -n "$CUSTOM" ] && msg="Extracting local ISO image..."
   info "$msg" && html "$msg"
 
   rm -rf "$dir"
@@ -601,6 +597,7 @@ detectVersion() {
 detectImage() {
 
   local dir="$1"
+  local version="$2"
   local desc msg
 
   XML=""
@@ -608,8 +605,8 @@ detectImage() {
   if [ -n "$CUSTOM" ]; then
     DETECTED=""
   else
-    if [ -z "$DETECTED" ] && [[ "$EXTERNAL" != [Yy1]* ]]; then
-      DETECTED="$VERSION"
+    if [ -z "$DETECTED" ] && [[ "${version,,}" != "http"* ]]; then
+      DETECTED="$version"
     fi
   fi
 
@@ -920,7 +917,7 @@ if ! extractImage "$ISO" "$DIR" "$VERSION"; then
   exit 62
 fi
 
-if ! detectImage "$DIR"; then
+if ! detectImage "$DIR" "$VERSION"; then
   abortInstall "$ISO" && return 0
   exit 60
 fi
