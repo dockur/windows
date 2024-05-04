@@ -293,14 +293,16 @@ verifyFile() {
   local iso="$1"
   local check="$2"
   local hash=""
+  local algo="SHA256"
 
   [ -z "$check" ] && return 0
+  [[ "${#check}" == "40" ]] && algo="SHA1"
 
   html "Verifying downloaded ISO..."
-  info "Calculating SHA256 checksum of the ISO file..."
+  info "Calculating $algo checksum of the ISO file..."
 
-  if [[ "${#check}" == "40" ]]; then
-    hash=$(shasum "$iso" | cut -f1 -d' ')
+  if [[ "${algo,,}" != "sha256" ]]; then
+    hash=$(sha1sum "$iso" | cut -f1 -d' ')
   else
     hash=$(sha256sum "$iso" | cut -f1 -d' ')
   fi
@@ -309,7 +311,7 @@ verifyFile() {
     info "Succesfully verified that the checksum was correct!" && return 0
   fi
 
-  error "Invalid sha256 checksum: $hash , but expected value is: $check ! Please report this at $SUPPORT/issues"
+  error "Invalid $algo checksum: $hash , but expected value is: $check ! Please report this at $SUPPORT/issues"
 
   rm -f "$iso"
   return 1
