@@ -307,8 +307,8 @@ verifyFile() {
   [ -z "$check" ] && return 0
   [[ "${#check}" == "40" ]] && algo="SHA1"
 
-  html "Verifying downloaded ISO..."
-  info "Calculating $algo checksum of the ISO file..."
+  local msg="Verifying downloaded ISO..."
+  info "$msg" && html "$msg"
 
   if [[ "${algo,,}" != "sha256" ]]; then
     hash=$(sha1sum "$iso" | cut -f1 -d' ')
@@ -345,6 +345,7 @@ downloadFile() {
   fi
 
   local msg="Downloading $desc..."
+  html "$msg"
 
   domain=$(echo "$url" | awk -F/ '{print $3}')
   dots=$(echo "$domain" | tr -cd '.' | wc -c)
@@ -354,7 +355,7 @@ downloadFile() {
     msg="Downloading $desc from $domain..."
   fi
 
-  info "$msg" && html "$msg"
+  info "$msg"
   /run/progress.sh "$iso" "$size" "Downloading $desc ([P])..." &
 
   { wget "$url" -O "$iso" -q --timeout=10 --show-progress "$progress"; rc=$?; } || :
