@@ -160,30 +160,36 @@ abortInstall() {
 
 detectCustom() {
 
+  local file=""
+  local size base
+
   CUSTOM=""
-  local file size
 
   if [[ "${VERSION,,}" != "http"* ]]; then
-    file="${VERSION/\/storage\//}"
-    [[ "$file" == "."* ]] && file="${file:1}"
-    [[ "$file" == *"/"* ]] && file=""
-    [ -n "$file" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname "$file" -printf "%f\n" | head -n 1)
+    base="${VERSION/\/storage\//}"
+    [[ "$base" == "."* ]] && base="${file:1}"
+    [[ "$base" == *"/"* ]] && base=""
+    [ -n "$base" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$base" -printf "%f\n" | head -n 1)
   fi
 
-  [ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso -printf "%f\n" | head -n 1)
-  [ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.img -printf "%f\n" | head -n 1)
-  [ -z "$CUSTOM" ] && return 0
+  [ -z "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso -printf "%f\n" | head -n 1)
+  [ -z "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.img -printf "%f\n" | head -n 1)
+  [ -n "$file" ] && file="$STORAGE/$file"
 
-  size="$(stat -c%s "$STORAGE/$CUSTOM")"
+  base="/custom.iso"
+  [ -f "$base" ] && [ -s "$base" ] && file="$base"
 
-  if [ -z "$size" ] || [[ "$size" == "0" ]]; then
-    CUSTOM=""
-    return 0
-  fi
+  [ -z "$file" ] && return 0
+  [ ! -f "$file" ] && return 0
+  [ ! -s "$file" ] && return 0
+    
+  size="$(stat -c%s "$file")"
+  [ -z "$size" ] || [[ "$size" == "0" ]] && return 0
 
-  file="windows.$size.iso"
-  [ -s "$STORAGE/$file" ] && CUSTOM="$file"
+  base="$STORAGE/windows.$size.iso"
+  [ -f "$base" ] && [ -s "$base" ] && file="$base"
 
+  CUSTOM="$file"
   return 0
 }
 
@@ -574,7 +580,10 @@ setXML() {
 
   [[ "$MANUAL" == [Yy1]* ]] && return 0
 
-  local file="$STORAGE/custom.xml"
+  local file="/custom.xml"
+  [ -f "$file" ] && [ -s "$file" ] && XML="$file" && return 0
+
+  file="$STORAGE/custom.xml"
   [ -f "$file" ] && [ -s "$file" ] && XML="$file" && return 0
 
   file="/run/assets/custom.xml"
@@ -801,10 +810,8 @@ copyOEM() {
   local src
 
   [ ! -d "$folder" ] && folder="/OEM"
+  [ ! -d "$folder" ] && folder="$STORAGE/oem"
   [ ! -d "$folder" ] && folder="$STORAGE/OEM"
-  [ ! -d "$folder" ] && folder="$STORAGE/OEM"
-  [ ! -d "$folder" ] && folder="$STORAGE/shared/oem"
-  [ ! -d "$folder" ] && folder="$STORAGE/shared/OEM"
   [ ! -d "$folder" ] && return 0
 
   local msg="Copying OEM folder to image..."
