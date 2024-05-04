@@ -210,7 +210,7 @@ getESD() {
   local eFile="esd_edition.xml"
   local fFile="products_filter.xml"
 
-  { wget "$winCatalog" -O "$dir/$wFile" -q; rc=$?; } || :
+  { wget "$winCatalog" -O "$dir/$wFile" -q --timeout=10; rc=$?; } || :
   (( rc != 0 )) && error "Failed to download $winCatalog , reason: $rc" && return 1
 
   cd "$dir"
@@ -348,7 +348,7 @@ downloadFile() {
   info "$msg" && html "$msg"
   /run/progress.sh "$iso" "$size" "Downloading $desc ([P])..." &
 
-  { wget "$url" -O "$iso" -q --show-progress "$progress"; rc=$?; } || :
+  { wget "$url" -O "$iso" -q --timeout=10 --show-progress "$progress"; rc=$?; } || :
 
   fKill "progress.sh"
 
