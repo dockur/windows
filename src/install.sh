@@ -675,7 +675,7 @@ detectImage() {
 
   info=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
   DETECTED=$(detectVersion "$info")
-  
+
   if [ -z "$DETECTED" ]; then
     msg="Failed to determine Windows version from image"
     setXML "" && info "${msg}!" || warn "${msg}, $FB"
