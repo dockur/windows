@@ -373,13 +373,12 @@ downloadImage() {
 
   desc=$(printVersion "$version" "")
 
-  if [[ "${PLATFORM,,}" == "x64" ]]; then
-    if isMido "$version"; then
-      tried="y"
-      doMido "$iso" "$version" "$desc" && return 0
-    fi
-    switchEdition "$version"
+  if isMido "$version"; then
+    tried="y"
+    doMido "$iso" "$version" "$desc" && return 0
   fi
+
+  switchEdition "$version"
 
   if isESD "$version"; then
 
