@@ -9,6 +9,8 @@ EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 
 hasDisk() {
 
+  [ -b "/disk1" ] && return 0
+  [ -b "/dev/disk1" ] && return 0
   [ -b "${DEVICE:-}" ] && return 0
 
   if [ -s "$STORAGE/data.img" ] || [ -s "$STORAGE/data.qcow2" ]; then
@@ -33,69 +35,81 @@ startInstall() {
 
   [ -z "$MANUAL" ] && MANUAL="N"
 
-  if [ -f "$STORAGE/$CUSTOM" ]; then
+  if [ -n "$CUSTOM" ]; then
 
-    BASE="$CUSTOM"
+    ISO="$CUSTOM"
 
   else
 
-    CUSTOM=""
+    local file="${VERSION/\//}.iso"
 
-    if [[ "${VERSION,,}" != "http"* ]]; then
+    if [[ "${VERSION,,}" == "http"* ]]; then
 
-      BASE="$VERSION.iso"
-
-    else
-
-      BASE=$(basename "${VERSION%%\?*}")
-      : "${BASE//+/ }"; printf -v BASE '%b' "${_//%/\\x}"
-      BASE=$(echo "$BASE" | sed -e 's/[^A-Za-z0-9._-]/_/g')
+      file=$(basename "${VERSION%%\?*}")
+      : "${file//+/ }"; printf -v file '%b' "${_//%/\\x}"
+      file=$(echo "$file" | sed -e 's/[^A-Za-z0-9._-]/_/g')
 
     fi
+
+    [[ "${file,,}" == "windows."* ]] && file="win.iso"
+  
+    ISO="$STORAGE/$file.iso"
+
   fi
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
-    ! migrateFiles "$BASE" "$VERSION" && error "Migration failed!" && exit 57
+    ! migrateFiles "$ISO" "$VERSION" && error "Migration failed!" && exit 57
   fi
 
   if skipInstall; then
-    if [ ! -f "$STORAGE/$BASE" ]; then
-      BASE="custom.iso"
-      [ ! -f "$STORAGE/$BASE" ] && BASE=""
+    if [ ! -f "$ISO" ] || [ ! -s "$ISO" ]; then
+      ISO="/custom.iso"
+      [ ! -f "$ISO" ] && ISO="${STORAGE}$ISO"
     fi
     [[ "${PLATFORM,,}" == "arm64" ]] && VGA="virtio-gpu"
     return 1
   fi
 
-  if [ -f "$STORAGE/$BASE" ]; then
+  if [ -f "$ISO" ] && [ -s "$ISO" ]; then
 
     # Check if the ISO was already processed by our script
     local magic=""
-    magic=$(dd if="$STORAGE/$BASE" seek=0 bs=1 count=1 status=none | tr -d '\000')
+    magic=$(dd if="$ISO" seek=0 bs=1 count=1 status=none | tr -d '\000')
     magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
 
     if [[ "$magic" == "16" ]]; then
 
-      if hasDisk || [[ "$MANUAL" == [Yy1]* ]]; then
-        return 1
-      fi
+      hasDisk && return 1
+      [[ "$MANUAL" == [Yy1]* ]] && [ -z "$CUSTOM" ] && return 1
 
     fi
 
-    CUSTOM="$BASE"
+    if [ -n "$CUSTOM" ] && [ -n "$CUSTOM_ORG" ]; then
+      if [[ "$CUSTOM" != "$CUSTOM_ORG" ]]; then
+        rm -f "$CUSTOM"
+        ISO="$CUSTOM_ORG"
+      fi
+    fi
+
+    CUSTOM="$ISO"
 
   fi
 
   rm -rf "$TMP"
   mkdir -p "$TMP"
 
-  if [ ! -f "$STORAGE/$CUSTOM" ]; then
-    CUSTOM=""
-    ISO="$TMP/$BASE"
+  if [ -f "$CUSTOM" ]; then
+    local size
+    size="$(stat -c%s "$ISO")"
+    BOOT="$STORAGE/windows.$size.iso"
   else
-    ISO="$STORAGE/$CUSTOM"
+    CUSTOM=""
+    ISO=$(basename "$ISO")
+    BOOT="$STORAGE/$ISO"
+    ISO="$TMP/$ISO"
   fi
 
+  [[ "$BOOT" == "$ISO" ]] && return 1
   return 0
 }
 
@@ -120,7 +134,6 @@ finishInstall() {
   rm -f "$STORAGE/windows.mode"
 
   cp /run/version "$STORAGE/windows.ver"
-  echo "$BASE" > "$STORAGE/windows.base"
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
     if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
@@ -147,13 +160,13 @@ abortInstall() {
 
   local iso="$1"
 
-  if [[ "$iso" != "$STORAGE/$BASE" ]]; then
-    if ! mv -f "$iso" "$STORAGE/$BASE"; then
+  if [[ "$iso" != "$BOOT" ]]; then
+    if ! mv -f "$iso" "$BOOT"; then
       error "Failed to move ISO file: $iso" && return 1
     fi
   fi
 
-  finishInstall "$STORAGE/$BASE" "Y" && return 0
+  finishInstall "$BOOT" "Y" && return 0
 
   return 1
 }
@@ -164,11 +177,13 @@ detectCustom() {
   local size base
 
   CUSTOM=""
+  CUSTOM_ORG=""
 
   if [[ "${VERSION,,}" != "http"* ]]; then
     base="${VERSION/\/storage\//}"
     [[ "$base" == "."* ]] && base="${file:1}"
     [[ "$base" == *"/"* ]] && base=""
+    [[ "$base" == "windows."* ]] && base=""
     [ -n "$base" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$base" -printf "%f\n" | head -n 1)
   fi
 
@@ -182,9 +197,11 @@ detectCustom() {
   [ -z "$file" ] && return 0
   [ ! -f "$file" ] && return 0
   [ ! -s "$file" ] && return 0
-    
+
   size="$(stat -c%s "$file")"
   [ -z "$size" ] || [[ "$size" == "0" ]] && return 0
+
+  CUSTOM_ORG="$file"
 
   base="$STORAGE/windows.$size.iso"
   [ -f "$base" ] && [ -s "$base" ] && file="$base"
@@ -897,16 +914,17 @@ buildImage() {
   [ -s "$log" ] && error="$(<"$log")"
   [[ "$error" != "$hide" ]] && echo "$error"
 
-  if [ -f "$STORAGE/$BASE" ]; then
-    error "File $STORAGE/$BASE does already exist?!" && return 1
+  if [ -f "$BOOT" ]; then
+    error "File $BOOT does already exist?!" && return 1
   fi
 
-  mv "$out" "$STORAGE/$BASE"
+  mv "$out" "$BOOT"
   return 0
 }
 
 bootWindows() {
 
+  BOOT="$ISO"
   rm -rf "$TMP"
 
   if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then
@@ -991,13 +1009,6 @@ if ! updateImage "$ISO" "$DIR" "$XML"; then
   exit 60
 fi
 
-if ! rm -f "$ISO" 2> /dev/null; then
-  size="$(stat -c%s "$ISO")"
-  BASE="windows.$size.iso"
-  ISO="$STORAGE/$BASE"
-  rm -f  "$ISO"
-fi
-
 if ! copyOEM "$DIR"; then
   exit 63
 fi
@@ -1006,7 +1017,7 @@ if ! buildImage "$DIR"; then
   exit 65
 fi
 
-if ! finishInstall "$STORAGE/$BASE" "N"; then
+if ! finishInstall "$BOOT" "N"; then
   exit 69
 fi
 
