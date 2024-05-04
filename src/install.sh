@@ -295,16 +295,15 @@ verifyFile() {
   local total="$3" 
   local check="$4"
 
-  if [[ "$total" != "$size" ]]; then
-    if [ -n "$size" ] && [[ "$size" != "0" ]]; then
-      warn "The download file has an unexpected size: $total"
-    fi
+  if [ -n "$size" ] && [[ "$total" != "$size" ]]; then
+    [[ "$size" != "0" ]] && warn "The download file has an unexpected size: $total"
   fi
 
   local hash=""
   local algo="SHA256"
 
   [ -z "$check" ] && return 0
+  [[ "$VERIFY" != [Yy1]* ]] && return 0
   [[ "${#check}" == "40" ]] && algo="SHA1"
 
   local msg="Verifying downloaded ISO..."
@@ -365,9 +364,7 @@ downloadFile() {
   if (( rc == 0 )) && [ -f "$iso" ]; then
     total=$(stat -c%s "$iso")
     if [ "$total" -gt 100000000 ]; then
-      if [[ "$VERIFY" == [Yy1]* ]] && [ -n "$sum" ]; then
-        ! verifyFile "$iso" "$size" "$total" "$sum" && return 1
-      fi
+      ! verifyFile "$iso" "$size" "$total" "$sum" && return 1
       html "Download finished successfully..." && return 0
     fi
   fi
