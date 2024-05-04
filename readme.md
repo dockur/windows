@@ -292,11 +292,11 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
   ```yaml
   devices:
-    - /dev/sdb:/dev/disk1
-    - /dev/sdc:/dev/disk2
+    - /dev/sdb:/disk1
+    - /dev/sdc:/disk2
   ```
 
-  Use `/dev/disk1` if you want it to become your main drive, and use `/dev/disk2` and higher to add them as secondary drives.
+  Use `/disk1` if you want it to become your main drive, and use `/disk2` and higher to add them as secondary drives.
 
 * ### How do I pass-through a USB device?
 
