@@ -82,6 +82,7 @@ if [[ "$isXP" == [Yy1]* ]]; then
 else
   # Enable Web Service Discovery
   wsdd -i "$interface" -p -n "$hostname" &
+  echo "$!" > /var/run/wsdd.pid
 fi
 
 return 0

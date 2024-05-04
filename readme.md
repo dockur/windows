@@ -88,7 +88,7 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
   | `win81`   | Windows 8.1 Pro | 4.2 GB    |
   | `win81e`   | Windows 8.1 Enterprise | 3.8 GB    |
   | `win7`    | Windows 7 Enterprise | 3.0 GB    |
-  | `vista`   | Windows Vista Ultimate | 3.6 GB    |
+  | `vista`   | Windows Vista Enterprise | 3.0 GB    |
   | `winxp`   | Windows XP Professional | 0.6 GB    |
   ||||
   | `2022`    | Windows Server 2022   | 4.7 GB    |
@@ -103,37 +103,6 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
   To install ARM64 versions of Windows use [dockur/windows-arm](https://github.com/dockur/windows-arm/).
 
-* ### How do I connect using RDP?
-
-  The web-viewer is mainly meant to be used during installation, as its picture quality is low, and it has no audio or clipboard for example.
-
-  So for a better experience you can connect using any Microsoft Remote Desktop client to the IP of the container, using the username `docker` and by leaving the password empty.
-
-  There is a good RDP client for [Android](https://play.google.com/store/apps/details?id=com.microsoft.rdc.androidx) available from the Play Store and one for [iOS](https://apps.apple.com/nl/app/microsoft-remote-desktop/id714464092?l=en-GB) in the Apple Store. For Linux you can use [FreeRDP](https://www.freerdp.com/) and on Windows just type `mstsc` in the search box.
-
-* ### How do I increase the amount of CPU or RAM?
-
-  By default, 2 CPU cores and 4 GB of RAM are allocated to the container, as those are the minimum requirements of Windows 11.
-
-  To increase this, add the following environment variables:
-
-  ```yaml
-  environment:
-    RAM_SIZE: "8G"
-    CPU_CORES: "4"
-  ```
-
-* ### How do I change the size of the disk?
-
-  To expand the default size of 64 GB, add the `DISK_SIZE` setting to your compose file and set it to your preferred capacity:
-
-  ```yaml
-  environment:
-    DISK_SIZE: "256G"
-  ```
-  
-  This can also be used to resize the existing disk to a larger capacity without any data loss.
-  
 * ### How do I change the storage location?
 
   To change the storage location, include the following bind mount in your compose file:
@@ -145,40 +114,53 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
   Replace the example path `/var/win` with the desired storage folder.
 
+* ### How do I change the size of the disk?
+
+  To expand the default size of 64 GB, add the `DISK_SIZE` setting to your compose file and set it to your preferred capacity:
+
+  ```yaml
+  environment:
+    DISK_SIZE: "256G"
+  ```
+  
+  This can also be used to resize the existing disk to a larger capacity without any data loss.
+
 * ### How do I share files with the host?
 
-  Open File Explorer and click on the Network section, you will see a computer called `host.lan`, double-click it and it will show a folder called `Data`.
+  Open 'File Explorer' and click on the 'Network' section, you will see a computer called `host.lan`, double-click it and it will show a folder called `Data`.
 
-  Inside this folder you can access any files that are placed in `/storage/shared` (see above) on the host.
+  Inside this folder you can access any files that are placed in `/storage/shared` (see above) on the host. You can optionally map it to a drive letter, for easy access.
 
 * ### How do I install a custom image?
 
-  In order to download a custom ISO image, start a fresh container with the URL of the ISO specified in the `VERSION` environment variable:
+  In order to download any ISO image that is not part of the list above, start a fresh container with the URL of that ISO specified in the `VERSION` environment variable, for example:
   
   ```yaml
   environment:
     VERSION: "https://example.com/win.iso"
   ```
 
-  Alternatively, you can also use a local file directly, and skip the download, by binding it in your compose file in this way:
+  Alternatively, you can also use a local file directly, and skip the download altogether, by binding it in your compose file in this way:
   
   ```yaml
   volumes:
     - /home/user/example.iso:/storage/custom.iso
   ```
 
-  Replace the example path `/home/user/example.iso` with the filename of the desired ISO file. The value of `VERSION` will be ignored in this case.
+  Replace the example path `/home/user/example.iso` with the filename of your desired ISO file. The value of `VERSION` will be ignored in this case.
 
 * ### How do I customize the installation?
 
-  You can customize every setting used by the automatic installation. Download the XML file corresponding to your Windows version, for example [win11x64.xml](https://raw.githubusercontent.com/dockur/windows/master/assets/win11x64.xml). Then apply your modifications to it, and add this line to your compose file:
+  If you want to modify the settings used during the automatic installation, you can do this by editing the answer file corresponding to your Windows edition, for example [win11x64.xml](https://raw.githubusercontent.com/dockur/windows/master/assets/win11x64.xml) in the case of Windows 11 Pro.
+
+  Apply your modifications to it, and add this line to your compose file:
 
   ```yaml
   volumes:
-    -  /home/user/custom.xml:/run/assets/win11x64.xml
+    -  /home/user/example.xml:/storage/custom.xml
   ```
 
-  Replace the example path `/home/user/custom.xml` with the filename of the modified XML file.
+  Replace the example path `/home/user/example.xml` with the filename of the modified XML file.
 
 * ### How do I run a script after installation?
 
@@ -189,7 +171,7 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
     -  /home/user/example:/storage/oem
   ```
 
-  The example path `/home/user/example` will be copied to `C:\OEM` during installation and the containing `install.bat` will be executed.
+  The example folder `/home/user/example` will be copied to `C:\OEM` during installation and the containing `install.bat` will be executed during the last step.
 
 * ### How do I perform a manual installation?
 
@@ -219,6 +201,37 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
   - Once you see the desktop, open File Explorer and navigate to the CD-ROM drive (E:). Double-click on `virtio-win-gt-x64.msi` and proceed to install the VirtIO drivers.
 
   Enjoy your brand new machine, and don't forget to star this repo!
+ 
+* ### How do I verify if my system supports KVM?
+
+  To verify if your system supports KVM, run the following commands:
+
+  ```bash
+  sudo apt install cpu-checker
+  sudo kvm-ok
+  ```
+
+  If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check the virtualization settings in the BIOS.
+
+* ### How do I increase the amount of CPU or RAM?
+
+  By default, 2 CPU cores and 4 GB of RAM are allocated to the container, as those are the minimum requirements of Windows 11.
+
+  If there arises a need to increase this, add the following environment variables:
+
+  ```yaml
+  environment:
+    RAM_SIZE: "8G"
+    CPU_CORES: "4"
+  ```
+
+* ### How do I connect using RDP?
+
+  The web-viewer is mainly meant to be used during installation, as its picture quality is low, and it has no audio or clipboard for example.
+
+  So for a better experience you can connect using any Microsoft Remote Desktop client to the IP of the container, using the username `docker` and by leaving the password empty.
+
+  There is a good RDP client for [Android](https://play.google.com/store/apps/details?id=com.microsoft.rdc.androidx) available from the Play Store and one for [iOS](https://apps.apple.com/nl/app/microsoft-remote-desktop/id714464092?l=en-GB) in the Apple Store. For Linux you can use [FreeRDP](https://www.freerdp.com/) and on Windows just type `mstsc` in the search box.
 
 * ### How do I assign an individual IP address to the container?
 
@@ -272,21 +285,18 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
   ```
 
   Please note that in this mode, the container and Windows will each have their own separate IPs. The container will keep the macvlan IP, and Windows will use the DHCP IP.
-  
+
 * ### How do I pass-through a disk?
 
   It is possible to pass-through disk devices directly by adding them to your compose file in this way:
 
   ```yaml
-  environment:
-    DEVICE: "/dev/sda"
-    DEVICE2: "/dev/sdb"
   devices:
-    - /dev/sda
-    - /dev/sdb
+    - /dev/sdb:/dev/disk1
+    - /dev/sdc:/dev/disk2
   ```
 
-  Use `DEVICE` if you want it to become your main drive, and use `DEVICE2` and higher to add them as secondary drives.
+  Use `/dev/disk1` if you want it to become your main drive, and use `/dev/disk2` and higher to add them as secondary drives.
 
 * ### How do I pass-through a USB device?
 
@@ -298,17 +308,6 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
   devices:
     - /dev/bus/usb
   ```
-  
-* ### How do I verify if my system supports KVM?
-
-  To verify if your system supports KVM, run the following commands:
-
-  ```bash
-  sudo apt install cpu-checker
-  sudo kvm-ok
-  ```
-
-  If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check the virtualization settings in the BIOS.
 
 * ### Is this project legal?
 

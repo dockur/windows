@@ -51,7 +51,7 @@
         <OSImage>
           <InstallFrom>
             <MetaData wcm:action="add">
-              <Value>Windows Vista Ultimate</Value>
+              <Value>Windows Vista BUSINESS</Value>
               <Key>/IMAGE/NAME</Key>
             </MetaData>
           </InstallFrom>
@@ -68,7 +68,7 @@
         <FullName>Docker</FullName>
         <Organization>Windows for Docker</Organization>
         <ProductKey>
-          <Key>VMCB9-FDRV6-6CDQM-RV23K-RP8F7</Key>
+          <Key>4D2XH-PRBMM-8Q22B-K8BM3-MRW4W</Key>
         </ProductKey>
       </UserData>
     </component>
@@ -100,7 +100,7 @@
     </component>
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <ComputerName>*</ComputerName>
-      <ProductKey>VMCB9-FDRV6-6CDQM-RV23K-RP8F7</ProductKey>
+      <ProductKey>4D2XH-PRBMM-8Q22B-K8BM3-MRW4W</ProductKey>
       <TimeZone>Pacific Standard Time</TimeZone>
       <OEMInformation>
         <Manufacturer>Dockur</Manufacturer>
