@@ -11,11 +11,13 @@ MIRRORS=5
 
 parseVersion() {
 
-  [ -z "$VERSION" ] && VERSION="win11"
+  VERSION="${VERSION/\//}"
 
   if [[ "${VERSION}" == \"*\" || "${VERSION}" == \'*\' ]]; then
     VERSION="${VERSION:1:-1}"
   fi
+
+  [ -z "$VERSION" ] && VERSION="win11"
 
   case "${VERSION,,}" in
     "11" | "win11" | "windows11" | "windows 11" )
