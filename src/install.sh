@@ -829,7 +829,7 @@ buildImage() {
     error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB." && return 1
   fi
 
-  [ -z "$LABEL" ] && LABEL="${BASE%%.*}"
+  [ -z "$LABEL" ] && LABEL="Windows"
 
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
 
