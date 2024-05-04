@@ -241,16 +241,16 @@ getESD() {
   fi
 
   local tag="FilePath"
-  ESD=$(xmllint --nonet --xpath "'//$tag'" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
+  ESD=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
 
   if [ -z "$ESD" ]; then
     error "Failed to find ESD URL in $eFile!" && return 1
   fi
 
   tag="Sha1"
-  ESD_SUM=$(xmllint --nonet --xpath "'//$tag'" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
+  ESD_SUM=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
   tag="Size"
-  ESD_SIZE=$(xmllint --nonet --xpath "'//$tag'" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
+  ESD_SIZE=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
 
   rm -rf "$dir"
   return 0
