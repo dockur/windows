@@ -577,7 +577,7 @@ selectVersion() {
   [ -z "$name" ] && return 0
 
   id=$(fromName "$name")
-  [ -z "$id" ] && info "Unknown ${tag,,}: '$name'" && return 0
+  [ -z "$id" ] && warn "Unknown ${tag,,}: '$name'" && return 0
 
   prefer="$id-enterprise"
   [ -f "/run/assets/$prefer.xml" ] && find=$(printEdition "$prefer" "") || find=""
@@ -609,13 +609,13 @@ detectVersion() {
   local id=""
 
   id=$(selectVersion "DISPLAYNAME" "$xml")
-  [ -n "$id" ] && echo "$id" && return 0
+  [ -n "$id" ] && [[ "${id,,}" != *"unknown"* ]] && echo "$id" && return 0
 
   id=$(selectVersion "PRODUCTNAME" "$xml")
-  [ -n "$id" ] && echo "$id" && return 0
+  [ -n "$id" ] && [[ "${id,,}" != *"unknown"* ]] && echo "$id" && return 0
 
   id=$(selectVersion "NAME" "$xml")
-  [ -n "$id" ] && echo "$id" && return 0
+  [ -n "$id" ] && [[ "${id,,}" != *"unknown"* ]] && echo "$id" && return 0
 
   return 0
 }
