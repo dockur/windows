@@ -291,7 +291,16 @@ doMido() {
 verifyFile() {
 
   local iso="$1"
-  local check="$2"
+  local size="$2"
+  local total="$3" 
+  local check="$4"
+
+  if [[ "$total" != "$size" ]]; then
+    if [ -n "$size" ] && [[ "$size" != "0" ]]; then
+      warn "The download file has an unexpected size: $total"
+    fi
+  fi
+
   local hash=""
   local algo="SHA256"
 
@@ -324,7 +333,7 @@ downloadFile() {
   local sum="$3"
   local size="$4"
   local desc="$5"
-  local rc progress domain dots
+  local rc total progress domain dots
 
   rm -f "$iso"
 
@@ -353,9 +362,10 @@ downloadFile() {
   fKill "progress.sh"
 
   if (( rc == 0 )) && [ -f "$iso" ]; then
-    if [ "$(stat -c%s "$iso")" -gt 100000000 ]; then
+    total=$(stat -c%s "$iso")
+    if [ "$total" -gt 100000000 ]; then
       if [[ "$VERIFY" == [Yy1]* ]] && [ -n "$sum" ]; then
-        ! verifyFile "$iso" "$sum" && return 1
+        ! verifyFile "$iso" "$size" "$total" "$sum" && return 1
       fi
       html "Download finished successfully..." && return 0
     fi
@@ -372,7 +382,7 @@ downloadImage() {
   local iso="$1"
   local version="$2"
   local tried="n"
-  local url sum desc
+  local url sum size desc
 
   if [[ "${version,,}" == "http"* ]]; then
     desc=$(fromFile "$BASE")
@@ -418,8 +428,9 @@ downloadImage() {
         info "Failed to download $desc, will try another mirror now..."
       fi
       tried="y"
+      size=$(getSize "$i" "$version")
       sum=$(getHash "$i" "$version")
-      downloadFile "$iso" "$url" "$sum" "" "$desc" && return 0
+      downloadFile "$iso" "$url" "$sum" "$size" "$desc" && return 0
     fi
 
   done
