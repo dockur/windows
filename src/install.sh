@@ -210,7 +210,7 @@ getESD() {
   local eFile="esd_edition.xml"
   local fFile="products_filter.xml"
 
-  { wget "$winCatalog" -O "$dir/$wFile" -q; rc=$?; } || :
+  { wget "$winCatalog" -O "$dir/$wFile" -q --timeout=10; rc=$?; } || :
   (( rc != 0 )) && error "Failed to download $winCatalog , reason: $rc" && return 1
 
   cd "$dir"
@@ -240,11 +240,17 @@ getESD() {
     error "Failed to find Windows product in $eFile!" && return 1
   fi
 
-  ESD=$(xmllint --nonet --xpath '//FilePath' "$dir/$eFile" | sed -E -e 's/<[\/]?FilePath>//g')
+  local tag="FilePath"
+  ESD=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
 
   if [ -z "$ESD" ]; then
     error "Failed to find ESD URL in $eFile!" && return 1
   fi
+
+  tag="Sha1"
+  ESD_SUM=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
+  tag="Size"
+  ESD_SIZE=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
 
   rm -rf "$dir"
   return 0
@@ -262,7 +268,7 @@ doMido() {
 
   local msg="Downloading $desc..."
   info "$msg" && html "$msg"
-  /run/progress.sh "$iso.PART" "Downloading $desc ([P])..." &
+  /run/progress.sh "$iso.PART" "" "Downloading $desc ([P])..." &
 
   cd "$TMP"
   { /run/mido.sh "${version,,}"; rc=$?; } || :
@@ -285,21 +291,36 @@ doMido() {
 verifyFile() {
 
   local iso="$1"
-  local check="$2"
+  local size="$2"
+  local total="$3" 
+  local check="$4"
+
+  if [[ "$total" != "$size" ]]; then
+    if [ -n "$size" ] && [[ "$size" != "0" ]]; then
+      warn "The download file has an unexpected size: $total"
+    fi
+  fi
+
   local hash=""
+  local algo="SHA256"
 
   [ -z "$check" ] && return 0
+  [[ "${#check}" == "40" ]] && algo="SHA1"
 
-  html "Verifying downloaded ISO..."
-  info "Calculating SHA256 checksum of the ISO file..."
+  local msg="Verifying downloaded ISO..."
+  info "$msg" && html "$msg"
 
-  hash=$(sha256sum "$iso" | cut -f1 -d' ')
+  if [[ "${algo,,}" != "sha256" ]]; then
+    hash=$(sha1sum "$iso" | cut -f1 -d' ')
+  else
+    hash=$(sha256sum "$iso" | cut -f1 -d' ')
+  fi
 
   if [[ "$hash" == "$check" ]]; then
     info "Succesfully verified that the checksum was correct!" && return 0
   fi
 
-  error "Invalid sha256 checksum: $hash , but expected value is: $check ! Please report this at $SUPPORT/issues"
+  error "Invalid $algo checksum: $hash , but expected value is: $check ! Please report this at $SUPPORT/issues"
 
   rm -f "$iso"
   return 1
@@ -310,8 +331,9 @@ downloadFile() {
   local iso="$1"
   local url="$2"
   local sum="$3"
-  local desc="$4"
-  local rc progress domain dots
+  local size="$4"
+  local desc="$5"
+  local rc total progress domain dots
 
   rm -f "$iso"
 
@@ -323,6 +345,7 @@ downloadFile() {
   fi
 
   local msg="Downloading $desc..."
+  html "$msg"
 
   domain=$(echo "$url" | awk -F/ '{print $3}')
   dots=$(echo "$domain" | tr -cd '.' | wc -c)
@@ -332,17 +355,18 @@ downloadFile() {
     msg="Downloading $desc from $domain..."
   fi
 
-  info "$msg" && html "$msg"
-  /run/progress.sh "$iso" "Downloading $desc ([P])..." &
+  info "$msg"
+  /run/progress.sh "$iso" "$size" "Downloading $desc ([P])..." &
 
-  { wget "$url" -O "$iso" -q --show-progress "$progress"; rc=$?; } || :
+  { wget "$url" -O "$iso" -q --timeout=10 --show-progress "$progress"; rc=$?; } || :
 
   fKill "progress.sh"
 
   if (( rc == 0 )) && [ -f "$iso" ]; then
-    if [ "$(stat -c%s "$iso")" -gt 100000000 ]; then
+    total=$(stat -c%s "$iso")
+    if [ "$total" -gt 100000000 ]; then
       if [[ "$VERIFY" == [Yy1]* ]] && [ -n "$sum" ]; then
-        ! verifyFile "$iso" "$sum" && return 1
+        ! verifyFile "$iso" "$size" "$total" "$sum" && return 1
       fi
       html "Download finished successfully..." && return 0
     fi
@@ -359,11 +383,11 @@ downloadImage() {
   local iso="$1"
   local version="$2"
   local tried="n"
-  local url sum desc
+  local url sum size desc
 
   if [[ "${version,,}" == "http"* ]]; then
     desc=$(fromFile "$BASE")
-    downloadFile "$iso" "$version" "" "$desc" && return 0
+    downloadFile "$iso" "$version" "" "" "$desc" && return 0
     return 1
   fi
 
@@ -373,13 +397,12 @@ downloadImage() {
 
   desc=$(printVersion "$version" "")
 
-  if [[ "${PLATFORM,,}" == "x64" ]]; then
-    if isMido "$version"; then
-      tried="y"
-      doMido "$iso" "$version" "$desc" && return 0
-    fi
-    switchEdition "$version"
+  if isMido "$version"; then
+    tried="y"
+    doMido "$iso" "$version" "$desc" && return 0
   fi
+
+  switchEdition "$version"
 
   if isESD "$version"; then
 
@@ -391,7 +414,7 @@ downloadImage() {
 
     if getESD "$TMP/esd" "$version"; then
       ISO="$TMP/$version.esd"
-      downloadFile "$ISO" "$ESD" "" "$desc" && return 0
+      downloadFile "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$desc" && return 0
       ISO="$TMP/$BASE"
     fi
 
@@ -406,8 +429,9 @@ downloadImage() {
         info "Failed to download $desc, will try another mirror now..."
       fi
       tried="y"
+      size=$(getSize "$i" "$version")
       sum=$(getHash "$i" "$version")
-      downloadFile "$iso" "$url" "$sum" "$desc" && return 0
+      downloadFile "$iso" "$url" "$sum" "$size" "$desc" && return 0
     fi
 
   done
