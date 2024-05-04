@@ -420,72 +420,93 @@ getLink1() {
   local ret="$2"
   local url=""
   local sum=""
+  local size=""
   local host="https://dl.bobpony.com/windows"
 
   case "${id,,}" in
     "win11${PLATFORM,,}" )
+      size=5946128384
       sum="5bb1459034f50766ee480d895d751af73a4af30814240ae32ebc5633546a5af7"
       url="$host/11/en-us_windows_11_23h2_${PLATFORM,,}.iso"
       ;;
     "win10${PLATFORM,,}" )
+      size=4957009920
       sum="6673e2ab6c6939a74eceff2c2bb4d36feb94ff8a6f71700adef0f0b998fdcaca"
       url="$host/10/en-us_windows_10_22h2_${PLATFORM,,}.iso"
       ;;
     "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval" )
+      size=4851668992
       sum="a0334f31ea7a3e6932b9ad7206608248f0bd40698bfb8fc65f14fc5e4976c160"
       url="$host/10/en-us_windows_10_iot_enterprise_ltsc_2021_${PLATFORM,,}_dvd_257ad90f.iso"
       ;;
     "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
+      size=4899461120
       sum="c90a6df8997bf49e56b9673982f3e80745058723a707aef8f22998ae6479597d"
       url="$host/10/en-us_windows_10_enterprise_ltsc_2021_${PLATFORM,,}_dvd_d289cf96.iso"
       ;;
     "win81${PLATFORM,,}" )
+      size=4320526336
       sum="d8333cf427eb3318ff6ab755eb1dd9d433f0e2ae43745312c1cd23e83ca1ce51"
       url="$host/8.x/8.1/en_windows_8.1_with_update_${PLATFORM,,}_dvd_6051480.iso"
       ;;
     "win2022" | "win2022-eval" )
+      size=5365624832
       sum="c3c57bb2cf723973a7dcfb1a21e97dfa035753a7f111e348ad918bb64b3114db"
       url="$host/server/2022/en-us_windows_server_2022_updated_jan_2024_${PLATFORM,,}_dvd_2b7a0c9f.iso"
       ;;
     "win2019" | "win2019-eval" )
+      size=5575774208
       sum="0067afe7fdc4e61f677bd8c35a209082aa917df9c117527fc4b2b52a447e89bb"
       url="$host/server/2019/en-us_windows_server_2019_updated_aug_2021_${PLATFORM,,}_dvd_a6431a28.iso"
       ;;
     "win2016" | "win2016-eval" )
+      size=6006587392
       sum="af06e5483c786c023123e325cea4775050324d9e1366f46850b515ae43f764be"
       url="$host/server/2016/en_windows_server_2016_updated_feb_2018_${PLATFORM,,}_dvd_11636692.iso"
       ;;
     "win2012r2" | "win2012r2-eval" )
+      size=5397889024
       sum="f351e89eb88a96af4626ceb3450248b8573e3ed5924a4e19ea891e6003b62e4e"
       url="$host/server/2012r2/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708-004.iso"
       ;;
     "win2008r2" | "win2008r2-eval" )
+      size=3166584832
       sum="dfd9890881b7e832a927c38310fb415b7ea62ac5a896671f2ce2a111998f0df8"
       url="$host/server/2008r2/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601-018.iso"
       ;;
     "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise" )
+      size=3182604288
       sum="ee69f3e9b86ff973f632db8e01700c5724ef78420b175d25bae6ead90f6805a7"
       url="$host/7/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
       ;;
     "win7${PLATFORM,,}-ultimate" )
+      size=3320836096
       sum="0b738b55a5ea388ad016535a5c8234daf2e5715a0638488ddd8a228a836055a1"
       url="$host/7/en_windows_7_with_sp1_${PLATFORM,,}.iso"
       ;;
     "winvista${PLATFORM,,}-ultimate" )
+      size=3861460992
       sum="edf9f947c5791469fd7d2d40a5dcce663efa754f91847aa1d28ed7f585675b78"
       url="$host/vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
       ;;
     "winxpx86" )
+      size=617756672
       sum="62b6c91563bad6cd12a352aa018627c314cfc5162d8e9f8af0756a642e602a46"
       url="$host/xp/professional/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
       ;;
     "winxpx64" )
+      size=614166528
       sum="8fac68e1e56c64ad9a2aa0ad464560282e67fa4f4dd51d09a66f4e548eb0f2d6"
       url="$host/xp/professional/en_win_xp_pro_${PLATFORM,,}_vl.iso" 
       ;;
   esac
 
-  [ -z "$ret" ] && echo "$url" || echo "$sum"
+  case "${ret,,}" in
+    "sum" ) echo "$sum" ;;
+    "size" ) echo "$size" ;;
+    *) echo "$url";;
+  esac
+
   return 0
 }
 
@@ -495,52 +516,68 @@ getLink2() {
   local ret="$2"
   local url=""
   local sum=""
+  local size=""
   local host="https://files.dog/MSDN"
 
   case "${id,,}" in
     "win81${PLATFORM,,}" )
+      size=4320526336
       sum="d8333cf427eb3318ff6ab755eb1dd9d433f0e2ae43745312c1cd23e83ca1ce51"
       url="$host/Windows%208.1%20with%20Update/en_windows_8.1_with_update_${PLATFORM,,}_dvd_6051480.iso"
       ;;
     "win81${PLATFORM,,}-enterprise" | "win81${PLATFORM,,}-enterprise-eval" )
+      size=4139163648
       sum="c3c604c03677504e8905090a8ce5bb1dde76b6fd58e10f32e3a25bef21b2abe1"
       url="$host/Windows%208.1%20with%20Update/en_windows_8.1_enterprise_with_update_${PLATFORM,,}_dvd_6054382.iso"
       ;;
     "win2012r2" | "win2012r2-eval" )
+      size=5397889024
       sum="f351e89eb88a96af4626ceb3450248b8573e3ed5924a4e19ea891e6003b62e4e"
       url="$host/Windows%20Server%202012%20R2%20with%20Update/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708.iso"
       ;;
     "win2008r2" | "win2008r2-eval" )
+      size=3166584832
       sum="dfd9890881b7e832a927c38310fb415b7ea62ac5a896671f2ce2a111998f0df8"
       url="$host/Windows%20Server%202008%20R2/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601.iso"
       ;;
     "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise" )
+      size=3182604288
       sum="ee69f3e9b86ff973f632db8e01700c5724ef78420b175d25bae6ead90f6805a7"
       url="$host/Windows%207/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
       ;;
     "win7${PLATFORM,,}-ultimate" )
+      size=3320903680
       sum="36f4fa2416d0982697ab106e3a72d2e120dbcdb6cc54fd3906d06120d0653808"
       url="$host/Windows%207/en_windows_7_ultimate_with_sp1_${PLATFORM,,}_dvd_u_677332.iso"
       ;;
     "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-enterprise" )
+      size=3205953536
       sum="0a0cd511b3eac95c6f081419c9c65b12317b9d6a8d9707f89d646c910e788016"
       url="$host/Windows%20Vista/en_windows_vista_enterprise_sp2_${PLATFORM,,}_dvd_342332.iso"
       ;;
     "winvista${PLATFORM,,}-ultimate" )
+      size=3861460992
       sum="edf9f947c5791469fd7d2d40a5dcce663efa754f91847aa1d28ed7f585675b78"
       url="$host/Windows%20Vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
       ;;
     "winxpx86" )
+      size=617756672
       sum="62b6c91563bad6cd12a352aa018627c314cfc5162d8e9f8af0756a642e602a46"
       url="$host/Windows%20XP/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
       ;;
     "winxpx64" )
+      size=614166528
       sum="8fac68e1e56c64ad9a2aa0ad464560282e67fa4f4dd51d09a66f4e548eb0f2d6"
       url="$host/Windows%20XP/en_win_xp_pro_${PLATFORM,,}_vl.iso"
       ;;
   esac
 
-  [ -z "$ret" ] && echo "$url" || echo "$sum"
+  case "${ret,,}" in
+    "sum" ) echo "$sum" ;;
+    "size" ) echo "$size" ;;
+    *) echo "$url";;
+  esac
+
   return 0
 }
 
@@ -550,24 +587,33 @@ getLink3() {
   local ret="$2"
   local url=""
   local sum=""
+  local size=""
   local host="https://file.cnxiaobai.com/Windows"
 
   case "${id,,}" in
     "core11" )
+      size=2159738880
       sum="78f0f44444ff95b97125b43e560a72e0d6ce0a665cf9f5573bf268191e5510c1"
       url="$host/%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny11%20core%20${PLATFORM,,}%20beta%201.iso"
       ;;
     "tiny11" )
+      size=3788177408
       sum="a028800a91addc35d8ae22dce7459b67330f7d69d2f11c70f53c0fdffa5b4280"
       url="$host/%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny11%202311%20${PLATFORM,,}.iso"
       ;;
     "tiny10" )
+      size=3839819776
       sum="a11116c0645d892d6a5a7c585ecc1fa13aa66f8c7cc6b03bf1f27bd16860cc35"
       url="$host/%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny10%2023H2%20${PLATFORM,,}.iso"
       ;;
   esac
 
-  [ -z "$ret" ] && echo "$url" || echo "$sum"
+  case "${ret,,}" in
+    "sum" ) echo "$sum" ;;
+    "size" ) echo "$size" ;;
+    *) echo "$url";;
+  esac
+
   return 0
 }
 
@@ -579,80 +625,103 @@ getLink4() {
   local ret="$2"
   local url=""
   local sum=""
+  local size=""
   local host="https://drive.massgrave.dev"
 
   case "${id,,}" in
     "win11${PLATFORM,,}" )
+      size=7004780544
       sum="a6c21313210182e0315054789a2b658b77394d5544b69b5341075492f89f51e5"
       url="$host/en-us_windows_11_consumer_editions_version_23h2_updated_april_2024_${PLATFORM,,}_dvd_d986680b.iso"
       ;;
     "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval" )
+      size=6879023104
       sum="3d4d388d6ffa371956304fa7401347b4535fd10e3137978a8f7750b790a43521"
       url="$host/en-us_windows_11_business_editions_version_23h2_updated_april_2024_${PLATFORM,,}_dvd_349cd577.iso"
       ;;
     "win11${PLATFORM,,}-iot" | "win11${PLATFORM,,}-enterprise-iot-eval" )
+      size=6248140800
       sum="5d9b86ad467bc89f488d1651a6c5ad3656a7ea923f9f914510657a24c501bb86"
       url="$host/en-us_windows_11_iot_enterprise_version_23h2_${PLATFORM,,}_dvd_fb37549c.iso"
       ;;
     "win10${PLATFORM,,}" )
+      size=6605459456
       sum="b072627c9b8d9f62af280faf2a8b634376f91dc73ea1881c81943c151983aa4a"
       url="$host/en-us_windows_10_consumer_editions_version_22h2_updated_april_2024_${PLATFORM,,}_dvd_9a92dc89.iso"
       ;;
     "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" )
+      size=6428377088
       sum="05fe9de04c2626bd00fbe69ad19129b2dbb75a93a2fe030ebfb2256d937ceab8"
       url="$host/en-us_windows_10_business_editions_version_22h2_updated_april_2024_${PLATFORM,,}_dvd_c00090a7.iso"
       ;;
     "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval" )
+      size=4851668992
       sum="a0334f31ea7a3e6932b9ad7206608248f0bd40698bfb8fc65f14fc5e4976c160"
       url="$host/en-us_windows_10_iot_enterprise_ltsc_2021_${PLATFORM,,}_dvd_257ad90f.iso"
       ;;
     "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
+      size=4899461120
       sum="c90a6df8997bf49e56b9673982f3e80745058723a707aef8f22998ae6479597d"
       url="$host/en-us_windows_10_enterprise_ltsc_2021_${PLATFORM,,}_dvd_d289cf96.iso"
       ;;
     "win81${PLATFORM,,}-enterprise" | "win81${PLATFORM,,}-enterprise-eval" )
+      size=4139163648
       sum="c3c604c03677504e8905090a8ce5bb1dde76b6fd58e10f32e3a25bef21b2abe1"
       url="$host/en_windows_8.1_enterprise_with_update_${PLATFORM,,}_dvd_6054382.iso"
       ;;
     "win2022" | "win2022-eval" )
+      size=5515755520
       sum="7f41d603224e8a0bf34ba957d3abf0a02437ab75000dd758b5ce3f050963e91f"
       url="$host/en-us_windows_server_2022_updated_april_2024_${PLATFORM,,}_dvd_164349f3.iso"
       ;;
     "win2019" | "win2019-eval" )
+      size=4843268096
       sum="4c5dd63efee50117986a2e38d4b3a3fbaf3c1c15e2e7ea1d23ef9d8af148dd2d"
       url="$host/en_windows_server_2019_${PLATFORM,,}_dvd_4cb967d8.iso"
       ;;
     "win2016" | "win2016-eval" )
+      size=5653628928
       sum="4caeb24b661fcede81cd90661aec31aa69753bf49a5ac247253dd021bc1b5cbb"
       url="$host/en_windows_server_2016_${PLATFORM,,}_dvd_9327751.iso"
       ;;
     "win2012r2" | "win2012r2-eval" )
+      size=5397889024
       sum="f351e89eb88a96af4626ceb3450248b8573e3ed5924a4e19ea891e6003b62e4e"
       url="$host/en_windows_server_2012_r2_with_update_${PLATFORM,,}_dvd_6052708.iso"
       ;;
     "win2008r2" | "win2008r2-eval" )
+      size=3166584832
       sum="dfd9890881b7e832a927c38310fb415b7ea62ac5a896671f2ce2a111998f0df8"
       url="$host/en_windows_server_2008_r2_with_sp1_${PLATFORM,,}_dvd_617601.iso"
       ;;
     "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise" )
+      size=3182604288
       sum="ee69f3e9b86ff973f632db8e01700c5724ef78420b175d25bae6ead90f6805a7"
       url="$host/en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
       ;;
     "win7${PLATFORM,,}-ultimate" )
+      size=3320903680
       sum="36f4fa2416d0982697ab106e3a72d2e120dbcdb6cc54fd3906d06120d0653808"
       url="$host/en_windows_7_ultimate_with_sp1_${PLATFORM,,}_dvd_u_677332.iso"
       ;;
     "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-enterprise" )
+      size=3205953536
       sum="0a0cd511b3eac95c6f081419c9c65b12317b9d6a8d9707f89d646c910e788016"
       url="$host/en_windows_vista_enterprise_sp2_${PLATFORM,,}_dvd_342332.iso"
       ;;
     "winvista${PLATFORM,,}-ultimate" )
+      size=3861460992
       sum="edf9f947c5791469fd7d2d40a5dcce663efa754f91847aa1d28ed7f585675b78"
       url="$host/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
       ;;
   esac
 
-  [ -z "$ret" ] && echo "$url" || echo "$sum"
+  case "${ret,,}" in
+    "sum" ) echo "$sum" ;;
+    "size" ) echo "$size" ;;
+    *) echo "$url";;
+  esac
+
   return 0
 }
 
@@ -662,40 +731,60 @@ getLink5() {
   local ret="$2"
   local url=""
   local sum=""
+  local size=""
   local host="https://archive.org/download"
 
   case "${id,,}" in
     "core11" )
+      size=2159738880
       sum="78f0f44444ff95b97125b43e560a72e0d6ce0a665cf9f5573bf268191e5510c1"
       url="$host/tiny-11-core-x-64-beta-1/tiny11%20core%20${PLATFORM,,}%20beta%201.iso"
       ;;
     "tiny11" )
+      size=3788177408
       sum="a028800a91addc35d8ae22dce7459b67330f7d69d2f11c70f53c0fdffa5b4280"
       url="$host/tiny11-2311/tiny11%202311%20${PLATFORM,,}.iso"
       ;;
     "tiny10" )
+      size=3839819776
       sum="a11116c0645d892d6a5a7c585ecc1fa13aa66f8c7cc6b03bf1f27bd16860cc35"
       url="$host/tiny-10-23-h2/tiny10%20${PLATFORM,,}%2023h2.iso"
       ;;
     "winxpx86" )
+      size=617756672
       sum="62b6c91563bad6cd12a352aa018627c314cfc5162d8e9f8af0756a642e602a46"
       url="$host/XPPRO_SP3_ENU/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
       ;;
   esac
 
-  [ -z "$ret" ] && echo "$url" || echo "$sum"
+  case "${ret,,}" in
+    "sum" ) echo "$sum" ;;
+    "size" ) echo "$size" ;;
+    *) echo "$url";;
+  esac
+
+  return 0
+}
+
+getValue() {
+
+  local val=""
+  local id="$3"
+  local type="$2"
+  local func="getLink$1"
+
+  if [ "$1" -gt 0 ] && [ "$1" -le "$MIRRORS" ]; then
+    val=$($func "$id" "$type")
+  fi
+
+  echo "$val"
   return 0
 }
 
 getLink() {
 
   local url=""
-  local id="$2"
-  local func="getLink$1"
-
-  if [ "$1" -gt 0 ] && [ "$1" -le "$MIRRORS" ]; then
-    url=$($func "$id" "")
-  fi
+  url=$(getValue "$1" "" "$2")
 
   echo "$url"
   return 0
@@ -704,14 +793,18 @@ getLink() {
 getHash() {
 
   local sum=""
-  local id="$2"
-  local func="getLink$1"
-
-  if [ "$1" -gt 0 ] && [ "$1" -le "$MIRRORS" ]; then
-    sum=$($func "$id" "sum")
-  fi
+  sum=$(getValue "$1" "sum" "$2")
 
   echo "$sum"
+  return 0
+}
+
+getSize() {
+
+  local size=""
+  size=$(getValue "$1" "size" "$2")
+
+  echo "$size"
   return 0
 }
 
