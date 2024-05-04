@@ -834,7 +834,7 @@ migrateFiles() {
   local version="$2"
   local file=""
 
-  [ -f "$STORAGE/$base" ] && return 0
+  [ -f "$base" ] && return 0
 
   [[ "${version,,}" == "tiny10" ]] && file="tiny10_${PLATFORM,,}_23h2.iso"
   [[ "${version,,}" == "tiny11" ]] && file="tiny11_2311_${PLATFORM,,}.iso"
@@ -843,10 +843,8 @@ migrateFiles() {
   [[ "${version,,}" == "winvista${PLATFORM,,}" ]] && file="en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
   [[ "${version,,}" == "win7${PLATFORM,,}" ]] && file="en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
 
-  [ -z "$file" ] && return 0
   [ ! -f "$STORAGE/$file" ] && return 0
-
-  ! mv "$STORAGE/$file" "$STORAGE/$base" && return 1
+  ! mv "$STORAGE/$file" "$base" && return 1
 
   return 0
 }
