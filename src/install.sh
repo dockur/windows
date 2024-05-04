@@ -240,11 +240,17 @@ getESD() {
     error "Failed to find Windows product in $eFile!" && return 1
   fi
 
-  ESD=$(xmllint --nonet --xpath '//FilePath' "$dir/$eFile" | sed -E -e 's/<[\/]?FilePath>//g')
+  local tag="FilePath"
+  ESD=$(xmllint --nonet --xpath "'//$tag'" "$dir/$eFile" | sed -E -e "'s/<[\/]?$tag>//g'")
 
   if [ -z "$ESD" ]; then
     error "Failed to find ESD URL in $eFile!" && return 1
   fi
+
+  tag="Sha1"
+  ESD_SUM=$(xmllint --nonet --xpath "'//$tag'" "$dir/$eFile" | sed -E -e "'s/<[\/]?$tag>//g'")
+  tag="Size"
+  ESD_SIZE=$(xmllint --nonet --xpath "'//$tag'" "$dir/$eFile" | sed -E -e "'s/<[\/]?$tag>//g'")
 
   rm -rf "$dir"
   return 0
@@ -262,7 +268,7 @@ doMido() {
 
   local msg="Downloading $desc..."
   info "$msg" && html "$msg"
-  /run/progress.sh "$iso.PART" "Downloading $desc ([P])..." &
+  /run/progress.sh "$iso.PART" "" "Downloading $desc ([P])..." &
 
   cd "$TMP"
   { /run/mido.sh "${version,,}"; rc=$?; } || :
@@ -293,7 +299,11 @@ verifyFile() {
   html "Verifying downloaded ISO..."
   info "Calculating SHA256 checksum of the ISO file..."
 
-  hash=$(sha256sum "$iso" | cut -f1 -d' ')
+  if [[ "${#check}" == "40" ]]; then
+    hash=$(shasum "$iso" | cut -f1 -d' ')
+  else
+    hash=$(sha256sum "$iso" | cut -f1 -d' ')
+  fi
 
   if [[ "$hash" == "$check" ]]; then
     info "Succesfully verified that the checksum was correct!" && return 0
@@ -310,7 +320,8 @@ downloadFile() {
   local iso="$1"
   local url="$2"
   local sum="$3"
-  local desc="$4"
+  local size="$4"
+  local desc="$5"
   local rc progress domain dots
 
   rm -f "$iso"
@@ -333,7 +344,7 @@ downloadFile() {
   fi
 
   info "$msg" && html "$msg"
-  /run/progress.sh "$iso" "Downloading $desc ([P])..." &
+  /run/progress.sh "$iso" "$size" "Downloading $desc ([P])..." &
 
   { wget "$url" -O "$iso" -q --show-progress "$progress"; rc=$?; } || :
 
@@ -363,7 +374,7 @@ downloadImage() {
 
   if [[ "${version,,}" == "http"* ]]; then
     desc=$(fromFile "$BASE")
-    downloadFile "$iso" "$version" "" "$desc" && return 0
+    downloadFile "$iso" "$version" "" "" "$desc" && return 0
     return 1
   fi
 
@@ -390,7 +401,7 @@ downloadImage() {
 
     if getESD "$TMP/esd" "$version"; then
       ISO="$TMP/$version.esd"
-      downloadFile "$ISO" "$ESD" "" "$desc" && return 0
+      downloadFile "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$desc" && return 0
       ISO="$TMP/$BASE"
     fi
 
@@ -406,7 +417,7 @@ downloadImage() {
       fi
       tried="y"
       sum=$(getHash "$i" "$version")
-      downloadFile "$iso" "$url" "$sum" "$desc" && return 0
+      downloadFile "$iso" "$url" "$sum" "" "$desc" && return 0
     fi
 
   done
