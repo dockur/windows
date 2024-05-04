@@ -677,8 +677,8 @@ detectImage() {
 
   if [ -z "$DETECTED" ]; then
     msg="Failed to determine Windows version from image"
-    setXML "" && info "${msg}!" || warn "${msg}, $FB"
-    return 0
+    setXML "" && info "${msg}!" && return 0
+    warn "${msg}, $FB" && return 0
   fi
 
   desc=$(printEdition "$DETECTED" "$DETECTED")
@@ -689,7 +689,9 @@ detectImage() {
   msg="the answer file for $desc was not found ($DETECTED.xml)"
   local fallback="/run/assets/${DETECTED%%-*}.xml"
 
-  setXML "$fallback" && warn "${msg}." || warn "${msg}, $FB."
+  setXML "$fallback" && warn "${msg}." && return 0
+  
+  warn "${msg}, $FB."
   return 0
 }
 
