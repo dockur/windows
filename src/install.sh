@@ -50,25 +50,14 @@ startInstall() {
       file=$(echo "$file" | sed -e 's/[^A-Za-z0-9._-]/_/g')
 
     fi
-
-    [[ "${file,,}" == "windows."* ]] && file="win.iso"
   
     ISO="$STORAGE/$file.iso"
 
-  fi
-
-  if [[ "${PLATFORM,,}" == "x64" ]]; then
     ! migrateFiles "$ISO" "$VERSION" && error "Migration failed!" && exit 57
+
   fi
 
-  if skipInstall; then
-    if [ ! -f "$ISO" ] || [ ! -s "$ISO" ]; then
-      ISO="/custom.iso"
-      [ ! -f "$ISO" ] && ISO="${STORAGE}$ISO"
-    fi
-    [[ "${PLATFORM,,}" == "arm64" ]] && VGA="virtio-gpu"
-    return 1
-  fi
+  skipInstall && return 1
 
   if [ -f "$ISO" ] && [ -s "$ISO" ]; then
 
@@ -77,39 +66,34 @@ startInstall() {
     magic=$(dd if="$ISO" seek=0 bs=1 count=1 status=none | tr -d '\000')
     magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
 
-    if [[ "$magic" == "16" ]]; then
+    [[ "$magic" == "16" ]] && return 1
 
-      hasDisk && return 1
-      [[ "$MANUAL" == [Yy1]* ]] && [ -z "$CUSTOM" ] && return 1
-
-    fi
-
-    if [ -n "$CUSTOM" ] && [ -n "$CUSTOM_ORG" ]; then
-      if [[ "$CUSTOM" != "$CUSTOM_ORG" ]]; then
-        rm -f "$CUSTOM"
+    if [ -z "$CUSTOM" ]; then
+      rm -f "$ISO"
+    else
+      if [[ "$ISO" != "$CUSTOM_ORG" ]]; then
+        rm -f "$ISO"
         ISO="$CUSTOM_ORG"
+        CUSTOM="$ISO"
       fi
     fi
-
-    CUSTOM="$ISO"
 
   fi
 
   rm -rf "$TMP"
   mkdir -p "$TMP"
 
-  if [ -f "$CUSTOM" ]; then
+  if [ -n "$CUSTOM" ]; then
     local size
     size="$(stat -c%s "$ISO")"
     BOOT="$STORAGE/windows.$size.iso"
   else
-    CUSTOM=""
+    BOOT="$ISO"
     ISO=$(basename "$ISO")
-    BOOT="$STORAGE/$ISO"
     ISO="$TMP/$ISO"
   fi
 
-  [[ "$BOOT" == "$ISO" ]] && return 1
+  rm -f "$BOOT"
   return 0
 }
 
@@ -160,6 +144,10 @@ abortInstall() {
 
   local iso="$1"
 
+  [[ "${iso,,}" == *".esd" ]] && exit 60
+
+  [ -n "$CUSTOM" ] && BOOT="$iso"
+
   if [[ "$iso" != "$BOOT" ]]; then
     if ! mv -f "$iso" "$BOOT"; then
       error "Failed to move ISO file: $iso" && return 1
@@ -167,7 +155,6 @@ abortInstall() {
   fi
 
   finishInstall "$BOOT" "Y" && return 0
-
   return 1
 }
 
@@ -183,7 +170,6 @@ detectCustom() {
     base="${VERSION/\/storage\//}"
     [[ "$base" == "."* ]] && base="${file:1}"
     [[ "$base" == *"/"* ]] && base=""
-    [[ "$base" == "windows."* ]] && base=""
     [ -n "$base" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$base" -printf "%f\n" | head -n 1)
   fi
 
@@ -403,10 +389,11 @@ downloadImage() {
   local iso="$1"
   local version="$2"
   local tried="n"
-  local url sum size desc
+  local url sum size base desc
 
   if [[ "${version,,}" == "http"* ]]; then
-    desc=$(fromFile "$BASE")
+    base=$(basename "$iso")
+    desc=$(fromFile "$base")
     downloadFile "$iso" "$version" "" "" "$desc" && return 0
     return 1
   fi
@@ -433,9 +420,9 @@ downloadImage() {
     tried="y"
 
     if getESD "$TMP/esd" "$version"; then
-      ISO="$TMP/$version.esd"
+      ISO="${ISO/.iso/.esd}"
       downloadFile "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$desc" && return 0
-      ISO="$TMP/$BASE"
+      ISO="${ISO/.esd/.iso}"
     fi
 
   fi
@@ -778,9 +765,8 @@ prepareImage() {
 
 updateImage() {
 
-  local iso="$1"
-  local dir="$2"
-  local asset="$3"
+  local dir="$1"
+  local asset="$2"
   local path src loc xml index result
 
   [ ! -s "$asset" ] || [ ! -f "$asset" ] && return 0
@@ -924,8 +910,16 @@ buildImage() {
 
 bootWindows() {
 
-  BOOT="$ISO"
   rm -rf "$TMP"
+
+  if [ ! -f "$ISO" ] || [ ! -s "$ISO" ]; then
+    ISO="/custom.iso"
+    [ ! -f "$ISO" ] && ISO="${STORAGE}$ISO"
+  fi
+
+  BOOT="$ISO"
+
+  [[ "${PLATFORM,,}" == "arm64" ]] && VGA="virtio-gpu"
 
   if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then
     BOOT_MODE=$(<"$STORAGE/windows.mode")
@@ -1004,7 +998,7 @@ if ! prepareImage "$ISO" "$DIR"; then
   exit 60
 fi
 
-if ! updateImage "$ISO" "$DIR" "$XML"; then
+if ! updateImage "$DIR" "$XML"; then
   abortInstall "$ISO" && return 0
   exit 60
 fi
