@@ -535,11 +535,9 @@ extractESD() {
   info "$msg" && html "$msg"
 
   local edition imageIndex imageEdition
+  edition=$(getCatalog "$version" "name")
 
-  edition=$(printVersion "$version" "")
-  edition="${edition/ (Evaluation)/}"
-
-  if [ -z "$edition" ] || ! isESD "${version,,}"; then
+  if [ -z "$edition" ]; then
     error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
   fi
 
