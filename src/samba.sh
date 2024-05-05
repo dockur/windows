@@ -15,7 +15,6 @@ if [[ "$DHCP" == [Yy1]* ]]; then
 fi
 
 share="/shared"
-[ ! -d "$share" ] && share="$STORAGE/shared"
 
 mkdir -p "$share"
 [ -z "$(ls -A "$share")" ] && chmod 777 "$share"
