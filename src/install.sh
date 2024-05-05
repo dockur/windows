@@ -281,7 +281,7 @@ verifyFile() {
   local check="$4"
 
   if [ -n "$size" ] && [[ "$total" != "$size" ]] && [[ "$size" != "0" ]]; then
-    warn "The downloaded file has an unexpected size: $total bytes! Please report this at $SUPPORT/issues"
+    warn "The downloaded file has an invalid size: $total bytes, while expected value was: $size bytes. Please report this at $SUPPORT/issues"
   fi
 
   local hash=""
@@ -304,7 +304,7 @@ verifyFile() {
     info "Succesfully verified ISO!" && return 0
   fi
 
-  error "Invalid $algo checksum: $hash , but expected value is: $check ! Please report this at $SUPPORT/issues"
+  error "The downloaded file has an invalid $algo checksum: $hash , while expected value was: $check. Please report this at $SUPPORT/issues"
 
   rm -f "$iso"
   return 1
