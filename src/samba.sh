@@ -15,9 +15,10 @@ if [[ "$DHCP" == [Yy1]* ]]; then
 fi
 
 share="$STORAGE/shared"
+[ ! -d "$share" ] && share="/shared"
 
 mkdir -p "$share"
-[ -z "$(ls -A "$share")" ] && chmod -R 777 "$share"
+[ -z "$(ls -A "$share")" ] && chmod 777 "$share"
 
 {      echo "[global]"
         echo "    server string = Dockur"
@@ -53,16 +54,16 @@ mkdir -p "$share"
         echo ""
         echo "Using this folder you can share files with the host machine."
         echo ""
-        echo "To change the storage location, include the following bind mount in your compose file:"
+        echo "To change its location, include the following bind mount in your compose file:"
         echo ""
         echo "  volumes:"
-        echo "    - \"/home/user/example:/storage/shared\""
+        echo "    - \"/home/user/example:/shared\""
         echo ""
         echo "Or in your run command:"
         echo ""
-        echo "  -v \"/home/user/example:/storage/shared\""
+        echo "  -v \"/home/user/example:/shared\""
         echo ""
-        echo "Replace the example path /home/user/example with the desired storage folder."
+        echo "Replace the example path /home/user/example with the desired shared folder."
         echo ""
 } | unix2dos > "$share/readme.txt"
 
