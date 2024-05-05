@@ -536,15 +536,21 @@ extractESD() {
 
   local edition imageIndex imageEdition
 
-  case "${version,,}" in
-    "win11${PLATFORM,,}" ) edition="11 pro" ;;
-    "win10${PLATFORM,,}" ) edition="10 pro" ;;
-    *) error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1 ;;
-  esac
+  edition=$(printVersion "$version" "")
+  edition="${edition/ (Evaluation)/}"
+
+  if [ -z "$edition" ] || ! isESD "${version,,}"; then
+    error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
+  fi
 
   for (( imageIndex=4; imageIndex<=esdImageCount; imageIndex++ )); do
     imageEdition=$(wimlib-imagex info "${iso}" ${imageIndex} | grep '^Description:' | sed 's/Description:[ \t]*//')
-    [[ "${imageEdition,,}" != *"$edition"* ]] && continue
+    error "$imageEdition"
+  done
+
+  for (( imageIndex=4; imageIndex<=esdImageCount; imageIndex++ )); do
+    imageEdition=$(wimlib-imagex info "${iso}" ${imageIndex} | grep '^Description:' | sed 's/Description:[ \t]*//')
+    [[ "${imageEdition,,}" != *"${edition,,}"* ]] && continue
     wimlib-imagex export "${iso}" ${imageIndex} "${installWimFile}" --compress=LZMS --chunk-size 128K --quiet || {
       retVal=$?
       error "Addition of ${imageIndex} to the $desc image failed" && return $retVal
@@ -552,7 +558,7 @@ extractESD() {
     return 0
   done
 
-  error "Failed to find product in install.wim!" && return 1
+  error "Failed to find product '$edition' in install.wim!" && return 1
 }
 
 extractImage() {
