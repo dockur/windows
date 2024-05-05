@@ -324,7 +324,7 @@ verifyFile() {
   fi
 
   if [[ "$hash" == "$check" ]]; then
-    info "Succesfully verified that the checksum was correct!" && return 0
+    info "Succesfully verified ISO!" && return 0
   fi
 
   error "Invalid $algo checksum: $hash , but expected value is: $check ! Please report this at $SUPPORT/issues"
