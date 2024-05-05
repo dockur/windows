@@ -207,11 +207,26 @@ getESD() {
 
   local dir="$1"
   local version="$2"
+  local editionName
   local winCatalog size
 
   case "${version,,}" in
-    "win11${PLATFORM,,}" ) winCatalog="https://go.microsoft.com/fwlink?linkid=2156292" ;;
-    "win10${PLATFORM,,}" ) winCatalog="https://go.microsoft.com/fwlink/?LinkId=841361" ;;
+    "win11${PLATFORM,,}" )
+      editionName="Professional"
+      winCatalog="https://go.microsoft.com/fwlink?linkid=2156292"
+      ;;
+    "win10${PLATFORM,,}" )
+      editionName="Professional"
+      winCatalog="https://go.microsoft.com/fwlink/?LinkId=841361"
+      ;;
+    "win11${PLATFORM,,}-enterprise" )
+      editionName="Enterprise"
+      winCatalog="https://go.microsoft.com/fwlink?linkid=2156292"
+      ;;
+    "win10${PLATFORM,,}-enterprise" )
+      editionName="Enterprise"
+      winCatalog="https://go.microsoft.com/fwlink/?LinkId=841361"
+      ;;
     *) error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1 ;;
   esac
 
@@ -243,7 +258,6 @@ getESD() {
   fi
 
   local esdLang="en-us"
-  local editionName="Professional"
   local edQuery='//File[Architecture="'${PLATFORM}'"][Edition="'${editionName}'"]'
 
   echo -e '<Catalog>' > "$dir/$fFile"
