@@ -72,9 +72,9 @@ startInstall() {
   if [ -z "$CUSTOM" ]; then
     rm -f "$ISO"
   else
-    if [[ "$ISO" != "$CUSTOM_ORG" ]]; then
+    if [ -n "$ORIGINAL" ]; then
       rm -f "$ISO"
-      ISO="$CUSTOM_ORG"
+      ISO="$ORIGINAL"
       CUSTOM="$ISO"
     fi
   fi
@@ -145,11 +145,14 @@ abortInstall() {
 
   [[ "${iso,,}" == *".esd" ]] && exit 60
 
-  [ -n "$CUSTOM" ] && BOOT="$iso"
-
-  if [[ "$iso" != "$BOOT" ]]; then
-    if ! mv -f "$iso" "$BOOT"; then
-      error "Failed to move ISO file: $iso" && return 1
+  if [ -n "$CUSTOM" ]; then
+    BOOT="$iso"
+    REMOVE="N"
+  else
+    if [[ "$iso" != "$BOOT" ]]; then
+      if ! mv -f "$iso" "$BOOT"; then
+        error "Failed to move ISO file: $iso" && return 1
+      fi
     fi
   fi
 
@@ -163,7 +166,7 @@ detectCustom() {
   local size base
 
   CUSTOM=""
-  CUSTOM_ORG=""
+  ORIGINAL=""
 
   if [[ "${VERSION,,}" != "http"* ]]; then
     base="${VERSION/\/storage\//}"
@@ -186,12 +189,17 @@ detectCustom() {
   size="$(stat -c%s "$file")"
   [ -z "$size" ] || [[ "$size" == "0" ]] && return 0
 
-  CUSTOM_ORG="$file"
-
   base="$STORAGE/windows.$size.iso"
-  [ -f "$base" ] && [ -s "$base" ] && file="$base"
 
-  CUSTOM="$file"
+  if [ -f "$base" ] && [ -s "$base" ]; then
+    CUSTOM="$base"
+    ORIGINAL="$file"
+  else
+    REMOVE="N"
+    CUSTOM="$file"
+    rm -f "$base"
+  fi
+
   return 0
 }
 
