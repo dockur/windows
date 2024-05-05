@@ -70,29 +70,28 @@ startInstall() {
   fi
 
   if [ -z "$CUSTOM" ]; then
-    rm -f "$ISO"
+
+    BOOT="$ISO"
+    ISO=$(basename "$ISO")
+    ISO="$TMP/$ISO"
+
   else
+
     if [ -n "$ORIGINAL" ]; then
       rm -f "$ISO"
       ISO="$ORIGINAL"
       CUSTOM="$ISO"
     fi
-  fi
 
-  rm -rf "$TMP"
-  mkdir -p "$TMP"
-
-  if [ -n "$CUSTOM" ]; then
     local size
     size="$(stat -c%s "$ISO")"
     BOOT="$STORAGE/windows.$size.iso"
-  else
-    BOOT="$ISO"
-    ISO=$(basename "$ISO")
-    ISO="$TMP/$ISO"
+
   fi
 
   rm -f "$BOOT"
+  rm -rf "$TMP"
+  mkdir -p "$TMP"
   return 0
 }
 
@@ -195,7 +194,6 @@ detectCustom() {
     CUSTOM="$base"
     ORIGINAL="$file"
   else
-    REMOVE="N"
     CUSTOM="$file"
     rm -f "$base"
   fi
