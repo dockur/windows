@@ -85,7 +85,9 @@ finish() {
     # Remove CD-ROM ISO after install
     if ready; then
       touch "$STORAGE/windows.boot"
-      [[ "$REMOVE" != [Nn]* ]] && rm -f "$BOOT" 2>/dev/null || true
+      if [[ "$REMOVE" != [Nn]* ]]; then
+        rm -f "$BOOT" 2>/dev/null || true
+      fi
     fi
   fi
 
