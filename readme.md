@@ -144,7 +144,7 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
   
   ```yaml
   volumes:
-    - /home/user/example.iso:/storage/custom.iso
+    - /home/user/example.iso:/custom.iso
   ```
 
   Replace the example path `/home/user/example.iso` with the filename of your desired ISO file. The value of `VERSION` will be ignored in this case.
@@ -157,7 +157,7 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
   ```yaml
   volumes:
-    -  /home/user/example.xml:/storage/custom.xml
+    -  /home/user/example.xml:/custom.xml
   ```
 
   Replace the example path `/home/user/example.xml` with the filename of the modified XML file.
@@ -168,7 +168,7 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
   ```yaml
   volumes:
-    -  /home/user/example:/storage/oem
+    -  /home/user/example:/oem
   ```
 
   The example folder `/home/user/example` will be copied to `C:\OEM` during installation and the containing `install.bat` will be executed during the last step.
