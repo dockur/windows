@@ -445,6 +445,17 @@ downloadImage() {
   return 1
 }
 
+removeDownload() {
+
+  local iso="$1"
+
+  [ ! -f "$iso" ] && return 0
+  [ -n "$CUSTOM" ] && return 0
+
+  rm -f "$iso" 2> /dev/null || true
+  return 0
+}
+
 extractESD() {
 
   local iso="$1"
@@ -837,14 +848,17 @@ copyOEM() {
 
 buildImage() {
 
-  local iso="$1"
-  local dir="$2"
+  local dir="$1"
   local failed="N"
   local cat="BOOT.CAT"
   local log="/run/shm/iso.log"
   local base size size_gb space space_gb desc
 
-  base=$(basename "$iso")
+  if [ -f "$BOOT" ]; then
+    error "File $BOOT does already exist?!" && return 1
+  fi
+
+  base=$(basename "$BOOT")
   local out="$TMP/${base%.*}.tmp"
   rm -f "$out"
 
@@ -900,10 +914,6 @@ buildImage() {
 
   [ -s "$log" ] && error="$(<"$log")"
   [[ "$error" != "$hide" ]] && echo "$error"
-
-  if [ -f "$BOOT" ]; then
-    error "File $BOOT does already exist?!" && return 1
-  fi
 
   mv "$out" "$BOOT"
   return 0
@@ -1004,11 +1014,15 @@ if ! updateImage "$DIR" "$XML"; then
   exit 60
 fi
 
+if ! removeDownload "$ISO"; then
+  exit 64
+fi
+
 if ! copyOEM "$DIR"; then
   exit 63
 fi
 
-if ! buildImage "$ISO" "$DIR"; then
+if ! buildImage "$DIR"; then
   exit 65
 fi
 
