@@ -832,7 +832,7 @@ validVersion() {
 getMido() {
 
   local id="$1"
-  local ret="$1"
+  local ret="$2"
   local sum=""
   local size=""
 
