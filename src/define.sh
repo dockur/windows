@@ -391,18 +391,39 @@ switchEdition() {
   return 0
 }
 
-isESD() {
+getCatalog() {
 
   local id="$1"
+  local ret="$2"
+  local url=""
+  local edition=""
 
   case "${id,,}" in
-    "win11${PLATFORM,,}" ) return 0 ;;
-    "win10${PLATFORM,,}" ) return 0 ;;
-    "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval" ) return 0 ;;
-    "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" ) return 0 ;;
+    "win11${PLATFORM,,}" )
+      edition="Professional"
+      url="https://go.microsoft.com/fwlink?linkid=2156292"
+      ;;
+    "win10${PLATFORM,,}" )
+      edition="Professional"
+      url="https://go.microsoft.com/fwlink/?LinkId=841361"
+      ;;
+    "win11${PLATFORM,,}-enterprise" )
+      edition="Enterprise"
+      url="https://go.microsoft.com/fwlink?linkid=2156292"
+      ;;
+    "win10${PLATFORM,,}-enterprise" )
+      edition="Enterprise"
+      url="https://go.microsoft.com/fwlink/?LinkId=841361"
+      ;;
   esac
 
-  return 1
+  case "${ret,,}" in
+    "url" ) echo "$url" ;;
+    "edition" ) echo "$edition" ;;
+    *) echo "";;
+  esac
+
+  return 0
 }
 
 getMido() {
@@ -468,17 +489,6 @@ getMido() {
     "size" ) echo "$size" ;;
     *) echo "";;
   esac
-
-  return 1
-}
-
-isMido() {
-
-  local id="$1"
-  local sum
-
-  sum=$(getMido "$id" "sum")
-  [ -n "$sum" ] && return 0
 
   return 1
 }
@@ -877,6 +887,28 @@ getSize() {
 
   echo "$size"
   return 0
+}
+
+isMido() {
+
+  local id="$1"
+  local sum
+
+  sum=$(getMido "$id" "sum")
+  [ -n "$sum" ] && return 0
+
+  return 1
+}
+
+isESD() {
+
+  local id="$1"
+  local url
+
+  url=$(getMido "$id" "url")
+  [ -n "$url" ] && return 0
+
+  return 1
 }
 
 validVersion() {
