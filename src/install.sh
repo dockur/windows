@@ -50,7 +50,7 @@ startInstall() {
       file=$(echo "$file" | sed -e 's/[^A-Za-z0-9._-]/_/g')
 
     fi
-  
+
     ISO="$STORAGE/$file.iso"
 
     ! migrateFiles "$ISO" "$VERSION" && error "Migration failed!" && exit 57
@@ -65,19 +65,18 @@ startInstall() {
     local magic=""
     magic=$(dd if="$ISO" seek=0 bs=1 count=1 status=none | tr -d '\000')
     magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
-
     [[ "$magic" == "16" ]] && return 1
 
-    if [ -z "$CUSTOM" ]; then
-      rm -f "$ISO"
-    else
-      if [[ "$ISO" != "$CUSTOM_ORG" ]]; then
-        rm -f "$ISO"
-        ISO="$CUSTOM_ORG"
-        CUSTOM="$ISO"
-      fi
-    fi
+  fi
 
+  if [ -z "$CUSTOM" ]; then
+    rm -f "$ISO"
+  else
+    if [[ "$ISO" != "$CUSTOM_ORG" ]]; then
+      rm -f "$ISO"
+      ISO="$CUSTOM_ORG"
+      CUSTOM="$ISO"
+    fi
   fi
 
   rm -rf "$TMP"
