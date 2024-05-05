@@ -16,6 +16,10 @@ fi
 
 share="/shared"
 
+if [ ! -d "$share" ] && [ -d "$STORAGE/shared" ]; then
+  share="$STORAGE/shared"
+fi
+
 mkdir -p "$share"
 [ -z "$(ls -A "$share")" ] && chmod 777 "$share"
 
