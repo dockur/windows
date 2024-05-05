@@ -681,12 +681,8 @@ detectImage() {
 
   XML=""
 
-  if [ -n "$CUSTOM" ]; then
-    DETECTED=""
-  else
-    if [ -z "$DETECTED" ] && [[ "${version,,}" != "http"* ]]; then
-      DETECTED="$version"
-    fi
+  if [ -z "$DETECTED" ] && [[ "${version,,}" != "http"* ]]; then
+    [ -z "$CUSTOM" ] && DETECTED="$version"
   fi
 
   if [ -n "$DETECTED" ]; then
