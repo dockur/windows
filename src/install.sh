@@ -276,7 +276,7 @@ verifyFile() {
 
   local iso="$1"
   local size="$2"
-  local total="$3" 
+  local total="$3"
   local check="$4"
 
   if [ -n "$size" ] && [[ "$total" != "$size" ]]; then
