@@ -127,9 +127,14 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
 * ### How do I share files with the host?
 
-  Open 'File Explorer' and click on the 'Network' section, you will see a computer called `host.lan`, double-click it and it will show a folder called `Data`.
+  Open 'File Explorer' and click on the 'Network' section, you will see a computer called `host.lan`. Double-click it and it will show a folder called `Data`, which can be binded to any folder on your host via the compose file:
 
-  Inside this folder you can access any files that are placed in `/storage/shared` (see above) on the host. You can optionally map it to a drive letter, for easy access.
+  ```yaml
+  volumes:
+    -  /home/user/example:/shared
+  ```
+
+  The example folder `/home/user/example` will be available as ` \\host.lan\Data`. You can optionally map this path to a drive letter in Windows, for easier access.
 
 * ### How do I install a custom image?
 
@@ -144,7 +149,7 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
   
   ```yaml
   volumes:
-    - /home/user/example.iso:/storage/custom.iso
+    - /home/user/example.iso:/custom.iso
   ```
 
   Replace the example path `/home/user/example.iso` with the filename of your desired ISO file. The value of `VERSION` will be ignored in this case.
@@ -157,7 +162,7 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
   ```yaml
   volumes:
-    -  /home/user/example.xml:/storage/custom.xml
+    -  /home/user/example.xml:/custom.xml
   ```
 
   Replace the example path `/home/user/example.xml` with the filename of the modified XML file.
@@ -168,7 +173,7 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
   ```yaml
   volumes:
-    -  /home/user/example:/storage/oem
+    -  /home/user/example:/oem
   ```
 
   The example folder `/home/user/example` will be copied to `C:\OEM` during installation and the containing `install.bat` will be executed during the last step.
@@ -292,11 +297,11 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
   ```yaml
   devices:
-    - /dev/sdb:/dev/disk1
-    - /dev/sdc:/dev/disk2
+    - /dev/sdb:/disk1
+    - /dev/sdc:/disk2
   ```
 
-  Use `/dev/disk1` if you want it to become your main drive, and use `/dev/disk2` and higher to add them as secondary drives.
+  Use `/disk1` if you want it to become your main drive, and use `/disk2` and higher to add them as secondary drives.
 
 * ### How do I pass-through a USB device?
 

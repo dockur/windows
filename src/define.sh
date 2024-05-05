@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 : "${VERIFY:=""}"
 : "${MANUAL:=""}"
+: "${REMOVE:=""}"
 : "${VERSION:=""}"
 : "${DETECTED:=""}"
 : "${PLATFORM:="x64"}"
@@ -11,26 +12,28 @@ MIRRORS=5
 
 parseVersion() {
 
-  [ -z "$VERSION" ] && VERSION="win11"
+  VERSION="${VERSION/\//}"
 
   if [[ "${VERSION}" == \"*\" || "${VERSION}" == \'*\' ]]; then
     VERSION="${VERSION:1:-1}"
   fi
 
+  [ -z "$VERSION" ] && VERSION="win11"
+
   case "${VERSION,,}" in
-    "11" | "win11" | "windows11" | "windows 11" )
+    "11" | "11p" | "win11" | "win11p" | "windows11" | "windows 11" )
       VERSION="win11${PLATFORM,,}"
       ;;
     "11e" | "win11e" | "windows11e" | "windows 11e" )
       VERSION="win11${PLATFORM,,}-enterprise-eval"
       ;;
-    "10" | "win10" | "windows10" | "windows 10" )
+    "10" | "10p" | "win10" | "win10p" | "windows10" | "windows 10" )
       VERSION="win10${PLATFORM,,}"
       ;;
     "10e" | "win10e" | "windows10e" | "windows 10e" )
       VERSION="win10${PLATFORM,,}-enterprise-eval"
       ;;
-    "8" | "81" | "8.1" | "win8" | "win81" | "windows 8" )
+    "8" | "8p" | "81" | "81p" | "8.1" | "win8" | "win8p" | "win81" | "win81p" | "windows 8" )
       VERSION="win81${PLATFORM,,}"
       ;;
     "8e" | "81e" | "8.1e" | "win8e" | "win81e" | "windows 8e" )
@@ -40,9 +43,15 @@ parseVersion() {
       VERSION="win7${PLATFORM,,}"
       DETECTED="win7${PLATFORM,,}-enterprise"
       ;;
+    "7u" | "win7u" | "windows7u" | "windows 7u" )
+      VERSION="win7${PLATFORM,,}-ultimate"
+      ;;
     "vista" | "winvista" | "windowsvista" | "windows vista" )
       VERSION="winvista${PLATFORM,,}"
       DETECTED="winvista${PLATFORM,,}-enterprise"
+      ;;
+    "vistau" | "winvistau" | "windowsvistau" | "windows vistau" )
+      VERSION="winvista${PLATFORM,,}-ultimate"
       ;;
     "xp" | "xp32" | "winxp" | "windowsxp" | "windows xp" )
       VERSION="winxpx86"
@@ -382,31 +391,109 @@ switchEdition() {
   return 0
 }
 
-isESD() {
+getCatalog() {
 
   local id="$1"
+  local ret="$2"
+  local url=""
+  local name=""
+  local edition=""
 
   case "${id,,}" in
-    "win11${PLATFORM,,}" ) return 0 ;;
-    "win10${PLATFORM,,}" ) return 0 ;;
+    "win11${PLATFORM,,}" )
+      edition="Professional"
+      name="Windows 11 Pro"
+      url="https://go.microsoft.com/fwlink?linkid=2156292"
+      ;;
+    "win10${PLATFORM,,}" )
+      edition="Professional"
+      name="Windows 10 Pro"
+      url="https://go.microsoft.com/fwlink/?LinkId=841361"
+      ;;
+    "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval")
+      edition="Enterprise"
+      name="Windows 11 Enterprise"
+      url="https://go.microsoft.com/fwlink?linkid=2156292"
+      ;;
+    "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" )
+      edition="Enterprise"
+      name="Windows 10 Enterprise"
+      url="https://go.microsoft.com/fwlink/?LinkId=841361"
+      ;;
   esac
 
-  return 1
+  case "${ret,,}" in
+    "url" ) echo "$url" ;;
+    "name" ) echo "$name" ;;
+    "edition" ) echo "$edition" ;;
+    *) echo "";;
+  esac
+
+  return 0
 }
 
-isMido() {
+getMido() {
 
   local id="$1"
+  local ret="$2"
+  local sum=""
+  local size=""
 
   case "${id,,}" in
-    "win11${PLATFORM,,}" | "win11${PLATFORM,,}-enterprise-eval" )
-      return 0 ;;
-    "win10${PLATFORM,,}" | "win10${PLATFORM,,}-enterprise-eval" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-      return 0 ;;
-    "win81${PLATFORM,,}" | "win81${PLATFORM,,}-enterprise-eval" )
-      return 0 ;;
-    "win2022-eval" | "win2019-eval" | "win2016-eval" | "win2012r2-eval" | "win2008r2" )
-      return 0 ;;
+    "win11${PLATFORM,,}" )
+      size=6812706816
+      sum="36de5ecb7a0daa58dce68c03b9465a543ed0f5498aa8ae60ab45fb7c8c4ae402"
+      ;;
+    "win11${PLATFORM,,}-enterprise-eval" )
+      size=6209064960
+      sum="c8dbc96b61d04c8b01faf6ce0794fdf33965c7b350eaa3eb1e6697019902945c"
+      ;;
+    "win10${PLATFORM,,}" )
+      size=6140975104
+      sum="a6f470ca6d331eb353b815c043e327a347f594f37ff525f17764738fe812852e"
+      ;;
+    "win10${PLATFORM,,}-enterprise-eval" )
+      size=5550497792
+      sum="ef7312733a9f5d7d51cfa04ac497671995674ca5e1058d5164d6028f0938d668"
+      ;;
+    "win10${PLATFORM,,}-enterprise-ltsc-eval" )
+      size=4898582528
+      sum="e4ab2e3535be5748252a8d5d57539a6e59be8d6726345ee10e7afd2cb89fefb5"
+      ;;
+    "win81${PLATFORM,,}" )
+      size=4320526336
+      sum="d8333cf427eb3318ff6ab755eb1dd9d433f0e2ae43745312c1cd23e83ca1ce51"
+      ;;
+    "win81${PLATFORM,,}-enterprise-eval" )
+      size=3961473024
+      sum="2dedd44c45646c74efc5a028f65336027e14a56f76686a4631cf94ffe37c72f2"
+      ;;
+    "win2022-eval" )
+      size=5044094976
+      sum="3e4fa6d8507b554856fc9ca6079cc402df11a8b79344871669f0251535255325"
+      ;;
+    "win2019-eval" )
+      size=5652088832
+      sum="6dae072e7f78f4ccab74a45341de0d6e2d45c39be25f1f5920a2ab4f51d7bcbb"
+     ;;
+    "win2016-eval" )
+      size=6972221440
+      sum="1ce702a578a3cb1ac3d14873980838590f06d5b7101c5daaccbac9d73f1fb50f"
+      ;;
+    "win2012r2-eval" )
+      size=4542291968
+      sum="6612b5b1f53e845aacdf96e974bb119a3d9b4dcb5b82e65804ab7e534dc7b4d5"
+      ;;
+    "win2008r2" )
+      size=3166840832
+      sum="30832ad76ccfa4ce48ccb936edefe02079d42fb1da32201bf9e3a880c8ed6312"
+      ;;
+  esac
+
+  case "${ret,,}" in
+    "sum" ) echo "$sum" ;;
+    "size" ) echo "$size" ;;
+    *) echo "";;
   esac
 
   return 1
@@ -808,6 +895,28 @@ getSize() {
   return 0
 }
 
+isMido() {
+
+  local id="$1"
+  local sum
+
+  sum=$(getMido "$id" "sum")
+  [ -n "$sum" ] && return 0
+
+  return 1
+}
+
+isESD() {
+
+  local id="$1"
+  local url
+
+  url=$(getCatalog "$id" "url")
+  [ -n "$url" ] && return 0
+
+  return 1
+}
+
 validVersion() {
 
   local id="$1"
@@ -832,7 +941,7 @@ migrateFiles() {
   local version="$2"
   local file=""
 
-  [ -f "$STORAGE/$base" ] && return 0
+  [ -f "$base" ] && return 0
 
   [[ "${version,,}" == "tiny10" ]] && file="tiny10_${PLATFORM,,}_23h2.iso"
   [[ "${version,,}" == "tiny11" ]] && file="tiny11_2311_${PLATFORM,,}.iso"
@@ -841,10 +950,8 @@ migrateFiles() {
   [[ "${version,,}" == "winvista${PLATFORM,,}" ]] && file="en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
   [[ "${version,,}" == "win7${PLATFORM,,}" ]] && file="en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
 
-  [ -z "$file" ] && return 0
   [ ! -f "$STORAGE/$file" ] && return 0
-
-  ! mv "$STORAGE/$file" "$STORAGE/$base" && return 1
+  ! mv "$STORAGE/$file" "$base" && return 1
 
   return 0
 }

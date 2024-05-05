@@ -81,11 +81,12 @@ finish() {
     done
   fi
 
-  if [ ! -f "$STORAGE/windows.boot" ] && [ -f "$STORAGE/$BASE" ]; then
+  if [ ! -f "$STORAGE/windows.boot" ] && [ -f "$BOOT" ]; then
     # Remove CD-ROM ISO after install
     if ready; then
-      if rm -f "$STORAGE/$BASE" 2>/dev/null; then
-        touch "$STORAGE/windows.boot"
+      touch "$STORAGE/windows.boot"
+      if [[ "$REMOVE" != [Nn]* ]]; then
+        rm -f "$BOOT" 2>/dev/null || true
       fi
     fi
   fi

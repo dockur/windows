@@ -9,6 +9,8 @@ EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 
 hasDisk() {
 
+  [ -b "/disk1" ] && return 0
+  [ -b "/dev/disk1" ] && return 0
   [ -b "${DEVICE:-}" ] && return 0
 
   if [ -s "$STORAGE/data.img" ] || [ -s "$STORAGE/data.qcow2" ]; then
@@ -33,69 +35,63 @@ startInstall() {
 
   [ -z "$MANUAL" ] && MANUAL="N"
 
-  if [ -f "$STORAGE/$CUSTOM" ]; then
+  if [ -n "$CUSTOM" ]; then
 
-    BASE="$CUSTOM"
+    ISO="$CUSTOM"
 
   else
 
-    CUSTOM=""
+    local file="${VERSION/\//}.iso"
 
-    if [[ "${VERSION,,}" != "http"* ]]; then
+    if [[ "${VERSION,,}" == "http"* ]]; then
 
-      BASE="$VERSION.iso"
-
-    else
-
-      BASE=$(basename "${VERSION%%\?*}")
-      : "${BASE//+/ }"; printf -v BASE '%b' "${_//%/\\x}"
-      BASE=$(echo "$BASE" | sed -e 's/[^A-Za-z0-9._-]/_/g')
+      file=$(basename "${VERSION%%\?*}")
+      : "${file//+/ }"; printf -v file '%b' "${_//%/\\x}"
+      file=$(echo "$file" | sed -e 's/[^A-Za-z0-9._-]/_/g')
 
     fi
+
+    ISO="$STORAGE/$file"
+
+    ! migrateFiles "$ISO" "$VERSION" && error "Migration failed!" && exit 57
+
   fi
 
-  if [[ "${PLATFORM,,}" == "x64" ]]; then
-    ! migrateFiles "$BASE" "$VERSION" && error "Migration failed!" && exit 57
-  fi
+  skipInstall && return 1
 
-  if skipInstall; then
-    if [ ! -f "$STORAGE/$BASE" ]; then
-      BASE="custom.iso"
-      [ ! -f "$STORAGE/$BASE" ] && BASE=""
-    fi
-    [[ "${PLATFORM,,}" == "arm64" ]] && VGA="virtio-gpu"
-    return 1
-  fi
-
-  if [ -f "$STORAGE/$BASE" ]; then
+  if [ -f "$ISO" ] && [ -s "$ISO" ]; then
 
     # Check if the ISO was already processed by our script
     local magic=""
-    magic=$(dd if="$STORAGE/$BASE" seek=0 bs=1 count=1 status=none | tr -d '\000')
+    magic=$(dd if="$ISO" seek=0 bs=1 count=1 status=none | tr -d '\000')
     magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
+    [[ "$magic" == "16" ]] && return 1
 
-    if [[ "$magic" == "16" ]]; then
+  fi
 
-      if hasDisk || [[ "$MANUAL" == [Yy1]* ]]; then
-        return 1
-      fi
+  if [ -z "$CUSTOM" ]; then
 
+    BOOT="$ISO"
+    ISO=$(basename "$ISO")
+    ISO="$TMP/$ISO"
+
+  else
+
+    if [ -n "$ORIGINAL" ]; then
+      rm -f "$ISO"
+      ISO="$ORIGINAL"
+      CUSTOM="$ISO"
     fi
 
-    CUSTOM="$BASE"
+    local size
+    size="$(stat -c%s "$ISO")"
+    BOOT="$STORAGE/windows.$size.iso"
 
   fi
 
+  rm -f "$BOOT"
   rm -rf "$TMP"
   mkdir -p "$TMP"
-
-  if [ ! -f "$STORAGE/$CUSTOM" ]; then
-    CUSTOM=""
-    ISO="$TMP/$BASE"
-  else
-    ISO="$STORAGE/$CUSTOM"
-  fi
-
   return 0
 }
 
@@ -120,7 +116,6 @@ finishInstall() {
   rm -f "$STORAGE/windows.mode"
 
   cp /run/version "$STORAGE/windows.ver"
-  echo "$BASE" > "$STORAGE/windows.base"
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
     if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
@@ -147,42 +142,61 @@ abortInstall() {
 
   local iso="$1"
 
-  if [[ "$iso" != "$STORAGE/$BASE" ]]; then
-    if ! mv -f "$iso" "$STORAGE/$BASE"; then
-      error "Failed to move ISO file: $iso" && return 1
+  [[ "${iso,,}" == *".esd" ]] && exit 60
+
+  if [ -n "$CUSTOM" ]; then
+    BOOT="$iso"
+    REMOVE="N"
+  else
+    if [[ "$iso" != "$BOOT" ]]; then
+      if ! mv -f "$iso" "$BOOT"; then
+        error "Failed to move ISO file: $iso" && return 1
+      fi
     fi
   fi
 
-  finishInstall "$STORAGE/$BASE" "Y" && return 0
-
+  finishInstall "$BOOT" "Y" && return 0
   return 1
 }
 
 detectCustom() {
 
+  local file=""
+  local size base
+
   CUSTOM=""
-  local file size
+  ORIGINAL=""
 
   if [[ "${VERSION,,}" != "http"* ]]; then
-    file="${VERSION/\/storage\//}"
-    [[ "$file" == "."* ]] && file="${file:1}"
-    [[ "$file" == *"/"* ]] && file=""
-    [ -n "$file" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname "$file" -printf "%f\n" | head -n 1)
+    base="${VERSION/\/storage\//}"
+    [[ "$base" == "."* ]] && base="${file:1}"
+    [[ "$base" == *"/"* ]] && base=""
+    [ -n "$base" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$base" -printf "%f\n" | head -n 1)
   fi
 
-  [ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso -printf "%f\n" | head -n 1)
-  [ -z "$CUSTOM" ] && CUSTOM=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.img -printf "%f\n" | head -n 1)
-  [ -z "$CUSTOM" ] && return 0
+  [ -z "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso -printf "%f\n" | head -n 1)
+  [ -z "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.img -printf "%f\n" | head -n 1)
+  [ -n "$file" ] && file="$STORAGE/$file"
 
-  size="$(stat -c%s "$STORAGE/$CUSTOM")"
+  base="/custom.iso"
+  [ -f "$base" ] && [ -s "$base" ] && file="$base"
 
-  if [ -z "$size" ] || [[ "$size" == "0" ]]; then
-    CUSTOM=""
-    return 0
+  [ -z "$file" ] && return 0
+  [ ! -f "$file" ] && return 0
+  [ ! -s "$file" ] && return 0
+
+  size="$(stat -c%s "$file")"
+  [ -z "$size" ] || [[ "$size" == "0" ]] && return 0
+
+  base="$STORAGE/windows.$size.iso"
+
+  if [ -f "$base" ] && [ -s "$base" ]; then
+    CUSTOM="$base"
+    ORIGINAL="$file"
+  else
+    CUSTOM="$file"
+    rm -f "$base"
   fi
-
-  file="windows.$size.iso"
-  [ -s "$STORAGE/$file" ] && CUSTOM="$file"
 
   return 0
 }
@@ -191,13 +205,15 @@ getESD() {
 
   local dir="$1"
   local version="$2"
+  local editionName
   local winCatalog size
 
-  case "${version,,}" in
-    "win11${PLATFORM,,}" ) winCatalog="https://go.microsoft.com/fwlink?linkid=2156292" ;;
-    "win10${PLATFORM,,}" ) winCatalog="https://go.microsoft.com/fwlink/?LinkId=841361" ;;
-    *) error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1 ;;
-  esac
+  if ! isESD "${version,,}"; then
+    error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
+  fi
+
+  winCatalog=$(getCatalog "$version" "url")
+  editionName=$(getCatalog "$version" "edition")
 
   local msg="Downloading product information from Microsoft..."
   info "$msg" && html "$msg"
@@ -227,7 +243,6 @@ getESD() {
   fi
 
   local esdLang="en-us"
-  local editionName="Professional"
   local edQuery='//File[Architecture="'${PLATFORM}'"][Edition="'${editionName}'"]'
 
   echo -e '<Catalog>' > "$dir/$fFile"
@@ -256,47 +271,15 @@ getESD() {
   return 0
 }
 
-doMido() {
-
-  local iso="$1"
-  local version="$2"
-  local desc="$3"
-  local rc
-
-  rm -f "$iso"
-  rm -f "$iso.PART"
-
-  local msg="Downloading $desc..."
-  info "$msg" && html "$msg"
-  /run/progress.sh "$iso.PART" "" "Downloading $desc ([P])..." &
-
-  cd "$TMP"
-  { /run/mido.sh "${version,,}"; rc=$?; } || :
-  cd /run
-
-  fKill "progress.sh"
-
-  if (( rc == 0 )) && [ -f "$iso" ]; then
-    if [ "$(stat -c%s "$iso")" -gt 100000000 ]; then
-      html "Download finished successfully..." && return 0
-    fi
-  fi
-
-  rm -f "$iso"
-  rm -f "$iso.PART"
-
-  return 1
-}
-
 verifyFile() {
 
   local iso="$1"
   local size="$2"
-  local total="$3" 
+  local total="$3"
   local check="$4"
 
-  if [ -n "$size" ] && [[ "$total" != "$size" ]]; then
-    [[ "$size" != "0" ]] && warn "The download file has an unexpected size: $total"
+  if [ -n "$size" ] && [[ "$total" != "$size" ]] && [[ "$size" != "0" ]]; then
+    warn "The downloaded file has an invalid size: $total bytes, while expected value was: $size bytes. Please report this at $SUPPORT/issues"
   fi
 
   local hash=""
@@ -316,12 +299,49 @@ verifyFile() {
   fi
 
   if [[ "$hash" == "$check" ]]; then
-    info "Succesfully verified that the checksum was correct!" && return 0
+    info "Succesfully verified ISO!" && return 0
   fi
 
-  error "Invalid $algo checksum: $hash , but expected value is: $check ! Please report this at $SUPPORT/issues"
+  error "The downloaded file has an invalid $algo checksum: $hash , while expected value was: $check. Please report this at $SUPPORT/issues"
 
   rm -f "$iso"
+  return 1
+}
+
+doMido() {
+
+  local iso="$1"
+  local version="$2"
+  local desc="$3"
+  local rc sum size total
+
+  rm -f "$iso"
+  rm -f "$iso.PART"
+
+  size=$(getMido "$version" "size")
+  sum=$(getMido "$version" "sum")
+
+  local msg="Downloading $desc..."
+  info "$msg" && html "$msg"
+  /run/progress.sh "$iso.PART" "$size" "Downloading $desc ([P])..." &
+
+  cd "$TMP"
+  { /run/mido.sh "${version,,}"; rc=$?; } || :
+  cd /run
+
+  fKill "progress.sh"
+
+  if (( rc == 0 )) && [ -f "$iso" ]; then
+    total=$(stat -c%s "$iso")
+    if [ "$total" -gt 100000000 ]; then
+      ! verifyFile "$iso" "$size" "$total" "$sum" && return 1
+      html "Download finished successfully..." && return 0
+    fi
+  fi
+
+  rm -f "$iso"
+  rm -f "$iso.PART"
+
   return 1
 }
 
@@ -380,10 +400,11 @@ downloadImage() {
   local iso="$1"
   local version="$2"
   local tried="n"
-  local url sum size desc
+  local url sum size base desc
 
   if [[ "${version,,}" == "http"* ]]; then
-    desc=$(fromFile "$BASE")
+    base=$(basename "$iso")
+    desc=$(fromFile "$base")
     downloadFile "$iso" "$version" "" "" "$desc" && return 0
     return 1
   fi
@@ -410,9 +431,10 @@ downloadImage() {
     tried="y"
 
     if getESD "$TMP/esd" "$version"; then
-      ISO="$TMP/$version.esd"
+      local prev="$ISO"
+      ISO="${ISO%.*}.esd"
       downloadFile "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$desc" && return 0
-      ISO="$TMP/$BASE"
+      ISO="$prev"
     fi
 
   fi
@@ -434,6 +456,17 @@ downloadImage() {
   done
 
   return 1
+}
+
+removeDownload() {
+
+  local iso="$1"
+
+  [ ! -f "$iso" ] && return 0
+  [ -n "$CUSTOM" ] && return 0
+  ! rm -f "$iso" 2> /dev/null && warn "failed to remove $iso !"
+
+  return 0
 }
 
 extractESD() {
@@ -500,16 +533,15 @@ extractESD() {
   info "$msg" && html "$msg"
 
   local edition imageIndex imageEdition
+  edition=$(getCatalog "$version" "name")
 
-  case "${version,,}" in
-    "win11${PLATFORM,,}" ) edition="11 pro" ;;
-    "win10${PLATFORM,,}" ) edition="10 pro" ;;
-    *) error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1 ;;
-  esac
+  if [ -z "$edition" ]; then
+    error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
+  fi
 
   for (( imageIndex=4; imageIndex<=esdImageCount; imageIndex++ )); do
     imageEdition=$(wimlib-imagex info "${iso}" ${imageIndex} | grep '^Description:' | sed 's/Description:[ \t]*//')
-    [[ "${imageEdition,,}" != *"$edition"* ]] && continue
+    [[ "${imageEdition,,}" != "${edition,,}" ]] && continue
     wimlib-imagex export "${iso}" ${imageIndex} "${installWimFile}" --compress=LZMS --chunk-size 128K --quiet || {
       retVal=$?
       error "Addition of ${imageIndex} to the $desc image failed" && return $retVal
@@ -517,7 +549,7 @@ extractESD() {
     return 0
   done
 
-  error "Failed to find product in install.wim!" && return 1
+  error "Failed to find product '$edition' in install.wim!" && return 1
 }
 
 extractImage() {
@@ -574,7 +606,10 @@ setXML() {
 
   [[ "$MANUAL" == [Yy1]* ]] && return 0
 
-  local file="$STORAGE/custom.xml"
+  local file="/custom.xml"
+  [ -f "$file" ] && [ -s "$file" ] && XML="$file" && return 0
+
+  file="$STORAGE/custom.xml"
   [ -f "$file" ] && [ -s "$file" ] && XML="$file" && return 0
 
   file="/run/assets/custom.xml"
@@ -649,12 +684,8 @@ detectImage() {
 
   XML=""
 
-  if [ -n "$CUSTOM" ]; then
-    DETECTED=""
-  else
-    if [ -z "$DETECTED" ] && [[ "${version,,}" != "http"* ]]; then
-      DETECTED="$version"
-    fi
+  if [ -z "$DETECTED" ] && [[ "${version,,}" != "http"* ]]; then
+    [ -z "$CUSTOM" ] && DETECTED="$version"
   fi
 
   if [ -n "$DETECTED" ]; then
@@ -711,7 +742,7 @@ detectImage() {
   local fallback="/run/assets/${DETECTED%%-*}.xml"
 
   setXML "$fallback" && warn "${msg}." && return 0
-  
+
   warn "${msg}, $FB."
   return 0
 }
@@ -752,9 +783,8 @@ prepareImage() {
 
 updateImage() {
 
-  local iso="$1"
-  local dir="$2"
-  local asset="$3"
+  local dir="$1"
+  local asset="$2"
   local path src loc xml index result
 
   [ ! -s "$asset" ] || [ ! -f "$asset" ] && return 0
@@ -801,10 +831,8 @@ copyOEM() {
   local src
 
   [ ! -d "$folder" ] && folder="/OEM"
+  [ ! -d "$folder" ] && folder="$STORAGE/oem"
   [ ! -d "$folder" ] && folder="$STORAGE/OEM"
-  [ ! -d "$folder" ] && folder="$STORAGE/OEM"
-  [ ! -d "$folder" ] && folder="$STORAGE/shared/oem"
-  [ ! -d "$folder" ] && folder="$STORAGE/shared/OEM"
   [ ! -d "$folder" ] && return 0
 
   local msg="Copying OEM folder to image..."
@@ -832,9 +860,14 @@ buildImage() {
   local failed="N"
   local cat="BOOT.CAT"
   local log="/run/shm/iso.log"
-  local size size_gb space space_gb desc
-  local out="$TMP/${BASE%.*}.tmp"
+  local base size size_gb space space_gb desc
 
+  if [ -f "$BOOT" ]; then
+    error "File $BOOT does already exist?!" && return 1
+  fi
+
+  base=$(basename "$BOOT")
+  local out="$TMP/${base%.*}.tmp"
   rm -f "$out"
 
   desc=$(printVersion "$DETECTED" "ISO")
@@ -890,17 +923,22 @@ buildImage() {
   [ -s "$log" ] && error="$(<"$log")"
   [[ "$error" != "$hide" ]] && echo "$error"
 
-  if [ -f "$STORAGE/$BASE" ]; then
-    error "File $STORAGE/$BASE does already exist?!" && return 1
-  fi
-
-  mv "$out" "$STORAGE/$BASE"
+  mv "$out" "$BOOT"
   return 0
 }
 
 bootWindows() {
 
   rm -rf "$TMP"
+
+  if [ ! -f "$ISO" ] || [ ! -s "$ISO" ]; then
+    ISO="/custom.iso"
+    [ ! -f "$ISO" ] && ISO="${STORAGE}$ISO"
+  fi
+
+  BOOT="$ISO"
+
+  [[ "${PLATFORM,,}" == "arm64" ]] && VGA="virtio-gpu"
 
   if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then
     BOOT_MODE=$(<"$STORAGE/windows.mode")
@@ -979,16 +1017,13 @@ if ! prepareImage "$ISO" "$DIR"; then
   exit 60
 fi
 
-if ! updateImage "$ISO" "$DIR" "$XML"; then
+if ! updateImage "$DIR" "$XML"; then
   abortInstall "$ISO" && return 0
   exit 60
 fi
 
-if ! rm -f "$ISO" 2> /dev/null; then
-  size="$(stat -c%s "$ISO")"
-  BASE="windows.$size.iso"
-  ISO="$STORAGE/$BASE"
-  rm -f  "$ISO"
+if ! removeDownload "$ISO"; then
+  exit 64
 fi
 
 if ! copyOEM "$DIR"; then
@@ -999,7 +1034,7 @@ if ! buildImage "$DIR"; then
   exit 65
 fi
 
-if ! finishInstall "$STORAGE/$BASE" "N"; then
+if ! finishInstall "$BOOT" "N"; then
   exit 69
 fi
 
