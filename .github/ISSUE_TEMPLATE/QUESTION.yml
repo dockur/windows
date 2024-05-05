@@ -5,15 +5,15 @@ labels: ["question"]
 body:
   - type: checkboxes
     attributes:
-      label: Is your question not already answered in the [FAQ](https://github.com/dockur/windows/blob/master/readme.md)?
-      description: Please read those frequently asked questions carefully to avoid asking duplicate questions.
+      label: Is your question not already answered in the FAQ?
+      description: Please read the [FAQ](https://github.com/dockur/windows/blob/master/readme.md) carefully to avoid asking duplicate questions.
       options:
       - label: I made sure the question is not listed in the [FAQ](https://github.com/dockur/windows/blob/master/readme.md).
         required: true
   - type: checkboxes
     attributes:
       label: Is this a general question and not a technical issue?
-      description: For technical issues you must use the [bug report](https://github.com/dockur/windows/issues/new?assignees=&labels=bug&projects=&template=BUG_REPORT.yml&title=%5BBug%5D%3A+) form instead. It contains all the right fields (system info, logfiles, etc.) we need in order to be able to help you. 
+      description: For technical issues you must use the [bug report](https://github.com/dockur/windows/issues/new?assignees=&labels=bug&projects=&template=BUG_REPORT.yml&title=%5BBug%5D%3A+) form instead. It contains all the right fields (system info, logfiles, etc.) we need in order to be able to help you.
       options:
       - label: I am sure my question is not about a technical issue.
         required: true
