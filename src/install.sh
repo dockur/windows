@@ -545,12 +545,7 @@ extractESD() {
 
   for (( imageIndex=4; imageIndex<=esdImageCount; imageIndex++ )); do
     imageEdition=$(wimlib-imagex info "${iso}" ${imageIndex} | grep '^Description:' | sed 's/Description:[ \t]*//')
-    error "$imageEdition"
-  done
-
-  for (( imageIndex=4; imageIndex<=esdImageCount; imageIndex++ )); do
-    imageEdition=$(wimlib-imagex info "${iso}" ${imageIndex} | grep '^Description:' | sed 's/Description:[ \t]*//')
-    [[ "${imageEdition,,}" != *"${edition,,}"* ]] && continue
+    [[ "${imageEdition,,}" != "${edition,,}" ]] && continue
     wimlib-imagex export "${iso}" ${imageIndex} "${installWimFile}" --compress=LZMS --chunk-size 128K --quiet || {
       retVal=$?
       error "Addition of ${imageIndex} to the $desc image failed" && return $retVal
