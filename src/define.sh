@@ -407,11 +407,11 @@ getCatalog() {
       edition="Professional"
       url="https://go.microsoft.com/fwlink/?LinkId=841361"
       ;;
-    "win11${PLATFORM,,}-enterprise" )
+    "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval")
       edition="Enterprise"
       url="https://go.microsoft.com/fwlink?linkid=2156292"
       ;;
-    "win10${PLATFORM,,}-enterprise" )
+    "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" )
       edition="Enterprise"
       url="https://go.microsoft.com/fwlink/?LinkId=841361"
       ;;
@@ -905,7 +905,7 @@ isESD() {
   local id="$1"
   local url
 
-  url=$(getMido "$id" "url")
+  url=$(getCatalog "$id" "url")
   [ -n "$url" ] && return 0
 
   return 1
