@@ -210,25 +210,12 @@ getESD() {
   local editionName
   local winCatalog size
 
-  case "${version,,}" in
-    "win11${PLATFORM,,}" )
-      editionName="Professional"
-      winCatalog="https://go.microsoft.com/fwlink?linkid=2156292"
-      ;;
-    "win10${PLATFORM,,}" )
-      editionName="Professional"
-      winCatalog="https://go.microsoft.com/fwlink/?LinkId=841361"
-      ;;
-    "win11${PLATFORM,,}-enterprise" )
-      editionName="Enterprise"
-      winCatalog="https://go.microsoft.com/fwlink?linkid=2156292"
-      ;;
-    "win10${PLATFORM,,}-enterprise" )
-      editionName="Enterprise"
-      winCatalog="https://go.microsoft.com/fwlink/?LinkId=841361"
-      ;;
-    *) error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1 ;;
-  esac
+  if ! isESD "${version,,}"; then
+    error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
+  fi
+
+  winCatalog=$(getCatalog "$version" "url")
+  editionName=$(getCatalog "$version" "edition")
 
   local msg="Downloading product information from Microsoft..."
   info "$msg" && html "$msg"
@@ -293,8 +280,8 @@ verifyFile() {
   local total="$3"
   local check="$4"
 
-  if [ -n "$size" ] && [[ "$total" != "$size" ]]; then
-    [[ "$size" != "0" ]] && warn "The download file has an unexpected size: $total"
+  if [ -n "$size" ] && [[ "$total" != "$size" ]] && [[ "$size" != "0" ]]; then
+    warn "The downloaded file has an unexpected size: $total bytes! Please report this at $SUPPORT/issues"
   fi
 
   local hash=""
