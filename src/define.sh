@@ -398,6 +398,8 @@ isESD() {
   case "${id,,}" in
     "win11${PLATFORM,,}" ) return 0 ;;
     "win10${PLATFORM,,}" ) return 0 ;;
+    "win11${PLATFORM,,}-enterprise" ) return 0 ;;
+    "win10${PLATFORM,,}-enterprise" ) return 0 ;;
   esac
 
   return 1
