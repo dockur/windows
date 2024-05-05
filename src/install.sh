@@ -419,9 +419,10 @@ downloadImage() {
     tried="y"
 
     if getESD "$TMP/esd" "$version"; then
-      ISO="${ISO/.iso/.esd}"
+      local prev="$ISO"
+      ISO="${ISO%.*}.esd"
       downloadFile "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$desc" && return 0
-      ISO="${ISO/.esd/.iso}"
+      ISO="$prev"
     fi
 
   fi
