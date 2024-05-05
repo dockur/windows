@@ -838,13 +838,15 @@ copyOEM() {
 
 buildImage() {
 
-  local dir="$1"
+  local iso="$1"
+  local dir="$2"
   local failed="N"
   local cat="BOOT.CAT"
   local log="/run/shm/iso.log"
-  local size size_gb space space_gb desc
-  local out="$TMP/${BASE%.*}.tmp"
+  local base size size_gb space space_gb desc
 
+  base=$(basename "$iso")
+  local out="$TMP/${base%.*}.tmp"
   rm -f "$out"
 
   desc=$(printVersion "$DETECTED" "ISO")
@@ -1007,7 +1009,7 @@ if ! copyOEM "$DIR"; then
   exit 63
 fi
 
-if ! buildImage "$DIR"; then
+if ! buildImage "$ISO" "$DIR"; then
   exit 65
 fi
 
