@@ -272,38 +272,6 @@ getESD() {
   return 0
 }
 
-doMido() {
-
-  local iso="$1"
-  local version="$2"
-  local desc="$3"
-  local rc
-
-  rm -f "$iso"
-  rm -f "$iso.PART"
-
-  local msg="Downloading $desc..."
-  info "$msg" && html "$msg"
-  /run/progress.sh "$iso.PART" "" "Downloading $desc ([P])..." &
-
-  cd "$TMP"
-  { /run/mido.sh "${version,,}"; rc=$?; } || :
-  cd /run
-
-  fKill "progress.sh"
-
-  if (( rc == 0 )) && [ -f "$iso" ]; then
-    if [ "$(stat -c%s "$iso")" -gt 100000000 ]; then
-      html "Download finished successfully..." && return 0
-    fi
-  fi
-
-  rm -f "$iso"
-  rm -f "$iso.PART"
-
-  return 1
-}
-
 verifyFile() {
 
   local iso="$1"
@@ -338,6 +306,43 @@ verifyFile() {
   error "Invalid $algo checksum: $hash , but expected value is: $check ! Please report this at $SUPPORT/issues"
 
   rm -f "$iso"
+  return 1
+}
+
+doMido() {
+
+  local iso="$1"
+  local version="$2"
+  local desc="$3"
+  local rc sum size total
+
+  rm -f "$iso"
+  rm -f "$iso.PART"
+
+  size=$(getMido "$version" "size")
+  sum=$(getMido "$version" "sum")
+
+  local msg="Downloading $desc..."
+  info "$msg" && html "$msg"
+  /run/progress.sh "$iso.PART" "$size" "Downloading $desc ([P])..." &
+
+  cd "$TMP"
+  { /run/mido.sh "${version,,}"; rc=$?; } || :
+  cd /run
+
+  fKill "progress.sh"
+
+  if (( rc == 0 )) && [ -f "$iso" ]; then
+    total=$(stat -c%s "$iso")
+    if [ "$total" -gt 100000000 ]; then
+      ! verifyFile "$iso" "$size" "$total" "$sum" && return 1
+      html "Download finished successfully..." && return 0
+    fi
+  fi
+
+  rm -f "$iso"
+  rm -f "$iso.PART"
+
   return 1
 }
 
