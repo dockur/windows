@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+: "${RESET:=""}"
 : "${VERIFY:=""}"
 : "${MANUAL:=""}"
+: "${REMOVE:=""}"
 : "${VERSION:=""}"
 : "${DETECTED:=""}"
 : "${PLATFORM:="x64"}"
