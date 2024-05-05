@@ -51,7 +51,7 @@ startInstall() {
 
     fi
 
-    ISO="$STORAGE/$file.iso"
+    ISO="$STORAGE/$file"
 
     ! migrateFiles "$ISO" "$VERSION" && error "Migration failed!" && exit 57
 
@@ -451,8 +451,8 @@ removeDownload() {
 
   [ ! -f "$iso" ] && return 0
   [ -n "$CUSTOM" ] && return 0
+  ! rm -f "$iso" 2> /dev/null && warn "failed to remove $iso !"
 
-  rm -f "$iso" 2> /dev/null || true
   return 0
 }
 
@@ -734,7 +734,7 @@ detectImage() {
   local fallback="/run/assets/${DETECTED%%-*}.xml"
 
   setXML "$fallback" && warn "${msg}." && return 0
-  
+
   warn "${msg}, $FB."
   return 0
 }
