@@ -398,8 +398,75 @@ isESD() {
   case "${id,,}" in
     "win11${PLATFORM,,}" ) return 0 ;;
     "win10${PLATFORM,,}" ) return 0 ;;
-    "win11${PLATFORM,,}-enterprise" ) return 0 ;;
-    "win10${PLATFORM,,}-enterprise" ) return 0 ;;
+    "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval" ) return 0 ;;
+    "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" ) return 0 ;;
+  esac
+
+  return 1
+}
+
+getMido() {
+
+  local id="$1"
+  local ret="$2"
+  local sum=""
+  local size=""
+
+  case "${id,,}" in
+    "win11${PLATFORM,,}" )
+      size=6812706816
+      sum="36de5ecb7a0daa58dce68c03b9465a543ed0f5498aa8ae60ab45fb7c8c4ae402"
+      ;;
+    "win11${PLATFORM,,}-enterprise-eval" )
+      size=6209064960
+      sum="c8dbc96b61d04c8b01faf6ce0794fdf33965c7b350eaa3eb1e6697019902945c"
+      ;;
+    "win10${PLATFORM,,}" )
+      size=6140975104
+      sum="a6f470ca6d331eb353b815c043e327a347f594f37ff525f17764738fe812852e"
+      ;;
+    "win10${PLATFORM,,}-enterprise-eval" )
+      size=5550497792
+      sum="ef7312733a9f5d7d51cfa04ac497671995674ca5e1058d5164d6028f0938d668"
+      ;;
+    "win10${PLATFORM,,}-enterprise-ltsc-eval" )
+      size=4898582528
+      sum="e4ab2e3535be5748252a8d5d57539a6e59be8d6726345ee10e7afd2cb89fefb5"
+      ;;
+    "win81${PLATFORM,,}" )
+      size=4320526336
+      sum="d8333cf427eb3318ff6ab755eb1dd9d433f0e2ae43745312c1cd23e83ca1ce51"
+      ;;
+    "win81${PLATFORM,,}-enterprise-eval" )
+      size=3961473024
+      sum="2dedd44c45646c74efc5a028f65336027e14a56f76686a4631cf94ffe37c72f2"
+      ;;
+    "win2022-eval" )
+      size=5044094976
+      sum="3e4fa6d8507b554856fc9ca6079cc402df11a8b79344871669f0251535255325"
+      ;;
+    "win2019-eval" )
+      size=5652088832
+      sum="6dae072e7f78f4ccab74a45341de0d6e2d45c39be25f1f5920a2ab4f51d7bcbb"
+     ;;
+    "win2016-eval" )
+      size=6972221440
+      sum="1ce702a578a3cb1ac3d14873980838590f06d5b7101c5daaccbac9d73f1fb50f"
+      ;;
+    "win2012r2-eval" )
+      size=4542291968
+      sum="6612b5b1f53e845aacdf96e974bb119a3d9b4dcb5b82e65804ab7e534dc7b4d5"
+      ;;
+    "win2008r2" )
+      size=3166840832
+      sum="30832ad76ccfa4ce48ccb936edefe02079d42fb1da32201bf9e3a880c8ed6312"
+      ;;
+  esac
+
+  case "${ret,,}" in
+    "sum" ) echo "$sum" ;;
+    "size" ) echo "$size" ;;
+    *) echo "";;
   esac
 
   return 1
@@ -408,17 +475,10 @@ isESD() {
 isMido() {
 
   local id="$1"
+  local sum
 
-  case "${id,,}" in
-    "win11${PLATFORM,,}" | "win11${PLATFORM,,}-enterprise-eval" )
-      return 0 ;;
-    "win10${PLATFORM,,}" | "win10${PLATFORM,,}-enterprise-eval" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-      return 0 ;;
-    "win81${PLATFORM,,}" | "win81${PLATFORM,,}-enterprise-eval" )
-      return 0 ;;
-    "win2022-eval" | "win2019-eval" | "win2016-eval" | "win2012r2-eval" | "win2008r2" )
-      return 0 ;;
-  esac
+  sum=$(getMido "$id" "sum")
+  [ -n "$sum" ] && return 0
 
   return 1
 }
@@ -833,73 +893,6 @@ validVersion() {
     [ -n "$url" ] && return 0
 
   done
-
-  return 1
-}
-
-getMido() {
-
-  local id="$1"
-  local ret="$2"
-  local sum=""
-  local size=""
-
-  case "${id,,}" in
-    "win11${PLATFORM,,}" )
-      size=6812706816
-      sum="36de5ecb7a0daa58dce68c03b9465a543ed0f5498aa8ae60ab45fb7c8c4ae402"
-      ;;
-    "win11${PLATFORM,,}-enterprise-eval" )
-      size=6209064960
-      sum="c8dbc96b61d04c8b01faf6ce0794fdf33965c7b350eaa3eb1e6697019902945c"
-      ;;
-    "win10${PLATFORM,,}" )
-      size=6140975104
-      sum="a6f470ca6d331eb353b815c043e327a347f594f37ff525f17764738fe812852e"
-      ;;
-    "win10${PLATFORM,,}-enterprise-eval" )
-      size=5550497792
-      sum="ef7312733a9f5d7d51cfa04ac497671995674ca5e1058d5164d6028f0938d668"
-      ;;
-    "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-      size=4898582528
-      sum="e4ab2e3535be5748252a8d5d57539a6e59be8d6726345ee10e7afd2cb89fefb5"
-      ;;
-    "win81${PLATFORM,,}" )
-      size=4320526336
-      sum="d8333cf427eb3318ff6ab755eb1dd9d433f0e2ae43745312c1cd23e83ca1ce51"
-      ;;
-    "win81${PLATFORM,,}-enterprise-eval" )
-      size=3961473024
-      sum="2dedd44c45646c74efc5a028f65336027e14a56f76686a4631cf94ffe37c72f2"
-      ;;
-    "win2022-eval" )
-      size=5044094976
-      sum="3e4fa6d8507b554856fc9ca6079cc402df11a8b79344871669f0251535255325"
-      ;;
-    "win2019-eval" )
-      size=5652088832
-      sum="6dae072e7f78f4ccab74a45341de0d6e2d45c39be25f1f5920a2ab4f51d7bcbb"
-     ;;
-    "win2016-eval" )
-      size=6972221440
-      sum="1ce702a578a3cb1ac3d14873980838590f06d5b7101c5daaccbac9d73f1fb50f"
-      ;;
-    "win2012r2-eval" )
-      size=4542291968
-      sum="6612b5b1f53e845aacdf96e974bb119a3d9b4dcb5b82e65804ab7e534dc7b4d5"
-      ;;
-    "win2008r2" )
-      size=3166840832
-      sum="30832ad76ccfa4ce48ccb936edefe02079d42fb1da32201bf9e3a880c8ed6312"
-      ;;
-  esac
-
-  case "${ret,,}" in
-    "sum" ) echo "$sum" ;;
-    "size" ) echo "$size" ;;
-    *) echo "";;
-  esac
 
   return 1
 }
