@@ -146,74 +146,38 @@ printEdition() {
   [[ "$result" == "x" ]] && echo "$desc" && return 0
 
   case "${id,,}" in
-    "win7${PLATFORM,,}-home"* )
+    *"-iot" )
+      edition="IoT"
+      ;;
+    *"-ltsc" )
+      edition="LTSC"
+      ;;
+    *"-home" )
       edition="Home"
       ;;
-    "win7${PLATFORM,,}-starter"* )
+    *"-starter" )
       edition="Starter"
       ;;
-    "win7${PLATFORM,,}-ultimate"* )
+    *"-ultimate" )
       edition="Ultimate"
       ;;
-    "win7${PLATFORM,,}-enterprise"* )
+    *"-enterprise" )
       edition="Enterprise"
+      ;;
+    *"-education" )
+      edition="Education"
+      ;;
+    *"-enterprise-eval" )
+      edition="Enterprise (Evaluation)"
       ;;
     "win7"* )
       edition="Professional"
       ;;
-    "win8${PLATFORM,,}-enterprise"* )
-      edition="Enterprise"
-      ;;
-    "win8"* )
-      edition="Pro"
-      ;;
-    "win10${PLATFORM,,}-iot"* )
-      edition="IoT"
-      ;;
-    "win10${PLATFORM,,}-ltsc"* )
-      edition="LTSC"
-      ;;
-    "win10${PLATFORM,,}-home"* )
-      edition="Home"
-      ;;
-    "win10${PLATFORM,,}-education"* )
-      edition="Education"
-      ;;
-    "win10${PLATFORM,,}-enterprise"* )
-      edition="Enterprise"
-      ;;
-    "win10"* )
-      edition="Pro"
-      ;;
-    "win11${PLATFORM,,}-iot"* )
-      edition="IoT"
-      ;;
-    "win11${PLATFORM,,}-home"* )
-      edition="Home"
-      ;;
-    "win11${PLATFORM,,}-education"* )
-      edition="Education"
-      ;;
-    "win11${PLATFORM,,}-enterprise"* )
-      edition="Enterprise"
-      ;;
-    "win11"* )
+    "win8"* | "win10"* | "win11"* )
       edition="Pro"
       ;;
     "winxp"* )
       edition="Professional"
-      ;;
-    "winvista${PLATFORM,,}-home"* )
-      edition="Home"
-      ;;
-    "winvista${PLATFORM,,}-starter"* )
-      edition="Starter"
-      ;;
-    "winvista${PLATFORM,,}-ultimate"* )
-      edition="Ultimate"
-      ;;
-    "winvista${PLATFORM,,}-enterprise"* )
-      edition="Enterprise"
       ;;
     "winvista"* )
       edition="Business"
@@ -223,7 +187,6 @@ printEdition() {
       ;;
   esac
 
-  [[ "${id,,}" == *"-eval" ]] && edition="$edition (Evaluation)"
   [ -n "$edition" ] && result="$result $edition"
 
   echo "$result"
@@ -235,25 +198,38 @@ fromFile() {
   local id=""
   local desc="$1"
   local file="${1,,}"
+  local arch="${PLATFORM,,}"
+
+  case "${file/ /_}" in
+    *"_x64_"* | *"_x64."*)
+      arch="x64"
+      ;;
+    *"_x86_"* | *"_x86."*)
+      arch="x86"
+      ;;
+    *"_arm64_"* | *"_arm64."*)
+      arch="arm64"
+      ;;
+  esac
 
   case "${file/ /_}" in
     "win7"* | "win_7"* | *"windows7"* | *"windows_7"* )
-      id="win7${PLATFORM,,}"
+      id="win7${arch}"
       ;;
     "win8"* | "win_8"* | *"windows8"* | *"windows_8"* )
-      id="win81${PLATFORM,,}"
+      id="win81${arch}"
       ;;
     "win10"*| "win_10"* | *"windows10"* | *"windows_10"* )
-      id="win10${PLATFORM,,}"
+      id="win10${arch}"
       ;;
     "win11"* | "win_11"* | *"windows11"* | *"windows_11"* )
-      id="win11${PLATFORM,,}"
+      id="win11${arch}"
       ;;
     *"winxp"* | *"win_xp"* | *"windowsxp"* | *"windows_xp"* )
       id="winxpx86"
       ;;
     *"winvista"* | *"win_vista"* | *"windowsvista"* | *"windows_vista"* )
-      id="winvista${PLATFORM,,}"
+      id="winvista${arch}"
       ;;
     "tiny11core"* | "tiny11_core"* | "tiny_11_core"* )
       id="core11"
@@ -296,6 +272,7 @@ fromName() {
 
   local id=""
   local name="$1"
+  local arch="$2"
 
   case "${name,,}" in
     *"server 2025"* ) id="win2025" ;;
@@ -304,11 +281,11 @@ fromName() {
     *"server 2016"* ) id="win2016" ;;
     *"server 2012"* ) id="win2012r2" ;;
     *"server 2008"* ) id="win2008r2" ;;
-    *"windows 7"* ) id="win7${PLATFORM,,}" ;;
-    *"windows 8"* ) id="win81${PLATFORM,,}" ;;
-    *"windows 10"* ) id="win10${PLATFORM,,}" ;;
-    *"windows 11"* ) id="win11${PLATFORM,,}" ;;
-    *"windows vista"* ) id="winvista${PLATFORM,,}" ;;
+    *"windows 7"* ) id="win7${arch}" ;;
+    *"windows 8"* ) id="win81${arch}" ;;
+    *"windows 10"* ) id="win10${arch}" ;;
+    *"windows 11"* ) id="win11${arch}" ;;
+    *"windows vista"* ) id="winvista${arch}" ;;
   esac
 
   echo "$id"
@@ -319,8 +296,9 @@ getVersion() {
 
   local id
   local name="$1"
+  local arch="$2"
 
-  id=$(fromName "$name")
+  id=$(fromName "$name" "$arch")
 
   case "${id,,}" in
     "win7"* | "winvista"* )
