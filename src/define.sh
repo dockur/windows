@@ -571,14 +571,14 @@ getLink1() {
       sum="0b738b55a5ea388ad016535a5c8234daf2e5715a0638488ddd8a228a836055a1"
       url="$host/7/en_windows_7_with_sp1_${PLATFORM,,}.iso"
       ;;
-    "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise" )
-      size=111
-      sum="xxx"
+    "win7x86" | "win7x86-enterprise" )
+      size=2434502656
+      sum="8bdd46ff8cb8b8de9c4aba02706629c8983c45e87da110e64e13be17c8434dad"
       url="$host/7/en_windows_7_enterprise_with_sp1_x86_dvd_u_677710.iso"
       ;;
-    "win7${PLATFORM,,}-ultimate" )
-      size=111
-      sum="xzx"
+    "win7x86-ultimate" )
+      size=2564411392
+      sum="99f3369c90160816be07093dbb0ac053e0a84e52d6ed1395c92ae208ccdf67e5"
       url="$host/7/en_windows_7_with_sp1_x86.iso"
       ;;
     "winvista${PLATFORM,,}-ultimate" )
@@ -587,8 +587,8 @@ getLink1() {
       url="$host/vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
       ;;
     "winvistax86-ultimate" )
-      size=111
-      sum="xxx"
+      size=3243413504
+      sum="9c36fed4255bd05a8506b2da88f9aad73643395e155e609398aacd2b5276289c"
       url="$host/vista/en_windows_vista_with_sp2_x86_dvd_342266.iso"
       ;;
     "winxpx86" )
@@ -653,13 +653,13 @@ getLink2() {
       url="$host/Windows%207/en_windows_7_ultimate_with_sp1_${PLATFORM,,}_dvd_u_677332.iso"
       ;;
     "win7x86" | "win7x86enterprise" )
-      size=11
-      sum="xxx"
+      size=2434502656
+      sum="8bdd46ff8cb8b8de9c4aba02706629c8983c45e87da110e64e13be17c8434dad"
       url="$host/Windows%207/en_windows_7_enterprise_with_sp1_x86_dvd_u_677710.iso"
       ;;
     "win7x86-ultimate" )
-      size=11
-      sum="xx"
+      size=2564476928
+      sum="e2c009a66d63a742941f5087acae1aa438dcbe87010bddd53884b1af6b22c940"
       url="$host/Windows%207/en_windows_7_ultimate_with_sp1_x86_dvd_u_677460.iso"
       ;;
     "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-enterprise" )
@@ -673,13 +673,13 @@ getLink2() {
       url="$host/Windows%20Vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
       ;;
     "winvistax86" | "winvistax86-enterprise" )
-      size=44
-      sum="44"
+      size=2420981760
+      sum="54e2720004041e7db988a391543ea5228b0affc28efcf9303d2d0ff9402067f5"
       url="$host/Windows%20Vista/en_windows_vista_enterprise_sp2_x86_dvd_342329.iso"
       ;;
     "winvistax86-ultimate" )
-      size=44
-      sum="44"
+      size=3243413504
+      sum="9c36fed4255bd05a8506b2da88f9aad73643395e155e609398aacd2b5276289c"
       url="$host/Windows%20Vista/en_windows_vista_with_sp2_x86_dvd_342266.iso"
       ;;
     "winxpx86" )
@@ -827,13 +827,13 @@ getLink4() {
       url="$host/en_windows_7_ultimate_with_sp1_${PLATFORM,,}_dvd_u_677332.iso"
       ;;
     "win7x86" | "win7x86enterprise" )
-      size=11
-      sum="xxx"
+      size=2434502656
+      sum="8bdd46ff8cb8b8de9c4aba02706629c8983c45e87da110e64e13be17c8434dad"
       url="$host/en_windows_7_enterprise_with_sp1_x86_dvd_u_677710.iso"
       ;;
     "win7x86-ultimate" )
-      size=11
-      sum="xx"
+      size=2564476928
+      sum="e2c009a66d63a742941f5087acae1aa438dcbe87010bddd53884b1af6b22c940"
       url="$host/en_windows_7_ultimate_with_sp1_x86_dvd_u_677460.iso"
       ;;
     "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-enterprise" )
@@ -847,13 +847,13 @@ getLink4() {
       url="$host/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
       ;;
     "winvistax86" | "winvistax86-enterprise" )
-      size=22
-      sum="xx"
+      size=2420981760
+      sum="54e2720004041e7db988a391543ea5228b0affc28efcf9303d2d0ff9402067f5"
       url="$host/en_windows_vista_enterprise_sp2_x86_dvd_342329.iso"
       ;;
     "winvistax86-ultimate" )
-      size=22
-      sum="xx"
+      size=3243413504
+      sum="9c36fed4255bd05a8506b2da88f9aad73643395e155e609398aacd2b5276289c"
       url="$host/en_windows_vista_with_sp2_x86_dvd_342266.iso"
       ;;
   esac
