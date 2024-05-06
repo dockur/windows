@@ -854,7 +854,7 @@ getLink4() {
     "winvistax86-ultimate" )
       size=22
       sum="xx"
-      url="$host/en_windows_vista_with_sp2_x86_dvd_342266.iso
+      url="$host/en_windows_vista_with_sp2_x86_dvd_342266.iso"
       ;;
   esac
 
