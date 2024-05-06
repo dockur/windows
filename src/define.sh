@@ -46,20 +46,12 @@ parseVersion() {
     "7u" | "win7u" | "windows7u" | "windows 7u" )
       VERSION="win7${PLATFORM,,}-ultimate"
       ;;
-    "7x86" | "win7x86" | "windows7x86" | "windows 7 x86" )
-      VERSION="win7x86"
-      DETECTED="win7x64-enterprise"
-      ;;
     "vista" | "winvista" | "windowsvista" | "windows vista" )
       VERSION="winvista${PLATFORM,,}"
       DETECTED="winvista${PLATFORM,,}-enterprise"
       ;;
-    "vistau" | "winvistau" | "windowsvistau" | "windows vistau" )
+    "vistu" | "winvistu" | "windowsvistu" | "windows vistu" )
       VERSION="winvista${PLATFORM,,}-ultimate"
-      ;;
-    "vistax86" | "vista32" | "winvistax86" | "winvista32" | "windowsvistax86" )
-      VERSION="winvistax86"
-      DETECTED="winvistax64-enterprise"
       ;;
     "xp" | "xp32" | "xpx86" | "winxp" | "winxp86" | "windowsxp" | "windows xp" )
       VERSION="winxpx86"
