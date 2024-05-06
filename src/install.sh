@@ -671,9 +671,24 @@ detectVersion() {
   arch=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml")
 
   case "${arch,,}" in
-    "0" )   platform="x86" ;;
-    "9" )   platform="x64" ;;
-    "12" ) platform="arm64" ;;
+    "0" )
+      platform="x86"
+      if [[ "${PLATFORM,,}" != "x64" ]]; then
+        error "You cannot boot $platform images on a $PLATFORM cpu!" && exit 67
+      fi
+      ;;
+    "9" )
+      platform="x64"
+      if [[ "${PLATFORM,,}" != "x64" ]]; then
+        error "You cannot boot $platform images on a $PLATFORM cpu!" && exit 67
+      fi
+      ;;
+    "12" )
+      platform="arm64"
+      if [[ "${PLATFORM,,}" != "arm64" ]]; then
+        error "You cannot boot ${platform^^} images on a $PLATFORM cpu!" && exit 67
+      fi
+      ;;
   esac
   
   id=$(selectVersion "DISPLAYNAME" "$xml" "$platform")
