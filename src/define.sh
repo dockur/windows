@@ -6,9 +6,9 @@ set -Eeuo pipefail
 : "${REMOVE:=""}"
 : "${VERSION:=""}"
 : "${DETECTED:=""}"
-: "${PLATFORM:="x64"}"
 
 MIRRORS=5
+PLATFORM="x64"
 
 parseVersion() {
 
@@ -64,8 +64,8 @@ parseVersion() {
     "xp" | "xp32" | "xpx86" | "winxp" | "winxp86" | "windowsxp" | "windows xp" )
       VERSION="winxpx86"
       ;;
-    "xp64" | "xpx64" "winxp64" | "winxpx64" | "windowsxp64" | "windowsxpx64" )
-      VERSION="winxpx64"
+    "xp64" | "xpx64" | "winxp64" | "winxpx64" | "windowsxp64" | "windowsxpx64" )
+      VERSION="winxp${PLATFORM,,}"
       ;;
     "22" | "2022" | "win22" | "win2022" | "windows2022" | "windows 2022" )
       VERSION="win2022-eval"
