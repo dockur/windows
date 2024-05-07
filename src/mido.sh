@@ -3,8 +3,6 @@
 # Copyright (C) 2024 Elliot Killick <contact@elliotkillick.com>
 # Licensed under the MIT License. See LICENSE file for details.
 
-[ "$DEBUG" ] && set -x
-
 # Prefer Dash shell for greater security if available
 if [ "$BASH" ] && command -v dash > /dev/null; then
     exec dash "$0" "$@"
