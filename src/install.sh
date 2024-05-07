@@ -626,13 +626,14 @@ selectVersion() {
 
   local tag="$1"
   local xml="$2"
+  local platform="$3"
   local id find name prefer
 
   name=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml")
   [[ "$name" == *"Operating System"* ]] && name=""
   [ -z "$name" ] && return 0
 
-  id=$(fromName "$name")
+  id=$(fromName "$name" "$platform")
   [ -z "$id" ] && warn "Unknown ${tag,,}: '$name'" && return 0
 
   prefer="$id-enterprise"
@@ -653,7 +654,7 @@ selectVersion() {
     echo "$prefer" && return 0
   fi
 
-  prefer=$(getVersion "$name")
+  prefer=$(getVersion "$name" "$platform")
 
   echo "$prefer"
   return 0
@@ -663,14 +664,40 @@ detectVersion() {
 
   local xml="$1"
   local id=""
+  local arch=""
+  local tag="ARCH"
+  local platform="x64"
 
-  id=$(selectVersion "DISPLAYNAME" "$xml")
+  arch=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml")
+
+  case "${arch,,}" in
+    "0" )
+      platform="x86"
+      if [[ "${PLATFORM,,}" != "x64" ]]; then
+        error "You cannot boot $platform images on a $PLATFORM cpu!" && exit 67
+      fi
+      ;;
+    "9" )
+      platform="x64"
+      if [[ "${PLATFORM,,}" != "x64" ]]; then
+        error "You cannot boot $platform images on a $PLATFORM cpu!" && exit 67
+      fi
+      ;;
+    "12" )
+      platform="arm64"
+      if [[ "${PLATFORM,,}" != "arm64" ]]; then
+        error "You cannot boot ${platform^^} images on a $PLATFORM cpu!" && exit 67
+      fi
+      ;;
+  esac
+  
+  id=$(selectVersion "DISPLAYNAME" "$xml" "$platform")
   [ -n "$id" ] && [[ "${id,,}" != *"unknown"* ]] && echo "$id" && return 0
 
-  id=$(selectVersion "PRODUCTNAME" "$xml")
+  id=$(selectVersion "PRODUCTNAME" "$xml" "$platform")
   [ -n "$id" ] && [[ "${id,,}" != *"unknown"* ]] && echo "$id" && return 0
 
-  id=$(selectVersion "NAME" "$xml")
+  id=$(selectVersion "NAME" "$xml" "$platform")
   [ -n "$id" ] && [[ "${id,,}" != *"unknown"* ]] && echo "$id" && return 0
 
   return 0

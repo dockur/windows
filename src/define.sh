@@ -6,9 +6,9 @@ set -Eeuo pipefail
 : "${REMOVE:=""}"
 : "${VERSION:=""}"
 : "${DETECTED:=""}"
-: "${PLATFORM:="x64"}"
 
 MIRRORS=5
+PLATFORM="x64"
 
 parseVersion() {
 
@@ -50,14 +50,14 @@ parseVersion() {
       VERSION="winvista${PLATFORM,,}"
       DETECTED="winvista${PLATFORM,,}-enterprise"
       ;;
-    "vistau" | "winvistau" | "windowsvistau" | "windows vistau" )
+    "vistu" | "winvistu" | "windowsvistu" | "windows vistu" )
       VERSION="winvista${PLATFORM,,}-ultimate"
       ;;
-    "xp" | "xp32" | "winxp" | "windowsxp" | "windows xp" )
+    "xp" | "xp32" | "xpx86" | "winxp" | "winxp86" | "windowsxp" | "windows xp" )
       VERSION="winxpx86"
       ;;
-    "xp64" | "winxp64" | "windowsxp64" | "windows xp 64" )
-      VERSION="winxpx64"
+    "xp64" | "xpx64" | "winxp64" | "winxpx64" | "windowsxp64" | "windowsxpx64" )
+      VERSION="winxp${PLATFORM,,}"
       ;;
     "22" | "2022" | "win22" | "win2022" | "windows2022" | "windows 2022" )
       VERSION="win2022-eval"
@@ -146,74 +146,38 @@ printEdition() {
   [[ "$result" == "x" ]] && echo "$desc" && return 0
 
   case "${id,,}" in
-    "win7${PLATFORM,,}-home"* )
+    *"-iot" )
+      edition="IoT"
+      ;;
+    *"-ltsc" )
+      edition="LTSC"
+      ;;
+    *"-home" )
       edition="Home"
       ;;
-    "win7${PLATFORM,,}-starter"* )
+    *"-starter" )
       edition="Starter"
       ;;
-    "win7${PLATFORM,,}-ultimate"* )
+    *"-ultimate" )
       edition="Ultimate"
       ;;
-    "win7${PLATFORM,,}-enterprise"* )
+    *"-enterprise" )
       edition="Enterprise"
+      ;;
+    *"-education" )
+      edition="Education"
+      ;;
+    *"-enterprise-eval" )
+      edition="Enterprise (Evaluation)"
       ;;
     "win7"* )
       edition="Professional"
       ;;
-    "win8${PLATFORM,,}-enterprise"* )
-      edition="Enterprise"
-      ;;
-    "win8"* )
-      edition="Pro"
-      ;;
-    "win10${PLATFORM,,}-iot"* )
-      edition="IoT"
-      ;;
-    "win10${PLATFORM,,}-ltsc"* )
-      edition="LTSC"
-      ;;
-    "win10${PLATFORM,,}-home"* )
-      edition="Home"
-      ;;
-    "win10${PLATFORM,,}-education"* )
-      edition="Education"
-      ;;
-    "win10${PLATFORM,,}-enterprise"* )
-      edition="Enterprise"
-      ;;
-    "win10"* )
-      edition="Pro"
-      ;;
-    "win11${PLATFORM,,}-iot"* )
-      edition="IoT"
-      ;;
-    "win11${PLATFORM,,}-home"* )
-      edition="Home"
-      ;;
-    "win11${PLATFORM,,}-education"* )
-      edition="Education"
-      ;;
-    "win11${PLATFORM,,}-enterprise"* )
-      edition="Enterprise"
-      ;;
-    "win11"* )
+    "win8"* | "win10"* | "win11"* )
       edition="Pro"
       ;;
     "winxp"* )
       edition="Professional"
-      ;;
-    "winvista${PLATFORM,,}-home"* )
-      edition="Home"
-      ;;
-    "winvista${PLATFORM,,}-starter"* )
-      edition="Starter"
-      ;;
-    "winvista${PLATFORM,,}-ultimate"* )
-      edition="Ultimate"
-      ;;
-    "winvista${PLATFORM,,}-enterprise"* )
-      edition="Enterprise"
       ;;
     "winvista"* )
       edition="Business"
@@ -223,7 +187,6 @@ printEdition() {
       ;;
   esac
 
-  [[ "${id,,}" == *"-eval" ]] && edition="$edition (Evaluation)"
   [ -n "$edition" ] && result="$result $edition"
 
   echo "$result"
@@ -235,25 +198,38 @@ fromFile() {
   local id=""
   local desc="$1"
   local file="${1,,}"
+  local arch="${PLATFORM,,}"
+
+  case "${file/ /_}" in
+    *"_x64_"* | *"_x64."*)
+      arch="x64"
+      ;;
+    *"_x86_"* | *"_x86."*)
+      arch="x86"
+      ;;
+    *"_arm64_"* | *"_arm64."*)
+      arch="arm64"
+      ;;
+  esac
 
   case "${file/ /_}" in
     "win7"* | "win_7"* | *"windows7"* | *"windows_7"* )
-      id="win7${PLATFORM,,}"
+      id="win7${arch}"
       ;;
     "win8"* | "win_8"* | *"windows8"* | *"windows_8"* )
-      id="win81${PLATFORM,,}"
+      id="win81${arch}"
       ;;
     "win10"*| "win_10"* | *"windows10"* | *"windows_10"* )
-      id="win10${PLATFORM,,}"
+      id="win10${arch}"
       ;;
     "win11"* | "win_11"* | *"windows11"* | *"windows_11"* )
-      id="win11${PLATFORM,,}"
+      id="win11${arch}"
       ;;
     *"winxp"* | *"win_xp"* | *"windowsxp"* | *"windows_xp"* )
       id="winxpx86"
       ;;
     *"winvista"* | *"win_vista"* | *"windowsvista"* | *"windows_vista"* )
-      id="winvista${PLATFORM,,}"
+      id="winvista${arch}"
       ;;
     "tiny11core"* | "tiny11_core"* | "tiny_11_core"* )
       id="core11"
@@ -296,6 +272,7 @@ fromName() {
 
   local id=""
   local name="$1"
+  local arch="$2"
 
   case "${name,,}" in
     *"server 2025"* ) id="win2025" ;;
@@ -304,11 +281,11 @@ fromName() {
     *"server 2016"* ) id="win2016" ;;
     *"server 2012"* ) id="win2012r2" ;;
     *"server 2008"* ) id="win2008r2" ;;
-    *"windows 7"* ) id="win7${PLATFORM,,}" ;;
-    *"windows 8"* ) id="win81${PLATFORM,,}" ;;
-    *"windows 10"* ) id="win10${PLATFORM,,}" ;;
-    *"windows 11"* ) id="win11${PLATFORM,,}" ;;
-    *"windows vista"* ) id="winvista${PLATFORM,,}" ;;
+    *"windows 7"* ) id="win7${arch}" ;;
+    *"windows 8"* ) id="win81${arch}" ;;
+    *"windows 10"* ) id="win10${arch}" ;;
+    *"windows 11"* ) id="win11${arch}" ;;
+    *"windows vista"* ) id="winvista${arch}" ;;
   esac
 
   echo "$id"
@@ -319,8 +296,9 @@ getVersion() {
 
   local id
   local name="$1"
+  local arch="$2"
 
-  id=$(fromName "$name")
+  id=$(fromName "$name" "$arch")
 
   case "${id,,}" in
     "win7"* | "winvista"* )
@@ -571,10 +549,25 @@ getLink1() {
       sum="0b738b55a5ea388ad016535a5c8234daf2e5715a0638488ddd8a228a836055a1"
       url="$host/7/en_windows_7_with_sp1_${PLATFORM,,}.iso"
       ;;
+    "win7x86" | "win7x86-enterprise" )
+      size=2434502656
+      sum="8bdd46ff8cb8b8de9c4aba02706629c8983c45e87da110e64e13be17c8434dad"
+      url="$host/7/en_windows_7_enterprise_with_sp1_x86_dvd_u_677710.iso"
+      ;;
+    "win7x86-ultimate" )
+      size=2564411392
+      sum="99f3369c90160816be07093dbb0ac053e0a84e52d6ed1395c92ae208ccdf67e5"
+      url="$host/7/en_windows_7_with_sp1_x86.iso"
+      ;;
     "winvista${PLATFORM,,}-ultimate" )
       size=3861460992
       sum="edf9f947c5791469fd7d2d40a5dcce663efa754f91847aa1d28ed7f585675b78"
       url="$host/vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
+      ;;
+    "winvistax86-ultimate" )
+      size=3243413504
+      sum="9c36fed4255bd05a8506b2da88f9aad73643395e155e609398aacd2b5276289c"
+      url="$host/vista/en_windows_vista_with_sp2_x86_dvd_342266.iso"
       ;;
     "winxpx86" )
       size=617756672
@@ -637,6 +630,16 @@ getLink2() {
       sum="36f4fa2416d0982697ab106e3a72d2e120dbcdb6cc54fd3906d06120d0653808"
       url="$host/Windows%207/en_windows_7_ultimate_with_sp1_${PLATFORM,,}_dvd_u_677332.iso"
       ;;
+    "win7x86" | "win7x86enterprise" )
+      size=2434502656
+      sum="8bdd46ff8cb8b8de9c4aba02706629c8983c45e87da110e64e13be17c8434dad"
+      url="$host/Windows%207/en_windows_7_enterprise_with_sp1_x86_dvd_u_677710.iso"
+      ;;
+    "win7x86-ultimate" )
+      size=2564476928
+      sum="e2c009a66d63a742941f5087acae1aa438dcbe87010bddd53884b1af6b22c940"
+      url="$host/Windows%207/en_windows_7_ultimate_with_sp1_x86_dvd_u_677460.iso"
+      ;;
     "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-enterprise" )
       size=3205953536
       sum="0a0cd511b3eac95c6f081419c9c65b12317b9d6a8d9707f89d646c910e788016"
@@ -646,6 +649,16 @@ getLink2() {
       size=3861460992
       sum="edf9f947c5791469fd7d2d40a5dcce663efa754f91847aa1d28ed7f585675b78"
       url="$host/Windows%20Vista/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
+      ;;
+    "winvistax86" | "winvistax86-enterprise" )
+      size=2420981760
+      sum="54e2720004041e7db988a391543ea5228b0affc28efcf9303d2d0ff9402067f5"
+      url="$host/Windows%20Vista/en_windows_vista_enterprise_sp2_x86_dvd_342329.iso"
+      ;;
+    "winvistax86-ultimate" )
+      size=3243413504
+      sum="9c36fed4255bd05a8506b2da88f9aad73643395e155e609398aacd2b5276289c"
+      url="$host/Windows%20Vista/en_windows_vista_with_sp2_x86_dvd_342266.iso"
       ;;
     "winxpx86" )
       size=617756672
@@ -791,6 +804,16 @@ getLink4() {
       sum="36f4fa2416d0982697ab106e3a72d2e120dbcdb6cc54fd3906d06120d0653808"
       url="$host/en_windows_7_ultimate_with_sp1_${PLATFORM,,}_dvd_u_677332.iso"
       ;;
+    "win7x86" | "win7x86enterprise" )
+      size=2434502656
+      sum="8bdd46ff8cb8b8de9c4aba02706629c8983c45e87da110e64e13be17c8434dad"
+      url="$host/en_windows_7_enterprise_with_sp1_x86_dvd_u_677710.iso"
+      ;;
+    "win7x86-ultimate" )
+      size=2564476928
+      sum="e2c009a66d63a742941f5087acae1aa438dcbe87010bddd53884b1af6b22c940"
+      url="$host/en_windows_7_ultimate_with_sp1_x86_dvd_u_677460.iso"
+      ;;
     "winvista${PLATFORM,,}" | "winvista${PLATFORM,,}-enterprise" )
       size=3205953536
       sum="0a0cd511b3eac95c6f081419c9c65b12317b9d6a8d9707f89d646c910e788016"
@@ -800,6 +823,16 @@ getLink4() {
       size=3861460992
       sum="edf9f947c5791469fd7d2d40a5dcce663efa754f91847aa1d28ed7f585675b78"
       url="$host/en_windows_vista_sp2_${PLATFORM,,}_dvd_342267.iso"
+      ;;
+    "winvistax86" | "winvistax86-enterprise" )
+      size=2420981760
+      sum="54e2720004041e7db988a391543ea5228b0affc28efcf9303d2d0ff9402067f5"
+      url="$host/en_windows_vista_enterprise_sp2_x86_dvd_342329.iso"
+      ;;
+    "winvistax86-ultimate" )
+      size=3243413504
+      sum="9c36fed4255bd05a8506b2da88f9aad73643395e155e609398aacd2b5276289c"
+      url="$host/en_windows_vista_with_sp2_x86_dvd_342266.iso"
       ;;
   esac
 
