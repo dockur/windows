@@ -31,7 +31,7 @@ skipInstall() {
 
 startInstall() {
 
-  html "Starting Windows..."
+  html "Starting $APP..."
 
   if [ -n "$CUSTOM" ]; then
 
@@ -61,11 +61,19 @@ startInstall() {
 
     # Check if the ISO was already processed by our script
     local magic
-    local byte="16"
-    [[ "$MANUAL" == [Yy1]* ]] && byte="17"
+    local auto="16"
+    local manual="17"
     magic=$(dd if="$ISO" seek=0 bs=1 count=1 status=none | tr -d '\000')
     magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
 
+    if [[ "$magic" == "$auto" ]] || [[ "$magic" == "$manual" ]]; then
+      if [ -n "$CUSTOM" ] && [ -z "$ORIGINAL" ]; then
+        warn "this ISO file has already been modified by a previous installation!"
+      fi
+    fi
+
+    local byte="$auto"
+    [[ "$MANUAL" == [Yy1]* ]] && byte="$manual"
     [[ "$magic" == "$byte" ]] && return 1
 
   fi
@@ -197,8 +205,8 @@ detectCustom() {
     CUSTOM="$base"
     ORIGINAL="$file"
   else
-    CUSTOM="$file"
     rm -f "$base"
+    CUSTOM="$file"
   fi
 
   return 0
