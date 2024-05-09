@@ -33,8 +33,6 @@ startInstall() {
 
   html "Starting Windows..."
 
-  [ -z "$MANUAL" ] && MANUAL="N"
-
   if [ -n "$CUSTOM" ]; then
 
     ISO="$CUSTOM"
@@ -62,10 +60,13 @@ startInstall() {
   if [ -f "$ISO" ] && [ -s "$ISO" ]; then
 
     # Check if the ISO was already processed by our script
-    local magic=""
+    local magic
+    local byte="16"
+    [[ "$MANUAL" == [Yy1]* ]] && byte="17"
     magic=$(dd if="$ISO" seek=0 bs=1 count=1 status=none | tr -d '\000')
     magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
-    [[ "$magic" == "16" ]] && return 1
+
+    [[ "$magic" == "$byte" ]] && return 1
 
   fi
 
@@ -106,7 +107,9 @@ finishInstall() {
 
   if [ -w "$iso" ] && [[ "$aborted" != [Yy1]* ]]; then
     # Mark ISO as prepared via magic byte
-    if ! printf '\x16' | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none; then
+    local byte="\x16"
+    [[ "$MANUAL" == [Yy1]* ]] && byte="\x17"
+    if ! printf "$byte" | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none; then
       error "Failed to set magic byte in ISO file: $iso" && return 1
     fi
   fi
