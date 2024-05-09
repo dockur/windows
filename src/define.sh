@@ -984,7 +984,7 @@ migrateFiles() {
   [[ "${version,,}" == "win7${PLATFORM,,}" ]] && file="en_windows_7_enterprise_with_sp1_${PLATFORM,,}_dvd_u_677651.iso"
 
   [ ! -f "$STORAGE/$file" ] && return 0
-  ! mv "$STORAGE/$file" "$base" && return 1
+  ! mv -f "$STORAGE/$file" "$base" && return 1
 
   return 0
 }
