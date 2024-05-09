@@ -41,14 +41,14 @@ parseVersion() {
       ;;
     "7" | "7e" | "win7" | "win7e" | "windows7" | "windows 7" )
       VERSION="win7${PLATFORM,,}"
-      DETECTED="win7${PLATFORM,,}-enterprise"
+      [ -z "$DETECTED" ] && DETECTED="win7${PLATFORM,,}-enterprise"
       ;;
     "7u" | "win7u" | "windows7u" | "windows 7u" )
       VERSION="win7${PLATFORM,,}-ultimate"
       ;;
     "vista" | "winvista" | "windowsvista" | "windows vista" )
       VERSION="winvista${PLATFORM,,}"
-      DETECTED="winvista${PLATFORM,,}-enterprise"
+      [ -z "$DETECTED" ] && DETECTED="winvista${PLATFORM,,}-enterprise"
       ;;
     "vistu" | "winvistu" | "windowsvistu" | "windows vistu" )
       VERSION="winvista${PLATFORM,,}-ultimate"
@@ -76,27 +76,27 @@ parseVersion() {
       ;;
     "core11" | "core 11" )
       VERSION="core11"
-      DETECTED="win11${PLATFORM,,}"
+      [ -z "$DETECTED" ] && DETECTED="win11${PLATFORM,,}"
       ;;
     "tiny11" | "tiny 11" )
       VERSION="tiny11"
-      DETECTED="win11${PLATFORM,,}"
+      [ -z "$DETECTED" ] && DETECTED="win11${PLATFORM,,}"
       ;;
    "tiny10" | "tiny 10" )
       VERSION="tiny10"
-      DETECTED="win10${PLATFORM,,}-ltsc"
+      [ -z "$DETECTED" ] && DETECTED="win10${PLATFORM,,}-ltsc"
       ;;
     "iot11" | "11iot" | "win11-iot" | "win11${PLATFORM,,}-iot" | "win11${PLATFORM,,}-enterprise-iot-eval" )
-      DETECTED="win11${PLATFORM,,}-iot"
       VERSION="win11${PLATFORM,,}-enterprise-iot-eval"
+      [ -z "$DETECTED" ] && DETECTED="win11${PLATFORM,,}-iot"
       ;;
     "iot10" | "10iot" | "win10-iot" | "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval" )
-      DETECTED="win10${PLATFORM,,}-iot"
       VERSION="win10${PLATFORM,,}-enterprise-iot-eval"
+      [ -z "$DETECTED" ] && DETECTED="win10${PLATFORM,,}-iot"
       ;;
     "ltsc10" | "10ltsc" | "win10-ltsc" | "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-      DETECTED="win10${PLATFORM,,}-ltsc"
       VERSION="win10${PLATFORM,,}-enterprise-ltsc-eval"
+      [ -z "$DETECTED" ] && DETECTED="win10${PLATFORM,,}-ltsc"
       ;;
   esac
 

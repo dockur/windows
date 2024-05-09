@@ -279,7 +279,7 @@ verifyFile() {
   local check="$4"
 
   if [ -n "$size" ] && [[ "$total" != "$size" ]] && [[ "$size" != "0" ]]; then
-    warn "The downloaded file has an invalid size: $total bytes, while expected value was: $size bytes. Please report this at $SUPPORT/issues"
+    warn "The downloaded file has an unexpected size: $total bytes, while expected value was: $size bytes. Please report this at $SUPPORT/issues"
   fi
 
   local hash=""
@@ -431,10 +431,9 @@ downloadImage() {
     tried="y"
 
     if getESD "$TMP/esd" "$version"; then
-      local prev="$ISO"
       ISO="${ISO%.*}.esd"
       downloadFile "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$desc" && return 0
-      ISO="$prev"
+      ISO="$iso"
     fi
 
   fi
@@ -663,41 +662,27 @@ selectVersion() {
 detectVersion() {
 
   local xml="$1"
-  local id=""
-  local arch=""
+  local id arch
   local tag="ARCH"
   local platform="x64"
+  local compat="$platform"
 
   arch=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml")
 
   case "${arch,,}" in
-    "0" )
-      platform="x86"
-      if [[ "${PLATFORM,,}" != "x64" ]]; then
-        error "You cannot boot $platform images on a $PLATFORM cpu!" && exit 67
-      fi
-      ;;
-    "9" )
-      platform="x64"
-      if [[ "${PLATFORM,,}" != "x64" ]]; then
-        error "You cannot boot $platform images on a $PLATFORM cpu!" && exit 67
-      fi
-      ;;
-    "12" )
-      platform="arm64"
-      if [[ "${PLATFORM,,}" != "arm64" ]]; then
-        error "You cannot boot ${platform^^} images on a $PLATFORM cpu!" && exit 67
-      fi
-      ;;
+    "0" ) platform="x86"; compat="x64" ;;
+    "9" ) platform="x64"; compat="$platform" ;;
+    "12" )platform="arm64"; compat="$platform" ;;
   esac
-  
+
+  if [[ "${compat,,}" != "${PLATFORM,,}" ]]; then
+    error "You cannot boot ${platform^^} images on a $PLATFORM cpu!"
+    exit 67
+  fi
+
   id=$(selectVersion "DISPLAYNAME" "$xml" "$platform")
-  [ -n "$id" ] && [[ "${id,,}" != *"unknown"* ]] && echo "$id" && return 0
-
-  id=$(selectVersion "PRODUCTNAME" "$xml" "$platform")
-  [ -n "$id" ] && [[ "${id,,}" != *"unknown"* ]] && echo "$id" && return 0
-
-  id=$(selectVersion "NAME" "$xml" "$platform")
+  [ -z "$id" ] && id=$(selectVersion "PRODUCTNAME" "$xml" "$platform")
+  [ -z "$id" ] && id=$(selectVersion "NAME" "$xml" "$platform")
   [ -n "$id" ] && [[ "${id,,}" != *"unknown"* ]] && echo "$id" && return 0
 
   return 0
@@ -711,8 +696,8 @@ detectImage() {
 
   XML=""
 
-  if [ -z "$DETECTED" ] && [[ "${version,,}" != "http"* ]]; then
-    [ -z "$CUSTOM" ] && DETECTED="$version"
+  if [ -z "$DETECTED" ] && [ -z "$CUSTOM" ]; then
+    [[ "${version,,}" != "http"* ]] && DETECTED="$version"
   fi
 
   if [ -n "$DETECTED" ]; then
