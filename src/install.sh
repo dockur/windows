@@ -614,22 +614,15 @@ extractImage() {
 
 setXML() {
 
-  [[ "$MANUAL" == [Yy1]* ]] && return 0
-
   local file="/custom.xml"
-  [ -f "$file" ] && [ -s "$file" ] && XML="$file" && return 0
+  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$STORAGE/custom.xml"
+  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/custom.xml"
+  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$1"
+  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/$DETECTED.xml"
+  [ ! -f "$file" ] || [ ! -s "$file" ] && return 1
 
-  file="$STORAGE/custom.xml"
-  [ -f "$file" ] && [ -s "$file" ] && XML="$file" && return 0
-
-  file="/run/assets/custom.xml"
-  [ -f "$file" ] && [ -s "$file" ] && XML="$file" && return 0
-
-  file="$1"
-  [ -z "$file" ] && file="/run/assets/$DETECTED.xml"
-  [ -f "$file" ] && [ -s "$file" ] && XML="$file" && return 0
-
-  return 1
+  XML="$file"
+  return 0
 }
 
 getPlatform() {
@@ -739,10 +732,11 @@ detectImage() {
 
     [[ "${DETECTED,,}" == "winxp"* ]] && return 0
 
-    setXML "" && return 0
+    if ! setXML "" && [[ "$MANUAL" != [Yy1]* ]]; then
+      desc=$(printEdition "$DETECTED" "this version")
+      warn "the answer file for $desc was not found ($DETECTED.xml), $FB."
+    fi
 
-    desc=$(printEdition "$DETECTED" "this version")
-    warn "the answer file for $desc was not found ($DETECTED.xml), $FB."
     return 0
   fi
 
@@ -778,8 +772,12 @@ detectImage() {
 
   if [ -z "$DETECTED" ]; then
     msg="Failed to determine Windows version from image"
-    setXML "" && info "${msg}!" && return 0
-    warn "${msg}, $FB" && return 0
+    if setXML "" || [[ "$MANUAL" == [Yy1]* ]]; then
+      info "${msg}!"
+    else
+      warn "${msg}, $FB"
+    fi
+    return 0
   fi
 
   desc=$(printEdition "$DETECTED" "$DETECTED")
@@ -790,9 +788,12 @@ detectImage() {
   msg="the answer file for $desc was not found ($DETECTED.xml)"
   local fallback="/run/assets/${DETECTED%%-*}.xml"
 
-  setXML "$fallback" && warn "${msg}." && return 0
+  if setXML "$fallback" || [[ "$MANUAL" == [Yy1]* ]]; then
+    [[ "$MANUAL" != [Yy1]* ]] && warn "${msg}."
+  else
+    warn "${msg}, $FB."
+  fi
 
-  warn "${msg}, $FB."
   return 0
 }
 
@@ -836,6 +837,7 @@ updateImage() {
   local asset="$2"
   local path src loc xml index result
 
+  [[ "$MANUAL" == [Yy1]* ]] && return 0
   [ ! -s "$asset" ] || [ ! -f "$asset" ] && return 0
 
   path=$(find "$dir" -maxdepth 1 -type f -iname autounattend.xml | head -n 1)
