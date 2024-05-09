@@ -624,6 +624,25 @@ setXML() {
   return 1
 }
 
+getPlatform() {
+
+  local xml="$1"
+  local tag="ARCH"
+  local platform="x64"
+  local arch
+
+  arch=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml")
+
+  case "${arch,,}" in
+    "0" ) platform="x86" ;;
+    "9" ) platform="x64" ;;
+    "12" )platform="arm64" ;;
+  esac
+
+  echo "$platform"
+  return 0
+}
+
 selectVersion() {
 
   local tag="$1"
@@ -665,30 +684,29 @@ selectVersion() {
 checkPlatform() {
 
   local xml="$1"
-  local tag="ARCH"
-  local platform="x64"
-  local compat="$platform"
-  local arch
+  local platform compat
 
-  arch=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml")
+  platform=$(getPlatform "$xml")
 
-  case "${arch,,}" in
-    "0" ) platform="x86"; compat="x64" ;;
-    "9" ) platform="x64"; compat="$platform" ;;
-    "12" )platform="arm64"; compat="$platform" ;;
+  case "${platform,,}" in
+    "x86" ) compat="x64" ;;
+    "x64" ) compat="$platform" ;;
+    "arm64" ) compat="$platform" ;;
+    * ) compat="${PLATFORM,,}" ;;
   esac
 
   [[ "${compat,,}" == "${PLATFORM,,}" ]] && return 0
 
-  error "You cannot boot ${platform^^} images on a $PLATFORM cpu!"
+  error "You cannot boot ${platform^^} images on a $PLATFORM CPU!"
   return 1
 }
 
 detectVersion() {
 
   local xml="$1"
-  local id
+  local id platform
 
+  platform=$(getPlatform "$xml")
   id=$(selectVersion "DISPLAYNAME" "$xml" "$platform")
   [ -z "$id" ] && id=$(selectVersion "PRODUCTNAME" "$xml" "$platform")
   [ -z "$id" ] && id=$(selectVersion "NAME" "$xml" "$platform")
