@@ -107,9 +107,9 @@ finishInstall() {
 
   if [ -w "$iso" ] && [[ "$aborted" != [Yy1]* ]]; then
     # Mark ISO as prepared via magic byte
-    local byte="\x16"
-    [[ "$MANUAL" == [Yy1]* ]] && byte="\x17"
-    if ! printf "$byte" | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none; then
+    local byte="16"
+    [[ "$MANUAL" == [Yy1]* ]] && byte="17"
+    if ! printf '%b' "\x$byte" | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none; then
       error "Failed to set magic byte in ISO file: $iso" && return 1
     fi
   fi
