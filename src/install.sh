@@ -31,7 +31,7 @@ skipInstall() {
 
 startInstall() {
 
-  html "Starting Windows..."
+  html "Starting $APP..."
 
   if [ -n "$CUSTOM" ]; then
 
@@ -59,22 +59,36 @@ startInstall() {
 
   if [ -f "$ISO" ] && [ -s "$ISO" ]; then
 
-    # Check if the ISO was already processed by our script
     local magic
-    local byte="16"
-    [[ "$MANUAL" == [Yy1]* ]] && byte="17"
+    local auto="16"
+    local manual="17"
+    local byte="$auto"
+    [[ "$MANUAL" == [Yy1]* ]] && byte="$manual"
+
+    # Check if the ISO was already processed by our script
     magic=$(dd if="$ISO" seek=0 bs=1 count=1 status=none | tr -d '\000')
     magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
 
-    [[ "$magic" == "$byte" ]] && return 1
+    if [[ "$magic" == "$byte" ]]; then
+      if [ -z "$CUSTOM" ] || [ -n "$ORIGINAL" ]; then
+        return 1
+      fi
+    fi
 
   fi
+
+  rm -rf "$TMP"
+  mkdir -p "$TMP"
 
   if [ -z "$CUSTOM" ]; then
 
     BOOT="$ISO"
     ISO=$(basename "$ISO")
     ISO="$TMP/$ISO"
+
+    if [ -f "$BOOT" ] && [ -s "$BOOT" ]; then
+      mv -f "$BOOT" "$ISO"
+    fi
 
   else
 
@@ -91,8 +105,6 @@ startInstall() {
   fi
 
   rm -f "$BOOT"
-  rm -rf "$TMP"
-  mkdir -p "$TMP"
   return 0
 }
 
@@ -118,7 +130,7 @@ finishInstall() {
   rm -f "$STORAGE/windows.boot"
   rm -f "$STORAGE/windows.mode"
 
-  cp /run/version "$STORAGE/windows.ver"
+  cp -f /run/version "$STORAGE/windows.ver"
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
     if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
@@ -174,19 +186,18 @@ detectCustom() {
     base="${VERSION/\/storage\//}"
     [[ "$base" == "."* ]] && base="${file:1}"
     [[ "$base" == *"/"* ]] && base=""
-    [ -n "$base" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$base" -printf "%f\n" | head -n 1)
+    [ -n "$base" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$base" | head -n 1)
   fi
 
-  [ -z "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso -printf "%f\n" | head -n 1)
-  [ -z "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.img -printf "%f\n" | head -n 1)
-  [ -n "$file" ] && file="$STORAGE/$file"
+  [ -z "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso | head -n 1)
+  [ -z "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.img | head -n 1)
 
   base="/custom.iso"
   [ -f "$base" ] && [ -s "$base" ] && file="$base"
 
-  [ -z "$file" ] && return 0
-  [ ! -f "$file" ] && return 0
-  [ ! -s "$file" ] && return 0
+  if [ ! -f "$file" ] || [ ! -s "$file" ]; then
+    return 0
+  fi
 
   size="$(stat -c%s "$file")"
   [ -z "$size" ] || [[ "$size" == "0" ]] && return 0
@@ -197,8 +208,8 @@ detectCustom() {
     CUSTOM="$base"
     ORIGINAL="$file"
   else
-    CUSTOM="$file"
     rm -f "$base"
+    CUSTOM="$file"
   fi
 
   return 0
@@ -499,20 +510,20 @@ extractESD() {
   fi
 
   local esdImageCount
-  esdImageCount=$(wimlib-imagex info "${iso}" | awk '/Image Count:/ {print $3}')
+  esdImageCount=$(wimlib-imagex info "$iso" | awk '/Image Count:/ {print $3}')
 
-  wimlib-imagex apply "$iso" 1 "${dir}" --quiet 2>/dev/null || {
+  wimlib-imagex apply "$iso" 1 "$dir" --quiet 2>/dev/null || {
     retVal=$?
     error "Extracting $desc bootdisk failed" && return $retVal
   }
 
-  local bootWimFile="${dir}/sources/boot.wim"
-  local installWimFile="${dir}/sources/install.wim"
+  local bootWimFile="$dir/sources/boot.wim"
+  local installWimFile="$dir/sources/install.wim"
 
   local msg="Extracting $desc environment..."
   info "$msg" && html "$msg"
 
-  wimlib-imagex export "${iso}" 2 "${bootWimFile}" --compress=LZX --chunk-size 32K --quiet || {
+  wimlib-imagex export "$iso" 2 "$bootWimFile" --compress=LZX --chunk-size 32K --quiet || {
     retVal=$?
     error "Adding WinPE failed" && return ${retVal}
   }
@@ -520,7 +531,7 @@ extractESD() {
   local msg="Extracting $desc setup..."
   info "$msg" && html "$msg"
 
-  wimlib-imagex export "${iso}" 3 "$bootWimFile" --compress=LZX --chunk-size 32K --boot --quiet || {
+  wimlib-imagex export "$iso" 3 "$bootWimFile" --compress=LZX --chunk-size 32K --boot --quiet || {
    retVal=$?
    error "Adding Windows Setup failed" && return ${retVal}
   }
@@ -542,11 +553,11 @@ extractESD() {
   fi
 
   for (( imageIndex=4; imageIndex<=esdImageCount; imageIndex++ )); do
-    imageEdition=$(wimlib-imagex info "${iso}" ${imageIndex} | grep '^Description:' | sed 's/Description:[ \t]*//')
+    imageEdition=$(wimlib-imagex info "$iso" ${imageIndex} | grep '^Description:' | sed 's/Description:[ \t]*//')
     [[ "${imageEdition,,}" != "${edition,,}" ]] && continue
-    wimlib-imagex export "${iso}" ${imageIndex} "${installWimFile}" --compress=LZMS --chunk-size 128K --quiet || {
+    wimlib-imagex export "$iso" ${imageIndex} "$installWimFile" --compress=LZMS --chunk-size 128K --quiet || {
       retVal=$?
-      error "Addition of ${imageIndex} to the $desc image failed" && return $retVal
+      error "Addition of $imageIndex to the $desc image failed" && return $retVal
     }
     return 0
   done
@@ -606,22 +617,50 @@ extractImage() {
 
 setXML() {
 
-  [[ "$MANUAL" == [Yy1]* ]] && return 0
-
   local file="/custom.xml"
-  [ -f "$file" ] && [ -s "$file" ] && XML="$file" && return 0
+  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$STORAGE/custom.xml"
+  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/custom.xml"
+  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$1"
+  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/$DETECTED.xml"
+  [ ! -f "$file" ] || [ ! -s "$file" ] && return 1
 
-  file="$STORAGE/custom.xml"
-  [ -f "$file" ] && [ -s "$file" ] && XML="$file" && return 0
+  XML="$file"
+  return 0
+}
 
-  file="/run/assets/custom.xml"
-  [ -f "$file" ] && [ -s "$file" ] && XML="$file" && return 0
+getPlatform() {
 
-  file="$1"
-  [ -z "$file" ] && file="/run/assets/$DETECTED.xml"
-  [ -f "$file" ] && [ -s "$file" ] && XML="$file" && return 0
+  local xml="$1"
+  local tag="ARCH"
+  local platform="x64"
+  local arch
 
-  return 1
+  arch=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml")
+
+  case "${arch,,}" in
+    "0" ) platform="x86" ;;
+    "9" ) platform="x64" ;;
+    "12" )platform="arm64" ;;
+  esac
+
+  echo "$platform"
+  return 0
+}
+
+hasVersion() {
+
+  local id="$1"
+  local tag="$2"
+  local xml="$3"
+  local edition
+
+  [ ! -f "/run/assets/$id.xml" ] && return 1
+
+  edition=$(printEdition "$id" "")
+  [ -z "$edition" ] && return 1
+  [[ "${xml,,}" != *"<${tag,,}>${edition,,}</${tag,,}>"* ]] && return 1
+
+  return 0
 }
 
 selectVersion() {
@@ -629,7 +668,7 @@ selectVersion() {
   local tag="$1"
   local xml="$2"
   local platform="$3"
-  local id find name prefer
+  local id name prefer
 
   name=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml")
   [[ "$name" == *"Operating System"* ]] && name=""
@@ -639,22 +678,13 @@ selectVersion() {
   [ -z "$id" ] && warn "Unknown ${tag,,}: '$name'" && return 0
 
   prefer="$id-enterprise"
-  [ -f "/run/assets/$prefer.xml" ] && find=$(printEdition "$prefer" "") || find=""
-  if [ -n "$find" ] && [[ "${xml,,}" == *"<${tag,,}>${find,,}</${tag,,}>"* ]]; then
-    echo "$prefer" && return 0
-  fi
+  hasVersion "$prefer" "$tag" "$xml" && echo "$prefer" && return 0
 
   prefer="$id-ultimate"
-  [ -f "/run/assets/$prefer.xml" ] && find=$(printEdition "$prefer" "") || find=""
-  if [ -n "$find" ] && [[ "${xml,,}" == *"<${tag,,}>${find,,}</${tag,,}>"* ]]; then
-    echo "$prefer" && return 0
-  fi
+  hasVersion "$prefer" "$tag" "$xml" && echo "$prefer" && return 0
 
   prefer="$id"
-  [ -f "/run/assets/$prefer.xml" ] && find=$(printEdition "$prefer" "") || find=""
-  if [ -n "$find" ] && [[ "${xml,,}" == *"<${tag,,}>${find,,}</${tag,,}>"* ]]; then
-    echo "$prefer" && return 0
-  fi
+  hasVersion "$prefer" "$tag" "$xml" && echo "$prefer" && return 0
 
   prefer=$(getVersion "$name" "$platform")
 
@@ -662,32 +692,37 @@ selectVersion() {
   return 0
 }
 
+checkPlatform() {
+
+  local xml="$1"
+  local platform compat
+
+  platform=$(getPlatform "$xml")
+
+  case "${platform,,}" in
+    "x86" ) compat="x64" ;;
+    "x64" ) compat="$platform" ;;
+    "arm64" ) compat="$platform" ;;
+    * ) compat="${PLATFORM,,}" ;;
+  esac
+
+  [[ "${compat,,}" == "${PLATFORM,,}" ]] && return 0
+
+  error "You cannot boot ${platform^^} images on a $PLATFORM CPU!"
+  return 1
+}
+
 detectVersion() {
 
   local xml="$1"
-  local id arch
-  local tag="ARCH"
-  local platform="x64"
-  local compat="$platform"
+  local id platform
 
-  arch=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml")
-
-  case "${arch,,}" in
-    "0" ) platform="x86"; compat="x64" ;;
-    "9" ) platform="x64"; compat="$platform" ;;
-    "12" )platform="arm64"; compat="$platform" ;;
-  esac
-
-  if [[ "${compat,,}" != "${PLATFORM,,}" ]]; then
-    error "You cannot boot ${platform^^} images on a $PLATFORM cpu!"
-    exit 67
-  fi
-
+  platform=$(getPlatform "$xml")
   id=$(selectVersion "DISPLAYNAME" "$xml" "$platform")
   [ -z "$id" ] && id=$(selectVersion "PRODUCTNAME" "$xml" "$platform")
   [ -z "$id" ] && id=$(selectVersion "NAME" "$xml" "$platform")
-  [ -n "$id" ] && [[ "${id,,}" != *"unknown"* ]] && echo "$id" && return 0
 
+  echo "$id"
   return 0
 }
 
@@ -707,10 +742,12 @@ detectImage() {
 
     [[ "${DETECTED,,}" == "winxp"* ]] && return 0
 
-    setXML "" && return 0
+    if ! setXML "" && [[ "$MANUAL" != [Yy1]* ]]; then
+      MANUAL="Y"
+      desc=$(printEdition "$DETECTED" "this version")
+      warn "the answer file for $desc was not found ($DETECTED.xml), $FB."
+    fi
 
-    desc=$(printEdition "$DETECTED" "this version")
-    warn "the answer file for $desc was not found ($DETECTED.xml), $FB."
     return 0
   fi
 
@@ -740,12 +777,19 @@ detectImage() {
   fi
 
   info=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
+  ! checkPlatform "$info" && exit 67
+
   DETECTED=$(detectVersion "$info")
 
   if [ -z "$DETECTED" ]; then
     msg="Failed to determine Windows version from image"
-    setXML "" && info "${msg}!" && return 0
-    warn "${msg}, $FB" && return 0
+    if setXML "" || [[ "$MANUAL" == [Yy1]* ]]; then
+      info "${msg}!"
+    else
+      MANUAL="Y"
+      warn "${msg}, $FB."
+    fi
+    return 0
   fi
 
   desc=$(printEdition "$DETECTED" "$DETECTED")
@@ -756,9 +800,13 @@ detectImage() {
   msg="the answer file for $desc was not found ($DETECTED.xml)"
   local fallback="/run/assets/${DETECTED%%-*}.xml"
 
-  setXML "$fallback" && warn "${msg}." && return 0
+  if setXML "$fallback" || [[ "$MANUAL" == [Yy1]* ]]; then
+    [[ "$MANUAL" != [Yy1]* ]] && warn "${msg}."
+  else
+    MANUAL="Y"
+    warn "${msg}, $FB."
+  fi
 
-  warn "${msg}, $FB."
   return 0
 }
 
@@ -800,12 +848,18 @@ updateImage() {
 
   local dir="$1"
   local asset="$2"
-  local path src loc xml index result
+  local file="autounattend.xml"
+  local org="${file/.xml/.org}"
+  local dat="${file/.xml/.dat}"
+  local desc path src loc xml index result
 
-  [ ! -s "$asset" ] || [ ! -f "$asset" ] && return 0
-
-  path=$(find "$dir" -maxdepth 1 -type f -iname autounattend.xml | head -n 1)
-  [ -n "$path" ] && cp "$asset" "$path"
+  if [ ! -s "$asset" ] || [ ! -f "$asset" ]; then
+    asset=""
+    if [[ "$MANUAL" != [Yy1]* ]]; then
+      MANUAL="Y"
+      warn "no answer file provided, $FB."
+    fi
+  fi
 
   src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
 
@@ -822,9 +876,6 @@ updateImage() {
     warn "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB" && return 1
   fi
 
-  xml=$(basename "$asset")
-  info "Adding $xml for automatic installation..."
-
   index="1"
   result=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
 
@@ -832,8 +883,56 @@ updateImage() {
     index="2"
   fi
 
-  if ! wimlib-imagex update "$loc" "$index" --command "add $asset /autounattend.xml" > /dev/null; then
-    warn "failed to add answer file ($xml) to ISO image, $FB" && return 1
+  if wimlib-imagex extract "$loc" "$index" "/$file" "--dest-dir=$TMP" >/dev/null 2>&1; then
+    if ! wimlib-imagex extract "$loc" "$index" "/$dat" "--dest-dir=$TMP" >/dev/null 2>&1; then
+      if ! wimlib-imagex extract "$loc" "$index" "/$org" "--dest-dir=$TMP" >/dev/null 2>&1; then
+        if ! wimlib-imagex update "$loc" "$index" --command "rename /$file /$org" > /dev/null; then
+          warn "failed to backup original answer file ($file)."
+        fi
+      fi
+    fi
+    rm -f "$TMP/$dat"
+    rm -f "$TMP/$org"
+    rm -f "$TMP/$file"
+  fi
+
+  if [[ "$MANUAL" != [Yy1]* ]]; then
+
+    xml=$(basename "$asset")
+    info "Adding $xml for automatic installation..."
+
+    if ! wimlib-imagex update "$loc" "$index" --command "add $asset /$file" > /dev/null; then
+      MANUAL="Y"
+      warn "failed to add answer file ($xml) to ISO image, $FB"
+    else
+      wimlib-imagex update "$loc" "$index" --command "add $asset /$dat" > /dev/null || true
+    fi
+
+  fi
+
+  if [[ "$MANUAL" == [Yy1]* ]]; then
+
+    wimlib-imagex update "$loc" "$index" --command "delete --force /$file" > /dev/null || true
+
+    if wimlib-imagex extract "$loc" "$index" "/$org" "--dest-dir=$TMP" >/dev/null 2>&1; then
+      if ! wimlib-imagex update "$loc" "$index" --command "add $TMP/$org /$file" > /dev/null; then
+        warn "failed to restore original answer file ($org)."
+      fi
+      rm -f "$TMP/$org"
+    fi
+
+  fi
+
+  local find="$file"
+  [[ "$MANUAL" == [Yy1]* ]] && find="$org"
+  path=$(find "$dir" -maxdepth 1 -type f -iname "$find" | head -n 1)
+
+  if [ -f "$path" ]; then
+    if [[ "$MANUAL" != [Yy1]* ]]; then
+      mv -f "$path" "${path%.*}.org"
+    else
+      mv -f "$path" "${path%.*}.xml"
+    fi
   fi
 
   return 0
@@ -938,7 +1037,7 @@ buildImage() {
   [ -s "$log" ] && error="$(<"$log")"
   [[ "$error" != "$hide" ]] && echo "$error"
 
-  mv "$out" "$BOOT"
+  ! mv -f "$out" "$BOOT" && return 1
   return 0
 }
 
@@ -989,10 +1088,10 @@ bootWindows() {
       BOOT_MODE="windows_secure"
       echo "$BOOT_MODE" > "$STORAGE/windows.mode"
       if [ -f "$STORAGE/windows.rom" ] && [ ! -f "$STORAGE/$BOOT_MODE.rom" ]; then
-        mv "$STORAGE/windows.rom" "$STORAGE/$BOOT_MODE.rom"
+        mv -f "$STORAGE/windows.rom" "$STORAGE/$BOOT_MODE.rom"
       fi
       if [ -f "$STORAGE/windows.vars" ] && [ ! -f "$STORAGE/$BOOT_MODE.vars" ]; then
-        mv "$STORAGE/windows.vars" "$STORAGE/$BOOT_MODE.vars"
+        mv -f "$STORAGE/windows.vars" "$STORAGE/$BOOT_MODE.vars"
       fi
     fi
   fi

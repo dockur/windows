@@ -29,8 +29,10 @@ boot() {
 
   if [ -s "$QEMU_PTY" ]; then
     if [ "$(stat -c%s "$QEMU_PTY")" -gt 7 ]; then
-      info "Windows started succesfully, visit http://localhost:8006/ to view the screen..."
-      return 0
+      if ! grep -Fq "BOOTMGR is missing" "$QEMU_PTY"; then
+        info "Windows started succesfully, visit http://localhost:8006/ to view the screen..."
+        return 0
+      fi
     fi
   fi
 
@@ -48,7 +50,9 @@ ready() {
     local bios="Booting from Hard"
     last=$(grep "^Booting.*" "$QEMU_PTY" | tail -1)
     if [[ "${last,,}" == "${bios,,}"* ]]; then
-      return 0
+      if ! grep -Fq "BOOTMGR is missing" "$QEMU_PTY"; then
+        return 0
+      fi
     fi
     return 1
   fi
