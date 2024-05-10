@@ -916,9 +916,7 @@ updateImage() {
       warn "failed to remove answer file ($file) from ISO image!"
     fi
 
-    if wimlib-imagex update "$loc" "$index" --command "rename /$file.org /$file" >/dev/null 2>&1; then
-      warn "renamed answer file ($file.org) in ISO image."
-    fi
+    wimlib-imagex update "$loc" "$index" --command "rename /$file.org /$file" >/dev/null 2>&1 || true
 
   fi
 
