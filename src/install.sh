@@ -889,19 +889,15 @@ updateImage() {
     index="2"
   fi
 
-  local out="$TMP/extract"
-  rm -rf "$out"
-  mkdir -p "$out"
-  
   if [[ "$MANUAL" != [Yy1]* ]]; then
 
     xml=$(basename "$asset")
     info "Adding $xml for automatic installation..."
 
-    if ! wimlib-imagex extract "$loc" "$index" "/$file" "--dest-dir=$out" 2> /dev/null; then
+    if ! wimlib-imagex extract "$loc" "$index" "/$file" "--dest-dir=$TMP" 2> /dev/null; then
       warn "failed to extract answer file ($file) from ISO image.."
     fi
-  
+
     if ! wimlib-imagex update "$loc" "$index" --command "add $asset /$file" > /dev/null; then
       MANUAL="Y"
       warn "failed to add answer file ($xml) to ISO image, $FB"
