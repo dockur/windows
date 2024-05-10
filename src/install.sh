@@ -895,12 +895,12 @@ updateImage() {
     info "Adding $xml for automatic installation..."
 
     if wimlib-imagex extract "$loc" "$index" "/$file" "--dest-dir=$TMP" >/dev/null 2>&1; then
-      if [ -f "$TMP/$file" ] && isOurs "$TMP/$file"; then
-        info "Saving original..."
+      if [ -f "$TMP/$file" ] && ! isOurs "$TMP/$file"; then
         if ! wimlib-imagex update "$loc" "$index" --command "rename /$file /$file.org" > /dev/null; then
           warn "failed to rename answer file ($file) in ISO image."
         fi
       fi
+      rm -f "$TMP/$file"
     fi
 
     if ! wimlib-imagex update "$loc" "$index" --command "add $asset /$file" > /dev/null; then
@@ -913,7 +913,11 @@ updateImage() {
   if [[ "$MANUAL" == [Yy1]* ]]; then
 
     if ! wimlib-imagex update "$loc" "$index" --command "delete --force /$file" > /dev/null; then
-      warn "failed to remove answer file (autounattend.xml) from ISO image!"
+      warn "failed to remove answer file ($file) from ISO image!"
+    fi
+
+    if ! wimlib-imagex update "$loc" "$index" --command "rename /$file.org /$file" > /dev/null; then
+      warn "failed to rename answer file ($file.org) in ISO image."
     fi
 
   fi
