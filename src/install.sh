@@ -523,7 +523,7 @@ extractESD() {
   local msg="Extracting $desc environment..."
   info "$msg" && html "$msg"
 
-  wimlib-imagex export "$iso" 2 "$bootWimFile" --compress=LZX --chunk-size 32K --quiet || {
+  wimlib-imagex export "$iso" 2 "$bootWimFile" --compress=none --quiet || {
     retVal=$?
     error "Adding WinPE failed" && return ${retVal}
   }
@@ -531,7 +531,7 @@ extractESD() {
   local msg="Extracting $desc setup..."
   info "$msg" && html "$msg"
 
-  wimlib-imagex export "$iso" 3 "$bootWimFile" --compress=LZX --chunk-size 32K --boot --quiet || {
+  wimlib-imagex export "$iso" 3 "$bootWimFile" --compress=LZMS --chunk-size 128K --boot --quiet || {
    retVal=$?
    error "Adding Windows Setup failed" && return ${retVal}
   }
