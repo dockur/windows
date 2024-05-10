@@ -62,28 +62,33 @@ startInstall() {
     local magic
     local auto="16"
     local manual="17"
+    local byte="$auto"
+    [[ "$MANUAL" == [Yy1]* ]] && byte="$manual"
 
     # Check if the ISO was already processed by our script
     magic=$(dd if="$ISO" seek=0 bs=1 count=1 status=none | tr -d '\000')
     magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
 
-    if [[ "$magic" == "$auto" ]] || [[ "$magic" == "$manual" ]]; then
-      if [ -n "$CUSTOM" ] && [ -z "$ORIGINAL" ]; then
-        warn "this ISO file has already been modified by a previous installation!"
+    if [[ "$magic" == "$byte" ]]; then
+      if [ -z "$CUSTOM" ] || [ -n "$ORIGINAL" ]; then
+        return 1
       fi
     fi
 
-    local byte="$auto"
-    [[ "$MANUAL" == [Yy1]* ]] && byte="$manual"
-    [[ "$magic" == "$byte" ]] && return 1
-
   fi
+
+  rm -rf "$TMP"
+  mkdir -p "$TMP"
 
   if [ -z "$CUSTOM" ]; then
 
     BOOT="$ISO"
     ISO=$(basename "$ISO")
     ISO="$TMP/$ISO"
+
+    if [ -f "$BOOT" ] && [ -s "$BOOT" ]; then
+      mv -f "$BOOT" "$ISO"
+    fi
 
   else
 
@@ -100,8 +105,6 @@ startInstall() {
   fi
 
   rm -f "$BOOT"
-  rm -rf "$TMP"
-  mkdir -p "$TMP"
   return 0
 }
 
