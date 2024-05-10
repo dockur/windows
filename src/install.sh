@@ -841,17 +841,6 @@ prepareImage() {
   return 1
 }
 
-isOurs() {
-
-  local asset="$1"
-
-  [ ! -f "$asset" ] && return 1
-  grep -q Dockur "$asset" && return 0
-  grep -q NetKVM "$asset" && return 0
-
-  return 1
-}
-
 updateImage() {
 
   local dir="$1"
@@ -889,46 +878,51 @@ updateImage() {
     index="2"
   fi
 
+  if wimlib-imagex extract "$loc" "$index" "/$file" "--dest-dir=$TMP" >/dev/null 2>&1; then
+    if ! wimlib-imagex extract "$loc" "$index" "/${file/.xml/.dat}" "--dest-dir=$TMP" >/dev/null 2>&1; then
+      if ! wimlib-imagex extract "$loc" "$index" "/${file/.xml/.org}" "--dest-dir=$TMP" >/dev/null 2>&1; then
+        if ! wimlib-imagex update "$loc" "$index" --command "rename /$file /${file/.xml/.org}" > /dev/null; then
+          warn "failed to backup original answer file ($file)."
+        fi
+      fi
+    fi
+    rm -f "$TMP/$file"
+    rm -f "$TMP/${file/.xml/.dat}"
+    rm -f "$TMP/${file/.xml/.org}"
+  fi
+    
   if [[ "$MANUAL" != [Yy1]* ]]; then
 
     xml=$(basename "$asset")
     info "Adding $xml for automatic installation..."
 
-    if wimlib-imagex extract "$loc" "$index" "/$file" "--dest-dir=$TMP" >/dev/null 2>&1; then
-      if [ -f "$TMP/$file" ] && ! isOurs "$TMP/$file"; then
-        if ! wimlib-imagex update "$loc" "$index" --command "rename /$file /$file.org" > /dev/null; then
-          warn "failed to rename answer file ($file) in ISO image."
-        fi
-      fi
-      rm -f "$TMP/$file"
-    fi
-
     if ! wimlib-imagex update "$loc" "$index" --command "add $asset /$file" > /dev/null; then
       MANUAL="Y"
       warn "failed to add answer file ($xml) to ISO image, $FB"
+    else
+      wimlib-imagex update "$loc" "$index" --command "add $asset /${file/.xml/.dat}" > /dev/null || true
     fi
 
   fi
 
   if [[ "$MANUAL" == [Yy1]* ]]; then
 
-    if ! wimlib-imagex update "$loc" "$index" --command "delete --force /$file" > /dev/null; then
-      warn "failed to remove answer file ($file) from ISO image!"
+    wimlib-imagex update "$loc" "$index" --command "delete --force /$file" > /dev/null || true
+    if wimlib-imagex update "$loc" "$index" --command "rename /${file/.xml/.org} /$file" >/dev/null 2>&1; then
+      wimlib-imagex update "$loc" "$index" --command "delete --force /${file/.xml/.dat}" > /dev/null || true
     fi
-
-    wimlib-imagex update "$loc" "$index" --command "rename /$file.org /$file" >/dev/null 2>&1 || true
 
   fi
 
   local find="$file"
-  [[ "$MANUAL" == [Yy1]* ]] && find="$find.org"
+  [[ "$MANUAL" == [Yy1]* ]] && find="${file/.xml/.org}"
   path=$(find "$dir" -maxdepth 1 -type f -iname "$find" | head -n 1)
 
   if [ -f "$path" ]; then
     if [[ "$MANUAL" != [Yy1]* ]]; then
-      mv -f "$path" "$path.org"
+      mv -f "$path" "${path/.xml/.org}"
     else
-      mv -f "$path" "${path/.org/}"
+      mv -f "$path" "${path/.org/.xml}"
     fi
   fi
 
