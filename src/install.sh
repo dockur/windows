@@ -531,7 +531,7 @@ extractESD() {
   local msg="Extracting $desc setup..."
   info "$msg" && html "$msg"
 
-  wimlib-imagex export "$iso" 3 "$bootWimFile" --compress=LZMS --chunk-size 128K --boot --quiet || {
+  wimlib-imagex export "$iso" 3 "$bootWimFile" --compress=none --boot --quiet || {
    retVal=$?
    error "Adding Windows Setup failed" && return ${retVal}
   }
