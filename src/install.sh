@@ -894,8 +894,13 @@ updateImage() {
     xml=$(basename "$asset")
     info "Adding $xml for automatic installation..."
 
-    if ! wimlib-imagex extract "$loc" "$index" "/$file" "--dest-dir=$TMP" 2> /dev/null; then
-      warn "failed to extract answer file ($file) from ISO image.."
+    if wimlib-imagex extract "$loc" "$index" "/$file" "--dest-dir=$TMP" >/dev/null 2>&1; then
+      if [ -f "$TMP/$file" ] && isOurs "$TMP/$file"; then
+        info "Saving original..."
+        if ! wimlib-imagex update "$loc" "$index" --command "rename /$file /$file.org" > /dev/null; then
+          warn "failed to rename answer file ($file) in ISO image."
+        fi
+      fi
     fi
 
     if ! wimlib-imagex update "$loc" "$index" --command "add $asset /$file" > /dev/null; then
