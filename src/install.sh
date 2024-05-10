@@ -134,6 +134,7 @@ finishInstall() {
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
     if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+      BOOT_INDEX="1"
       echo "$BOOT_MODE" > "$STORAGE/windows.mode"
       if [[ "${MACHINE,,}" != "q35" ]]; then
         echo "$MACHINE" > "$STORAGE/windows.old"
