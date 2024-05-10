@@ -48,7 +48,9 @@ ready() {
     local bios="Booting from Hard"
     last=$(grep "^Booting.*" "$QEMU_PTY" | tail -1)
     if [[ "${last,,}" == "${bios,,}"* ]]; then
-      return 0
+      if ! grep -Fq "BOOTMGR is missing" "$QEMU_PTY"; then
+        return 0
+      fi
     fi
     return 1
   fi
