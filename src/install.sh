@@ -892,7 +892,7 @@ updateImage() {
     rm -f "$TMP/$org"
     rm -f "$TMP/$file"
   fi
-    
+
   if [[ "$MANUAL" != [Yy1]* ]]; then
 
     xml=$(basename "$asset")
