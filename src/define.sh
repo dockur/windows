@@ -1199,15 +1199,17 @@ prepareLegacy() {
 
   local iso="$1"
   local dir="$2"
+  local file="$dir/boot.img"
 
-  ETFS="boot.img"
-  rm -f "$dir/$ETFS"
+  ETFS=$(basename "$file")
+  [ -f "$file" ] && [ -s "$file" ] && return 0
+  rm -f "$file"
 
   local len offset
   len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
   offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
 
-  dd "if=$iso" "of=$dir/$ETFS" bs=2048 "count=$len" "skip=$offset" status=none && return 0
+  dd "if=$iso" "of=$file" bs=2048 "count=$len" "skip=$offset" status=none && return 0
 
   return 1
 }
