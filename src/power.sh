@@ -57,7 +57,7 @@ ready() {
     return 1
   fi
 
-  local line="Windows Boot Manager"
+  local line="\"Windows Boot Manager\""
   if grep -Fq "$line" "$QEMU_PTY"; then
     return 0
   fi
