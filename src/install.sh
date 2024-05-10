@@ -846,6 +846,8 @@ updateImage() {
   local dir="$1"
   local asset="$2"
   local file="autounattend.xml"
+  local org="${file/.xml/.org}"
+  local dat="${file/.xml/.dat}"
   local desc path src loc xml index result
 
   if [ ! -s "$asset" ] || [ ! -f "$asset" ]; then
@@ -879,16 +881,16 @@ updateImage() {
   fi
 
   if wimlib-imagex extract "$loc" "$index" "/$file" "--dest-dir=$TMP" >/dev/null 2>&1; then
-    if ! wimlib-imagex extract "$loc" "$index" "/${file/.xml/.dat}" "--dest-dir=$TMP" >/dev/null 2>&1; then
-      if ! wimlib-imagex extract "$loc" "$index" "/${file/.xml/.org}" "--dest-dir=$TMP" >/dev/null 2>&1; then
-        if ! wimlib-imagex update "$loc" "$index" --command "rename /$file /${file/.xml/.org}" > /dev/null; then
+    if ! wimlib-imagex extract "$loc" "$index" "/$dat" "--dest-dir=$TMP" >/dev/null 2>&1; then
+      if ! wimlib-imagex extract "$loc" "$index" "/$org" "--dest-dir=$TMP" >/dev/null 2>&1; then
+        if ! wimlib-imagex update "$loc" "$index" --command "rename /$file /$org" > /dev/null; then
           warn "failed to backup original answer file ($file)."
         fi
       fi
     fi
+    rm -f "$TMP/$dat"
+    rm -f "$TMP/$org"
     rm -f "$TMP/$file"
-    rm -f "$TMP/${file/.xml/.dat}"
-    rm -f "$TMP/${file/.xml/.org}"
   fi
     
   if [[ "$MANUAL" != [Yy1]* ]]; then
@@ -900,7 +902,7 @@ updateImage() {
       MANUAL="Y"
       warn "failed to add answer file ($xml) to ISO image, $FB"
     else
-      wimlib-imagex update "$loc" "$index" --command "add $asset /${file/.xml/.dat}" > /dev/null || true
+      wimlib-imagex update "$loc" "$index" --command "add $asset /$dat" > /dev/null || true
     fi
 
   fi
@@ -908,21 +910,25 @@ updateImage() {
   if [[ "$MANUAL" == [Yy1]* ]]; then
 
     wimlib-imagex update "$loc" "$index" --command "delete --force /$file" > /dev/null || true
-    if wimlib-imagex update "$loc" "$index" --command "rename /${file/.xml/.org} /$file" >/dev/null 2>&1; then
-      wimlib-imagex update "$loc" "$index" --command "delete --force /${file/.xml/.dat}" > /dev/null || true
+
+    if wimlib-imagex extract "$loc" "$index" "/$org" "--dest-dir=$TMP" >/dev/null 2>&1; then
+      if ! wimlib-imagex update "$loc" "$index" --command "add $TMP/$org /$file" > /dev/null; then
+        warn "failed to restore original answer file ($org)."
+      fi
+      rm -f "$TMP/$org"
     fi
 
   fi
 
   local find="$file"
-  [[ "$MANUAL" == [Yy1]* ]] && find="${file/.xml/.org}"
+  [[ "$MANUAL" == [Yy1]* ]] && find="$org"
   path=$(find "$dir" -maxdepth 1 -type f -iname "$find" | head -n 1)
 
   if [ -f "$path" ]; then
     if [[ "$MANUAL" != [Yy1]* ]]; then
-      mv -f "$path" "${path/.xml/.org}"
+      mv -f "$path" "${path%.*}.org"
     else
-      mv -f "$path" "${path/.org/.xml}"
+      mv -f "$path" "${path%.*}.xml"
     fi
   fi
 
