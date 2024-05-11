@@ -46,12 +46,15 @@ startInstall() {
 
   fi
 
-  if [ -f "$STORAGE/windows.base" ]; then
-    local base previous
-    base=$(basename $iso)
-    previous=$(<"$STORAGE/windows.base")
-    if [ -n "$previous" ]; then
+  local previous="$STORAGE/windows.base"
 
+  if [ -f "$previous" ]; then
+    previous=$(<"$previous")
+    if [ -n "$previous" ]; then
+      previous="$STORAGE/$previous"
+      if [ -f "$previous" ]; then
+        rm -f "$previous" || true
+      fi
     fi
   fi
 
@@ -132,8 +135,10 @@ finishInstall() {
   cp -f /run/version "$STORAGE/windows.ver"
 
   if [[ "$iso" == "$STORAGE/"* ]]; then
-    base=$(basename $iso)
-    echo "$base" > "$STORAGE/windows.base"
+    if [[ "$aborted" != [Yy1]* ]] || [ -z "$CUSTOM" ]; then
+      base=$(basename $iso)
+      echo "$base" > "$STORAGE/windows.base"
+    fi
   fi
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
