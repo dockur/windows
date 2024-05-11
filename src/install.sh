@@ -20,15 +20,6 @@ hasDisk() {
   return 1
 }
 
-skipInstall() {
-
-  if hasDisk && [ -f "$STORAGE/windows.boot" ]; then
-    return 0
-  fi
-
-  return 1
-}
-
 startInstall() {
 
   html "Starting $APP..."
@@ -55,19 +46,26 @@ startInstall() {
 
   fi
 
-  skipInstall && return 1
+  if [ -f "$STORAGE/windows.base" ]; then
+    local base previous
+    base=$(basename $iso)
+    previous=$(<"$STORAGE/windows.base")
+    if [ -n "$previous" ]; then
+
+    fi
+  fi
+
+  if hasDisk && [ -f "$STORAGE/windows.boot" ]; then
+    return 1
+  fi
 
   if [ -f "$ISO" ] && [ -s "$ISO" ]; then
 
-    local magic
-    local auto="16"
-    local manual="17"
-    local byte="$auto"
-    [[ "$MANUAL" == [Yy1]* ]] && byte="$manual"
-
+    local magic byte
     # Check if the ISO was already processed by our script
     magic=$(dd if="$ISO" seek=0 bs=1 count=1 status=none | tr -d '\000')
     magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
+    byte="16" && [[ "$MANUAL" == [Yy1]* ]] && byte="17"
 
     if [[ "$magic" == "$byte" ]]; then
       if [ -z "$CUSTOM" ] || [ -n "$ORIGINAL" ]; then
@@ -112,25 +110,31 @@ finishInstall() {
 
   local iso="$1"
   local aborted="$2"
+  local base byte
 
   if [ ! -s "$iso" ] || [ ! -f "$iso" ]; then
     error "Failed to find ISO file: $iso" && return 1
   fi
 
-  if [ -w "$iso" ] && [[ "$aborted" != [Yy1]* ]]; then
+  if [[ "$aborted" != [Yy1]* ]]; then
     # Mark ISO as prepared via magic byte
-    local byte="16"
-    [[ "$MANUAL" == [Yy1]* ]] && byte="17"
+    byte="16" && [[ "$MANUAL" == [Yy1]* ]] && byte="17"
     if ! printf '%b' "\x$byte" | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none; then
       error "Failed to set magic byte in ISO file: $iso" && return 1
     fi
   fi
 
   rm -f "$STORAGE/windows.old"
+  rm -f "$STORAGE/windows.base"
   rm -f "$STORAGE/windows.boot"
   rm -f "$STORAGE/windows.mode"
 
   cp -f /run/version "$STORAGE/windows.ver"
+
+  if [[ "$iso" == "$STORAGE/"* ]]; then
+    base=$(basename $iso)
+    echo "$base" > "$STORAGE/windows.base"
+  fi
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
     if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
