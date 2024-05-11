@@ -12,10 +12,8 @@ hasDisk() {
   [ -b "/disk1" ] && return 0
   [ -b "/dev/disk1" ] && return 0
   [ -b "${DEVICE:-}" ] && return 0
-
-  if [ -s "$STORAGE/data.img" ] || [ -s "$STORAGE/data.qcow2" ]; then
-    return 0
-  fi
+  [ -s "$STORAGE/data.img" ]  && return 0
+  [ -s "$STORAGE/data.qcow2" ] && return 0
 
   return 1
 }
@@ -23,39 +21,36 @@ hasDisk() {
 skipInstall() {
 
   local iso="$1"
+  local magic byte
   local previous="$STORAGE/windows.base"
 
   if [ -f "$previous" ]; then
     previous=$(<"$previous")
     if [ -n "$previous" ]; then
       previous="$STORAGE/$previous"
+      if [[ "${previous,,}" != "${iso,,}" ]]; then
+      
+      fi
       if [ -f "$previous" ]; then
         rm -f "$previous" || true
       fi
     fi
   fi
 
-  if hasDisk && [ -f "$STORAGE/windows.boot" ]; then
-    return 0
-  fi
+  [ -f "$STORAGE/windows.boot" ] && hasDisk && return 0
 
-  if [ -f "$iso" ] && [ -s "$iso" ]; then
+  [ ! -f "$iso" ] && return 1
+  [ ! -s "$iso" ] && return 1
 
-    local magic byte
-    # Check if the ISO was already processed by our script
-    magic=$(dd if="$iso" seek=0 bs=1 count=1 status=none | tr -d '\000')
-    magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
-    byte="16" && [[ "$MANUAL" == [Yy1]* ]] && byte="17"
+  # Check if the ISO was already processed by our script
+  magic=$(dd if="$iso" seek=0 bs=1 count=1 status=none | tr -d '\000')
+  magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
+  byte="16" && [[ "$MANUAL" == [Yy1]* ]] && byte="17"
 
-    if [[ "$magic" == "$byte" ]]; then
-      if [ -z "$CUSTOM" ] || [ -n "$ORIGINAL" ]; then
-        return 0
-      fi
-    fi
+  [[ "$magic" != "$byte" ]] && return 1
+  [ -n "$CUSTOM" ] && [ -z "$ORIGINAL" ] && return 1
 
-  fi
-
-  return 1
+  return 0
 }
 
 startInstall() {
