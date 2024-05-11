@@ -22,6 +22,7 @@ skipInstall() {
 
   local iso="$1"
   local magic byte
+  local boot="$STORAGE/windows.boot"
   local previous="$STORAGE/windows.base"
 
   if [ -f "$previous" ]; then
@@ -29,26 +30,32 @@ skipInstall() {
     if [ -n "$previous" ]; then
       previous="$STORAGE/$previous"
       if [[ "${previous,,}" != "${iso,,}" ]]; then
-      
-      fi
-      if [ -f "$previous" ]; then
-        rm -f "$previous" || true
+        if [ -f "$boot" ] && hasDisk; then
+          info "Detected that the version was changed, but Windows is already installed."
+          info "Please clear the /storage folder first, if you want to install this new version."
+          return 0
+        fi
+        [ -f "$previous" ] && rm -f "$previous" || true
+        return 1
       fi
     fi
   fi
 
-  [ -f "$STORAGE/windows.boot" ] && hasDisk && return 0
+  [ -f "$boot" ] && hasDisk && return 0
 
   [ ! -f "$iso" ] && return 1
   [ ! -s "$iso" ] && return 1
+  [ -n "$CUSTOM" ] && [ -z "$ORIGINAL" ] && return 1
 
   # Check if the ISO was already processed by our script
   magic=$(dd if="$iso" seek=0 bs=1 count=1 status=none | tr -d '\000')
   magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
   byte="16" && [[ "$MANUAL" == [Yy1]* ]] && byte="17"
 
-  [[ "$magic" != "$byte" ]] && return 1
-  [ -n "$CUSTOM" ] && [ -z "$ORIGINAL" ] && return 1
+  if [[ "$magic" != "$byte" ]]; then
+    info "The ISO will be processed again because of a configuration change..."
+    return 1
+  fi
 
   return 0
 }
@@ -126,7 +133,7 @@ finishInstall() {
     # Mark ISO as prepared via magic byte
     byte="16" && [[ "$MANUAL" == [Yy1]* ]] && byte="17"
     if ! printf '%b' "\x$byte" | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none; then
-      error "Failed to set magic byte in ISO file: $iso" && return 1
+      warn "failed to set magic byte in ISO file: $iso"
     fi
   fi
 
