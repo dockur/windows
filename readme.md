@@ -145,7 +145,7 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
     VERSION: "https://example.com/win.iso"
   ```
 
-  Alternatively, you can also use a local file directly to skip the download, by binding it in your compose file in this way:
+  Alternatively, you can also skip the download and use a local file instead, by binding it in your compose file in this way:
   
   ```yaml
   volumes:
