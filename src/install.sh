@@ -20,6 +20,44 @@ hasDisk() {
   return 1
 }
 
+skipInstall() {
+
+  local iso="$1"
+  local previous="$STORAGE/windows.base"
+
+  if [ -f "$previous" ]; then
+    previous=$(<"$previous")
+    if [ -n "$previous" ]; then
+      previous="$STORAGE/$previous"
+      if [ -f "$previous" ]; then
+        rm -f "$previous" || true
+      fi
+    fi
+  fi
+
+  if hasDisk && [ -f "$STORAGE/windows.boot" ]; then
+    return 0
+  fi
+
+  if [ -f "$iso" ] && [ -s "$iso" ]; then
+
+    local magic byte
+    # Check if the ISO was already processed by our script
+    magic=$(dd if="$iso" seek=0 bs=1 count=1 status=none | tr -d '\000')
+    magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
+    byte="16" && [[ "$MANUAL" == [Yy1]* ]] && byte="17"
+
+    if [[ "$magic" == "$byte" ]]; then
+      if [ -z "$CUSTOM" ] || [ -n "$ORIGINAL" ]; then
+        return 0
+      fi
+    fi
+
+  fi
+
+  return 1
+}
+
 startInstall() {
 
   html "Starting $APP..."
@@ -46,37 +84,7 @@ startInstall() {
 
   fi
 
-  local previous="$STORAGE/windows.base"
-
-  if [ -f "$previous" ]; then
-    previous=$(<"$previous")
-    if [ -n "$previous" ]; then
-      previous="$STORAGE/$previous"
-      if [ -f "$previous" ]; then
-        rm -f "$previous" || true
-      fi
-    fi
-  fi
-
-  if hasDisk && [ -f "$STORAGE/windows.boot" ]; then
-    return 1
-  fi
-
-  if [ -f "$ISO" ] && [ -s "$ISO" ]; then
-
-    local magic byte
-    # Check if the ISO was already processed by our script
-    magic=$(dd if="$ISO" seek=0 bs=1 count=1 status=none | tr -d '\000')
-    magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
-    byte="16" && [[ "$MANUAL" == [Yy1]* ]] && byte="17"
-
-    if [[ "$magic" == "$byte" ]]; then
-      if [ -z "$CUSTOM" ] || [ -n "$ORIGINAL" ]; then
-        return 1
-      fi
-    fi
-
-  fi
+  skipInstall "$ISO" && return 1
 
   rm -rf "$TMP"
   mkdir -p "$TMP"
