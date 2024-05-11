@@ -138,21 +138,21 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
 * ### How do I install a custom image?
 
-  In order to download any ISO image that is not part of the list above, start a fresh container with the URL of that ISO specified in the `VERSION` environment variable, for example:
+  In order to download an unsupported ISO image that is not selectable from the list above, specify the URL of that ISO in the `VERSION` environment variable, for example:
   
   ```yaml
   environment:
     VERSION: "https://example.com/win.iso"
   ```
 
-  Alternatively, you can also use a local file directly, and skip the download altogether, by binding it in your compose file in this way:
+  Alternatively, you can also use a local file directly to skip the download, by binding it in your compose file in this way:
   
   ```yaml
   volumes:
     - /home/user/example.iso:/custom.iso
   ```
 
-  Replace the example path `/home/user/example.iso` with the filename of your desired ISO file. The value of `VERSION` will be ignored in this case.
+  Replace the example path `/home/user/example.iso` with the filename of your desired ISO file, the value of `VERSION` will be ignored in this case.
 
 * ### How do I customize the installation?
 
@@ -180,9 +180,9 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
 * ### How do I perform a manual installation?
 
-  It's best to use the automatic installation, as it optimizes various settings for use with this container. These tweaks will give you maximum performance and prevent common issues.
+  It's best to use the automatic installation, as it optimizes various settings to give you maximum performance and prevent common issues.
 
-  However, if you insist on performing the installation manually, start a fresh container with the following environment variable:
+  However, if you insist on performing the installation manually, add the following environment variable to your compose file:
 
   ```yaml
   environment:
