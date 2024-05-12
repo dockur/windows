@@ -35,7 +35,7 @@ skipInstall() {
           info "Please start with an empty /storage folder, if you want to install a different version of Windows."
           return 0
         fi
-        [ -f "$previous" ] && rm -f "$previous" || true
+        [ -f "$previous" ] && rm -f "$previous"
         return 1
       fi
     fi
@@ -128,7 +128,7 @@ finishInstall() {
 
   if [[ "$iso" == "$STORAGE/"* ]]; then
     if [[ "$aborted" != [Yy1]* ]] || [ -z "$CUSTOM" ]; then
-      base=$(basename $iso)
+      base=$(basename "$iso")
       echo "$base" > "$STORAGE/windows.base"
     fi
   fi
