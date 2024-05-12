@@ -138,21 +138,21 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
 * ### How do I install a custom image?
 
-  In order to download any ISO image that is not part of the list above, start a fresh container with the URL of that ISO specified in the `VERSION` environment variable, for example:
+  In order to download an unsupported ISO image that is not selectable from the list above, specify the URL of that ISO in the `VERSION` environment variable, for example:
   
   ```yaml
   environment:
     VERSION: "https://example.com/win.iso"
   ```
 
-  Alternatively, you can also use a local file directly, and skip the download altogether, by binding it in your compose file in this way:
+  Alternatively, you can also skip the download and use a local file instead, by binding it in your compose file in this way:
   
   ```yaml
   volumes:
     - /home/user/example.iso:/custom.iso
   ```
 
-  Replace the example path `/home/user/example.iso` with the filename of your desired ISO file. The value of `VERSION` will be ignored in this case.
+  Replace the example path `/home/user/example.iso` with the filename of your desired ISO file, the value of `VERSION` will be ignored in this case.
 
 * ### How do I customize the installation?
 
@@ -180,9 +180,9 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
 * ### How do I perform a manual installation?
 
-  It's best to use the automatic installation, as it optimizes various settings for use with this container. These tweaks will give you maximum performance and prevent common issues.
+  It's best to use the automatic installation, as it optimizes various settings to give you maximum performance and prevent common issues.
 
-  However, if you insist on performing the installation manually, start a fresh container with the following environment variable:
+  However, if you insist on performing the installation manually, add the following environment variable to your compose file:
 
   ```yaml
   environment:
@@ -193,17 +193,25 @@ docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --cap-add NET_
 
   - Start the container and connect to [port 8006](http://localhost:8006) of the container in your web browser. After the download is finished, you will see the Windows installation screen.
 
-  - Start the installation by clicking `Install now`. On the next screen, press 'OK' when prompted to `Load driver` and select the `VirtIO SCSI` driver from the list that matches your Windows version. So for Windows 11, select `D:\amd64\w11\vioscsi.inf` and click 'Next'.
+  - Start the installation by clicking `Install now`. On the next screen, press 'OK' when prompted to `Load driver`.
+
+  -  Select the `VirtIO SCSI` driver from the list that matches your Windows version. So for Windows 11, select `D:\amd64\w11\vioscsi.inf` and click 'Next'.
 
   - Accept the license agreement and select your preferred Windows edition, like Home or Pro.
 
-  - Choose `Custom: Install Windows only (advanced)`, and click `Load driver` on the next screen. Select 'Browse' and navigate to the `D:\NetKVM\w11\amd64` folder, and click 'OK'. Select the `VirtIO Ethernet Adapter` from the list and click 'Next'.
+  - Choose `Custom: Install Windows only (advanced)`, and click `Load driver` on the next screen.
+
+  - Select 'Browse' and navigate to the `D:\NetKVM\w11\amd64` folder, and click 'OK'.
+
+  - Select the `VirtIO Ethernet Adapter` from the list and click 'Next'.
 
   - Select `Drive 0` and click 'Next'.
 
   - Wait until Windows finishes copying files and completes the installation.
 
-  - Once you see the desktop, open File Explorer and navigate to the CD-ROM drive (E:). Double-click on `virtio-win-gt-x64.msi` and proceed to install the VirtIO drivers.
+  - Once you see the desktop, open File Explorer and navigate to the CD-ROM drive (`E:\`).
+
+  - Double-click on `virtio-win-gt-x64.msi` and proceed to install the VirtIO drivers.
 
   Enjoy your brand new machine, and don't forget to star this repo!
  
