@@ -1,11 +1,13 @@
 FROM scratch
 COPY --from=qemux/qemu-docker:5.03 / /
 
-ARG DEBCONF_NOWARNINGS "yes"
-ARG DEBIAN_FRONTEND "noninteractive"
-ARG DEBCONF_NONINTERACTIVE_SEEN "true"
+ARG VERSION_ARG="0.0"
+ARG DEBCONF_NOWARNINGS="yes"
+ARG DEBIAN_FRONTEND="noninteractive"
+ARG DEBCONF_NONINTERACTIVE_SEEN="true"
 
-RUN apt-get update && \
+RUN set -eu && \
+    apt-get update && \
     apt-get --no-install-recommends -y install \
         bc \
         curl \
@@ -18,15 +20,14 @@ RUN apt-get update && \
         genisoimage \
         libxml2-utils && \
     apt-get clean && \
+    echo "$VERSION_ARG" > /run/version && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-COPY ./src /run/
-COPY ./assets /run/assets
+COPY --chmod=755 ./src /run/
+COPY --chmod=644 ./assets /run/assets
 
-ADD https://raw.githubusercontent.com/christgau/wsdd/v0.8/src/wsdd.py /usr/sbin/wsdd
-ADD https://github.com/qemus/virtiso/releases/download/v0.1.248/virtio-win-0.1.248.iso /run/drivers.iso
-
-RUN chmod +x /run/*.sh && chmod +x /usr/sbin/wsdd
+ADD --chmod=755 https://raw.githubusercontent.com/christgau/wsdd/v0.8/src/wsdd.py /usr/sbin/wsdd
+ADD --chmod=644 https://github.com/qemus/virtiso/releases/download/v0.1.248/virtio-win-0.1.248.iso /run/drivers.iso
 
 EXPOSE 8006 3389
 VOLUME /storage
@@ -35,8 +36,5 @@ ENV RAM_SIZE "4G"
 ENV CPU_CORES "2"
 ENV DISK_SIZE "64G"
 ENV VERSION "win11"
-
-ARG VERSION_ARG "0.0"
-RUN echo "$VERSION_ARG" > /run/version
 
 ENTRYPOINT ["/usr/bin/tini", "-s", "/run/entry.sh"]
