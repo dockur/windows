@@ -43,7 +43,6 @@ services:
       - 3389:3389/tcp
       - 3389:3389/udp
     stop_grace_period: 2m
-    restart: on-failure
 ```
 
 Via Docker CLI:
