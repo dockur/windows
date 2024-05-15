@@ -936,7 +936,7 @@ copyOEM() {
 
   local dir="$1"
   local folder="/oem"
-  local src
+  local src dest file
 
   [ ! -d "$folder" ] && folder="/OEM"
   [ ! -d "$folder" ] && folder="$STORAGE/oem"
@@ -952,12 +952,15 @@ copyOEM() {
     error "failed to locate 'sources' folder in ISO image!" && return 1
   fi
 
-  local dest="$src/\$OEM\$/\$1/"
+  dest="$src/\$OEM\$/\$1/"
   mkdir -p "$dest"
 
   if ! cp -r "$folder" "$dest"; then
     error "Failed to copy OEM folder!" && return 1
   fi
+
+  file=$(find "$dest" -maxdepth 1 -type f -iname install.bat | head -n 1)
+  [ -f "$file" ] && unix2dos "$file"
 
   return 0
 }
