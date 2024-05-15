@@ -960,7 +960,7 @@ copyOEM() {
   fi
 
   file=$(find "$dest" -maxdepth 1 -type f -iname install.bat | head -n 1)
-  [ -f "$file" ] && unix2dos "$file"
+  [ -f "$file" ] && unix2dos -q "$file"
 
   return 0
 }
