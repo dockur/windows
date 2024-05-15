@@ -1,14 +1,14 @@
-name: "\U0001F41E Bug Report"
+name: "\U0001F41E Bug report"
 description: Create a report to help us improve the container
 title: "[Bug]: "
 labels: ["bug"]
 body:
   - type: checkboxes
     attributes:
-      label: Is there an existing issue for this?
-      description: Please search to see if an issue already exists for the bug you encountered.
+      label: Is there no existing bug report for this?
+      description: Please search to see if the bug was not already reported before.
       options:
-      - label: I have searched the existing issues
+      - label: I have searched the existing bug reports
         required: true
   - type: input
     id: cpu
@@ -30,15 +30,15 @@ body:
     id: docker
     attributes:
       label: Docker version
-      description: The version of Docker (as shown by `docker -v`).
-      placeholder: e.g. Docker version 26.0.1, build d260a54
+      description: The version of the Docker engine (as shown by `docker -v`).
+      placeholder: e.g. 26.0.1
     validations:
       required: true
   - type: textarea
     id: summary
     attributes:
       label: Description
-      description: A clear and concise description of your issue.
+      description: Describe the expected behaviour, the actual behaviour, and the steps to reproduce.
     validations:
       required: true
   - type: textarea
