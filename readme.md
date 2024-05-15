@@ -28,7 +28,6 @@ Windows in a Docker container.
 Via Docker Compose:
 
 ```yaml
-version: "3"
 services:
   windows:
     image: dockurr/windows
