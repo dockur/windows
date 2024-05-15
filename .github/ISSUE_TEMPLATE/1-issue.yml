@@ -1,12 +1,10 @@
-name: "\U0001F41E Bug Report"
-description: Create a report to help us improve the container
-title: "[Bug]: "
-labels: ["bug"]
+name: "\U0001F6A8 Technical issue"
+description: When you're experiencing problems using the container
 body:
   - type: checkboxes
     attributes:
-      label: Is there an existing issue for this?
-      description: Please search to see if an issue already exists for the bug you encountered.
+      label: Is there no existing issue for this?
+      description: Please search to see if no solution was already provided before.
       options:
       - label: I have searched the existing issues
         required: true
@@ -30,8 +28,8 @@ body:
     id: docker
     attributes:
       label: Docker version
-      description: The version of Docker (as shown by `docker -v`).
-      placeholder: e.g. Docker version 26.0.1, build d260a54
+      description: The version of the Docker engine (as shown by `docker -v`).
+      placeholder: e.g. 26.0.1
     validations:
       required: true
   - type: textarea

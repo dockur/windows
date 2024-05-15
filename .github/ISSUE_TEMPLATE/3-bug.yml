@@ -1,0 +1,64 @@
+name: "\U0001F41E Bug report"
+description: Create a report to help us improve the container
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: checkboxes
+    attributes:
+      label: Is there no existing bug report for this?
+      description: Please search to see if the bug was not already reported before.
+      options:
+      - label: I have searched the existing bug reports
+        required: true
+  - type: input
+    id: cpu
+    attributes:
+      label: Machine specifications
+      description: The processor and RAM amount in your machine.
+      placeholder: e.g. Intel N5105 / 16 GB 
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      description: The distribution and kernel version (as shown by `uname -a`).
+      placeholder: e.g. Ubuntu 24.04 / Kernel 6.8.0-22-generic
+    validations:
+      required: true
+  - type: input
+    id: docker
+    attributes:
+      label: Docker version
+      description: The version of the Docker engine (as shown by `docker -v`).
+      placeholder: e.g. 26.0.1
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Description
+      description: Describe the expected behaviour, the actual behaviour, and the steps to reproduce.
+    validations:
+      required: true
+  - type: textarea
+    id: compose
+    attributes:
+      label: Docker compose
+      description: The compose file (or otherwise the `docker run` command used).
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Docker log
+      description: The logfile of the container (as shown by `docker logs windows`).
+    validations:
+      required: true
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshots (optional)
+      description: Screenshots that might help to make the problem more clear.
+    validations:
+      required: false
