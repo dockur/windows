@@ -22,7 +22,7 @@ body:
     id: os
     attributes:
       label: Operating system
-      description: The Linux distribution and kernel version as shown by `uname -a`.
+      description: The distribution and kernel version (as shown by `uname -a`).
       placeholder: e.g. Ubuntu 24.04 / Kernel 6.8.0-22-generic
     validations:
       required: true
@@ -30,7 +30,7 @@ body:
     id: docker
     attributes:
       label: Docker version
-      description: The Docker version as shown by `docker -v`.
+      description: The version of Docker (as shown by `docker -v`).
       placeholder: e.g. Docker version 26.0.1, build d260a54
     validations:
       required: true
@@ -38,27 +38,27 @@ body:
     id: summary
     attributes:
       label: Description
-      description: A clear and concise description of the problem.
+      description: A clear and concise description of your issue.
     validations:
       required: true
   - type: textarea
     id: compose
     attributes:
       label: Docker compose
-      description: The Docker compose file (or otherwise `run` command).
+      description: The compose file (or otherwise the `docker run` command used).
     validations:
       required: true
   - type: textarea
     id: log
     attributes:
       label: Docker log
-      description: The Docker logfile of the container.
+      description: The logfile of the container (as shown by `docker logs windows`).
     validations:
       required: true
   - type: textarea
     id: screenshot
     attributes:
       label: Screenshots (optional)
-      description: Screenshots of the problem.
+      description: Screenshots that might help to make the problem more clear.
     validations:
       required: false
