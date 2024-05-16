@@ -578,7 +578,7 @@ downloadImage() {
 
   for ((i=1;i<=MIRRORS;i++)); do
 
-    url=$(getLink "$i" "$version")
+    url=$(getLink "$i" "$version" "$language")
 
     if [ -n "$url" ]; then
       if [[ "$tried" != "n" ]]; then
