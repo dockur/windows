@@ -195,4 +195,66 @@ downloadFile() {
   return 1
 }
 
+downloadImage() {
+
+  local iso="$1"
+  local version="$2"
+  local tried="n"
+  local url sum size base desc
+
+  if [[ "${version,,}" == "http"* ]]; then
+    base=$(basename "$iso")
+    desc=$(fromFile "$base")
+    downloadFile "$iso" "$version" "" "" "$desc" && return 0
+    return 1
+  fi
+
+  if ! validVersion "$version"; then
+    error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
+  fi
+
+  desc=$(printVersion "$version" "")
+
+  if isMido "$version"; then
+    tried="y"
+    doMido "$iso" "$version" "$desc" && return 0
+  fi
+
+  switchEdition "$version"
+
+  if isESD "$version"; then
+
+    if [[ "$tried" != "n" ]]; then
+      info "Failed to download $desc using Mido, will try a diferent method now..."
+    fi
+
+    tried="y"
+
+    if getESD "$TMP/esd" "$version"; then
+      ISO="${ISO%.*}.esd"
+      downloadFile "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$desc" && return 0
+      ISO="$iso"
+    fi
+
+  fi
+
+  for ((i=1;i<=MIRRORS;i++)); do
+
+    url=$(getLink "$i" "$version")
+
+    if [ -n "$url" ]; then
+      if [[ "$tried" != "n" ]]; then
+        info "Failed to download $desc, will try another mirror now..."
+      fi
+      tried="y"
+      size=$(getSize "$i" "$version")
+      sum=$(getHash "$i" "$version")
+      downloadFile "$iso" "$url" "$sum" "$size" "$desc" && return 0
+    fi
+
+  done
+
+  return 1
+}
+
 return 0
