@@ -39,7 +39,9 @@ handle_curl_error() {
 
 download_windows() {
 
-  local HASH=""
+  local id="$1"
+  local language="$2"
+  local checksum=""
   local session_id=""
   local iso_download_page_html=""
   local product_edition_id=""
@@ -121,11 +123,13 @@ download_windows() {
     return $?
   }
 
+  [ -z "$language" ] && language="English (United States)"
+
   # Limit untrusted size for input validation
   language_skuid_table_html="$(echo "$language_skuid_table_html" | head -c 10240)"
 
   # tr: Filter for only alphanumerics or "-" to prevent HTTP parameter injection
-  sku_id="$(echo "$language_skuid_table_html" | grep "${I18N}" | sed 's/&quot;//g' | cut -d ',' -f 1  | cut -d ':' -f 2 | tr -cd '[:alnum:]-' | head -c 16)"
+  sku_id="$(echo "$language_skuid_table_html" | grep "${language}" | sed 's/&quot;//g' | cut -d ',' -f 1  | cut -d ':' -f 2 | tr -cd '[:alnum:]-' | head -c 16)"
   echo "$sku_id"
 
   echo " - Getting ISO download link..."
@@ -143,6 +147,13 @@ download_windows() {
   if echo "$iso_download_link_html" | grep -q "We are unable to complete your request at this time."; then
     echo " - WARNING! Microsoft blocked the automated download request based on your IP address."
     return 1
+  fi
+
+  local hash=$(echo "$iso_download_link_html" | sed 's/<tr><td>/\n<tr><td>/g' | grep "$language  64-bit" | grep -o -P '(?<=</td><td>).*(?=</td></tr>)')
+  checksum=$(getMido "$id" "sum")
+
+  if [[ "$hash" != "$checksum" ]]; then
+    warn "download has an unexpected SHA256 checksum: $hash , while expected value was: $checksum. Please report this at $SUPPORT/issues"
   fi
 
   # Filter for 64-bit ISO download URL
@@ -163,6 +174,7 @@ download_windows() {
 download_windows_eval() {
 
   local id="$1"
+  local language="$2"
   local windows_version=""
   local enterprise_type=""
 
@@ -228,6 +240,42 @@ download_windows_eval() {
   local COUNTRY="US"
   local CULTURE="en-us"
 
+  case "$language" in
+    "English (Great Britain)")
+      CULTURE="en-gb"
+      COUNTRY="GB";;
+    "Chinese (Simplified)")
+      CULTURE="zh-cn"
+      COUNTRY="CN";;
+    "Chinese (Traditional)")
+      CULTURE="zh-tw"
+      COUNTRY="TW";;
+    "French")
+      CULTURE="fr-fr"
+      COUNTRY="FR";;
+    "German")
+      CULTURE="de-de"
+      COUNTRY="DE";;
+    "Italian")
+      CULTURE="it-it"
+      COUNTRY="IT";;
+    "Japanese")
+      CULTURE="ja-jp"
+      COUNTRY="JP";;
+    "Korean")
+      CULTURE="ko-kr"
+      COUNTRY="KR";;
+    "Portuguese (Brazil)")
+      CULTURE="pt-br"
+      COUNTRY="BR";;
+    "Spanish")
+      CULTURE="es-es"
+      COUNTRY="ES";;
+    "Russian")
+      CULTURE="ru-ru"
+      COUNTRY="RU";;
+  esac
+
   echo " - Getting download link.."
   iso_download_links="$(echo "$iso_download_page_html" | grep -o "https://go.microsoft.com/fwlink/p/?LinkID=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${CULTURE}&country=${COUNTRY}")" || {
     # This should only happen if there's been some change to the download endpoint web address
@@ -265,22 +313,23 @@ download_windows_eval() {
 getWindows() {
 
   local id="$1"
+  local language="$2"
 
   MIDO_URL=""
   info "Downloading Windows media from official Microsoft servers..."
 
   case "${id,,}" in
      "win81${PLATFORM,,}" | "win10${PLATFORM,,}" | "win11${PLATFORM,,}" )
-      download_windows "$id" && return 0
+      download_windows "$id" "$language" && return 0
       ;;
     "win11${PLATFORM,,}-enterprise-eval" )
-      download_windows_eval "$id" && return 0
+      download_windows_eval "$id" "$language" && return 0
       ;;
     "win10${PLATFORM,,}-enterprise-eval" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-      download_windows_eval "$id" && return 0
+      download_windows_eval "$id" "$language" && return 0
       ;;
     "win2022-eval" | "win2019-eval" | "win2016-eval" | "win2012r2-eval" )
-      download_windows_eval "$id" && return 0
+      download_windows_eval "$id" "$language" && return 0
       ;;
     "win81${PLATFORM,,}-enterprise-eval" )
       info "Downloading Windows 8.1 Enterprise Evaluation..."
@@ -431,6 +480,7 @@ getESD() {
 
   local dir="$1"
   local version="$2"
+  local language="$3"
   local editionName
   local winCatalog size
 
@@ -502,6 +552,7 @@ downloadImage() {
   local iso="$1"
   local version="$2"
   local tried="n"
+  local language="English (United States)"
   local url sum size base desc
 
   if [[ "${version,,}" == "http"* ]]; then
@@ -519,7 +570,7 @@ downloadImage() {
 
   if isMido "$version"; then
     tried="y"
-    if getWindows "$version"; then
+    if getWindows "$version" "$language"; then
       echo "MIDO_URL=$MIDO_URL"
       exit 33
       size=$(getMido "$version" "size")
@@ -538,7 +589,7 @@ downloadImage() {
 
     tried="y"
 
-    if getESD "$TMP/esd" "$version"; then
+    if getESD "$TMP/esd" "$version" "$language"; then
       ISO="${ISO%.*}.esd"
       downloadFile "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$desc" && return 0
       ISO="$iso"
