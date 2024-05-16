@@ -550,8 +550,6 @@ downloadImage() {
   if isMido "$version"; then
     tried="y"
     if getWindows "$version" "$desc" "$language"; then
-      echo "MIDO_URL=$MIDO_URL"
-      exit 33
       size=$(getMido "$version" "size")
       sum=$(getMido "$version" "sum")
       downloadFile "$iso" "$MIDO_URL" "$sum" "$size" "$desc" && return 0
