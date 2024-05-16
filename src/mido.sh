@@ -144,12 +144,18 @@ download_windows() {
     return 1
   fi
 
-  local hash=$(echo "$iso_download_link_html" | sed 's/<tr><td>/\n<tr><td>/g' | grep "$language 64-bit" | grep -o -P '(?<=</td><td>).*(?=</td></tr>)')
+  local lang="$language"
+  [[ "$lang" == "English (United States)" ]] lang="English"
+
+  local hash=$(echo "$iso_download_link_html" | sed 's/<tr><td>/\n<tr><td>/g' | grep "$lang 64-bit" | grep -o -P '(?<=</td><td>).*(?=</td></tr>)')
   checksum=$(getMido "$id" "sum")
 
-  if [[ "$hash" != "$checksum" ]]; then
-    warn "download has an unexpected SHA256 checksum: $hash , while expected value was: $checksum. Please report this at $SUPPORT/issues"
-    echo "$iso_download_link_html" | sed 's/<tr><td>/\n<tr><td>/g'
+  if [[ "${hash,,}" != "$checksum" ]]; then
+    if [ -z "$hash" ]; then
+      warn "cannot detect checksum. Please report this at $SUPPORT/issues"
+    else
+      warn "download has an unexpected SHA256 checksum: ${hash,,} , while expected value was: $checksum. Please report this at $SUPPORT/issues"
+    fi
   fi
 
   # Filter for 64-bit ISO download URL
