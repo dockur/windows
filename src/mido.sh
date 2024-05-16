@@ -543,13 +543,13 @@ downloadImage() {
     return 1
   fi
 
-  if ! validVersion "$version"; then
+  if ! validVersion "$version" "$language"; then
     error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
   fi
 
   desc=$(printVersion "$version" "")
 
-  if isMido "$version"; then
+  if isMido "$version" "$language"; then
     tried="y"
     if getWindows "$version" "$language" "$desc"; then
       size=$(getMido "$version" "$language" "size" )
@@ -560,7 +560,7 @@ downloadImage() {
 
   switchEdition "$version"
 
-  if isESD "$version"; then
+  if isESD "$version" "$language"; then
 
     if [[ "$tried" != "n" ]]; then
       info "Failed to download $desc, will try a diferent method now..."
