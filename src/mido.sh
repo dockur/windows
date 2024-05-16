@@ -1,76 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-getESD() {
-
-  local dir="$1"
-  local version="$2"
-  local editionName
-  local winCatalog size
-
-  if ! isESD "${version,,}"; then
-    error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
-  fi
-
-  winCatalog=$(getCatalog "$version" "url")
-  editionName=$(getCatalog "$version" "edition")
-
-  local msg="Downloading product information from Microsoft..."
-  info "$msg" && html "$msg"
-
-  rm -rf "$dir"
-  mkdir -p "$dir"
-
-  local wFile="catalog.cab"
-  local xFile="products.xml"
-  local eFile="esd_edition.xml"
-  local fFile="products_filter.xml"
-
-  { wget "$winCatalog" -O "$dir/$wFile" -q --timeout=10; rc=$?; } || :
-  (( rc != 0 )) && error "Failed to download $winCatalog , reason: $rc" && return 1
-
-  cd "$dir"
-
-  if ! cabextract "$wFile" > /dev/null; then
-    cd /run
-    error "Failed to extract $wFile!" && return 1
-  fi
-
-  cd /run
-
-  if [ ! -s "$dir/$xFile" ]; then
-    error "Failed to find $xFile in $wFile!" && return 1
-  fi
-
-  local esdLang="en-us"
-  local edQuery='//File[Architecture="'${PLATFORM}'"][Edition="'${editionName}'"]'
-
-  echo -e '<Catalog>' > "$dir/$fFile"
-  xmllint --nonet --xpath "${edQuery}" "$dir/$xFile" >> "$dir/$fFile" 2>/dev/null
-  echo -e '</Catalog>'>> "$dir/$fFile"
-  xmllint --nonet --xpath '//File[LanguageCode="'${esdLang}'"]' "$dir/$fFile" >"$dir/$eFile"
-
-  size=$(stat -c%s "$dir/$eFile")
-  if ((size<20)); then
-    error "Failed to find Windows product in $eFile!" && return 1
-  fi
-
-  local tag="FilePath"
-  ESD=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
-
-  if [ -z "$ESD" ]; then
-    error "Failed to find ESD URL in $eFile!" && return 1
-  fi
-
-  tag="Sha1"
-  ESD_SUM=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
-  tag="Size"
-  ESD_SIZE=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
-
-  rm -rf "$dir"
-  return 0
-}
-
 verifyFile() {
 
   local iso="$1"
@@ -193,6 +123,76 @@ downloadFile() {
 
   rm -f "$iso"
   return 1
+}
+
+getESD() {
+
+  local dir="$1"
+  local version="$2"
+  local editionName
+  local winCatalog size
+
+  if ! isESD "${version,,}"; then
+    error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
+  fi
+
+  winCatalog=$(getCatalog "$version" "url")
+  editionName=$(getCatalog "$version" "edition")
+
+  local msg="Downloading product information from Microsoft..."
+  info "$msg" && html "$msg"
+
+  rm -rf "$dir"
+  mkdir -p "$dir"
+
+  local wFile="catalog.cab"
+  local xFile="products.xml"
+  local eFile="esd_edition.xml"
+  local fFile="products_filter.xml"
+
+  { wget "$winCatalog" -O "$dir/$wFile" -q --timeout=10; rc=$?; } || :
+  (( rc != 0 )) && error "Failed to download $winCatalog , reason: $rc" && return 1
+
+  cd "$dir"
+
+  if ! cabextract "$wFile" > /dev/null; then
+    cd /run
+    error "Failed to extract $wFile!" && return 1
+  fi
+
+  cd /run
+
+  if [ ! -s "$dir/$xFile" ]; then
+    error "Failed to find $xFile in $wFile!" && return 1
+  fi
+
+  local esdLang="en-us"
+  local edQuery='//File[Architecture="'${PLATFORM}'"][Edition="'${editionName}'"]'
+
+  echo -e '<Catalog>' > "$dir/$fFile"
+  xmllint --nonet --xpath "${edQuery}" "$dir/$xFile" >> "$dir/$fFile" 2>/dev/null
+  echo -e '</Catalog>'>> "$dir/$fFile"
+  xmllint --nonet --xpath '//File[LanguageCode="'${esdLang}'"]' "$dir/$fFile" >"$dir/$eFile"
+
+  size=$(stat -c%s "$dir/$eFile")
+  if ((size<20)); then
+    error "Failed to find Windows product in $eFile!" && return 1
+  fi
+
+  local tag="FilePath"
+  ESD=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
+
+  if [ -z "$ESD" ]; then
+    error "Failed to find ESD URL in $eFile!" && return 1
+  fi
+
+  tag="Sha1"
+  ESD_SUM=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
+  tag="Size"
+  ESD_SIZE=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
+
+  rm -rf "$dir"
+  return 0
 }
 
 downloadImage() {
