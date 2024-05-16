@@ -552,8 +552,8 @@ downloadImage() {
   if isMido "$version"; then
     tried="y"
     if getWindows "$version" "$desc" "$language"; then
-      size=$(getMido "$version" "size")
-      sum=$(getMido "$version" "sum")
+      size=$(getMido "$version" "size" "$language")
+      sum=$(getMido "$version" "sum" "$language")
       downloadFile "$iso" "$MIDO_URL" "$sum" "$size" "$desc" && return 0
     fi
   fi
@@ -585,8 +585,8 @@ downloadImage() {
         info "Failed to download $desc, will try another mirror now..."
       fi
       tried="y"
-      size=$(getSize "$i" "$version")
-      sum=$(getHash "$i" "$version")
+      size=$(getSize "$i" "$version" "$language")
+      sum=$(getHash "$i" "$version" "$language")
       downloadFile "$iso" "$url" "$sum" "$size" "$desc" && return 0
     fi
 
