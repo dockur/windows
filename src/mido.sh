@@ -296,9 +296,9 @@ getWindows() {
   local desc="$2"
   local language="$3"
 
-  MIDO_URL=""
-  info "Downloading $desc from official Microsoft servers..."
-
+  local msg="Requesting $desc from official Microsoft servers..."
+  info "$msg" && html "$msg"
+  
   case "${id,,}" in
     "win81${PLATFORM,,}" | "win10${PLATFORM,,}" | "win11${PLATFORM,,}" )
       download_windows "$id" "$language" && return 0
@@ -324,6 +324,7 @@ getWindows() {
       error "Unknown version: $id"
   esac
 
+  MIDO_URL=""
   return 1
 }
 
