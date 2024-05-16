@@ -336,43 +336,6 @@ verifyFile() {
   return 1
 }
 
-doMido() {
-
-  local iso="$1"
-  local version="$2"
-  local desc="$3"
-  local rc sum size total
-
-  rm -f "$iso"
-  rm -f "$iso.PART"
-
-  size=$(getMido "$version" "size")
-  sum=$(getMido "$version" "sum")
-
-  local msg="Downloading $desc..."
-  info "$msg" && html "$msg"
-  /run/progress.sh "$iso.PART" "$size" "Downloading $desc ([P])..." &
-
-  cd "$TMP"
-  { /run/xmido.sh "${version,,}"; rc=$?; } || :
-  cd /run
-
-  fKill "progress.sh"
-
-  if (( rc == 0 )) && [ -f "$iso" ]; then
-    total=$(stat -c%s "$iso")
-    if [ "$total" -gt 100000000 ]; then
-      ! verifyFile "$iso" "$size" "$total" "$sum" && return 1
-      html "Download finished successfully..." && return 0
-    fi
-  fi
-
-  rm -f "$iso"
-  rm -f "$iso.PART"
-
-  return 1
-}
-
 downloadFile() {
 
   local iso="$1"
