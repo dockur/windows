@@ -216,7 +216,7 @@ download_windows_eval() {
       error "Unknown version: $id"
       return 1
   esac
-  
+
   local iso_download_page_html=""
   local url="https://www.microsoft.com/en-us/evalcenter/download-$windows_version"
 
