@@ -3,41 +3,41 @@ set -Eeuo pipefail
 
 handle_curl_error() {
 
-    local error_code="$1"
+  local error_code="$1"
 
-    case "$error_code" in
-        6) error "Failed to resolve Microsoft servers! Is there an Internet connection?" ;;
-        7) error "Failed to contact Microsoft servers! Is there an Internet connection or is the server down?" ;;
-        8) error "Microsoft servers returned a malformed HTTP response!" ;;
-        22) error "Microsoft servers returned a failing HTTP status code!" ;;
-        23) error "Failed at writing Windows media to disk! Out of disk space or permission error?" ;;
-        26) error "Ran out of memory during download!" ;;
-        28) error "Connection timed out to Microsoft server!" ;;
-        35) error "SSL connection error from Microsoft server!" ;;
-        36) error "Failed to continue earlier download!" ;;
-        52) error "Received no data from the Microsoft server!" ;;
-        63) error "Microsoft servers returned an unexpectedly large response!" ;;
-        # POSIX defines exit statuses 1-125 as usable by us
-        # https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_08_02
-        $((error_code <= 125)))
-            # Must be some other server or network error (possibly with this specific request/file)
-            # This is when accounting for all possible errors in the curl manual assuming a correctly formed curl command and an HTTP(S) request, using only the curl features we're using, and a sane build
-            error "Miscellaneous server or network error, reason: $error_code"
-            ;;
-        126 | 127 ) error "Curl command not found!" ;;
-        # Exit statuses are undefined by POSIX beyond this point
-        *)
-            case "$(kill -l "$error_code")" in
-              # Signals defined to exist by POSIX:
-              # https://pubs.opengroup.org/onlinepubs/009695399/basedefs/signal.h.html
-              INT) error "Curl was interrupted!" ;;
-              # There could be other signals but these are most common
-              SEGV | ABRT ) error "Curl crashed! Failed exploitation attempt? Please report any core dumps to curl developers." ;;
-              *) error "Curl terminated due to a fatal signal!" ;;
-            esac
-    esac
+  case "$error_code" in
+    6) error "Failed to resolve Microsoft servers! Is there an Internet connection?" ;;
+    7) error "Failed to contact Microsoft servers! Is there an Internet connection or is the server down?" ;;
+    8) error "Microsoft servers returned a malformed HTTP response!" ;;
+    22) error "Microsoft servers returned a failing HTTP status code!" ;;
+    23) error "Failed at writing Windows media to disk! Out of disk space or permission error?" ;;
+    26) error "Ran out of memory during download!" ;;
+    28) error "Connection timed out to Microsoft server!" ;;
+    35) error "SSL connection error from Microsoft server!" ;;
+    36) error "Failed to continue earlier download!" ;;
+    52) error "Received no data from the Microsoft server!" ;;
+    63) error "Microsoft servers returned an unexpectedly large response!" ;;
+    # POSIX defines exit statuses 1-125 as usable by us
+    # https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_08_02
+    $((error_code <= 125)))
+      # Must be some other server or network error (possibly with this specific request/file)
+      # This is when accounting for all possible errors in the curl manual assuming a correctly formed curl command and an HTTP(S) request, using only the curl features we're using, and a sane build
+      error "Miscellaneous server or network error, reason: $error_code"
+      ;;
+    126 | 127 ) error "Curl command not found!" ;;
+    # Exit statuses are undefined by POSIX beyond this point
+    *)
+      case "$(kill -l "$error_code")" in
+        # Signals defined to exist by POSIX:
+        # https://pubs.opengroup.org/onlinepubs/009695399/basedefs/signal.h.html
+        INT) error "Curl was interrupted!" ;;
+        # There could be other signals but these are most common
+        SEGV | ABRT ) error "Curl crashed! Failed exploitation attempt? Please report any core dumps to curl developers." ;;
+        *) error "Curl terminated due to a fatal signal!" ;;
+      esac
+  esac
 
-    return 1
+  return 1
 }
 
 download_windows() {
@@ -221,37 +221,37 @@ download_windows_eval() {
   local CULTURE="en-us"
 
   case "$language" in
-    "English (Great Britain)")
+    "English (Great Britain)" )
       CULTURE="en-gb"
       COUNTRY="GB";;
-    "Chinese (Simplified)")
+    "Chinese (Simplified)" )
       CULTURE="zh-cn"
       COUNTRY="CN";;
-    "Chinese (Traditional)")
+    "Chinese (Traditional)" )
       CULTURE="zh-tw"
       COUNTRY="TW";;
-    "French")
+    "French" )
       CULTURE="fr-fr"
       COUNTRY="FR";;
-    "German")
+    "German" )
       CULTURE="de-de"
       COUNTRY="DE";;
-    "Italian")
+    "Italian" )
       CULTURE="it-it"
       COUNTRY="IT";;
-    "Japanese")
+    "Japanese" )
       CULTURE="ja-jp"
       COUNTRY="JP";;
-    "Korean")
+    "Korean" )
       CULTURE="ko-kr"
       COUNTRY="KR";;
-    "Portuguese (Brazil)")
+    "Portuguese (Brazil)" )
       CULTURE="pt-br"
       COUNTRY="BR";;
-    "Spanish")
+    "Spanish" )
       CULTURE="es-es"
       COUNTRY="ES";;
-    "Russian")
+    "Russian" )
       CULTURE="ru-ru"
       COUNTRY="RU";;
   esac
@@ -300,7 +300,7 @@ getWindows() {
   info "Downloading $desc from official Microsoft servers..."
 
   case "${id,,}" in
-     "win81${PLATFORM,,}" | "win10${PLATFORM,,}" | "win11${PLATFORM,,}" )
+    "win81${PLATFORM,,}" | "win10${PLATFORM,,}" | "win11${PLATFORM,,}" )
       download_windows "$id" "$language" && return 0
       ;;
     "win11${PLATFORM,,}-enterprise-eval" )
