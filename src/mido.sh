@@ -69,223 +69,244 @@ handle_curl_error() {
 
 download_windows() {
 
-    local HASH=""
-    local session_id=""
-    local iso_download_page_html=""
-    local product_edition_id=""
-    local language_skuid_table_html=""
-    local sku_id=""
-    local iso_download_link_html=""
-    local iso_download_link=""
+  local HASH=""
+  local session_id=""
+  local iso_download_page_html=""
+  local product_edition_id=""
+  local language_skuid_table_html=""
+  local sku_id=""
+  local iso_download_link_html=""
+  local iso_download_link=""
+  local windows_version=""
 
-    echo "Downloading Windows ${RELEASE} (${I18N})"
-    # Download newer consumer Windows versions from behind gated Microsoft API
+  case "${id,,}" in
+    "win11${PLATFORM,,}" )
+      windows_version="11"
+      ;;
+    "win10${PLATFORM,,}" )
+      windows_version="10"
+      ;;
+    "win81${PLATFORM,,}" )
+      windows_version="8"
+      ;;
+    * )
+      echo "Unknown version: $id"
+      return 1
+  esac
 
-    # Either 8, 10, or 11
-    local windows_version="$1"
+  echo "Downloading $id"
 
-    local url="https://www.microsoft.com/en-us/software-download/windows$windows_version"
-    case "$windows_version" in
-        8 | 10) url="${url}ISO";;
-    esac
+  local url="https://www.microsoft.com/en-us/software-download/windows$windows_version"
+  case "$windows_version" in
+    8 | 10) url="${url}ISO";;
+  esac
 
-    local user_agent="Mozilla/5.0 (X11; Linux x86_64; rv:100.0) Gecko/20100101 Firefox/100.0"
-    # uuidgen: For MacOS (installed by default) and other systems (e.g. with no /proc) that don't have a kernel interface for generating random UUIDs
-    session_id="$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random)"
+  local user_agent="Mozilla/5.0 (X11; Linux x86_64; rv:100.0) Gecko/20100101 Firefox/100.0"
+  # uuidgen: For MacOS (installed by default) and other systems (e.g. with no /proc) that don't have a kernel interface for generating random UUIDs
+  session_id="$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random)"
 
-    # Get product edition ID for latest release of given Windows version
-    # Product edition ID: This specifies both the Windows release (e.g. 22H2) and edition ("multi-edition" is default, either Home/Pro/Edu/etc., we select "Pro" in the answer files) in one number
-    # This is the *only* request we make that Fido doesn't. Fido manually maintains a list of all the Windows release/edition product edition IDs in its script (see: $WindowsVersions array). This is helpful for downloading older releases (e.g. Windows 10 1909, 21H1, etc.) but we always want to get the newest release which is why we get this value dynamically
-    # Also, keeping a "$WindowsVersions" array like Fido does would be way too much of a maintenance burden
-    # Remove "Accept" header that curl sends by default
-    echo " - Parsing download page: ${url}"
-    iso_download_page_html="$(curl --silent --user-agent "$user_agent" --header "Accept:" --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url")" || {
-        handle_curl_error $?
-        return $?
-    }
+  # Get product edition ID for latest release of given Windows version
+  # Product edition ID: This specifies both the Windows release (e.g. 22H2) and edition ("multi-edition" is default, either Home/Pro/Edu/etc., we select "Pro" in the answer files) in one number
+  # This is the *only* request we make that Fido doesn't. Fido manually maintains a list of all the Windows release/edition product edition IDs in its script (see: $WindowsVersions array). This is helpful for downloading older releases (e.g. Windows 10 1909, 21H1, etc.) but we always want to get the newest release which is why we get this value dynamically
+  # Also, keeping a "$WindowsVersions" array like Fido does would be way too much of a maintenance burden
+  # Remove "Accept" header that curl sends by default
+  echo " - Parsing download page: ${url}"
+  iso_download_page_html="$(curl --silent --user-agent "$user_agent" --header "Accept:" --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url")" || {
+    handle_curl_error $?
+    return $?
+  }
 
-    echo -n " - Getting Product edition ID: "
-    # tr: Filter for only numerics to prevent HTTP parameter injection
-    # head -c was recently added to POSIX: https://austingroupbugs.net/view.php?id=407
-    product_edition_id="$(echo "$iso_download_page_html" | grep -Eo '<option value="[0-9]+">Windows' | cut -d '"' -f 2 | head -n 1 | tr -cd '0-9' | head -c 16)"
-    echo "$product_edition_id"
+  echo -n " - Getting Product edition ID: "
+  # tr: Filter for only numerics to prevent HTTP parameter injection
+  # head -c was recently added to POSIX: https://austingroupbugs.net/view.php?id=407
+  product_edition_id="$(echo "$iso_download_page_html" | grep -Eo '<option value="[0-9]+">Windows' | cut -d '"' -f 2 | head -n 1 | tr -cd '0-9' | head -c 16)"
+  echo "$product_edition_id"
 
-    echo " - Permit Session ID: $session_id"
-    # Permit Session ID
-    # "org_id" is always the same value
-    curl --silent --output /dev/null --user-agent "$user_agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "https://vlscppe.microsoft.com/tags?org_id=y6jn8c31&session_id=$session_id" || {
-        # This should only happen if there's been some change to how this API works
-        handle_curl_error $?
-        return $?
-    }
+  echo " - Permit Session ID: $session_id"
+  # Permit Session ID
+  # "org_id" is always the same value
+  curl --silent --output /dev/null --user-agent "$user_agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "https://vlscppe.microsoft.com/tags?org_id=y6jn8c31&session_id=$session_id" || {
+    # This should only happen if there's been some change to how this API works
+    handle_curl_error $?
+    return $?
+  }
 
-    # Extract everything after the last slash
-    local url_segment_parameter="${url##*/}"
+  # Extract everything after the last slash
+  local url_segment_parameter="${url##*/}"
 
-    echo -n " - Getting language SKU ID: "
-    # Get language -> skuID association table
-    # SKU ID: This specifies the language of the ISO. We always use "English (United States)", however, the SKU for this changes with each Windows release
-    # We must make this request so our next one will be allowed
-    # --data "" is required otherwise no "Content-Length" header will be sent causing HTTP response "411 Length Required"
-    language_skuid_table_html="$(curl --silent --request POST --user-agent "$user_agent" --data "" --header "Accept:" --max-filesize 10K --fail --proto =https --tlsv1.2 --http1.1 -- "https://www.microsoft.com/en-US/api/controls/contentinclude/html?pageId=a8f8f489-4c7f-463a-9ca6-5cff94d8d041&host=www.microsoft.com&segments=software-download,$url_segment_parameter&query=&action=getskuinformationbyproductedition&sessionId=$session_id&productEditionId=$product_edition_id&sdVersion=2")" || {
-        handle_curl_error $?
-        return $?
-    }
+  echo -n " - Getting language SKU ID: "
+  # Get language -> skuID association table
+  # SKU ID: This specifies the language of the ISO. We always use "English (United States)", however, the SKU for this changes with each Windows release
+  # We must make this request so our next one will be allowed
+  # --data "" is required otherwise no "Content-Length" header will be sent causing HTTP response "411 Length Required"
+  language_skuid_table_html="$(curl --silent --request POST --user-agent "$user_agent" --data "" --header "Accept:" --max-filesize 10K --fail --proto =https --tlsv1.2 --http1.1 -- "https://www.microsoft.com/en-US/api/controls/contentinclude/html?pageId=a8f8f489-4c7f-463a-9ca6-5cff94d8d041&host=www.microsoft.com&segments=software-download,$url_segment_parameter&query=&action=getskuinformationbyproductedition&sessionId=$session_id&productEditionId=$product_edition_id&sdVersion=2")" || {
+    handle_curl_error $?
+    return $?
+  }
 
-    # Limit untrusted size for input validation
-    language_skuid_table_html="$(echo "$language_skuid_table_html" | head -c 10240)"
+  # Limit untrusted size for input validation
+  language_skuid_table_html="$(echo "$language_skuid_table_html" | head -c 10240)"
 
-    # tr: Filter for only alphanumerics or "-" to prevent HTTP parameter injection
-    sku_id="$(echo "$language_skuid_table_html" | grep "${I18N}" | sed 's/&quot;//g' | cut -d ',' -f 1  | cut -d ':' -f 2 | tr -cd '[:alnum:]-' | head -c 16)"
-    echo "$sku_id"
+  # tr: Filter for only alphanumerics or "-" to prevent HTTP parameter injection
+  sku_id="$(echo "$language_skuid_table_html" | grep "${I18N}" | sed 's/&quot;//g' | cut -d ',' -f 1  | cut -d ':' -f 2 | tr -cd '[:alnum:]-' | head -c 16)"
+  echo "$sku_id"
 
-    echo " - Getting ISO download link..."
-    # Get ISO download link
-    # If any request is going to be blocked by Microsoft it's always this last one (the previous requests always seem to succeed)
-    # --referer: Required by Microsoft servers to allow request
-    iso_download_link_html="$(curl --silent --request POST --user-agent "$user_agent" --data "" --referer "$url" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "https://www.microsoft.com/en-US/api/controls/contentinclude/html?pageId=6e2a1789-ef16-4f27-a296-74ef7ef5d96b&host=www.microsoft.com&segments=software-download,$url_segment_parameter&query=&action=GetProductDownloadLinksBySku&sessionId=$session_id&skuId=$sku_id&language=English&sdVersion=2")"
+  echo " - Getting ISO download link..."
+  # Get ISO download link
+  # If any request is going to be blocked by Microsoft it's always this last one (the previous requests always seem to succeed)
+  # --referer: Required by Microsoft servers to allow request
+  iso_download_link_html="$(curl --silent --request POST --user-agent "$user_agent" --data "" --referer "$url" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "https://www.microsoft.com/en-US/api/controls/contentinclude/html?pageId=6e2a1789-ef16-4f27-a296-74ef7ef5d96b&host=www.microsoft.com&segments=software-download,$url_segment_parameter&query=&action=GetProductDownloadLinksBySku&sessionId=$session_id&skuId=$sku_id&language=English&sdVersion=2")"
 
-    local failed=0
+  if ! [ "$iso_download_link_html" ]; then
+    # This should only happen if there's been some change to how this API works
+    echo " - Microsoft servers gave us an empty response to our request for an automated download."
+    return 1
+  fi
 
-    if ! [ "$iso_download_link_html" ]; then
-        # This should only happen if there's been some change to how this API works
-        echo " - Microsoft servers gave us an empty response to our request for an automated download."
-        failed=1
-    fi
+  if echo "$iso_download_link_html" | grep -q "We are unable to complete your request at this time."; then
+    echo " - WARNING! Microsoft blocked the automated download request based on your IP address."
+    return 1
+  fi
 
-    if echo "$iso_download_link_html" | grep -q "We are unable to complete your request at this time."; then
-        echo " - WARNING! Microsoft blocked the automated download request based on your IP address."
-        failed=1
-    fi
+  # Filter for 64-bit ISO download URL
+  # sed: HTML decode "&" character
+  # tr: Filter for only alphanumerics or punctuation
+  iso_download_link="$(echo "$iso_download_link_html" | grep -o "https://software.download.prss.microsoft.com.*IsoX64" | cut -d '"' -f 1 | sed 's/&amp;/\&/g' | tr -cd '[:alnum:][:punct:]')"
 
-    if [ ${failed} -eq 1 ]; then
-        echo "   Manually download the Windows ${windows_version} ISO using a web browser from: ${url}"
-        echo "   Save the downloaded ISO to: $(realpath "${VM_PATH}")"
-        echo "   Update the config file to reference the downloaded ISO: ./${VM_PATH}.conf"
-        echo "   Continuing with the VM creation process..."
-        return 1
-    fi
+  if ! [ "$iso_download_link" ]; then
+    # This should only happen if there's been some change to the download endpoint web address
+    echo " - Microsoft servers gave us no download link to our request for an automated download!"
+    return 1
+  fi
 
-    # Filter for 64-bit ISO download URL
-    # sed: HTML decode "&" character
-    # tr: Filter for only alphanumerics or punctuation
-    iso_download_link="$(echo "$iso_download_link_html" | grep -o "https://software.download.prss.microsoft.com.*IsoX64" | cut -d '"' -f 1 | sed 's/&amp;/\&/g' | tr -cd '[:alnum:][:punct:]')"
-
-    if ! [ "$iso_download_link" ]; then
-        # This should only happen if there's been some change to the download endpoint web address
-        echo " - Microsoft servers gave us no download link to our request for an automated download. Please manually download this ISO in a web browser: $url"
-        return 1
-    fi
-
-    echo " - URL: ${iso_download_link%%\?*}"
-
-    # Download ISO
-    FILE_NAME="$(echo "$iso_download_link" | cut -d'?' -f1 | cut -d'/' -f5)"
-    web_get "${iso_download_link}" "${VM_PATH}" "${FILE_NAME}"
+  MIDO_URL="$iso_download_link"
+  return 0
 }
 
 download_windows_server() {
 
-    local iso_download_page_html=""
+  local id="$1"
+  local windows_version=""
+  local enterprise_type=""
 
-    # Download enterprise evaluation Windows versions
-    local windows_version="$1"
-    local enterprise_type="$2"
-    local PRETTY_RELEASE=""
+  case "${id,,}" in
+    "win11${PLATFORM,,}-enterprise-eval" )
+      windows_version="windows-11-enterprise"
+      enterprise_type="enterprise"
+      ;;
+    "win10${PLATFORM,,}-enterprise-eval" )
+      windows_version="windows-10-enterprise"
+      enterprise_type="enterprise"
+       ;;
+    "win10${PLATFORM,,}-enterprise-ltsc-eval" )
+      windows_version="windows-10-enterprise"
+      enterprise_type="ltsc"
+      ;;
+    "win2022-eval" )
+      windows_version="windows-server-2022"
+      enterprise_type="server"
+      ;;
+    "win2019-eval" )
+      windows_version="windows-server-2019"
+      enterprise_type="server"
+      ;;
+    "win2016-eval" )
+      windows_version="windows-server-2016"
+      enterprise_type="server"
+      ;;
+    "win2012r2-eval" )
+      windows_version="windows-server-2012-r2"
+      enterprise_type="server"
+      ;;
+    * )
+      echo "Unknown version: $id"
+      return 1
+  esac
+  
+  local iso_download_page_html=""
 
-    case "${RELEASE}" in
-        "10-ltsc") PRETTY_RELEASE="10 LTSC";;
-        "2012-r2") PRETTY_RELEASE="2012 R2";;
-        *) PRETTY_RELEASE="${RELEASE}";;
-    esac
+  echo "Downloading $id"
 
-    echo "Downloading $(pretty_name "${OS}") ${PRETTY_RELEASE} (${I18N})"
+  local url="https://www.microsoft.com/en-us/evalcenter/download-$windows_version"
 
-    local url="https://www.microsoft.com/en-us/evalcenter/download-$windows_version"
+  echo " - Parsing download page: ${url}"
+  iso_download_page_html="$(curl --silent --location --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url")" || {
+    handle_curl_error $?
+    return $?
+  }
 
-    echo " - Parsing download page: ${url}"
-    iso_download_page_html="$(curl --silent --location --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url")" || {
-        handle_curl_error $?
-        return $?
-    }
+  if ! [ "$iso_download_page_html" ]; then
+    # This should only happen if there's been some change to where this download page is located
+    echo " - Windows server download page gave us an empty response"
+    return 1
+  fi
 
-    if ! [ "$iso_download_page_html" ]; then
-        # This should only happen if there's been some change to where this download page is located
-        echo " - Windows server download page gave us an empty response"
-        return 1
-    fi
+  local COUNTRY="US"
+  local CULTURE="en-us"
 
-    local COUNTRY="US"
-    local CULTURE="en-us"
+  echo " - Getting download link.."
+  iso_download_links="$(echo "$iso_download_page_html" | grep -o "https://go.microsoft.com/fwlink/p/?LinkID=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${CULTURE}&country=${COUNTRY}")" || {
+    # This should only happen if there's been some change to the download endpoint web address
+    echo " - Windows server download page gave us no download link"
+    return 1
+  }
 
-    echo " - Getting download link.."
-    iso_download_links="$(echo "$iso_download_page_html" | grep -o "https://go.microsoft.com/fwlink/p/?LinkID=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${CULTURE}&country=${COUNTRY}")" || {
-        # This should only happen if there's been some change to the download endpoint web address
-        echo " - Windows server download page gave us no download link"
-        return 1
-    }
+  # Limit untrusted size for input validation
+  iso_download_links="$(echo "$iso_download_links" | head -c 1024)"
 
-    # Limit untrusted size for input validation
-    iso_download_links="$(echo "$iso_download_links" | head -c 1024)"
+  case "$enterprise_type" in
+    # Select x64 download link
+    "enterprise") iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1) ;;
+    # Select x64 LTSC download link
+    "ltsc") iso_download_link=$(echo "$iso_download_links" | head -n 4 | tail -n 1) ;;
+    *) iso_download_link="$iso_download_links" ;;
+  esac
 
-    case "$enterprise_type" in
-        # Select x64 download link
-        "enterprise") iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1) ;;
-        # Select x64 LTSC download link
-        "ltsc") iso_download_link=$(echo "$iso_download_links" | head -n 4 | tail -n 1) ;;
-        *) iso_download_link="$iso_download_links" ;;
-    esac
+  # Follow redirect so proceeding log message is useful
+  # This is a request we make this Fido doesn't
+  # We don't need to set "--max-filesize" here because this is a HEAD request and the output is to /dev/null anyway
+  iso_download_link="$(curl --silent --location --output /dev/null --silent --write-out "%{url_effective}" --head --fail --proto =https --tlsv1.2 --http1.1 -- "$iso_download_link")" || {
+    # This should only happen if the Microsoft servers are down
+    handle_curl_error $?
+    return $?
+  }
 
-    # Follow redirect so proceeding log message is useful
-    # This is a request we make this Fido doesn't
-    # We don't need to set "--max-filesize" here because this is a HEAD request and the output is to /dev/null anyway
-    iso_download_link="$(curl --silent --location --output /dev/null --silent --write-out "%{url_effective}" --head --fail --proto =https --tlsv1.2 --http1.1 -- "$iso_download_link")" || {
-        # This should only happen if the Microsoft servers are down
-        handle_curl_error $?
-        return $?
-    }
+  # Limit untrusted size for input validation
+  iso_download_link="$(echo "$iso_download_link" | head -c 1024)"
 
-    # Limit untrusted size for input validation
-    iso_download_link="$(echo "$iso_download_link" | head -c 1024)"
-
-    echo " - URL: $iso_download_link"
-
-    # Download ISO
-    FILE_NAME="${iso_download_link##*/}"
-    web_get "${iso_download_link}" "${VM_PATH}" "${FILE_NAME}"
-    OS="windows-server"
+  MIDO_URL="$iso_download_link"
+  return 0
 }
 
 getWindows() {
 
   local id="$1"
 
+  MIDO_URL=""
+
   case "${id,,}" in
-    "win11${PLATFORM,,}" )
+     "win81${PLATFORM,,}" | "win10${PLATFORM,,}" | "win11${PLATFORM,,}" )
       download_windows "$id" && return 0
       ;;
     "win11${PLATFORM,,}-enterprise-eval" )
-      return 1
-      ;;
-    "win10${PLATFORM,,}" )
-      download_windows "$id" && return 0
-      ;;
-    "win10${PLATFORM,,}-enterprise-eval" )
-      return 1
-      ;;
-    "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-      # download_windows_server windows-10-enterprise ltsc
-      return 1
-      ;;
-    "win81${PLATFORM,,}" )
-      download_windows "$id" && return 0
-      ;;
-    "win81${PLATFORM,,}-enterprise-eval" )
-      return 1
-      ;;
-    "win2022-eval" | "win2019-eval" | "win2016-eval" | "win2012r2-eval" | "win2008r2" )
       download_windows_server "$id" && return 0
       ;;
+    "win10${PLATFORM,,}-enterprise-eval" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
+      download_windows_server "$id" && return 0
+      ;;
+    "win2022-eval" | "win2019-eval" | "win2016-eval" | "win2012r2-eval" )
+      download_windows_server "$id" && return 0
+      ;;
+    "win81${PLATFORM,,}-enterprise-eval" )
+      MIDO_URL="https://download.microsoft.com/download/B/9/9/B999286E-0A47-406D-8B3D-5B5AD7373A4A/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_ENTERPRISE_EVAL_EN-US-IR3_CENA_X64FREE_EN-US_DV9.ISO"
+      return 0
+      ;;
+    "win2008r2" )
+      MIDO_URL="https://download.microsoft.com/download/4/1/D/41DEA7E0-B30D-4012-A1E3-F24DC03BA1BB/7601.17514.101119-1850_x64fre_server_eval_en-us-GRMSXEVAL_EN_DVD.iso"
+      return 0
+      ;;
+    * )
+      echo "Unknown version: $id"
   esac
 
   return 1
