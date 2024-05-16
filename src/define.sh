@@ -1186,7 +1186,6 @@ prepareXP() {
   local iso="$1"
   local dir="$2"
 
-  MACHINE="pc-q35-2.10"
   ETFS="[BOOT]/Boot-NoEmul.img"
 
   [[ "$MANUAL" == [Yy1]* ]] && return 0
