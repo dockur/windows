@@ -145,7 +145,7 @@ download_windows() {
   fi
 
   local lang="$language"
-  [[ "$lang" == "English (United States)" ]] lang="English"
+  [[ "$lang" == "English (United States)" ]] && lang="English"
 
   local hash=$(echo "$iso_download_link_html" | sed 's/<tr><td>/\n<tr><td>/g' | grep "$lang 64-bit" | grep -o -P '(?<=</td><td>).*(?=</td></tr>)')
   checksum=$(getMido "$id" "sum")
