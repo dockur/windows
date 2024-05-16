@@ -4,63 +4,33 @@ set -Eeuo pipefail
 handle_curl_error() {
 
     local error_code="$1"
-    local fatal_error_action=2
 
     case "$error_code" in
-        6)
-            echo "Failed to resolve Microsoft servers! Is there an Internet connection? Exiting..."
-            return "$fatal_error_action"
-            ;;
-        7)
-            echo "Failed to contact Microsoft servers! Is there an Internet connection or is the server down?"
-            ;;
-        8)
-            echo "Microsoft servers returned a malformed HTTP response!"
-            ;;
-        22)
-            echo "Microsoft servers returned a failing HTTP status code!"
-            ;;
-        23)
-            echo "Failed at writing Windows media to disk! Out of disk space or permission error? Exiting..."
-            return "$fatal_error_action"
-            ;;
-        26)
-            echo "Ran out of memory during download! Exiting..."
-            return "$fatal_error_action"
-            ;;
-        36)
-            echo "Failed to continue earlier download!"
-            ;;
-        63)
-            echo "Microsoft servers returned an unexpectedly large response!"
-            ;;
-            # POSIX defines exit statuses 1-125 as usable by us
-            # https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_08_02
-            $((error_code <= 125)))
+        6) error "Failed to resolve Microsoft servers! Is there an Internet connection?" ;;
+        7) error "Failed to contact Microsoft servers! Is there an Internet connection or is the server down?" ;;
+        8) error "Microsoft servers returned a malformed HTTP response!" ;;
+        22) error "Microsoft servers returned a failing HTTP status code!" ;;
+        23) error "Failed at writing Windows media to disk! Out of disk space or permission error?" ;;
+        26) error "Ran out of memory during download!" ;;
+        36) error "Failed to continue earlier download!" ;;
+        63) error "Microsoft servers returned an unexpectedly large response!" ;;
+        # POSIX defines exit statuses 1-125 as usable by us
+        # https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_08_02
+        $((error_code <= 125)))
             # Must be some other server or network error (possibly with this specific request/file)
             # This is when accounting for all possible errors in the curl manual assuming a correctly formed curl command and an HTTP(S) request, using only the curl features we're using, and a sane build
-            echo "Miscellaneous server or network error!"
+            error "Miscellaneous server or network error!"
             ;;
-        126 | 127 )
-            echo "Curl command not found! Please install curl and try again. Exiting..."
-            return "$fatal_error_action"
-            ;;
+        126 | 127 ) error "Curl command not found!" ;;
         # Exit statuses are undefined by POSIX beyond this point
         *)
             case "$(kill -l "$error_code")" in
-            # Signals defined to exist by POSIX:
-            # https://pubs.opengroup.org/onlinepubs/009695399/basedefs/signal.h.html
-            INT)
-                echo "Curl was interrupted!"
-                ;;
-            # There could be other signals but these are most common
-            SEGV | ABRT )
-                echo "Curl crashed! Failed exploitation attempt? Please report any core dumps to curl developers. Exiting..."
-                return "$fatal_error_action"
-                ;;
-            *)
-                echo "Curl terminated due to a fatal signal!"
-                ;;
+              # Signals defined to exist by POSIX:
+              # https://pubs.opengroup.org/onlinepubs/009695399/basedefs/signal.h.html
+              INT) error "Curl was interrupted!" ;;
+              # There could be other signals but these are most common
+              SEGV | ABRT ) error "Curl crashed! Failed exploitation attempt? Please report any core dumps to curl developers." ;;
+              *) error "Curl terminated due to a fatal signal!" ;;
             esac
     esac
 
@@ -77,20 +47,24 @@ download_windows() {
   local sku_id=""
   local iso_download_link_html=""
   local iso_download_link=""
+  local firefox_release=""
   local windows_version=""
 
   case "${id,,}" in
     "win11${PLATFORM,,}" )
+      info "Downloading Windows 11..."
       windows_version="11"
       ;;
     "win10${PLATFORM,,}" )
+      info "Downloading Windows 10..."
       windows_version="10"
       ;;
     "win81${PLATFORM,,}" )
+      info "Downloading Windows 8.1..."
       windows_version="8"
       ;;
     * )
-      echo "Unknown version: $id"
+      error "Unknown version: $id"
       return 1
   esac
 
@@ -101,7 +75,10 @@ download_windows() {
     8 | 10) url="${url}ISO";;
   esac
 
-  local user_agent="Mozilla/5.0 (X11; Linux x86_64; rv:100.0) Gecko/20100101 Firefox/100.0"
+  # Determine approximate latest Firefox release, using Mozilla's 4 week release schedule & the midnight after the release of Firefox 124
+  firefox_release="$((124 + ($(date +%s) - 1710892800) / 2419200))"
+  local user_agent="Mozilla/5.0 (X11; Linux x86_64; rv:${firefox_release}.0) Gecko/20100101 Firefox/${firefox_release}.0"
+    
   # uuidgen: For MacOS (installed by default) and other systems (e.g. with no /proc) that don't have a kernel interface for generating random UUIDs
   session_id="$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random)"
 
@@ -183,7 +160,7 @@ download_windows() {
   return 0
 }
 
-download_windows_server() {
+download_windows_eval() {
 
   local id="$1"
   local windows_version=""
@@ -191,35 +168,42 @@ download_windows_server() {
 
   case "${id,,}" in
     "win11${PLATFORM,,}-enterprise-eval" )
+      info "Downloading Windows 11 Enterprise Evaluation..."
       windows_version="windows-11-enterprise"
       enterprise_type="enterprise"
       ;;
     "win10${PLATFORM,,}-enterprise-eval" )
+      info "Downloading Windows 10 Enterprise Evaluation..."
       windows_version="windows-10-enterprise"
       enterprise_type="enterprise"
        ;;
     "win10${PLATFORM,,}-enterprise-ltsc-eval" )
+      info "Downloading Windows 10 Enterprise LTSC Evaluation..."
       windows_version="windows-10-enterprise"
       enterprise_type="ltsc"
       ;;
     "win2022-eval" )
+      info "Downloading Windows Server 2022 Evaluation..."
       windows_version="windows-server-2022"
       enterprise_type="server"
       ;;
     "win2019-eval" )
+      info "Downloading Windows Server 2019 Evaluation..."
       windows_version="windows-server-2019"
       enterprise_type="server"
       ;;
     "win2016-eval" )
+      info "Downloading Windows Server 2016 Evaluation..."
       windows_version="windows-server-2016"
       enterprise_type="server"
       ;;
     "win2012r2-eval" )
+      info "Downloading Windows Server 2012 R2 Evaluation..."
       windows_version="windows-server-2012-r2"
       enterprise_type="server"
       ;;
     * )
-      echo "Unknown version: $id"
+      error "Unknown version: $id"
       return 1
   esac
   
@@ -283,30 +267,33 @@ getWindows() {
   local id="$1"
 
   MIDO_URL=""
+  info "Downloading Windows media from official Microsoft servers..."
 
   case "${id,,}" in
      "win81${PLATFORM,,}" | "win10${PLATFORM,,}" | "win11${PLATFORM,,}" )
       download_windows "$id" && return 0
       ;;
     "win11${PLATFORM,,}-enterprise-eval" )
-      download_windows_server "$id" && return 0
+      download_windows_eval "$id" && return 0
       ;;
     "win10${PLATFORM,,}-enterprise-eval" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-      download_windows_server "$id" && return 0
+      download_windows_eval "$id" && return 0
       ;;
     "win2022-eval" | "win2019-eval" | "win2016-eval" | "win2012r2-eval" )
-      download_windows_server "$id" && return 0
+      download_windows_eval "$id" && return 0
       ;;
     "win81${PLATFORM,,}-enterprise-eval" )
+      info "Downloading Windows 8.1 Enterprise Evaluation..."
       MIDO_URL="https://download.microsoft.com/download/B/9/9/B999286E-0A47-406D-8B3D-5B5AD7373A4A/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_ENTERPRISE_EVAL_EN-US-IR3_CENA_X64FREE_EN-US_DV9.ISO"
       return 0
       ;;
     "win2008r2" )
+      info "Downloading Windows Server 2008 R2..."
       MIDO_URL="https://download.microsoft.com/download/4/1/D/41DEA7E0-B30D-4012-A1E3-F24DC03BA1BB/7601.17514.101119-1850_x64fre_server_eval_en-us-GRMSXEVAL_EN_DVD.iso"
       return 0
       ;;
     * )
-      echo "Unknown version: $id"
+      error "Unknown version: $id"
   esac
 
   return 1
