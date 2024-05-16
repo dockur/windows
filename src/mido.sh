@@ -149,7 +149,7 @@ download_windows() {
     return 1
   fi
 
-  local hash=$(echo "$iso_download_link_html" | sed 's/<tr><td>/\n<tr><td>/g' | grep "$language  64-bit" | grep -o -P '(?<=</td><td>).*(?=</td></tr>)')
+  local hash=$(echo "$iso_download_link_html" | sed 's/<tr><td>/\n<tr><td>/g' | grep "$language 64-bit" | grep -o -P '(?<=</td><td>).*(?=</td></tr>)')
   checksum=$(getMido "$id" "sum")
 
   if [[ "$hash" != "$checksum" ]]; then
