@@ -46,12 +46,20 @@ parseVersion() {
     "7u" | "win7u" | "windows7u" | "windows 7u" )
       VERSION="win7${PLATFORM,,}-ultimate"
       ;;
+    "7x86" | "win7x86" | "windows7x86"  | "win7x86-enterprise" )
+      VERSION="win7x86"
+      [ -z "$DETECTED" ] && DETECTED="win7x86-enterprise"
+      ;;
     "vista" | "winvista" | "windowsvista" | "windows vista" )
       VERSION="winvista${PLATFORM,,}"
       [ -z "$DETECTED" ] && DETECTED="winvista${PLATFORM,,}-enterprise"
       ;;
     "vistu" | "winvistu" | "windowsvistu" | "windows vistu" )
       VERSION="winvista${PLATFORM,,}-ultimate"
+      ;;
+    "vistax86" | "winvistax86" | "windowsvistax86"  | "winvistax86-enterprise" )
+      VERSION="winvistax86"
+      [ -z "$DETECTED" ] && DETECTED="winvistax86-enterprise"
       ;;
     "xp" | "xp32" | "xpx86" | "winxp" | "winxp86" | "windowsxp" | "windows xp" )
       VERSION="winxpx86"
@@ -630,7 +638,7 @@ getLink2() {
       sum="36f4fa2416d0982697ab106e3a72d2e120dbcdb6cc54fd3906d06120d0653808"
       url="$host/Windows%207/en_windows_7_ultimate_with_sp1_${PLATFORM,,}_dvd_u_677332.iso"
       ;;
-    "win7x86" | "win7x86enterprise" )
+    "win7x86" | "win7x86-enterprise" )
       size=2434502656
       sum="8bdd46ff8cb8b8de9c4aba02706629c8983c45e87da110e64e13be17c8434dad"
       url="$host/Windows%207/en_windows_7_enterprise_with_sp1_x86_dvd_u_677710.iso"
@@ -804,7 +812,7 @@ getLink4() {
       sum="36f4fa2416d0982697ab106e3a72d2e120dbcdb6cc54fd3906d06120d0653808"
       url="$host/en_windows_7_ultimate_with_sp1_${PLATFORM,,}_dvd_u_677332.iso"
       ;;
-    "win7x86" | "win7x86enterprise" )
+    "win7x86" | "win7x86-enterprise" )
       size=2434502656
       sum="8bdd46ff8cb8b8de9c4aba02706629c8983c45e87da110e64e13be17c8434dad"
       url="$host/en_windows_7_enterprise_with_sp1_x86_dvd_u_677710.iso"
