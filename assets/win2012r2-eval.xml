@@ -203,15 +203,6 @@
     <component name="Microsoft-Windows-TerminalServices-RDP-WinStationExtensions" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <UserAuthentication>0</UserAuthentication>
     </component>
-    <component name="Networking-MPSSVC-Svc" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <FirewallGroups>
-        <FirewallGroup wcm:action="add" wcm:keyValue="RemoteDesktop">
-          <Active>true</Active>
-          <Group>Remote Desktop</Group>
-          <Profile>all</Profile>
-        </FirewallGroup>
-      </FirewallGroups>
-    </component>
   </settings>
   <settings pass="oobeSystem">
     <component name="Microsoft-Windows-SecureStartup-FilterDriver" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
@@ -332,16 +323,21 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>15</Order>
-          <CommandLine>netsh advfirewall firewall set rule group="Network Discovery" new enable=Yes</CommandLine>
+          <CommandLine>powershell -ExecutionPolicy ByPass -Command "Enable-NetFirewallRule -DisplayGroup @(Get-NetFirewallRule | Where-Object Name -Match "NetDIS.*" | Select-Object DisplayGroup -Unique | % DisplayGroup)"</CommandLine>
           <Description>Enable Network Discovery</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>16</Order>
-          <CommandLine>netsh advfirewall firewall set rule group="File and Printer Sharing" new enable=Yes</CommandLine>
+          <CommandLine>powershell -ExecutionPolicy ByPass -Command "Enable-NetFirewallRule -DisplayGroup @(Get-NetFirewallRule | Where-Object Name -Match "FPS-.*" | Select-Object DisplayGroup -Unique | % DisplayGroup)"</CommandLine>
           <Description>Enable File Sharing</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>17</Order>
+          <CommandLine>powershell -ExecutionPolicy ByPass -Command "Enable-NetFirewallRule -DisplayGroup @(Get-NetFirewallRule | Where-Object Name -Match "RemoteDesktop-[^I].*" | Select-Object DisplayGroup -Unique | % DisplayGroup)"</CommandLine>
+          <Description>Add RDP in firewall</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>18</Order>
           <CommandLine>cmd /C if exist "C:\OEM\install.bat" start "Install" "cmd /C C:\OEM\install.bat"</CommandLine>
           <Description>Execute custom script from the OEM folder if exists</Description>
         </SynchronousCommand>
