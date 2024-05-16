@@ -430,6 +430,47 @@ downloadFile() {
   return 1
 }
 
+getCatalog() {
+
+  local id="$1"
+  local ret="$2"
+  local url=""
+  local name=""
+  local edition=""
+
+  case "${id,,}" in
+    "win11${PLATFORM,,}" )
+      edition="Professional"
+      name="Windows 11 Pro"
+      url="https://go.microsoft.com/fwlink?linkid=2156292"
+      ;;
+    "win10${PLATFORM,,}" )
+      edition="Professional"
+      name="Windows 10 Pro"
+      url="https://go.microsoft.com/fwlink/?LinkId=841361"
+      ;;
+    "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval")
+      edition="Enterprise"
+      name="Windows 11 Enterprise"
+      url="https://go.microsoft.com/fwlink?linkid=2156292"
+      ;;
+    "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" )
+      edition="Enterprise"
+      name="Windows 10 Enterprise"
+      url="https://go.microsoft.com/fwlink/?LinkId=841361"
+      ;;
+  esac
+
+  case "${ret,,}" in
+    "url" ) echo "$url" ;;
+    "name" ) echo "$name" ;;
+    "edition" ) echo "$edition" ;;
+    *) echo "";;
+  esac
+
+  return 0
+}
+
 getESD() {
 
   local dir="$1"
