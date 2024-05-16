@@ -46,8 +46,7 @@ download_windows() {
   local language="$2"
   local sku_id=""
   local session_id=""
-  local checksum=""
-  local firefox_release=""
+  local browser_version=""
   local windows_version=""
   local iso_download_link=""
   local product_edition_id=""
@@ -75,9 +74,9 @@ download_windows() {
     8 | 10) url="${url}ISO";;
   esac
 
-  # Determine approximate latest Firefox release, using Mozilla's 4 week release schedule & the midnight after the release of Firefox 124
-  firefox_release="$((124 + ($(date +%s) - 1710892800) / 2419200))"
-  local user_agent="Mozilla/5.0 (X11; Linux x86_64; rv:${firefox_release}.0) Gecko/20100101 Firefox/${firefox_release}.0"
+  # Determine approximate latest Firefox release
+  browser_version="$((124 + ($(date +%s) - 1710892800) / 2419200))"
+  local user_agent="Mozilla/5.0 (X11; Linux x86_64; rv:${browser_version}.0) Gecko/20100101 Firefox/${browser_version}.0"
 
   # uuidgen: For MacOS (installed by default) and other systems (e.g. with no /proc) that don't have a kernel interface for generating random UUIDs
   session_id="$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random)"
@@ -145,20 +144,6 @@ download_windows() {
   if echo "$iso_download_link_html" | grep -q "We are unable to complete your request at this time."; then
     error "Microsoft blocked the automated download request based on your IP address."
     return 1
-  fi
-
-  local lang="$language"
-  [[ "$lang" == "English (United States)" ]] && lang="English"
-
-  local hash=$(echo "$iso_download_link_html" | sed 's/<tr><td>/\n<tr><td>/g' | grep "$lang 64-bit" | grep -o -P '(?<=</td><td>).*(?=</td></tr>)')
-  checksum=$(getMido "$id" "sum")
-
-  if [[ "${hash,,}" != "$checksum" ]]; then
-    if [ -z "$hash" ]; then
-      warn "cannot detect checksum. Please report this at $SUPPORT/issues"
-    else
-      warn "download has an unexpected SHA256 checksum: ${hash,,} , while expected value was: $checksum. Please report this at $SUPPORT/issues"
-    fi
   fi
 
   # Filter for 64-bit ISO download URL
