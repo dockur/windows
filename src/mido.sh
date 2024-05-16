@@ -293,8 +293,8 @@ download_windows_eval() {
 getWindows() {
 
   local id="$1"
-  local desc="$2"
-  local language="$3"
+  local language="$2"
+  local desc="$3"
 
   local msg="Requesting $desc from Microsoft server..."
   info "$msg" && html "$msg"
@@ -373,8 +373,8 @@ getESD() {
 
   local dir="$1"
   local version="$2"
-  local desc="$3"
-  local language="$4"
+  local language="$3"
+  local desc="$4"
   local editionName
   local winCatalog size
 
