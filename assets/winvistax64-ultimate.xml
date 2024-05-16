@@ -231,7 +231,7 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>14</Order>
-          <CommandLine>netsh.exe advfirewall firewall set rule group="Remote Desktop" new enable=Yes</CommandLine>
+          <CommandLine>powershell -ExecutionPolicy ByPass -Command "Enable-NetFirewallRule -DisplayGroup @(Get-NetFirewallRule | Where-Object Name -Match "RemoteDesktop-[^I].*" | Select-Object DisplayGroup -Unique | % DisplayGroup)"</CommandLine>
           <Description>Add RDP in firewall</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
