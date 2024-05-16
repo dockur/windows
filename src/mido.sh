@@ -12,14 +12,17 @@ handle_curl_error() {
         22) error "Microsoft servers returned a failing HTTP status code!" ;;
         23) error "Failed at writing Windows media to disk! Out of disk space or permission error?" ;;
         26) error "Ran out of memory during download!" ;;
+        28) error "Connection timed out to Microsoft server!" ;;
+        35) error "SSL connection error from Microsoft server!" ;;
         36) error "Failed to continue earlier download!" ;;
+        52) error "Received no data from the Microsoft server!" ;;
         63) error "Microsoft servers returned an unexpectedly large response!" ;;
         # POSIX defines exit statuses 1-125 as usable by us
         # https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_08_02
         $((error_code <= 125)))
             # Must be some other server or network error (possibly with this specific request/file)
             # This is when accounting for all possible errors in the curl manual assuming a correctly formed curl command and an HTTP(S) request, using only the curl features we're using, and a sane build
-            error "Miscellaneous server or network error: $error_code"
+            error "Miscellaneous server or network error, reason: $error_code"
             ;;
         126 | 127 ) error "Curl command not found!" ;;
         # Exit statuses are undefined by POSIX beyond this point
@@ -217,7 +220,7 @@ download_windows_eval() {
   local iso_download_page_html=""
   local url="https://www.microsoft.com/en-us/evalcenter/download-$windows_version"
 
-  echo " - Parsing download page: ${url}"
+  [[ "$DEBUG" == [Yy1]* ]] && echo " - Parsing download page: ${url}"
   iso_download_page_html="$(curl --silent --max-time 15 --location --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url")" || {
     handle_curl_error $?
     return $?
@@ -225,7 +228,7 @@ download_windows_eval() {
 
   if ! [ "$iso_download_page_html" ]; then
     # This should only happen if there's been some change to where this download page is located
-    echo " - Windows server download page gave us an empty response"
+    error "Windows server download page gave us an empty response"
     return 1
   fi
 
@@ -268,10 +271,10 @@ download_windows_eval() {
       COUNTRY="RU";;
   esac
 
-  echo " - Getting download link.."
+  [[ "$DEBUG" == [Yy1]* ]] && echo " - Getting download link.."
   iso_download_links="$(echo "$iso_download_page_html" | grep -o "https://go.microsoft.com/fwlink/p/?LinkID=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${CULTURE}&country=${COUNTRY}")" || {
     # This should only happen if there's been some change to the download endpoint web address
-    echo " - Windows server download page gave us no download link"
+    error "Windows server download page gave us no download link"
     return 1
   }
 
