@@ -41,16 +41,16 @@ download_windows() {
 
   local id="$1"
   local language="$2"
-  local checksum=""
-  local session_id=""
-  local iso_download_page_html=""
-  local product_edition_id=""
-  local language_skuid_table_html=""
   local sku_id=""
-  local iso_download_link_html=""
-  local iso_download_link=""
+  local session_id=""
+  local checksum=""
   local firefox_release=""
   local windows_version=""
+  local iso_download_link=""
+  local product_edition_id=""
+  local iso_download_link_html=""
+  local iso_download_page_html=""
+  local language_skuid_table_html=""
 
   case "${id,,}" in
     "win11${PLATFORM,,}" )
