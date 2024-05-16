@@ -209,17 +209,6 @@ detectCustom() {
   return 0
 }
 
-removeDownload() {
-
-  local iso="$1"
-
-  [ ! -f "$iso" ] && return 0
-  [ -n "$CUSTOM" ] && return 0
-  ! rm -f "$iso" 2> /dev/null && warn "failed to remove $iso !"
-
-  return 0
-}
-
 extractESD() {
 
   local iso="$1"
@@ -680,6 +669,17 @@ updateImage() {
       mv -f "$path" "${path%.*}.xml"
     fi
   fi
+
+  return 0
+}
+
+removeDownload() {
+
+  local iso="$1"
+
+  [ ! -f "$iso" ] && return 0
+  [ -n "$CUSTOM" ] && return 0
+  ! rm -f "$iso" 2> /dev/null && warn "failed to remove $iso !"
 
   return 0
 }
