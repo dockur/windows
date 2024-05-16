@@ -342,19 +342,6 @@ extractImage() {
   return 0
 }
 
-setXML() {
-
-  local file="/custom.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$STORAGE/custom.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/custom.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$1"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/$DETECTED.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && return 1
-
-  XML="$file"
-  return 0
-}
-
 getPlatform() {
 
   local xml="$1"
@@ -372,6 +359,26 @@ getPlatform() {
 
   echo "$platform"
   return 0
+}
+
+checkPlatform() {
+
+  local xml="$1"
+  local platform compat
+
+  platform=$(getPlatform "$xml")
+
+  case "${platform,,}" in
+    "x86" ) compat="x64" ;;
+    "x64" ) compat="$platform" ;;
+    "arm64" ) compat="$platform" ;;
+    * ) compat="${PLATFORM,,}" ;;
+  esac
+
+  [[ "${compat,,}" == "${PLATFORM,,}" ]] && return 0
+
+  error "You cannot boot ${platform^^} images on a $PLATFORM CPU!"
+  return 1
 }
 
 hasVersion() {
@@ -419,26 +426,6 @@ selectVersion() {
   return 0
 }
 
-checkPlatform() {
-
-  local xml="$1"
-  local platform compat
-
-  platform=$(getPlatform "$xml")
-
-  case "${platform,,}" in
-    "x86" ) compat="x64" ;;
-    "x64" ) compat="$platform" ;;
-    "arm64" ) compat="$platform" ;;
-    * ) compat="${PLATFORM,,}" ;;
-  esac
-
-  [[ "${compat,,}" == "${PLATFORM,,}" ]] && return 0
-
-  error "You cannot boot ${platform^^} images on a $PLATFORM CPU!"
-  return 1
-}
-
 detectVersion() {
 
   local xml="$1"
@@ -450,6 +437,19 @@ detectVersion() {
   [ -z "$id" ] && id=$(selectVersion "NAME" "$xml" "$platform")
 
   echo "$id"
+  return 0
+}
+
+setXML() {
+
+  local file="/custom.xml"
+  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$STORAGE/custom.xml"
+  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/custom.xml"
+  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$1"
+  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/$DETECTED.xml"
+  [ ! -f "$file" ] || [ ! -s "$file" ] && return 1
+
+  XML="$file"
   return 0
 }
 
