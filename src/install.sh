@@ -811,6 +811,12 @@ prepareImage() {
   local missing
 
   case "${DETECTED,,}" in
+    "winxp"* | "winvistax86"* |  "win7x86"* )
+      MACHINE="pc-q35-2.10"
+      ;;
+  esac
+
+  case "${DETECTED,,}" in
     "winxp"* )
       BOOT_MODE="windows_legacy"
       prepareXP "$iso" "$dir" && return 0
