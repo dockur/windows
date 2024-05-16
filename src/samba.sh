@@ -72,14 +72,14 @@ mkdir -p "$share"
 
 ! smbd && smbd --debug-stdout
 
-isXP="N"
+legacy="N"
 
 if [ -f "$STORAGE/windows.old" ]; then
   MT=$(<"$STORAGE/windows.old")
-  [[ "${MT,,}" == "pc-q35-2"* ]] && isXP="Y"
+  [[ "${MT,,}" == "pc-q35-2"* ]] && legacy="Y"
 fi
 
-if [[ "$isXP" == [Yy1]* ]]; then
+if [[ "$legacy" == [Yy1]* ]]; then
   [[ "$DHCP" == [Yy1]* ]] && return 0
   # Enable NetBIOS on Windows XP
   ! nmbd && nmbd --debug-stdout
