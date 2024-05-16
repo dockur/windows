@@ -551,9 +551,9 @@ downloadImage() {
 
   if isMido "$version"; then
     tried="y"
-    if getWindows "$version" "$desc" "$language"; then
-      size=$(getMido "$version" "size" "$language")
-      sum=$(getMido "$version" "sum" "$language")
+    if getWindows "$version" "$language" "$desc"; then
+      size=$(getMido "$version" "$language" "size" )
+      sum=$(getMido "$version" "$language" "sum")
       downloadFile "$iso" "$MIDO_URL" "$sum" "$size" "$desc" && return 0
     fi
   fi
@@ -568,7 +568,7 @@ downloadImage() {
 
     tried="y"
 
-    if getESD "$TMP/esd" "$version" "$desc" "$language"; then
+    if getESD "$TMP/esd" "$version" "$language" "$desc"; then
       ISO="${ISO%.*}.esd"
       downloadFile "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$desc" && return 0
       ISO="$iso"
