@@ -10,6 +10,7 @@ cd /run
 
 . reset.sh      # Initialize system
 . define.sh     # Define versions
+. mido.sh       # Download code
 . install.sh    # Run installation
 . disk.sh       # Initialize disks
 . display.sh    # Initialize graphics
