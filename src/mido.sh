@@ -519,7 +519,13 @@ downloadImage() {
 
   if isMido "$version"; then
     tried="y"
-    doMido "$iso" "$version" "$desc" && return 0
+    if getWindows "$version"; then
+      echo "MIDO_URL=$MIDO_URL"
+      exit 33
+      size=$(getMido "$version" "size")
+      sum=$(getMido "$version" "sum")
+      downloadFile "$iso" "$MIDO_URL" "$sum" "$size" "$desc" && return 0
+    fi
   fi
 
   switchEdition "$version"
@@ -527,7 +533,7 @@ downloadImage() {
   if isESD "$version"; then
 
     if [[ "$tried" != "n" ]]; then
-      info "Failed to download $desc using Mido, will try a diferent method now..."
+      info "Failed to download $desc, will try a diferent method now..."
     fi
 
     tried="y"
