@@ -54,15 +54,12 @@ download_windows() {
 
   case "${id,,}" in
     "win11${PLATFORM,,}" )
-      info "Downloading Windows 11..."
       windows_version="11"
       ;;
     "win10${PLATFORM,,}" )
-      info "Downloading Windows 10..."
       windows_version="10"
       ;;
     "win81${PLATFORM,,}" )
-      info "Downloading Windows 8.1..."
       windows_version="8"
       ;;
     * )
@@ -152,6 +149,7 @@ download_windows() {
 
   if [[ "$hash" != "$checksum" ]]; then
     warn "download has an unexpected SHA256 checksum: $hash , while expected value was: $checksum. Please report this at $SUPPORT/issues"
+    echo "$iso_download_link_html" | sed 's/<tr><td>/\n<tr><td>/g'
   fi
 
   # Filter for 64-bit ISO download URL
@@ -178,37 +176,30 @@ download_windows_eval() {
 
   case "${id,,}" in
     "win11${PLATFORM,,}-enterprise-eval" )
-      info "Downloading Windows 11 Enterprise Evaluation..."
       windows_version="windows-11-enterprise"
       enterprise_type="enterprise"
       ;;
     "win10${PLATFORM,,}-enterprise-eval" )
-      info "Downloading Windows 10 Enterprise Evaluation..."
       windows_version="windows-10-enterprise"
       enterprise_type="enterprise"
        ;;
     "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-      info "Downloading Windows 10 Enterprise LTSC Evaluation..."
       windows_version="windows-10-enterprise"
       enterprise_type="ltsc"
       ;;
     "win2022-eval" )
-      info "Downloading Windows Server 2022 Evaluation..."
       windows_version="windows-server-2022"
       enterprise_type="server"
       ;;
     "win2019-eval" )
-      info "Downloading Windows Server 2019 Evaluation..."
       windows_version="windows-server-2019"
       enterprise_type="server"
       ;;
     "win2016-eval" )
-      info "Downloading Windows Server 2016 Evaluation..."
       windows_version="windows-server-2016"
       enterprise_type="server"
       ;;
     "win2012r2-eval" )
-      info "Downloading Windows Server 2012 R2 Evaluation..."
       windows_version="windows-server-2012-r2"
       enterprise_type="server"
       ;;
@@ -218,9 +209,6 @@ download_windows_eval() {
   esac
   
   local iso_download_page_html=""
-
-  echo "Downloading $id"
-
   local url="https://www.microsoft.com/en-us/evalcenter/download-$windows_version"
 
   echo " - Parsing download page: ${url}"
@@ -311,10 +299,11 @@ download_windows_eval() {
 getWindows() {
 
   local id="$1"
-  local language="$2"
+  local desc="$2"
+  local language="$3"
 
   MIDO_URL=""
-  info "Downloading Windows media from official Microsoft servers..."
+  info "Downloading $desc from official Microsoft servers..."
 
   case "${id,,}" in
      "win81${PLATFORM,,}" | "win10${PLATFORM,,}" | "win11${PLATFORM,,}" )
@@ -330,12 +319,10 @@ getWindows() {
       download_windows_eval "$id" "$language" && return 0
       ;;
     "win81${PLATFORM,,}-enterprise-eval" )
-      info "Downloading Windows 8.1 Enterprise Evaluation..."
       MIDO_URL="https://download.microsoft.com/download/B/9/9/B999286E-0A47-406D-8B3D-5B5AD7373A4A/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_ENTERPRISE_EVAL_EN-US-IR3_CENA_X64FREE_EN-US_DV9.ISO"
       return 0
       ;;
     "win2008r2" )
-      info "Downloading Windows Server 2008 R2..."
       MIDO_URL="https://download.microsoft.com/download/4/1/D/41DEA7E0-B30D-4012-A1E3-F24DC03BA1BB/7601.17514.101119-1850_x64fre_server_eval_en-us-GRMSXEVAL_EN_DVD.iso"
       return 0
       ;;
@@ -568,7 +555,7 @@ downloadImage() {
 
   if isMido "$version"; then
     tried="y"
-    if getWindows "$version" "$language"; then
+    if getWindows "$version" "$desc" "$language"; then
       echo "MIDO_URL=$MIDO_URL"
       exit 33
       size=$(getMido "$version" "size")
