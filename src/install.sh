@@ -853,6 +853,8 @@ updateImage() {
   local dat="${file/.xml/.dat}"
   local desc path src loc xml index result
 
+  [[ "${DETECTED,,}" == "winxp"* ]] && return 0
+
   if [ ! -s "$asset" ] || [ ! -f "$asset" ]; then
     asset=""
     if [[ "$MANUAL" != [Yy1]* ]]; then
