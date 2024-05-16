@@ -18,7 +18,6 @@ RUN set -eu && \
         dos2unix \
         cabextract \
         genisoimage \
-        uuid-runtime \
         libxml2-utils && \
     apt-get clean && \
     echo "$VERSION_ARG" > /run/version && \
