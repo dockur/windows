@@ -380,7 +380,8 @@ switchEdition() {
 getMido() {
 
   local id="$1"
-  local ret="$2"
+  local lang="$2"
+  local ret="$3"
   local sum=""
   local size=""
 
@@ -449,7 +450,8 @@ getLink1() {
   # Fallbacks for users who cannot connect to the Microsoft servers
 
   local id="$1"
-  local ret="$2"
+  local lang="$2"
+  local ret="$3"
   local url=""
   local sum=""
   local size=""
@@ -560,7 +562,8 @@ getLink1() {
 getLink2() {
 
   local id="$1"
-  local ret="$2"
+  local lang="$2"
+  local ret="$3"
   local url=""
   local sum=""
   local size=""
@@ -651,7 +654,8 @@ getLink2() {
 getLink3() {
 
   local id="$1"
-  local ret="$2"
+  local lang="$2"
+  local ret="$3"
   local url=""
   local sum=""
   local size=""
@@ -689,7 +693,8 @@ getLink4() {
   # Fallbacks for users who cannot connect to the Microsoft servers
 
   local id="$1"
-  local ret="$2"
+  local lang="$2"
+  local ret="$3"
   local url=""
   local sum=""
   local size=""
@@ -815,7 +820,8 @@ getLink4() {
 getLink5() {
 
   local id="$1"
-  local ret="$2"
+  local lang="$2"
+  local ret="$3"
   local url=""
   local sum=""
   local size=""
@@ -856,12 +862,13 @@ getLink5() {
 getValue() {
 
   local val=""
-  local id="$3"
-  local type="$2"
+  local id="$2"
+  local lang="$3"
+  local type="$4"
   local func="getLink$1"
 
   if [ "$1" -gt 0 ] && [ "$1" -le "$MIRRORS" ]; then
-    val=$($func "$id" "$type")
+    val=$($func "$id" "$type" "$lang")
   fi
 
   echo "$val"
@@ -871,7 +878,7 @@ getValue() {
 getLink() {
 
   local url
-  url=$(getValue "$1" "" "$2" "$3")
+  url=$(getValue "$1" "$2" "$3" "")
 
   echo "$url"
   return 0
@@ -880,7 +887,7 @@ getLink() {
 getHash() {
 
   local sum
-  sum=$(getValue "$1" "sum" "$2" "$3")
+  sum=$(getValue "$1" "$2" "$3" "sum")
 
   echo "$sum"
   return 0
@@ -889,7 +896,7 @@ getHash() {
 getSize() {
 
   local size
-  size=$(getValue "$1" "size" "$2" "$3")
+  size=$(getValue "$1" "$2" "$3" "size")
 
   echo "$size"
   return 0
@@ -898,9 +905,10 @@ getSize() {
 isMido() {
 
   local id="$1"
+  local lang="$2"
   local sum
 
-  sum=$(getMido "$id" "sum")
+  sum=$(getMido "$id" "$lang" "sum")
   [ -n "$sum" ] && return 0
 
   return 1
@@ -909,6 +917,7 @@ isMido() {
 isESD() {
 
   local id="$1"
+  local lang="$2"
 
   case "${id,,}" in
     "win11${PLATFORM,,}" | "win10${PLATFORM,,}" )
@@ -928,14 +937,15 @@ isESD() {
 validVersion() {
 
   local id="$1"
+  local lang="$2"
   local url
 
-  isESD "$id" && return 0
-  isMido "$id" && return 0
+  isESD "$id" "$lang" && return 0
+  isMido "$id" "$lang" && return 0
 
   for ((i=1;i<=MIRRORS;i++)); do
 
-    url=$(getLink "$i" "$id")
+    url=$(getLink "$i" "$id" "$lang")
     [ -n "$url" ] && return 0
 
   done
