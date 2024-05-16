@@ -70,8 +70,6 @@ download_windows() {
       return 1
   esac
 
-  echo "Downloading $id"
-
   local url="https://www.microsoft.com/en-us/software-download/windows$windows_version"
   case "$windows_version" in
     8 | 10) url="${url}ISO";;
@@ -89,19 +87,19 @@ download_windows() {
   # This is the *only* request we make that Fido doesn't. Fido manually maintains a list of all the Windows release/edition product edition IDs in its script (see: $WindowsVersions array). This is helpful for downloading older releases (e.g. Windows 10 1909, 21H1, etc.) but we always want to get the newest release which is why we get this value dynamically
   # Also, keeping a "$WindowsVersions" array like Fido does would be way too much of a maintenance burden
   # Remove "Accept" header that curl sends by default
-  echo " - Parsing download page: ${url}"
+  [[ "$DEBUG" == [Yy1]* ]] && echo " - Parsing download page: ${url}"
   iso_download_page_html="$(curl --silent --user-agent "$user_agent" --header "Accept:" --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url")" || {
     handle_curl_error $?
     return $?
   }
 
-  echo -n " - Getting Product edition ID: "
+  [[ "$DEBUG" == [Yy1]* ]] && echo -n " - Getting Product edition ID: "
   # tr: Filter for only numerics to prevent HTTP parameter injection
   # head -c was recently added to POSIX: https://austingroupbugs.net/view.php?id=407
   product_edition_id="$(echo "$iso_download_page_html" | grep -Eo '<option value="[0-9]+">Windows' | cut -d '"' -f 2 | head -n 1 | tr -cd '0-9' | head -c 16)"
-  echo "$product_edition_id"
+  [[ "$DEBUG" == [Yy1]* ]] && echo "$product_edition_id"
 
-  echo " - Permit Session ID: $session_id"
+  [[ "$DEBUG" == [Yy1]* ]] && echo " - Permit Session ID: $session_id"
   # Permit Session ID
   # "org_id" is always the same value
   curl --silent --output /dev/null --user-agent "$user_agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "https://vlscppe.microsoft.com/tags?org_id=y6jn8c31&session_id=$session_id" || {
@@ -113,7 +111,7 @@ download_windows() {
   # Extract everything after the last slash
   local url_segment_parameter="${url##*/}"
 
-  echo -n " - Getting language SKU ID: "
+  [[ "$DEBUG" == [Yy1]* ]] && echo -n " - Getting language SKU ID: "
   # Get language -> skuID association table
   # SKU ID: This specifies the language of the ISO. We always use "English (United States)", however, the SKU for this changes with each Windows release
   # We must make this request so our next one will be allowed
@@ -130,9 +128,9 @@ download_windows() {
 
   # tr: Filter for only alphanumerics or "-" to prevent HTTP parameter injection
   sku_id="$(echo "$language_skuid_table_html" | grep "${language}" | sed 's/&quot;//g' | cut -d ',' -f 1  | cut -d ':' -f 2 | tr -cd '[:alnum:]-' | head -c 16)"
-  echo "$sku_id"
+  [[ "$DEBUG" == [Yy1]* ]] && echo "$sku_id"
 
-  echo " - Getting ISO download link..."
+  [[ "$DEBUG" == [Yy1]* ]] && echo " - Getting ISO download link..."
   # Get ISO download link
   # If any request is going to be blocked by Microsoft it's always this last one (the previous requests always seem to succeed)
   # --referer: Required by Microsoft servers to allow request
@@ -140,12 +138,12 @@ download_windows() {
 
   if ! [ "$iso_download_link_html" ]; then
     # This should only happen if there's been some change to how this API works
-    echo " - Microsoft servers gave us an empty response to our request for an automated download."
+    error "Microsoft servers gave us an empty response to our request for an automated download."
     return 1
   fi
 
   if echo "$iso_download_link_html" | grep -q "We are unable to complete your request at this time."; then
-    echo " - WARNING! Microsoft blocked the automated download request based on your IP address."
+    error "Microsoft blocked the automated download request based on your IP address."
     return 1
   fi
 
@@ -163,7 +161,7 @@ download_windows() {
 
   if ! [ "$iso_download_link" ]; then
     # This should only happen if there's been some change to the download endpoint web address
-    echo " - Microsoft servers gave us no download link to our request for an automated download!"
+    error "Microsoft servers gave us no download link to our request for an automated download!"
     return 1
   fi
 
