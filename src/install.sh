@@ -811,6 +811,12 @@ prepareImage() {
   local missing
 
   case "${DETECTED,,}" in
+    "winxp"* | "winvistax86"* |  "win7x86"* )
+      MACHINE="pc-q35-2.10"
+      ;;
+  esac
+
+  case "${DETECTED,,}" in
     "winxp"* )
       BOOT_MODE="windows_legacy"
       prepareXP "$iso" "$dir" && return 0
@@ -846,6 +852,8 @@ updateImage() {
   local org="${file/.xml/.org}"
   local dat="${file/.xml/.dat}"
   local desc path src loc xml index result
+
+  [[ "${DETECTED,,}" == "winxp"* ]] && return 0
 
   if [ ! -s "$asset" ] || [ ! -f "$asset" ]; then
     asset=""
