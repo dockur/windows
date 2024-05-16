@@ -296,7 +296,7 @@ getWindows() {
   local desc="$2"
   local language="$3"
 
-  local msg="Requesting $desc from Microsoft..."
+  local msg="Requesting $desc from Microsoft server..."
   info "$msg" && html "$msg"
   
   case "${id,,}" in
@@ -385,7 +385,7 @@ getESD() {
   winCatalog=$(getCatalog "$version" "url")
   editionName=$(getCatalog "$version" "edition")
 
-  local msg="Downloading product information from Microsoft..."
+  local msg="Downloading product information from Microsoft server..."
   info "$msg" && html "$msg"
 
   rm -rf "$dir"
