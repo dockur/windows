@@ -2,8 +2,10 @@
 set -Eeuo pipefail
 
 handle_curl_error() {
+
     local error_code="$1"
     local fatal_error_action=2
+
     case "$error_code" in
         6)
             echo "Failed to resolve Microsoft servers! Is there an Internet connection? Exiting..."
@@ -61,122 +63,12 @@ handle_curl_error() {
                 ;;
             esac
     esac
+
     return 1
 }
 
-download_windows_server() {
-    local iso_download_page_html=""
-    # Copyright (C) 2024 Elliot Killick <contact@elliotkillick.com>
-    # This function is adapted from the Mido project:
-    # https://github.com/ElliotKillick/Mido
+download_windows() {
 
-    # Download enterprise evaluation Windows versions
-    local windows_version="$1"
-    local enterprise_type="$2"
-    local PRETTY_RELEASE=""
-
-    case "${RELEASE}" in
-        "10-ltsc") PRETTY_RELEASE="10 LTSC";;
-        "2012-r2") PRETTY_RELEASE="2012 R2";;
-        *) PRETTY_RELEASE="${RELEASE}";;
-    esac
-
-    echo "Downloading $(pretty_name "${OS}") ${PRETTY_RELEASE} (${I18N})"
-
-    local url="https://www.microsoft.com/en-us/evalcenter/download-$windows_version"
-
-    echo " - Parsing download page: ${url}"
-    iso_download_page_html="$(curl --silent --location --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url")" || {
-        handle_curl_error $?
-        return $?
-    }
-
-    if ! [ "$iso_download_page_html" ]; then
-        # This should only happen if there's been some change to where this download page is located
-        echo " - Windows server download page gave us an empty response"
-        return 1
-    fi
-
-    local CULTURE=""
-    local COUNTRY=""
-    case "${I18N}" in
-        "English (Great Britain)")
-            CULTURE="en-gb"
-            COUNTRY="GB";;
-        "Chinese (Simplified)")
-            CULTURE="zh-cn"
-            COUNTRY="CN";;
-        "Chinese (Traditional)")
-            CULTURE="zh-tw"
-            COUNTRY="TW";;
-        "French")
-            CULTURE="fr-fr"
-            COUNTRY="FR";;
-        "German")
-            CULTURE="de-de"
-            COUNTRY="DE";;
-        "Italian")
-            CULTURE="it-it"
-            COUNTRY="IT";;
-        "Japanese")
-            CULTURE="ja-jp"
-            COUNTRY="JP";;
-        "Korean")
-            CULTURE="ko-kr"
-            COUNTRY="KR";;
-        "Portuguese (Brazil)")
-            CULTURE="pt-br"
-            COUNTRY="BR";;
-        "Spanish")
-            CULTURE="es-es"
-            COUNTRY="ES";;
-        "Russian")
-            CULTURE="ru-ru"
-            COUNTRY="RU";;
-        *)
-            CULTURE="en-us"
-            COUNTRY="US";;
-    esac
-
-    echo " - Getting download link.."
-    iso_download_links="$(echo "$iso_download_page_html" | grep -o "https://go.microsoft.com/fwlink/p/?LinkID=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${CULTURE}&country=${COUNTRY}")" || {
-        # This should only happen if there's been some change to the download endpoint web address
-        echo " - Windows server download page gave us no download link"
-        return 1
-    }
-
-    # Limit untrusted size for input validation
-    iso_download_links="$(echo "$iso_download_links" | head -c 1024)"
-
-    case "$enterprise_type" in
-        # Select x64 download link
-        "enterprise") iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1) ;;
-        # Select x64 LTSC download link
-        "ltsc") iso_download_link=$(echo "$iso_download_links" | head -n 4 | tail -n 1) ;;
-        *) iso_download_link="$iso_download_links" ;;
-    esac
-
-    # Follow redirect so proceeding log message is useful
-    # This is a request we make this Fido doesn't
-    # We don't need to set "--max-filesize" here because this is a HEAD request and the output is to /dev/null anyway
-    iso_download_link="$(curl --silent --location --output /dev/null --silent --write-out "%{url_effective}" --head --fail --proto =https --tlsv1.2 --http1.1 -- "$iso_download_link")" || {
-        # This should only happen if the Microsoft servers are down
-        handle_curl_error $?
-        return $?
-    }
-
-    # Limit untrusted size for input validation
-    iso_download_link="$(echo "$iso_download_link" | head -c 1024)"
-
-    echo " - URL: $iso_download_link"
-
-    # Download ISO
-    FILE_NAME="${iso_download_link##*/}"
-    web_get "${iso_download_link}" "${VM_PATH}" "${FILE_NAME}"
-    OS="windows-server"
-}
-
-download_windows_workstation() {
     local HASH=""
     local session_id=""
     local iso_download_page_html=""
@@ -187,8 +79,6 @@ download_windows_workstation() {
     local iso_download_link=""
 
     echo "Downloading Windows ${RELEASE} (${I18N})"
-    # This function is adapted from the Mido project:
-    # https://github.com/ElliotKillick/Mido
     # Download newer consumer Windows versions from behind gated Microsoft API
 
     # Either 8, 10, or 11
@@ -294,16 +184,111 @@ download_windows_workstation() {
     web_get "${iso_download_link}" "${VM_PATH}" "${FILE_NAME}"
 }
 
-get_windows() {
+download_windows_server() {
 
-    if [ "${RELEASE}" == "10-ltsc" ]; then
-        download_windows_server windows-10-enterprise ltsc
-    elif [ "${OS}" == "windows-server" ]; then
-        download_windows_server "windows-server-${RELEASE}"
-    else
-        download_windows_workstation "${RELEASE}"
+    local iso_download_page_html=""
+
+    # Download enterprise evaluation Windows versions
+    local windows_version="$1"
+    local enterprise_type="$2"
+    local PRETTY_RELEASE=""
+
+    case "${RELEASE}" in
+        "10-ltsc") PRETTY_RELEASE="10 LTSC";;
+        "2012-r2") PRETTY_RELEASE="2012 R2";;
+        *) PRETTY_RELEASE="${RELEASE}";;
+    esac
+
+    echo "Downloading $(pretty_name "${OS}") ${PRETTY_RELEASE} (${I18N})"
+
+    local url="https://www.microsoft.com/en-us/evalcenter/download-$windows_version"
+
+    echo " - Parsing download page: ${url}"
+    iso_download_page_html="$(curl --silent --location --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url")" || {
+        handle_curl_error $?
+        return $?
+    }
+
+    if ! [ "$iso_download_page_html" ]; then
+        # This should only happen if there's been some change to where this download page is located
+        echo " - Windows server download page gave us an empty response"
+        return 1
     fi
 
+    local COUNTRY="US"
+    local CULTURE="en-us"
+
+    echo " - Getting download link.."
+    iso_download_links="$(echo "$iso_download_page_html" | grep -o "https://go.microsoft.com/fwlink/p/?LinkID=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${CULTURE}&country=${COUNTRY}")" || {
+        # This should only happen if there's been some change to the download endpoint web address
+        echo " - Windows server download page gave us no download link"
+        return 1
+    }
+
+    # Limit untrusted size for input validation
+    iso_download_links="$(echo "$iso_download_links" | head -c 1024)"
+
+    case "$enterprise_type" in
+        # Select x64 download link
+        "enterprise") iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1) ;;
+        # Select x64 LTSC download link
+        "ltsc") iso_download_link=$(echo "$iso_download_links" | head -n 4 | tail -n 1) ;;
+        *) iso_download_link="$iso_download_links" ;;
+    esac
+
+    # Follow redirect so proceeding log message is useful
+    # This is a request we make this Fido doesn't
+    # We don't need to set "--max-filesize" here because this is a HEAD request and the output is to /dev/null anyway
+    iso_download_link="$(curl --silent --location --output /dev/null --silent --write-out "%{url_effective}" --head --fail --proto =https --tlsv1.2 --http1.1 -- "$iso_download_link")" || {
+        # This should only happen if the Microsoft servers are down
+        handle_curl_error $?
+        return $?
+    }
+
+    # Limit untrusted size for input validation
+    iso_download_link="$(echo "$iso_download_link" | head -c 1024)"
+
+    echo " - URL: $iso_download_link"
+
+    # Download ISO
+    FILE_NAME="${iso_download_link##*/}"
+    web_get "${iso_download_link}" "${VM_PATH}" "${FILE_NAME}"
+    OS="windows-server"
+}
+
+getWindows() {
+
+  local id="$1"
+
+  case "${id,,}" in
+    "win11${PLATFORM,,}" )
+      download_windows "$id" && return 0
+      ;;
+    "win11${PLATFORM,,}-enterprise-eval" )
+      return 1
+      ;;
+    "win10${PLATFORM,,}" )
+      download_windows "$id" && return 0
+      ;;
+    "win10${PLATFORM,,}-enterprise-eval" )
+      return 1
+      ;;
+    "win10${PLATFORM,,}-enterprise-ltsc-eval" )
+      # download_windows_server windows-10-enterprise ltsc
+      return 1
+      ;;
+    "win81${PLATFORM,,}" )
+      download_windows "$id" && return 0
+      ;;
+    "win81${PLATFORM,,}-enterprise-eval" )
+      return 1
+      ;;
+    "win2022-eval" | "win2019-eval" | "win2016-eval" | "win2012r2-eval" | "win2008r2" )
+      download_windows_server "$id" && return 0
+      ;;
+  esac
+
+  return 1
 }
 
 verifyFile() {
