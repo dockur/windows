@@ -870,8 +870,8 @@ getValue() {
 
 getLink() {
 
-  local url=""
-  url=$(getValue "$1" "" "$2")
+  local url
+  url=$(getValue "$1" "" "$2" "$3")
 
   echo "$url"
   return 0
@@ -879,8 +879,8 @@ getLink() {
 
 getHash() {
 
-  local sum=""
-  sum=$(getValue "$1" "sum" "$2")
+  local sum
+  sum=$(getValue "$1" "sum" "$2" "$3")
 
   echo "$sum"
   return 0
@@ -888,8 +888,8 @@ getHash() {
 
 getSize() {
 
-  local size=""
-  size=$(getValue "$1" "size" "$2")
+  local size
+  size=$(getValue "$1" "size" "$2" "$3")
 
   echo "$size"
   return 0
