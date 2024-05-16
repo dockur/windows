@@ -366,7 +366,7 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>21</Order>
-          <CommandLine>netsh advfirewall firewall set rule group="Network Discovery" new enable=Yes</CommandLine>
+          <CommandLine>powershell -ExecutionPolicy ByPass -Command "Enable-NetFirewallRule -DisplayGroup @(Get-NetFirewallRule | Where-Object Name -Match "NetDIS.*" | Select-Object DisplayGroup -Unique | % DisplayGroup)"</CommandLine>
           <Description>Enable Network Discovery</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
