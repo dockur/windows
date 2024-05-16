@@ -1,17 +1,32 @@
 apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: windows-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 64Gi
+---
+apiVersion: v1
 kind: Pod
 metadata:
-  name: windows-pod
+  name: windows
   labels:
-    name: windows-pod
+    name: windows
 spec:
+  terminationGracePeriodSeconds: 120 # the Kubernetes default is 30 seconds and it may be not enough
   containers:
     - name: windows
       image: dockurr/windows
       ports:
         - containerPort: 8006
+          protocol: TCP
         - containerPort: 3389
           protocol: TCP
+          - containerPort: 3389
+          protocol: UDP
       resources:
         limits:
           devices.kubevirt.io/kvm: 1
@@ -19,19 +34,27 @@ spec:
         privileged: true
       env:
         - name: RAM_SIZE
-          value: 16G
+          value: 4G
         - name: CPU_CORES
-          value: "8"
-
+          value: "2"
+        - name: DISK_SIZE
+          value: "64G"
+      volumeMounts:
+        - mountPath: /storage
+          name: storage
+  volumes:
+    - name: storage
+      persistentVolumeClaim:
+        claimName: windows-pvc
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: windows-service
+  name: windows
 spec:
   type: NodePort
   selector:
-    name: windows-pod
+    name: windows
   ports:
     - name: tcp-8006
       protocol: TCP
@@ -43,3 +66,8 @@ spec:
       port: 3389
       targetPort: 3389
       nodePort: 43389
+      - name: udp-3389
+      protocol: UDP
+      port: 3389
+      targetPort: 3389
+      nodePort: 43388
