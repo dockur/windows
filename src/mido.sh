@@ -296,7 +296,7 @@ getWindows() {
   local desc="$2"
   local language="$3"
 
-  local msg="Requesting $desc from official Microsoft servers..."
+  local msg="Requesting $desc from Microsoft..."
   info "$msg" && html "$msg"
   
   case "${id,,}" in
@@ -326,6 +326,119 @@ getWindows() {
 
   MIDO_URL=""
   return 1
+}
+
+getCatalog() {
+
+  local id="$1"
+  local ret="$2"
+  local url=""
+  local name=""
+  local edition=""
+
+  case "${id,,}" in
+    "win11${PLATFORM,,}" )
+      edition="Professional"
+      name="Windows 11 Pro"
+      url="https://go.microsoft.com/fwlink?linkid=2156292"
+      ;;
+    "win10${PLATFORM,,}" )
+      edition="Professional"
+      name="Windows 10 Pro"
+      url="https://go.microsoft.com/fwlink/?LinkId=841361"
+      ;;
+    "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval")
+      edition="Enterprise"
+      name="Windows 11 Enterprise"
+      url="https://go.microsoft.com/fwlink?linkid=2156292"
+      ;;
+    "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" )
+      edition="Enterprise"
+      name="Windows 10 Enterprise"
+      url="https://go.microsoft.com/fwlink/?LinkId=841361"
+      ;;
+  esac
+
+  case "${ret,,}" in
+    "url" ) echo "$url" ;;
+    "name" ) echo "$name" ;;
+    "edition" ) echo "$edition" ;;
+    *) echo "";;
+  esac
+
+  return 0
+}
+
+getESD() {
+
+  local dir="$1"
+  local version="$2"
+  local desc="$3"
+  local language="$4"
+  local editionName
+  local winCatalog size
+
+  if ! isESD "${version,,}"; then
+    error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
+  fi
+
+  winCatalog=$(getCatalog "$version" "url")
+  editionName=$(getCatalog "$version" "edition")
+
+  local msg="Downloading product information from Microsoft..."
+  info "$msg" && html "$msg"
+
+  rm -rf "$dir"
+  mkdir -p "$dir"
+
+  local wFile="catalog.cab"
+  local xFile="products.xml"
+  local eFile="esd_edition.xml"
+  local fFile="products_filter.xml"
+
+  { wget "$winCatalog" -O "$dir/$wFile" -q --timeout=10; rc=$?; } || :
+  (( rc != 0 )) && error "Failed to download $winCatalog , reason: $rc" && return 1
+
+  cd "$dir"
+
+  if ! cabextract "$wFile" > /dev/null; then
+    cd /run
+    error "Failed to extract $wFile!" && return 1
+  fi
+
+  cd /run
+
+  if [ ! -s "$dir/$xFile" ]; then
+    error "Failed to find $xFile in $wFile!" && return 1
+  fi
+
+  local esdLang="en-us"
+  local edQuery='//File[Architecture="'${PLATFORM}'"][Edition="'${editionName}'"]'
+
+  echo -e '<Catalog>' > "$dir/$fFile"
+  xmllint --nonet --xpath "${edQuery}" "$dir/$xFile" >> "$dir/$fFile" 2>/dev/null
+  echo -e '</Catalog>'>> "$dir/$fFile"
+  xmllint --nonet --xpath '//File[LanguageCode="'${esdLang}'"]' "$dir/$fFile" >"$dir/$eFile"
+
+  size=$(stat -c%s "$dir/$eFile")
+  if ((size<20)); then
+    error "Failed to find Windows product in $eFile!" && return 1
+  fi
+
+  local tag="FilePath"
+  ESD=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
+
+  if [ -z "$ESD" ]; then
+    error "Failed to find ESD URL in $eFile!" && return 1
+  fi
+
+  tag="Sha1"
+  ESD_SUM=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
+  tag="Size"
+  ESD_SIZE=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
+
+  rm -rf "$dir"
+  return 0
 }
 
 verifyFile() {
@@ -415,118 +528,6 @@ downloadFile() {
   return 1
 }
 
-getCatalog() {
-
-  local id="$1"
-  local ret="$2"
-  local url=""
-  local name=""
-  local edition=""
-
-  case "${id,,}" in
-    "win11${PLATFORM,,}" )
-      edition="Professional"
-      name="Windows 11 Pro"
-      url="https://go.microsoft.com/fwlink?linkid=2156292"
-      ;;
-    "win10${PLATFORM,,}" )
-      edition="Professional"
-      name="Windows 10 Pro"
-      url="https://go.microsoft.com/fwlink/?LinkId=841361"
-      ;;
-    "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval")
-      edition="Enterprise"
-      name="Windows 11 Enterprise"
-      url="https://go.microsoft.com/fwlink?linkid=2156292"
-      ;;
-    "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" )
-      edition="Enterprise"
-      name="Windows 10 Enterprise"
-      url="https://go.microsoft.com/fwlink/?LinkId=841361"
-      ;;
-  esac
-
-  case "${ret,,}" in
-    "url" ) echo "$url" ;;
-    "name" ) echo "$name" ;;
-    "edition" ) echo "$edition" ;;
-    *) echo "";;
-  esac
-
-  return 0
-}
-
-getESD() {
-
-  local dir="$1"
-  local version="$2"
-  local language="$3"
-  local editionName
-  local winCatalog size
-
-  if ! isESD "${version,,}"; then
-    error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
-  fi
-
-  winCatalog=$(getCatalog "$version" "url")
-  editionName=$(getCatalog "$version" "edition")
-
-  local msg="Downloading product information from Microsoft..."
-  info "$msg" && html "$msg"
-
-  rm -rf "$dir"
-  mkdir -p "$dir"
-
-  local wFile="catalog.cab"
-  local xFile="products.xml"
-  local eFile="esd_edition.xml"
-  local fFile="products_filter.xml"
-
-  { wget "$winCatalog" -O "$dir/$wFile" -q --timeout=10; rc=$?; } || :
-  (( rc != 0 )) && error "Failed to download $winCatalog , reason: $rc" && return 1
-
-  cd "$dir"
-
-  if ! cabextract "$wFile" > /dev/null; then
-    cd /run
-    error "Failed to extract $wFile!" && return 1
-  fi
-
-  cd /run
-
-  if [ ! -s "$dir/$xFile" ]; then
-    error "Failed to find $xFile in $wFile!" && return 1
-  fi
-
-  local esdLang="en-us"
-  local edQuery='//File[Architecture="'${PLATFORM}'"][Edition="'${editionName}'"]'
-
-  echo -e '<Catalog>' > "$dir/$fFile"
-  xmllint --nonet --xpath "${edQuery}" "$dir/$xFile" >> "$dir/$fFile" 2>/dev/null
-  echo -e '</Catalog>'>> "$dir/$fFile"
-  xmllint --nonet --xpath '//File[LanguageCode="'${esdLang}'"]' "$dir/$fFile" >"$dir/$eFile"
-
-  size=$(stat -c%s "$dir/$eFile")
-  if ((size<20)); then
-    error "Failed to find Windows product in $eFile!" && return 1
-  fi
-
-  local tag="FilePath"
-  ESD=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
-
-  if [ -z "$ESD" ]; then
-    error "Failed to find ESD URL in $eFile!" && return 1
-  fi
-
-  tag="Sha1"
-  ESD_SUM=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
-  tag="Size"
-  ESD_SIZE=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
-
-  rm -rf "$dir"
-  return 0
-}
-
 downloadImage() {
 
   local iso="$1"
@@ -567,7 +568,7 @@ downloadImage() {
 
     tried="y"
 
-    if getESD "$TMP/esd" "$version" "$language"; then
+    if getESD "$TMP/esd" "$version" "$desc" "$language"; then
       ISO="${ISO%.*}.esd"
       downloadFile "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$desc" && return 0
       ISO="$iso"
