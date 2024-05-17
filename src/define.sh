@@ -6,6 +6,7 @@ set -Eeuo pipefail
 : "${REMOVE:=""}"
 : "${VERSION:=""}"
 : "${DETECTED:=""}"
+: "${LANGUAGE:=""}"
 
 MIRRORS=5
 PLATFORM="x64"
@@ -109,6 +110,12 @@ parseVersion() {
   esac
 
   return 0
+}
+
+parseLanguage() {
+
+  [ -z "$LANGUAGE" ] && LANGUAGE="en-US"
+
 }
 
 printVersion() {
