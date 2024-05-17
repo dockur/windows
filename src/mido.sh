@@ -520,7 +520,7 @@ downloadImage() {
 
   if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
     language=$(getLanguage "$lang" "desc")
-    desc="$desc ($language)"
+    desc="$language $desc"
   fi
 
   if isMido "$version" "$lang"; then
