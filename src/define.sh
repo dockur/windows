@@ -112,41 +112,6 @@ parseVersion() {
   return 0
 }
 
-Chinese-Simplified	x64	cn_windows_7_enterprise_with_sp1_x64_dvd_u_677685.iso
-Czech	x64	cs_windows_7_enterprise_with_sp1_x64_dvd_u_677646.iso
-Danish	x64	da_windows_7_enterprise_with_sp1_x64_dvd_u_677648.iso
-German	x64	de_windows_7_enterprise_with_sp1_x64_dvd_u_677649.iso
-Greek	x64	el_windows_7_enterprise_with_sp1_x64_dvd_u_677650.iso
-English	x64	en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.iso
-Spanish	x64	es_windows_7_enterprise_with_sp1_x64_dvd_u_677652.iso
-Estonian	x64	et_windows_7_enterprise_with_sp1_x64_dvd_u_677653.iso
-Finnish	x64	fi_windows_7_enterprise_with_sp1_x64_dvd_u_677655.iso
-French	x64	fr_windows_7_enterprise_with_sp1_x64_dvd_u_677656.iso
-Hebrew	x64	he_windows_7_enterprise_with_sp1_x64_dvd_u_677657.iso
-Chinese-Hong Kong SAR	x64	hk_windows_7_enterprise_with_sp1_x64_dvd_u_677687.iso
-Croatian	x64	hr_windows_7_enterprise_with_sp1_x64_dvd_u_677658.iso
-Hungarian	x64	hu_windows_7_enterprise_with_sp1_x64_dvd_u_677659.iso
-Italian	x64	it_windows_7_enterprise_with_sp1_x64_dvd_u_677660.iso
-Japanese	x64	ja_windows_7_enterprise_with_sp1_x64_dvd_u_677662.iso
-Korean	x64	ko_windows_7_enterprise_k_with_sp1_x64_dvd_u_677728.iso
-Lithuanian	x64	lt_windows_7_enterprise_with_sp1_x64_dvd_u_677663.iso
-Latvian	x64	lv_windows_7_enterprise_with_sp1_x64_dvd_u_677664.iso
-Dutch	x64	nl_windows_7_enterprise_with_sp1_x64_dvd_u_677666.iso
-Norwegian	x64	no_windows_7_enterprise_with_sp1_x64_dvd_u_677665.iso
-Polish	x64	pl_windows_7_enterprise_with_sp1_x64_dvd_u_677667.iso
-Portuguese-Portugal	x64	pp_windows_7_enterprise_with_sp1_x64_dvd_u_677669.iso
-Portuguese-Brazil	x64	pt_windows_7_enterprise_with_sp1_x64_dvd_u_677668.iso
-Romanian	x64	ro_windows_7_enterprise_with_sp1_x64_dvd_u_677670.iso
-Russian	x64	ru_windows_7_enterprise_with_sp1_x64_dvd_u_677671.iso
-Slovak	x64	sk_windows_7_enterprise_with_sp1_x64_dvd_u_677673.iso
-Slovenian	x64	sl_windows_7_enterprise_with_sp1_x64_dvd_u_677674.iso
-Serbian	x64	sr_windows_7_enterprise_with_sp1_x64_dvd_u_677675.iso
-Swedish	x64	sv_windows_7_enterprise_with_sp1_x64_dvd_u_677676.iso
-Thai	x64	th_windows_7_enterprise_with_sp1_x64_dvd_u_677678.iso
-Turkish	x64	tr_windows_7_enterprise_with_sp1_x64_dvd_u_677681.iso
-Chinese-Taiwan	x64	tw_windows_7_enterprise_with_sp1_x64_dvd_u_677689.iso
-Ukrainian	x64	uk_windows_7_enterprise_with_sp1_x64_dvd_u_677683.iso
-
 parseLanguage() {
 
   [ -z "$LANGUAGE" ] && LANGUAGE="en"
@@ -183,6 +148,7 @@ parseLanguage() {
     "spanish" | "espanol" | "español" ) LANGUAGE="es" ;;
     "swedish" | "svenska" ) LANGUAGE="sv" ;;
     "turkish" | "türk" | "turk" ) LANGUAGE="tr" ;;
+    "thai" ) LANGUAGE="th" ;;   
     "ukrainian" ) LANGUAGE="uk" ;;
   esac
 
@@ -199,7 +165,6 @@ getLanguage() {
     "zh-hk" | "zh-mo" ) lang="Chinese (Traditional)" ;;
     "zh-hant" | "zh-tw" ) lang="Chinese (Traditional)" ;;
     "zh" | "zh-"* ) lang="Chinese (Simplified)" ;;
-    "cn" | "cn-"* ) lang="Chinese (Simplified)" ;;   
     "hr" | "hr-"* ) lang="Croatian" ;;
     "cs" | "cs-"* ) lang="Czech" ;;
     "da" | "da-"* ) lang="Danish" ;;
@@ -246,12 +211,10 @@ getCulture() {
   local culture=""
 
   case "${code,,}" in
-    "zh-hk" | "zh-mo" | "zh-hant" | "zh-tw" ) 
+    "zh-hk" | "zh-mo" | "zh-hant" | "zh-tw" )
       culture="zh-tw"
-    "zh" | "zh-"* ) 
+    "zh" | "zh-"* )
       culture="zh-cn"
-    "cn" | "cn-"* ) 
-      culture="zh-cn"      
     "en-gb" | "en-uk" )
       culture="en-gb"
     "en" | "en-"* )
