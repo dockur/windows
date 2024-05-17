@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 : "${VERIFY:=""}"
+: "${REGION:=""}"
 : "${MANUAL:=""}"
 : "${REMOVE:=""}"
 : "${VERSION:=""}"
