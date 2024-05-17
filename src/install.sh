@@ -849,6 +849,7 @@ bootWindows() {
 ######################################
 
 ! parseVersion && exit 58
+! parseLanguage && exit 56
 ! detectCustom && exit 59
 
 if ! startInstall; then
@@ -857,7 +858,7 @@ if ! startInstall; then
 fi
 
 if [ ! -s "$ISO" ] || [ ! -f "$ISO" ]; then
-  if ! downloadImage "$ISO" "$VERSION" "English (United States)"; then
+  if ! downloadImage "$ISO" "$VERSION" "$LANGUAGE"; then
     rm -f "$ISO" 2> /dev/null || true
     exit 61
   fi
