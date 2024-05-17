@@ -590,28 +590,26 @@ updateAsset() {
 
   local asset="$1"
   local language="$2"
-  local culture keyboard
+  local culture region keyboard
 
-  # : "${KEYBOARD:=""}"
-  # : "${TIMEZONE:=""}"
-  # : "${LANGUAGE:=""}"
   # : "${PASSWORD:=""}"
-
-  #    
-  #    <SystemLocale>en-US</SystemLocale>
-  #    <UILanguage>en-US</UILanguage>
-  #    <UserLocale></UserLocale>
 
   culture=$(getLanguage "$language" "culture")
 
   if [ -n "$culture" ] && [[ "${culture,,}" != "en-us" ]]; then
-    sed -i "s/<UserLocale>en-US<\/UserLocale>/<UserLocale>$culture<\/UserLocale>/g" "$asset"
     sed -i "s/<UILanguage>en-US<\/UILanguage>/<UILanguage>$culture<\/UILanguage>/g" "$asset"
-    sed -i "s/<SystemLocale>en-US<\/SystemLocale>/<SystemLocale>$culture<\/SystemLocale>/g" "$asset"
+  fi
+
+  region="$culture"
+.  [ -n "$REGION" ] && region="$REGION"
+
+  if [ -n "$region" ] && [[ "${region,,}" != "en-us" ]]; then
+    sed -i "s/<UserLocale>en-US<\/UserLocale>/<UserLocale>$region<\/UserLocale>/g" "$asset"
+    sed -i "s/<SystemLocale>en-US<\/SystemLocale>/<SystemLocale>$region<\/SystemLocale>/g" "$asset"
   fi
 
   keyboard="$culture"
-  [ -n "$KEYBOARD" ] && keyboard="$KEYBOARD"
+.  [ -n "$KEYBOARD" ] && keyboard="$KEYBOARD"
 
   if [ -n "$keyboard" ] && [[ "${keyboard,,}" != "en-us" ]]; then
     sed -i "s/<InputLocale>en-US<\/InputLocale>/<InputLocale>$keyboard<\/InputLocale>/g" "$asset"
