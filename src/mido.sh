@@ -456,7 +456,8 @@ downloadFile() {
   local url="$2"
   local sum="$3"
   local size="$4"
-  local desc="$5"
+  local lang="$5"
+  local desc="$6"
   local rc total progress domain dots
 
   rm -f "$iso"
@@ -510,35 +511,39 @@ downloadImage() {
 
   local iso="$1"
   local version="$2"
-  local language="$3"
+  local lang="$3"
   local tried="n"
   local url sum size base desc
 
   if [[ "${version,,}" == "http"* ]]; then
     base=$(basename "$iso")
     desc=$(fromFile "$base")
-    downloadFile "$iso" "$version" "" "" "$desc" && return 0
+    downloadFile "$iso" "$version" "" "" "" "$desc" && return 0
     return 1
   fi
 
-  if ! validVersion "$version" "$language"; then
+  if ! validVersion "$version" "$lang"; then
     error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
   fi
 
   desc=$(printVersion "$version" "")
 
-  if isMido "$version" "$language"; then
+  if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
+    desc="$desc ($lang)"
+  fi
+
+  if isMido "$version" "$lang"; then
     tried="y"
-    if getWindows "$version" "$language" "$desc"; then
-      size=$(getMido "$version" "$language" "size" )
-      sum=$(getMido "$version" "$language" "sum")
-      downloadFile "$iso" "$MIDO_URL" "$sum" "$size" "$desc" && return 0
+    if getWindows "$version" "$lang" "$desc"; then
+      size=$(getMido "$version" "$lang" "size" )
+      sum=$(getMido "$version" "$lang" "sum")
+      downloadFile "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$desc" && return 0
     fi
   fi
 
   switchEdition "$version"
 
-  if isESD "$version" "$language"; then
+  if isESD "$version" "$lang"; then
 
     if [[ "$tried" != "n" ]]; then
       info "Failed to download $desc, will try a diferent method now..."
@@ -546,9 +551,9 @@ downloadImage() {
 
     tried="y"
 
-    if getESD "$TMP/esd" "$version" "$language" "$desc"; then
+    if getESD "$TMP/esd" "$version" "$lang" "$desc"; then
       ISO="${ISO%.*}.esd"
-      downloadFile "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$desc" && return 0
+      downloadFile "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$lang" "$desc" && return 0
       ISO="$iso"
     fi
 
@@ -556,16 +561,16 @@ downloadImage() {
 
   for ((i=1;i<=MIRRORS;i++)); do
 
-    url=$(getLink "$i" "$version" "$language")
+    url=$(getLink "$i" "$version" "$lang")
 
     if [ -n "$url" ]; then
       if [[ "$tried" != "n" ]]; then
         info "Failed to download $desc, will try another mirror now..."
       fi
       tried="y"
-      size=$(getSize "$i" "$version" "$language")
-      sum=$(getHash "$i" "$version" "$language")
-      downloadFile "$iso" "$url" "$sum" "$size" "$desc" && return 0
+      size=$(getSize "$i" "$version" "$lang")
+      sum=$(getHash "$i" "$version" "$lang")
+      downloadFile "$iso" "$url" "$sum" "$size" "$lang" "$desc" && return 0
     fi
 
   done
