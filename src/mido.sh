@@ -253,7 +253,7 @@ getWindows() {
   local lang="$2"
   local desc="$3"
   local language
-  
+
   local msg="Requesting $desc from Microsoft server..."
   info "$msg" && html "$msg"
 
