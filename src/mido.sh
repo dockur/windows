@@ -120,7 +120,7 @@ download_windows() {
 
   if [ -z "$sku_id" ]; then
     language=$(getLanguage "$lang" "desc")
-    error "No download for $language language available!"
+    error "No download for the $language language available!"
     return 1
   fi
 
@@ -218,7 +218,7 @@ download_windows_eval() {
       error "Windows server download page gave us no download link!"
     else
       language=$(getLanguage "$lang" "desc")
-      error "No download for $language language available!"
+      error "No download for the $language language available!"
     fi
     return 1
   }
@@ -275,14 +275,14 @@ getWindows() {
         MIDO_URL="https://download.microsoft.com/download/B/9/9/B999286E-0A47-406D-8B3D-5B5AD7373A4A/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_ENTERPRISE_EVAL_EN-US-IR3_CENA_X64FREE_EN-US_DV9.ISO" && return 0
       fi
       language=$(getLanguage "$lang" "desc")
-      error "No download for $language language available!"
+      error "No download for the $language language available!"
       ;;
     "win2008r2" )
       if [[ "${lang,,}" == "en" ]] || [[ "${lang,,}" == "en-"* ]]; then
         MIDO_URL="https://download.microsoft.com/download/4/1/D/41DEA7E0-B30D-4012-A1E3-F24DC03BA1BB/7601.17514.101119-1850_x64fre_server_eval_en-us-GRMSXEVAL_EN_DVD.iso" && return 0
       fi
       language=$(getLanguage "$lang" "desc")
-      error "No download for $language language available!"
+      error "No download for the $language language available!"
       ;;
     * ) error "Invalid VERSION specified, value \"$version\" is not recognized!" ;;
   esac
@@ -386,7 +386,7 @@ getESD() {
   size=$(stat -c%s "$dir/$eFile")
   if ((size<20)); then
     language=$(getLanguage "$lang" "desc")
-    error "$language language is not supported by this download method!" && return 1
+    error "the $language language is not supported by this download method!" && return 1
   fi
 
   local tag="FilePath"
@@ -520,7 +520,7 @@ downloadImage() {
 
   if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
     language=$(getLanguage "$lang" "desc")
-    desc="$language $desc"
+    desc="$desc in $language"
   fi
 
   if isMido "$version" "$lang"; then
