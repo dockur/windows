@@ -6,7 +6,6 @@ set -Eeuo pipefail
 : "${REMOVE:=""}"
 : "${VERSION:=""}"
 : "${DETECTED:=""}"
-
 : "${KEYBOARD:=""}"
 : "${TIMEZONE:=""}"
 : "${LANGUAGE:=""}"
@@ -335,6 +334,7 @@ getLanguage() {
 
 parseLanguage() {
 
+  LANGUAGE="${LANGUAGE/_/-/}"
   [ -z "$LANGUAGE" ] && LANGUAGE="en"
 
   case "${LANGUAGE,,}" in
