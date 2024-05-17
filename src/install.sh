@@ -589,7 +589,12 @@ prepareImage() {
 updateAsset() {
 
   local asset="$1"
-    
+  
+  # : "${KEYBOARD:=""}"
+  # : "${TIMEZONE:=""}"
+  # : "${LANGUAGE:=""}"
+  # : "${PASSWORD:=""}"
+
   #    <InputLocale>0409:00000409</InputLocale>
   #    <SystemLocale>en-US</SystemLocale>
   #    <UILanguage>en-US</UILanguage>
