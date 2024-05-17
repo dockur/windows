@@ -52,6 +52,42 @@ getLanguage() {
   return 0
 }
 
+getCulture() {
+
+  local code="$1"
+  local culture=""
+
+  case "${code,,}" in
+    "zh-hk" | "zh-mo" | "zh-hant" | "zh-tw" ) 
+      culture="zh-tw"
+    "zh" | "zh-"* ) 
+      culture="zh-cn"
+    "en-gb" | "en-uk" )
+      culture="en-gb"
+    "en" | "en-"* )
+      culture="en-us"
+    "fr" | "fr-"* )
+      culture="fr-fr"
+    "de" | "de-"* )
+      culture="de-de"
+    "it" | "it-"* )
+      culture="it-it"
+    "ja" | "ja-"* )
+      culture="ja-jp"
+    "ko" | "ko-"* )
+      culture="ko-kr"
+    "pt" | "pt-"* )
+      culture="pt-br"
+    "ru" | "ru-"* )
+      culture="ru-ru"
+    "es" | "es-"* )
+      culture="es-es"
+  esac
+
+  echo "$culture"
+  return 0
+}
+
 handle_curl_error() {
 
   local error_code="$1"
@@ -94,8 +130,9 @@ handle_curl_error() {
 download_windows() {
 
   local id="$1"
-  local language="$2"
+  local lang="$2"
   local sku_id=""
+  local language=""
   local session_id=""
   local browser_version=""
   local windows_version=""
@@ -111,6 +148,14 @@ download_windows() {
     "win81${PLATFORM,,}" ) windows_version="8" ;;
     * ) error "Invalid VERSION specified, value \"$id\" is not recognized!" && return 1 ;;
   esac
+
+  [ -z "$lang" ] && lang="en-US"
+  language=$(getLanguage "$lang")
+
+  if [ -z "$language" ]; then
+    error "Language $lang is not supported for this download method!"
+    return 1
+  fi
 
   local url="https://www.microsoft.com/en-us/software-download/windows$windows_version"
   case "$windows_version" in
@@ -163,10 +208,6 @@ download_windows() {
     return $?
   }
 
-  [ -z "$language" ] && language="en-US"
-  language=$(getLanguage "$language")
-  [ -z "$language" ] && language="English (United States)"
-
   # Limit untrusted size for input validation
   language_skuid_table_html="$(echo "$language_skuid_table_html" | head -c 10240)"
 
@@ -174,7 +215,7 @@ download_windows() {
   sku_id="$(echo "$language_skuid_table_html" | grep "${language}" | sed 's/&quot;//g' | cut -d ',' -f 1  | cut -d ':' -f 2 | tr -cd '[:alnum:]-' | head -c 16)"
 
   if [ -z "$sku_id" ]; then
-    error "Invalid language: $language"
+    error "Download for language $language not found!"
     return 1
   fi
 
@@ -215,9 +256,10 @@ download_windows() {
 download_windows_eval() {
 
   local id="$1"
-  local language="$2"
+  local lang="$2"
   local windows_version=""
   local enterprise_type=""
+  local country culture
 
   case "${id,,}" in
     "win11${PLATFORM,,}-enterprise-eval" )
@@ -252,6 +294,17 @@ download_windows_eval() {
       error "Invalid VERSION specified, value \"$id\" is not recognized!" && return 1 ;;
   esac
 
+  [ -z "$lang" ] && lang="en-US"
+  culture=$(getCulture "$lang")
+
+  if [ -z "$culture" ]; then
+    error "Language $lang is not supported for this download method!"
+    return 1
+  fi
+
+  country="${culture#*-}"
+  country="${country^^}"
+
   local iso_download_page_html=""
   local url="https://www.microsoft.com/en-us/evalcenter/download-$windows_version"
 
@@ -267,49 +320,10 @@ download_windows_eval() {
     return 1
   fi
 
-  local COUNTRY="US"
-  local CULTURE="en-us"
-
-  case "$language" in
-    "English (Great Britain)" )
-      CULTURE="en-gb"
-      COUNTRY="GB";;
-    "Chinese (Simplified)" )
-      CULTURE="zh-cn"
-      COUNTRY="CN";;
-    "Chinese (Traditional)" )
-      CULTURE="zh-tw"
-      COUNTRY="TW";;
-    "French" )
-      CULTURE="fr-fr"
-      COUNTRY="FR";;
-    "German" )
-      CULTURE="de-de"
-      COUNTRY="DE";;
-    "Italian" )
-      CULTURE="it-it"
-      COUNTRY="IT";;
-    "Japanese" )
-      CULTURE="ja-jp"
-      COUNTRY="JP";;
-    "Korean" )
-      CULTURE="ko-kr"
-      COUNTRY="KR";;
-    "Portuguese (Brazil)" )
-      CULTURE="pt-br"
-      COUNTRY="BR";;
-    "Spanish" )
-      CULTURE="es-es"
-      COUNTRY="ES";;
-    "Russian" )
-      CULTURE="ru-ru"
-      COUNTRY="RU";;
-  esac
-
   [[ "$DEBUG" == [Yy1]* ]] && echo " - Getting download link.."
-  iso_download_links="$(echo "$iso_download_page_html" | grep -o "https://go.microsoft.com/fwlink/p/?LinkID=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${CULTURE}&country=${COUNTRY}")" || {
+  iso_download_links="$(echo "$iso_download_page_html" | grep -o "https://go.microsoft.com/fwlink/p/?LinkID=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture}&country=${country}")" || {
     # This should only happen if there's been some change to the download endpoint web address
-    error "Windows server download page gave us no download link"
+    error "Windows server download page gave us no download link (language: $language)"
     return 1
   }
 
@@ -333,9 +347,6 @@ download_windows_eval() {
     return $?
   }
 
-  # Limit untrusted size for input validation
-  iso_download_link="$(echo "$iso_download_link" | head -c 1024)"
-
   MIDO_URL="$iso_download_link"
   return 0
 }
@@ -348,7 +359,7 @@ getWindows() {
 
   local msg="Requesting $desc from Microsoft server..."
   info "$msg" && html "$msg"
-  
+
   case "${version,,}" in
     "win81${PLATFORM,,}" | "win10${PLATFORM,,}" | "win11${PLATFORM,,}" )
       download_windows "$version" "$language" && return 0
