@@ -586,7 +586,7 @@ prepareImage() {
   return 1
 }
 
-updateAsset() {
+updateXML() {
 
   local asset="$1"
   local language="$2"
@@ -622,8 +622,9 @@ updateAsset() {
   fi
 
   if [ -n "$PASSWORD" ]; then
-    sed -i "s/<Password>.*<Value \/>/<Password>.*<Value>$PASSWORD<\/Value>/g" "$asset"
-    sed -i "s/<AdministratorPassword>.*<Value \/>/<AdministratorPassword>.*<Value>$PASSWORD<\/Value>/g" "$asset"
+    sed -i "s/<Value>password<\/Value>/<Value>$PASSWORD<\/Value>/g" "$asset"
+    sed -z "s/<Password>...........<Value \/>/<Password>\n          <Value>$PASSWORD<\/Value>/g" -i "$asset"
+    sed -z "s/<Password>...............<Value \/>/<Password>\n              <Value>$PASSWORD<\/Value>/g" -i "$asset"
   fi
 
   cat "$asset"
