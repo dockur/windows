@@ -62,7 +62,6 @@ download_windows() {
     * ) error "Invalid VERSION specified, value \"$id\" is not recognized!" && return 1 ;;
   esac
 
-  [ -z "$lang" ] && lang="en-US"
   language=$(getLanguage "$lang" "name")
 
   if [ -z "$language" ]; then
@@ -197,7 +196,6 @@ download_windows_eval() {
       error "Invalid VERSION specified, value \"$id\" is not recognized!" && return 1 ;;
   esac
 
-  [ -z "$lang" ] && lang="en-US"
   culture=$(getLanguage "$lang" "culture")
 
   if [ -z "$culture" ]; then
@@ -349,7 +347,6 @@ getESD() {
     error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
   fi
 
-  [ -z "$lang" ] && lang="en-US"
   culture=$(getLanguage "$lang" "culture")
 
   if [ -z "$culture" ]; then
@@ -513,7 +510,7 @@ downloadImage() {
   local version="$2"
   local lang="$3"
   local tried="n"
-  local url sum size base desc
+  local url sum size base desc language
 
   if [[ "${version,,}" == "http"* ]]; then
     base=$(basename "$iso")
@@ -529,7 +526,8 @@ downloadImage() {
   desc=$(printVersion "$version" "")
 
   if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
-    desc="$desc ($lang)"
+    language=$(getLanguage "$lang" "desc")
+    desc="$desc ($language)"
   fi
 
   if isMido "$version" "$lang"; then
