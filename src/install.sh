@@ -857,7 +857,7 @@ if ! startInstall; then
 fi
 
 if [ ! -s "$ISO" ] || [ ! -f "$ISO" ]; then
-  if ! downloadImage "$ISO" "$VERSION"; then
+  if ! downloadImage "$ISO" "$VERSION" "English (United States)"; then
     rm -f "$ISO" 2> /dev/null || true
     exit 61
   fi
