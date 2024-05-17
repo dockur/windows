@@ -9,6 +9,7 @@ set -Eeuo pipefail
 : "${DETECTED:=""}"
 : "${KEYBOARD:=""}"
 : "${LANGUAGE:=""}"
+: "${USERNAME:=""}"
 : "${PASSWORD:=""}"
 
 MIRRORS=5
