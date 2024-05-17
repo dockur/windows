@@ -116,6 +116,88 @@ parseLanguage() {
 
   [ -z "$LANGUAGE" ] && LANGUAGE="en-US"
 
+  case "${LANGUAGE,,}" in
+    "ar" | "ar-"* ) LANGUAGE="Arabic" ;;
+    "bg" | "bg-"* ) LANGUAGE="Bulgarian" ;;
+    "zh-hk" | "zh-mo" ) LANGUAGE="Chinese (Traditional)" ;;
+    "zh-hant" | "zh-tw" ) LANGUAGE="Chinese (Traditional)" ;;
+    "zh" | "zh-"* ) LANGUAGE="Chinese (Simplified)" ;;
+    "hr" | "hr-"* ) LANGUAGE="Croatian" ;;
+    "cs" | "cs-"* ) LANGUAGE="Czech" ;;
+    "da" | "da-"* ) LANGUAGE="Danish" ;;
+    "nl" | "nl-"* ) LANGUAGE="Dutch" ;;
+    "en-gb" | "en-uk" ) LANGUAGE="English International" ;;
+    "en" | "en-"* ) LANGUAGE="English (United States)" ;;
+    "et" | "et-"* ) LANGUAGE="Estonian" ;;
+    "fi" | "fi-"* ) LANGUAGE="Finnish" ;;
+    "fr-ca" ) LANGUAGE="French Canadian" ;;
+    "fr" | "fr-"* ) LANGUAGE="French" ;;
+    "de" | "de-"* ) LANGUAGE="German" ;;
+    "el" | "el-"* ) LANGUAGE="Greek" ;;
+    "he" | "he-"* ) LANGUAGE="Hebrew" ;;
+    "hu" | "hu-"* ) LANGUAGE="Hungarian" ;;
+    "it" | "it-"* ) LANGUAGE="Italian" ;;
+    "ja" | "ja-"* ) LANGUAGE="Japanese" ;;
+    "ko" | "ko-"* ) LANGUAGE="Korean" ;;
+    "lv" | "lv-"* ) LANGUAGE="Latvian" ;;
+    "lt" | "lt-"* ) LANGUAGE="Lithuanian" ;;
+    "nb" | "nb-"* ) LANGUAGE="Norwegian" ;;
+    "nn" | "nn-"* ) LANGUAGE="Norwegian" ;;
+    "pl" | "pl-"* ) LANGUAGE="Polish" ;;
+    "pt-br" ) LANGUAGE="Brazilian Portuguese" ;;
+    "pt" | "pt-"* ) LANGUAGE="Portuguese" ;;
+    "ro" | "ro-"* ) LANGUAGE="Romanian" ;;
+    "ru" | "ru-"* ) LANGUAGE="Russian" ;;
+    "sr" | "sr-"* ) LANGUAGE="Serbian Latin" ;;
+    "sk" | "sk-"* ) LANGUAGE="Slovak" ;;
+    "sl" | "sl-"* ) LANGUAGE="Slovenian" ;;
+    "es-mx" ) LANGUAGE="Spanish (Mexico)" ;;
+    "es" | "es-"* ) LANGUAGE="Spanish" ;;
+    "sv" | "sv-"* ) LANGUAGE="Swedish" ;;
+    "tr" | "tr-"* ) LANGUAGE="Turkish" ;;
+    "uk" | "uk-"* ) LANGUAGE="Ukrainian" ;;
+  esac
+
+  case "${LANGUAGE,,}" in
+    "arabic" ;;
+    "bulgarian" ;;
+    "Chinese (Traditional)" ;;
+    "Chinese (Simplified)" ;;
+    "croatian" ;;
+    "czech" ;;
+    "danish" ;;
+    "dutch" ;;
+    "English International" ;;
+    "English (United States)" ;;
+    "estonian" ;;
+    "finnish" ;;
+    "french canadian" ;;
+    "french" ;;
+    "german" ;;
+    "greek" ;;
+    "hebrew" ;;
+    "hungarian" ;;
+    "italian" ;;
+    "japanese" ;;
+    "korean" ;;
+    "latvian" ;;
+    "lithuanian" ;;
+    "norwegian" ;;
+    "polish" ;;
+    "brazilian portuguese" ;;
+    "portuguese" ;;
+    "romanian" ;;
+    "russian" ;;
+    "serbian latin" ;;
+    "slovak" ;;
+    "slovenian" ;;
+    "Spanish (Mexico)" ;;
+    "Spanish" ;;
+    "Swedish" ;;
+    "Turkish" ;;
+    "Ukrainian" ;;
+  esac
+
 }
 
 printVersion() {
