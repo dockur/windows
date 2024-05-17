@@ -7,7 +7,6 @@ set -Eeuo pipefail
 : "${VERSION:=""}"
 : "${DETECTED:=""}"
 : "${KEYBOARD:=""}"
-: "${TIMEZONE:=""}"
 : "${LANGUAGE:=""}"
 : "${PASSWORD:=""}"
 
