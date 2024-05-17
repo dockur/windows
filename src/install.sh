@@ -592,28 +592,38 @@ updateAsset() {
   local language="$2"
   local culture region keyboard
 
-  # : "${PASSWORD:=""}"
-
   culture=$(getLanguage "$language" "culture")
 
   if [ -n "$culture" ] && [[ "${culture,,}" != "en-us" ]]; then
     sed -i "s/<UILanguage>en-US<\/UILanguage>/<UILanguage>$culture<\/UILanguage>/g" "$asset"
   fi
 
-  region="$culture"
-  [ -n "$REGION" ] && region="$REGION"
+  region="$REGION"
+  [ -z "$region" ] && region="$culture"
 
   if [ -n "$region" ] && [[ "${region,,}" != "en-us" ]]; then
     sed -i "s/<UserLocale>en-US<\/UserLocale>/<UserLocale>$region<\/UserLocale>/g" "$asset"
     sed -i "s/<SystemLocale>en-US<\/SystemLocale>/<SystemLocale>$region<\/SystemLocale>/g" "$asset"
   fi
 
-  keyboard="$culture"
-  [ -n "$KEYBOARD" ] && keyboard="$KEYBOARD"
+  keyboard="$KEYBOARD"
+  [ -z "$keyboard" ] && keyboard="$culture"
 
   if [ -n "$keyboard" ] && [[ "${keyboard,,}" != "en-us" ]]; then
     sed -i "s/<InputLocale>en-US<\/InputLocale>/<InputLocale>$keyboard<\/InputLocale>/g" "$asset"
     sed -i "s/<InputLocale>0409:00000409<\/InputLocale>/<InputLocale>$keyboard<\/InputLocale>/g" "$asset"
+  fi
+
+  if [ -n "$USERNAME" ]; then
+    sed -i "s/where name=\"Docker\"/where name=\"$USERNAME\"/g" "$asset"
+    sed -i "s/<Name>Docker<\/Name>/<Name>$USERNAME<\/Name>/g" "$asset"
+    sed -i "s/<FullName>Docker<\/FullName>/<FullName>$USERNAME<\/FullName>/g" "$asset"
+    sed -i "s/<Username>Docker<\/Username>/<Username>$USERNAME<\/Username>/g" "$asset"
+  fi
+
+  if [ -n "$PASSWORD" ]; then
+    sed -i "s/<Password>.*<Value \/>/<Password>.*<Value>$PASSWORD<\/Value>/g" "$asset"
+    sed -i "s/<AdministratorPassword>.*<Value \/>/<AdministratorPassword>.*<Value>$PASSWORD<\/Value>/g" "$asset"
   fi
 
   cat "$asset"
