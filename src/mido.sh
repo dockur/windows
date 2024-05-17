@@ -93,13 +93,13 @@ download_windows() {
     return $?
   }
 
-  [[ "$DEBUG" == [Yy1]* ]] && echo -n " - Getting Product edition ID: "
+  [[ "$DEBUG" == [Yy1]* ]] && echo -n "Getting Product edition ID: "
   # tr: Filter for only numerics to prevent HTTP parameter injection
   # head -c was recently added to POSIX: https://austingroupbugs.net/view.php?id=407
   product_edition_id="$(echo "$iso_download_page_html" | grep -Eo '<option value="[0-9]+">Windows' | cut -d '"' -f 2 | head -n 1 | tr -cd '0-9' | head -c 16)"
   [[ "$DEBUG" == [Yy1]* ]] && echo "$product_edition_id"
 
-  [[ "$DEBUG" == [Yy1]* ]] && echo " - Permit Session ID: $session_id"
+  [[ "$DEBUG" == [Yy1]* ]] && echo "Permit Session ID: $session_id"
   # Permit Session ID
   # "org_id" is always the same value
   curl --silent --max-time 15 --output /dev/null --user-agent "$user_agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "https://vlscppe.microsoft.com/tags?org_id=y6jn8c31&session_id=$session_id" || {
@@ -111,7 +111,7 @@ download_windows() {
   # Extract everything after the last slash
   local url_segment_parameter="${url##*/}"
 
-  [[ "$DEBUG" == [Yy1]* ]] && echo -n " - Getting language SKU ID: "
+  [[ "$DEBUG" == [Yy1]* ]] && echo -n "Getting language SKU ID: "
   # Get language -> skuID association table
   # SKU ID: This specifies the language of the ISO. We always use "English (United States)", however, the SKU for this changes with each Windows release
   # We must make this request so our next one will be allowed
@@ -125,12 +125,12 @@ download_windows() {
   sku_id="$(echo "$language_skuid_table_html" | grep "${language}" | sed 's/&quot;//g' | cut -d ',' -f 1  | cut -d ':' -f 2 | tr -cd '[:alnum:]-' | head -c 16)"
 
   if [ -z "$sku_id" ]; then
-    error "No downloads for language \"$language\" were found!"
+    error "No downloads for language \"$language\" ($lang) were found!"
     return 1
   fi
 
   [[ "$DEBUG" == [Yy1]* ]] && echo "$sku_id"
-  [[ "$DEBUG" == [Yy1]* ]] && echo " - Getting ISO download link..."
+  [[ "$DEBUG" == [Yy1]* ]] && echo "Getting ISO download link..."
 
   # Get ISO download link
   # If any request is going to be blocked by Microsoft it's always this last one (the previous requests always seem to succeed)
@@ -211,7 +211,7 @@ download_windows_eval() {
   local iso_download_page_html=""
   local url="https://www.microsoft.com/en-us/evalcenter/download-$windows_version"
 
-  [[ "$DEBUG" == [Yy1]* ]] && echo " - Parsing download page: ${url}"
+  [[ "$DEBUG" == [Yy1]* ]] && echo "Parsing download page: ${url}"
   iso_download_page_html="$(curl --silent --max-time 15 --location --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url")" || {
     handle_curl_error $?
     return $?
@@ -223,10 +223,10 @@ download_windows_eval() {
     return 1
   fi
 
-  [[ "$DEBUG" == [Yy1]* ]] && echo " - Getting download link.."
+  [[ "$DEBUG" == [Yy1]* ]] && echo "Getting download link.."
   iso_download_links="$(echo "$iso_download_page_html" | grep -o "https://go.microsoft.com/fwlink/p/?LinkID=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture}&country=${country}")" || {
     # This should only happen if there's been some change to the download endpoint web address
-    error "Windows server download page gave us no download link (language: $culture [$country])"
+    error "Windows server download page gave us no download link for language \"$culture\""
     return 1
   }
 
@@ -336,8 +336,9 @@ getESD() {
 
   local dir="$1"
   local version="$2"
-  local language="$3"
+  local lang="$3"
   local desc="$4"
+  local culture
   local editionName
   local winCatalog size
 
@@ -348,6 +349,13 @@ getESD() {
     error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
   fi
 
+  [ -z "$lang" ] && lang="en-US"
+  culture=$(getLanguage "$lang" "culture")
+
+  if [ -z "$culture" ]; then
+    error "Language \"$lang\" is not supported by this download method!" && return 1
+  fi
+  
   local msg="Downloading product information from Microsoft server..."
   info "$msg" && html "$msg"
 
@@ -376,18 +384,17 @@ getESD() {
     error "Failed to find $xFile in $wFile!" && return 1
   fi
 
-  local esdLang="${language,,}"
   local edQuery='//File[Architecture="'${PLATFORM}'"][Edition="'${editionName}'"]'
 
   echo -e '<Catalog>' > "$dir/$fFile"
   xmllint --nonet --xpath "${edQuery}" "$dir/$xFile" >> "$dir/$fFile" 2>/dev/null
   echo -e '</Catalog>'>> "$dir/$fFile"
 
-  xmllint --nonet --xpath '//File[LanguageCode="'${esdLang}'"]' "$dir/$fFile" >"$dir/$eFile"
+  xmllint --nonet --xpath '//File[LanguageCode="'${culture,,}'"]' "$dir/$fFile" >"$dir/$eFile"
 
   size=$(stat -c%s "$dir/$eFile")
   if ((size<20)); then
-    error "Language \"$language\" is not supported by this download method!" && return 1
+    error "Language \"$culture\" is not supported by this download method!" && return 1
   fi
 
   local tag="FilePath"
@@ -482,7 +489,9 @@ downloadFile() {
   if (( rc == 0 )) && [ -f "$iso" ]; then
     total=$(stat -c%s "$iso")
     if [ "$total" -gt 100000000 ]; then
-      ! verifyFile "$iso" "$size" "$total" "$sum" && return 1
+      if [[ "${lang,,}" == "en" ]] || [[ "${lang,,}" == "en-"* ]]; then
+        ! verifyFile "$iso" "$size" "$total" "$sum" && return 1
+      fi
       html "Download finished successfully..." && return 0
     fi
   fi
