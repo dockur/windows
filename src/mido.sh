@@ -150,12 +150,7 @@ download_windows() {
 
   if ! [ "$iso_download_link" ]; then
     # This should only happen if there's been some change to the download endpoint web address
-    if [[ "${lang,,}" == "en" ]] || [[ "${lang,,}" == "en-"* ]]; then
-      error "Microsoft servers gave us no download link to our request for an automated download!"
-    else
-      language=$(getLanguage "$lang" "desc")
-      error "No download for the $language language available!"
-    fi
+    error "Microsoft servers gave us no download link to our request for an automated download!"
     return 1
   fi
 
