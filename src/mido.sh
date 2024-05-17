@@ -153,7 +153,7 @@ download_windows() {
   language=$(getLanguage "$lang")
 
   if [ -z "$language" ]; then
-    error "Language $lang is not supported for this download method!"
+    error "Language \"$lang\" is not supported by this download method!"
     return 1
   fi
 
@@ -257,9 +257,9 @@ download_windows_eval() {
 
   local id="$1"
   local lang="$2"
+  local culture=""
   local windows_version=""
   local enterprise_type=""
-  local country culture
 
   case "${id,,}" in
     "win11${PLATFORM,,}-enterprise-eval" )
@@ -298,11 +298,11 @@ download_windows_eval() {
   culture=$(getCulture "$lang")
 
   if [ -z "$culture" ]; then
-    error "Language $lang is not supported for this download method!"
+    error "Language \"$lang\" is not supported by this download method!"
     return 1
   fi
 
-  country="${culture#*-}"
+  local country="${culture#*-}"
   country="${country^^}"
 
   local iso_download_page_html=""
@@ -354,7 +354,7 @@ download_windows_eval() {
 getWindows() {
 
   local version="$1"
-  local language="$2"
+  local lang="$2"
   local desc="$3"
 
   local msg="Requesting $desc from Microsoft server..."
@@ -362,22 +362,28 @@ getWindows() {
 
   case "${version,,}" in
     "win81${PLATFORM,,}" | "win10${PLATFORM,,}" | "win11${PLATFORM,,}" )
-      download_windows "$version" "$language" && return 0
+      download_windows "$version" "$lang" && return 0
       ;;
     "win11${PLATFORM,,}-enterprise-eval" )
-      download_windows_eval "$version" "$language" && return 0
+      download_windows_eval "$version" "$lang" && return 0
       ;;
     "win10${PLATFORM,,}-enterprise-eval" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-      download_windows_eval "$version" "$language" && return 0
+      download_windows_eval "$version" "$lang" && return 0
       ;;
     "win2022-eval" | "win2019-eval" | "win2016-eval" | "win2012r2-eval" )
-      download_windows_eval "$version" "$language" && return 0
+      download_windows_eval "$version" "$lang" && return 0
       ;;
     "win81${PLATFORM,,}-enterprise-eval" )
-      MIDO_URL="https://download.microsoft.com/download/B/9/9/B999286E-0A47-406D-8B3D-5B5AD7373A4A/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_ENTERPRISE_EVAL_EN-US-IR3_CENA_X64FREE_EN-US_DV9.ISO" && return 0
+      if [[ "${lang,,}" == "en"* ]]; then
+        MIDO_URL="https://download.microsoft.com/download/B/9/9/B999286E-0A47-406D-8B3D-5B5AD7373A4A/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_ENTERPRISE_EVAL_EN-US-IR3_CENA_X64FREE_EN-US_DV9.ISO" && return 0
+      fi
+      error "Language \"$lang\" is not supported by this download method!"
       ;;
     "win2008r2" )
-      MIDO_URL="https://download.microsoft.com/download/4/1/D/41DEA7E0-B30D-4012-A1E3-F24DC03BA1BB/7601.17514.101119-1850_x64fre_server_eval_en-us-GRMSXEVAL_EN_DVD.iso" && return 0
+      if [[ "${lang,,}" == "en"* ]]; then
+        MIDO_URL="https://download.microsoft.com/download/4/1/D/41DEA7E0-B30D-4012-A1E3-F24DC03BA1BB/7601.17514.101119-1850_x64fre_server_eval_en-us-GRMSXEVAL_EN_DVD.iso" && return 0
+      fi
+      error "Language \"$lang\" is not supported by this download method!"
       ;;
     * ) error "Invalid VERSION specified, value \"$version\" is not recognized!" ;;
   esac
