@@ -6,7 +6,11 @@ set -Eeuo pipefail
 : "${REMOVE:=""}"
 : "${VERSION:=""}"
 : "${DETECTED:=""}"
+
+: "${KEYBOARD:=""}"
+: "${TIMEZONE:=""}"
 : "${LANGUAGE:=""}"
+: "${PASSWORD:=""}"
 
 MIRRORS=5
 PLATFORM="x64"
