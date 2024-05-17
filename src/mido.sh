@@ -1,6 +1,57 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+getLanguage() {
+
+  local code="$1"
+  local lang=""
+
+  case "${code,,}" in
+    "ar" | "ar-"* ) lang="Arabic" ;;
+    "bg" | "bg-"* ) lang="Bulgarian" ;;
+    "zh-hk" | "zh-mo" ) lang="Chinese (Traditional)" ;;
+    "zh-hant" | "zh-tw" ) lang="Chinese (Traditional)" ;;
+    "zh" | "zh-"* ) lang="Chinese (Simplified)" ;;
+    "hr" | "hr-"* ) lang="Croatian" ;;
+    "cs" | "cs-"* ) lang="Czech" ;;
+    "da" | "da-"* ) lang="Danish" ;;
+    "nl" | "nl-"* ) lang="Dutch" ;;
+    "en-gb" | "en-uk" ) lang="English International" ;;
+    "en" | "en-"* ) lang="English (United States)" ;;
+    "et" | "et-"* ) lang="Estonian" ;;
+    "fi" | "fi-"* ) lang="Finnish" ;;
+    "fr-ca" ) lang="French Canadian" ;;
+    "fr" | "fr-"* ) lang="French" ;;
+    "de" | "de-"* ) lang="German" ;;
+    "el" | "el-"* ) lang="Greek" ;;
+    "he" | "he-"* ) lang="Hebrew" ;;
+    "hu" | "hu-"* ) lang="Hungarian" ;;
+    "it" | "it-"* ) lang="Italian" ;;
+    "ja" | "ja-"* ) lang="Japanese" ;;
+    "ko" | "ko-"* ) lang="Korean" ;;
+    "lv" | "lv-"* ) lang="Latvian" ;;
+    "lt" | "lt-"* ) lang="Lithuanian" ;;
+    "nb" | "nb-"* ) lang="Norwegian" ;;
+    "nn" | "nn-"* ) lang="Norwegian" ;;
+    "pl" | "pl-"* ) lang="Polish" ;;
+    "pt-br" ) lang="Brazilian Portuguese" ;;
+    "pt" | "pt-"* ) lang="Portuguese" ;;
+    "ro" | "ro-"* ) lang="Romanian" ;;
+    "ru" | "ru-"* ) lang="Russian" ;;
+    "sr" | "sr-"* ) lang="Serbian Latin" ;;
+    "sk" | "sk-"* ) lang="Slovak" ;;
+    "sl" | "sl-"* ) lang="Slovenian" ;;
+    "es-mx" ) lang="Spanish (Mexico)" ;;
+    "es" | "es-"* ) lang="Spanish" ;;
+    "sv" | "sv-"* ) lang="Swedish" ;;
+    "tr" | "tr-"* ) lang="Turkish" ;;
+    "uk" | "uk-"* ) lang="Ukrainian" ;;
+  esac
+
+  echo "$lang"
+  return 0
+}
+
 handle_curl_error() {
 
   local error_code="$1"
@@ -112,6 +163,8 @@ download_windows() {
     return $?
   }
 
+  [ -z "$language" ] && language="en-US"
+  language=$(getLanguage "$language")
   [ -z "$language" ] && language="English (United States)"
 
   # Limit untrusted size for input validation
@@ -119,9 +172,15 @@ download_windows() {
 
   # tr: Filter for only alphanumerics or "-" to prevent HTTP parameter injection
   sku_id="$(echo "$language_skuid_table_html" | grep "${language}" | sed 's/&quot;//g' | cut -d ',' -f 1  | cut -d ':' -f 2 | tr -cd '[:alnum:]-' | head -c 16)"
-  [[ "$DEBUG" == [Yy1]* ]] && echo "$sku_id"
 
+  if [ -z "$sku_id" ]; then
+    error "Invalid language: $language"
+    return 1
+  fi
+
+  [[ "$DEBUG" == [Yy1]* ]] && echo "$sku_id"
   [[ "$DEBUG" == [Yy1]* ]] && echo " - Getting ISO download link..."
+
   # Get ISO download link
   # If any request is going to be blocked by Microsoft it's always this last one (the previous requests always seem to succeed)
   # --referer: Required by Microsoft servers to allow request
