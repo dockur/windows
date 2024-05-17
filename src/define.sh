@@ -126,197 +126,197 @@ getLanguage() {
       code="ar"
       lang="Arabic"
       desc="$lang"
-      culture="ar-sa" ;;
+      culture="ar-SA" ;;
     "bg" | "bg-"* )
       code="bg"
       lang="Bulgarian"
       desc="$lang"
-      culture="bg-bg" ;;
+      culture="bg-BG" ;;
     "cr" | "cr-"* | "hr" | "hr-"* )
       code="hr"
       lang="Croatian"
       desc="$lang"
-      culture="hr-hr" ;;
+      culture="hr-HR" ;;
     "cs" | "cs-"* | "cz" | "cz-"* )
       code="cs"
       lang="Czech"
       desc="$lang"
-      culture="cs-cz" ;;
+      culture="cs-CZ" ;;
     "da" | "da-"* | "dk" | "dk-"* )
       code="da"
       lang="Danish"
       desc="$lang"
-      culture="da-dk" ;;
+      culture="da-DK" ;;
     "de" | "de-"* )
       code="de"
       lang="German"
       desc="$lang"
-      culture="de-de" ;;
+      culture="de-DE" ;;
     "el" | "el-"* | "gr" | "gr-"* )
       code="el"
       lang="Greek"
       desc="$lang"
-      culture="el-gr" ;;
+      culture="el-GR" ;;
     "gb" | "en-gb" )
       code="en"
       lang="English International"
       desc="English"
-      culture="en-gb" ;;
+      culture="en-GB" ;;
     "en" | "en-"* )
       code="en"
       lang="English (United States)"
       desc="English"
-      culture="en-us" ;;
+      culture="en-US" ;;
     "mx" | "es-mx" )
       code="es"
       lang="Spanish (Mexico)"
       desc="Spanish"
-      culture="es-mx" ;;
+      culture="es-MX" ;;
     "es" | "es-"* )
       code="es"
       lang="Spanish"
       desc="$lang"
-      culture="es-es" ;;
+      culture="es-ES" ;;
     "et" | "et-"* )
       code="et"
       lang="Estonian"
       desc="$lang"
-      culture="et-ee" ;;
+      culture="et-EE" ;;
     "fi" | "fi-"* )
       code="fi"
       lang="Finnish"
       desc="$lang"
-      culture="fi-fi" ;;
+      culture="fi-FI" ;;
     "ca" | "fr-ca" )
       code="fr"
       lang="French Canadian"
       desc="French"
-      culture="fr-ca" ;;
+      culture="fr-CA" ;;
     "fr" | "fr-"* )
       code="fr"
       lang="French"
       desc="$lang"
-      culture="fr-fr" ;;
+      culture="fr-FR" ;;
     "he" | "he-"* | "il" | "il-"* )
       code="he"
       lang="Hebrew"
       desc="$lang"
-      culture="he-il" ;;
+      culture="he-IL" ;;
     "hu" | "hu-"* )
       code="hu"
       lang="Hungarian"
       desc="$lang"
-      culture="hu-hu" ;;
+      culture="hu-HU" ;;
     "it" | "it-"* )
       code="it"
       lang="Italian"
       desc="$lang"
-      culture="it-it" ;;
+      culture="it-IT" ;;
     "ja" | "ja-"* | "jp" | "jp-"* )
       code="ja"
       lang="Japanese"
       desc="$lang"
-      culture="ja-jp" ;;
+      culture="ja-JP" ;;
     "ko" | "ko-"* | "kr" | "kr-"* )
       code="ko"
       lang="Korean"
       desc="$lang"
-      culture="ko-kr" ;;
+      culture="ko-KR" ;;
     "lv" | "lv-"* )
       code="lv"
       lang="Latvian"
       desc="$lang"
-      culture="lt-lt" ;;
+      culture="lt-LT" ;;
     "lt" | "lt-"* )
       code="lt"
       lang="Lithuanian"
       desc="$lang"
-      culture="lv-lv" ;;
+      culture="lv-LV" ;;
     "nb" | "nb-"* |"nn" | "nn-"* | "no" | "no-"* )
       code="no"
       lang="Norwegian"
       desc="$lang"
-      culture="nb-no" ;;
+      culture="nb-NO" ;;
     "nl" | "nl-"* )
       code="nl"
       lang="Dutch"
       desc="$lang"
-      culture="nl-nl" ;;
+      culture="nl-NL" ;;
     "pl" | "pl-"* )
       code="pl"
       lang="Polish"
       desc="$lang"
-      culture="pl-pl" ;;
+      culture="pl-PL" ;;
     "br" | "pt-br" )
       code="pt"
       lang="Brazilian Portuguese"
       desc="Portuguese"
-      culture="pt-br" ;;
+      culture="pt-BR" ;;
     "pt" | "pt-"* )
       code="pt"
       lang="Portuguese"
       desc="$lang"
-      culture="pt-br" ;;
+      culture="pt-BR" ;;
     "ro" | "ro-"* )
       code="ro"
       lang="Romanian"
       desc="$lang"
-      culture="ro-ro" ;;
+      culture="ro-RO" ;;
     "ru" | "ru-"* )
       code="ru"
       lang="Russian"
       desc="$lang"
-      culture="ru-ru" ;;
+      culture="ru-RU" ;;
     "sk" | "sk-"* )
       code="sk"
       lang="Slovak"
       desc="$lang"
-      culture="sk-sk" ;;
+      culture="sk-SK" ;;
     "si" | "si-"* | "sl" | "sl-"* )
       code="sl"
       lang="Slovenian"
       desc="$lang"
-      culture="sl-si" ;;
+      culture="sl-SI" ;;
     "sr" | "sr-"* )
       code="sr"
       lang="Serbian Latin"
       desc="Serbian"
-      culture="sr-latn-rs" ;;
+      culture="sr-Latn-RS" ;;
     "se" | "se-"* | "sv" | "sv-"* )
       code="sv"
       lang="Swedish"
       desc="$lang"
-      culture="sv-se" ;;
+      culture="sv-SE" ;;
     "th" | "th-"* )
       code="th"
       lang="Thai"
       desc="$lang"
-      culture="th-th" ;;
+      culture="th-TH" ;;
     "tr" | "tr-"* )
       code="tr"
       lang="Turkish"
       desc="$lang"
-      culture="tr-tr" ;;
+      culture="tr-TR" ;;
     "ua" | "ua-"* | "uk" | "uk-"* )
       code="uk"
       lang="Ukrainian"
       desc="$lang"
-      culture="uk-ua" ;;
+      culture="uk-UA" ;;
     "zh-hk" | "cn-hk" )
       code="hk"
       lang="Chinese (Traditional)"
       desc="Chinese HK"
-      culture="zh-tw" ;;
+      culture="zh-TW" ;;
     "zh-tw" | "cn-tw" )
       code="tw"
       lang="Chinese (Traditional)"
       desc="Chinese TW"
-      culture="zh-tw" ;;
+      culture="zh-TW" ;;
     "zh" | "zh-"* | "cn" | "cn-"* )
       code="cn"
       lang="Chinese (Simplified)"
       desc="Chinese"
-      culture="zh-cn" ;;
+      culture="zh-CN" ;;
   esac
 
   case "${ret,,}" in
