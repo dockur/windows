@@ -64,11 +64,6 @@ download_windows() {
 
   language=$(getLanguage "$lang" "name")
 
-  if [ -z "$language" ]; then
-    error "Language \"$lang\" is not supported by this download method!"
-    return 1
-  fi
-
   local url="https://www.microsoft.com/en-us/software-download/windows$windows_version"
   case "$windows_version" in
     8 | 10) url="${url}ISO";;
@@ -124,7 +119,8 @@ download_windows() {
   sku_id="$(echo "$language_skuid_table_html" | grep "${language}" | sed 's/&quot;//g' | cut -d ',' -f 1  | cut -d ':' -f 2 | tr -cd '[:alnum:]-' | head -c 16)"
 
   if [ -z "$sku_id" ]; then
-    error "No downloads for language \"$language\" ($lang) were found!"
+    language=$(getLanguage "$lang" "desc")
+    error "No download for $language language available!"
     return 1
   fi
 
@@ -167,6 +163,7 @@ download_windows_eval() {
   local id="$1"
   local lang="$2"
   local culture=""
+  local language=""
   local windows_version=""
   local enterprise_type=""
 
@@ -198,14 +195,7 @@ download_windows_eval() {
 
   culture=$(getLanguage "$lang" "culture")
 
-  if [ -z "$culture" ]; then
-    error "Language \"$lang\" is not supported by this download method!"
-    return 1
-  fi
-
   local country="${culture#*-}"
-  country="${country^^}"
-
   local iso_download_page_html=""
   local url="https://www.microsoft.com/en-us/evalcenter/download-$windows_version"
 
@@ -222,9 +212,14 @@ download_windows_eval() {
   fi
 
   [[ "$DEBUG" == [Yy1]* ]] && echo "Getting download link.."
-  iso_download_links="$(echo "$iso_download_page_html" | grep -o "https://go.microsoft.com/fwlink/p/?LinkID=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture}&country=${country}")" || {
+  iso_download_links="$(echo "$iso_download_page_html" | grep -o "https://go.microsoft.com/fwlink/p/?LinkID=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country^^}")" || {
     # This should only happen if there's been some change to the download endpoint web address
-    error "Windows server download page gave us no download link for language \"$culture\""
+    if [[ "${lang,,}" == "en" ]] || [[ "${lang,,}" == "en-"* ]]; then
+      error "Windows server download page gave us no download link!"
+    else
+      language=$(getLanguage "$lang" "desc")
+      error "No download for $language language available!"
+    fi
     return 1
   }
 
@@ -257,7 +252,8 @@ getWindows() {
   local version="$1"
   local lang="$2"
   local desc="$3"
-
+  local language
+  
   local msg="Requesting $desc from Microsoft server..."
   info "$msg" && html "$msg"
 
@@ -278,13 +274,15 @@ getWindows() {
       if [[ "${lang,,}" == "en" ]] || [[ "${lang,,}" == "en-"* ]]; then
         MIDO_URL="https://download.microsoft.com/download/B/9/9/B999286E-0A47-406D-8B3D-5B5AD7373A4A/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_ENTERPRISE_EVAL_EN-US-IR3_CENA_X64FREE_EN-US_DV9.ISO" && return 0
       fi
-      error "Language \"$lang\" is not supported by this download method!"
+      language=$(getLanguage "$lang" "desc")
+      error "No download for $language language available!"
       ;;
     "win2008r2" )
       if [[ "${lang,,}" == "en" ]] || [[ "${lang,,}" == "en-"* ]]; then
         MIDO_URL="https://download.microsoft.com/download/4/1/D/41DEA7E0-B30D-4012-A1E3-F24DC03BA1BB/7601.17514.101119-1850_x64fre_server_eval_en-us-GRMSXEVAL_EN_DVD.iso" && return 0
       fi
-      error "Language \"$lang\" is not supported by this download method!"
+      language=$(getLanguage "$lang" "desc")
+      error "No download for $language language available!"
       ;;
     * ) error "Invalid VERSION specified, value \"$version\" is not recognized!" ;;
   esac
@@ -337,9 +335,11 @@ getESD() {
   local lang="$3"
   local desc="$4"
   local culture
+  local language
   local editionName
   local winCatalog size
 
+  culture=$(getLanguage "$lang" "culture")
   winCatalog=$(getCatalog "$version" "url")
   editionName=$(getCatalog "$version" "edition")
 
@@ -347,12 +347,6 @@ getESD() {
     error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
   fi
 
-  culture=$(getLanguage "$lang" "culture")
-
-  if [ -z "$culture" ]; then
-    error "Language \"$lang\" is not supported by this download method!" && return 1
-  fi
-  
   local msg="Downloading product information from Microsoft server..."
   info "$msg" && html "$msg"
 
@@ -391,7 +385,8 @@ getESD() {
 
   size=$(stat -c%s "$dir/$eFile")
   if ((size<20)); then
-    error "Language \"$culture\" is not supported by this download method!" && return 1
+    language=$(getLanguage "$lang" "desc")
+    error "$language language is not supported by this download method!" && return 1
   fi
 
   local tag="FilePath"
