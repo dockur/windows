@@ -82,7 +82,7 @@ download_windows() {
   # Also, keeping a "$WindowsVersions" array like Fido does would be way too much of a maintenance burden
   # Remove "Accept" header that curl sends by default
   [[ "$DEBUG" == [Yy1]* ]] && echo " - Parsing download page: ${url}"
-  iso_download_page_html="$(curl --silent --max-time 15 --user-agent "$user_agent" --header "Accept:" --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url")" || {
+  iso_download_page_html="$(curl --silent --max-time 30 --user-agent "$user_agent" --header "Accept:" --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url")" || {
     handle_curl_error $?
     return $?
   }
@@ -96,7 +96,7 @@ download_windows() {
   [[ "$DEBUG" == [Yy1]* ]] && echo "Permit Session ID: $session_id"
   # Permit Session ID
   # "org_id" is always the same value
-  curl --silent --max-time 15 --output /dev/null --user-agent "$user_agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "https://vlscppe.microsoft.com/tags?org_id=y6jn8c31&session_id=$session_id" || {
+  curl --silent --max-time 30 --output /dev/null --user-agent "$user_agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "https://vlscppe.microsoft.com/tags?org_id=y6jn8c31&session_id=$session_id" || {
     # This should only happen if there's been some change to how this API works
     handle_curl_error $?
     return $?
@@ -110,7 +110,7 @@ download_windows() {
   # SKU ID: This specifies the language of the ISO. We always use "English (United States)", however, the SKU for this changes with each Windows release
   # We must make this request so our next one will be allowed
   # --data "" is required otherwise no "Content-Length" header will be sent causing HTTP response "411 Length Required"
-  language_skuid_table_html="$(curl --silent --max-time 15 --request POST --user-agent "$user_agent" --data "" --header "Accept:" --max-filesize 10K --fail --proto =https --tlsv1.2 --http1.1 -- "https://www.microsoft.com/en-US/api/controls/contentinclude/html?pageId=a8f8f489-4c7f-463a-9ca6-5cff94d8d041&host=www.microsoft.com&segments=software-download,$url_segment_parameter&query=&action=getskuinformationbyproductedition&sessionId=$session_id&productEditionId=$product_edition_id&sdVersion=2")" || {
+  language_skuid_table_html="$(curl --silent --max-time 30 --request POST --user-agent "$user_agent" --data "" --header "Accept:" --max-filesize 10K --fail --proto =https --tlsv1.2 --http1.1 -- "https://www.microsoft.com/en-US/api/controls/contentinclude/html?pageId=a8f8f489-4c7f-463a-9ca6-5cff94d8d041&host=www.microsoft.com&segments=software-download,$url_segment_parameter&query=&action=getskuinformationbyproductedition&sessionId=$session_id&productEditionId=$product_edition_id&sdVersion=2")" || {
     handle_curl_error $?
     return $?
   }
@@ -130,7 +130,7 @@ download_windows() {
   # Get ISO download link
   # If any request is going to be blocked by Microsoft it's always this last one (the previous requests always seem to succeed)
   # --referer: Required by Microsoft servers to allow request
-  iso_download_link_html="$(curl --silent --max-time 15 --request POST --user-agent "$user_agent" --data "" --referer "$url" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "https://www.microsoft.com/en-US/api/controls/contentinclude/html?pageId=6e2a1789-ef16-4f27-a296-74ef7ef5d96b&host=www.microsoft.com&segments=software-download,$url_segment_parameter&query=&action=GetProductDownloadLinksBySku&sessionId=$session_id&skuId=$sku_id&language=English&sdVersion=2")"
+  iso_download_link_html="$(curl --silent --max-time 30 --request POST --user-agent "$user_agent" --data "" --referer "$url" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "https://www.microsoft.com/en-US/api/controls/contentinclude/html?pageId=6e2a1789-ef16-4f27-a296-74ef7ef5d96b&host=www.microsoft.com&segments=software-download,$url_segment_parameter&query=&action=GetProductDownloadLinksBySku&sessionId=$session_id&skuId=$sku_id&language=English&sdVersion=2")"
 
   if ! [ "$iso_download_link_html" ]; then
     # This should only happen if there's been some change to how this API works
@@ -205,7 +205,7 @@ download_windows_eval() {
   local url="https://www.microsoft.com/en-us/evalcenter/download-$windows_version"
 
   [[ "$DEBUG" == [Yy1]* ]] && echo "Parsing download page: ${url}"
-  iso_download_page_html="$(curl --silent --max-time 15 --location --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url")" || {
+  iso_download_page_html="$(curl --silent --max-time 30 --location --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url")" || {
     handle_curl_error $?
     return $?
   }
@@ -242,7 +242,7 @@ download_windows_eval() {
   # Follow redirect so proceeding log message is useful
   # This is a request we make this Fido doesn't
   # We don't need to set "--max-filesize" here because this is a HEAD request and the output is to /dev/null anyway
-  iso_download_link="$(curl --silent --max-time 15 --location --output /dev/null --silent --write-out "%{url_effective}" --head --fail --proto =https --tlsv1.2 --http1.1 -- "$iso_download_link")" || {
+  iso_download_link="$(curl --silent --max-time 30 --location --output /dev/null --silent --write-out "%{url_effective}" --head --fail --proto =https --tlsv1.2 --http1.1 -- "$iso_download_link")" || {
     # This should only happen if the Microsoft servers are down
     handle_curl_error $?
     return $?
