@@ -112,49 +112,6 @@ parseVersion() {
   return 0
 }
 
-parseLanguage() {
-
-  [ -z "$LANGUAGE" ] && LANGUAGE="en"
-
-  case "${LANGUAGE,,}" in
-    "arabic" | "arab" ) LANGUAGE="ar" ;;
-    "bulgarian" | "bu" ) LANGUAGE="bg" ;;
-    "chinese" | "cn" ) LANGUAGE="zh" ;;
-    "croatian" | "cr" | "hrvatski" ) LANGUAGE="hr" ;;
-    "czech" | "cz" | "cesky" ) LANGUAGE="cs" ;;
-    "danish" | "dk" | "danske" ) LANGUAGE="da" ;;
-    "dutch" | "nederlands" ) LANGUAGE="nl" ;;
-    "english" | "gb" | "british" ) LANGUAGE="en" ;;
-    "estonian" | "eesti" ) LANGUAGE="et" ;;
-    "finnish" | "suomi" ) LANGUAGE="fi" ;;
-    "french" | "français" | "francais" ) LANGUAGE="fr" ;;
-    "german" | "deutsch" ) LANGUAGE="de" ;;
-    "greek" | "gr" ) LANGUAGE="el" ;;
-    "hebrew" | "il" ) LANGUAGE="he" ;;
-    "hungarian" | "magyar" ) LANGUAGE="hu" ;;
-    "italian" | "italiano" ) LANGUAGE="it" ;;
-    "japanese" | "jp" ) LANGUAGE="ja" ;;
-    "korean" | "kr" ) LANGUAGE="ko" ;;
-    "latvian" | "latvijas" ) LANGUAGE="lv" ;;
-    "lithuanian" | "lietuvos" ) LANGUAGE="lt" ;;
-    "norwegian" | "no" | "nb" | "norsk" ) LANGUAGE="nn" ;;
-    "polish" | "polski" ) LANGUAGE="pl" ;;
-    "portuguese" | "pt" | "br" ) LANGUAGE="pt-br" ;;
-    "português" | "portugues" ) LANGUAGE="pt-br" ;;
-    "romanian" | "română" | "romana" ) LANGUAGE="ro" ;;
-    "russian" | "ruski" ) LANGUAGE="ru" ;;
-    "serbian" | "serbian latin" ) LANGUAGE="sr" ;;
-    "slovak" | "slovenský" | "slovensky" ) LANGUAGE="sk" ;;
-    "slovenian" | "si" | "slovenski" ) LANGUAGE="sl" ;;
-    "spanish" | "espanol" | "español" ) LANGUAGE="es" ;;
-    "swedish" | "se" | "svenska" ) LANGUAGE="sv" ;;
-    "turkish" | "türk" | "turk" ) LANGUAGE="tr" ;;
-    "thai" ) LANGUAGE="th" ;;
-    "ukrainian" | "ua" ) LANGUAGE="uk" ;;
-  esac
-
-}
-
 getLanguage() {
 
   local id="$1"
@@ -370,6 +327,55 @@ getLanguage() {
   esac
 
   return 0
+}
+
+parseLanguage() {
+
+  [ -z "$LANGUAGE" ] && LANGUAGE="en"
+
+  case "${LANGUAGE,,}" in
+    "arabic" | "arab" ) LANGUAGE="ar" ;;
+    "bulgarian" | "bu" ) LANGUAGE="bg" ;;
+    "chinese" | "cn" ) LANGUAGE="zh" ;;
+    "croatian" | "cr" | "hrvatski" ) LANGUAGE="hr" ;;
+    "czech" | "cz" | "cesky" ) LANGUAGE="cs" ;;
+    "danish" | "dk" | "danske" ) LANGUAGE="da" ;;
+    "dutch" | "nederlands" ) LANGUAGE="nl" ;;
+    "english" | "gb" | "british" ) LANGUAGE="en" ;;
+    "estonian" | "eesti" ) LANGUAGE="et" ;;
+    "finnish" | "suomi" ) LANGUAGE="fi" ;;
+    "french" | "français" | "francais" ) LANGUAGE="fr" ;;
+    "german" | "deutsch" ) LANGUAGE="de" ;;
+    "greek" | "gr" ) LANGUAGE="el" ;;
+    "hebrew" | "il" ) LANGUAGE="he" ;;
+    "hungarian" | "magyar" ) LANGUAGE="hu" ;;
+    "italian" | "italiano" ) LANGUAGE="it" ;;
+    "japanese" | "jp" ) LANGUAGE="ja" ;;
+    "korean" | "kr" ) LANGUAGE="ko" ;;
+    "latvian" | "latvijas" ) LANGUAGE="lv" ;;
+    "lithuanian" | "lietuvos" ) LANGUAGE="lt" ;;
+    "norwegian" | "no" | "nb" | "norsk" ) LANGUAGE="nn" ;;
+    "polish" | "polski" ) LANGUAGE="pl" ;;
+    "portuguese" | "pt" | "br" ) LANGUAGE="pt-br" ;;
+    "português" | "portugues" ) LANGUAGE="pt-br" ;;
+    "romanian" | "română" | "romana" ) LANGUAGE="ro" ;;
+    "russian" | "ruski" ) LANGUAGE="ru" ;;
+    "serbian" | "serbian latin" ) LANGUAGE="sr" ;;
+    "slovak" | "slovenský" | "slovensky" ) LANGUAGE="sk" ;;
+    "slovenian" | "si" | "slovenski" ) LANGUAGE="sl" ;;
+    "spanish" | "espanol" | "español" ) LANGUAGE="es" ;;
+    "swedish" | "se" | "svenska" ) LANGUAGE="sv" ;;
+    "turkish" | "türk" | "turk" ) LANGUAGE="tr" ;;
+    "thai" ) LANGUAGE="th" ;;
+    "ukrainian" | "ua" ) LANGUAGE="uk" ;;
+  esac
+
+  local culture
+  culture=$(getLanguage "$LANGUAGE" "culture")
+  [ -n "$culture ] && return 0
+
+  error "Invalid LANGUAGE specified, value \"$LANGUAGE\" is not recognized!" ;;
+  return 1
 }
 
 printVersion() {
