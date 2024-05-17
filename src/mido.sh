@@ -319,8 +319,7 @@ getWindows() {
 getCatalog() {
 
   local id="$1"
-  local lang="$2"
-  local ret="$3"
+  local ret="$2"
   local url=""
   local name=""
   local edition=""
@@ -367,8 +366,8 @@ getESD() {
   local editionName
   local winCatalog size
 
-  winCatalog=$(getCatalog "$version" "$language" "url")
-  editionName=$(getCatalog "$version" "$language" "edition")
+  winCatalog=$(getCatalog "$version" "url")
+  editionName=$(getCatalog "$version" "edition")
 
   if [ -z "$winCatalog" ] || [ -z "$editionName" ]; then
     error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
