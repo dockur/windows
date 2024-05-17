@@ -63,7 +63,7 @@ download_windows() {
   esac
 
   [ -z "$lang" ] && lang="en-US"
-  language=$(getLanguage "$lang")
+  language=$(getLanguage "$lang" "name")
 
   if [ -z "$language" ]; then
     error "Language \"$lang\" is not supported by this download method!"
@@ -121,14 +121,11 @@ download_windows() {
     return $?
   }
 
-  # Limit untrusted size for input validation
-  language_skuid_table_html="$(echo "$language_skuid_table_html" | head -c 10240)"
-
   # tr: Filter for only alphanumerics or "-" to prevent HTTP parameter injection
   sku_id="$(echo "$language_skuid_table_html" | grep "${language}" | sed 's/&quot;//g' | cut -d ',' -f 1  | cut -d ':' -f 2 | tr -cd '[:alnum:]-' | head -c 16)"
 
   if [ -z "$sku_id" ]; then
-    error "Download for language $language not found!"
+    error "No downloads for language \"$language\" were found!"
     return 1
   fi
 
@@ -177,38 +174,31 @@ download_windows_eval() {
   case "${id,,}" in
     "win11${PLATFORM,,}-enterprise-eval" )
       windows_version="windows-11-enterprise"
-      enterprise_type="enterprise"
-      ;;
+      enterprise_type="enterprise" ;;
     "win10${PLATFORM,,}-enterprise-eval" )
       windows_version="windows-10-enterprise"
-      enterprise_type="enterprise"
-       ;;
+      enterprise_type="enterprise" ;;
     "win10${PLATFORM,,}-enterprise-ltsc-eval" )
       windows_version="windows-10-enterprise"
-      enterprise_type="ltsc"
-      ;;
+      enterprise_type="ltsc" ;;
     "win2022-eval" )
       windows_version="windows-server-2022"
-      enterprise_type="server"
-      ;;
+      enterprise_type="server" ;;
     "win2019-eval" )
       windows_version="windows-server-2019"
-      enterprise_type="server"
-      ;;
+      enterprise_type="server" ;;
     "win2016-eval" )
       windows_version="windows-server-2016"
-      enterprise_type="server"
-      ;;
+      enterprise_type="server" ;;
     "win2012r2-eval" )
       windows_version="windows-server-2012-r2"
-      enterprise_type="server"
-      ;;
+      enterprise_type="server" ;;
     * )
       error "Invalid VERSION specified, value \"$id\" is not recognized!" && return 1 ;;
   esac
 
   [ -z "$lang" ] && lang="en-US"
-  culture=$(getCulture "$lang")
+  culture=$(getLanguage "$lang" "culture")
 
   if [ -z "$culture" ]; then
     error "Language \"$lang\" is not supported by this download method!"
@@ -236,7 +226,7 @@ download_windows_eval() {
   [[ "$DEBUG" == [Yy1]* ]] && echo " - Getting download link.."
   iso_download_links="$(echo "$iso_download_page_html" | grep -o "https://go.microsoft.com/fwlink/p/?LinkID=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture}&country=${country}")" || {
     # This should only happen if there's been some change to the download endpoint web address
-    error "Windows server download page gave us no download link (language: $language)"
+    error "Windows server download page gave us no download link (language: $culture [$country])"
     return 1
   }
 
@@ -287,13 +277,13 @@ getWindows() {
       download_windows_eval "$version" "$lang" && return 0
       ;;
     "win81${PLATFORM,,}-enterprise-eval" )
-      if [[ "${lang,,}" == "en"* ]]; then
+      if [[ "${lang,,}" == "en" ]] || [[ "${lang,,}" == "en-"* ]]; then
         MIDO_URL="https://download.microsoft.com/download/B/9/9/B999286E-0A47-406D-8B3D-5B5AD7373A4A/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_ENTERPRISE_EVAL_EN-US-IR3_CENA_X64FREE_EN-US_DV9.ISO" && return 0
       fi
       error "Language \"$lang\" is not supported by this download method!"
       ;;
     "win2008r2" )
-      if [[ "${lang,,}" == "en"* ]]; then
+      if [[ "${lang,,}" == "en" ]] || [[ "${lang,,}" == "en-"* ]]; then
         MIDO_URL="https://download.microsoft.com/download/4/1/D/41DEA7E0-B30D-4012-A1E3-F24DC03BA1BB/7601.17514.101119-1850_x64fre_server_eval_en-us-GRMSXEVAL_EN_DVD.iso" && return 0
       fi
       error "Language \"$lang\" is not supported by this download method!"
@@ -317,23 +307,19 @@ getCatalog() {
     "win11${PLATFORM,,}" )
       edition="Professional"
       name="Windows 11 Pro"
-      url="https://go.microsoft.com/fwlink?linkid=2156292"
-      ;;
+      url="https://go.microsoft.com/fwlink?linkid=2156292" ;;
     "win10${PLATFORM,,}" )
       edition="Professional"
       name="Windows 10 Pro"
-      url="https://go.microsoft.com/fwlink/?LinkId=841361"
-      ;;
+      url="https://go.microsoft.com/fwlink/?LinkId=841361" ;;
     "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval")
       edition="Enterprise"
       name="Windows 11 Enterprise"
-      url="https://go.microsoft.com/fwlink?linkid=2156292"
-      ;;
+      url="https://go.microsoft.com/fwlink?linkid=2156292" ;;
     "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" )
       edition="Enterprise"
       name="Windows 10 Enterprise"
-      url="https://go.microsoft.com/fwlink/?LinkId=841361"
-      ;;
+      url="https://go.microsoft.com/fwlink/?LinkId=841361" ;;
   esac
 
   case "${ret,,}" in
@@ -374,7 +360,7 @@ getESD() {
   local fFile="products_filter.xml"
 
   { wget "$winCatalog" -O "$dir/$wFile" -q --timeout=10; rc=$?; } || :
-  (( rc == 4 )) && error "Failed to download $winCatalog , network failure!" && return 1  
+  (( rc == 4 )) && error "Failed to download $winCatalog , network failure!" && return 1
   (( rc != 0 )) && error "Failed to download $winCatalog , reason: $rc" && return 1
 
   cd "$dir"
