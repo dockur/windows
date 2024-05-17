@@ -601,7 +601,7 @@ updateAsset() {
   fi
 
   region="$culture"
-.  [ -n "$REGION" ] && region="$REGION"
+  [ -n "$REGION" ] && region="$REGION"
 
   if [ -n "$region" ] && [[ "${region,,}" != "en-us" ]]; then
     sed -i "s/<UserLocale>en-US<\/UserLocale>/<UserLocale>$region<\/UserLocale>/g" "$asset"
@@ -609,13 +609,13 @@ updateAsset() {
   fi
 
   keyboard="$culture"
-.  [ -n "$KEYBOARD" ] && keyboard="$KEYBOARD"
+  [ -n "$KEYBOARD" ] && keyboard="$KEYBOARD"
 
   if [ -n "$keyboard" ] && [[ "${keyboard,,}" != "en-us" ]]; then
     sed -i "s/<InputLocale>en-US<\/InputLocale>/<InputLocale>$keyboard<\/InputLocale>/g" "$asset"
     sed -i "s/<InputLocale>0409:00000409<\/InputLocale>/<InputLocale>$keyboard<\/InputLocale>/g" "$asset"
   fi
-  
+
   cat "$asset"
   exit 13
   return 0
