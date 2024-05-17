@@ -627,8 +627,6 @@ updateXML() {
     sed -z "s/<Password>...............<Value \/>/<Password>\n              <Value>$PASSWORD<\/Value>/g" -i "$asset"
   fi
 
-  cat "$asset"
-  exit 13
   return 0
 }
 
@@ -693,9 +691,8 @@ updateImage() {
     info "Adding $xml for automatic installation..."
 
     local answer="$TMP/$xml"
-    rm -f "$answer"
     cp "$asset" "$answer"
-    updateAsset "$answer" "$language"
+    updateXML "$answer" "$language"
 
     if ! wimlib-imagex update "$loc" "$index" --command "add $answer /$file" > /dev/null; then
       MANUAL="Y"
