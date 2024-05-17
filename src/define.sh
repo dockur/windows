@@ -117,127 +117,217 @@ parseLanguage() {
   [ -z "$LANGUAGE" ] && LANGUAGE="en"
 
   case "${LANGUAGE,,}" in
-    "arabic" ) LANGUAGE="ar" ;;
-    "bulgarian" ) LANGUAGE="bg" ;;
-    "chinese" ) LANGUAGE="zh" ;;
-    "croatian" | "hrvatski" ) LANGUAGE="hr" ;;
-    "czech" | "cesky" ) LANGUAGE="cs" ;;
-    "danish" | "danske" ) LANGUAGE="da" ;;
+    "arabic" | "arab" ) LANGUAGE="ar" ;;
+    "bulgarian" | "bu" ) LANGUAGE="bg" ;;
+    "chinese" | "cn" ) LANGUAGE="zh" ;;
+    "croatian" | "cr" | "hrvatski" ) LANGUAGE="hr" ;;
+    "czech" | "cz" | "cesky" ) LANGUAGE="cs" ;;
+    "danish" | "dk" | "danske" ) LANGUAGE="da" ;;
     "dutch" | "nederlands" ) LANGUAGE="nl" ;;
-    "english" | "british" ) LANGUAGE="en" ;;
+    "english" | "gb" | "british" ) LANGUAGE="en" ;;
     "estonian" | "eesti" ) LANGUAGE="et" ;;
     "finnish" | "suomi" ) LANGUAGE="fi" ;;
-    "french" | "français" | "francais") LANGUAGE="fr" ;;
+    "french" | "français" | "francais" ) LANGUAGE="fr" ;;
     "german" | "deutsch" ) LANGUAGE="de" ;;
-    "greek" ) LANGUAGE="el" ;;
-    "hebrew" | "yiddish" ) LANGUAGE="he" ;;
+    "greek" | "gr" ) LANGUAGE="el" ;;
+    "hebrew" | "il" ) LANGUAGE="he" ;;
     "hungarian" | "magyar" ) LANGUAGE="hu" ;;
     "italian" | "italiano" ) LANGUAGE="it" ;;
-    "japanese" ) LANGUAGE="ja" ;;
-    "korean" ) LANGUAGE="ko" ;;
+    "japanese" | "jp" ) LANGUAGE="ja" ;;
+    "korean" | "kr" ) LANGUAGE="ko" ;;
     "latvian" | "latvijas" ) LANGUAGE="lv" ;;
     "lithuanian" | "lietuvos" ) LANGUAGE="lt" ;;
-    "norwegian" | "norsk" ) LANGUAGE="nn" ;;
+    "norwegian" | "no" | "nb" | "norsk" ) LANGUAGE="nn" ;;
     "polish" | "polski" ) LANGUAGE="pl" ;;
-    "portuguese" | "português" | "portugues" ) LANGUAGE="pt-br" ;;
-    "romanian" | "română" | "romana" ) LANGUAGE="ro" ;;
+    "portuguese" | "pt" | "br" ) LANGUAGE="pt-br" ;;
+    "português" | "portugues" ) LANGUAGE="pt-br" ;;    
+    "romanian" | "română" | "romana" ) LANGUAGE="ro" ;;    
     "russian" | "ruski" ) LANGUAGE="ru" ;;
-    "serbian" ) LANGUAGE="sr" ;;
+    "serbian" | "serbian latin" ) LANGUAGE="sr" ;;
     "slovak" | "slovenský" | "slovensky" ) LANGUAGE="sk" ;;
-    "slovenian" | "slovenski" ) LANGUAGE="sl" ;;
+    "slovenian" | "si" | "slovenski" ) LANGUAGE="sl" ;;
     "spanish" | "espanol" | "español" ) LANGUAGE="es" ;;
-    "swedish" | "svenska" ) LANGUAGE="sv" ;;
+    "swedish" | "se" | "svenska" ) LANGUAGE="sv" ;;
     "turkish" | "türk" | "turk" ) LANGUAGE="tr" ;;
     "thai" ) LANGUAGE="th" ;;   
-    "ukrainian" ) LANGUAGE="uk" ;;
+    "ukrainian" | "ua" ) LANGUAGE="uk" ;;
   esac
 
 }
 
 getLanguage() {
 
-  local code="$1"
+  local id="$1"
+  local ret="$2"
+  local code=""
   local lang=""
-
-  case "${code,,}" in
-    "ar" | "ar-"* ) lang="Arabic" ;;
-    "bg" | "bg-"* ) lang="Bulgarian" ;;
-    "zh-hk" | "zh-mo" ) lang="Chinese (Traditional)" ;;
-    "zh-hant" | "zh-tw" ) lang="Chinese (Traditional)" ;;
-    "zh" | "zh-"* ) lang="Chinese (Simplified)" ;;
-    "hr" | "hr-"* ) lang="Croatian" ;;
-    "cs" | "cs-"* ) lang="Czech" ;;
-    "da" | "da-"* ) lang="Danish" ;;
-    "nl" | "nl-"* ) lang="Dutch" ;;
-    "en-gb" | "en-uk" ) lang="English International" ;;
-    "en" | "en-"* ) lang="English (United States)" ;;
-    "et" | "et-"* ) lang="Estonian" ;;
-    "fi" | "fi-"* ) lang="Finnish" ;;
-    "fr-ca" ) lang="French Canadian" ;;
-    "fr" | "fr-"* ) lang="French" ;;
-    "de" | "de-"* ) lang="German" ;;
-    "el" | "el-"* ) lang="Greek" ;;
-    "he" | "he-"* ) lang="Hebrew" ;;
-    "hu" | "hu-"* ) lang="Hungarian" ;;
-    "it" | "it-"* ) lang="Italian" ;;
-    "ja" | "ja-"* ) lang="Japanese" ;;
-    "ko" | "ko-"* ) lang="Korean" ;;
-    "lv" | "lv-"* ) lang="Latvian" ;;
-    "lt" | "lt-"* ) lang="Lithuanian" ;;
-    "nb" | "nb-"* ) lang="Norwegian" ;;
-    "nn" | "nn-"* ) lang="Norwegian" ;;
-    "pl" | "pl-"* ) lang="Polish" ;;
-    "pt-br" ) lang="Brazilian Portuguese" ;;
-    "pt" | "pt-"* ) lang="Portuguese" ;;
-    "ro" | "ro-"* ) lang="Romanian" ;;
-    "ru" | "ru-"* ) lang="Russian" ;;
-    "sr" | "sr-"* ) lang="Serbian Latin" ;;
-    "sk" | "sk-"* ) lang="Slovak" ;;
-    "sl" | "sl-"* ) lang="Slovenian" ;;
-    "es-mx" ) lang="Spanish (Mexico)" ;;
-    "es" | "es-"* ) lang="Spanish" ;;
-    "sv" | "sv-"* ) lang="Swedish" ;;
-    "tr" | "tr-"* ) lang="Turkish" ;;
-    "uk" | "uk-"* ) lang="Ukrainian" ;;
-  esac
-
-  echo "$lang"
-  return 0
-}
-
-getCulture() {
-
-  local code="$1"
   local culture=""
 
-  case "${code,,}" in
-    "zh-hk" | "zh-mo" | "zh-hant" | "zh-tw" )
-      culture="zh-tw"
-    "zh" | "zh-"* )
-      culture="zh-cn"
-    "en-gb" | "en-uk" )
-      culture="en-gb"
-    "en" | "en-"* )
-      culture="en-us"
-    "fr" | "fr-"* )
-      culture="fr-fr"
+  case "${id,,}" in
+    "ar" | "ar-"* )
+      code="ar"
+      lang="Arabic"
+      culture="ar-sa" ;;
+    "bg" | "bg-"* )
+      code="bg"
+      lang="Bulgarian"
+      culture="bg-bg" ;;      
+    "cr" | "cr-"* | "hr" | "hr-"* )
+      code="hr"
+      lang="Croatian"
+      culture="hr-hr" ;;
+    "cs" | "cs-"* | "cz" | "cz-"* )
+      code="cs"
+      lang="Czech"
+      culture="cs-cz" ;;
+    "da" | "da-"* | "dk" | "dk-"* )
+      code="da"
+      lang="Danish"
+      culture="da-dk" ;;
     "de" | "de-"* )
-      culture="de-de"
-    "it" | "it-"* )
-      culture="it-it"
-    "ja" | "ja-"* )
-      culture="ja-jp"
-    "ko" | "ko-"* )
-      culture="ko-kr"
-    "pt" | "pt-"* )
-      culture="pt-br"
-    "ru" | "ru-"* )
-      culture="ru-ru"
+      code="de" 
+      lang="German"
+      culture="de-de" ;;      
+    "el" | "el-"* | "gr" | "gr-"* )
+      code="el"
+      lang="Greek"
+      culture="el-gr" ;;
+    "gb" | "en-gb" )
+      code="en" 
+      lang="English International"
+      culture="en-gb" ;;
+    "en" | "en-"* )
+      code="en" 
+      lang="English (United States)"
+      culture="en-us" ;;
+    "mx" | "es-mx" )
+      code="es"
+      lang="Spanish (Mexico)"
+      culture="es-mx" ;;
     "es" | "es-"* )
-      culture="es-es"
+      code="es"
+      lang="Spanish"
+      culture="es-es" ;;
+    "et" | "et-"* )
+      code="et"
+      lang="Estonian"
+      culture="et-ee" ;;
+    "fi" | "fi-"* )
+      code="fi"
+      lang="Finnish"
+      culture="fi-fi" ;;
+    "ca" | "fr-ca" )
+      code="fr"
+      lang="French Canadian"
+      culture="fr-ca" ;;
+    "fr" | "fr-"* )
+      code="fr"
+      lang="French"
+      culture="fr-fr" ;;
+    "he" | "he-"* | "il" | "il-"* )
+      code="he"
+      lang="Hebrew"
+      culture="he-il" ;;
+    "hu" | "hu-"* )
+      code="hu"
+      lang="Hungarian"
+      culture="hu-hu" ;;
+    "it" | "it-"* )
+      code="it"
+      lang="Italian"
+      culture="it-it" ;;
+    "ja" | "ja-"* | "jp" | "jp-"* )
+      code="ja"
+      lang="Japanese"
+      culture="ja-jp" ;;
+    "ko" | "ko-"* | "kr" | "kr-"* )
+      code="ko"
+      lang="Korean"
+      culture="ko-kr" ;;
+    "lv" | "lv-"* )
+      code="lv"
+      lang="Latvian"
+      culture="lt-lt" ;;
+    "lt" | "lt-"* )
+      code="lt"
+      lang="Lithuanian"
+      culture="lv-lv" ;;
+    "nb" | "nb-"* |"nn" | "nn-"* | "no" | "no-"* )
+      code="no"
+      lang="Norwegian"
+      culture="nb-no" ;;
+    "nl" | "nl-"* )
+      code="nl"
+      lang="Dutch"
+      culture="nl-nl" ;;
+    "pl" | "pl-"* )
+      code="pl"
+      lang="Polish"
+      culture="pl-pl" ;;
+    "br" | "pt-br" )
+      code="pt"
+      lang="Brazilian Portuguese"
+      culture="pt-br" ;;
+    "pt" | "pt-"* )
+      code="pt"
+      lang="Portuguese"
+      culture="pt-br" ;;
+    "ro" | "ro-"* )
+      code="ro"
+      lang="Romanian"
+      culture="ro-ro" ;;
+    "ru" | "ru-"* )
+      code="ru"
+      lang="Russian"
+      culture="ru-ru" ;;
+    "sk" | "sk-"* )
+      code="sk"
+      lang="Slovak"
+      culture="sk-sk" ;;
+    "si" | "si-"* | "sl" | "sl-"* )
+      code="sl"
+      lang="Slovenian"
+      culture="sl-si" ;;
+    "sr" | "sr-"* )
+      code="sr"
+      lang="Serbian Latin"
+      culture="sr-latn-rs" ;;
+    "se" | "se-"* | "sv" | "sv-"* )
+      code="sv"
+      lang="Swedish"
+      culture="sv-se" ;;
+    "th" | "th-"* )
+      code="th"
+      lang="Thai"
+      culture="th-th" ;;
+    "tr" | "tr-"* )
+      code="tr"
+      lang="Turkish"
+      culture="tr-tr" ;;
+    "ua" | "ua-"* | "uk" | "uk-"* )
+      code="uk"
+      lang="Ukrainian"
+      culture="uk-ua" ;;
+    "zh-hk" | "cn-hk" )
+      code="hk"
+      lang="Chinese (Traditional)"
+      culture="zh-tw" ;;
+    "zh-tw" | "cn-tw" )
+      code="tw"
+      lang="Chinese (Traditional)"
+      culture="zh-tw" ;;
+    "zh" | "zh-"* | "cn" | "cn-"* )
+      code="cn"
+      lang="Chinese (Simplified)"
+      culture="zh-cn" ;;
   esac
 
-  echo "$culture"
+  case "${ret,,}" in
+    "name" ) echo "$lang" ;;
+    "culture" ) echo "$culture" ;;
+    *) echo "$code";;
+  esac
+  
   return 0
 }
 
