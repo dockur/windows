@@ -114,88 +114,41 @@ parseVersion() {
 
 parseLanguage() {
 
-  [ -z "$LANGUAGE" ] && LANGUAGE="en-US"
+  [ -z "$LANGUAGE" ] && LANGUAGE="en"
 
   case "${LANGUAGE,,}" in
-    "ar" | "ar-"* ) LANGUAGE="Arabic" ;;
-    "bg" | "bg-"* ) LANGUAGE="Bulgarian" ;;
-    "zh-hk" | "zh-mo" ) LANGUAGE="Chinese (Traditional)" ;;
-    "zh-hant" | "zh-tw" ) LANGUAGE="Chinese (Traditional)" ;;
-    "zh" | "zh-"* ) LANGUAGE="Chinese (Simplified)" ;;
-    "hr" | "hr-"* ) LANGUAGE="Croatian" ;;
-    "cs" | "cs-"* ) LANGUAGE="Czech" ;;
-    "da" | "da-"* ) LANGUAGE="Danish" ;;
-    "nl" | "nl-"* ) LANGUAGE="Dutch" ;;
-    "en-gb" | "en-uk" ) LANGUAGE="English International" ;;
-    "en" | "en-"* ) LANGUAGE="English (United States)" ;;
-    "et" | "et-"* ) LANGUAGE="Estonian" ;;
-    "fi" | "fi-"* ) LANGUAGE="Finnish" ;;
-    "fr-ca" ) LANGUAGE="French Canadian" ;;
-    "fr" | "fr-"* ) LANGUAGE="French" ;;
-    "de" | "de-"* ) LANGUAGE="German" ;;
-    "el" | "el-"* ) LANGUAGE="Greek" ;;
-    "he" | "he-"* ) LANGUAGE="Hebrew" ;;
-    "hu" | "hu-"* ) LANGUAGE="Hungarian" ;;
-    "it" | "it-"* ) LANGUAGE="Italian" ;;
-    "ja" | "ja-"* ) LANGUAGE="Japanese" ;;
-    "ko" | "ko-"* ) LANGUAGE="Korean" ;;
-    "lv" | "lv-"* ) LANGUAGE="Latvian" ;;
-    "lt" | "lt-"* ) LANGUAGE="Lithuanian" ;;
-    "nb" | "nb-"* ) LANGUAGE="Norwegian" ;;
-    "nn" | "nn-"* ) LANGUAGE="Norwegian" ;;
-    "pl" | "pl-"* ) LANGUAGE="Polish" ;;
-    "pt-br" ) LANGUAGE="Brazilian Portuguese" ;;
-    "pt" | "pt-"* ) LANGUAGE="Portuguese" ;;
-    "ro" | "ro-"* ) LANGUAGE="Romanian" ;;
-    "ru" | "ru-"* ) LANGUAGE="Russian" ;;
-    "sr" | "sr-"* ) LANGUAGE="Serbian Latin" ;;
-    "sk" | "sk-"* ) LANGUAGE="Slovak" ;;
-    "sl" | "sl-"* ) LANGUAGE="Slovenian" ;;
-    "es-mx" ) LANGUAGE="Spanish (Mexico)" ;;
-    "es" | "es-"* ) LANGUAGE="Spanish" ;;
-    "sv" | "sv-"* ) LANGUAGE="Swedish" ;;
-    "tr" | "tr-"* ) LANGUAGE="Turkish" ;;
-    "uk" | "uk-"* ) LANGUAGE="Ukrainian" ;;
-  esac
-
-  case "${LANGUAGE,,}" in
-    "arabic" ;;
-    "bulgarian" ;;
-    "Chinese (Traditional)" ;;
-    "Chinese (Simplified)" ;;
-    "croatian" ;;
-    "czech" ;;
-    "danish" ;;
-    "dutch" ;;
-    "English International" ;;
-    "English (United States)" ;;
-    "estonian" ;;
-    "finnish" ;;
-    "french canadian" ;;
-    "french" ;;
-    "german" ;;
-    "greek" ;;
-    "hebrew" ;;
-    "hungarian" ;;
-    "italian" ;;
-    "japanese" ;;
-    "korean" ;;
-    "latvian" ;;
-    "lithuanian" ;;
-    "norwegian" ;;
-    "polish" ;;
-    "brazilian portuguese" ;;
-    "portuguese" ;;
-    "romanian" ;;
-    "russian" ;;
-    "serbian latin" ;;
-    "slovak" ;;
-    "slovenian" ;;
-    "Spanish (Mexico)" ;;
-    "Spanish" ;;
-    "Swedish" ;;
-    "Turkish" ;;
-    "Ukrainian" ;;
+    "arabic" ) LANGUAGE="ar" ;;
+    "bulgarian" ) LANGUAGE="bg" ;;
+    "chinese" ) LANGUAGE="zh" ;;
+    "croatian" | "hrvatski" ) LANGUAGE="hr" ;;
+    "czech" | "cesky" ) LANGUAGE="cs" ;;
+    "danish" | "danske" ) LANGUAGE="da" ;;
+    "dutch" | "nederlands" ) LANGUAGE="nl" ;;
+    "english" | "british" ) LANGUAGE="en" ;;
+    "estonian" | "eesti" ) LANGUAGE="et" ;;
+    "finnish" | "suomi" ) LANGUAGE="fi" ;;
+    "french" | "français" | "francais") LANGUAGE="fr" ;;
+    "german" | "deutsch" ) LANGUAGE="de" ;;
+    "greek" ) LANGUAGE="el" ;;
+    "hebrew" | "yiddish" ) LANGUAGE="he" ;;
+    "hungarian" | "magyar" ) LANGUAGE="hu" ;;
+    "italian" | "italiano" ) LANGUAGE="it" ;;
+    "japanese" ) LANGUAGE="ja" ;;
+    "korean" ) LANGUAGE="ko" ;;
+    "latvian" | "latvijas" ) LANGUAGE="lv" ;;
+    "lithuanian" | "lietuvos" ) LANGUAGE="lt" ;;
+    "norwegian" | "norsk" ) LANGUAGE="nn" ;;
+    "polish" | "polski" ) LANGUAGE="pl" ;;
+    "portuguese" | "português" | "portugues" ) LANGUAGE="pt" ;;
+    "romanian" | "română" | "romana" ) LANGUAGE="ro" ;;
+    "russian" | "ruski" ) LANGUAGE="ru" ;;
+    "serbian" ) LANGUAGE="sr" ;;
+    "slovak" | "slovenský" | "slovensky" ) LANGUAGE="sk" ;;
+    "slovenian" | "slovenski" ) LANGUAGE="sl" ;;
+    "spanish" | "espanol" | "español" ) LANGUAGE="es" ;;
+    "swedish" | "svenska" ) LANGUAGE="sv" ;;
+    "turkish" | "türk" | "turk" ) LANGUAGE="tr" ;;
+    "ukrainian" ) LANGUAGE="uk" ;;
   esac
 
 }
