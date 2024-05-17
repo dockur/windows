@@ -595,11 +595,15 @@ updateAsset() {
   # : "${LANGUAGE:=""}"
   # : "${PASSWORD:=""}"
 
-  #    <InputLocale>0409:00000409</InputLocale>
+  #    
   #    <SystemLocale>en-US</SystemLocale>
   #    <UILanguage>en-US</UILanguage>
   #    <UserLocale>en-US</UserLocale>
-      
+  
+  sed -i "s=/=<InputLocale>0409:00000409</InputLocale>/=<InputLocale>xxx</InputLocale>/=g" "$asset"
+  
+  cat "$asset"
+  exit 13
   return 0
 }
 
