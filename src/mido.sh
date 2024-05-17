@@ -476,17 +476,18 @@ getESD() {
     error "Failed to find $xFile in $wFile!" && return 1
   fi
 
-  local esdLang="en-us"
+  local esdLang="${language,,}"
   local edQuery='//File[Architecture="'${PLATFORM}'"][Edition="'${editionName}'"]'
 
   echo -e '<Catalog>' > "$dir/$fFile"
   xmllint --nonet --xpath "${edQuery}" "$dir/$xFile" >> "$dir/$fFile" 2>/dev/null
   echo -e '</Catalog>'>> "$dir/$fFile"
+
   xmllint --nonet --xpath '//File[LanguageCode="'${esdLang}'"]' "$dir/$fFile" >"$dir/$eFile"
 
   size=$(stat -c%s "$dir/$eFile")
   if ((size<20)); then
-    error "Failed to find Windows product in $eFile!" && return 1
+    error "Language \"$language\" is not supported by this download method!" && return 1
   fi
 
   local tag="FilePath"
