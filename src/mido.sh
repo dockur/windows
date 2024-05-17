@@ -520,8 +520,8 @@ downloadImage() {
 
   local iso="$1"
   local version="$2"
+  local language="$3"
   local tried="n"
-  local language="English (United States)"
   local url sum size base desc
 
   if [[ "${version,,}" == "http"* ]]; then
