@@ -140,8 +140,8 @@ parseLanguage() {
     "norwegian" | "no" | "nb" | "norsk" ) LANGUAGE="nn" ;;
     "polish" | "polski" ) LANGUAGE="pl" ;;
     "portuguese" | "pt" | "br" ) LANGUAGE="pt-br" ;;
-    "português" | "portugues" ) LANGUAGE="pt-br" ;;    
-    "romanian" | "română" | "romana" ) LANGUAGE="ro" ;;    
+    "português" | "portugues" ) LANGUAGE="pt-br" ;;
+    "romanian" | "română" | "romana" ) LANGUAGE="ro" ;;
     "russian" | "ruski" ) LANGUAGE="ru" ;;
     "serbian" | "serbian latin" ) LANGUAGE="sr" ;;
     "slovak" | "slovenský" | "slovensky" ) LANGUAGE="sk" ;;
@@ -149,7 +149,7 @@ parseLanguage() {
     "spanish" | "espanol" | "español" ) LANGUAGE="es" ;;
     "swedish" | "se" | "svenska" ) LANGUAGE="sv" ;;
     "turkish" | "türk" | "turk" ) LANGUAGE="tr" ;;
-    "thai" ) LANGUAGE="th" ;;   
+    "thai" ) LANGUAGE="th" ;;
     "ukrainian" | "ua" ) LANGUAGE="uk" ;;
   esac
 
@@ -171,7 +171,7 @@ getLanguage() {
     "bg" | "bg-"* )
       code="bg"
       lang="Bulgarian"
-      culture="bg-bg" ;;      
+      culture="bg-bg" ;;
     "cr" | "cr-"* | "hr" | "hr-"* )
       code="hr"
       lang="Croatian"
@@ -185,19 +185,19 @@ getLanguage() {
       lang="Danish"
       culture="da-dk" ;;
     "de" | "de-"* )
-      code="de" 
+      code="de"
       lang="German"
-      culture="de-de" ;;      
+      culture="de-de" ;;
     "el" | "el-"* | "gr" | "gr-"* )
       code="el"
       lang="Greek"
       culture="el-gr" ;;
     "gb" | "en-gb" )
-      code="en" 
+      code="en"
       lang="English International"
       culture="en-gb" ;;
     "en" | "en-"* )
-      code="en" 
+      code="en"
       lang="English (United States)"
       culture="en-us" ;;
     "mx" | "es-mx" )
@@ -327,7 +327,7 @@ getLanguage() {
     "culture" ) echo "$culture" ;;
     *) echo "$code";;
   esac
-  
+
   return 0
 }
 
@@ -766,7 +766,7 @@ getLink1() {
     "winxpx64" )
       size=614166528
       sum="8fac68e1e56c64ad9a2aa0ad464560282e67fa4f4dd51d09a66f4e548eb0f2d6"
-      url="$host/xp/professional/en_win_xp_pro_${PLATFORM,,}_vl.iso" 
+      url="$host/xp/professional/en_win_xp_pro_${PLATFORM,,}_vl.iso"
       ;;
   esac
 
