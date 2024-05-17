@@ -101,7 +101,6 @@
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <ComputerName>*</ComputerName>
       <ProductKey>4D2XH-PRBMM-8Q22B-K8BM3-MRW4W</ProductKey>
-      <TimeZone>Pacific Standard Time</TimeZone>
       <OEMInformation>
         <Manufacturer>Dockur</Manufacturer>
         <Model>Windows for Docker</Model>
