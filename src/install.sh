@@ -589,7 +589,9 @@ prepareImage() {
 updateAsset() {
 
   local asset="$1"
-  
+  local language="$2"
+  local culture keyboard
+
   # : "${KEYBOARD:=""}"
   # : "${TIMEZONE:=""}"
   # : "${LANGUAGE:=""}"
@@ -598,9 +600,23 @@ updateAsset() {
   #    
   #    <SystemLocale>en-US</SystemLocale>
   #    <UILanguage>en-US</UILanguage>
-  #    <UserLocale>en-US</UserLocale>
-  
-  sed -i "s=/=<InputLocale>0409:00000409</InputLocale>/=<InputLocale>xxx</InputLocale>/=g" "$asset"
+  #    <UserLocale></UserLocale>
+
+  culture=$(getLanguage "$language" "culture")
+
+  if [ -n "$culture" ] && [[ "${culture,,}" != "en-us" ]]; then
+    sed -i "s/<UserLocale>en-US<\/UserLocale>/<UserLocale>$culture<\/UserLocale>/g" "$asset"
+    sed -i "s/<UILanguage>en-US<\/UILanguage>/<UILanguage>$culture<\/UILanguage>/g" "$asset"
+    sed -i "s/<SystemLocale>en-US<\/SystemLocale>/<SystemLocale>$culture<\/SystemLocale>/g" "$asset"
+  fi
+
+  keyboard="$culture"
+  [ -n "$KEYBOARD" ] && keyboard="$KEYBOARD"
+
+  if [ -n "$keyboard" ] && [[ "${keyboard,,}" != "en-us" ]]; then
+    sed -i "s/<InputLocale>en-US<\/InputLocale>/<InputLocale>$keyboard<\/InputLocale>/g" "$asset"
+    sed -i "s/<InputLocale>0409:00000409<\/InputLocale>/<InputLocale>$keyboard<\/InputLocale>/g" "$asset"
+  fi
   
   cat "$asset"
   exit 13
@@ -611,6 +627,7 @@ updateImage() {
 
   local dir="$1"
   local asset="$2"
+  local language="$3"
   local file="autounattend.xml"
   local org="${file/.xml/.org}"
   local dat="${file/.xml/.dat}"
@@ -669,7 +686,7 @@ updateImage() {
     local answer="$TMP/$xml"
     rm -f "$answer"
     cp "$asset" "$answer"
-    updateAsset "$answer"
+    updateAsset "$answer" "$language"
 
     if ! wimlib-imagex update "$loc" "$index" --command "add $answer /$file" > /dev/null; then
       MANUAL="Y"
@@ -917,7 +934,7 @@ if ! prepareImage "$ISO" "$DIR"; then
   exit 60
 fi
 
-if ! updateImage "$DIR" "$XML"; then
+if ! updateImage "$DIR" "$XML" "$LANGUAGE"; then
   abortInstall "$ISO" && return 0
   exit 60
 fi
