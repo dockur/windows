@@ -461,6 +461,7 @@ getESD() {
   local fFile="products_filter.xml"
 
   { wget "$winCatalog" -O "$dir/$wFile" -q --timeout=10; rc=$?; } || :
+  (( rc == 4 )) && error "Failed to download $winCatalog , network failure!" && return 1  
   (( rc != 0 )) && error "Failed to download $winCatalog , reason: $rc" && return 1
 
   cd "$dir"
@@ -587,7 +588,11 @@ downloadFile() {
     fi
   fi
 
-  error "Failed to download $url , reason: $rc"
+  if (( rc != 4 )); then
+    error "Failed to download $url , reason: $rc"
+  else
+    error "Failed to download $url , network failure!"
+  fi
 
   rm -f "$iso"
   return 1
