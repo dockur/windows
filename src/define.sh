@@ -372,7 +372,7 @@ parseLanguage() {
 
   local culture
   culture=$(getLanguage "$LANGUAGE" "culture")
-  [ -n "$culture ] && return 0
+  [ -n "$culture" ] && return 0
 
   error "Invalid LANGUAGE specified, value \"$LANGUAGE\" is not recognized!" ;;
   return 1
