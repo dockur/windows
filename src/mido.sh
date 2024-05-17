@@ -116,7 +116,7 @@ download_windows() {
   }
 
   # tr: Filter for only alphanumerics or "-" to prevent HTTP parameter injection
-  sku_id="$(echo "$language_skuid_table_html" | grep "${language}" | sed 's/&quot;//g' | cut -d ',' -f 1  | cut -d ':' -f 2 | tr -cd '[:alnum:]-' | head -c 16)"
+  sku_id="$(echo "$language_skuid_table_html" | grep -m 1 ">${language}<" | sed 's/&quot;//g' | cut -d ',' -f 1  | cut -d ':' -f 2 | tr -cd '[:alnum:]-' | head -c 16)"
 
   if [ -z "$sku_id" ]; then
     language=$(getLanguage "$lang" "desc")
