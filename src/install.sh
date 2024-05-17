@@ -586,6 +586,13 @@ prepareImage() {
   return 1
 }
 
+updateAsset() {
+
+  local asset="$1"
+
+  return 0
+}
+
 updateImage() {
 
   local dir="$1"
@@ -645,12 +652,19 @@ updateImage() {
     xml=$(basename "$asset")
     info "Adding $xml for automatic installation..."
 
-    if ! wimlib-imagex update "$loc" "$index" --command "add $asset /$file" > /dev/null; then
+    local answer="$TMP/$xml"
+    rm -f "$answer"
+    cp "$asset" "$answer"
+    updateAsset "$answer"
+
+    if ! wimlib-imagex update "$loc" "$index" --command "add $answer /$file" > /dev/null; then
       MANUAL="Y"
       warn "failed to add answer file ($xml) to ISO image, $FB"
     else
-      wimlib-imagex update "$loc" "$index" --command "add $asset /$dat" > /dev/null || true
+      wimlib-imagex update "$loc" "$index" --command "add $answer /$dat" > /dev/null || true
     fi
+
+    rm -f "$answer"
 
   fi
 
@@ -662,8 +676,9 @@ updateImage() {
       if ! wimlib-imagex update "$loc" "$index" --command "add $TMP/$org /$file" > /dev/null; then
         warn "failed to restore original answer file ($org)."
       fi
-      rm -f "$TMP/$org"
     fi
+
+    rm -f "$TMP/$org"
 
   fi
 
