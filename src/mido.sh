@@ -55,18 +55,10 @@ download_windows() {
   local language_skuid_table_html=""
 
   case "${id,,}" in
-    "win11${PLATFORM,,}" )
-      windows_version="11"
-      ;;
-    "win10${PLATFORM,,}" )
-      windows_version="10"
-      ;;
-    "win81${PLATFORM,,}" )
-      windows_version="8"
-      ;;
-    * )
-      error "Unknown version: $id"
-      return 1
+    "win11${PLATFORM,,}" ) windows_version="11" ;;
+    "win10${PLATFORM,,}" ) windows_version="10" ;;
+    "win81${PLATFORM,,}" ) windows_version="8" ;;
+    * ) error "Invalid VERSION specified, value \"$id\" is not recognized!" && return 1 ;;
   esac
 
   local url="https://www.microsoft.com/en-us/software-download/windows$windows_version"
@@ -198,8 +190,7 @@ download_windows_eval() {
       enterprise_type="server"
       ;;
     * )
-      error "Unknown version: $id"
-      return 1
+      error "Invalid VERSION specified, value \"$id\" is not recognized!" && return 1 ;;
   esac
 
   local iso_download_page_html=""
@@ -292,36 +283,33 @@ download_windows_eval() {
 
 getWindows() {
 
-  local id="$1"
+  local version="$1"
   local language="$2"
   local desc="$3"
 
   local msg="Requesting $desc from Microsoft server..."
   info "$msg" && html "$msg"
   
-  case "${id,,}" in
+  case "${version,,}" in
     "win81${PLATFORM,,}" | "win10${PLATFORM,,}" | "win11${PLATFORM,,}" )
-      download_windows "$id" "$language" && return 0
+      download_windows "$version" "$language" && return 0
       ;;
     "win11${PLATFORM,,}-enterprise-eval" )
-      download_windows_eval "$id" "$language" && return 0
+      download_windows_eval "$version" "$language" && return 0
       ;;
     "win10${PLATFORM,,}-enterprise-eval" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-      download_windows_eval "$id" "$language" && return 0
+      download_windows_eval "$version" "$language" && return 0
       ;;
     "win2022-eval" | "win2019-eval" | "win2016-eval" | "win2012r2-eval" )
-      download_windows_eval "$id" "$language" && return 0
+      download_windows_eval "$version" "$language" && return 0
       ;;
     "win81${PLATFORM,,}-enterprise-eval" )
-      MIDO_URL="https://download.microsoft.com/download/B/9/9/B999286E-0A47-406D-8B3D-5B5AD7373A4A/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_ENTERPRISE_EVAL_EN-US-IR3_CENA_X64FREE_EN-US_DV9.ISO"
-      return 0
+      MIDO_URL="https://download.microsoft.com/download/B/9/9/B999286E-0A47-406D-8B3D-5B5AD7373A4A/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_ENTERPRISE_EVAL_EN-US-IR3_CENA_X64FREE_EN-US_DV9.ISO" && return 0
       ;;
     "win2008r2" )
-      MIDO_URL="https://download.microsoft.com/download/4/1/D/41DEA7E0-B30D-4012-A1E3-F24DC03BA1BB/7601.17514.101119-1850_x64fre_server_eval_en-us-GRMSXEVAL_EN_DVD.iso"
-      return 0
+      MIDO_URL="https://download.microsoft.com/download/4/1/D/41DEA7E0-B30D-4012-A1E3-F24DC03BA1BB/7601.17514.101119-1850_x64fre_server_eval_en-us-GRMSXEVAL_EN_DVD.iso" && return 0
       ;;
-    * )
-      error "Unknown version: $id"
+    * ) error "Invalid VERSION specified, value \"$version\" is not recognized!" ;;
   esac
 
   MIDO_URL=""
@@ -331,7 +319,8 @@ getWindows() {
 getCatalog() {
 
   local id="$1"
-  local ret="$2"
+  local lang="$2"
+  local ret="$3"
   local url=""
   local name=""
   local edition=""
@@ -378,12 +367,12 @@ getESD() {
   local editionName
   local winCatalog size
 
-  if ! isESD "${version,,}"; then
+  winCatalog=$(getCatalog "$version" "$language" "url")
+  editionName=$(getCatalog "$version" "$language" "edition")
+
+  if [ -z "$winCatalog" ] || [ -z "$editionName" ]; then
     error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
   fi
-
-  winCatalog=$(getCatalog "$version" "url")
-  editionName=$(getCatalog "$version" "edition")
 
   local msg="Downloading product information from Microsoft server..."
   info "$msg" && html "$msg"
