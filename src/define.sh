@@ -657,6 +657,8 @@ getMido() {
   local sum=""
   local size=""
 
+  [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
+
   case "${id,,}" in
     "win11${PLATFORM,,}" )
       size=6812706816
@@ -714,7 +716,7 @@ getMido() {
     *) echo "";;
   esac
 
-  return 1
+  return 0
 }
 
 getLink1() {
@@ -1180,7 +1182,7 @@ isMido() {
   local lang="$2"
   local sum
 
-  sum=$(getMido "$id" "$lang" "sum")
+  sum=$(getMido "$id" "en" "sum")
   [ -n "$sum" ] && return 0
 
   return 1
