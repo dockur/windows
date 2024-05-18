@@ -76,9 +76,10 @@ startInstall() {
     else
 
       local language
-      language=$(getLanguage "$LANGUAGE" "")
+      language=$(getLanguage "$LANGUAGE" "culture")
+      language="${language%%-*}"
 
-      if [ -n "$language" ] && [[ "$language" != "en" ]]; then
+      if [ -n "$language" ] && [[ "${language,,}" != "en" ]]; then
         file="${VERSION/\//}.${language,,}.iso"
       fi
 
