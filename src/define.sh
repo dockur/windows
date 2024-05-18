@@ -731,6 +731,8 @@ getLink1() {
   local size=""
   local host="https://dl.bobpony.com/windows"
 
+  [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
+
   case "${id,,}" in
     "win11${PLATFORM,,}" )
       size=5946128384
