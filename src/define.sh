@@ -845,6 +845,8 @@ getLink2() {
   local size=""
   local host="https://files.dog/MSDN"
 
+  [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
+
   case "${id,,}" in
     "win81${PLATFORM,,}" )
       size=4320526336
@@ -936,6 +938,8 @@ getLink3() {
   local sum=""
   local size=""
   local host="https://file.cnxiaobai.com/Windows"
+
+  [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
 
   case "${id,,}" in
     "core11" )
@@ -1102,6 +1106,8 @@ getLink5() {
   local sum=""
   local size=""
   local host="https://archive.org/download"
+
+  [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
 
   case "${id,,}" in
     "core11" )
