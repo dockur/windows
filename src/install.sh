@@ -73,6 +73,16 @@ startInstall() {
       : "${file//+/ }"; printf -v file '%b' "${_//%/\\x}"
       file=$(echo "$file" | sed -e 's/[^A-Za-z0-9._-]/_/g')
 
+    else
+
+      local language
+      language=$(getLanguage "$LANGUAGE" "culture")
+      language="${language%%-*}"
+
+      if [ -n "$language" ] && [[ "${language,,}" != "en" ]]; then
+        file="${VERSION/\//}_${language,,}.iso"
+      fi
+
     fi
 
     BOOT="$STORAGE/$file"
@@ -205,273 +215,6 @@ detectCustom() {
   ISO="$file"
   CUSTOM="$ISO"
   BOOT="$STORAGE/windows.$size.iso"
-
-  return 0
-}
-
-getESD() {
-
-  local dir="$1"
-  local version="$2"
-  local editionName
-  local winCatalog size
-
-  if ! isESD "${version,,}"; then
-    error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
-  fi
-
-  winCatalog=$(getCatalog "$version" "url")
-  editionName=$(getCatalog "$version" "edition")
-
-  local msg="Downloading product information from Microsoft..."
-  info "$msg" && html "$msg"
-
-  rm -rf "$dir"
-  mkdir -p "$dir"
-
-  local wFile="catalog.cab"
-  local xFile="products.xml"
-  local eFile="esd_edition.xml"
-  local fFile="products_filter.xml"
-
-  { wget "$winCatalog" -O "$dir/$wFile" -q --timeout=10; rc=$?; } || :
-  (( rc != 0 )) && error "Failed to download $winCatalog , reason: $rc" && return 1
-
-  cd "$dir"
-
-  if ! cabextract "$wFile" > /dev/null; then
-    cd /run
-    error "Failed to extract $wFile!" && return 1
-  fi
-
-  cd /run
-
-  if [ ! -s "$dir/$xFile" ]; then
-    error "Failed to find $xFile in $wFile!" && return 1
-  fi
-
-  local esdLang="en-us"
-  local edQuery='//File[Architecture="'${PLATFORM}'"][Edition="'${editionName}'"]'
-
-  echo -e '<Catalog>' > "$dir/$fFile"
-  xmllint --nonet --xpath "${edQuery}" "$dir/$xFile" >> "$dir/$fFile" 2>/dev/null
-  echo -e '</Catalog>'>> "$dir/$fFile"
-  xmllint --nonet --xpath '//File[LanguageCode="'${esdLang}'"]' "$dir/$fFile" >"$dir/$eFile"
-
-  size=$(stat -c%s "$dir/$eFile")
-  if ((size<20)); then
-    error "Failed to find Windows product in $eFile!" && return 1
-  fi
-
-  local tag="FilePath"
-  ESD=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
-
-  if [ -z "$ESD" ]; then
-    error "Failed to find ESD URL in $eFile!" && return 1
-  fi
-
-  tag="Sha1"
-  ESD_SUM=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
-  tag="Size"
-  ESD_SIZE=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
-
-  rm -rf "$dir"
-  return 0
-}
-
-verifyFile() {
-
-  local iso="$1"
-  local size="$2"
-  local total="$3"
-  local check="$4"
-
-  if [ -n "$size" ] && [[ "$total" != "$size" ]] && [[ "$size" != "0" ]]; then
-    warn "The downloaded file has an unexpected size: $total bytes, while expected value was: $size bytes. Please report this at $SUPPORT/issues"
-  fi
-
-  local hash=""
-  local algo="SHA256"
-
-  [ -z "$check" ] && return 0
-  [[ "$VERIFY" != [Yy1]* ]] && return 0
-  [[ "${#check}" == "40" ]] && algo="SHA1"
-
-  local msg="Verifying downloaded ISO..."
-  info "$msg" && html "$msg"
-
-  if [[ "${algo,,}" != "sha256" ]]; then
-    hash=$(sha1sum "$iso" | cut -f1 -d' ')
-  else
-    hash=$(sha256sum "$iso" | cut -f1 -d' ')
-  fi
-
-  if [[ "$hash" == "$check" ]]; then
-    info "Succesfully verified ISO!" && return 0
-  fi
-
-  error "The downloaded file has an invalid $algo checksum: $hash , while expected value was: $check. Please report this at $SUPPORT/issues"
-
-  rm -f "$iso"
-  return 1
-}
-
-doMido() {
-
-  local iso="$1"
-  local version="$2"
-  local desc="$3"
-  local rc sum size total
-
-  rm -f "$iso"
-  rm -f "$iso.PART"
-
-  size=$(getMido "$version" "size")
-  sum=$(getMido "$version" "sum")
-
-  local msg="Downloading $desc..."
-  info "$msg" && html "$msg"
-  /run/progress.sh "$iso.PART" "$size" "Downloading $desc ([P])..." &
-
-  cd "$TMP"
-  { /run/mido.sh "${version,,}"; rc=$?; } || :
-  cd /run
-
-  fKill "progress.sh"
-
-  if (( rc == 0 )) && [ -f "$iso" ]; then
-    total=$(stat -c%s "$iso")
-    if [ "$total" -gt 100000000 ]; then
-      ! verifyFile "$iso" "$size" "$total" "$sum" && return 1
-      html "Download finished successfully..." && return 0
-    fi
-  fi
-
-  rm -f "$iso"
-  rm -f "$iso.PART"
-
-  return 1
-}
-
-downloadFile() {
-
-  local iso="$1"
-  local url="$2"
-  local sum="$3"
-  local size="$4"
-  local desc="$5"
-  local rc total progress domain dots
-
-  rm -f "$iso"
-
-  # Check if running with interactive TTY or redirected to docker log
-  if [ -t 1 ]; then
-    progress="--progress=bar:noscroll"
-  else
-    progress="--progress=dot:giga"
-  fi
-
-  local msg="Downloading $desc..."
-  html "$msg"
-
-  domain=$(echo "$url" | awk -F/ '{print $3}')
-  dots=$(echo "$domain" | tr -cd '.' | wc -c)
-  (( dots > 1 )) && domain=$(expr "$domain" : '.*\.\(.*\..*\)')
-
-  if [ -n "$domain" ] && [[ "${domain,,}" != *"microsoft.com" ]]; then
-    msg="Downloading $desc from $domain..."
-  fi
-
-  info "$msg"
-  /run/progress.sh "$iso" "$size" "Downloading $desc ([P])..." &
-
-  { wget "$url" -O "$iso" -q --timeout=10 --show-progress "$progress"; rc=$?; } || :
-
-  fKill "progress.sh"
-
-  if (( rc == 0 )) && [ -f "$iso" ]; then
-    total=$(stat -c%s "$iso")
-    if [ "$total" -gt 100000000 ]; then
-      ! verifyFile "$iso" "$size" "$total" "$sum" && return 1
-      html "Download finished successfully..." && return 0
-    fi
-  fi
-
-  error "Failed to download $url , reason: $rc"
-
-  rm -f "$iso"
-  return 1
-}
-
-downloadImage() {
-
-  local iso="$1"
-  local version="$2"
-  local tried="n"
-  local url sum size base desc
-
-  if [[ "${version,,}" == "http"* ]]; then
-    base=$(basename "$iso")
-    desc=$(fromFile "$base")
-    downloadFile "$iso" "$version" "" "" "$desc" && return 0
-    return 1
-  fi
-
-  if ! validVersion "$version"; then
-    error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
-  fi
-
-  desc=$(printVersion "$version" "")
-
-  if isMido "$version"; then
-    tried="y"
-    doMido "$iso" "$version" "$desc" && return 0
-  fi
-
-  switchEdition "$version"
-
-  if isESD "$version"; then
-
-    if [[ "$tried" != "n" ]]; then
-      info "Failed to download $desc using Mido, will try a diferent method now..."
-    fi
-
-    tried="y"
-
-    if getESD "$TMP/esd" "$version"; then
-      ISO="${ISO%.*}.esd"
-      downloadFile "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$desc" && return 0
-      ISO="$iso"
-    fi
-
-  fi
-
-  for ((i=1;i<=MIRRORS;i++)); do
-
-    url=$(getLink "$i" "$version")
-
-    if [ -n "$url" ]; then
-      if [[ "$tried" != "n" ]]; then
-        info "Failed to download $desc, will try another mirror now..."
-      fi
-      tried="y"
-      size=$(getSize "$i" "$version")
-      sum=$(getHash "$i" "$version")
-      downloadFile "$iso" "$url" "$sum" "$size" "$desc" && return 0
-    fi
-
-  done
-
-  return 1
-}
-
-removeDownload() {
-
-  local iso="$1"
-
-  [ ! -f "$iso" ] && return 0
-  [ -n "$CUSTOM" ] && return 0
-  ! rm -f "$iso" 2> /dev/null && warn "failed to remove $iso !"
 
   return 0
 }
@@ -609,19 +352,6 @@ extractImage() {
   return 0
 }
 
-setXML() {
-
-  local file="/custom.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$STORAGE/custom.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/custom.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$1"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/$DETECTED.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && return 1
-
-  XML="$file"
-  return 0
-}
-
 getPlatform() {
 
   local xml="$1"
@@ -639,6 +369,26 @@ getPlatform() {
 
   echo "$platform"
   return 0
+}
+
+checkPlatform() {
+
+  local xml="$1"
+  local platform compat
+
+  platform=$(getPlatform "$xml")
+
+  case "${platform,,}" in
+    "x86" ) compat="x64" ;;
+    "x64" ) compat="$platform" ;;
+    "arm64" ) compat="$platform" ;;
+    * ) compat="${PLATFORM,,}" ;;
+  esac
+
+  [[ "${compat,,}" == "${PLATFORM,,}" ]] && return 0
+
+  error "You cannot boot ${platform^^} images on a $PLATFORM CPU!"
+  return 1
 }
 
 hasVersion() {
@@ -686,26 +436,6 @@ selectVersion() {
   return 0
 }
 
-checkPlatform() {
-
-  local xml="$1"
-  local platform compat
-
-  platform=$(getPlatform "$xml")
-
-  case "${platform,,}" in
-    "x86" ) compat="x64" ;;
-    "x64" ) compat="$platform" ;;
-    "arm64" ) compat="$platform" ;;
-    * ) compat="${PLATFORM,,}" ;;
-  esac
-
-  [[ "${compat,,}" == "${PLATFORM,,}" ]] && return 0
-
-  error "You cannot boot ${platform^^} images on a $PLATFORM CPU!"
-  return 1
-}
-
 detectVersion() {
 
   local xml="$1"
@@ -720,11 +450,51 @@ detectVersion() {
   return 0
 }
 
+detectLanguage() {
+
+  local xml="$1"
+  local lang=""
+
+  if [[ "$xml" == *"LANGUAGE><DEFAULT>"* ]]; then
+    lang="${xml#*LANGUAGE><DEFAULT>}"
+    lang="${lang%%<*}"
+  else
+    if [[ "$xml" == *"FALLBACK><DEFAULT>"* ]]; then
+      lang="${xml#*FALLBACK><DEFAULT>}"
+      lang="${lang%%<*}"
+    fi
+  fi
+
+  if [ -z "$lang" ]; then
+   warn "Language could not be detected from ISO!" && return 0
+  fi
+
+  local culture
+  culture=$(getLanguage "$lang" "culture")
+  [ -n "$culture" ] && LANGUAGE="$lang" && return 0
+
+  warn "Invalid language detected: \"$lang\""
+  return 0
+}
+
+setXML() {
+
+  local file="/custom.xml"
+  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$STORAGE/custom.xml"
+  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/custom.xml"
+  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$1"
+  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/$DETECTED.xml"
+  [ ! -f "$file" ] || [ ! -s "$file" ] && return 1
+
+  XML="$file"
+  return 0
+}
+
 detectImage() {
 
   local dir="$1"
   local version="$2"
-  local desc msg
+  local desc msg language
 
   XML=""
 
@@ -787,6 +557,12 @@ detectImage() {
   fi
 
   desc=$(printEdition "$DETECTED" "$DETECTED")
+  detectLanguage "$info"
+
+  if [[ "${LANGUAGE,,}" != "en" ]] && [[ "${LANGUAGE,,}" != "en-"* ]]; then
+    language=$(getLanguage "$LANGUAGE" "desc")
+    desc="$desc ($language)"
+  fi
 
   info "Detected: $desc"
   setXML "" && return 0
@@ -844,10 +620,55 @@ prepareImage() {
   return 1
 }
 
+updateXML() {
+
+  local asset="$1"
+  local language="$2"
+  local culture region keyboard
+
+  culture=$(getLanguage "$language" "culture")
+
+  if [ -n "$culture" ] && [[ "${culture,,}" != "en-us" ]]; then
+    sed -i "s/<UILanguage>en-US<\/UILanguage>/<UILanguage>$culture<\/UILanguage>/g" "$asset"
+  fi
+
+  region="$REGION"
+  [ -z "$region" ] && region="$culture"
+
+  if [ -n "$region" ] && [[ "${region,,}" != "en-us" ]]; then
+    sed -i "s/<UserLocale>en-US<\/UserLocale>/<UserLocale>$region<\/UserLocale>/g" "$asset"
+    sed -i "s/<SystemLocale>en-US<\/SystemLocale>/<SystemLocale>$region<\/SystemLocale>/g" "$asset"
+  fi
+
+  keyboard="$KEYBOARD"
+  [ -z "$keyboard" ] && keyboard="$culture"
+
+  if [ -n "$keyboard" ] && [[ "${keyboard,,}" != "en-us" ]]; then
+    sed -i "s/<InputLocale>en-US<\/InputLocale>/<InputLocale>$keyboard<\/InputLocale>/g" "$asset"
+    sed -i "s/<InputLocale>0409:00000409<\/InputLocale>/<InputLocale>$keyboard<\/InputLocale>/g" "$asset"
+  fi
+
+  if [ -n "$USERNAME" ]; then
+    sed -i "s/where name=\"Docker\"/where name=\"$USERNAME\"/g" "$asset"
+    sed -i "s/<Name>Docker<\/Name>/<Name>$USERNAME<\/Name>/g" "$asset"
+    sed -i "s/<FullName>Docker<\/FullName>/<FullName>$USERNAME<\/FullName>/g" "$asset"
+    sed -i "s/<Username>Docker<\/Username>/<Username>$USERNAME<\/Username>/g" "$asset"
+  fi
+
+  if [ -n "$PASSWORD" ]; then
+    sed -i "s/<Value>password<\/Value>/<Value>$PASSWORD<\/Value>/g" "$asset"
+    sed -z "s/<Password>...........<Value \/>/<Password>\n          <Value>$PASSWORD<\/Value>/g" -i "$asset"
+    sed -z "s/<Password>...............<Value \/>/<Password>\n              <Value>$PASSWORD<\/Value>/g" -i "$asset"
+  fi
+
+  return 0
+}
+
 updateImage() {
 
   local dir="$1"
   local asset="$2"
+  local language="$3"
   local file="autounattend.xml"
   local org="${file/.xml/.org}"
   local dat="${file/.xml/.dat}"
@@ -903,12 +724,18 @@ updateImage() {
     xml=$(basename "$asset")
     info "Adding $xml for automatic installation..."
 
-    if ! wimlib-imagex update "$loc" "$index" --command "add $asset /$file" > /dev/null; then
+    local answer="$TMP/$xml"
+    cp "$asset" "$answer"
+    updateXML "$answer" "$language"
+
+    if ! wimlib-imagex update "$loc" "$index" --command "add $answer /$file" > /dev/null; then
       MANUAL="Y"
       warn "failed to add answer file ($xml) to ISO image, $FB"
     else
-      wimlib-imagex update "$loc" "$index" --command "add $asset /$dat" > /dev/null || true
+      wimlib-imagex update "$loc" "$index" --command "add $answer /$dat" > /dev/null || true
     fi
+
+    rm -f "$answer"
 
   fi
 
@@ -920,8 +747,9 @@ updateImage() {
       if ! wimlib-imagex update "$loc" "$index" --command "add $TMP/$org /$file" > /dev/null; then
         warn "failed to restore original answer file ($org)."
       fi
-      rm -f "$TMP/$org"
     fi
+
+    rm -f "$TMP/$org"
 
   fi
 
@@ -936,6 +764,17 @@ updateImage() {
       mv -f "$path" "${path%.*}.xml"
     fi
   fi
+
+  return 0
+}
+
+removeDownload() {
+
+  local iso="$1"
+
+  [ ! -f "$iso" ] && return 0
+  [ -n "$CUSTOM" ] && return 0
+  ! rm -f "$iso" 2> /dev/null && warn "failed to remove $iso !"
 
   return 0
 }
@@ -1105,6 +944,7 @@ bootWindows() {
 ######################################
 
 ! parseVersion && exit 58
+! parseLanguage && exit 56
 ! detectCustom && exit 59
 
 if ! startInstall; then
@@ -1113,7 +953,7 @@ if ! startInstall; then
 fi
 
 if [ ! -s "$ISO" ] || [ ! -f "$ISO" ]; then
-  if ! downloadImage "$ISO" "$VERSION"; then
+  if ! downloadImage "$ISO" "$VERSION" "$LANGUAGE"; then
     rm -f "$ISO" 2> /dev/null || true
     exit 61
   fi
@@ -1134,7 +974,7 @@ if ! prepareImage "$ISO" "$DIR"; then
   exit 60
 fi
 
-if ! updateImage "$DIR" "$XML"; then
+if ! updateImage "$DIR" "$XML" "$LANGUAGE"; then
   abortInstall "$ISO" && return 0
   exit 60
 fi

@@ -15,6 +15,7 @@ Windows in a Docker container.
 
 ## Features
 
+ - Multi-language
  - ISO downloader
  - KVM acceleration
  - Web-based viewer
@@ -107,6 +108,19 @@ kubectl apply -f kubernetes.yml
 
   To install ARM64 versions of Windows use [dockur/windows-arm](https://github.com/dockur/windows-arm/).
 
+* ### How do I select the Windows language?
+
+  By default, the English version of Windows will be downloaded. But you can add the `LANGUAGE` environment variable to your compose file, in order to specify an alternative language:
+
+  ```yaml
+  environment:
+    LANGUAGE: "Chinese"
+  ```
+
+  You can choose between `Arabic`, `Bulgarian`, `Chinese`, `Croatian`, `Czech`, `Danish`, `Dutch`, `Estonian`, `Finnish`, `French`, `German`, `Greek`, `Hebrew`, `Hungarian`, `Italian`, `Japanese`, `Korean`, `Latvian`, `Lithuanian`, `Norwegian`, `Polish`, `Portuguese`, `Romanian`, `Russian`, `Serbian`, `Slovak`, `Slovenian`, `Spanish`, `Swedish`, `Turkish`, `Thai` and `Ukrainian`.
+
+  If you want to use a keyboard layout or region/locale that is not the default for the selected language, you can add the `KEYBOARD` and `REGION` variables with a culture code, like `en-US`.
+  
 * ### How do I change the storage location?
 
   To change the storage location, include the following bind mount in your compose file:
@@ -242,11 +256,21 @@ kubectl apply -f kubernetes.yml
     CPU_CORES: "4"
   ```
 
+* ### How do I configure the username and password?
+
+  By default, a user called `Docker` is created during installation with an empty password. You can change these credentials in your compose file:
+
+  ```yaml
+  environment:
+    USERNAME: "john"
+    PASSWORD: "secret"
+  ```
+
 * ### How do I connect using RDP?
 
   The web-viewer is mainly meant to be used during installation, as its picture quality is low, and it has no audio or clipboard for example.
 
-  So for a better experience you can connect using any Microsoft Remote Desktop client to the IP of the container, using the username `docker` and by leaving the password empty.
+  So for a better experience you can connect using any Microsoft Remote Desktop client to the IP of the container, using the username `Docker` and by leaving the password empty.
 
   There is a good RDP client for [Android](https://play.google.com/store/apps/details?id=com.microsoft.rdc.androidx) available from the Play Store and one for [iOS](https://apps.apple.com/nl/app/microsoft-remote-desktop/id714464092?l=en-GB) in the Apple Store. For Linux you can use [FreeRDP](https://www.freerdp.com/) and on Windows just type `mstsc` in the search box.
 
