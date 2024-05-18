@@ -1142,7 +1142,7 @@ getValue() {
   local func="getLink$1"
 
   if [ "$1" -gt 0 ] && [ "$1" -le "$MIRRORS" ]; then
-    val=$($func "$id" "$type" "$lang")
+    val=$($func "$id" "$lang" "$type")
   fi
 
   echo "$val"
