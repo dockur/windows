@@ -521,7 +521,7 @@ downloadImage() {
   if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
     language=$(getLanguage "$lang" "desc")
     if ! validVersion "$version" "$lang"; then
-      error "Cannot download the $language language version of $desc, please switch to English." && return 1
+      error "The $language language version of $desc is not available, please switch to English." && return 1
     fi
     desc="$desc in $language"
   fi
