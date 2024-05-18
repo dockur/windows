@@ -2063,7 +2063,7 @@ configXP() {
           echo ""
           echo "[HKEY_CURRENT_USER\Control Panel\Desktop]"
           echo "\"ScreenSaveActive\"=\"0\""
-          echo "[-HKEY_CURRENT_USER\Control Panel\Desktop\SCRNSAVE.EXE]"
+          echo "\"SCRNSAVE.EXE\"=\"dummy.scr\""
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]"
           echo "\"DefaultUserName\"=\"Docker\""
