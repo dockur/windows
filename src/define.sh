@@ -404,18 +404,12 @@ printEdition() {
     *"-education" )
       edition="Education"
       ;;
-    *"-iot" )
+    *"-iot" | *"-iot-eval" )
       edition="IoT"
       ;;    
-    *"-iot-eval" )
-      edition="IoT (Evaluation)"
-      ;;
-    *"-ltsc" )
+    *"-ltsc" | *"-ltsc-eval" )
       edition="LTSC"
       ;;          
-    *"-ltsc-eval" )
-      edition="LTSC (Evaluation)"
-      ;;      
     *"-enterprise-eval" )
       edition="Enterprise (Evaluation)"
       ;;
