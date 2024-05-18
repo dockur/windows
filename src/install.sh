@@ -453,16 +453,27 @@ detectVersion() {
 detectLanguage() {
 
   local xml="$1"
-  local lang="${xml#*LANGUAGE><DEFAULT>}"
+  local lang=""
 
-  lang="${lang%%<*}"
-  [ -z "$lang" ] && return 0
+  if [[ "$xml" == *"LANGUAGE><DEFAULT>"* ]]; then
+    lang="${xml#*LANGUAGE><DEFAULT>}"
+    lang="${lang%%<*}"
+  else
+    if [[ "$xml" == *"FALLBACK><DEFAULT>"* ]]; then
+      lang="${xml#*FALLBACK><DEFAULT>}"
+      lang="${lang%%<*}"
+    fi
+  fi
+
+  if [ -z "$lang" ]; then
+   warn "Language could not be detected from ISO!" && return 0
+  fi
 
   local culture
   culture=$(getLanguage "$lang" "culture")
   [ -n "$culture" ] && LANGUAGE="$lang" && return 0
 
-  warn "Invalid language detected: $lang"
+  warn "Invalid language detected: \"$lang\""
   return 0
 }
 
@@ -550,7 +561,7 @@ detectImage() {
 
   if [[ "${LANGUAGE,,}" != "en" ]] && [[ "${LANGUAGE,,}" != "en-"* ]]; then
     language=$(getLanguage "$LANGUAGE" "desc")
-    desc="$desc in $language"
+    desc="$desc ($language)"
   fi
 
   info "Detected: $desc"
