@@ -255,7 +255,17 @@ kubectl apply -f kubernetes.yml
     RAM_SIZE: "8G"
     CPU_CORES: "4"
   ```
- 
+
+* ### How do I change the default username or password?
+
+  By default, a user called `Docker` is created during installation with an empty password. You can change these credentials in your compose file:
+
+  ```yaml
+  environment:
+    USERNAME: "john"
+    PASSWORD: "secret"
+  ```
+
 * ### How do I connect using RDP?
 
   The web-viewer is mainly meant to be used during installation, as its picture quality is low, and it has no audio or clipboard for example.
