@@ -792,7 +792,7 @@ getLink1() {
   case "${ret,,}" in
     "sum" ) echo "$sum" ;;
     "size" ) echo "$size" ;;
-    *) echo "$host/$url";;
+    *) [ -n "$url" ] && echo "$host/$url";;
   esac
 
   return 0
@@ -886,7 +886,7 @@ getLink2() {
   case "${ret,,}" in
     "sum" ) echo "$sum" ;;
     "size" ) echo "$size" ;;
-    *) echo "$host/$url";;
+    *) [ -n "$url" ] && echo "$host/$url";;
   esac
 
   return 0
@@ -925,7 +925,7 @@ getLink3() {
   case "${ret,,}" in
     "sum" ) echo "$sum" ;;
     "size" ) echo "$size" ;;
-    *) echo "$host/$url";;
+    *) [ -n "$url" ] && echo "$host/$url";;
   esac
 
   return 0
@@ -1736,7 +1736,7 @@ getLink4() {
   case "${ret,,}" in
     "sum" ) echo "$sum" ;;
     "size" ) echo "$size" ;;
-    *) echo "$host/$url";;
+    *) [ -n "$url" ] && echo "$host/$url";;
   esac
 
   return 0
@@ -1780,7 +1780,7 @@ getLink5() {
   case "${ret,,}" in
     "sum" ) echo "$sum" ;;
     "size" ) echo "$size" ;;
-    *) echo "$host/$url";;
+    *) [ -n "$url" ] && echo "$host/$url";;
   esac
 
   return 0
