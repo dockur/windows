@@ -450,6 +450,22 @@ detectVersion() {
   return 0
 }
 
+detectLanguage() {
+
+  local xml="$1"
+  local lang="${xml#*LANGUAGE><DEFAULT>}"
+
+  lang="${lang%%<*}"
+  [ -z "$lang" ] && return 0
+
+  local culture
+  culture=$(getLanguage "$lang" "culture")
+  [ -n "$culture" ] && LANGUAGE="$lang" && return 0
+
+  warn "Invalid language detected: $lang"
+  return 0
+}
+
 setXML() {
 
   local file="/custom.xml"
@@ -467,7 +483,7 @@ detectImage() {
 
   local dir="$1"
   local version="$2"
-  local desc msg
+  local desc msg language
 
   XML=""
 
@@ -530,6 +546,12 @@ detectImage() {
   fi
 
   desc=$(printEdition "$DETECTED" "$DETECTED")
+  detectLanguage "$info"
+
+  if [[ "${LANGUAGE,,}" != "en" ]] && [[ "${LANGUAGE,,}" != "en-"* ]]; then
+    language=$(getLanguage "$LANGUAGE" "desc")
+    desc="$desc in $language"
+  fi
 
   info "Detected: $desc"
   setXML "" && return 0
