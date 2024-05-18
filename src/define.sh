@@ -389,12 +389,6 @@ printEdition() {
   [[ "$result" == "x" ]] && echo "$desc" && return 0
 
   case "${id,,}" in
-    *"-iot" )
-      edition="IoT"
-      ;;
-    *"-ltsc" )
-      edition="LTSC"
-      ;;
     *"-home" )
       edition="Home"
       ;;
@@ -410,6 +404,18 @@ printEdition() {
     *"-education" )
       edition="Education"
       ;;
+    *"-iot" )
+      edition="IoT"
+      ;;    
+    *"-iot-eval" )
+      edition="IoT (Evaluation)"
+      ;;
+    *"-ltsc" )
+      edition="LTSC"
+      ;;          
+    *"-ltsc-eval" )
+      edition="LTSC (Evaluation)"
+      ;;      
     *"-enterprise-eval" )
       edition="Enterprise (Evaluation)"
       ;;
