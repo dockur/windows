@@ -80,7 +80,7 @@ startInstall() {
       language="${language%%-*}"
 
       if [ -n "$language" ] && [[ "${language,,}" != "en" ]]; then
-        file="${VERSION/\//}.${language,,}.iso"
+        file="${VERSION/\//}_${language,,}.iso"
       fi
 
     fi
