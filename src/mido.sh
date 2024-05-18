@@ -512,7 +512,7 @@ downloadImage() {
     return 1
   fi
 
-  if ! validVersion "$version" "$lang"; then
+  if ! validVersion "$version" "en"; then
     error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
   fi
 
@@ -521,6 +521,9 @@ downloadImage() {
   if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
     language=$(getLanguage "$lang" "desc")
     desc="$desc in $language"
+    if ! validVersion "$version" "$lang"; then
+      error "Cannot download the $language language version of $desc, please switch to English." && return 1
+    fi
   fi
 
   if isMido "$version" "$lang"; then
