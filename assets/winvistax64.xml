@@ -239,7 +239,7 @@
           <Order>15</Order>
           <CommandLine>netsh.exe Advfirewall set allprofiles state off</CommandLine>
           <Description>Disable firewall</Description>
-        </SynchronousCommand>        
+        </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>16</Order>
           <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f</CommandLine>
