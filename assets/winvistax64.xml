@@ -232,7 +232,7 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>14</Order>
-          <CommandLine>netsh.exe advfirewall firewall set rule group="Remote Desktop" new enable=Yes</CommandLine>
+          <CommandLine>netsh.exe advfirewall firewall set rule group="@FirewallAPI.dll,-28752" new enable=Yes</CommandLine>
           <Description>Add RDP in firewall</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
@@ -262,6 +262,16 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>20</Order>
+          <CommandLine>netsh advfirewall firewall set rule group="@FirewallAPI.dll,-32752" new enable=Yes</CommandLine>
+          <Description>Enable Network Discovery</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>21</Order>
+          <CommandLine>netsh advfirewall firewall set rule group="@FirewallAPI.dll,-28502" new enable=Yes</CommandLine>
+          <Description>Enable File Sharing</Description>
+        </SynchronousCommand>        
+        <SynchronousCommand wcm:action="add">
+          <Order>22</Order>
           <CommandLine>cmd /C if exist "C:\OEM\install.bat" start "Install" "cmd /C C:\OEM\install.bat"</CommandLine>
           <Description>Execute custom script from the OEM folder if exists</Description>
         </SynchronousCommand>

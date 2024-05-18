@@ -181,8 +181,8 @@
       <FirewallGroups>
         <FirewallGroup wcm:action="add" wcm:keyValue="RemoteDesktop">
           <Active>true</Active>
-          <Group>Remote Desktop</Group>
           <Profile>all</Profile>
+          <Group>@FirewallAPI.dll,-28752</Group>
         </FirewallGroup>
       </FirewallGroups>
     </component>
@@ -297,12 +297,12 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>15</Order>
-          <CommandLine>netsh advfirewall firewall set rule group="Network Discovery" new enable=Yes</CommandLine>
+          <CommandLine>netsh advfirewall firewall set rule group="@FirewallAPI.dll,-32752" new enable=Yes</CommandLine>
           <Description>Enable Network Discovery</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>16</Order>
-          <CommandLine>netsh advfirewall firewall set rule group="File and Printer Sharing" new enable=Yes</CommandLine>
+          <CommandLine>netsh advfirewall firewall set rule group="@FirewallAPI.dll,-28502" new enable=Yes</CommandLine>
           <Description>Enable File Sharing</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
