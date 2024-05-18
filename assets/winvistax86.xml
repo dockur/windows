@@ -250,7 +250,7 @@
           <CommandLine>reg.exe add "HKCU\Control Panel\Desktop" /v "ScreenSaveActive" /t REG_SZ /d 0 /f</CommandLine>
           <Description>Disable screensaver</Description>
         </SynchronousCommand>
-       <SynchronousCommand wcm:action="add">
+        <SynchronousCommand wcm:action="add">
           <Order>18</Order>
           <CommandLine>reg.exe add "HKCU\Control Panel\Desktop" /v "ScreenSaverIsSecure" /t REG_SZ /d 0 /f</CommandLine>
           <Description>Disable screensaver</Description>
