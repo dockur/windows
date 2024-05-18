@@ -188,7 +188,7 @@ getLanguage() {
     "hr" | "hr-"* | "cr" | "cr-"* )
       lang="Croatian"
       desc="$lang"
-      culture="hr-HR" ;;      
+      culture="hr-HR" ;;
     "hu" | "hu-"* )
       lang="Hungarian"
       desc="$lang"
@@ -212,7 +212,7 @@ getLanguage() {
     "lv" | "lv-"* )
       lang="Latvian"
       desc="$lang"
-      culture="lt-LT" ;;      
+      culture="lt-LT" ;;
     "nb" | "nb-"* |"nn" | "nn-"* | "no" | "no-"* )
       lang="Norwegian"
       desc="$lang"
@@ -958,7 +958,7 @@ getLink4() {
         "en" | "en-"* )
           size=7004780544
           sum="a6c21313210182e0315054789a2b658b77394d5544b69b5341075492f89f51e5"
-          url="en-us_windows_11_consumer_editions_version_23h2_updated_april_2024_x64_dvd_d986680b.iso" ;;        
+          url="en-us_windows_11_consumer_editions_version_23h2_updated_april_2024_x64_dvd_d986680b.iso" ;;
         "mx" | "es-mx" ) url="es-mx_windows_11_consumer_editions_version_23h2_updated_april_2024_x64_dvd_d986680b.iso" ;;
         "es" | "es-"* ) url="es-es_windows_11_consumer_editions_version_23h2_updated_april_2024_x64_dvd_d986680b.iso" ;;
         "et" | "et-"* ) url="et-ee_windows_11_consumer_editions_version_23h2_updated_april_2024_x64_dvd_d986680b.iso" ;;
@@ -1003,7 +1003,7 @@ getLink4() {
         "en" | "en-"* )
           size=6879023104
           sum="3d4d388d6ffa371956304fa7401347b4535fd10e3137978a8f7750b790a43521"
-          url="en-us_windows_11_business_editions_version_23h2_updated_april_2024_x64_dvd_349cd577.iso" ;;        
+          url="en-us_windows_11_business_editions_version_23h2_updated_april_2024_x64_dvd_349cd577.iso" ;;
         "mx" | "es-mx" ) url="es-mx_windows_11_business_editions_version_23h2_updated_april_2024_x64_dvd_79352ef9.iso" ;;
         "es" | "es-"* ) url="es-es_windows_11_business_editions_version_23h2_updated_april_2024_x64_dvd_252a527a.iso" ;;
         "et" | "et-"* ) url="et-ee_windows_11_business_editions_version_23h2_updated_april_2024_x64_dvd_3952b855.iso" ;;
@@ -1048,7 +1048,7 @@ getLink4() {
         "en" | "en-"* )
           size=6605459456
           sum="b072627c9b8d9f62af280faf2a8b634376f91dc73ea1881c81943c151983aa4a"
-          url="en-us_windows_10_consumer_editions_version_22h2_updated_april_2024_x64_dvd_9a92dc89.iso" ;;        
+          url="en-us_windows_10_consumer_editions_version_22h2_updated_april_2024_x64_dvd_9a92dc89.iso" ;;
         "mx" | "es-mx" ) url="es-mx_windows_10_consumer_editions_version_22h2_updated_april_2024_x64_dvd_9a92dc89.iso" ;;
         "es" | "es-"* ) url="es-es_windows_10_consumer_editions_version_22h2_updated_april_2024_x64_dvd_9a92dc89.iso" ;;
         "et" | "et-"* ) url="et-ee_windows_10_consumer_editions_version_22h2_updated_april_2024_x64_dvd_9a92dc89.iso" ;;
@@ -1093,7 +1093,7 @@ getLink4() {
         "en" | "en-"* )
           size=6428377088
           sum="05fe9de04c2626bd00fbe69ad19129b2dbb75a93a2fe030ebfb2256d937ceab8"
-          url="en-us_windows_10_business_editions_version_22h2_updated_april_2024_x64_dvd_c00090a7.iso" ;;        
+          url="en-us_windows_10_business_editions_version_22h2_updated_april_2024_x64_dvd_c00090a7.iso" ;;
         "mx" | "es-mx" ) url="es-mx_windows_10_business_editions_version_22h2_updated_april_2024_x64_dvd_87806b10.iso" ;;
         "es" | "es-"* ) url="es-es_windows_10_business_editions_version_22h2_updated_april_2024_x64_dvd_a464088d.iso" ;;
         "et" | "et-"* ) url="et-ee_windows_10_business_editions_version_22h2_updated_april_2024_x64_dvd_bd09a0ce.iso" ;;
@@ -1126,7 +1126,7 @@ getLink4() {
         "zh" | "zh-"* ) url="zh-cn_windows_10_business_editions_version_22h2_updated_april_2024_x64_dvd_a2873093.iso" ;;
       esac
       ;;
-    "win10x64-ltsc" | "win10x64-enterprise-ltsc-eval" )      
+    "win10x64-ltsc" | "win10x64-enterprise-ltsc-eval" )
       case "${culture,,}" in
         "ar" | "ar-"* ) url="ar-sa_windows_10_enterprise_ltsc_2021_x64_dvd_60bc2a7a.iso" ;;
         "bg" | "bg-"* ) url="bg-bg_windows_10_enterprise_ltsc_2021_x64_dvd_b0887275.iso" ;;
@@ -1138,7 +1138,7 @@ getLink4() {
         "en" | "en-"* )
           size=4899461120
           sum="c90a6df8997bf49e56b9673982f3e80745058723a707aef8f22998ae6479597d"
-          url="en-us_windows_10_enterprise_ltsc_2021_x64_dvd_d289cf96.iso" ;;        
+          url="en-us_windows_10_enterprise_ltsc_2021_x64_dvd_d289cf96.iso" ;;
         "mx" | "es-mx" ) url="es-mx_windows_10_enterprise_ltsc_2021_x64_dvd_f6aaf384.iso" ;;
         "es" | "es-"* ) url="es-es_windows_10_enterprise_ltsc_2021_x64_dvd_51d721ea.iso" ;;
         "et" | "et-"* ) url="et-ee_windows_10_enterprise_ltsc_2021_x64_dvd_012a5c50.iso" ;;
@@ -1176,13 +1176,13 @@ getLink4() {
       size=6248140800
       sum="5d9b86ad467bc89f488d1651a6c5ad3656a7ea923f9f914510657a24c501bb86"
       url="en-us_windows_11_iot_enterprise_version_23h2_x64_dvd_fb37549c.iso"
-      ;;      
+      ;;
     "win10x64-iot" | "win10x64-enterprise-iot-eval" )
       [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
       size=4851668992
       sum="a0334f31ea7a3e6932b9ad7206608248f0bd40698bfb8fc65f14fc5e4976c160"
       url="en-us_windows_10_iot_enterprise_ltsc_2021_x64_dvd_257ad90f.iso"
-      ;;      
+      ;;
     "win81x64-enterprise" | "win81x64-enterprise-eval" )
       case "${culture,,}" in
         "ar" | "ar-"* ) url="ar_windows_8.1_enterprise_with_update_x64_dvd_6050360.iso" ;;
@@ -1195,7 +1195,7 @@ getLink4() {
         "en" | "en-"* )
           size=4139163648
           sum="c3c604c03677504e8905090a8ce5bb1dde76b6fd58e10f32e3a25bef21b2abe1"
-          url="en_windows_8.1_enterprise_with_update_x64_dvd_6054382.iso" ;;        
+          url="en_windows_8.1_enterprise_with_update_x64_dvd_6054382.iso" ;;
         "es" | "es-"* ) url="es_windows_8.1_enterprise_with_update_x64_dvd_6050578.iso" ;;
         "et" | "et-"* ) url="et_windows_8.1_enterprise_with_update_x64_dvd_6054384.iso" ;;
         "fi" | "fi-"* ) url="fi_windows_8.1_enterprise_with_update_x64_dvd_6050497.iso" ;;
@@ -1234,7 +1234,7 @@ getLink4() {
         "en" | "en-"* )
           size=5515755520
           sum="7f41d603224e8a0bf34ba957d3abf0a02437ab75000dd758b5ce3f050963e91f"
-          url="en-us_windows_server_2022_updated_april_2024_x64_dvd_164349f3.iso" ;;        
+          url="en-us_windows_server_2022_updated_april_2024_x64_dvd_164349f3.iso" ;;
         "es" | "es-"* ) url="es-es_windows_server_2022_updated_april_2024_x64_dvd_164349f3.iso" ;;
         "fr" | "fr-"* ) url="fr-fr_windows_server_2022_updated_april_2024_x64_dvd_164349f3.iso" ;;
         "hu" | "hu-"* ) url="hu-hu_windows_server_2022_updated_april_2024_x64_dvd_164349f3.iso" ;;
@@ -1259,7 +1259,7 @@ getLink4() {
         "en" | "en-"* )
           size=4843268096
           sum="4c5dd63efee50117986a2e38d4b3a3fbaf3c1c15e2e7ea1d23ef9d8af148dd2d"
-          url="en_windows_server_2019_x64_dvd_4cb967d8.iso" ;;        
+          url="en_windows_server_2019_x64_dvd_4cb967d8.iso" ;;
         "es" | "es-"* ) url="es_windows_server_2019_x64_dvd_dd6b7747.iso" ;;
         "fr" | "fr-"* ) url="fr_windows_server_2019_x64_dvd_d936fc7a.iso" ;;
         "hu" | "hu-"* ) url="hu_windows_server_2019_x64_dvd_c8f2c460.iso" ;;
@@ -1284,7 +1284,7 @@ getLink4() {
         "en" | "en-"* )
           size=5653628928
           sum="4caeb24b661fcede81cd90661aec31aa69753bf49a5ac247253dd021bc1b5cbb"
-          url="en_windows_server_2016_x64_dvd_9327751.iso" ;;        
+          url="en_windows_server_2016_x64_dvd_9327751.iso" ;;
         "es" | "es-"* ) url="es_windows_server_2016_x64_dvd_9327767.iso" ;;
         "fr" | "fr-"* ) url="fr_windows_server_2016_x64_dvd_9327754.iso" ;;
         "hu" | "hu-"* ) url="hu_windows_server_2016_x64_dvd_9327759.iso" ;;
@@ -1309,7 +1309,7 @@ getLink4() {
         "en" | "en-"* )
           size=5397889024
           sum="f351e89eb88a96af4626ceb3450248b8573e3ed5924a4e19ea891e6003b62e4e"
-          url="en_windows_server_2012_r2_with_update_x64_dvd_6052708.iso" ;;        
+          url="en_windows_server_2012_r2_with_update_x64_dvd_6052708.iso" ;;
         "es" | "es-"* ) url="es_windows_server_2012_r2_with_update_x64_dvd_6052769.iso" ;;
         "fr" | "fr-"* ) url="fr_windows_server_2012_r2_with_update_x64_dvd_6052713.iso" ;;
         "hu" | "hu-"* ) url="hu_windows_server_2012_r2_with_update_x64_dvd_6052727.iso" ;;
@@ -1328,7 +1328,7 @@ getLink4() {
         "zh" | "zh-"* ) url="cn_windows_server_2012_r2_with_update_x64_dvd_6052725.iso" ;;
       esac
       ;;
-    "win2008r2" | "win2008r2-eval" )   
+    "win2008r2" | "win2008r2-eval" )
       case "${culture,,}" in
         "cs" | "cs-"* ) url="cs_windows_server_2008_r2_with_sp1_x64_dvd_617602.iso" ;;
         "de" | "de-"* ) url="de_windows_server_2008_r2_with_sp1_x64_dvd_617380.iso" ;;
@@ -1494,7 +1494,7 @@ getLink4() {
         "en" | "en-"* )
           size=2564476928
           sum="e2c009a66d63a742941f5087acae1aa438dcbe87010bddd53884b1af6b22c940"
-          url="en_windows_7_ultimate_with_sp1_x86_dvd_u_677460.iso" ;;        
+          url="en_windows_7_ultimate_with_sp1_x86_dvd_u_677460.iso" ;;
         "es" | "es-"* ) url="es_windows_7_ultimate_with_sp1_x86_dvd_u_677462.iso" ;;
         "et" | "et-"* ) url="et_windows_7_ultimate_with_sp1_x86_dvd_u_677464.iso" ;;
         "fi" | "fi-"* ) url="fi_windows_7_ultimate_with_sp1_x86_dvd_u_677466.iso" ;;
@@ -1537,7 +1537,7 @@ getLink4() {
         "en" | "en-"* )
           size=3205953536
           sum="0a0cd511b3eac95c6f081419c9c65b12317b9d6a8d9707f89d646c910e788016"
-          url="en_windows_vista_enterprise_sp2_x64_dvd_342332.iso" ;;        
+          url="en_windows_vista_enterprise_sp2_x64_dvd_342332.iso" ;;
         "es" | "es-"* ) url="es_windows_vista_enterprise_sp2_x64_dvd_342415.iso" ;;
         "et" | "et-"* ) url="et_windows_vista_enterprise_with_sp2_x64_dvd_x15-40437.iso" ;;
         "fi" | "fi-"* ) url="fi_windows_vista_enterprise_with_sp2_x64_dvd_x15-40451.iso" ;;
@@ -1580,19 +1580,19 @@ getLink4() {
         "en" | "en-"* )
           size=3861460992
           sum="edf9f947c5791469fd7d2d40a5dcce663efa754f91847aa1d28ed7f585675b78"
-          url="en_windows_vista_sp2_x64_dvd_342267.iso" ;;        
+          url="en_windows_vista_sp2_x64_dvd_342267.iso" ;;
         "es" | "es-"* ) url="es_windows_vista_sp2_x64_dvd_342309.iso" ;;
         "et" | "et-"* ) url="et_windows_vista_with_sp2_x64_dvd_x15-36335.iso" ;;
         "fi" | "fi-"* ) url="fi_windows_vista_with_sp2_x64_dvd_x15-36337.iso" ;;
         "fr" | "fr-"* ) url="fr_windows_vista_sp2_x64_dvd_342277.iso" ;;
         "he" | "he-"* ) url="he_windows_vista_with_sp2_x64_dvd_x15-36344.iso" ;;
-        "hr" | "hr-"* ) url="hr_windows_vista_with_sp2_x64_dvd_x15-36325.iso" ;; 
+        "hr" | "hr-"* ) url="hr_windows_vista_with_sp2_x64_dvd_x15-36325.iso" ;;
         "hu" | "hu-"* ) url="hu_windows_vista_with_sp2_x64_dvd_x15-36346.iso" ;;
         "it" | "it-"* ) url="it_windows_vista_with_sp2_x64_dvd_x15-36348.iso" ;;
         "ja" | "ja-"* ) url="ja_windows_vista_sp2_x64_dvd_342298.iso" ;;
         "ko" | "ko-"* ) url="ko_windows_vista_k_and_kn_with_sp2_x86_dvd_x15-36302.iso" ;;
         "lt" | "lt-"* ) url="lt_windows_vista_with_sp2_x64_dvd_x15-36355.iso" ;;
-        "lv" | "lv-"* ) url="lv_windows_vista_with_sp2_x64_dvd_x15-36353.iso" ;;    
+        "lv" | "lv-"* ) url="lv_windows_vista_with_sp2_x64_dvd_x15-36353.iso" ;;
         "nb" | "nb-"* ) url="no_windows_vista_with_sp2_x64_dvd_x15-36357.iso" ;;
         "nl" | "nl-"* ) url="nl_windows_vista_with_sp2_x64_dvd_x15-36331.iso" ;;
         "pl" | "pl-"* ) url="pl_windows_vista_with_sp2_x64_dvd_x15-36359.iso" ;;
@@ -1623,7 +1623,7 @@ getLink4() {
         "en" | "en-"* )
           size=2420981760
           sum="54e2720004041e7db988a391543ea5228b0affc28efcf9303d2d0ff9402067f5"
-          url="en_windows_vista_enterprise_sp2_x86_dvd_342329.iso" ;;        
+          url="en_windows_vista_enterprise_sp2_x86_dvd_342329.iso" ;;
         "es" | "es-"* ) url="es_windows_vista_enterprise_sp2_x86_dvd_342413.iso" ;;
         "et" | "et-"* ) url="et_windows_vista_enterprise_with_sp2_x86_dvd_x15-40291.iso" ;;
         "fi" | "fi-"* ) url="fi_windows_vista_enterprise_with_sp2_x86_dvd_x15-40305.iso" ;;
@@ -1653,7 +1653,7 @@ getLink4() {
         "zh-hk" ) url="hk_windows_vista_enterprise_with_sp2_x86_dvd_x15-40317.iso" ;;
         "zh-tw" ) url="tw_windows_vista_enterprise_with_sp2_x86_dvd_x15-40315.iso" ;;
         "zh" | "zh-"* ) url="cn_windows_vista_enterprise_with_sp2_x86_dvd_x15-40257.iso" ;;
-      esac    
+      esac
       ;;
     "winvistax86-ultimate" )
       case "${culture,,}" in
@@ -1678,7 +1678,7 @@ getLink4() {
         "ja" | "ja-"* ) url="ja_windows_vista_sp2_x86_dvd_342296.iso" ;;
         "ko" | "ko-"* ) url="ko_windows_vista_k_with_sp2_x64_dvd_x15-36350.iso" ;;
         "lt" | "lt-"* ) url="lt_windows_vista_with_sp2_x86_dvd_x15-36304.iso" ;;
-        "lv" | "lv-"* ) url="lv_windows_vista_with_sp2_x86_dvd_x15-36303.iso" ;;        
+        "lv" | "lv-"* ) url="lv_windows_vista_with_sp2_x86_dvd_x15-36303.iso" ;;
         "nb" | "nb-"* ) url="no_windows_vista_with_sp2_x86_dvd_x15-36305.iso" ;;
         "nl" | "nl-"* ) url="nl_windows_vista_with_sp2_x86_dvd_x15-36291.iso" ;;
         "pl" | "pl-"* ) url="pl_windows_vista_with_sp2_x86_dvd_x15-36306.iso" ;;
@@ -1696,7 +1696,7 @@ getLink4() {
         "zh-hk" ) url="hk_windows_vista_with_sp2_x86_dvd_x15-36287.iso" ;;
         "zh-tw" ) url="tw_windows_vista_with_sp2_x86_dvd_x15-36286.iso" ;;
         "zh" | "zh-"* ) url="cn_windows_vista_with_sp2_x86_dvd_x15-36285.iso" ;;
-      esac      
+      esac
       ;;
     "winxpx86" )
       case "${culture,,}" in
@@ -1726,7 +1726,7 @@ getLink4() {
       esac
       ;;
     "winxpx64" )
-      [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0    
+      [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
       size=628168704
       sum="b641514c2265ba6c0a9ddbcfa4a6daaac6539db8d1ce704366cdfe5a516e0495"
       url="en_win_xp_pro_x64_with_sp2_vl_x13-41611.iso"
