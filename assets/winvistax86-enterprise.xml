@@ -157,7 +157,7 @@
       </AutoLogon>
       <OOBE>
         <HideEULAPage>true</HideEULAPage>
-        <NetworkLocation>Other</NetworkLocation>
+        <NetworkLocation>Home</NetworkLocation>
         <ProtectYourPC>3</ProtectYourPC>
         <SkipUserOOBE>true</SkipUserOOBE>
         <SkipMachineOOBE>false</SkipMachineOOBE>
