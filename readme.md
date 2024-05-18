@@ -256,7 +256,7 @@ kubectl apply -f kubernetes.yml
     CPU_CORES: "4"
   ```
 
-* ### How do I change the default username or password?
+* ### How do I configure the username and password?
 
   By default, a user called `Docker` is created during installation with an empty password. You can change these credentials in your compose file:
 
