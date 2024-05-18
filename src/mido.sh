@@ -381,7 +381,7 @@ getESD() {
   xmllint --nonet --xpath "${edQuery}" "$dir/$xFile" >> "$dir/$fFile" 2>/dev/null
   echo -e '</Catalog>'>> "$dir/$fFile"
 
-  xmllint --nonet --xpath '//File[LanguageCode="'${culture,,}'"]' "$dir/$fFile" >"$dir/$eFile"
+  xmllint --nonet --xpath "//File[LanguageCode=\"${culture,,}\"]" "$dir/$fFile" >"$dir/$eFile"
 
   size=$(stat -c%s "$dir/$eFile")
   if ((size<20)); then
