@@ -1578,7 +1578,6 @@ getLink4() {
           size=3861460992
           sum="edf9f947c5791469fd7d2d40a5dcce663efa754f91847aa1d28ed7f585675b78"
           url="en_windows_vista_sp2_x64_dvd_342267.iso" ;;        
-        "mx" | "es-mx" ) 
         "es" | "es-"* ) url="es_windows_vista_sp2_x64_dvd_342309.iso" ;;
         "et" | "et-"* ) url="et_windows_vista_with_sp2_x64_dvd_x15-36335.iso" ;;
         "fi" | "fi-"* ) url="fi_windows_vista_with_sp2_x64_dvd_x15-36337.iso" ;;
