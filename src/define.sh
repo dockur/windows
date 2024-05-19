@@ -1979,6 +1979,11 @@ configXP() {
     key="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
   fi
 
+  local username="Docker"
+  local password="*"
+  [ -n "$USERNAME" ] && username="$USERNAME"
+  [ -n "$PASSWORD" ] && password="$PASSWORD"
+  
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
   {       echo "[Data]"
@@ -2007,13 +2012,13 @@ configXP() {
           echo "[GuiUnattended]"
           echo "OEMSkipRegional=1"
           echo "OemSkipWelcome=1"
-          echo "AdminPassword=*"
+          echo "AdminPassword=$password"
           echo "TimeZone=0"
           echo "AutoLogon=Yes"
           echo "AutoLogonCount=65432"
           echo ""
           echo "[UserData]"
-          echo "FullName=\"Docker\""
+          echo "FullName=\"$username\""
           echo "ComputerName=\"*\""
           echo "OrgName=\"Windows for Docker\""
           echo "ProductKey=$key"
@@ -2066,9 +2071,9 @@ configXP() {
           echo "\"HideFileExt\"=dword:00000000"
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]"
-          echo "\"DefaultUserName\"=\"Docker\""
+          echo "\"DefaultUserName\"=\"$username\""
           echo "\"DefaultDomainName\"=\"Dockur\""
-          echo "\"AltDefaultUserName\"=\"Docker\""
+          echo "\"AltDefaultUserName\"=\"$username\""
           echo "\"AltDefaultDomainName\"=\"Dockur\""
           echo "\"AutoAdminLogon\"=\"1\""
   } | unix2dos > "$dir/\$OEM\$/install.reg"
@@ -2077,7 +2082,7 @@ configXP() {
           echo "Set WshNetwork = WScript.CreateObject(\"WScript.Network\")"
           echo "Set oMachine = GetObject(\"WinNT://\" & WshNetwork.ComputerName)"
           echo "Set oInfoUser = GetObject(\"WinNT://\" & WshNetwork.ComputerName & \"/Administrator,user\")"
-          echo "Set oUser = oMachine.MoveHere(oInfoUser.ADsPath,\"Docker\")"
+          echo "Set oUser = oMachine.MoveHere(oInfoUser.ADsPath,\"$username\")"
   } | unix2dos > "$dir/\$OEM\$/admin.vbs"
 
   {       echo "[COMMANDS]"
