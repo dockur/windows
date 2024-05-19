@@ -2036,6 +2036,10 @@ configXP() {
           echo ""
           echo "[TerminalServices]"
           echo "AllowConnections=1"
+          echo ""
+          echo "[GuiRunOnce]"
+          echo "%SystemRoot%\notepad.exe"
+          echo "%SystemRoot%\system32\reg.exe add \"HKEY_CURRENT_USER\Control Panel\Desktop\" /v ScreenSaveActive /t REG_SZ /d 0 /f"
   } | unix2dos > "$target/WINNT.SIF"
 
   {       echo "Windows Registry Editor Version 5.00"
