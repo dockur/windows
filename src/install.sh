@@ -656,7 +656,7 @@ updateXML() {
   fi
 
   if [ -n "$PASSWORD" ]; then
-    pass=$(printf '%s' "{$PASSWORD}Password" | iconv -f utf-8 -t utf-16le | base64)
+    pass=$(printf '%s' "${PASSWORD}Password" | iconv -f utf-8 -t utf-16le | base64)
     admin=$(printf '%s' "${PASSWORD}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64)
     sed -i "s/<Value>password<\/Value>/<Value>$admin<\/Value>/g" "$asset"
     sed -i "s/<PlainText>true<\/PlainText>/<PlainText>false<\/PlainText>/g" "$asset"
