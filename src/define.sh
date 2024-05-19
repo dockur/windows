@@ -2044,13 +2044,6 @@ configXP() {
           echo ""
           echo "[TerminalServices]"
           echo "    AllowConnections=1"
-          echo ""
-          echo "[Display]"
-          echo "    Vrefresh=75"
-          echo "    AutoConfirm=1"
-          echo "    BitsPerPel=32"
-          echo "    Xresolution=1920"
-          echo "    Yresolution=1080"
           echo "" 
   } | unix2dos > "$target/WINNT.SIF"
 
@@ -2084,13 +2077,22 @@ configXP() {
           echo "\"AltDefaultDomainName\"=\"Dockur\""
           echo "\"AutoAdminLogon\"=\"1\""
           echo ""
+          echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]"
+          echo "\"DefaultSettings.BitsPerPel\"=dword:00000020"
+          echo "\"DefaultSettings.XResolution\"=dword:00000780"
+          echo "\"DefaultSettings.YResolution\"=dword:00000438"
+          echo ""
           echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnceEx]"
-          echo "\"DisplayResolution\"=\"%SystemRoot%\system32\1365VidChng.exe 1920x1080x32@60 -q\""
           echo "\"ScreenSaver\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"SCRNSAVE.EXE\\\" /t REG_SZ /d \\\"off\\\"\""
           echo "\"ScreenSaverOff\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"ScreenSaveActive\\\" /t REG_SZ /d \\\"0\\\"\""
-          echo ""
+          echo ""          
+          
   } | unix2dos > "$dir/\$OEM\$/install.reg"
 
+   HKLM,"SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000","DefaultSettings.BitsPerPel",0x00010001,32
+   HKLM,"SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000","DefaultSettings.XResolution",0x00010001,1024
+   HKLM,"SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000","DefaultSettings.YResolution",0x00010001,768
+   
   {       echo "Set WshShell = WScript.CreateObject(\"WScript.Shell\")"
           echo "Set WshNetwork = WScript.CreateObject(\"WScript.Network\")"
           echo "Set oMachine = GetObject(\"WinNT://\" & WshNetwork.ComputerName)"
