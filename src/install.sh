@@ -624,7 +624,7 @@ updateXML() {
 
   local asset="$1"
   local language="$2"
-  local culture region pass keyboard
+  local culture region admin pass keyboard
 
   culture=$(getLanguage "$language" "culture")
 
@@ -656,8 +656,9 @@ updateXML() {
   fi
 
   if [ -n "$PASSWORD" ]; then
-    pass=$(printf '%s' "$PASSWORD" | base64)
-    sed -i "s/<Value>password<\/Value>/<Value>$pass<\/Value>/g" "$asset"
+    pass=$(printf '%s' "{$PASSWORD}Password" | base64)    
+    admin=$(printf '%s' "${PASSWORD}AdministratorPassword" | base64)    
+    sed -i "s/<Value>password<\/Value>/<Value>$admin<\/Value>/g" "$asset"
     sed -i "s/<PlainText>true<\/PlainText>/<PlainText>false<\/PlainText>/g" "$asset"    
     sed -z "s/<Password>...........<Value \/>/<Password>\n          <Value>$pass<\/Value>/g" -i "$asset"
     sed -z "s/<Password>...............<Value \/>/<Password>\n              <Value>$pass<\/Value>/g" -i "$asset"
