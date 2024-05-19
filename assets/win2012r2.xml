@@ -63,7 +63,7 @@
       <ImageInstall>
         <OSImage>
           <InstallFrom>
-           <MetaData wcm:action="add">
+            <MetaData wcm:action="add">
               <Key>/image/index</Key>
               <Value>2</Value>
             </MetaData>
