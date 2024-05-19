@@ -2037,7 +2037,7 @@ configXP() {
           echo "    Search_Page = http://www.google.com"
           echo ""
           echo "[RegionalSettings]"
-          echo "    Language=0409:00000409"
+          echo "    Language=00000409"
           echo ""
           echo "[TerminalServices]"
           echo "    AllowConnections=1"
@@ -2082,10 +2082,9 @@ configXP() {
           echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnceEx]"
           echo "\"ScreenSaver\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"SCRNSAVE.EXE\\\" /t REG_SZ /d \\\"off\\\"\""
           echo "\"ScreenSaverOff\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"ScreenSaveActive\\\" /t REG_SZ /d \\\"0\\\"\""
-          echo ""          
-          
+          echo ""
   } | unix2dos > "$dir/\$OEM\$/install.reg"
-   
+
   {       echo "Set WshShell = WScript.CreateObject(\"WScript.Shell\")"
           echo "Set WshNetwork = WScript.CreateObject(\"WScript.Network\")"
           echo "Set oMachine = GetObject(\"WinNT://\" & WshNetwork.ComputerName)"
