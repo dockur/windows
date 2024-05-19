@@ -1,5 +1,5 @@
 FROM scratch
-COPY --from=qemux/qemu-docker:5.04 / /
+COPY --from=qemux/qemu-docker:5.05 / /
 
 ARG VERSION_ARG="0.0"
 ARG DEBCONF_NOWARNINGS="yes"
