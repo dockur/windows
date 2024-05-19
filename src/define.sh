@@ -1901,6 +1901,25 @@ migrateFiles() {
   return 0
 }
 
+prepareLegacy() {
+
+  local iso="$1"
+  local dir="$2"
+  local file="$dir/boot.img"
+
+  ETFS=$(basename "$file")
+  [ -f "$file" ] && [ -s "$file" ] && return 0
+  rm -f "$file"
+
+  local len offset
+  len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
+  offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
+
+  dd "if=$iso" "of=$file" bs=2048 "count=$len" "skip=$offset" status=none && return 0
+
+  return 1
+}
+
 prepareXP() {
 
   local dir="$2"
@@ -2103,25 +2122,6 @@ prepareXP() {
 
   rm -rf "$drivers"
   return 0
-}
-
-prepareLegacy() {
-
-  local iso="$1"
-  local dir="$2"
-  local file="$dir/boot.img"
-
-  ETFS=$(basename "$file")
-  [ -f "$file" ] && [ -s "$file" ] && return 0
-  rm -f "$file"
-
-  local len offset
-  len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
-  offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
-
-  dd "if=$iso" "of=$file" bs=2048 "count=$len" "skip=$offset" status=none && return 0
-
-  return 1
 }
 
 return 0
