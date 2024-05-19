@@ -1983,7 +1983,7 @@ configXP() {
   local password="*"
   [ -n "$USERNAME" ] && username="$USERNAME"
   [ -n "$PASSWORD" ] && password="$PASSWORD"
-  
+
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
   {       echo "[Data]"
@@ -2043,8 +2043,8 @@ configXP() {
           echo "AllowConnections=1"
           echo ""
           echo "[GuiRunOnce]"
-          echo "%SystemRoot%\notepad.exe"
-          echo "%SystemRoot%\system32\reg.exe add \"HKEY_CURRENT_USER\Control Panel\Desktop\" /v ScreenSaveActive /t REG_SZ /d 0 /f"
+          echo "Command0=\"reg add HKCU\Control Panel\Desktop /v ScreenSaveActive /t REG_SZ /d 0 /f\""
+          echo "Command1=\"%SystemRoot%\notepad.exe\""          
   } | unix2dos > "$target/WINNT.SIF"
 
   {       echo "Windows Registry Editor Version 5.00"
