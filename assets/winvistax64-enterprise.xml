@@ -262,36 +262,31 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>19</Order>
-          <CommandLine>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v EnableLUA /t REG_DWORD /d 0 /f</CommandLine>
-          <Description>Disable LUA</Description>
-        </SynchronousCommand>        
-        <SynchronousCommand wcm:action="add">
-          <Order>20</Order>
           <CommandLine>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v ConsentPromptBehaviorAdmin /t REG_DWORD /d 0 /f</CommandLine>
           <Description>Disable LUA consent prompts for Admin</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>21</Order>
-          <CommandLine>FOR /F "usebackq delims=\ tokens=8" %a IN (`reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\Profiles"`) DO @REG ADD "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\Profiles\%a" /V "Category" /t REG_DWORD /D 00000001 /F</CommandLine>
+          <Order>20</Order>
+          <CommandLine>cmd /C FOR /F "usebackq delims=\ tokens=8" %a IN (`reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\Profiles"`) DO @REG ADD "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\Profiles\%a" /V "Category" /t REG_DWORD /D 00000001 /F</CommandLine>
           <Description>Set Network Location to Home</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>22</Order>
+          <Order>21</Order>
           <CommandLine>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services" /v "fAllowUnlistedRemotePrograms" /t REG_DWORD /d 1 /f</CommandLine>
           <Description>Enable RemoteAPP to launch unlisted programs</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>23</Order>
+          <Order>22</Order>
           <CommandLine>netsh advfirewall firewall set rule group="@FirewallAPI.dll,-32752" new enable=Yes</CommandLine>
           <Description>Enable Network Discovery</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>24</Order>
+          <Order>23</Order>
           <CommandLine>netsh advfirewall firewall set rule group="@FirewallAPI.dll,-28502" new enable=Yes</CommandLine>
           <Description>Enable File Sharing</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>25</Order>
+          <Order>24</Order>
           <CommandLine>cmd /C if exist "C:\OEM\install.bat" start "Install" "cmd /C C:\OEM\install.bat"</CommandLine>
           <Description>Execute custom script from the OEM folder if exists</Description>
         </SynchronousCommand>
