@@ -212,12 +212,7 @@
           <Value />
           <PlainText>true</PlainText>
         </Password>
-      </AutoLogon>
-      <Display>
-        <ColorDepth>32</ColorDepth>
-        <HorizontalResolution>1920</HorizontalResolution>
-        <VerticalResolution>1080</VerticalResolution>
-      </Display>      
+      </AutoLogon> 
       <OOBE>
         <HideEULAPage>true</HideEULAPage>
         <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
