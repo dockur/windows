@@ -2042,9 +2042,6 @@ configXP() {
           echo "[TerminalServices]"
           echo "AllowConnections=1"
           echo ""
-          echo "[GuiRunOnce]"
-          echo "Command0=\"reg add HKCU\Control Panel\Desktop /v ScreenSaveActive /t REG_SZ /d 0 /f\""
-          echo "Command1=\"%SystemRoot%\notepad.exe\""          
   } | unix2dos > "$target/WINNT.SIF"
 
   {       echo "Windows Registry Editor Version 5.00"
@@ -2076,6 +2073,10 @@ configXP() {
           echo "\"AltDefaultUserName\"=\"$username\""
           echo "\"AltDefaultDomainName\"=\"Dockur\""
           echo "\"AutoAdminLogon\"=\"1\""
+          echo ""
+          echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run]"
+          echo "\"ScreenSaverOff\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"ScreenSaveActive\\\" /t REG_SZ /d \\\"0\\\"\""
+          echo "" 
   } | unix2dos > "$dir/\$OEM\$/install.reg"
 
   {       echo "Set WshShell = WScript.CreateObject(\"WScript.Shell\")"
@@ -2083,11 +2084,13 @@ configXP() {
           echo "Set oMachine = GetObject(\"WinNT://\" & WshNetwork.ComputerName)"
           echo "Set oInfoUser = GetObject(\"WinNT://\" & WshNetwork.ComputerName & \"/Administrator,user\")"
           echo "Set oUser = oMachine.MoveHere(oInfoUser.ADsPath,\"$username\")"
+          echo ""
   } | unix2dos > "$dir/\$OEM\$/admin.vbs"
 
   {       echo "[COMMANDS]"
           echo "\"REGEDIT /s install.reg\""
           echo "\"Wscript admin.vbs\""
+          echo ""
   } | unix2dos > "$dir/\$OEM\$/cmdlines.txt"
 
   rm -rf "$drivers"
