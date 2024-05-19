@@ -155,9 +155,14 @@
           <PlainText>true</PlainText>
         </Password>
       </AutoLogon>
+      <Display>
+        <ColorDepth>32</ColorDepth>
+        <HorizontalResolution>1920</HorizontalResolution>
+        <VerticalResolution>1080</VerticalResolution>
+      </Display>
       <OOBE>
         <HideEULAPage>true</HideEULAPage>
-        <NetworkLocation>Other</NetworkLocation>
+        <NetworkLocation>Home</NetworkLocation>
         <ProtectYourPC>3</ProtectYourPC>
         <SkipUserOOBE>true</SkipUserOOBE>
         <SkipMachineOOBE>false</SkipMachineOOBE>
@@ -204,7 +209,7 @@
           <Order>8</Order>
           <CommandLine>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\NewNetworks" /v NetworkList /t REG_MULTI_SZ /d "" /f</CommandLine>
           <Description>Disable Network Discovery popup</Description>
-        </SynchronousCommand>        
+        </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>9</Order>
           <CommandLine>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v "HideFirstRunExperience" /t REG_DWORD /d 1 /f</CommandLine>
@@ -247,26 +252,31 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>17</Order>
-          <CommandLine>reg.exe add "HKCU\Control Panel\Desktop" /v "ScreenSaveActive" /t REG_DWORD /d 0 /f</CommandLine>
+          <CommandLine>reg.exe add "HKCU\Control Panel\Desktop" /v "ScreenSaveActive" /t REG_SZ /d 0 /f</CommandLine>
           <Description>Disable screensaver</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>18</Order>
+          <CommandLine>reg.exe add "HKCU\Control Panel\Desktop" /v SCRNSAVE.EXE /t REG_SZ /d C:\Windows\System32\scrnsavex.scr /f</CommandLine>
+          <Description>Disable screensaver</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>19</Order>
           <CommandLine>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services" /v "fAllowUnlistedRemotePrograms" /t REG_DWORD /d 1 /f</CommandLine>
           <Description>Enable RemoteAPP to launch unlisted programs</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>19</Order>
+          <Order>20</Order>
           <CommandLine>netsh advfirewall firewall set rule group="@FirewallAPI.dll,-32752" new enable=Yes</CommandLine>
           <Description>Enable Network Discovery</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>20</Order>
+          <Order>21</Order>
           <CommandLine>netsh advfirewall firewall set rule group="@FirewallAPI.dll,-28502" new enable=Yes</CommandLine>
           <Description>Enable File Sharing</Description>
-        </SynchronousCommand>        
+        </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>21</Order>
+          <Order>22</Order>
           <CommandLine>cmd /C if exist "C:\OEM\install.bat" start "Install" "cmd /C C:\OEM\install.bat"</CommandLine>
           <Description>Execute custom script from the OEM folder if exists</Description>
         </SynchronousCommand>
@@ -274,4 +284,3 @@
     </component>
   </settings>
 </unattend>
-

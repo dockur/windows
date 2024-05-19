@@ -231,13 +231,18 @@
           <PlainText>true</PlainText>
         </Password>
       </AutoLogon>
+      <Display>
+        <ColorDepth>32</ColorDepth>
+        <HorizontalResolution>1920</HorizontalResolution>
+        <VerticalResolution>1080</VerticalResolution>
+      </Display>
       <OOBE>
         <HideEULAPage>true</HideEULAPage>
         <HideLocalAccountScreen>true</HideLocalAccountScreen>
         <HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
         <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
         <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
-        <NetworkLocation>Other</NetworkLocation>
+        <NetworkLocation>Home</NetworkLocation>
         <ProtectYourPC>3</ProtectYourPC>
         <SkipUserOOBE>true</SkipUserOOBE>
         <SkipMachineOOBE>true</SkipMachineOOBE>
@@ -317,16 +322,21 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>15</Order>
+          <CommandLine>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v "NoAutoUpdate" /t REG_DWORD /d 1 /f</CommandLine>
+          <Description>Turn off Windows Update auto download</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>16</Order>
           <CommandLine>netsh advfirewall firewall set rule group="@FirewallAPI.dll,-32752" new enable=Yes</CommandLine>
           <Description>Enable Network Discovery</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>16</Order>
+          <Order>17</Order>
           <CommandLine>netsh advfirewall firewall set rule group="@FirewallAPI.dll,-28502" new enable=Yes</CommandLine>
           <Description>Enable File Sharing</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>17</Order>
+          <Order>18</Order>
           <CommandLine>cmd /C if exist "C:\OEM\install.bat" start "Install" "cmd /C C:\OEM\install.bat"</CommandLine>
           <Description>Execute custom script from the OEM folder if exists</Description>
         </SynchronousCommand>

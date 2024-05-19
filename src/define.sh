@@ -406,10 +406,10 @@ printEdition() {
       ;;
     *"-iot" | *"-iot-eval" )
       edition="IoT"
-      ;;    
+      ;;
     *"-ltsc" | *"-ltsc-eval" )
       edition="LTSC"
-      ;;          
+      ;;
     *"-enterprise-eval" )
       edition="Enterprise (Evaluation)"
       ;;
@@ -1901,12 +1901,33 @@ migrateFiles() {
   return 0
 }
 
-configXP() {
+prepareLegacy() {
 
-  local dir="$1"
+  local iso="$1"
+  local dir="$2"
+  local file="$dir/boot.img"
+
+  ETFS=$(basename "$file")
+  [ -f "$file" ] && [ -s "$file" ] && return 0
+  rm -f "$file"
+
+  local len offset
+  len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
+  offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
+
+  dd "if=$iso" "of=$file" bs=2048 "count=$len" "skip=$offset" status=none && return 0
+
+  return 1
+}
+
+prepareXP() {
+
+  local dir="$2"
   local arch="x86"
   local target="$dir/I386"
   local drivers="$TMP/drivers"
+
+  ETFS="[BOOT]/Boot-NoEmul.img"
 
   if [ -d "$dir/AMD64" ]; then
     arch="amd64"
@@ -1979,84 +2000,82 @@ configXP() {
     key="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
   fi
 
+  local username="Docker"
+  local password="*"
+  [ -n "$USERNAME" ] && username="$USERNAME"
+  [ -n "$PASSWORD" ] && password="$PASSWORD"
+
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
   {       echo "[Data]"
-          echo "AutoPartition=1"
-          echo "MsDosInitiated=\"0\""
-          echo "UnattendedInstall=\"Yes\""
-          echo "AutomaticUpdates=\"Yes\""
+          echo "    AutoPartition=1"
+          echo "    MsDosInitiated=\"0\""
+          echo "    UnattendedInstall=\"Yes\""
+          echo "    AutomaticUpdates=\"Yes\""
           echo ""
           echo "[Unattended]"
-          echo "UnattendSwitch=Yes"
-          echo "UnattendMode=FullUnattended"
-          echo "FileSystem=NTFS"
-          echo "OemSkipEula=Yes"
-          echo "OemPreinstall=Yes"
-          echo "Repartition=Yes"
-          echo "WaitForReboot=\"No\""
-          echo "DriverSigningPolicy=\"Ignore\""
-          echo "NonDriverSigningPolicy=\"Ignore\""
-          echo "OemPnPDriversPath=\"Drivers\viostor;Drivers\NetKVM;Drivers\sata\""
-          echo "NoWaitAfterTextMode=1"
-          echo "NoWaitAfterGUIMode=1"
-          echo "FileSystem-ConvertNTFS"
-          echo "ExtendOemPartition=0"
-          echo "Hibernation=\"No\""
+          echo "    UnattendSwitch=Yes"
+          echo "    UnattendMode=FullUnattended"
+          echo "    FileSystem=NTFS"
+          echo "    OemSkipEula=Yes"
+          echo "    OemPreinstall=Yes"
+          echo "    Repartition=Yes"
+          echo "    WaitForReboot=\"No\""
+          echo "    DriverSigningPolicy=\"Ignore\""
+          echo "    NonDriverSigningPolicy=\"Ignore\""
+          echo "    OemPnPDriversPath=\"Drivers\viostor;Drivers\NetKVM;Drivers\sata\""
+          echo "    NoWaitAfterTextMode=1"
+          echo "    NoWaitAfterGUIMode=1"
+          echo "    FileSystem-ConvertNTFS"
+          echo "    ExtendOemPartition=0"
+          echo "    Hibernation=\"No\""
           echo ""
           echo "[GuiUnattended]"
-          echo "OEMSkipRegional=1"
-          echo "OemSkipWelcome=1"
-          echo "AdminPassword=*"
-          echo "TimeZone=0"
-          echo "AutoLogon=Yes"
-          echo "AutoLogonCount=65432"
+          echo "    OEMSkipRegional=1"
+          echo "    OemSkipWelcome=1"
+          echo "    AdminPassword=$password"
+          echo "    TimeZone=0"
+          echo "    AutoLogon=Yes"
+          echo "    AutoLogonCount=65432"
           echo ""
           echo "[UserData]"
-          echo "FullName=\"Docker\""
-          echo "ComputerName=\"*\""
-          echo "OrgName=\"Windows for Docker\""
-          echo "ProductKey=$key"
+          echo "    FullName=\"$username\""
+          echo "    ComputerName=\"*\""
+          echo "    OrgName=\"Windows for Docker\""
+          echo "    ProductKey=$key"
           echo ""
           echo "[Identification]"
-          echo "JoinWorkgroup = WORKGROUP"
+          echo "    JoinWorkgroup = WORKGROUP"
           echo ""
           echo "[Networking]"
-          echo "InstallDefaultComponents=Yes"
+          echo "    InstallDefaultComponents=Yes"
           echo ""
           echo "[Branding]"
-          echo "BrandIEUsingUnattended=Yes"
+          echo "    BrandIEUsingUnattended=Yes"
           echo ""
           echo "[URL]"
-          echo "Home_Page = http://www.google.com"
-          echo "Search_Page = http://www.google.com"
+          echo "    Home_Page = http://www.google.com"
+          echo "    Search_Page = http://www.google.com"
           echo ""
           echo "[RegionalSettings]"
-          echo "Language=00000409"
+          echo "    Language=00000409"
           echo ""
           echo "[TerminalServices]"
-          echo "AllowConnections=1"
+          echo "    AllowConnections=1"
+          echo "" 
   } | unix2dos > "$target/WINNT.SIF"
 
   {       echo "Windows Registry Editor Version 5.00"
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Security]"
           echo "\"FirstRunDisabled\"=dword:00000001"
-          echo "\"AntiVirusOverride\"=dword:00000001"
-          echo "\"FirewallOverride\"=dword:00000001"
-          echo "\"FirewallDisableNotify\"=dword:00000001"
           echo "\"UpdatesDisableNotify\"=dword:00000001"
+          echo "\"FirewallDisableNotify\"=dword:00000001"
           echo "\"AntiVirusDisableNotify\"=dword:00000001"
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\wscsvc]"
           echo "\"Start\"=dword:00000004"
           echo ""
-          echo "[HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\StandardProfile]"
-          echo "\"EnableFirewall\"=dword:00000000"
-          echo ""
-          echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess]"
-          echo "\"Start\"=dword:00000004"
-          echo
           echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\StandardProfile\GloballyOpenPorts\List]"
           echo "\"3389:TCP\"=\"3389:TCP:*:Enabled:@xpsp2res.dll,-22009\""
           echo ""
@@ -2070,59 +2089,39 @@ configXP() {
           echo "\"HideFileExt\"=dword:00000000"
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]"
-          echo "\"DefaultUserName\"=\"Docker\""
+          echo "\"DefaultUserName\"=\"$username\""
           echo "\"DefaultDomainName\"=\"Dockur\""
-          echo "\"AltDefaultUserName\"=\"Docker\""
+          echo "\"AltDefaultUserName\"=\"$username\""
           echo "\"AltDefaultDomainName\"=\"Dockur\""
           echo "\"AutoAdminLogon\"=\"1\""
+          echo ""
+          echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]"
+          echo "\"DefaultSettings.BitsPerPel\"=dword:00000020"
+          echo "\"DefaultSettings.XResolution\"=dword:00000780"
+          echo "\"DefaultSettings.YResolution\"=dword:00000438"
+          echo ""
+          echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnceEx]"
+          echo "\"ScreenSaver\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"SCRNSAVE.EXE\\\" /t REG_SZ /d \\\"off\\\"\""
+          echo "\"ScreenSaverOff\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"ScreenSaveActive\\\" /t REG_SZ /d \\\"0\\\"\""
+          echo ""
   } | unix2dos > "$dir/\$OEM\$/install.reg"
 
   {       echo "Set WshShell = WScript.CreateObject(\"WScript.Shell\")"
           echo "Set WshNetwork = WScript.CreateObject(\"WScript.Network\")"
           echo "Set oMachine = GetObject(\"WinNT://\" & WshNetwork.ComputerName)"
           echo "Set oInfoUser = GetObject(\"WinNT://\" & WshNetwork.ComputerName & \"/Administrator,user\")"
-          echo "Set oUser = oMachine.MoveHere(oInfoUser.ADsPath,\"Docker\")"
+          echo "Set oUser = oMachine.MoveHere(oInfoUser.ADsPath,\"$username\")"
+          echo ""
   } | unix2dos > "$dir/\$OEM\$/admin.vbs"
 
   {       echo "[COMMANDS]"
           echo "\"REGEDIT /s install.reg\""
           echo "\"Wscript admin.vbs\""
+          echo ""
   } | unix2dos > "$dir/\$OEM\$/cmdlines.txt"
 
   rm -rf "$drivers"
   return 0
-}
-
-prepareXP() {
-
-  local iso="$1"
-  local dir="$2"
-
-  ETFS="[BOOT]/Boot-NoEmul.img"
-
-  [[ "$MANUAL" == [Yy1]* ]] && return 0
-  configXP "$dir" && return 0
-
-  return 1
-}
-
-prepareLegacy() {
-
-  local iso="$1"
-  local dir="$2"
-  local file="$dir/boot.img"
-
-  ETFS=$(basename "$file")
-  [ -f "$file" ] && [ -s "$file" ] && return 0
-  rm -f "$file"
-
-  local len offset
-  len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
-  offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
-
-  dd "if=$iso" "of=$file" bs=2048 "count=$len" "skip=$offset" status=none && return 0
-
-  return 1
 }
 
 return 0

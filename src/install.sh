@@ -624,7 +624,7 @@ updateXML() {
 
   local asset="$1"
   local language="$2"
-  local culture region keyboard
+  local culture region admin pass keyboard
 
   culture=$(getLanguage "$language" "culture")
 
@@ -649,16 +649,21 @@ updateXML() {
   fi
 
   if [ -n "$USERNAME" ]; then
-    sed -i "s/where name=\"Docker\"/where name=\"$USERNAME\"/g" "$asset"
     sed -i "s/<Name>Docker<\/Name>/<Name>$USERNAME<\/Name>/g" "$asset"
+    sed -i "s/where name=\"Docker\"/where name=\"$USERNAME\"/g" "$asset"    
     sed -i "s/<FullName>Docker<\/FullName>/<FullName>$USERNAME<\/FullName>/g" "$asset"
     sed -i "s/<Username>Docker<\/Username>/<Username>$USERNAME<\/Username>/g" "$asset"
   fi
 
   if [ -n "$PASSWORD" ]; then
-    sed -i "s/<Value>password<\/Value>/<Value>$PASSWORD<\/Value>/g" "$asset"
-    sed -z "s/<Password>...........<Value \/>/<Password>\n          <Value>$PASSWORD<\/Value>/g" -i "$asset"
-    sed -z "s/<Password>...............<Value \/>/<Password>\n              <Value>$PASSWORD<\/Value>/g" -i "$asset"
+    pass=$(printf '%s' "${PASSWORD}Password" | iconv -f utf-8 -t utf-16le | base64)
+    admin=$(printf '%s' "${PASSWORD}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64)
+    sed -i "s/<Value>password<\/Value>/<Value>$admin<\/Value>/g" "$asset"
+    sed -i "s/<PlainText>true<\/PlainText>/<PlainText>false<\/PlainText>/g" "$asset"
+    sed -z "s/<Password>...........<Value \/>/<Password>\n          <Value>$pass<\/Value>/g" -i "$asset"
+    sed -z "s/<Password>...............<Value \/>/<Password>\n              <Value>$pass<\/Value>/g" -i "$asset"
+    sed -z "s/<AdministratorPassword>...........<Value \/>/<AdministratorPassword>\n          <Value>$admin<\/Value>/g" -i "$asset"
+    sed -z "s/<AdministratorPassword>...............<Value \/>/<AdministratorPassword>\n              <Value>$admin<\/Value>/g" -i "$asset"
   fi
 
   return 0
