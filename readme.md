@@ -11,7 +11,7 @@
 
 </div></h1>
 
-Windows in a Docker container.
+Windows inside a Docker container.
 
 ## Features
 
@@ -205,7 +205,7 @@ kubectl apply -f kubernetes.yml
 
 * ### How do I perform a manual installation?
 
-  It's best to use the automatic installation, as it optimizes various settings to give you maximum performance and prevent common issues.
+  It's best to use the automatic installation, as it prevents common issues that occur when running Windows inside a virtualized environment and optimizes various settings to give you maximum performance.
 
   However, if you insist on performing the installation manually, add the following environment variable to your compose file:
 
