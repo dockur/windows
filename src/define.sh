@@ -2085,10 +2085,6 @@ configXP() {
           echo ""          
           
   } | unix2dos > "$dir/\$OEM\$/install.reg"
-
-   HKLM,"SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000","DefaultSettings.BitsPerPel",0x00010001,32
-   HKLM,"SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000","DefaultSettings.XResolution",0x00010001,1024
-   HKLM,"SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000","DefaultSettings.YResolution",0x00010001,768
    
   {       echo "Set WshShell = WScript.CreateObject(\"WScript.Shell\")"
           echo "Set WshNetwork = WScript.CreateObject(\"WScript.Network\")"
