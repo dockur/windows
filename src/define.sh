@@ -2074,9 +2074,9 @@ configXP() {
           echo "\"AltDefaultDomainName\"=\"Dockur\""
           echo "\"AutoAdminLogon\"=\"1\""
           echo ""
-          echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run]"
+          echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce]"
           echo "\"ScreenSaverOff\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"ScreenSaveActive\\\" /t REG_SZ /d \\\"0\\\"\""
-          echo "" 
+          echo ""
   } | unix2dos > "$dir/\$OEM\$/install.reg"
 
   {       echo "Set WshShell = WScript.CreateObject(\"WScript.Shell\")"
