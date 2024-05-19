@@ -1901,12 +1901,14 @@ migrateFiles() {
   return 0
 }
 
-configXP() {
+prepareXP() {
 
-  local dir="$1"
+  local dir="$2"
   local arch="x86"
   local target="$dir/I386"
   local drivers="$TMP/drivers"
+
+  ETFS="[BOOT]/Boot-NoEmul.img"
 
   if [ -d "$dir/AMD64" ]; then
     arch="amd64"
@@ -2101,19 +2103,6 @@ configXP() {
 
   rm -rf "$drivers"
   return 0
-}
-
-prepareXP() {
-
-  local iso="$1"
-  local dir="$2"
-
-  ETFS="[BOOT]/Boot-NoEmul.img"
-
-  [[ "$MANUAL" == [Yy1]* ]] && return 0
-  configXP "$dir" && return 0
-
-  return 1
 }
 
 prepareLegacy() {
