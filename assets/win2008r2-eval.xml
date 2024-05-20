@@ -276,7 +276,7 @@
           <Order>9</Order>
           <CommandLine>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\NewNetworks" /v NetworkList /t REG_MULTI_SZ /d "" /f</CommandLine>
           <Description>Disable Network Discovery popup</Description>
-        </SynchronousCommand>        
+        </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>10</Order>
           <CommandLine>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v "HideFirstRunExperience" /t REG_DWORD /d 1 /f</CommandLine>

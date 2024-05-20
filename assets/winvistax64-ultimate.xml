@@ -20,29 +20,17 @@
             <CreatePartition wcm:action="add">
               <Order>1</Order>
               <Type>Primary</Type>
-              <Size>100</Size>
-            </CreatePartition>
-            <CreatePartition wcm:action="add">
-              <Order>2</Order>
-              <Type>Primary</Type>
               <Extend>true</Extend>
             </CreatePartition>
           </CreatePartitions>
           <ModifyPartitions>
             <ModifyPartition wcm:action="add">
-              <Format>NTFS</Format>
-              <Label>System Reserved</Label>
-              <Order>1</Order>
-              <Active>true</Active>
-              <PartitionID>1</PartitionID>
-            </ModifyPartition>
-            <ModifyPartition wcm:action="add">
               <Active>true</Active>
               <Format>NTFS</Format>
               <Label>Windows</Label>
               <Letter>C</Letter>
-              <Order>2</Order>
-              <PartitionID>2</PartitionID>
+              <Order>1</Order>
+              <PartitionID>1</PartitionID>
             </ModifyPartition>
           </ModifyPartitions>
         </Disk>
@@ -57,7 +45,7 @@
           </InstallFrom>
           <InstallTo>
             <DiskID>0</DiskID>
-            <PartitionID>2</PartitionID>
+            <PartitionID>1</PartitionID>
           </InstallTo>
           <WillShowUI>OnError</WillShowUI>
           <InstallToAvailablePartition>false</InstallToAvailablePartition>

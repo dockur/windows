@@ -218,7 +218,7 @@
         <ColorDepth>32</ColorDepth>
         <HorizontalResolution>1920</HorizontalResolution>
         <VerticalResolution>1080</VerticalResolution>
-      </Display>      
+      </Display>
       <OOBE>
         <HideEULAPage>true</HideEULAPage>
         <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>

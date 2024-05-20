@@ -218,7 +218,7 @@
         <ColorDepth>32</ColorDepth>
         <HorizontalResolution>1920</HorizontalResolution>
         <VerticalResolution>1080</VerticalResolution>
-      </Display>      
+      </Display>
       <OOBE>
         <HideEULAPage>true</HideEULAPage>
         <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
@@ -269,7 +269,7 @@
           <Order>8</Order>
           <CommandLine>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\NewNetworks" /v NetworkList /t REG_MULTI_SZ /d "" /f</CommandLine>
           <Description>Disable Network Discovery popup</Description>
-        </SynchronousCommand>        
+        </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>9</Order>
           <CommandLine>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v "HideFirstRunExperience" /t REG_DWORD /d 1 /f</CommandLine>
