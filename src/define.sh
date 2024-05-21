@@ -441,7 +441,7 @@ fromFile() {
   local file="${1,,}"
   local arch="${PLATFORM,,}"
 
-  case "${file/ /_}" in
+  case "${file// /_}" in
     *"_x64_"* | *"_x64."*)
       arch="x64"
       ;;
