@@ -17,7 +17,7 @@ PLATFORM="x64"
 
 parseVersion() {
 
-  VERSION="${VERSION/\//}"
+  VERSION="${VERSION//\//}"
 
   if [[ "${VERSION}" == \"*\" || "${VERSION}" == \'*\' ]]; then
     VERSION="${VERSION:1:-1}"
