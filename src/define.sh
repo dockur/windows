@@ -17,8 +17,6 @@ PLATFORM="x64"
 
 parseVersion() {
 
-  VERSION="${VERSION/\//}"
-
   if [[ "${VERSION}" == \"*\" || "${VERSION}" == \'*\' ]]; then
     VERSION="${VERSION:1:-1}"
   fi
@@ -295,9 +293,9 @@ getLanguage() {
 
 parseLanguage() {
 
-  REGION="${REGION/_/-/}"
-  KEYBOARD="${KEYBOARD/_/-/}"
-  LANGUAGE="${LANGUAGE/_/-/}"
+  REGION="${REGION//_/-/}"
+  KEYBOARD="${KEYBOARD//_/-/}"
+  LANGUAGE="${LANGUAGE//_/-/}"
 
   [ -z "$LANGUAGE" ] && LANGUAGE="en"
 
@@ -443,7 +441,7 @@ fromFile() {
   local file="${1,,}"
   local arch="${PLATFORM,,}"
 
-  case "${file/ /_}" in
+  case "${file// /_}" in
     *"_x64_"* | *"_x64."*)
       arch="x64"
       ;;
@@ -455,7 +453,7 @@ fromFile() {
       ;;
   esac
 
-  case "${file/ /_}" in
+  case "${file// /_}" in
     "win7"* | "win_7"* | *"windows7"* | *"windows_7"* )
       id="win7${arch}"
       ;;
@@ -2062,7 +2060,7 @@ prepareXP() {
           echo ""
           echo "[TerminalServices]"
           echo "    AllowConnections=1"
-          echo "" 
+          echo ""
   } | unix2dos > "$target/WINNT.SIF"
 
   {       echo "Windows Registry Editor Version 5.00"

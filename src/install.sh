@@ -65,7 +65,7 @@ startInstall() {
 
   if [ -z "$CUSTOM" ]; then
 
-    local file="${VERSION/\//}.iso"
+    local file="${VERSION//\//}.iso"
 
     if [[ "${VERSION,,}" == "http"* ]]; then
 
@@ -80,7 +80,7 @@ startInstall() {
       language="${language%%-*}"
 
       if [ -n "$language" ] && [[ "${language,,}" != "en" ]]; then
-        file="${VERSION/\//}_${language,,}.iso"
+        file="${VERSION//\//}_${language,,}.iso"
       fi
 
     fi
@@ -675,8 +675,8 @@ updateImage() {
   local asset="$2"
   local language="$3"
   local file="autounattend.xml"
-  local org="${file/.xml/.org}"
-  local dat="${file/.xml/.dat}"
+  local org="${file//.xml/.org}"
+  local dat="${file//.xml/.dat}"
   local desc path src loc xml index result
 
   [[ "${DETECTED,,}" == "winxp"* ]] && return 0

@@ -24,7 +24,6 @@ cd /run
 trap - ERR
 
 info "Booting ${APP}${BOOT_DESC}..."
-[[ "$DEBUG" == [Yy1]* ]] && echo "Arguments: $ARGS" && echo
 
 { qemu-system-x86_64 ${ARGS:+ $ARGS} >"$QEMU_OUT" 2>"$QEMU_LOG"; rc=$?; } || :
 (( rc != 0 )) && error "$(<"$QEMU_LOG")" && exit 15
