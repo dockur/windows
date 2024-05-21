@@ -2060,7 +2060,7 @@ prepareXP() {
           echo ""
           echo "[TerminalServices]"
           echo "    AllowConnections=1"
-          echo "" 
+          echo ""
   } | unix2dos > "$target/WINNT.SIF"
 
   {       echo "Windows Registry Editor Version 5.00"
