@@ -877,11 +877,6 @@ bootWindows() {
 
   rm -rf "$TMP"
 
-  if [ ! -f "$BOOT" ] || [ ! -s "$BOOT" ]; then
-    BOOT="/custom.iso"
-    [ ! -f "$BOOT" ] && BOOT="${STORAGE}$BOOT"
-  fi
-
   [[ "${PLATFORM,,}" == "arm64" ]] && VGA="virtio-gpu"
 
   if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then
