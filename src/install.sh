@@ -633,14 +633,14 @@ updateXML() {
 
   if [ -n "$USERNAME" ]; then
     sed -i "s/<Name>Docker<\/Name>/<Name>$USERNAME<\/Name>/g" "$asset"
-    sed -i "s/where name=\"Docker\"/where name=\"$USERNAME\"/g" "$asset"    
+    sed -i "s/where name=\"Docker\"/where name=\"$USERNAME\"/g" "$asset"
     sed -i "s/<FullName>Docker<\/FullName>/<FullName>$USERNAME<\/FullName>/g" "$asset"
     sed -i "s/<Username>Docker<\/Username>/<Username>$USERNAME<\/Username>/g" "$asset"
   fi
 
   if [ -n "$PASSWORD" ]; then
-    pass=$(printf '%s' "${PASSWORD}Password" | iconv -f utf-8 -t utf-16le | base64)
-    admin=$(printf '%s' "${PASSWORD}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64)
+    pass=$(printf '%s' "${PASSWORD}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0)
+    admin=$(printf '%s' "${PASSWORD}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0)
     sed -i "s/<Value>password<\/Value>/<Value>${admin//=/\=}<\/Value>/g" "$asset"
     sed -i "s/<PlainText>true<\/PlainText>/<PlainText>false<\/PlainText>/g" "$asset"
     sed -z "s/<Password>...........<Value \/>/<Password>\n          <Value>${pass//=/\=}<\/Value>/g" -i "$asset"
