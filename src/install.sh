@@ -188,16 +188,15 @@ abortInstall() {
 detectCustom() {
 
   local file
+  CUSTOM=""
 
   file=$(find / -maxdepth 1 -type f -iname custom.iso | head -n 1)
   [ ! -s "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso | head -n 1)
 
   if [ ! -s "$file" ] && [[ "${VERSION,,}" != "http"* ]]; then
     local base=$(basename "$VERSION")
-    file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$base" | head -n 1)
+    file="$STORAGE/$base"
   fi
-
-  CUSTOM=""
 
   if [ ! -f "$file" ] || [ ! -s "$file" ]; then
     return 0
