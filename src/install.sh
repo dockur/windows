@@ -7,17 +7,6 @@ FB="falling back to manual installation!"
 ETFS="boot/etfsboot.com"
 EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 
-hasDisk() {
-
-  [ -b "/disk1" ] && return 0
-  [ -b "/dev/disk1" ] && return 0
-  [ -b "${DEVICE:-}" ] && return 0
-  [ -s "$STORAGE/data.img" ]  && return 0
-  [ -s "$STORAGE/data.qcow2" ] && return 0
-
-  return 1
-}
-
 skipInstall() {
 
   local iso="$1"
@@ -187,28 +176,22 @@ abortInstall() {
 
 detectCustom() {
 
-  local file=""
-  local size base
-
+  local file base
   CUSTOM=""
 
-  if [[ "${VERSION,,}" != "http"* ]]; then
-    base="${VERSION/\/storage\//}"
-    [[ "$base" == "."* ]] && base="${file:1}"
-    [[ "$base" == *"/"* ]] && base=""
-    [ -n "$base" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$base" | head -n 1)
+  file=$(find / -maxdepth 1 -type f -iname custom.iso | head -n 1)
+  [ ! -s "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso | head -n 1)
+
+  if [ ! -s "$file" ] && [[ "${VERSION,,}" != "http"* ]]; then
+    base=$(basename "$VERSION")
+    file="$STORAGE/$base"
   fi
-
-  [ -z "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso | head -n 1)
-  [ -z "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.img | head -n 1)
-
-  base="/custom.iso"
-  [ -f "$base" ] && [ -s "$base" ] && file="$base"
 
   if [ ! -f "$file" ] || [ ! -s "$file" ]; then
     return 0
   fi
 
+  local size
   size="$(stat -c%s "$file")"
   [ -z "$size" ] || [[ "$size" == "0" ]] && return 0
 
@@ -624,7 +607,7 @@ updateXML() {
 
   local asset="$1"
   local language="$2"
-  local culture region admin pass keyboard
+  local culture region user admin pass keyboard
 
   culture=$(getLanguage "$language" "culture")
 
@@ -648,16 +631,18 @@ updateXML() {
     sed -i "s/<InputLocale>0409:00000409<\/InputLocale>/<InputLocale>$keyboard<\/InputLocale>/g" "$asset"
   fi
 
-  if [ -n "$USERNAME" ]; then
-    sed -i "s/<Name>Docker<\/Name>/<Name>$USERNAME<\/Name>/g" "$asset"
-    sed -i "s/where name=\"Docker\"/where name=\"$USERNAME\"/g" "$asset"    
-    sed -i "s/<FullName>Docker<\/FullName>/<FullName>$USERNAME<\/FullName>/g" "$asset"
-    sed -i "s/<Username>Docker<\/Username>/<Username>$USERNAME<\/Username>/g" "$asset"
+  user=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g')
+
+  if [ -n "$user" ]; then
+    sed -i "s/<Name>Docker<\/Name>/<Name>$user<\/Name>/g" "$asset"
+    sed -i "s/where name=\"Docker\"/where name=\"$user\"/g" "$asset"
+    sed -i "s/<FullName>Docker<\/FullName>/<FullName>$user<\/FullName>/g" "$asset"
+    sed -i "s/<Username>Docker<\/Username>/<Username>$user<\/Username>/g" "$asset"
   fi
 
   if [ -n "$PASSWORD" ]; then
-    pass=$(printf '%s' "${PASSWORD}Password" | iconv -f utf-8 -t utf-16le | base64)
-    admin=$(printf '%s' "${PASSWORD}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64)
+    pass=$(printf '%s' "${PASSWORD}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0)
+    admin=$(printf '%s' "${PASSWORD}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0)
     sed -i "s/<Value>password<\/Value>/<Value>$admin<\/Value>/g" "$asset"
     sed -i "s/<PlainText>true<\/PlainText>/<PlainText>false<\/PlainText>/g" "$asset"
     sed -z "s/<Password>...........<Value \/>/<Password>\n          <Value>$pass<\/Value>/g" -i "$asset"
@@ -893,11 +878,6 @@ buildImage() {
 bootWindows() {
 
   rm -rf "$TMP"
-
-  if [ ! -f "$BOOT" ] || [ ! -s "$BOOT" ]; then
-    BOOT="/custom.iso"
-    [ ! -f "$BOOT" ] && BOOT="${STORAGE}$BOOT"
-  fi
 
   [[ "${PLATFORM,,}" == "arm64" ]] && VGA="virtio-gpu"
 
