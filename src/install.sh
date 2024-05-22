@@ -187,28 +187,23 @@ abortInstall() {
 
 detectCustom() {
 
-  local file=""
-  local size base
+  local file
 
-  CUSTOM=""
+  file=$(find / -maxdepth 1 -type f -iname custom.iso | head -n 1)
+  [ ! -s "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso | head -n 1)
 
-  if [[ "${VERSION,,}" != "http"* ]]; then
-    base="${VERSION/\/storage\//}"
-    [[ "$base" == "."* ]] && base="${file:1}"
-    [[ "$base" == *"/"* ]] && base=""
-    [ -n "$base" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$base" | head -n 1)
+  if [ ! -s "$file" ] && [[ "${VERSION,,}" != "http"* ]]; then
+    local base=$(basename "$VERSION")
+    file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$base" | head -n 1)
   fi
 
-  [ -z "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso | head -n 1)
-  [ -z "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.img | head -n 1)
-
-  base="/custom.iso"
-  [ -f "$base" ] && [ -s "$base" ] && file="$base"
+  CUSTOM=""
 
   if [ ! -f "$file" ] || [ ! -s "$file" ]; then
     return 0
   fi
 
+  local size 
   size="$(stat -c%s "$file")"
   [ -z "$size" ] || [[ "$size" == "0" ]] && return 0
 
