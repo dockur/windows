@@ -7,17 +7,6 @@ FB="falling back to manual installation!"
 ETFS="boot/etfsboot.com"
 EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 
-hasDisk() {
-
-  [ -b "/disk1" ] && return 0
-  [ -b "/dev/disk1" ] && return 0
-  [ -b "${DEVICE:-}" ] && return 0
-  [ -s "$STORAGE/data.img" ]  && return 0
-  [ -s "$STORAGE/data.qcow2" ] && return 0
-
-  return 1
-}
-
 skipInstall() {
 
   local iso="$1"
