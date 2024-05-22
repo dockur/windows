@@ -191,7 +191,7 @@ detectCustom() {
     return 0
   fi
 
-  local size 
+  local size
   size="$(stat -c%s "$file")"
   [ -z "$size" ] || [[ "$size" == "0" ]] && return 0
 
@@ -641,12 +641,12 @@ updateXML() {
   if [ -n "$PASSWORD" ]; then
     pass=$(printf '%s' "${PASSWORD}Password" | iconv -f utf-8 -t utf-16le | base64)
     admin=$(printf '%s' "${PASSWORD}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64)
-    sed -i "s/<Value>password<\/Value>/<Value>$admin<\/Value>/g" "$asset"
+    sed -i "s/<Value>password<\/Value>/<Value>${admin//=/\=}<\/Value>/g" "$asset"
     sed -i "s/<PlainText>true<\/PlainText>/<PlainText>false<\/PlainText>/g" "$asset"
-    sed -z "s/<Password>...........<Value \/>/<Password>\n          <Value>$pass<\/Value>/g" -i "$asset"
-    sed -z "s/<Password>...............<Value \/>/<Password>\n              <Value>$pass<\/Value>/g" -i "$asset"
-    sed -z "s/<AdministratorPassword>...........<Value \/>/<AdministratorPassword>\n          <Value>$admin<\/Value>/g" -i "$asset"
-    sed -z "s/<AdministratorPassword>...............<Value \/>/<AdministratorPassword>\n              <Value>$admin<\/Value>/g" -i "$asset"
+    sed -z "s/<Password>...........<Value \/>/<Password>\n          <Value>${pass//=/\=}<\/Value>/g" -i "$asset"
+    sed -z "s/<Password>...............<Value \/>/<Password>\n              <Value>${pass//=/\=}<\/Value>/g" -i "$asset"
+    sed -z "s/<AdministratorPassword>...........<Value \/>/<AdministratorPassword>\n          <Value>${admin//=/\=}<\/Value>/g" -i "$asset"
+    sed -z "s/<AdministratorPassword>...............<Value \/>/<AdministratorPassword>\n              <Value>${admin//=/\=}<\/Value>/g" -i "$asset"
   fi
 
   return 0
