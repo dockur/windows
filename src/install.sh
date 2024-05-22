@@ -607,7 +607,7 @@ updateXML() {
 
   local asset="$1"
   local language="$2"
-  local culture region admin pass keyboard
+  local culture region user admin pass keyboard
 
   culture=$(getLanguage "$language" "culture")
 
@@ -631,22 +631,24 @@ updateXML() {
     sed -i "s/<InputLocale>0409:00000409<\/InputLocale>/<InputLocale>$keyboard<\/InputLocale>/g" "$asset"
   fi
 
-  if [ -n "$USERNAME" ]; then
-    sed -i "s/<Name>Docker<\/Name>/<Name>$USERNAME<\/Name>/g" "$asset"
-    sed -i "s/where name=\"Docker\"/where name=\"$USERNAME\"/g" "$asset"
-    sed -i "s/<FullName>Docker<\/FullName>/<FullName>$USERNAME<\/FullName>/g" "$asset"
-    sed -i "s/<Username>Docker<\/Username>/<Username>$USERNAME<\/Username>/g" "$asset"
+  user=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g')
+
+  if [ -n "$user" ]; then
+    sed -i "s/<Name>Docker<\/Name>/<Name>$user<\/Name>/g" "$asset"
+    sed -i "s/where name=\"Docker\"/where name=\"$user\"/g" "$asset"
+    sed -i "s/<FullName>Docker<\/FullName>/<FullName>$user<\/FullName>/g" "$asset"
+    sed -i "s/<Username>Docker<\/Username>/<Username>$user<\/Username>/g" "$asset"
   fi
 
   if [ -n "$PASSWORD" ]; then
     pass=$(printf '%s' "${PASSWORD}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0)
     admin=$(printf '%s' "${PASSWORD}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0)
-    sed -i "s/<Value>password<\/Value>/<Value>${admin//=/\=}<\/Value>/g" "$asset"
+    sed -i "s/<Value>password<\/Value>/<Value>$admin<\/Value>/g" "$asset"
     sed -i "s/<PlainText>true<\/PlainText>/<PlainText>false<\/PlainText>/g" "$asset"
-    sed -z "s/<Password>...........<Value \/>/<Password>\n          <Value>${pass//=/\=}<\/Value>/g" -i "$asset"
-    sed -z "s/<Password>...............<Value \/>/<Password>\n              <Value>${pass//=/\=}<\/Value>/g" -i "$asset"
-    sed -z "s/<AdministratorPassword>...........<Value \/>/<AdministratorPassword>\n          <Value>${admin//=/\=}<\/Value>/g" -i "$asset"
-    sed -z "s/<AdministratorPassword>...............<Value \/>/<AdministratorPassword>\n              <Value>${admin//=/\=}<\/Value>/g" -i "$asset"
+    sed -z "s/<Password>...........<Value \/>/<Password>\n          <Value>$pass<\/Value>/g" -i "$asset"
+    sed -z "s/<Password>...............<Value \/>/<Password>\n              <Value>$pass<\/Value>/g" -i "$asset"
+    sed -z "s/<AdministratorPassword>...........<Value \/>/<AdministratorPassword>\n          <Value>$admin<\/Value>/g" -i "$asset"
+    sed -z "s/<AdministratorPassword>...............<Value \/>/<AdministratorPassword>\n              <Value>$admin<\/Value>/g" -i "$asset"
   fi
 
   return 0
