@@ -146,6 +146,11 @@ finishInstall() {
           echo "$BOOT_MODE" > "$STORAGE/windows.mode"
         fi
       fi
+      # Enable secure boot on multi-socket systems to workaround freeze
+      if [ -n "$SOCKETS" ] && [[ "$SOCKETS" != "1" ]]; then
+        BOOT_MODE="windows_secure"
+        echo "$BOOT_MODE" > "$STORAGE/windows.mode"    
+      fi
     fi
   fi
 
