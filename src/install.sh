@@ -760,6 +760,61 @@ updateImage() {
     fi
   fi
 
+  if [[ "$MANUAL" == [Yy1]* ]]; then
+
+    local folder=""
+  
+    case "${DETECTED,,}" in
+      "win7x86"* ) folder="w7/x86" ;;
+      "win7x64"* ) folder="w7/amd64" ;;
+      "win8x64"* ) folder="w10/amd64" ;;
+      "win10x64"* ) folder="w10/amd64" ;;
+      "win11x64"* |  ) folder="w11/amd64" ;;
+      "win10arm64"* ) folder="w10/ARM64" ;;
+      "win11arm64"* |  ) folder="w11/ARM64" ;;
+      "winvistax86"* ) folder="2k8/x86" ;;
+      "winvistax64"* ) folder="2k8/amd64" ;;
+      "win2022"* ) folder="2k22/amd64" ;;
+      "win2019"* ) folder="2k19/amd64" ;;
+      "win2016"* ) folder="2k16/amd64" ;;
+      "win2012"* ) folder="2k16/amd64" ;;
+      "win2008"* ) folder="2k8R2/amd64" ;;
+    esac
+
+    if [ -n "$folder" ]; then
+
+      info "Adding drivers to image..."
+
+      local drivers="$TMP/drivers"
+      rm -rf "$drivers"
+
+      if ! 7z x /run/drivers.iso -o"$drivers" > /dev/null; then
+        error "Failed to extract driver ISO file!" && return 1
+      fi
+
+      local driver="viostor" && [ -d ""$drivers/$folder/$driver"" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
+      driver="NetKVM" && [ -d ""$drivers/$folder/$driver"" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
+      driver="Balloon" && [ -d ""$drivers/$folder/$driver"" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
+      driver="pvpanic" && [ -d ""$drivers/$folder/$driver"" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
+      driver="qemupciserial" && [ -d ""$drivers/$folder/$driver"" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
+      driver="qxldod" && [ -d ""$drivers/$folder/$driver"" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
+      driver="vioinput" && [ -d ""$drivers/$folder/$driver"" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
+      driver="viorng" && [ -d ""$drivers/$folder/$driver"" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
+      driver="vioscsi" && [ -d ""$drivers/$folder/$driver"" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
+      driver="vioserial" && [ -d ""$drivers/$folder/$driver"" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
+      driver="viogpudo" && [ -d ""$drivers/$folder/$driver"" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
+      driver="sriov" && [ -d ""$drivers/$folder/$driver"" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
+      driver="viofs" && [ -d ""$drivers/$folder/$driver"" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
+
+      rm -rf "$drivers"
+
+    else
+
+      warn "no drivers found for: \"$DETECTED\" !"
+
+    fi
+  fi
+
   return 0
 }
 
@@ -781,35 +836,21 @@ copyOEM() {
   local drivers="$TMP/drivers"
   local src file
 
-  local msg="Copying drivers to image..."
-  info "$msg" && html "$msg"
- 
   src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
 
   if [ ! -d "$src" ]; then
     error "failed to locate 'sources' folder in ISO image!" && return 1
   fi
 
-  local dest="$src/\$WinPEDriver\$/"
-  mkdir -p "$dest"
-  rm -rf "$drivers"
-
-  if ! 7z x /run/drivers.iso -o"$drivers" > /dev/null; then
-    error "Failed to extract driver ISO file!" && return 1
-  fi
-
-  cp -r "$drivers/*" "$dest"
-  ls -lh "$dest"
-
   [ ! -d "$folder" ] && folder="/OEM"
   [ ! -d "$folder" ] && folder="$STORAGE/oem"
   [ ! -d "$folder" ] && folder="$STORAGE/OEM"
   [ ! -d "$folder" ] && return 0
 
-  msg="Copying OEM folder to image..."
+  local msg="Copying OEM folder to image..."
   info "$msg" && html "$msg"
 
-  dest="$src/\$OEM\$/\$1/"
+  local dest="$src/\$OEM\$/\$1/"
   mkdir -p "$dest"
 
   if ! cp -r "$folder" "$dest"; then
