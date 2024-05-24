@@ -193,7 +193,7 @@ kubectl apply -f kubernetes.yml
 
 * ### How do I perform a manual installation?
 
-  It's best to stick to the automatic installation, as it uses a special configuration for running Windows inside a virtualized environment and those settings will prevent some common issues.
+  It's best to stick to the automatic installation, as it uses optimized settings for running Windows inside a virtualized environment, to prevent some common issues.
 
   However, if you insist on performing the installation manually, add the following environment variable to your compose file:
 
@@ -215,9 +215,9 @@ kubectl apply -f kubernetes.yml
 
 * ### How do I change the amount of CPU or RAM?
 
-  By default, a maximum of 2 CPU cores and 4 GB of RAM are allocated to the container.
+  By default, the container is allowed to use a maximum of 2 CPU cores and 4 GB of RAM.
 
-  If you want to modify this, you can specify the desired amount using the following environment variables:
+  If you want to adjust this, you can specify the desired amount using the following environment variables:
 
   ```yaml
   environment:
