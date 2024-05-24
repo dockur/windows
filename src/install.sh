@@ -779,14 +779,20 @@ copyOEM() {
   local dir="$1"
   local folder="/oem"
   local drivers="$TMP/drivers"
-  local dest="$src/\$WinPEDriver\$/"
   local src file
 
   local msg="Copying drivers to image..."
   info "$msg" && html "$msg"
+ 
+  src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
 
-  rm -rf "$drivers"
+  if [ ! -d "$src" ]; then
+    error "failed to locate 'sources' folder in ISO image!" && return 1
+  fi
+
+  local dest="$src/\$WinPEDriver\$/"
   mkdir -p "$dest"
+  rm -rf "$drivers"
 
   if ! 7z x /run/drivers.iso -o"$drivers" > /dev/null; then
     error "Failed to extract driver ISO file!" && return 1
@@ -802,12 +808,6 @@ copyOEM() {
 
   msg="Copying OEM folder to image..."
   info "$msg" && html "$msg"
-
-  src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
-
-  if [ ! -d "$src" ]; then
-    error "failed to locate 'sources' folder in ISO image!" && return 1
-  fi
 
   dest="$src/\$OEM\$/\$1/"
   mkdir -p "$dest"
