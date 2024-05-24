@@ -792,19 +792,19 @@ updateImage() {
         error "Failed to extract driver ISO file!" && return 1
       fi
 
-      local driver="viostor" && [ -d "$drivers/$folder/$driver" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
-      driver="sriov" && [ -d "$drivers/$folder/$driver" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
-      driver="viofs" && [ -d "$drivers/$folder/$driver" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
-      driver="qxldod" && [ -d "$drivers/$folder/$driver" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
-      driver="viorng" && [ -d "$drivers/$folder/$driver" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
-      driver="vioscsi" && [ -d "$drivers/$folder/$driver" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
-      driver="Balloon" && [ -d "$drivers/$folder/$driver" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
-      driver="vioserial" && [ -d "$drivers/$folder/$driver" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
-      driver="NetKVM" && [ -d "$drivers/$folder/$driver" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
-      driver="pvpanic" && [ -d "$drivers/$folder/$driver" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
-      driver="vioinput" && [ -d "$drivers/$folder/$driver" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
-      driver="viogpudo" && [ -d "$drivers/$folder/$driver" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
-      driver="qemupciserial" && [ -d "$drivers/$folder/$driver" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
+      local driver="viostor" && [ -d "$drivers/$driver/$folder" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$driver/$folder /\$WinPEDriver\$/$driver" || true
+      driver="sriov" && [ -d "$drivers/$driver/$folder" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$driver/$folder /\$WinPEDriver\$/$driver" || true
+      driver="viofs" && [ -d "$drivers/$driver/$folder" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$driver/$folder /\$WinPEDriver\$/$driver" || true
+      driver="qxldod" && [ -d "$drivers/$driver/$folder" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$driver/$folder /\$WinPEDriver\$/$driver" || true
+      driver="viorng" && [ -d "$drivers/$driver/$folder" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$driver/$folder /\$WinPEDriver\$/$driver" || true
+      driver="vioscsi" && [ -d "$drivers/$driver/$folder" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$driver/$folder /\$WinPEDriver\$/$driver" || true
+      driver="Balloon" && [ -d "$drivers/$driver/$folder" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$driver/$folder /\$WinPEDriver\$/$driver" || true
+      driver="vioserial" && [ -d "$drivers/$driver/$folder" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$driver/$folder /\$WinPEDriver\$/$driver" || true
+      driver="NetKVM" && [ -d "$drivers/$driver/$folder" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$driver/$folder /\$WinPEDriver\$/$driver" || true
+      driver="pvpanic" && [ -d "$drivers/$driver/$folder" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$driver/$folder /\$WinPEDriver\$/$driver" || true
+      driver="vioinput" && [ -d "$drivers/$driver/$folder" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$driver/$folder /\$WinPEDriver\$/$driver" || true
+      driver="viogpudo" && [ -d "$drivers/$driver/$folder" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$driver/$folder /\$WinPEDriver\$/$driver" || true
+      driver="qemupciserial" && [ -d "$drivers/$driver/$folder" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$driver/$folder /\$WinPEDriver\$/$driver" || true
 
       rm -rf "$drivers"
 
