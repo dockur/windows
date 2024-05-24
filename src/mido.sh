@@ -40,12 +40,12 @@ handle_curl_error() {
   return 1
 }
 
-browser() {
+get_agent() {
 
   local user_agent
 
   # Determine approximate latest Firefox release
-  user_agent="$((124 + ($(date +%s) - 1710892800) / 2419200))"
+  browser_version="$((124 + ($(date +%s) - 1710892800) / 2419200))"
   echo "Mozilla/5.0 (X11; Linux x86_64; rv:${browser_version}.0) Gecko/20100101 Firefox/${browser_version}.0"
 
   return 0
@@ -73,14 +73,13 @@ download_windows() {
     * ) error "Invalid VERSION specified, value \"$id\" is not recognized!" && return 1 ;;
   esac
 
+  user_agent=$(get_agent)
   language=$(getLanguage "$lang" "name")
 
   local url="https://www.microsoft.com/en-us/software-download/windows$windows_version"
   case "$windows_version" in
     8 | 10) url="${url}ISO";;
   esac
-
-  user_agent=$(browser)
 
   # uuidgen: For MacOS (installed by default) and other systems (e.g. with no /proc) that don't have a kernel interface for generating random UUIDs
   session_id="$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random)"
@@ -209,7 +208,7 @@ download_windows_eval() {
       error "Invalid VERSION specified, value \"$id\" is not recognized!" && return 1 ;;
   esac
 
-  user_agent=$(browser)
+  user_agent=$(get_agent)
   culture=$(getLanguage "$lang" "culture")
 
   local country="${culture#*-}"
@@ -275,10 +274,10 @@ getWindows() {
     "win81${PLATFORM,,}" | "win10${PLATFORM,,}" | "win11${PLATFORM,,}" )
       download_windows "$version" "$lang" && return 0
       ;;
-    "win11${PLATFORM,,}-enterprise-eval" )
+    "win11${PLATFORM,,}-enterprise"* )
       download_windows_eval "$version" "$lang" && return 0
       ;;
-    "win10${PLATFORM,,}-enterprise-eval" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
+    "win10${PLATFORM,,}-enterprise"* )
       download_windows_eval "$version" "$lang" && return 0
       ;;
     "win2022-eval" | "win2019-eval" | "win2016-eval" | "win2012r2-eval" )
