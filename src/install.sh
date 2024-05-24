@@ -662,10 +662,9 @@ updateXML() {
 addDriver() {
 
   local id="$1"
-  local loc="$2"
-  local idx="$3"
-  local path="$4"
-  local driver="$5"
+  local path="$2"
+  local target="$3"
+  local driver="$4"
   local folder=""
 
   case "${id,,}" in
@@ -686,7 +685,7 @@ addDriver() {
   esac
 
   if [ -z "$folder" ]; then
-    warn "no drivers found for: \"$DETECTED\" !" && return 0
+    warn "no \"$driver\" driver found for \"$DETECTED\" !" && return 0
   fi
 
   [ ! -d "$path/$driver/$folder" ] && return 0
@@ -695,9 +694,8 @@ addDriver() {
     [[ "${driver,,}" == "viorng" ]] && return 0
   fi
 
-  if ! wimlib-imagex update "$loc" "$idx" --command "add $path/$driver/$folder /\$WinPEDriver\$/$driver" >/dev/null; then
-    warn "Failed to add driver \"$driver\" to image!"
-  fi
+  local dest="$path/$target/$driver"
+  mv "$path/$driver/$folder" "$dest"
 
   return 0
 }
@@ -815,19 +813,27 @@ updateImage() {
     error "Failed to extract driver ISO file!" && return 1
   fi
 
-  addDriver "$DETECTED" "$loc" "$index" "$drivers" "viostor"
-  addDriver "$DETECTED" "$loc" "$index" "$drivers" "sriov"
-  addDriver "$DETECTED" "$loc" "$index" "$drivers" "viofs"
-  addDriver "$DETECTED" "$loc" "$index" "$drivers" "qxldod"
-  addDriver "$DETECTED" "$loc" "$index" "$drivers" "viorng"
-  addDriver "$DETECTED" "$loc" "$index" "$drivers" "vioscsi"
-  addDriver "$DETECTED" "$loc" "$index" "$drivers" "Balloon"
-  addDriver "$DETECTED" "$loc" "$index" "$drivers" "vioserial"
-  addDriver "$DETECTED" "$loc" "$index" "$drivers" "NetKVM"
-  addDriver "$DETECTED" "$loc" "$index" "$drivers" "pvpanic"
-  addDriver "$DETECTED" "$loc" "$index" "$drivers" "vioinput"
-  addDriver "$DETECTED" "$loc" "$index" "$drivers" "viogpudo"
-  addDriver "$DETECTED" "$loc" "$index" "$drivers" "qemupciserial"
+  local target="\$WinPEDriver\$"
+  local dest="$drivers/$target"
+  mkdir -p "$dest"
+  
+  addDriver "$DETECTED" "$drivers" "$target""viostor"
+  addDriver "$DETECTED" "$drivers" "$target""sriov"
+  addDriver "$DETECTED" "$drivers" "$target""viofs"
+  addDriver "$DETECTED" "$drivers" "$target""qxldod"
+  addDriver "$DETECTED" "$drivers" "$target""viorng"
+  addDriver "$DETECTED" "$drivers" "$target""vioscsi"
+  addDriver "$DETECTED" "$drivers" "$target""Balloon"
+  addDriver "$DETECTED" "$drivers" "$target""vioserial"
+  addDriver "$DETECTED" "$drivers" "$target""NetKVM"
+  addDriver "$DETECTED" "$drivers" "$target""pvpanic"
+  addDriver "$DETECTED" "$drivers" "$target""vioinput"
+  addDriver "$DETECTED" "$drivers" "$target""viogpudo"
+  addDriver "$DETECTED" "$drivers" "$target""qemupciserial"
+
+  if ! wimlib-imagex update "$loc" "$idx" --command "add $dest /$target" >/dev/null; then
+    warn "Failed to add drivers to image!"
+  fi
 
   rm -rf "$drivers"
 
