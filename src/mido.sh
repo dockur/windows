@@ -248,12 +248,19 @@ download_windows_eval() {
   }
 
   case "$enterprise_type" in
-    # Select x64 download link
-    "enterprise") iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1) ;;
-    # Select x64 IOT download link
-    "iot") iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1) ;;
-    # Select x64 LTSC download link
-    "ltsc") iso_download_link=$(echo "$iso_download_links" | head -n 4 | tail -n 1) ;;
+    "enterprise")
+      iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1)
+      ;;
+    "iot")
+      if [[ "${PLATFORM,,}" == "x64" ]]; then
+        iso_download_link=$(echo "$iso_download_links" | head -n 1 | tail -n 1)
+      else
+        iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1)
+      fi
+      ;;
+    "ltsc")
+      iso_download_link=$(echo "$iso_download_links" | head -n 4 | tail -n 1)
+      ;;
     *) iso_download_link="$iso_download_links" ;;
   esac
 
@@ -281,13 +288,20 @@ getWindows() {
   info "$msg" && html "$msg"
 
   case "${version,,}" in
+    "win11${PLATFORM,,}-enterprise-iot-eval" ) ;;
+    * )
+      if [[ "${PLATFORM,,}" != "x64" ]]; then
+        error "No download for the $PLATFORM platform available!"
+        MIDO_URL=""
+        return 1
+      fi ;;
+  esac
+
+  case "${version,,}" in
     "win81${PLATFORM,,}" | "win10${PLATFORM,,}" | "win11${PLATFORM,,}" )
       download_windows "$version" "$lang" && return 0
       ;;
-    "win11${PLATFORM,,}-enterprise"* )
-      download_windows_eval "$version" "$lang" && return 0
-      ;;
-    "win10${PLATFORM,,}-enterprise"* )
+    "win11${PLATFORM,,}-enterprise"* | "win10${PLATFORM,,}-enterprise"* )
       download_windows_eval "$version" "$lang" && return 0
       ;;
     "win2022-eval" | "win2019-eval" | "win2016-eval" | "win2012r2-eval" )
