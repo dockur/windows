@@ -61,6 +61,12 @@
       </DiskConfiguration>
       <ImageInstall>
         <OSImage>
+          <InstallFrom>
+           <MetaData wcm:action="add">
+              <Key>/image/index</Key>
+              <Value>2</Value>
+            </MetaData>
+          </InstallFrom>
           <InstallTo>
             <DiskID>0</DiskID>
             <PartitionID>3</PartitionID>
@@ -81,7 +87,7 @@
         <FullName>Docker</FullName>
         <Organization>Windows for Docker</Organization>
         <ProductKey>
-          <Key>VK7JG-NPHTM-C97JM-9MPGT-3V66T</Key>
+          <Key />
         </ProductKey>
       </UserData>
       <EnableFirewall>false</EnableFirewall>
