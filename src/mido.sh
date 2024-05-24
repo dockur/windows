@@ -67,9 +67,9 @@ download_windows() {
   local language_skuid_table_html=""
 
   case "${id,,}" in
-    "win11${PLATFORM,,}" ) windows_version="11" ;;
-    "win10${PLATFORM,,}" ) windows_version="10" ;;
-    "win81${PLATFORM,,}" ) windows_version="8" ;;
+    "win11x64" ) windows_version="11" ;;
+    "win10x64" ) windows_version="10" ;;
+    "win81x64" ) windows_version="8" ;;
     * ) error "Invalid VERSION specified, value \"$id\" is not recognized!" && return 1 ;;
   esac
 
@@ -254,7 +254,8 @@ download_windows_eval() {
     "iot")
       if [[ "${PLATFORM,,}" == "x64" ]]; then
         iso_download_link=$(echo "$iso_download_links" | head -n 1 | tail -n 1)
-      else
+      fi
+      if [[ "${PLATFORM,,}" == "arm64" ]]; then
         iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1)
       fi
       ;;
@@ -282,18 +283,27 @@ getWindows() {
   local version="$1"
   local lang="$2"
   local desc="$3"
+
   local language
+  language=$(getLanguage "$lang" "desc")
 
   local msg="Requesting $desc from Microsoft server..."
   info "$msg" && html "$msg"
 
   case "${version,,}" in
+    "win2008r2" | "win81${PLATFORM,,}-enterprise-eval" | "win11${PLATFORM,,}-enterprise-iot-eval" )
+      if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
+        error "No download for the $language language available!"
+        MIDO_URL="" && return 1
+      fi ;;
+  esac
+
+  case "${version,,}" in
     "win11${PLATFORM,,}-enterprise-iot-eval" ) ;;
     * )
       if [[ "${PLATFORM,,}" != "x64" ]]; then
-        error "No download for the $PLATFORM platform available!"
-        MIDO_URL=""
-        return 1
+        error "No download for the ${PLATFORM^^} platform available!"
+        MIDO_URL="" && return 1
       fi ;;
   esac
 
@@ -308,18 +318,10 @@ getWindows() {
       download_windows_eval "$version" "$lang" && return 0
       ;;
     "win81${PLATFORM,,}-enterprise-eval" )
-      if [[ "${lang,,}" == "en" ]] || [[ "${lang,,}" == "en-"* ]]; then
-        MIDO_URL="https://download.microsoft.com/download/B/9/9/B999286E-0A47-406D-8B3D-5B5AD7373A4A/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_ENTERPRISE_EVAL_EN-US-IR3_CENA_X64FREE_EN-US_DV9.ISO" && return 0
-      fi
-      language=$(getLanguage "$lang" "desc")
-      error "No download for the $language language available!"
+      MIDO_URL="https://download.microsoft.com/download/B/9/9/B999286E-0A47-406D-8B3D-5B5AD7373A4A/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_ENTERPRISE_EVAL_EN-US-IR3_CENA_X64FREE_EN-US_DV9.ISO" && return 0
       ;;
     "win2008r2" )
-      if [[ "${lang,,}" == "en" ]] || [[ "${lang,,}" == "en-"* ]]; then
-        MIDO_URL="https://download.microsoft.com/download/4/1/D/41DEA7E0-B30D-4012-A1E3-F24DC03BA1BB/7601.17514.101119-1850_x64fre_server_eval_en-us-GRMSXEVAL_EN_DVD.iso" && return 0
-      fi
-      language=$(getLanguage "$lang" "desc")
-      error "No download for the $language language available!"
+      MIDO_URL="https://download.microsoft.com/download/4/1/D/41DEA7E0-B30D-4012-A1E3-F24DC03BA1BB/7601.17514.101119-1850_x64fre_server_eval_en-us-GRMSXEVAL_EN_DVD.iso" && return 0
       ;;
     * ) error "Invalid VERSION specified, value \"$version\" is not recognized!" ;;
   esac
