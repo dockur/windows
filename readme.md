@@ -180,19 +180,6 @@ kubectl apply -f kubernetes.yml
 
   Replace the example path `/home/user/example.iso` with the filename of your desired ISO file, the value of `VERSION` will be ignored in this case.
 
-* ### How do I customize the installation?
-
-  If you want to modify the settings used during the automatic installation, you can do this by editing the answer file corresponding to your Windows edition, for example [win11x64.xml](https://raw.githubusercontent.com/dockur/windows/master/assets/win11x64.xml) in the case of Windows 11 Pro.
-
-  Apply your modifications to it, and add this line to your compose file:
-
-  ```yaml
-  volumes:
-    -  /home/user/example.xml:/custom.xml
-  ```
-
-  Replace the example path `/home/user/example.xml` with the filename of the modified XML file.
-
 * ### How do I run a script after installation?
 
   To run your own script after installation, you can create a file called `install.bat` and place it in a folder together with other files it needs (programs to install for example). Then bind it in your compose file like this:
