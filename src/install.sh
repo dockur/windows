@@ -776,56 +776,57 @@ updateImage() {
     fi
   fi
 
-    local folder=""
+  wimlib-imagex update "$loc" "$index" --command "delete --force --recursive $path /\$WinPEDriver\$" || true
 
-    case "${DETECTED,,}" in
-      "win7x86"* ) folder="w7/x86" ;;
-      "win7x64"* ) folder="w7/amd64" ;;
-      "win8x64"* ) folder="w10/amd64" ;;
-      "win10x64"* ) folder="w10/amd64" ;;
-      "win11x64"* ) folder="w11/amd64" ;;
-      "win10arm64"* ) folder="w10/ARM64" ;;
-      "win11arm64"* ) folder="w11/ARM64" ;;
-      "winvistax86"* ) folder="2k8/x86" ;;
-      "winvistax64"* ) folder="2k8/amd64" ;;
-      "win2022"* ) folder="2k22/amd64" ;;
-      "win2019"* ) folder="2k19/amd64" ;;
-      "win2016"* ) folder="2k16/amd64" ;;
-      "win2012"* ) folder="2k16/amd64" ;;
-      "win2008"* ) folder="2k8R2/amd64" ;;
-    esac
+  local folder=""
 
-    if [ -z "$folder" ]; then
-      warn "no drivers found for: \"$DETECTED\" !" && return 0
-    fi
+  case "${DETECTED,,}" in
+    "win7x86"* ) folder="w7/x86" ;;
+    "win7x64"* ) folder="w7/amd64" ;;
+    "win8x64"* ) folder="w10/amd64" ;;
+    "win10x64"* ) folder="w10/amd64" ;;
+    "win11x64"* ) folder="w11/amd64" ;;
+    "win10arm64"* ) folder="w10/ARM64" ;;
+    "win11arm64"* ) folder="w11/ARM64" ;;
+    "winvistax86"* ) folder="2k8/x86" ;;
+    "winvistax64"* ) folder="2k8/amd64" ;;
+    "win2022"* ) folder="2k22/amd64" ;;
+    "win2019"* ) folder="2k19/amd64" ;;
+    "win2016"* ) folder="2k16/amd64" ;;
+    "win2012"* ) folder="2k16/amd64" ;;
+    "win2008"* ) folder="2k8R2/amd64" ;;
+  esac
 
-      info "Adding drivers to image..."
+  if [ -z "$folder" ]; then
+    warn "no drivers found for: \"$DETECTED\" !" && return 0
+  fi
 
-      local drivers="$TMP/drivers"
-      rm -rf "$drivers"
+  info "Adding drivers to image..."
 
-      if ! 7z x /run/drivers.iso -o"$drivers" > /dev/null; then
-        error "Failed to extract driver ISO file!" && return 1
-      fi
+  local drivers="$TMP/drivers"
+  rm -rf "$drivers"
 
-      wimlib-imagex update "$loc" "$index" --command "delete --force --recursive $path /\$WinPEDriver\$" || true
+  if ! 7z x /run/drivers.iso -o"$drivers" > /dev/null; then
+    error "Failed to extract driver ISO file!" && return 1
+  fi
 
-      addDriver "$loc" "$index" "$drivers" "$folder" "viostor"
-      addDriver "$loc" "$index" "$drivers" "$folder" "sriov"
-      addDriver "$loc" "$index" "$drivers" "$folder" "viofs"
-      addDriver "$loc" "$index" "$drivers" "$folder" "qxldod"
-      addDriver "$loc" "$index" "$drivers" "$folder" "viorng"
-      addDriver "$loc" "$index" "$drivers" "$folder" "vioscsi"
-      addDriver "$loc" "$index" "$drivers" "$folder" "Balloon"
-      addDriver "$loc" "$index" "$drivers" "$folder" "vioserial"
-      addDriver "$loc" "$index" "$drivers" "$folder" "NetKVM"
-      addDriver "$loc" "$index" "$drivers" "$folder" "pvpanic"
-      addDriver "$loc" "$index" "$drivers" "$folder" "vioinput"
-      addDriver "$loc" "$index" "$drivers" "$folder" "viogpudo"
-      addDriver "$loc" "$index" "$drivers" "$folder" "qemupciserial"
-      wimlib-imagex update "$loc" "$index" --command "delete --force --recursive $path /\$WinPEDriver\$" || true
+  addDriver "$loc" "$index" "$drivers" "$folder" "viostor"
+  addDriver "$loc" "$index" "$drivers" "$folder" "sriov"
+  addDriver "$loc" "$index" "$drivers" "$folder" "viofs"
+  addDriver "$loc" "$index" "$drivers" "$folder" "qxldod"
+  addDriver "$loc" "$index" "$drivers" "$folder" "viorng"
+  addDriver "$loc" "$index" "$drivers" "$folder" "vioscsi"
+  addDriver "$loc" "$index" "$drivers" "$folder" "Balloon"
+  addDriver "$loc" "$index" "$drivers" "$folder" "vioserial"
+  addDriver "$loc" "$index" "$drivers" "$folder" "NetKVM"
+  addDriver "$loc" "$index" "$drivers" "$folder" "pvpanic"
+  addDriver "$loc" "$index" "$drivers" "$folder" "vioinput"
+  addDriver "$loc" "$index" "$drivers" "$folder" "viogpudo"
+  addDriver "$loc" "$index" "$drivers" "$folder" "qemupciserial"
 
-      rm -rf "$drivers"
+  wimlib-imagex update "$loc" "$index" --command "delete --force --recursive $path /\$WinPEDriver\$" || true
+
+  rm -rf "$drivers"
 
   return 0
 }
