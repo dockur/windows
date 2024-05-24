@@ -694,7 +694,7 @@ addDriver() {
   if [[ "${id,,}" == "winvista"* ]]; then
     [[ "${driver,,}" == "viorng" ]] && return 0
   fi
-  
+
   if ! wimlib-imagex update "$loc" "$idx" --command "add $path/$driver/$folder /\$WinPEDriver\$/$driver" >/dev/null; then
     warn "Failed to add driver \"$driver\" to image!"
   fi
