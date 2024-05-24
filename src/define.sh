@@ -625,12 +625,12 @@ getMido() {
       sum="c8dbc96b61d04c8b01faf6ce0794fdf33965c7b350eaa3eb1e6697019902945c"
       ;;
     "win11x64-enterprise-ltsc-eval" )
-      size=1
-      sum="xxx"
+      size=4428627968
+      sum="8abf91c9cd408368dc73aab3425d5e3c02dae74900742072eb5c750fc637c195"
       ;;
     "win11x64-enterprise-iot-eval" )
-      size=1
-      sum="xxx"
+      size=4428627968
+      sum="8abf91c9cd408368dc73aab3425d5e3c02dae74900742072eb5c750fc637c195"
       ;;
     "win10x64" )
       size=6140975104
