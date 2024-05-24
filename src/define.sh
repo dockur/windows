@@ -105,6 +105,10 @@ parseVersion() {
       VERSION="win10x64-enterprise-iot-eval"
       [ -z "$DETECTED" ] && DETECTED="win10x64-iot"
       ;;
+    "ltsc11" | "11ltsc" | "win11-ltsc" | "win11x64-ltsc" | "win11x64-enterprise-ltsc-eval" )
+      VERSION="win11x64-enterprise-ltsc-eval"
+      [ -z "$DETECTED" ] && DETECTED="win11x64-ltsc"
+      ;;
     "ltsc10" | "10ltsc" | "win10-ltsc" | "win10x64-ltsc" | "win10x64-enterprise-ltsc-eval" )
       VERSION="win10x64-enterprise-ltsc-eval"
       [ -z "$DETECTED" ] && DETECTED="win10x64-ltsc"
@@ -556,19 +560,10 @@ getVersion() {
           *" enterprise"* ) id="$id-enterprise" ;;
         esac
       ;;
-    "win10"* )
-        case "${name,,}" in
-          *" iot"* ) id="$id-iot" ;;
-          *" ltsc"* ) id="$id-ltsc" ;;
-          *" home"* ) id="$id-home" ;;
-          *" education"* ) id="$id-education" ;;
-          *" enterprise evaluation"* ) id="$id-enterprise-eval" ;;
-          *" enterprise"* ) id="$id-enterprise" ;;
-        esac
-      ;;
-    "win11"* )
+    "win10"* | "win11"* )
        case "${name,,}" in
           *" iot"* ) id="$id-iot" ;;
+          *" ltsc"* ) id="$id-ltsc" ;;
           *" home"* ) id="$id-home" ;;
           *" education"* ) id="$id-education" ;;
           *" enterprise evaluation"* ) id="$id-enterprise-eval" ;;
@@ -629,6 +624,14 @@ getMido() {
       size=6209064960
       sum="c8dbc96b61d04c8b01faf6ce0794fdf33965c7b350eaa3eb1e6697019902945c"
       ;;
+    "win11x64-enterprise-ltsc-eval" )
+      size=1
+      sum="xxx"
+      ;;
+    "win11x64-enterprise-iot-eval" )
+      size=1
+      sum="xxx"
+      ;;
     "win10x64" )
       size=6140975104
       sum="a6f470ca6d331eb353b815c043e327a347f594f37ff525f17764738fe812852e"
@@ -640,6 +643,10 @@ getMido() {
     "win10x64-enterprise-ltsc-eval" )
       size=4898582528
       sum="e4ab2e3535be5748252a8d5d57539a6e59be8d6726345ee10e7afd2cb89fefb5"
+      ;;
+    "win10x64-enterprise-iot-eval" )
+      size=1
+      sum="xxx"
       ;;
     "win81x64" )
       size=4320526336
@@ -1034,6 +1041,12 @@ getLink4() {
         "zh" | "zh-"* ) url="zh-cn_windows_11_business_editions_version_23h2_updated_april_2024_x64_dvd_3db5a62b.iso" ;;
       esac
       ;;
+    "win11x64-ltsc" | "win11x64-enterprise-ltsc-eval" )
+      [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
+      size=1
+      sum="xxx"
+      url="26100.1.240331-1435.ge_release_CLIENTENTERPRISE_OEM_x64FRE_en-us.iso"
+      ;;
     "win10x64" )
       case "${culture,,}" in
         "ar" | "ar-"* ) url="ar-sa_windows_10_consumer_editions_version_22h2_updated_april_2024_x64_dvd_9a92dc89.iso" ;;
@@ -1171,9 +1184,9 @@ getLink4() {
       ;;
     "win11x64-iot" | "win11x64-enterprise-iot-eval" )
       [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
-      size=6248140800
-      sum="5d9b86ad467bc89f488d1651a6c5ad3656a7ea923f9f914510657a24c501bb86"
-      url="en-us_windows_11_iot_enterprise_version_23h2_x64_dvd_fb37549c.iso"
+      size=1
+      sum="xxx"
+      url="26100.1.240331-1435.ge_release_CLIENTENTERPRISE_OEM_x64FRE_en-us.iso"
       ;;
     "win10x64-iot" | "win10x64-enterprise-iot-eval" )
       [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
