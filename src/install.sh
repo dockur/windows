@@ -660,16 +660,39 @@ updateXML() {
 }
 
 addDriver() {
-  local loc="$1"
-  local index="$2"
-  local path="$3"
-  local folder="$4"
+
+  local id="$1"
+  local loc="$2"
+  local idx="$3"
+  local path="$4"
   local driver="$5"
+  local folder=""
+
+  case "${id,,}" in
+    "win7x86"* ) folder="w7/x86" ;;
+    "win7x64"* ) folder="w7/amd64" ;;
+    "win8x64"* ) folder="w10/amd64" ;;
+    "win10x64"* ) folder="w10/amd64" ;;
+    "win11x64"* ) folder="w11/amd64" ;;
+    "win2022"* ) folder="2k22/amd64" ;;
+    "win2019"* ) folder="2k19/amd64" ;;
+    "win2016"* ) folder="2k16/amd64" ;;
+    "win2012"* ) folder="2k16/amd64" ;;
+    "win2008"* ) folder="2k8R2/amd64" ;;
+    "win10arm64"* ) folder="w10/ARM64" ;;
+    "win11arm64"* ) folder="w11/ARM64" ;;
+    "winvistax86"* ) folder="2k8/x86" ;;
+    "winvistax64"* ) folder="2k8/amd64" ;;
+  esac
+
+  if [ -z "$folder" ]; then
+    warn "no drivers found for: \"$DETECTED\" !" && return 0
+  fi
 
   [ ! -d "$path/$driver/$folder" ] && return 0
 
-  if ! wimlib-imagex update "$loc" "$index" --command "add $path/$driver/$folder /\$WinPEDriver\$/$driver"; then
-    warn "Failed to add driver: $driver"
+  if ! wimlib-imagex update "$loc" "$idx" --command "add $path/$driver/$folder /\$WinPEDriver\$/$driver"; then
+    warn "Failed to add driver \"$driver\" to image!"
   fi
 
   return 0
@@ -776,30 +799,7 @@ updateImage() {
     fi
   fi
 
-  wimlib-imagex update "$loc" "$index" --command "delete --force --recursive $path /\$WinPEDriver\$" || true
-
-  local folder=""
-
-  case "${DETECTED,,}" in
-    "win7x86"* ) folder="w7/x86" ;;
-    "win7x64"* ) folder="w7/amd64" ;;
-    "win8x64"* ) folder="w10/amd64" ;;
-    "win10x64"* ) folder="w10/amd64" ;;
-    "win11x64"* ) folder="w11/amd64" ;;
-    "win10arm64"* ) folder="w10/ARM64" ;;
-    "win11arm64"* ) folder="w11/ARM64" ;;
-    "winvistax86"* ) folder="2k8/x86" ;;
-    "winvistax64"* ) folder="2k8/amd64" ;;
-    "win2022"* ) folder="2k22/amd64" ;;
-    "win2019"* ) folder="2k19/amd64" ;;
-    "win2016"* ) folder="2k16/amd64" ;;
-    "win2012"* ) folder="2k16/amd64" ;;
-    "win2008"* ) folder="2k8R2/amd64" ;;
-  esac
-
-  if [ -z "$folder" ]; then
-    warn "no drivers found for: \"$DETECTED\" !" && return 0
-  fi
+  wimlib-imagex update "$loc" "$index" --command "delete --force --recursive $path /\$WinPEDriver\$" >/dev/null || true
 
   info "Adding drivers to image..."
 
@@ -810,21 +810,19 @@ updateImage() {
     error "Failed to extract driver ISO file!" && return 1
   fi
 
-  addDriver "$loc" "$index" "$drivers" "$folder" "viostor"
-  addDriver "$loc" "$index" "$drivers" "$folder" "sriov"
-  addDriver "$loc" "$index" "$drivers" "$folder" "viofs"
-  addDriver "$loc" "$index" "$drivers" "$folder" "qxldod"
-  addDriver "$loc" "$index" "$drivers" "$folder" "viorng"
-  addDriver "$loc" "$index" "$drivers" "$folder" "vioscsi"
-  addDriver "$loc" "$index" "$drivers" "$folder" "Balloon"
-  addDriver "$loc" "$index" "$drivers" "$folder" "vioserial"
-  addDriver "$loc" "$index" "$drivers" "$folder" "NetKVM"
-  addDriver "$loc" "$index" "$drivers" "$folder" "pvpanic"
-  addDriver "$loc" "$index" "$drivers" "$folder" "vioinput"
-  addDriver "$loc" "$index" "$drivers" "$folder" "viogpudo"
-  addDriver "$loc" "$index" "$drivers" "$folder" "qemupciserial"
-
-  wimlib-imagex update "$loc" "$index" --command "delete --force --recursive $path /\$WinPEDriver\$" || true
+  addDriver "$DETECTED" "$loc" "$index" "$drivers" "viostor"
+  addDriver "$DETECTED" "$loc" "$index" "$drivers" "sriov"
+  addDriver "$DETECTED" "$loc" "$index" "$drivers" "viofs"
+  addDriver "$DETECTED" "$loc" "$index" "$drivers" "qxldod"
+  addDriver "$DETECTED" "$loc" "$index" "$drivers" "viorng"
+  addDriver "$DETECTED" "$loc" "$index" "$drivers" "vioscsi"
+  addDriver "$DETECTED" "$loc" "$index" "$drivers" "Balloon"
+  addDriver "$DETECTED" "$loc" "$index" "$drivers" "vioserial"
+  addDriver "$DETECTED" "$loc" "$index" "$drivers" "NetKVM"
+  addDriver "$DETECTED" "$loc" "$index" "$drivers" "pvpanic"
+  addDriver "$DETECTED" "$loc" "$index" "$drivers" "vioinput"
+  addDriver "$DETECTED" "$loc" "$index" "$drivers" "viogpudo"
+  addDriver "$DETECTED" "$loc" "$index" "$drivers" "qemupciserial"
 
   rm -rf "$drivers"
 
