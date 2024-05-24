@@ -250,6 +250,8 @@ download_windows_eval() {
   case "$enterprise_type" in
     # Select x64 download link
     "enterprise") iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1) ;;
+    # Select x64 IOT download link
+    "iot") iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1) ;;
     # Select x64 LTSC download link
     "ltsc") iso_download_link=$(echo "$iso_download_links" | head -n 4 | tail -n 1) ;;
     *) iso_download_link="$iso_download_links" ;;
