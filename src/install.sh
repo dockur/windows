@@ -691,7 +691,7 @@ addDriver() {
 
   [ ! -d "$path/$driver/$folder" ] && return 0
 
-  if ! wimlib-imagex update "$loc" "$idx" --command "add $path/$driver/$folder /\$WinPEDriver\$/$driver"; then
+  if ! wimlib-imagex update "$loc" "$idx" --command "add $path/$driver/$folder /\$WinPEDriver\$/$driver" >/dev/null; then
     warn "Failed to add driver \"$driver\" to image!"
   fi
 
