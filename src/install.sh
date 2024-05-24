@@ -688,9 +688,7 @@ addDriver() {
     warn "no \"$driver\" driver found for \"$DETECTED\" !" && return 0
   fi
 
-  if [ ! -d "$path/$driver/$folder" ]; then
-    warn "no \"$driver\" folder found for \"$DETECTED\" !" && return 0
-  fi
+  [ ! -d "$path/$driver/$folder" ] && return 0
 
   if [[ "${id,,}" == "winvista"* ]]; then
     [[ "${driver,,}" == "viorng" ]] && return 0
@@ -818,22 +816,22 @@ updateImage() {
   local target="\$WinPEDriver\$"
   local dest="$drivers/$target"
   mkdir -p "$dest"
-  
-  addDriver "$DETECTED" "$drivers" "$target" "viostor"
-  addDriver "$DETECTED" "$drivers" "$target" "sriov"
+
   addDriver "$DETECTED" "$drivers" "$target" "viofs"
+  addDriver "$DETECTED" "$drivers" "$target" "sriov"
   addDriver "$DETECTED" "$drivers" "$target" "qxldod"
   addDriver "$DETECTED" "$drivers" "$target" "viorng"
-  addDriver "$DETECTED" "$drivers" "$target" "vioscsi" 
-  addDriver "$DETECTED" "$drivers" "$target" "Balloon"
-  addDriver "$DETECTED" "$drivers" "$target" "vioserial"
+  addDriver "$DETECTED" "$drivers" "$target" "viostor"
   addDriver "$DETECTED" "$drivers" "$target" "NetKVM"
+  addDriver "$DETECTED" "$drivers" "$target" "Balloon"
+  addDriver "$DETECTED" "$drivers" "$target" "vioscsi" 
   addDriver "$DETECTED" "$drivers" "$target" "pvpanic"
   addDriver "$DETECTED" "$drivers" "$target" "vioinput"
   addDriver "$DETECTED" "$drivers" "$target" "viogpudo"
+  addDriver "$DETECTED" "$drivers" "$target" "vioserial"
   addDriver "$DETECTED" "$drivers" "$target" "qemupciserial"
 
-  if ! wimlib-imagex update "$loc" "$index" --command "add $dest /$target" >/dev/null; then
+  if ! wimlib-imagex update "$loc" "$index" --command "add $dest /" >/dev/null; then
     warn "Failed to add drivers to image!"
   fi
 
