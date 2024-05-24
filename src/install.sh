@@ -688,7 +688,9 @@ addDriver() {
     warn "no \"$driver\" driver found for \"$DETECTED\" !" && return 0
   fi
 
-  [ ! -d "$path/$driver/$folder" ] && return 0
+  if [ ! -d "$path/$driver/$folder" ]; then
+    warn "no \"$driver\" folder found for \"$DETECTED\" !" && return 0
+  fi
 
   if [[ "${id,,}" == "winvista"* ]]; then
     [[ "${driver,,}" == "viorng" ]] && return 0
