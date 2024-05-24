@@ -40,6 +40,17 @@ handle_curl_error() {
   return 1
 }
 
+browser() {
+
+  local user_agent
+
+  # Determine approximate latest Firefox release
+  user_agent="$((124 + ($(date +%s) - 1710892800) / 2419200))"
+  echo "Mozilla/5.0 (X11; Linux x86_64; rv:${browser_version}.0) Gecko/20100101 Firefox/${browser_version}.0"
+
+  return 0
+}
+
 download_windows() {
 
   local id="$1"
@@ -47,7 +58,7 @@ download_windows() {
   local sku_id=""
   local language=""
   local session_id=""
-  local browser_version=""
+  local user_agent=""
   local windows_version=""
   local iso_download_link=""
   local product_edition_id=""
@@ -69,9 +80,7 @@ download_windows() {
     8 | 10) url="${url}ISO";;
   esac
 
-  # Determine approximate latest Firefox release
-  browser_version="$((124 + ($(date +%s) - 1710892800) / 2419200))"
-  local user_agent="Mozilla/5.0 (X11; Linux x86_64; rv:${browser_version}.0) Gecko/20100101 Firefox/${browser_version}.0"
+  user_agent=$(browser)
 
   # uuidgen: For MacOS (installed by default) and other systems (e.g. with no /proc) that don't have a kernel interface for generating random UUIDs
   session_id="$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random)"
@@ -164,35 +173,43 @@ download_windows_eval() {
   local lang="$2"
   local culture=""
   local language=""
-  local windows_version=""
+  local user_agent=""
   local enterprise_type=""
+  local windows_version=""
 
   case "${id,,}" in
     "win11${PLATFORM,,}-enterprise-eval" )
-      windows_version="windows-11-enterprise"
-      enterprise_type="enterprise" ;;
+      enterprise_type="enterprise"
+      windows_version="windows-11-enterprise" ;;
+    "win11${PLATFORM,,}-enterprise-iot-eval" )
+      enterprise_type="enterprise"
+      windows_version="windows-11-iot-enterprise-ltsc" ;;
+    "win11${PLATFORM,,}-enterprise-ltsc-eval" )
+      enterprise_type="enterprise"
+      windows_version="windows-11-iot-enterprise-ltsc" ;;
     "win10${PLATFORM,,}-enterprise-eval" )
-      windows_version="windows-10-enterprise"
-      enterprise_type="enterprise" ;;
+      enterprise_type="enterprise"
+      windows_version="windows-10-enterprise" ;;
     "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-      windows_version="windows-10-enterprise"
-      enterprise_type="ltsc" ;;
+      enterprise_type="ltsc"
+      windows_version="windows-10-enterprise" ;;
     "win2022-eval" )
-      windows_version="windows-server-2022"
-      enterprise_type="server" ;;
+      enterprise_type="server"
+      windows_version="windows-server-2022" ;;
     "win2019-eval" )
-      windows_version="windows-server-2019"
-      enterprise_type="server" ;;
+      enterprise_type="server"
+      windows_version="windows-server-2019" ;;
     "win2016-eval" )
-      windows_version="windows-server-2016"
-      enterprise_type="server" ;;
+      enterprise_type="server"
+      windows_version="windows-server-2016" ;;
     "win2012r2-eval" )
-      windows_version="windows-server-2012-r2"
-      enterprise_type="server" ;;
+      enterprise_type="server"
+      windows_version="windows-server-2012-r2" ;;
     * )
       error "Invalid VERSION specified, value \"$id\" is not recognized!" && return 1 ;;
   esac
 
+  user_agent=$(browser)
   culture=$(getLanguage "$lang" "culture")
 
   local country="${culture#*-}"
@@ -200,7 +217,7 @@ download_windows_eval() {
   local url="https://www.microsoft.com/en-us/evalcenter/download-$windows_version"
 
   [[ "$DEBUG" == [Yy1]* ]] && echo "Parsing download page: ${url}"
-  iso_download_page_html="$(curl --silent --max-time 30 --location --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url")" || {
+  iso_download_page_html="$(curl --silent --max-time 30 --user-agent "$user_agent" --location --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url")" || {
     handle_curl_error $?
     return $?
   }
@@ -223,9 +240,6 @@ download_windows_eval() {
     return 1
   }
 
-  # Limit untrusted size for input validation
-  iso_download_links="$(echo "$iso_download_links" | head -c 1024)"
-
   case "$enterprise_type" in
     # Select x64 download link
     "enterprise") iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1) ;;
@@ -237,7 +251,7 @@ download_windows_eval() {
   # Follow redirect so proceeding log message is useful
   # This is a request we make this Fido doesn't
   # We don't need to set "--max-filesize" here because this is a HEAD request and the output is to /dev/null anyway
-  iso_download_link="$(curl --silent --max-time 30 --location --output /dev/null --silent --write-out "%{url_effective}" --head --fail --proto =https --tlsv1.2 --http1.1 -- "$iso_download_link")" || {
+  iso_download_link="$(curl --silent --max-time 30 --user-agent "$user_agent" --location --output /dev/null --silent --write-out "%{url_effective}" --head --fail --proto =https --tlsv1.2 --http1.1 -- "$iso_download_link")" || {
     # This should only happen if the Microsoft servers are down
     handle_curl_error $?
     return $?
