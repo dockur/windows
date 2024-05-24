@@ -833,14 +833,7 @@ copyOEM() {
 
   local dir="$1"
   local folder="/oem"
-  local drivers="$TMP/drivers"
-  local src file
-
-  src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
-
-  if [ ! -d "$src" ]; then
-    error "failed to locate 'sources' folder in ISO image!" && return 1
-  fi
+  local src dest file
 
   [ ! -d "$folder" ] && folder="/OEM"
   [ ! -d "$folder" ] && folder="$STORAGE/oem"
@@ -850,7 +843,13 @@ copyOEM() {
   local msg="Copying OEM folder to image..."
   info "$msg" && html "$msg"
 
-  local dest="$src/\$OEM\$/\$1/"
+  src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
+
+  if [ ! -d "$src" ]; then
+    error "failed to locate 'sources' folder in ISO image!" && return 1
+  fi
+
+  dest="$src/\$OEM\$/\$1/"
   mkdir -p "$dest"
 
   if ! cp -r "$folder" "$dest"; then
