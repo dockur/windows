@@ -231,12 +231,12 @@ download_windows_eval() {
   [[ "$DEBUG" == [Yy1]* ]] && echo "Getting download link.."
 
   if [[ "$enterprise_type" == "iot" ]]; then
-    filter="https://go.microsoft.com/fwlink/?LinkID=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country^^}"
+    filter="https://go.microsoft.com/fwlink/?linkid=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country^^}"
   else
     filter="https://go.microsoft.com/fwlink/p/?LinkID=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country^^}"
   fi
 
-  iso_download_links="$(echo "$iso_download_page_html" | grep -o "$filter")" || {
+  iso_download_links="$(echo "$iso_download_page_html" | grep -io "$filter")" || {
     # This should only happen if there's been some change to the download endpoint web address
     if [[ "${lang,,}" == "en" ]] || [[ "${lang,,}" == "en-"* ]]; then
       error "Windows server download page gave us no download link!"
