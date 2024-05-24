@@ -760,8 +760,6 @@ updateImage() {
     fi
   fi
 
-  if [[ "$MANUAL" == [Yy1]* ]]; then
-
     local folder=""
   
     case "${DETECTED,,}" in
@@ -769,9 +767,9 @@ updateImage() {
       "win7x64"* ) folder="w7/amd64" ;;
       "win8x64"* ) folder="w10/amd64" ;;
       "win10x64"* ) folder="w10/amd64" ;;
-      "win11x64"* |  ) folder="w11/amd64" ;;
+      "win11x64"* ) folder="w11/amd64" ;;
       "win10arm64"* ) folder="w10/ARM64" ;;
-      "win11arm64"* |  ) folder="w11/ARM64" ;;
+      "win11arm64"* ) folder="w11/ARM64" ;;
       "winvistax86"* ) folder="2k8/x86" ;;
       "winvistax64"* ) folder="2k8/amd64" ;;
       "win2022"* ) folder="2k22/amd64" ;;
@@ -781,7 +779,9 @@ updateImage() {
       "win2008"* ) folder="2k8R2/amd64" ;;
     esac
 
-    if [ -n "$folder" ]; then
+    if [ -z "$folder" ]; then
+      warn "no drivers found for: \"$DETECTED\" !" && return 0
+    fi
 
       info "Adding drivers to image..."
 
@@ -807,13 +807,6 @@ updateImage() {
       driver="viofs" && [ -d ""$drivers/$folder/$driver"" ] && wimlib-imagex update "$loc" "$index" --command "add $drivers/$folder/$driver /\$WinPEDriver\$/$driver" || true
 
       rm -rf "$drivers"
-
-    else
-
-      warn "no drivers found for: \"$DETECTED\" !"
-
-    fi
-  fi
 
   return 0
 }
