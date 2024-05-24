@@ -193,7 +193,7 @@ kubectl apply -f kubernetes.yml
 
 * ### How do I perform a manual installation?
 
-  It's best to use the automatic installation, as it prevents common issues that occur when running Windows inside a virtualized environment and optimizes various settings to give you maximum performance.
+  It's best to stick to the automatic installation, as it uses a special configuration for running Windows inside a virtualized environment and those settings will prevent some common issues.
 
   However, if you insist on performing the installation manually, add the following environment variable to your compose file:
 
@@ -202,32 +202,6 @@ kubectl apply -f kubernetes.yml
     MANUAL: "Y"
   ```
 
-  Then follow these steps:
-
-  - Start the container and connect to [port 8006](http://localhost:8006) of the container in your web browser. After the download is finished, you will see the Windows installation screen.
-
-  - Start the installation by clicking `Install now`. On the next screen, press 'OK' when prompted to `Load driver`.
-
-  -  Select the `VirtIO SCSI` driver from the list that matches your Windows version. So for Windows 11, select `D:\amd64\w11\vioscsi.inf` and click 'Next'.
-
-  - Accept the license agreement and select your preferred Windows edition, like Home or Pro.
-
-  - Choose `Custom: Install Windows only (advanced)`, and click `Load driver` on the next screen.
-
-  - Select 'Browse' and navigate to the `D:\NetKVM\w11\amd64` folder, and click 'OK'.
-
-  - Select the `VirtIO Ethernet Adapter` from the list and click 'Next'.
-
-  - Select `Drive 0` and click 'Next'.
-
-  - Wait until Windows finishes copying files and completes the installation.
-
-  - Once you see the desktop, open File Explorer and navigate to the CD-ROM drive (`E:\`).
-
-  - Double-click on `virtio-win-gt-x64.msi` and proceed to install the VirtIO drivers.
-
-  Enjoy your brand new machine, and don't forget to star this repo!
- 
 * ### How do I verify if my system supports KVM?
 
   To verify if your system supports KVM, run the following commands:
