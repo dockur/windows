@@ -213,11 +213,11 @@ kubectl apply -f kubernetes.yml
 
   If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check the virtualization settings in the BIOS.
 
-* ### How do I increase the amount of CPU or RAM?
+* ### How do I change the amount of CPU or RAM?
 
-  By default, 2 CPU cores and 4 GB of RAM are allocated to the container, as those are the minimum requirements of Windows 11.
+  By default, a maximum of 2 CPU cores and 4 GB of RAM are allocated to the container.
 
-  If there arises a need to increase this, add the following environment variables:
+  If you want to modify this, you can specify the desired amount using the following environment variables:
 
   ```yaml
   environment:
