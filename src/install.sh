@@ -667,7 +667,7 @@ addDriver() {
   local driver="$5"
 
   [ ! -d "$path/$driver/$folder" ] && return 0
-  
+
   if ! wimlib-imagex update "$loc" "$index" --command "add $path/$driver/$folder /\$WinPEDriver\$/$driver"; then
     warn "Failed to add driver: $driver"
   fi
@@ -777,7 +777,7 @@ updateImage() {
   fi
 
     local folder=""
-  
+
     case "${DETECTED,,}" in
       "win7x86"* ) folder="w7/x86" ;;
       "win7x64"* ) folder="w7/amd64" ;;
@@ -808,7 +808,7 @@ updateImage() {
         error "Failed to extract driver ISO file!" && return 1
       fi
 
-      wimlib-imagex update "$loc" "$index" --command "delete --force $path /\$WinPEDriver\$" || true
+      wimlib-imagex update "$loc" "$index" --command "delete --force --recursive $path /\$WinPEDriver\$" || true
 
       addDriver "$loc" "$index" "$drivers" "$folder" "viostor"
       addDriver "$loc" "$index" "$drivers" "$folder" "sriov"
@@ -823,7 +823,7 @@ updateImage() {
       addDriver "$loc" "$index" "$drivers" "$folder" "vioinput"
       addDriver "$loc" "$index" "$drivers" "$folder" "viogpudo"
       addDriver "$loc" "$index" "$drivers" "$folder" "qemupciserial"
-      wimlib-imagex update "$loc" "$index" --command "delete --force $path /\$WinPEDriver\$" || true
+      wimlib-imagex update "$loc" "$index" --command "delete --force --recursive $path /\$WinPEDriver\$" || true
 
       rm -rf "$drivers"
 
