@@ -671,7 +671,7 @@ addDriver() {
   case "${id,,}" in
     "win7x86"* ) folder="w7/x86" ;;
     "win7x64"* ) folder="w7/amd64" ;;
-    "win8x64"* ) folder="w10/amd64" ;;
+    "win81x64"* ) folder="w10/amd64" ;;
     "win10x64"* ) folder="w10/amd64" ;;
     "win11x64"* ) folder="w11/amd64" ;;
     "win2022"* ) folder="2k22/amd64" ;;
