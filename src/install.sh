@@ -801,8 +801,6 @@ updateImage() {
     fi
   fi
 
-  wimlib-imagex update "$loc" "$index" --command "delete --force --recursive $path /\$WinPEDriver\$" >/dev/null || true
-
   local msg="Adding drivers to image..."
   info "$msg" && html "$msg"
 
@@ -816,6 +814,8 @@ updateImage() {
   local target="\$WinPEDriver\$"
   local dest="$drivers/$target"
   mkdir -p "$dest"
+
+  wimlib-imagex update "$loc" "$index" --command "delete --force --recursive /$target" >/dev/null || true
 
   addDriver "$DETECTED" "$drivers" "$target" "viofs"
   addDriver "$DETECTED" "$drivers" "$target" "sriov"
@@ -831,7 +831,7 @@ updateImage() {
   addDriver "$DETECTED" "$drivers" "$target" "vioserial"
   addDriver "$DETECTED" "$drivers" "$target" "qemupciserial"
 
-  if ! wimlib-imagex update "$loc" "$index" --command "add $dest /" >/dev/null; then
+  if ! wimlib-imagex update "$loc" "$index" --command "add $dest /$target" >/dev/null; then
     warn "Failed to add drivers to image!"
   fi
 
