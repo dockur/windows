@@ -170,6 +170,7 @@ download_windows_eval() {
 
   local id="$1"
   local lang="$2"
+  local filter=""
   local culture=""
   local language=""
   local user_agent=""
@@ -181,10 +182,10 @@ download_windows_eval() {
       enterprise_type="enterprise"
       windows_version="windows-11-enterprise" ;;
     "win11${PLATFORM,,}-enterprise-iot-eval" )
-      enterprise_type="enterprise"
+      enterprise_type="iot"
       windows_version="windows-11-iot-enterprise-ltsc" ;;
     "win11${PLATFORM,,}-enterprise-ltsc-eval" )
-      enterprise_type="enterprise"
+      enterprise_type="iot"
       windows_version="windows-11-iot-enterprise-ltsc" ;;
     "win10${PLATFORM,,}-enterprise-eval" )
       enterprise_type="enterprise"
@@ -228,7 +229,14 @@ download_windows_eval() {
   fi
 
   [[ "$DEBUG" == [Yy1]* ]] && echo "Getting download link.."
-  iso_download_links="$(echo "$iso_download_page_html" | grep -o "https://go.microsoft.com/fwlink/p/?LinkID=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country^^}")" || {
+
+  if [[ "$enterprise_type" == "iot" ]]; then
+    filter="https://go.microsoft.com/fwlink/?LinkID=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country^^}"
+  else
+    filter="https://go.microsoft.com/fwlink/p/?LinkID=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country^^}"
+  fi
+
+  iso_download_links="$(echo "$iso_download_page_html" | grep -o "$filter")" || {
     # This should only happen if there's been some change to the download endpoint web address
     if [[ "${lang,,}" == "en" ]] || [[ "${lang,,}" == "en-"* ]]; then
       error "Windows server download page gave us no download link!"
