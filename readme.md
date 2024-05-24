@@ -86,14 +86,14 @@ kubectl apply -f kubernetes.yml
   | **Value** | **Version**              | **Size** |
   |---|---|---|
   | `win11`   | Windows 11 Pro           | 6.4 GB   |
-  | `ltsc11`   | Windows 11 LTSC        | 4.4 GB   |
+  | `ltsc11`   | Windows 11 LTSC        | 4.1 GB   |
   | `win11e`  | Windows 11 Enterprise    | 5.8 GB   |
-  | `win10`   | Windows 10 Pro           | 5.8 GB   |
+  | `win10`   | Windows 10 Pro           | 5.7 GB   |
   | `ltsc10`  | Windows 10 LTSC          | 4.6 GB   |
   | `win10e`  | Windows 10 Enterprise    | 5.2 GB   |
   ||||  
-  | `win8`    | Windows 8.1 Pro          | 4.2 GB   |
-  | `win8e`   | Windows 8.1 Enterprise   | 3.8 GB   |
+  | `win8`    | Windows 8.1 Pro          | 4.0 GB   |
+  | `win8e`   | Windows 8.1 Enterprise   | 3.7 GB   |
   | `win7`    | Windows 7 Enterprise     | 3.0 GB   |
   | `vista`   | Windows Vista Enterprise | 3.0 GB   |
   | `winxp`   | Windows XP Professional  | 0.6 GB   |
