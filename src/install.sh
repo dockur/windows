@@ -778,14 +778,29 @@ copyOEM() {
 
   local dir="$1"
   local folder="/oem"
-  local src dest file
+  local drivers="$TMP/drivers"
+  local dest="$src/\$WinPEDriver\$/"
+  local src file
+
+  local msg="Copying drivers to image..."
+  info "$msg" && html "$msg"
+
+  rm -rf "$drivers"
+  mkdir -p "$dest"
+
+  if ! 7z x /run/drivers.iso -o"$drivers" > /dev/null; then
+    error "Failed to extract driver ISO file!" && return 1
+  fi
+
+  cp -r "$drivers/*" "$dest"
+  ls -lh "$dest"
 
   [ ! -d "$folder" ] && folder="/OEM"
   [ ! -d "$folder" ] && folder="$STORAGE/oem"
   [ ! -d "$folder" ] && folder="$STORAGE/OEM"
   [ ! -d "$folder" ] && return 0
 
-  local msg="Copying OEM folder to image..."
+  msg="Copying OEM folder to image..."
   info "$msg" && html "$msg"
 
   src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
