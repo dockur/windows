@@ -833,7 +833,7 @@ updateImage() {
   addDriver "$DETECTED" "$drivers" "$target" "viogpudo"
   addDriver "$DETECTED" "$drivers" "$target" "qemupciserial"
 
-  if ! wimlib-imagex update "$loc" "$idx" --command "add $dest /$target" >/dev/null; then
+  if ! wimlib-imagex update "$loc" "$index" --command "add $dest /$target" >/dev/null; then
     warn "Failed to add drivers to image!"
   fi
 
