@@ -644,10 +644,6 @@ getMido() {
       size=4898582528
       sum="e4ab2e3535be5748252a8d5d57539a6e59be8d6726345ee10e7afd2cb89fefb5"
       ;;
-    "win10x64-enterprise-iot-eval" )
-      size=1
-      sum="xxx"
-      ;;
     "win81x64" )
       size=4320526336
       sum="d8333cf427eb3318ff6ab755eb1dd9d433f0e2ae43745312c1cd23e83ca1ce51"
