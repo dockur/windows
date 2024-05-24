@@ -801,7 +801,8 @@ updateImage() {
 
   wimlib-imagex update "$loc" "$index" --command "delete --force --recursive $path /\$WinPEDriver\$" >/dev/null || true
 
-  info "Adding drivers to image..."
+  local msg="Adding drivers to image..."
+  info "$msg" && html "$msg"
 
   local drivers="$TMP/drivers"
   rm -rf "$drivers"
