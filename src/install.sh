@@ -824,7 +824,7 @@ updateImage() {
   addDriver "$DETECTED" "$drivers" "$target" "viostor"
   addDriver "$DETECTED" "$drivers" "$target" "NetKVM"
   addDriver "$DETECTED" "$drivers" "$target" "Balloon"
-  addDriver "$DETECTED" "$drivers" "$target" "vioscsi" 
+  addDriver "$DETECTED" "$drivers" "$target" "vioscsi"
   addDriver "$DETECTED" "$drivers" "$target" "pvpanic"
   addDriver "$DETECTED" "$drivers" "$target" "vioinput"
   addDriver "$DETECTED" "$drivers" "$target" "viogpudo"
