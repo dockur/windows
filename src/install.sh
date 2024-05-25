@@ -805,11 +805,13 @@ updateImage() {
   info "$msg" && html "$msg"
 
   local drivers="$TMP/drivers"
-  rm -rf "$drivers"
+  mkdir -p "$drivers"
 
-  if ! 7z x /run/drivers.iso -o"$drivers" > /dev/null; then
-    error "Failed to extract driver ISO file!" && return 1
+  if ! tar -xf /drivers.txz -C "$drivers"; then
+    error "Failed to extract driver!" && return 1
   fi
+
+ls "$drivers"
 
   local target="\$WinPEDriver\$"
   local dest="$drivers/$target"
