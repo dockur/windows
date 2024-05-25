@@ -820,6 +820,7 @@ updateImage() {
   addDriver "$DETECTED" "$drivers" "$target" "qxl"
   addDriver "$DETECTED" "$drivers" "$target" "viofs"
   addDriver "$DETECTED" "$drivers" "$target" "sriov"
+  addDriver "$DETECTED" "$drivers" "$target" "smbus"
   addDriver "$DETECTED" "$drivers" "$target" "qxldod"
   addDriver "$DETECTED" "$drivers" "$target" "viorng"
   addDriver "$DETECTED" "$drivers" "$target" "viostor"
