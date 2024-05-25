@@ -817,6 +817,7 @@ updateImage() {
 
   wimlib-imagex update "$loc" "$index" --command "delete --force --recursive /$target" >/dev/null || true
 
+  addDriver "$DETECTED" "$drivers" "$target" "qxl"
   addDriver "$DETECTED" "$drivers" "$target" "viofs"
   addDriver "$DETECTED" "$drivers" "$target" "sriov"
   addDriver "$DETECTED" "$drivers" "$target" "qxldod"
