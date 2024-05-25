@@ -811,8 +811,6 @@ updateImage() {
     error "Failed to extract driver!" && return 1
   fi
 
-  ls "$drivers"
-
   local target="\$WinPEDriver\$"
   local dest="$drivers/$target"
   mkdir -p "$dest"
