@@ -3,13 +3,6 @@ description: Suggest an idea for improving the container
 title: "[Feature]: "
 labels: ["enhancement"]
 body:
-  - type: checkboxes
-    attributes:
-      label: Is there no existing feature request for this?
-      description: Please search to see if the feature was not already requested before.
-      options:
-      - label: I have searched the existing feature requests
-        required: true
   - type: textarea
     id: problem
     attributes:
