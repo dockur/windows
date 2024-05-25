@@ -27,7 +27,7 @@ COPY --chmod=755 ./src /run/
 COPY --chmod=755 ./assets /run/assets
 
 ADD --chmod=755 https://raw.githubusercontent.com/christgau/wsdd/v0.8/src/wsdd.py /usr/sbin/wsdd
-ADD --chmod=664 https://github.com/qemus/virtiso/releases/download/v0.1.248/virtio-win-0.1.248.iso /run/drivers.iso
+ADD --chmod=664 https://github.com/qemus/virtiso/releases/download/v0.1.248/virtio-win-0.1.248.tar.xz /drivers.txz
 
 EXPOSE 8006 3389
 VOLUME /storage
