@@ -807,11 +807,11 @@ updateImage() {
   local drivers="$TMP/drivers"
   mkdir -p "$drivers"
 
-  if ! tar -xf /drivers.txz -C "$drivers"; then
+  if ! tar -xf /drivers.txz -C "$drivers" --warning=no-timestamp; then
     error "Failed to extract driver!" && return 1
   fi
 
-ls "$drivers"
+  ls "$drivers"
 
   local target="\$WinPEDriver\$"
   local dest="$drivers/$target"
