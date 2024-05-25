@@ -1941,10 +1941,10 @@ prepareXP() {
     target="$dir/AMD64"
   fi
 
-  rm -rf "$drivers"
+  mkdir -p "$drivers"
 
-  if ! 7z x /run/drivers.iso -o"$drivers" > /dev/null; then
-    error "Failed to extract driver ISO file!" && return 1
+  if ! tar -xf /drivers.txz -C "$drivers" --warning=no-timestamp; then
+    error "Failed to extract driver!" && return 1
   fi
 
   cp "$drivers/viostor/xp/$arch/viostor.sys" "$target"
@@ -2009,8 +2009,8 @@ prepareXP() {
 
   local username="Docker"
   local password="*"
-  [ -n "$USERNAME" ] && username="$USERNAME"
   [ -n "$PASSWORD" ] && password="$PASSWORD"
+  [ -n "$USERNAME" ] && username=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g')
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
