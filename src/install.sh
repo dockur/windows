@@ -900,7 +900,7 @@ removeImage() {
 buildImage() {
 
   local dir="$1"
-  local failed="N"
+  local failed=""
   local cat="BOOT.CAT"
   local log="/run/shm/iso.log"
   local base size size_gb space space_gb desc
@@ -933,7 +933,7 @@ buildImage() {
 
     if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -V "${LABEL::30}" \
                      -udf -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -allow-limited-size -quiet "$dir" 2> "$log"; then
-      failed="Y"
+      failed="y"
     fi
 
   else
@@ -942,20 +942,20 @@ buildImage() {
 
       if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "${LABEL::30}" \
                        -udf -allow-limited-size -quiet "$dir" 2> "$log"; then
-        failed="Y"
+        failed="y"
       fi
 
     else
 
       if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -boot-load-seg 1984 -boot-load-size 4 -c "$cat" -iso-level 2 -J -l -D -N -joliet-long \
                        -relaxed-filenames -V "${LABEL::30}" -quiet "$dir" 2> "$log"; then
-        failed="Y"
+        failed="y"
       fi
 
     fi
   fi
 
-  if [[ "$failed" != "N" ]]; then
+  if [ -n "$failed" ]; then
     [ -s "$log" ] && echo "$(<"$log")"
     error "Failed to build image!" && return 1
   fi
