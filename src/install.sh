@@ -122,6 +122,7 @@ finishInstall() {
   rm -f "$STORAGE/windows.base"
   rm -f "$STORAGE/windows.boot"
   rm -f "$STORAGE/windows.mode"
+  rm -f "$STORAGE/windows.type"
 
   cp -f /run/version "$STORAGE/windows.ver"
 
@@ -152,6 +153,10 @@ finishInstall() {
         echo "$BOOT_MODE" > "$STORAGE/windows.mode"
       fi
     fi
+  fi
+
+  if [ -n "$DISK_TYPE" ] && [[ "${DISK_TYPE,,}" != "scsi" ]]; then
+    echo "$DISK_TYPE" > "$STORAGE/windows.type"
   fi
 
   rm -rf "$TMP"
@@ -645,7 +650,7 @@ prepareImage() {
   case "${DETECTED,,}" in
     "winxp"* )
       HV="N"
-      DISK_TYPE="auto"
+      DISK_TYPE="ide"
       BOOT_MODE="windows_legacy"
       prepareXP "$iso" "$dir" && return 0
       error "Failed to prepare Windows XP ISO!" && return 1
@@ -1045,6 +1050,10 @@ bootWindows() {
   rm -rf "$TMP"
 
   [[ "${PLATFORM,,}" == "arm64" ]] && VGA="virtio-gpu"
+
+  if [ -s "$STORAGE/windows.type" ] && [ -f "$STORAGE/windows.type" ]; then
+    DISK_TYPE=$(<"$STORAGE/windows.type")
+  fi
 
   if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then
     BOOT_MODE=$(<"$STORAGE/windows.mode")
