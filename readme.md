@@ -233,7 +233,7 @@ kubectl apply -f kubernetes.yml
   ```yaml
   environment:
     USERNAME: "bill"
-    PASSWORD: "secret"
+    PASSWORD: "gates"
   ```
 
 * ### How do I connect using RDP?
