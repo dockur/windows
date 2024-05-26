@@ -468,6 +468,7 @@ detectLanguage() {
 setXML() {
 
   local file="/custom.xml"
+
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="$STORAGE/custom.xml"
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/custom.xml"
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="$1"
@@ -700,6 +701,76 @@ addDriver() {
   return 0
 }
 
+addDrivers() {
+
+  local file="$1"
+  local index="$2"
+
+  local msg="Adding drivers to image..."
+  info "$msg" && html "$msg"
+
+  local drivers="$TMP/drivers"
+  mkdir -p "$drivers"
+
+  if ! tar -xf /drivers.txz -C "$drivers" --warning=no-timestamp; then
+    error "Failed to extract driver!" && return 1
+  fi
+
+  local target="\$WinPEDriver\$"
+  local dest="$drivers/$target"
+  mkdir -p "$dest"
+
+  wimlib-imagex update "$file" "$index" --command "delete --force --recursive /$target" >/dev/null || true
+
+  addDriver "$DETECTED" "$drivers" "$target" "qxl"
+  addDriver "$DETECTED" "$drivers" "$target" "viofs"
+  addDriver "$DETECTED" "$drivers" "$target" "sriov"
+  addDriver "$DETECTED" "$drivers" "$target" "smbus"
+  addDriver "$DETECTED" "$drivers" "$target" "qxldod"
+  addDriver "$DETECTED" "$drivers" "$target" "viorng"
+  addDriver "$DETECTED" "$drivers" "$target" "viostor"
+  addDriver "$DETECTED" "$drivers" "$target" "NetKVM"
+  addDriver "$DETECTED" "$drivers" "$target" "Balloon"
+  addDriver "$DETECTED" "$drivers" "$target" "vioscsi"
+  addDriver "$DETECTED" "$drivers" "$target" "pvpanic"
+  addDriver "$DETECTED" "$drivers" "$target" "vioinput"
+  addDriver "$DETECTED" "$drivers" "$target" "viogpudo"
+  addDriver "$DETECTED" "$drivers" "$target" "vioserial"
+  addDriver "$DETECTED" "$drivers" "$target" "qemupciserial"
+
+  if ! wimlib-imagex update "$file" "$index" --command "add $dest /$target" >/dev/null; then
+    return 1
+  fi
+
+  rm -rf "$drivers"
+  return 0
+}
+
+addFolder() {
+
+  local src="$1"
+  local dest file
+  local folder="/oem"
+
+  [ ! -d "$folder" ] && folder="/OEM"
+  [ ! -d "$folder" ] && folder="$STORAGE/oem"
+  [ ! -d "$folder" ] && folder="$STORAGE/OEM"
+  [ ! -d "$folder" ] && return 0
+
+  local msg="Adding OEM folder to image..."
+  info "$msg" && html "$msg"
+
+  dest="$src/\$OEM\$/\$1/"
+  mkdir -p "$dest"
+
+  ! cp -r "$folder" "$dest" && return 1
+
+  file=$(find "$dest" -maxdepth 1 -type f -iname install.bat | head -n 1)
+  [ -f "$file" ] && unix2dos -q "$file"
+
+  return 0
+}
+
 updateImage() {
 
   local dir="$1"
@@ -708,7 +779,7 @@ updateImage() {
   local file="autounattend.xml"
   local org="${file//.xml/.org}"
   local dat="${file//.xml/.dat}"
-  local desc path src loc xml index result
+  local desc path src wim xml index result
 
   [[ "${DETECTED,,}" == "winxp"* ]] && return 0
 
@@ -724,28 +795,36 @@ updateImage() {
 
   if [ ! -d "$src" ]; then
     [[ "${PLATFORM,,}" == "x64" ]] && BOOT_MODE="windows_legacy"
-    warn "failed to locate 'sources' folder in ISO image, $FB" && return 1
+    error "failed to locate 'sources' folder in ISO image, $FB" && return 1
   fi
 
-  loc=$(find "$src" -maxdepth 1 -type f -iname boot.wim | head -n 1)
-  [ ! -f "$loc" ] && loc=$(find "$src" -maxdepth 1 -type f -iname boot.esd | head -n 1)
+  wim=$(find "$src" -maxdepth 1 -type f -iname boot.wim | head -n 1)
+  [ ! -f "$wim" ] && wim=$(find "$src" -maxdepth 1 -type f -iname boot.esd | head -n 1)
 
-  if [ ! -f "$loc" ]; then
+  if [ ! -f "$wim" ]; then
     [[ "${PLATFORM,,}" == "x64" ]] && BOOT_MODE="windows_legacy"
-    warn "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB" && return 1
+    error "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB" && return 1
   fi
 
   index="1"
-  result=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
+  result=$(wimlib-imagex info -xml "$wim" | tr -d '\000')
 
   if [[ "${result^^}" == *"<IMAGE INDEX=\"2\">"* ]]; then
     index="2"
   fi
 
-  if wimlib-imagex extract "$loc" "$index" "/$file" "--dest-dir=$TMP" >/dev/null 2>&1; then
-    if ! wimlib-imagex extract "$loc" "$index" "/$dat" "--dest-dir=$TMP" >/dev/null 2>&1; then
-      if ! wimlib-imagex extract "$loc" "$index" "/$org" "--dest-dir=$TMP" >/dev/null 2>&1; then
-        if ! wimlib-imagex update "$loc" "$index" --command "rename /$file /$org" > /dev/null; then
+  if ! addDrivers "$wim" "$index"; then
+    error "Failed to add drivers to image!" && return 1
+  fi
+
+  if ! addFolder "$src"; then
+    error "Failed to add OEM folder to image!" && return 1
+  fi
+
+  if wimlib-imagex extract "$wim" "$index" "/$file" "--dest-dir=$TMP" >/dev/null 2>&1; then
+    if ! wimlib-imagex extract "$wim" "$index" "/$dat" "--dest-dir=$TMP" >/dev/null 2>&1; then
+      if ! wimlib-imagex extract "$wim" "$index" "/$org" "--dest-dir=$TMP" >/dev/null 2>&1; then
+        if ! wimlib-imagex update "$wim" "$index" --command "rename /$file /$org" > /dev/null; then
           warn "failed to backup original answer file ($file)."
         fi
       fi
@@ -764,11 +843,11 @@ updateImage() {
     cp "$asset" "$answer"
     updateXML "$answer" "$language"
 
-    if ! wimlib-imagex update "$loc" "$index" --command "add $answer /$file" > /dev/null; then
+    if ! wimlib-imagex update "$wim" "$index" --command "add $answer /$file" > /dev/null; then
       MANUAL="Y"
       warn "failed to add answer file ($xml) to ISO image, $FB"
     else
-      wimlib-imagex update "$loc" "$index" --command "add $answer /$dat" > /dev/null || true
+      wimlib-imagex update "$wim" "$index" --command "add $answer /$dat" > /dev/null || true
     fi
 
     rm -f "$answer"
@@ -777,10 +856,10 @@ updateImage() {
 
   if [[ "$MANUAL" == [Yy1]* ]]; then
 
-    wimlib-imagex update "$loc" "$index" --command "delete --force /$file" > /dev/null || true
+    wimlib-imagex update "$wim" "$index" --command "delete --force /$file" > /dev/null || true
 
-    if wimlib-imagex extract "$loc" "$index" "/$org" "--dest-dir=$TMP" >/dev/null 2>&1; then
-      if ! wimlib-imagex update "$loc" "$index" --command "add $TMP/$org /$file" > /dev/null; then
+    if wimlib-imagex extract "$wim" "$index" "/$org" "--dest-dir=$TMP" >/dev/null 2>&1; then
+      if ! wimlib-imagex update "$wim" "$index" --command "add $TMP/$org /$file" > /dev/null; then
         warn "failed to restore original answer file ($org)."
       fi
     fi
@@ -801,87 +880,16 @@ updateImage() {
     fi
   fi
 
-  local msg="Adding drivers to image..."
-  info "$msg" && html "$msg"
-
-  local drivers="$TMP/drivers"
-  mkdir -p "$drivers"
-
-  if ! tar -xf /drivers.txz -C "$drivers" --warning=no-timestamp; then
-    error "Failed to extract driver!" && return 1
-  fi
-
-  local target="\$WinPEDriver\$"
-  local dest="$drivers/$target"
-  mkdir -p "$dest"
-
-  wimlib-imagex update "$loc" "$index" --command "delete --force --recursive /$target" >/dev/null || true
-
-  addDriver "$DETECTED" "$drivers" "$target" "qxl"
-  addDriver "$DETECTED" "$drivers" "$target" "viofs"
-  addDriver "$DETECTED" "$drivers" "$target" "sriov"
-  addDriver "$DETECTED" "$drivers" "$target" "smbus"
-  addDriver "$DETECTED" "$drivers" "$target" "qxldod"
-  addDriver "$DETECTED" "$drivers" "$target" "viorng"
-  addDriver "$DETECTED" "$drivers" "$target" "viostor"
-  addDriver "$DETECTED" "$drivers" "$target" "NetKVM"
-  addDriver "$DETECTED" "$drivers" "$target" "Balloon"
-  addDriver "$DETECTED" "$drivers" "$target" "vioscsi"
-  addDriver "$DETECTED" "$drivers" "$target" "pvpanic"
-  addDriver "$DETECTED" "$drivers" "$target" "vioinput"
-  addDriver "$DETECTED" "$drivers" "$target" "viogpudo"
-  addDriver "$DETECTED" "$drivers" "$target" "vioserial"
-  addDriver "$DETECTED" "$drivers" "$target" "qemupciserial"
-
-  if ! wimlib-imagex update "$loc" "$index" --command "add $dest /$target" >/dev/null; then
-    warn "Failed to add drivers to image!"
-  fi
-
-  rm -rf "$drivers"
-
   return 0
 }
 
-removeDownload() {
+removeImage() {
 
   local iso="$1"
 
   [ ! -f "$iso" ] && return 0
   [ -n "$CUSTOM" ] && return 0
   ! rm -f "$iso" 2> /dev/null && warn "failed to remove $iso !"
-
-  return 0
-}
-
-copyOEM() {
-
-  local dir="$1"
-  local folder="/oem"
-  local src dest file
-
-  [ ! -d "$folder" ] && folder="/OEM"
-  [ ! -d "$folder" ] && folder="$STORAGE/oem"
-  [ ! -d "$folder" ] && folder="$STORAGE/OEM"
-  [ ! -d "$folder" ] && return 0
-
-  local msg="Copying OEM folder to image..."
-  info "$msg" && html "$msg"
-
-  src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
-
-  if [ ! -d "$src" ]; then
-    error "failed to locate 'sources' folder in ISO image!" && return 1
-  fi
-
-  dest="$src/\$OEM\$/\$1/"
-  mkdir -p "$dest"
-
-  if ! cp -r "$folder" "$dest"; then
-    error "Failed to copy OEM folder!" && return 1
-  fi
-
-  file=$(find "$dest" -maxdepth 1 -type f -iname install.bat | head -n 1)
-  [ -f "$file" ] && unix2dos -q "$file"
 
   return 0
 }
@@ -1040,20 +1048,16 @@ fi
 
 if ! prepareImage "$ISO" "$DIR"; then
   abortInstall "$ISO" && return 0
-  exit 60
+  exit 66
 fi
 
 if ! updateImage "$DIR" "$XML" "$LANGUAGE"; then
   abortInstall "$ISO" && return 0
-  exit 60
-fi
-
-if ! removeDownload "$ISO"; then
-  exit 64
-fi
-
-if ! copyOEM "$DIR"; then
   exit 63
+fi
+
+if ! removeImage "$ISO"; then
+  exit 64
 fi
 
 if ! buildImage "$DIR"; then
