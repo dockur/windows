@@ -546,6 +546,19 @@ detectLegacy() {
   return 1
 }
 
+skipVersion() {
+
+  local version="$1"
+
+  case "${version,,}" in
+    "win2k"* | "winxp"* | "win9"* )
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
 detectImage() {
 
   local dir="$1"
@@ -560,11 +573,7 @@ detectImage() {
 
   if [ -n "$DETECTED" ]; then
 
-    case "${DETECTED,,}" in
-      "win2k"* | "winxp"* | "win9"* )
-        return 0
-        ;;
-    esac
+    skipVersion "${DETECTED,,}" && return 0
 
     if ! setXML "" && [[ "$MANUAL" != [Yy1]* ]]; then
       MANUAL="Y"
@@ -640,37 +649,32 @@ prepareImage() {
 
   case "${DETECTED,,}" in
     "win9"* | "win2k"* )
-      MACHINE="pc-i440fx-2.4"
-      ;;
+      MACHINE="pc-i440fx-2.4" ;;
     "winxp"* | "winvistax86"* |  "win7x86"* )
-      MACHINE="pc-q35-2.10"
-      ;;
+      MACHINE="pc-q35-2.10" ;;
+  esac
+
+  case "${DETECTED,,}" in
+    "win9"* | "winxp"* | "win2k"* )
+      HV="N"
+      BOOT_MODE="windows_legacy" ;;
+    "winvista"* | "win7"* | "win2008"* )
+      BOOT_MODE="windows_legacy" ;;
   esac
 
   case "${DETECTED,,}" in
     "winxp"* )
-      HV="N"
-      DISK_TYPE="ide"
-      BOOT_MODE="windows_legacy"
+      DISK_TYPE="blk"
       prepareXP "$iso" "$dir" && return 0
-      error "Failed to prepare Windows XP ISO!" && return 1
-      ;;
+      error "Failed to prepare Windows XP ISO!" && return 1 ;;
     "win9"* )
-      HV="N"
       DISK_TYPE="auto"
-      BOOT_MODE="windows_legacy"
       prepare9x "$iso" "$dir" && return 0
-      error "Failed to prepare Windows 9x ISO!" && return 1
-      ;;
+      error "Failed to prepare Windows 9x ISO!" && return 1 ;;
     "win2k"* )
-      HV="N"
       DISK_TYPE="auto"
-      BOOT_MODE="windows_legacy"
       prepare2k "$iso" "$dir" && return 0
-      error "Failed to prepare Windows 2000 ISO!" && return 1
-      ;;
-    "winvista"* | "win7"* | "win2008"* )
-      BOOT_MODE="windows_legacy" ;;
+      error "Failed to prepare Windows 2000 ISO!" && return 1 ;;
   esac
 
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
@@ -863,11 +867,7 @@ updateImage() {
   local dat="${file//.xml/.dat}"
   local desc path src wim xml index result
 
-  case "${DETECTED,,}" in
-    "win2k"* | "winxp"* | "win9"* )
-      return 0
-      ;;
-  esac
+  skipVersion "${DETECTED,,}" && return 0
 
   if [ ! -s "$asset" ] || [ ! -f "$asset" ]; then
     asset=""
