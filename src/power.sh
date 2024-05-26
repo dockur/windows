@@ -44,7 +44,7 @@ boot() {
   error "Timeout while waiting for QEMU to boot the machine!"
 
   finish 33
-  exit 33
+  return 0
 }
 
 ready() {
