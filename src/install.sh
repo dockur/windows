@@ -705,6 +705,7 @@ addDrivers() {
 
   local file="$1"
   local index="$2"
+  local version="$3"
 
   local msg="Adding drivers to image..."
   info "$msg" && html "$msg"
@@ -722,21 +723,21 @@ addDrivers() {
 
   wimlib-imagex update "$file" "$index" --command "delete --force --recursive /$target" >/dev/null || true
 
-  addDriver "$DETECTED" "$drivers" "$target" "qxl"
-  addDriver "$DETECTED" "$drivers" "$target" "viofs"
-  addDriver "$DETECTED" "$drivers" "$target" "sriov"
-  addDriver "$DETECTED" "$drivers" "$target" "smbus"
-  addDriver "$DETECTED" "$drivers" "$target" "qxldod"
-  addDriver "$DETECTED" "$drivers" "$target" "viorng"
-  addDriver "$DETECTED" "$drivers" "$target" "viostor"
-  addDriver "$DETECTED" "$drivers" "$target" "NetKVM"
-  addDriver "$DETECTED" "$drivers" "$target" "Balloon"
-  addDriver "$DETECTED" "$drivers" "$target" "vioscsi"
-  addDriver "$DETECTED" "$drivers" "$target" "pvpanic"
-  addDriver "$DETECTED" "$drivers" "$target" "vioinput"
-  addDriver "$DETECTED" "$drivers" "$target" "viogpudo"
-  addDriver "$DETECTED" "$drivers" "$target" "vioserial"
-  addDriver "$DETECTED" "$drivers" "$target" "qemupciserial"
+  addDriver "$version" "$drivers" "$target" "qxl"
+  addDriver "$version" "$drivers" "$target" "viofs"
+  addDriver "$version" "$drivers" "$target" "sriov"
+  addDriver "$version" "$drivers" "$target" "smbus"
+  addDriver "$version" "$drivers" "$target" "qxldod"
+  addDriver "$version" "$drivers" "$target" "viorng"
+  addDriver "$version" "$drivers" "$target" "viostor"
+  addDriver "$version" "$drivers" "$target" "NetKVM"
+  addDriver "$version" "$drivers" "$target" "Balloon"
+  addDriver "$version" "$drivers" "$target" "vioscsi"
+  addDriver "$version" "$drivers" "$target" "pvpanic"
+  addDriver "$version" "$drivers" "$target" "vioinput"
+  addDriver "$version" "$drivers" "$target" "viogpudo"
+  addDriver "$version" "$drivers" "$target" "vioserial"
+  addDriver "$version" "$drivers" "$target" "qemupciserial"
 
   if ! wimlib-imagex update "$file" "$index" --command "add $dest /$target" >/dev/null; then
     return 1
@@ -813,7 +814,7 @@ updateImage() {
     index="2"
   fi
 
-  if ! addDrivers "$wim" "$index"; then
+  if ! addDrivers "$wim" "$index" "$DETECTED"; then
     error "Failed to add drivers to image!" && return 1
   fi
 
