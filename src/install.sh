@@ -498,8 +498,12 @@ detectImage() {
 
   if [ -n "$DETECTED" ]; then
 
-    [[ "${DETECTED,,}" == "winxp"* ]] && return 0
-
+    case "${DETECTED,,}" in
+      "winxp"* | "win98"* )
+        return 0
+        ;;
+    esac
+  
     if ! setXML "" && [[ "$MANUAL" != [Yy1]* ]]; then
       MANUAL="Y"
       desc=$(printEdition "$DETECTED" "this version")
