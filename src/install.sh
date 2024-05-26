@@ -484,6 +484,33 @@ setXML() {
   return 0
 }
 
+detectLegacy() {
+
+  local dir="$1"
+  local find find2 desc
+
+  find=$(find "$dir" -maxdepth 1 -type d -iname win98 | head -n 1)
+
+  if [ -n "$find" ]; then
+    DETECTED="win98"
+    desc=$(printEdition "$DETECTED" "Windows 98")
+    info "Detected: $desc"
+    return 0
+  fi
+
+  find=$(find "$dir" -maxdepth 1 -type d -iname win51 | head -n 1)
+  find2=$(find "$dir" -maxdepth 1 -type f -iname SETUPXP.HTM | head -n 1)
+
+  if [ -n "$find" ] || [ -n "$find2" ]; then
+    [ -d "$dir/AMD64" ] && DETECTED="winxpx64" || DETECTED="winxpx86"
+    desc=$(printEdition "$DETECTED" "Windows XP")
+    info "Detected: $desc"
+    return 0
+  fi
+
+  return 1
+}
+
 detectImage() {
 
   local dir="$1"
@@ -514,24 +541,7 @@ detectImage() {
   fi
 
   info "Detecting version from ISO image..."
-
-  find=$(find "$dir" -maxdepth 1 -type d -iname win98 | head -n 1)
-
-  if [ -n "$find" ]; then
-    DETECTED="win98"
-    desc=$(printEdition "$DETECTED" "Windows 98")
-    info "Detected: $desc"
-    return 0
-  fi
-
-  find=$(find "$dir" -maxdepth 1 -type d -iname win51 | head -n 1)
-
-  if [ -n "$find" ] || [ -f "$dir/SETUPXP.HTM" ]; then
-    [ -d "$dir/AMD64" ] && DETECTED="winxpx64" || DETECTED="winxpx86"
-    desc=$(printEdition "$DETECTED" "Windows XP")
-    info "Detected: $desc"
-    return 0
-  fi
+  detectLegacy "$dir" && return 0
 
   local src wim info
   src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
