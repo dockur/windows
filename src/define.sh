@@ -1992,15 +1992,7 @@ prepareXP() {
 
   rm -rf "$drivers"
 
-  local oem=""
-  local folder="/oem"
-  local username="Docker"
-  local password="*"
   local key pid file setup
-
-  [ -n "$PASSWORD" ] && password="$PASSWORD"
-  [ -n "$USERNAME" ] && username=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g')
-
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini | head -n 1)
   pid=$(<"$setup")
   pid="${pid:(-4)}"
@@ -2020,13 +2012,28 @@ prepareXP() {
     key="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
   fi
 
+  local oem=""
+  local folder="/oem"
+
   [ ! -d "$folder" ] && folder="/OEM"
   [ ! -d "$folder" ] && folder="$STORAGE/oem"
   [ ! -d "$folder" ] && folder="$STORAGE/OEM"
 
   if [ -d "$folder" ]; then
-    oem="\"Script\"=\"cmd /C if exist \\\"C:\OEM\install.bat\\\" start \\\"Install\\\" \\\"cmd /C C:\OEM\install.bat\\\"\""
+
+    file=$(find "$folder" -maxdepth 1 -type f -iname install.bat | head -n 1)
+
+    if [ -f "$file" ]; then
+      unix2dos -q "$file"
+      oem="\"Script\"=\"start cmd /C C:\\OEM\\install.bat\""
+    fi
   fi
+
+  local username="Docker"
+  local password="*"
+
+  [ -n "$PASSWORD" ] && password="$PASSWORD"
+  [ -n "$USERNAME" ] && username=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g')
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
@@ -2120,7 +2127,7 @@ prepareXP() {
           echo "\"DefaultSettings.XResolution\"=dword:00000780"
           echo "\"DefaultSettings.YResolution\"=dword:00000438"
           echo ""
-          echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnceEx]"
+          echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce]"
           echo "\"ScreenSaver\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"SCRNSAVE.EXE\\\" /t REG_SZ /d \\\"off\\\"\""
           echo "\"ScreenSaverOff\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"ScreenSaveActive\\\" /t REG_SZ /d \\\"0\\\"\""
           echo "$oem"
@@ -2151,9 +2158,6 @@ prepareXP() {
   if ! cp -r "$folder" "$dest"; then
     error "Failed to copy OEM folder!" && return 1
   fi
-
-  file=$(find "$folder" -maxdepth 1 -type f -iname install.bat | head -n 1)
-  [ -f "$file" ] && unix2dos -q "$file"
 
   return 0
 }
