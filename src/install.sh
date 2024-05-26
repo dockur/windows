@@ -119,10 +119,10 @@ finishInstall() {
   fi
 
   rm -f "$STORAGE/windows.old"
+  rm -f "$STORAGE/windows.type"
   rm -f "$STORAGE/windows.base"
   rm -f "$STORAGE/windows.boot"
   rm -f "$STORAGE/windows.mode"
-  rm -f "$STORAGE/windows.type"
 
   cp -f /run/version "$STORAGE/windows.ver"
 
@@ -155,7 +155,7 @@ finishInstall() {
     fi
   fi
 
-  if [ -n "$DISK_TYPE" ] && [[ "${DISK_TYPE,,}" != "scsi" ]]; then
+  if [ -n "${DISK_TYPE:-}" ] && [[ "${DISK_TYPE:-}" != "scsi" ]]; then
     echo "$DISK_TYPE" > "$STORAGE/windows.type"
   fi
 
