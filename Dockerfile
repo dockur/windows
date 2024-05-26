@@ -14,9 +14,9 @@ RUN set -eu && \
         7zip \
         wsdd \
         samba \
+        xz-utils \
         wimtools \
         dos2unix \
-        xz-utils \
         cabextract \
         genisoimage \
         libxml2-utils && \
