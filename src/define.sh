@@ -2146,7 +2146,7 @@ prepareXP() {
       error "Failed to copy OEM folder!" && return 1
     fi
 
-    file=$(find "$dest" -maxdepth 1 -type f -iname install.bat | head -n 1)
+    file=$(find "$folder" -maxdepth 1 -type f -iname install.bat | head -n 1)
 
     if [ -f "$file" ]; then
       unix2dos -q "$file"
