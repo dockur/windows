@@ -489,15 +489,6 @@ detectLegacy() {
   local dir="$1"
   local find find2 desc
 
-  find=$(find "$dir" -maxdepth 1 -type d -iname win98 | head -n 1)
-
-  if [ -n "$find" ]; then
-    DETECTED="win98"
-    desc=$(printEdition "$DETECTED" "Windows 98")
-    info "Detected: $desc"
-    return 0
-  fi
-
   find=$(find "$dir" -maxdepth 1 -type d -iname win51 | head -n 1)
   find2=$(find "$dir" -maxdepth 1 -type f -iname SETUPXP.HTM | head -n 1)
 
@@ -508,6 +499,23 @@ detectLegacy() {
     return 0
   fi
 
+  find=$(find "$dir" -maxdepth 1 -type d -iname win95 | head -n 1)
+
+  if [ -n "$find" ]; then
+    DETECTED="win95"
+    desc=$(printEdition "$DETECTED" "Windows 95")
+    info "Detected: $desc"
+    return 0
+  fi
+
+  find=$(find "$dir" -maxdepth 1 -type d -iname win98 | head -n 1)
+
+  if [ -n "$find" ]; then
+    DETECTED="win98"
+    desc=$(printEdition "$DETECTED" "Windows 98")
+    info "Detected: $desc"
+    return 0
+  fi
   return 1
 }
 
@@ -526,7 +534,7 @@ detectImage() {
   if [ -n "$DETECTED" ]; then
 
     case "${DETECTED,,}" in
-      "winxp"* | "win98"* )
+      "winxp"* | "win98"* | "win95"* )
         return 0
         ;;
     esac
@@ -604,7 +612,7 @@ prepareImage() {
   local missing
 
   case "${DETECTED,,}" in
-    "win98"* )
+    "win98"* | "win95"* )
       MACHINE="pc-i440fx-2.4"
       ;;
     "winxp"* | "winvistax86"* |  "win7x86"* )
@@ -620,12 +628,12 @@ prepareImage() {
       prepareXP "$iso" "$dir" && return 0
       error "Failed to prepare Windows XP ISO!" && return 1
       ;;
-    "win98"* )
+    "win98"* | "win95"* )
       HV="N"
       DISK_TYPE="auto"
       BOOT_MODE="windows_legacy"
-      prepare98 "$iso" "$dir" && return 0
-      error "Failed to prepare Windows 98 ISO!" && return 1
+      prepare9x "$iso" "$dir" && return 0
+      error "Failed to prepare Windows 9x ISO!" && return 1
       ;;
     "winvista"* | "win7"* | "win2008"* )
       BOOT_MODE="windows_legacy" ;;
@@ -822,7 +830,7 @@ updateImage() {
   local desc path src wim xml index result
 
   case "${DETECTED,,}" in
-    "winxp"* | "win98"* )
+    "winxp"* | "win98"* | "win95"* )
       return 0
       ;;
   esac
@@ -979,7 +987,7 @@ buildImage() {
       "winxp"* )
         ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -boot-load-seg 1984 -boot-load-size 4 -c "$cat" -iso-level 2 -J -l -D -N -joliet-long \
                       -relaxed-filenames -V "${LABEL::30}" -quiet "$dir" 2> "$log" && failed="y" ;;
-      "win98"* )
+      "win98"* | "win95"* )
         ! genisoimage -o "$out" -b "$ETFS" -J -r -V "${LABEL::30}" -quiet "$dir" 2> "$log" && failed="y" ;;
       * )
         ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "${LABEL::30}" \
