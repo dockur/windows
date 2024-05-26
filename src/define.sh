@@ -1992,9 +1992,11 @@ prepareXP() {
 
   rm -rf "$drivers"
 
-  local key pid file setup
+  local oem=""
+  local folder="/oem"
   local username="Docker"
   local password="*"
+  local key pid file setup
 
   [ -n "$PASSWORD" ] && password="$PASSWORD"
   [ -n "$USERNAME" ] && username=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g')
@@ -2016,6 +2018,14 @@ prepareXP() {
     # Windows XP Professional x64 generic key (no activation, trial-only)
     # This is not a pirated key, it comes from the official MS documentation.
     key="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
+  fi
+
+  [ ! -d "$folder" ] && folder="/OEM"
+  [ ! -d "$folder" ] && folder="$STORAGE/oem"
+  [ ! -d "$folder" ] && folder="$STORAGE/OEM"
+
+  if [ -d "$folder" ]; then
+    oem="\"Script\"=\"cmd /C if exist \\\"C:\OEM\install.bat\\\" start \\\"Install\\\" \\\"cmd /C C:\OEM\install.bat\\\"\""
   fi
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
@@ -2111,10 +2121,9 @@ prepareXP() {
           echo "\"DefaultSettings.YResolution\"=dword:00000438"
           echo ""
           echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnceEx]"
-          echo "\"Script\"=\"cmd /C if exist \\\"C:\OEM\install.bat\\\" start \\\"Install\\\" \\\"cmd /C C:\OEM\install.bat\\\"\""
           echo "\"ScreenSaver\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"SCRNSAVE.EXE\\\" /t REG_SZ /d \\\"off\\\"\""
           echo "\"ScreenSaverOff\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"ScreenSaveActive\\\" /t REG_SZ /d \\\"0\\\"\""
-          echo ""
+          echo "$oem"
   } | unix2dos > "$dir/\$OEM\$/install.reg"
 
   {       echo "Set WshShell = WScript.CreateObject(\"WScript.Shell\")"
@@ -2131,29 +2140,20 @@ prepareXP() {
           echo ""
   } | unix2dos > "$dir/\$OEM\$/cmdlines.txt"
 
-  local oem=""
-  local folder="/oem"
+  [ ! -d "$folder" ] && return 0
 
-  [ ! -d "$folder" ] && folder="/OEM"
-  [ ! -d "$folder" ] && folder="$STORAGE/oem"
-  [ ! -d "$folder" ] && folder="$STORAGE/OEM"
+  msg="Adding OEM folder to image..."
+  info "$msg" && html "$msg"
 
-  if [ -d "$folder" ]; then
+  local dest="$dir/\$OEM\$/\$1/"
+  mkdir -p "$dest"
 
-    msg="Adding OEM folder to image..."
-    info "$msg" && html "$msg"
-
-    local dest="$dir/\$OEM\$/\$1/"
-    mkdir -p "$dest"
-
-    if ! cp -r "$folder" "$dest"; then
-      error "Failed to copy OEM folder!" && return 1
-    fi
-
-    file=$(find "$folder" -maxdepth 1 -type f -iname install.bat | head -n 1)
-    [ -f "$file" ]&& unix2dos -q "$file"
-
+  if ! cp -r "$folder" "$dest"; then
+    error "Failed to copy OEM folder!" && return 1
   fi
+
+  file=$(find "$folder" -maxdepth 1 -type f -iname install.bat | head -n 1)
+  [ -f "$file" ] && unix2dos -q "$file"
 
   return 0
 }
