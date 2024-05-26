@@ -1927,6 +1927,24 @@ prepareLegacy() {
   return 1
 }
 
+prepare98() {
+
+  local iso="$1"
+  local dir="$2"
+  local file="$dir/boot.img"
+
+  ETFS=$(basename "$file")
+  [ -f "$file" ] && [ -s "$file" ] && return 0
+  rm -f "$file"
+
+  local src="[BOOT]/Boot-1.44M.img"
+  [ ! -f "$dir/$src" ] && error "Boot floppy not found!" && return 1
+
+  cp "$dir/$src" "$file" && return 0
+
+  return 1
+}
+
 prepareXP() {
 
   local dir="$2"
