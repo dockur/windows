@@ -966,7 +966,6 @@ buildImage() {
         ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -boot-load-seg 1984 -boot-load-size 4 -c "$cat" -iso-level 2 -J -l -D -N -joliet-long \
                       -relaxed-filenames -V "${LABEL::30}" -quiet "$dir" 2> "$log" && failed="y" ;;
       "win98"* )
-        ETFS="[BOOT]/Boot-1.44M.img" 
         ! genisoimage -o "$out" -b "$ETFS" -J -r -V "${LABEL::30}" -quiet "$dir" 2> "$log" && failed="y" ;;
       * )
         ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "${LABEL::30}" \
