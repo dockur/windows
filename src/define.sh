@@ -1941,6 +1941,9 @@ prepareXP() {
     target="$dir/AMD64"
   fi
 
+  local msg="Adding drivers to image..."
+  info "$msg" && html "$msg"
+
   mkdir -p "$drivers"
 
   if ! tar -xf /drivers.txz -C "$drivers" --warning=no-timestamp; then
@@ -1987,14 +1990,22 @@ prepareXP() {
   sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$target/TXTSETUP.SIF"
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$target/TXTSETUP.SIF"
 
-  local key pid setup
+  rm -rf "$drivers"
+
+  local key pid file setup
+  local username="Docker"
+  local password="*"
+
+  [ -n "$PASSWORD" ] && password="$PASSWORD"
+  [ -n "$USERNAME" ] && username=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g')
+
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini | head -n 1)
   pid=$(<"$setup")
   pid="${pid:(-4)}"
   pid="${pid:0:3}"
 
   if [[ "$pid" == "270" ]]; then
-    info "Warning: this XP version requires a volume license, it will reject the generic key during installation."
+    warn "this version of Windows XP requires a volume license key (VLK), it will ask for one during installation."
   fi
 
   if [[ "${arch,,}" == "x86" ]]; then
@@ -2006,11 +2017,6 @@ prepareXP() {
     # This is not a pirated key, it comes from the official MS documentation.
     key="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
   fi
-
-  local username="Docker"
-  local password="*"
-  [ -n "$PASSWORD" ] && password="$PASSWORD"
-  [ -n "$USERNAME" ] && username=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g')
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
@@ -2121,13 +2127,41 @@ prepareXP() {
           echo ""
   } | unix2dos > "$dir/\$OEM\$/admin.vbs"
 
+  local oem=""
+  local folder="/oem"
+
+  [ ! -d "$folder" ] && folder="/OEM"
+  [ ! -d "$folder" ] && folder="$STORAGE/oem"
+  [ ! -d "$folder" ] && folder="$STORAGE/OEM"
+
+  if [ -d "$folder" ]; then
+
+    msg="Adding OEM folder to image..."
+    info "$msg" && html "$msg"
+
+    local dest="$dir/\$OEM\$/\$1/"
+    mkdir -p "$dest"
+
+    if ! cp -r "$folder" "$dest"; then
+      error "Failed to copy OEM folder!" && return 1
+    fi
+
+    file=$(find "$dest" -maxdepth 1 -type f -iname install.bat | head -n 1)
+
+    if [ -f "$file" ]; then
+      unix2dos -q "$file"
+      oem="start \"Install\" \"cmd /C C:\OEM\install.bat\""
+    fi
+
+  fi
+
   {       echo "[COMMANDS]"
           echo "\"REGEDIT /s install.reg\""
           echo "\"Wscript admin.vbs\""
+          echo "$oem"
           echo ""
   } | unix2dos > "$dir/\$OEM\$/cmdlines.txt"
 
-  rm -rf "$drivers"
   return 0
 }
 
