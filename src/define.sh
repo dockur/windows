@@ -2111,6 +2111,7 @@ prepareXP() {
           echo "\"DefaultSettings.YResolution\"=dword:00000438"
           echo ""
           echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnceEx]"
+          echo "\"Script\"=\"cmd /C if exist \\\"C:\OEM\install.bat\\\" start \\\"Install\\\" \\\"cmd /C C:\OEM\install.bat\\\"\""
           echo "\"ScreenSaver\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"SCRNSAVE.EXE\\\" /t REG_SZ /d \\\"off\\\"\""
           echo "\"ScreenSaverOff\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"ScreenSaveActive\\\" /t REG_SZ /d \\\"0\\\"\""
           echo ""
@@ -2123,6 +2124,12 @@ prepareXP() {
           echo "Set oUser = oMachine.MoveHere(oInfoUser.ADsPath,\"$username\")"
           echo ""
   } | unix2dos > "$dir/\$OEM\$/admin.vbs"
+
+  {       echo "[COMMANDS]"
+          echo "\"REGEDIT /s install.reg\""
+          echo "\"Wscript admin.vbs\""
+          echo ""
+  } | unix2dos > "$dir/\$OEM\$/cmdlines.txt"
 
   local oem=""
   local folder="/oem"
@@ -2144,20 +2151,9 @@ prepareXP() {
     fi
 
     file=$(find "$folder" -maxdepth 1 -type f -iname install.bat | head -n 1)
-
-    if [ -f "$file" ]; then
-      unix2dos -q "$file"
-      oem="start cmd /C C:\OEM\install.bat"
-    fi
+    [ -f "$file" ]&& unix2dos -q "$file"
 
   fi
-
-  {       echo "[COMMANDS]"
-          echo "\"REGEDIT /s install.reg\""
-          echo "\"Wscript admin.vbs\""
-          echo "\"$oem\""
-          echo ""
-  } | unix2dos > "$dir/\$OEM\$/cmdlines.txt"
 
   return 0
 }
