@@ -488,7 +488,7 @@ detectImage() {
 
   local dir="$1"
   local version="$2"
-  local desc msg language
+  local desc msg find language
 
   XML=""
 
@@ -515,14 +515,18 @@ detectImage() {
 
   info "Detecting version from ISO image..."
 
-  if [ -d "$dir/WIN98" ]; then
+  find=$(find "$dir" -maxdepth 1 -type d -iname win98 | head -n 1)
+
+  if [ -n "$find" ]; then
     DETECTED="win98"
     desc=$(printEdition "$DETECTED" "Windows 98")
     info "Detected: $desc"
     return 0
   fi
 
-  if [ -f "$dir/WIN51" ] || [ -f "$dir/SETUPXP.HTM" ]; then
+  find=$(find "$dir" -maxdepth 1 -type d -iname win51 | head -n 1)
+
+  if [ -n "$find" ] || [ -f "$dir/SETUPXP.HTM" ]; then
     [ -d "$dir/AMD64" ] && DETECTED="winxpx64" || DETECTED="winxpx86"
     desc=$(printEdition "$DETECTED" "Windows XP")
     info "Detected: $desc"
