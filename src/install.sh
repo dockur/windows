@@ -513,7 +513,7 @@ detectImage() {
     return 0
   fi
 
-  local src loc info
+  local src wim info
   src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
 
   if [ ! -d "$src" ]; then
@@ -521,15 +521,15 @@ detectImage() {
     warn "failed to locate 'sources' folder in ISO image, $FB" && return 1
   fi
 
-  loc=$(find "$src" -maxdepth 1 -type f -iname install.wim | head -n 1)
-  [ ! -f "$loc" ] && loc=$(find "$src" -maxdepth 1 -type f -iname install.esd | head -n 1)
+  wim=$(find "$src" -maxdepth 1 -type f -iname install.wim | head -n 1)
+  [ ! -f "$wim" ] && wim=$(find "$src" -maxdepth 1 -type f -iname install.esd | head -n 1)
 
-  if [ ! -f "$loc" ]; then
+  if [ ! -f "$wim" ]; then
     [[ "${PLATFORM,,}" == "x64" ]] && BOOT_MODE="windows_legacy"
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB" && return 1
   fi
 
-  info=$(wimlib-imagex info -xml "$loc" | tr -d '\000')
+  info=$(wimlib-imagex info -xml "$wim" | tr -d '\000')
   ! checkPlatform "$info" && exit 67
 
   DETECTED=$(detectVersion "$info")
