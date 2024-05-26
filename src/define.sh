@@ -2070,9 +2070,6 @@ prepareXP() {
           echo "    Home_Page = http://www.google.com"
           echo "    Search_Page = http://www.google.com"
           echo ""
-          echo "[RegionalSettings]"
-          echo "    Language=00000409"
-          echo ""
           echo "[TerminalServices]"
           echo "    AllowConnections=1"
           echo ""
@@ -2150,7 +2147,7 @@ prepareXP() {
 
     if [ -f "$file" ]; then
       unix2dos -q "$file"
-      oem="start \\\"Install\\\" \\\"cmd /C C:\OEM\install.bat\\\""
+      oem="start cmd /C C:\OEM\install.bat"
     fi
 
   fi
