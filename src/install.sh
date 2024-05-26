@@ -523,8 +523,9 @@ detectLegacy() {
   fi
 
   if [ -f "$dir/CDROM_NT.5" ]; then
-    desc="Windows 2000"
-    info "Detected: $desc" && error "$desc is not supported yet!" && exit 54
+    DETECTED="win2kx86"
+    desc=$(printEdition "$DETECTED" "Windows 2000")
+    info "Detected: $desc" && return 0
   fi
 
   if [ -f "$dir/WIN51AA" ] || [ -f "$dir/WIN51AD" ] || [ -f "$dir/WIN51AS" ] || [ -f "$dir/WIN51MA" ] || [ -f "$dir/WIN51MD" ]; then
@@ -555,7 +556,7 @@ detectImage() {
   if [ -n "$DETECTED" ]; then
 
     case "${DETECTED,,}" in
-      "winxp"* | "win9"* )
+      "win2k"* | "winxp"* | "win9"* )
         return 0
         ;;
     esac
@@ -636,7 +637,7 @@ prepareImage() {
     "win9"* )
       MACHINE="pc-i440fx-2.4"
       ;;
-    "winxp"* | "winvistax86"* |  "win7x86"* )
+    "win2k"* | "winxp"* | "winvistax86"* |  "win7x86"* )
       MACHINE="pc-q35-2.10"
       ;;
   esac
@@ -655,6 +656,13 @@ prepareImage() {
       BOOT_MODE="windows_legacy"
       prepare9x "$iso" "$dir" && return 0
       error "Failed to prepare Windows 9x ISO!" && return 1
+      ;;
+    "win2k"* )
+      HV="N"
+      DISK_TYPE="auto"
+      BOOT_MODE="windows_legacy"
+      prepare2k "$iso" "$dir" && return 0
+      error "Failed to prepare Windows 2000 ISO!" && return 1
       ;;
     "winvista"* | "win7"* | "win2008"* )
       BOOT_MODE="windows_legacy" ;;
@@ -851,7 +859,7 @@ updateImage() {
   local desc path src wim xml index result
 
   case "${DETECTED,,}" in
-    "winxp"* | "win9"* )
+    "win2k"* | "winxp"* | "win9"* )
       return 0
       ;;
   esac
@@ -1005,7 +1013,7 @@ buildImage() {
   else
 
     case "${DETECTED,,}" in
-      "winxp"* )
+      "win2k"* | "winxp"* )
         ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -boot-load-seg 1984 -boot-load-size 4 -c "$cat" -iso-level 2 -J -l -D -N -joliet-long \
                       -relaxed-filenames -V "${LABEL::30}" -quiet "$dir" 2> "$log" && failed="y" ;;
       "win9"* )
