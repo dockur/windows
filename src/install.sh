@@ -531,7 +531,7 @@ detectLegacy() {
     desc="Windows Server 2003"
     info "Detected: $desc" && error "$desc is not supported yet!" && exit 54
   fi
-  
+
   if [ -f "$dir/WIN51IA" ] || [ -f "$dir/WIN51IB" ] || [ -f "$dir/WIN51ID" ] || [ -f "$dir/WIN51IL" ] || [ -f "$dir/WIN51IS" ]; then
     desc="Windows Server 2003"
     info "Detected: $desc" && error "$desc is not supported yet!" && exit 54
@@ -559,7 +559,7 @@ detectImage() {
         return 0
         ;;
     esac
-  
+
     if ! setXML "" && [[ "$MANUAL" != [Yy1]* ]]; then
       MANUAL="Y"
       desc=$(printEdition "$DETECTED" "this version")
