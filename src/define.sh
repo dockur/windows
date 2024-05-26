@@ -364,7 +364,8 @@ printVersion() {
     "winxp"* ) desc="Windows XP" ;;
     "win9x"* ) desc="Windows ME" ;;
     "win98"* ) desc="Windows 98" ;;
-    "win95"* ) desc="Windows 95" ;;    
+    "win95"* ) desc="Windows 95" ;;
+    "win2k"* ) desc="Windows 2000" ;;
     "winvista"* ) desc="Windows Vista" ;;
     "win2025"* ) desc="Windows Server 2025" ;;
     "win2022"* ) desc="Windows Server 2022" ;;
@@ -1946,6 +1947,14 @@ prepare9x() {
   cp "$dir/$src" "$file" && return 0
 
   return 1
+}
+
+prepare2k() {
+
+  local dir="$2"
+  ETFS="[BOOT]/Boot-NoEmul.img"
+
+  return 0
 }
 
 prepareXP() {
