@@ -86,7 +86,6 @@ kubectl apply -f kubernetes.yml
   | **Value** | **Version**              | **Size** |
   |---|---|---|
   | `win11`   | Windows 11 Pro           | 6.4 GB   |
-  | `ltsc11`   | Windows 11 LTSC        | 4.1 GB   |
   | `win11e`  | Windows 11 Enterprise    | 5.8 GB   |
   | `win10`   | Windows 10 Pro           | 5.7 GB   |
   | `ltsc10`  | Windows 10 LTSC          | 4.6 GB   |
