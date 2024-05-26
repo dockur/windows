@@ -495,8 +495,7 @@ detectLegacy() {
   if [ -n "$find" ] || [ -n "$find2" ]; then
     [ -d "$dir/AMD64" ] && DETECTED="winxpx64" || DETECTED="winxpx86"
     desc=$(printEdition "$DETECTED" "Windows XP")
-    info "Detected: $desc"
-    return 0
+    info "Detected: $desc" && return 0
   fi
 
   find=$(find "$dir" -maxdepth 1 -type d -iname win95 | head -n 1)
@@ -504,8 +503,7 @@ detectLegacy() {
   if [ -n "$find" ]; then
     DETECTED="win95"
     desc=$(printEdition "$DETECTED" "Windows 95")
-    info "Detected: $desc"
-    return 0
+    info "Detected: $desc" && return 0
   fi
 
   find=$(find "$dir" -maxdepth 1 -type d -iname win98 | head -n 1)
@@ -513,9 +511,17 @@ detectLegacy() {
   if [ -n "$find" ]; then
     DETECTED="win98"
     desc=$(printEdition "$DETECTED" "Windows 98")
-    info "Detected: $desc"
-    return 0
+    info "Detected: $desc" && return 0
   fi
+
+  find=$(find "$dir" -maxdepth 1 -type d -iname win9x | head -n 1)
+
+  if [ -n "$find" ]; then
+    DETECTED="win9x"
+    desc=$(printEdition "$DETECTED" "Windows ME")
+    info "Detected: $desc" && return 0
+  fi
+
   return 1
 }
 
