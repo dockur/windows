@@ -1927,7 +1927,7 @@ prepareLegacy() {
   return 1
 }
 
-prepare98() {
+prepare9x() {
 
   local iso="$1"
   local dir="$2"
