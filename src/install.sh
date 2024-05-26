@@ -583,6 +583,7 @@ prepareImage() {
 
   case "${DETECTED,,}" in
     "winxp"* )
+      HV="N"
       DISK_TYPE="blk"
       BOOT_MODE="windows_legacy"
       prepareXP "$iso" "$dir" && return 0
