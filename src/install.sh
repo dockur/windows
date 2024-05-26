@@ -534,7 +534,7 @@ detectImage() {
   if [ -n "$DETECTED" ]; then
 
     case "${DETECTED,,}" in
-      "winxp"* | "win98"* | "win95"* )
+      "winxp"* | "win9"* )
         return 0
         ;;
     esac
@@ -612,7 +612,7 @@ prepareImage() {
   local missing
 
   case "${DETECTED,,}" in
-    "win98"* | "win95"* )
+    "win9"* )
       MACHINE="pc-i440fx-2.4"
       ;;
     "winxp"* | "winvistax86"* |  "win7x86"* )
@@ -628,7 +628,7 @@ prepareImage() {
       prepareXP "$iso" "$dir" && return 0
       error "Failed to prepare Windows XP ISO!" && return 1
       ;;
-    "win98"* | "win95"* )
+    "win9"* )
       HV="N"
       DISK_TYPE="auto"
       BOOT_MODE="windows_legacy"
@@ -830,7 +830,7 @@ updateImage() {
   local desc path src wim xml index result
 
   case "${DETECTED,,}" in
-    "winxp"* | "win98"* | "win95"* )
+    "winxp"* | "win9"* )
       return 0
       ;;
   esac
@@ -987,7 +987,7 @@ buildImage() {
       "winxp"* )
         ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -boot-load-seg 1984 -boot-load-size 4 -c "$cat" -iso-level 2 -J -l -D -N -joliet-long \
                       -relaxed-filenames -V "${LABEL::30}" -quiet "$dir" 2> "$log" && failed="y" ;;
-      "win98"* | "win95"* )
+      "win9"* )
         ! genisoimage -o "$out" -b "$ETFS" -J -r -V "${LABEL::30}" -quiet "$dir" 2> "$log" && failed="y" ;;
       * )
         ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "${LABEL::30}" \
