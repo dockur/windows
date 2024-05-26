@@ -193,7 +193,9 @@ kubectl apply -f kubernetes.yml
 
 * ### How do I perform a manual installation?
 
-  It's best to stick to the automatic installation, as it adjusts various settings to prevent common issues when running Windows inside a virtual environment. However, if you insist on performing the installation manually, add the following environment variable to your compose file:
+  It's best to stick to the automatic installation, as it adjusts various settings to prevent common issues when running Windows inside a virtual environment.
+
+  However, if you insist on performing the installation manually, add the following environment variable to your compose file:
 
   ```yaml
   environment:
@@ -213,7 +215,7 @@ kubectl apply -f kubernetes.yml
 
 * ### How do I change the amount of CPU or RAM?
 
-  By default, the container is allowed to use a maximum of 2 CPU cores and 4 GB of RAM.
+  By default, the container will be allowed to use a maximum of 2 CPU cores and 4 GB of RAM.
 
   If you want to adjust this, you can specify the desired amount using the following environment variables:
 
@@ -225,11 +227,13 @@ kubectl apply -f kubernetes.yml
 
 * ### How do I configure the username and password?
 
-  By default, a user called `Docker` is created during installation with an empty password. You can change these credentials in your compose file:
+  By default, a user called `Docker` is created during the installation, with an empty password.
+
+  If you want to use different credentials, you can change them in your compose file:
 
   ```yaml
   environment:
-    USERNAME: "john"
+    USERNAME: "bill"
     PASSWORD: "secret"
   ```
 
@@ -239,7 +243,7 @@ kubectl apply -f kubernetes.yml
 
   So for a better experience you can connect using any Microsoft Remote Desktop client to the IP of the container, using the username `Docker` and by leaving the password empty.
 
-  There is a good RDP client for [Android](https://play.google.com/store/apps/details?id=com.microsoft.rdc.androidx) available from the Play Store and one for [iOS](https://apps.apple.com/nl/app/microsoft-remote-desktop/id714464092?l=en-GB) in the Apple Store. For Linux you can use [FreeRDP](https://www.freerdp.com/) and on Windows just type `mstsc` in the search box.
+  There is a RDP client for [Android](https://play.google.com/store/apps/details?id=com.microsoft.rdc.androidx) available from the Play Store and one for [iOS](https://apps.apple.com/nl/app/microsoft-remote-desktop/id714464092?l=en-GB) in the Apple Store. For Linux you can use [FreeRDP](https://www.freerdp.com/) and on Windows just type `mstsc` in the search box.
 
 * ### How do I assign an individual IP address to the container?
 
