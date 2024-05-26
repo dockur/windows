@@ -2025,7 +2025,7 @@ prepareXP() {
 
     if [ -f "$file" ]; then
       unix2dos -q "$file"
-      oem="\"Script\"=\"start cmd /C C:\\\\OEM\\\\install.bat\""
+      oem="\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat\\\"\""
     fi
   fi
 
