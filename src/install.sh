@@ -750,7 +750,6 @@ addDrivers() {
 addFolder() {
 
   local src="$1"
-  local dest file
   local folder="/oem"
 
   [ ! -d "$folder" ] && folder="/OEM"
@@ -761,11 +760,12 @@ addFolder() {
   local msg="Adding OEM folder to image..."
   info "$msg" && html "$msg"
 
-  dest="$src/\$OEM\$/\$1/"
+  local dest="$src/\$OEM\$/\$1/"
   mkdir -p "$dest"
 
   ! cp -r "$folder" "$dest" && return 1
 
+  local file
   file=$(find "$dest" -maxdepth 1 -type f -iname install.bat | head -n 1)
   [ -f "$file" ] && unix2dos -q "$file"
 
