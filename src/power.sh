@@ -29,14 +29,18 @@ boot() {
 
   if [ -s "$QEMU_PTY" ]; then
     if [ "$(stat -c%s "$QEMU_PTY")" -gt 7 ]; then
-      if ! grep -Fq "BOOTMGR is missing" "$QEMU_PTY"; then
-        info "Windows started succesfully, visit http://localhost:8006/ to view the screen..."
-        return 0
+      if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+        grep -Fq "No bootable device." "$QEMU_PTY" && finish 33 && return 0
+        grep -Fq "BOOTMGR is missing" "$QEMU_PTY" && finish 33 && return 0
       fi
+      info "Windows started succesfully, visit http://localhost:8006/ to view the screen..."
+      return 0
     fi
   fi
 
   error "Timeout while waiting for QEMU to boot the machine!"
+
+  finish 33
   return 0
 }
 
