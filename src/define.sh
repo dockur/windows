@@ -2150,7 +2150,7 @@ prepareXP() {
 
     if [ -f "$file" ]; then
       unix2dos -q "$file"
-      oem="start \"Install\" \"cmd /C C:\OEM\install.bat\""
+      oem="start \\\"Install\\\" \\\"cmd /C C:\OEM\install.bat\\\""
     fi
 
   fi
@@ -2158,7 +2158,7 @@ prepareXP() {
   {       echo "[COMMANDS]"
           echo "\"REGEDIT /s install.reg\""
           echo "\"Wscript admin.vbs\""
-          echo "$oem"
+          echo "\"$oem\""
           echo ""
   } | unix2dos > "$dir/\$OEM\$/cmdlines.txt"
 
