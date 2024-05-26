@@ -160,9 +160,14 @@ finishInstall() {
 
 abortInstall() {
 
-  local iso="$1"
+  local dir="$1"
+  local iso="$2"
 
   [[ "${iso,,}" == *".esd" ]] && exit 60
+
+  if [ ! -d "$dir/EFI" ]; then
+    [[ "${PLATFORM,,}" == "x64" ]] && BOOT_MODE="windows_legacy"
+  fi
 
   if [ -n "$CUSTOM" ]; then
     BOOT="$iso"
@@ -506,6 +511,13 @@ detectImage() {
 
   info "Detecting version from ISO image..."
 
+  if [ -d "$dir/WIN98" ]; then
+    DETECTED="win98"
+    desc=$(printEdition "$DETECTED" "Windows 98")
+    info "Detected: $desc"
+    return 0
+  fi
+
   if [ -f "$dir/WIN51" ] || [ -f "$dir/SETUPXP.HTM" ]; then
     [ -d "$dir/AMD64" ] && DETECTED="winxpx64" || DETECTED="winxpx86"
     desc=$(printEdition "$DETECTED" "Windows XP")
@@ -517,7 +529,6 @@ detectImage() {
   src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
 
   if [ ! -d "$src" ]; then
-    [[ "${PLATFORM,,}" == "x64" ]] && BOOT_MODE="windows_legacy"
     warn "failed to locate 'sources' folder in ISO image, $FB" && return 1
   fi
 
@@ -525,7 +536,6 @@ detectImage() {
   [ ! -f "$wim" ] && wim=$(find "$src" -maxdepth 1 -type f -iname install.esd | head -n 1)
 
   if [ ! -f "$wim" ]; then
-    [[ "${PLATFORM,,}" == "x64" ]] && BOOT_MODE="windows_legacy"
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB" && return 1
   fi
 
@@ -576,6 +586,9 @@ prepareImage() {
   local missing
 
   case "${DETECTED,,}" in
+    "win98"* )
+      MACHINE="pc-i440fx-2.4"
+      ;;
     "winxp"* | "winvistax86"* |  "win7x86"* )
       MACHINE="pc-q35-2.10"
       ;;
@@ -584,10 +597,17 @@ prepareImage() {
   case "${DETECTED,,}" in
     "winxp"* )
       HV="N"
-      DISK_TYPE="blk"
+      DISK_TYPE="auto"
       BOOT_MODE="windows_legacy"
       prepareXP "$iso" "$dir" && return 0
       error "Failed to prepare Windows XP ISO!" && return 1
+      ;;
+    "win98"* )
+      HV="N"
+      DISK_TYPE="auto"
+      BOOT_MODE="windows_legacy"
+      prepare98 "$iso" "$dir" && return 0
+      error "Failed to prepare Windows 98 ISO!" && return 1
       ;;
     "winvista"* | "win7"* | "win2008"* )
       BOOT_MODE="windows_legacy" ;;
@@ -599,10 +619,9 @@ prepareImage() {
 
     missing=$(basename "$dir/$EFISYS")
     [ ! -f "$dir/$ETFS" ] && missing=$(basename "$dir/$ETFS")
-    warn "failed to locate file '${missing,,}' in ISO image!"
-
-    [[ "${PLATFORM,,}" == "arm64" ]] && return 1
-    BOOT_MODE="windows_legacy"
+  
+    error "failed to locate file '${missing,,}' in ISO image!"
+    return 1
   fi
 
   prepareLegacy "$iso" "$dir" && return 0
@@ -784,7 +803,11 @@ updateImage() {
   local dat="${file//.xml/.dat}"
   local desc path src wim xml index result
 
-  [[ "${DETECTED,,}" == "winxp"* ]] && return 0
+  case "${DETECTED,,}" in
+    "winxp"* | "win98"* )
+      return 0
+      ;;
+  esac
 
   if [ ! -s "$asset" ] || [ ! -f "$asset" ]; then
     asset=""
@@ -797,7 +820,6 @@ updateImage() {
   src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
 
   if [ ! -d "$src" ]; then
-    [[ "${PLATFORM,,}" == "x64" ]] && BOOT_MODE="windows_legacy"
     error "failed to locate 'sources' folder in ISO image, $FB" && return 1
   fi
 
@@ -805,7 +827,6 @@ updateImage() {
   [ ! -f "$wim" ] && wim=$(find "$src" -maxdepth 1 -type f -iname boot.esd | head -n 1)
 
   if [ ! -f "$wim" ]; then
-    [[ "${PLATFORM,,}" == "x64" ]] && BOOT_MODE="windows_legacy"
     error "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB" && return 1
   fi
 
@@ -931,28 +952,23 @@ buildImage() {
 
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
 
-    if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -V "${LABEL::30}" \
-                     -udf -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -allow-limited-size -quiet "$dir" 2> "$log"; then
-      failed="y"
-    fi
+    ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -V "${LABEL::30}" \
+                  -udf -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -allow-limited-size -quiet "$dir" 2> "$log" && failed="y"
 
   else
 
-    if [[ "${DETECTED,,}" != "winxp"* ]]; then
+    case "${DETECTED,,}" in
+      "winxp"* )
+        ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -boot-load-seg 1984 -boot-load-size 4 -c "$cat" -iso-level 2 -J -l -D -N -joliet-long \
+                      -relaxed-filenames -V "${LABEL::30}" -quiet "$dir" 2> "$log" && failed="y" ;;
+      "win98"* )
+        ETFS="[BOOT]/Boot-1.44M.img" 
+        ! genisoimage -o "$out" -b "$ETFS" -J -r -V "${LABEL::30}" -quiet "$dir" 2> "$log" && failed="y" ;;
+      * )
+        ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "${LABEL::30}" \
+                      -udf -allow-limited-size -quiet "$dir" 2> "$log" && failed="y" ;;
+    esac
 
-      if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "${LABEL::30}" \
-                       -udf -allow-limited-size -quiet "$dir" 2> "$log"; then
-        failed="y"
-      fi
-
-    else
-
-      if ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -boot-load-seg 1984 -boot-load-size 4 -c "$cat" -iso-level 2 -J -l -D -N -joliet-long \
-                       -relaxed-filenames -V "${LABEL::30}" -quiet "$dir" 2> "$log"; then
-        failed="y"
-      fi
-
-    fi
   fi
 
   if [ -n "$failed" ]; then
@@ -1045,17 +1061,17 @@ if ! extractImage "$ISO" "$DIR" "$VERSION"; then
 fi
 
 if ! detectImage "$DIR" "$VERSION"; then
-  abortInstall "$ISO" && return 0
+  abortInstall "$DIR" "$ISO" && return 0
   exit 60
 fi
 
 if ! prepareImage "$ISO" "$DIR"; then
-  abortInstall "$ISO" && return 0
+  abortInstall "$DIR" "$ISO" && return 0
   exit 66
 fi
 
 if ! updateImage "$DIR" "$XML" "$LANGUAGE"; then
-  abortInstall "$ISO" && return 0
+  abortInstall "$DIR" "$ISO" && return 0
   exit 63
 fi
 
