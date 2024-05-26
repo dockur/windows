@@ -674,7 +674,7 @@ prepareImage() {
 
     missing=$(basename "$dir/$EFISYS")
     [ ! -f "$dir/$ETFS" ] && missing=$(basename "$dir/$ETFS")
-  
+
     error "failed to locate file '${missing,,}' in ISO image!"
     return 1
   fi
