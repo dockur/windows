@@ -193,9 +193,7 @@ kubectl apply -f kubernetes.yml
 
 * ### How do I perform a manual installation?
 
-  It's best to stick to the automatic installation, as it adjusts various settings for running Windows inside a virtual environment, for optimal performance and to prevent some common issues.
-
-  However, if you insist on performing the installation manually, add the following environment variable to your compose file:
+  It's best to stick to the automatic installation, as it adjusts various settings to prevent common issues when running Windows inside a virtual environment. However, if you insist on performing the installation manually, add the following environment variable to your compose file:
 
   ```yaml
   environment:
