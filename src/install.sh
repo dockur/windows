@@ -634,10 +634,10 @@ prepareImage() {
   local missing
 
   case "${DETECTED,,}" in
-    "win9"* )
+    "win9"* | "win2k"* )
       MACHINE="pc-i440fx-2.4"
       ;;
-    "win2k"* | "winxp"* | "winvistax86"* |  "win7x86"* )
+    "winxp"* | "winvistax86"* |  "win7x86"* )
       MACHINE="pc-q35-2.10"
       ;;
   esac
