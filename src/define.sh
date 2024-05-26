@@ -362,6 +362,9 @@ printVersion() {
     "win10"* ) desc="Windows 10" ;;
     "win11"* ) desc="Windows 11" ;;
     "winxp"* ) desc="Windows XP" ;;
+    "win9x"* ) desc="Windows ME" ;;
+    "win98"* ) desc="Windows 98" ;;
+    "win95"* ) desc="Windows 95" ;;    
     "winvista"* ) desc="Windows Vista" ;;
     "win2025"* ) desc="Windows Server 2025" ;;
     "win2022"* ) desc="Windows Server 2022" ;;
