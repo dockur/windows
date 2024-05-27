@@ -254,10 +254,10 @@ download_windows_eval() {
   }
 
   case "$enterprise_type" in
-    "enterprise")
+    "enterprise" )
       iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1)
       ;;
-    "iot")
+    "iot" )
       if [[ "${PLATFORM,,}" == "x64" ]]; then
         iso_download_link=$(echo "$iso_download_links" | head -n 1 | tail -n 1)
       fi
@@ -265,11 +265,17 @@ download_windows_eval() {
         iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1)
       fi
       ;;
-    "ltsc")
+    "ltsc" )
       iso_download_link=$(echo "$iso_download_links" | head -n 4 | tail -n 1)
       ;;
-    *) iso_download_link="$iso_download_links" ;;
+    "serverx" )
+      iso_download_link="$iso_download_links"
+      ;;
+    * )
+      error "Invalid enterprise type specified, value \"$enterprise_type\" is not recognized!" && return 1 ;;
   esac
+
+  [[ "$DEBUG" == [Yy1]* ]] && echo "Found download link: $iso_download_link"
 
   # Follow redirect so proceeding log message is useful
   # This is a request we make this Fido doesn't
