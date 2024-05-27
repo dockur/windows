@@ -2049,63 +2049,19 @@ detectLegacy() {
   return 1
 }
 
-prepareLegacy() {
-
-  local iso="$1"
-  local dir="$2"
-  local file="$dir/boot.img"
-
-  ETFS=$(basename "$file")
-  [ -f "$file" ] && [ -s "$file" ] && return 0
-  rm -f "$file"
-
-  local len offset
-  len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
-  offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
-
-  dd "if=$iso" "of=$file" bs=2048 "count=$len" "skip=$offset" status=none && return 0
-
-  return 1
-}
-
-prepare9x() {
-
-  local iso="$1"
-  local dir="$2"
-  local file="$dir/boot.img"
-
-  ETFS=$(basename "$file")
-  [ -f "$file" ] && [ -s "$file" ] && return 0
-  rm -f "$file"
-
-  local src="[BOOT]/Boot-1.44M.img"
-  [ ! -f "$dir/$src" ] && error "Boot floppy not found!" && return 1
-
-  cp "$dir/$src" "$file" && return 0
-
-  return 1
-}
-
-prepare2k() {
+prepareInstall() {
 
   local dir="$2"
-  ETFS="[BOOT]/Boot-NoEmul.img"
-
-  return 0
-}
-
-prepareXP() {
-
-  local dir="$2"
-  local arch="x86"
-  local target="$dir/I386"
+  local desc="$3"
+  local arch="$4"
+  local key="$5"  
+  local driver="$6"
   local drivers="$TMP/drivers"
 
   ETFS="[BOOT]/Boot-NoEmul.img"
 
-  if [ -d "$dir/AMD64" ]; then
-    arch="amd64"
-    target="$dir/AMD64"
+  if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
+    error "Failed to locate file \"$ETFS\" in $desc ISO image!" && return 1
   fi
 
   local msg="Adding drivers to image..."
@@ -2114,20 +2070,23 @@ prepareXP() {
   mkdir -p "$drivers"
 
   if ! tar -xf /drivers.txz -C "$drivers" --warning=no-timestamp; then
-    error "Failed to extract driver!" && return 1
+    error "Failed to extract drivers!" && return 1
   fi
 
-  cp "$drivers/viostor/xp/$arch/viostor.sys" "$target"
+  local target
+  [[ "${arch,,}" == "x86" ]] && target="$dir/I386" || target="$dir/AMD64"
+
+  cp "$drivers/viostor/$driver/$arch/viostor.sys" "$target"
 
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor"
-  cp "$drivers/viostor/xp/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor"
-  cp "$drivers/viostor/xp/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor"
-  cp "$drivers/viostor/xp/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor"
+  cp "$drivers/viostor/$driver/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor"
+  cp "$drivers/viostor/$driver/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor"
+  cp "$drivers/viostor/$driver/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor"
 
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/NetKVM"
-  cp "$drivers/NetKVM/xp/$arch/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
-  cp "$drivers/NetKVM/xp/$arch/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
-  cp "$drivers/NetKVM/xp/$arch/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+  cp "$drivers/NetKVM/$driver/$arch/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+  cp "$drivers/NetKVM/$driver/$arch/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+  cp "$drivers/NetKVM/$driver/$arch/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
 
   if [ ! -f "$target/TXTSETUP.SIF" ]; then
     error "The file TXTSETUP.SIF could not be found!" && return 1
@@ -2159,24 +2118,14 @@ prepareXP() {
 
   rm -rf "$drivers"
 
-  local key pid file setup
+  local pid file setup
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini | head -n 1)
   pid=$(<"$setup")
   pid="${pid:(-4)}"
   pid="${pid:0:3}"
 
   if [[ "$pid" == "270" ]]; then
-    warn "this version of Windows XP requires a volume license key (VLK), it will ask for one during installation."
-  fi
-
-  if [[ "${arch,,}" == "x86" ]]; then
-    # Windows XP Professional x86 generic key (no activation, trial-only)
-    # This is not a pirated key, it comes from the official MS documentation.
-    key="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
-  else
-    # Windows XP Professional x64 generic key (no activation, trial-only)
-    # This is not a pirated key, it comes from the official MS documentation.
-    key="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
+    warn "this version of $desc requires a volume license key (VLK), it will ask for one during installation."
   fi
 
   local oem=""
@@ -2240,6 +2189,10 @@ prepareXP() {
           echo "    ComputerName=\"*\""
           echo "    OrgName=\"Windows for Docker\""
           echo "    ProductKey=$key"
+          echo ""
+          echo "[LicenseFilePrintData]"
+          echo "    AutoMode=PerServer"
+          echo "    AutoUsers=5"
           echo ""
           echo "[Identification]"
           echo "    JoinWorkgroup = WORKGROUP"
@@ -2327,6 +2280,105 @@ prepareXP() {
   fi
 
   return 0
+}
+
+prepare2k3() {
+
+  local iso="$1"
+  local dir="$2"
+  local desc="$3"
+  local driver="2k3"
+  local arch key
+
+  [ -d "$dir/AMD64" ] && arch="amd64" || arch="x86"
+
+  if [[ "${arch,,}" == "x86" ]]; then
+    # Windows Server 2003 Standard x86 generic key (no activation, trial-only)
+    # This is not a pirated key, it comes from the official MS documentation.
+    key="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
+  else
+    # Windows Server 2003 Standard x64 generic key (no activation, trial-only)
+    # This is not a pirated key, it comes from the official MS documentation.
+    key="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
+  fi
+
+  ! prepareInstall "$iso" "$dir" "$desc" "$arch" "$key" "$driver" && return 1
+
+  return 0
+}
+
+prepareXP() {
+
+  local iso="$1"
+  local dir="$2"
+  local desc="$3"
+  local driver="xp"
+  local arch key
+
+  [ -d "$dir/AMD64" ] && arch="amd64" || arch="x86"
+
+  if [[ "${arch,,}" == "x86" ]]; then
+    # Windows XP Professional x86 generic key (no activation, trial-only)
+    # This is not a pirated key, it comes from the official MS documentation.
+    key="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
+  else
+    # Windows XP Professional x64 generic key (no activation, trial-only)
+    # This is not a pirated key, it comes from the official MS documentation.
+    key="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
+  fi
+
+  ! prepareInstall "$iso" "$dir" "$desc" "$arch" "$key" "$driver" && return 1
+
+  return 0
+}
+
+prepareLegacy() {
+
+  local iso="$1"
+  local dir="$2"
+  local desc="$3"
+
+  ETFS="boot.img"
+
+  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
+  rm -f "$dir/$ETFS"
+
+  local len offset
+  len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
+  offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
+
+  if ! dd "if=$iso" "of=$dir/$ETFS" bs=2048 "count=$len" "skip=$offset" status=none; then
+    error "Failed to extract boot image from $desc ISO!" && return 1
+  fi
+
+  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
+
+  error "Failed to locate file \"$ETFS\" in $desc ISO image!"
+  return 1
+}
+
+prepare9x() {
+
+  local dir="$2"
+  local desc="$3"
+
+  ETFS="[BOOT]/Boot-1.44M.img"
+  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
+
+  error "Failed to locate file \"$ETFS\" in $desc ISO image!"
+  return 1
+}
+
+prepare2k() {
+
+  local dir="$2"
+  local desc="$3"
+
+  ETFS="[BOOT]/Boot-NoEmul.img"
+  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
+
+  error "Failed to locate file \"$ETFS\" in $desc ISO image!"
+  return 1
 }
 
 return 0
