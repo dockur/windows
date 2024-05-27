@@ -259,7 +259,7 @@ download_windows_eval() {
       ;;
     "iot" )
       if [[ "${PLATFORM,,}" == "x64" ]]; then
-        iso_download_link=$(echo "$iso_download_links" | head -n 1 | tail -n 1)
+        iso_download_link=$(echo "$iso_download_links" | head -n 1)
       fi
       if [[ "${PLATFORM,,}" == "arm64" ]]; then
         iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1)
@@ -268,11 +268,11 @@ download_windows_eval() {
     "ltsc" )
       iso_download_link=$(echo "$iso_download_links" | head -n 4 | tail -n 1)
       ;;
-    "serverx" )
-      iso_download_link="$iso_download_links"
+    "server" )
+      iso_download_link=$(echo "$iso_download_links" | head -n 1)
       ;;
     * )
-      error "Invalid enterprise type specified, value \"$enterprise_type\" is not recognized!" && return 1 ;;
+      error "Invalid type specified, value \"$enterprise_type\" is not recognized!" && return 1 ;;
   esac
 
   [[ "$DEBUG" == [Yy1]* ]] && echo "Found download link: $iso_download_link"
