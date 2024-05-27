@@ -72,7 +72,7 @@ parseVersion() {
       ;;
     "25" | "2025" | "win25" | "win2025" | "windows2025" | "windows 2025" )
       VERSION="win2025-eval"
-      ;;      
+      ;;
     "22" | "2022" | "win22" | "win2022" | "windows2022" | "windows 2022" )
       VERSION="win2022-eval"
       ;;
@@ -87,6 +87,9 @@ parseVersion() {
       ;;
     "2008" | "2008r2" | "win2008" | "win2008r2" | "windows2008" | "windows 2008" )
       VERSION="win2008r2"
+      ;;
+    "2003" | "2003r2" | "win2003" | "win2003r2" | "windows2003" | "windows 2003" )
+      VERSION="win2003r2"
       ;;
     "core11" | "core 11" )
       VERSION="core11"
@@ -370,12 +373,13 @@ printVersion() {
     "win95"* ) desc="Windows 95" ;;
     "win2k"* ) desc="Windows 2000" ;;
     "winvista"* ) desc="Windows Vista" ;;
-    "win2025"* ) desc="Windows Server 2025" ;;
-    "win2022"* ) desc="Windows Server 2022" ;;
-    "win2019"* ) desc="Windows Server 2019" ;;
-    "win2016"* ) desc="Windows Server 2016" ;;
-    "win2012"* ) desc="Windows Server 2012" ;;
+    "win2003"* ) desc="Windows Server 2003" ;;
     "win2008"* ) desc="Windows Server 2008" ;;
+    "win2012"* ) desc="Windows Server 2012" ;;
+    "win2016"* ) desc="Windows Server 2016" ;;
+    "win2019"* ) desc="Windows Server 2019" ;;
+    "win2022"* ) desc="Windows Server 2022" ;;
+    "win2025"* ) desc="Windows Server 2025" ;;
   esac
 
   if [ -z "$desc" ]; then
@@ -434,7 +438,10 @@ printEdition() {
     "winvista"* )
       edition="Business"
       ;;
-    "win2025"* | "win2022"* | "win2019"* | "win2016"* | "win2012"* | "win2008"* )
+    "win2025"* | "win2022"* | "win2019"* | "win2016"* )
+      edition="Standard"
+      ;;
+    "win2012"* | "win2008"* | "win2003"* )
       edition="Standard"
       ;;
   esac
@@ -509,6 +516,9 @@ fromFile() {
       ;;
     *"server2008"* | *"server_2008"* )
       id="win2008r2"
+      ;;
+    *"server2003"* | *"server_2003"* )
+      id="win2003r2"
       ;;
   esac
 
@@ -663,7 +673,7 @@ getMido() {
     "win2025-eval" )
       size=5307996160
       sum="16442d1c0509bcbb25b715b1b322a15fb3ab724a42da0f384b9406ca1c124ed4"
-      ;;      
+      ;;
     "win2022-eval" )
       size=5044094976
       sum="3e4fa6d8507b554856fc9ca6079cc402df11a8b79344871669f0251535255325"
@@ -900,6 +910,11 @@ getLink2() {
       size=3243413504
       sum="9c36fed4255bd05a8506b2da88f9aad73643395e155e609398aacd2b5276289c"
       url="Windows%20Vista/en_windows_vista_with_sp2_x86_dvd_342266.iso"
+      ;;
+    "win2003r2" )
+      size=652367872
+      sum="74245cba888f935b138b106c2744bec7f392925b472358960a0b5643cd6abb32"
+      url="Windows%20Server%202003%20R2/en_win_srv_2003_r2_standard_x64_with_sp2_cd1_x13-05757.iso"
       ;;
     "winxpx86" )
       size=617756672
@@ -1287,7 +1302,7 @@ getLink4() {
         "zh-hk" | "zh-tw" ) url="zh-tw_windows_server_2025_preview_x64_dvd_9b147dcd.iso" ;;
         "zh" | "zh-"* ) url="zh-cn_windows_server_2025_preview_x64_dvd_a12bb0bf.iso" ;;
       esac
-      ;;      
+      ;;
     "win2022" | "win2022-eval" )
       case "${culture,,}" in
         "cs" | "cs-"* ) url="cs-cz_windows_server_2022_updated_april_2024_x64_dvd_164349f3.iso" ;;
@@ -1962,6 +1977,19 @@ migrateFiles() {
   return 0
 }
 
+skipVersion() {
+
+  local version="$1"
+
+  case "${version,,}" in
+    "win2003"* | "win2k"* | "winxp"* | "win9"* )
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
 detectLegacy() {
 
   local dir="$1"
@@ -2001,81 +2029,39 @@ detectLegacy() {
   fi
 
   if [ -f "$dir/CDROM_NT.5" ]; then
-    DETECTED="win2kx86"
+    DETECTED="win2k"
     desc=$(printEdition "$DETECTED" "Windows 2000")
     info "Detected: $desc" && return 0
   fi
 
   if [ -f "$dir/WIN51AA" ] || [ -f "$dir/WIN51AD" ] || [ -f "$dir/WIN51AS" ] || [ -f "$dir/WIN51MA" ] || [ -f "$dir/WIN51MD" ]; then
-    desc="Windows Server 2003"
-    info "Detected: $desc" && error "$desc is not supported yet!" && exit 54
+    DETECTED="win2003r2"
+    desc=$(printEdition "$DETECTED" "Windows Server 2003")
+    info "Detected: $desc" && return 0
   fi
 
   if [ -f "$dir/WIN51IA" ] || [ -f "$dir/WIN51IB" ] || [ -f "$dir/WIN51ID" ] || [ -f "$dir/WIN51IL" ] || [ -f "$dir/WIN51IS" ]; then
-    desc="Windows Server 2003"
-    info "Detected: $desc" && error "$desc is not supported yet!" && exit 54
+    DETECTED="win2003r2"
+    desc=$(printEdition "$DETECTED" "Windows Server 2003")
+    info "Detected: $desc" && return 0
   fi
 
   return 1
 }
 
-prepareLegacy() {
-
-  local iso="$1"
-  local dir="$2"
-  local file="$dir/boot.img"
-
-  ETFS=$(basename "$file")
-  [ -f "$file" ] && [ -s "$file" ] && return 0
-  rm -f "$file"
-
-  local len offset
-  len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
-  offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
-
-  dd "if=$iso" "of=$file" bs=2048 "count=$len" "skip=$offset" status=none && return 0
-
-  return 1
-}
-
-prepare9x() {
-
-  local iso="$1"
-  local dir="$2"
-  local file="$dir/boot.img"
-
-  ETFS=$(basename "$file")
-  [ -f "$file" ] && [ -s "$file" ] && return 0
-  rm -f "$file"
-
-  local src="[BOOT]/Boot-1.44M.img"
-  [ ! -f "$dir/$src" ] && error "Boot floppy not found!" && return 1
-
-  cp "$dir/$src" "$file" && return 0
-
-  return 1
-}
-
-prepare2k() {
+prepareInstall() {
 
   local dir="$2"
-  ETFS="[BOOT]/Boot-NoEmul.img"
-
-  return 0
-}
-
-prepareXP() {
-
-  local dir="$2"
-  local arch="x86"
-  local target="$dir/I386"
+  local desc="$3"
+  local arch="$4"
+  local key="$5"
+  local driver="$6"
   local drivers="$TMP/drivers"
 
   ETFS="[BOOT]/Boot-NoEmul.img"
 
-  if [ -d "$dir/AMD64" ]; then
-    arch="amd64"
-    target="$dir/AMD64"
+  if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
+    error "Failed to locate file \"$ETFS\" in $desc ISO image!" && return 1
   fi
 
   local msg="Adding drivers to image..."
@@ -2084,20 +2070,23 @@ prepareXP() {
   mkdir -p "$drivers"
 
   if ! tar -xf /drivers.txz -C "$drivers" --warning=no-timestamp; then
-    error "Failed to extract driver!" && return 1
+    error "Failed to extract drivers!" && return 1
   fi
 
-  cp "$drivers/viostor/xp/$arch/viostor.sys" "$target"
+  local target
+  [[ "${arch,,}" == "x86" ]] && target="$dir/I386" || target="$dir/AMD64"
+
+  cp "$drivers/viostor/$driver/$arch/viostor.sys" "$target"
 
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor"
-  cp "$drivers/viostor/xp/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor"
-  cp "$drivers/viostor/xp/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor"
-  cp "$drivers/viostor/xp/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor"
+  cp "$drivers/viostor/$driver/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor"
+  cp "$drivers/viostor/$driver/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor"
+  cp "$drivers/viostor/$driver/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor"
 
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/NetKVM"
-  cp "$drivers/NetKVM/xp/$arch/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
-  cp "$drivers/NetKVM/xp/$arch/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
-  cp "$drivers/NetKVM/xp/$arch/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+  cp "$drivers/NetKVM/$driver/$arch/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+  cp "$drivers/NetKVM/$driver/$arch/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+  cp "$drivers/NetKVM/$driver/$arch/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
 
   if [ ! -f "$target/TXTSETUP.SIF" ]; then
     error "The file TXTSETUP.SIF could not be found!" && return 1
@@ -2129,24 +2118,14 @@ prepareXP() {
 
   rm -rf "$drivers"
 
-  local key pid file setup
+  local pid file setup
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini | head -n 1)
   pid=$(<"$setup")
   pid="${pid:(-4)}"
   pid="${pid:0:3}"
 
   if [[ "$pid" == "270" ]]; then
-    warn "this version of Windows XP requires a volume license key (VLK), it will ask for one during installation."
-  fi
-
-  if [[ "${arch,,}" == "x86" ]]; then
-    # Windows XP Professional x86 generic key (no activation, trial-only)
-    # This is not a pirated key, it comes from the official MS documentation.
-    key="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
-  else
-    # Windows XP Professional x64 generic key (no activation, trial-only)
-    # This is not a pirated key, it comes from the official MS documentation.
-    key="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
+    warn "this version of $desc requires a volume license key (VLK), it will ask for one during installation."
   fi
 
   local oem=""
@@ -2211,6 +2190,10 @@ prepareXP() {
           echo "    OrgName=\"Windows for Docker\""
           echo "    ProductKey=$key"
           echo ""
+          echo "[LicenseFilePrintData]"
+          echo "    AutoMode=PerServer"
+          echo "    AutoUsers=5"
+          echo ""
           echo "[Identification]"
           echo "    JoinWorkgroup = WORKGROUP"
           echo ""
@@ -2246,11 +2229,17 @@ prepareXP() {
           echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa]"
           echo "\"LimitBlankPasswordUse\"=dword:00000000"
           echo ""
+          echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\srvWiz]"
+          echo "@=dword:00000000"          
+          echo ""
           echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Applets\Tour]"
           echo "\"RunCount\"=dword:00000000"
           echo ""
           echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]"
           echo "\"HideFileExt\"=dword:00000000"
+          echo ""
+          echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\ServerOOBE\SecurityOOBE]"
+          echo "\"DontLaunchSecurityOOBE\"=dword:00000000"
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]"
           echo "\"DefaultUserName\"=\"$username\""
@@ -2297,6 +2286,105 @@ prepareXP() {
   fi
 
   return 0
+}
+
+prepare2k3() {
+
+  local iso="$1"
+  local dir="$2"
+  local desc="$3"
+  local driver="2k3"
+  local arch key
+
+  [ -d "$dir/AMD64" ] && arch="amd64" || arch="x86"
+
+  if [[ "${arch,,}" == "x86" ]]; then
+    # Windows Server 2003 Standard x86 generic key (no activation, trial-only)
+    # This is not a pirated key, it comes from the official MS documentation.
+    key="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
+  else
+    # Windows Server 2003 Standard x64 generic key (no activation, trial-only)
+    # This is not a pirated key, it comes from the official MS documentation.
+    key="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
+  fi
+
+  ! prepareInstall "$iso" "$dir" "$desc" "$arch" "$key" "$driver" && return 1
+
+  return 0
+}
+
+prepareXP() {
+
+  local iso="$1"
+  local dir="$2"
+  local desc="$3"
+  local driver="xp"
+  local arch key
+
+  [ -d "$dir/AMD64" ] && arch="amd64" || arch="x86"
+
+  if [[ "${arch,,}" == "x86" ]]; then
+    # Windows XP Professional x86 generic key (no activation, trial-only)
+    # This is not a pirated key, it comes from the official MS documentation.
+    key="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
+  else
+    # Windows XP Professional x64 generic key (no activation, trial-only)
+    # This is not a pirated key, it comes from the official MS documentation.
+    key="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
+  fi
+
+  ! prepareInstall "$iso" "$dir" "$desc" "$arch" "$key" "$driver" && return 1
+
+  return 0
+}
+
+prepareLegacy() {
+
+  local iso="$1"
+  local dir="$2"
+  local desc="$3"
+
+  ETFS="boot.img"
+
+  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
+  rm -f "$dir/$ETFS"
+
+  local len offset
+  len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
+  offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
+
+  if ! dd "if=$iso" "of=$dir/$ETFS" bs=2048 "count=$len" "skip=$offset" status=none; then
+    error "Failed to extract boot image from $desc ISO!" && return 1
+  fi
+
+  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
+
+  error "Failed to locate file \"$ETFS\" in $desc ISO image!"
+  return 1
+}
+
+prepare9x() {
+
+  local dir="$2"
+  local desc="$3"
+
+  ETFS="[BOOT]/Boot-1.44M.img"
+  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
+
+  error "Failed to locate file \"$ETFS\" in $desc ISO image!"
+  return 1
+}
+
+prepare2k() {
+
+  local dir="$2"
+  local desc="$3"
+
+  ETFS="[BOOT]/Boot-NoEmul.img"
+  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
+
+  error "Failed to locate file \"$ETFS\" in $desc ISO image!"
+  return 1
 }
 
 return 0

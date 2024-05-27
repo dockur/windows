@@ -489,19 +489,6 @@ setXML() {
   return 0
 }
 
-skipVersion() {
-
-  local version="$1"
-
-  case "${version,,}" in
-    "win2k"* | "winxp"* | "win9"* )
-      return 0
-      ;;
-  esac
-
-  return 1
-}
-
 detectImage() {
 
   local dir="$1"
@@ -588,17 +575,19 @@ prepareImage() {
 
   local iso="$1"
   local dir="$2"
-  local missing
+  local desc missing
+
+  desc=$(printVersion "$DETECTED" "$DETECTED")
 
   case "${DETECTED,,}" in
     "win9"* | "win2k"* )
       MACHINE="pc-i440fx-2.4" ;;
-    "winxp"* | "winvistax86"* |  "win7x86"* )
+    "winvistax86"* | "win7x86"* | "winxp"* | "win2003"* )
       MACHINE="pc-q35-2.10" ;;
   esac
 
   case "${DETECTED,,}" in
-    "win9"* | "winxp"* | "win2k"* )
+    "win9"* | "win2k"* | "winxp"* | "win2003"* )
       HV="N"
       BOOT_MODE="windows_legacy" ;;
     "winvista"* | "win7"* | "win2008"* )
@@ -606,18 +595,22 @@ prepareImage() {
   esac
 
   case "${DETECTED,,}" in
-    "winxp"* )
-      DISK_TYPE="blk"
-      prepareXP "$iso" "$dir" && return 0
-      error "Failed to prepare Windows XP ISO!" && return 1 ;;
     "win9"* )
       DISK_TYPE="auto"
-      prepare9x "$iso" "$dir" && return 0
-      error "Failed to prepare Windows 9x ISO!" && return 1 ;;
+      prepare9x "$iso" "$dir" "$desc" && return 0
+      error "Failed to prepare $desc ISO!" && return 1 ;;
     "win2k"* )
       DISK_TYPE="auto"
-      prepare2k "$iso" "$dir" && return 0
-      error "Failed to prepare Windows 2000 ISO!" && return 1 ;;
+      prepare2k "$iso" "$dir" "$desc" && return 0
+      error "Failed to prepare $desc ISO!" && return 1 ;;
+    "winxp"* )
+      DISK_TYPE="blk"
+      prepareXP "$iso" "$dir" "$desc" && return 0
+      error "Failed to prepare $desc ISO!" && return 1 ;;
+    "win2003"* )
+      DISK_TYPE="blk"
+      prepare2k3 "$iso" "$dir" "$desc" && return 0
+      error "Failed to prepare $desc ISO!" && return 1 ;;
   esac
 
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
@@ -627,13 +620,13 @@ prepareImage() {
     missing=$(basename "$dir/$EFISYS")
     [ ! -f "$dir/$ETFS" ] && missing=$(basename "$dir/$ETFS")
 
-    error "failed to locate file '${missing,,}' in ISO image!"
+    error "Failed to locate file \"${missing,,}\" in $desc ISO image!"
     return 1
   fi
 
-  prepareLegacy "$iso" "$dir" && return 0
+  prepareLegacy "$iso" "$dir" "$desc" && return 0
 
-  error "Failed to extract boot image from ISO!"
+  error "Failed to extract boot image from $desc ISO image!"
   return 1
 }
 
@@ -702,7 +695,7 @@ addDriver() {
     "win81x64"* ) folder="w10/amd64" ;;
     "win10x64"* ) folder="w10/amd64" ;;
     "win11x64"* ) folder="w11/amd64" ;;
-    "win2025"* ) folder="2k22/amd64" ;;    
+    "win2025"* ) folder="2k22/amd64" ;;
     "win2022"* ) folder="2k22/amd64" ;;
     "win2019"* ) folder="2k19/amd64" ;;
     "win2016"* ) folder="2k16/amd64" ;;
@@ -934,6 +927,10 @@ buildImage() {
     error "File $BOOT does already exist?!" && return 1
   fi
 
+  if [ ! -f "$dir/$ETFS" ]; then
+    error "Failed to locate file \"$ETFS\" in ISO image!" && return 1
+  fi
+
   base=$(basename "$BOOT")
   local out="$TMP/${base%.*}.tmp"
   rm -f "$out"
@@ -962,7 +959,7 @@ buildImage() {
   else
 
     case "${DETECTED,,}" in
-      "win2k"* | "winxp"* )
+      "win2k"* | "winxp"* | "win2003"* )
         ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -boot-load-seg 1984 -boot-load-size 4 -c "$cat" -iso-level 2 -J -l -D -N -joliet-long \
                       -relaxed-filenames -V "${LABEL::30}" -quiet "$dir" 2> "$log" && failed="y" ;;
       "win9"* )
