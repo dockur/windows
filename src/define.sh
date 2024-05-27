@@ -748,8 +748,8 @@ getLink1() {
       url="8.x/8.1/en_windows_8.1_with_update_x64_dvd_6051480.iso"
       ;;
     "win2025" | "win2025-eval" )
-      size=1
-      sum="xx"
+      size=5307176960
+      sum="2293897341febdcea599f5412300b470b5288c6fd2b89666a7b27d283e8d3cf3"
       url="server/2025/en-us_windows_server_2025_preview_x64_dvd_ce9eb1a5.iso"
       ;;
     "win2022" | "win2022-eval" )
@@ -1268,8 +1268,8 @@ getLink4() {
         "cs" | "cs-"* ) url="cs-cz_windows_server_2025_preview_x64_dvd_8b1f5b49.iso" ;;
         "de" | "de-"* ) url="de-de_windows_server_2025_preview_x64_dvd_1c3dfe1c.iso" ;;
         "en" | "en-"* )
-          size=1
-          sum="xxx"
+          size=5307176960
+          sum="2293897341febdcea599f5412300b470b5288c6fd2b89666a7b27d283e8d3cf3"
           url="en-us_windows_server_2025_preview_x64_dvd_ce9eb1a5.iso" ;;
         "es" | "es-"* ) url="es-es_windows_server_2025_preview_x64_dvd_b07cc858.iso" ;;
         "fr" | "fr-"* ) url="fr-fr_windows_server_2025_preview_x64_dvd_036e8a78.iso" ;;
