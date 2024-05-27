@@ -247,8 +247,9 @@ download_windows_eval() {
     if [[ "${lang,,}" == "en" ]] || [[ "${lang,,}" == "en-"* ]]; then
       error "Windows server download page gave us no download link!"
     else
+      desc=$(printEdition "$id" "$desc")
       language=$(getLanguage "$lang" "desc")
-      error "No download for the $language language available!"
+      error "No download in the $language language available for $desc!"
     fi
     return 1
   }
@@ -296,8 +297,9 @@ getWindows() {
   local lang="$2"
   local desc="$3"
 
-  local language
+  local language edition
   language=$(getLanguage "$lang" "desc")
+  edition=$(printEdition "$version" "$desc")
 
   local msg="Requesting $desc from Microsoft server..."
   info "$msg" && html "$msg"
@@ -305,7 +307,7 @@ getWindows() {
   case "${version,,}" in
     "win2008r2" | "win81${PLATFORM,,}-enterprise-eval" | "win11${PLATFORM,,}-enterprise-iot-eval" )
       if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
-        error "No download for the $language language available!"
+        error "No download in the $language language available for $edition!"
         MIDO_URL="" && return 1
       fi ;;
   esac
@@ -314,7 +316,7 @@ getWindows() {
     "win11${PLATFORM,,}-enterprise-iot-eval" ) ;;
     * )
       if [[ "${PLATFORM,,}" != "x64" ]]; then
-        error "No download for the ${PLATFORM^^} platform available!"
+        error "No download for the ${PLATFORM^^} platform available for $edition!"
         MIDO_URL="" && return 1
       fi ;;
   esac
