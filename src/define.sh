@@ -88,6 +88,9 @@ parseVersion() {
     "2008" | "2008r2" | "win2008" | "win2008r2" | "windows2008" | "windows 2008" )
       VERSION="win2008r2"
       ;;
+    "2003" | "2003r2" | "win2003" | "win2003r2" | "windows2003" | "windows 2003" )
+      VERSION="win2003r2"
+      ;;      
     "core11" | "core 11" )
       VERSION="core11"
       [ -z "$DETECTED" ] && DETECTED="win11x64"
@@ -370,12 +373,13 @@ printVersion() {
     "win95"* ) desc="Windows 95" ;;
     "win2k"* ) desc="Windows 2000" ;;
     "winvista"* ) desc="Windows Vista" ;;
-    "win2025"* ) desc="Windows Server 2025" ;;
-    "win2022"* ) desc="Windows Server 2022" ;;
-    "win2019"* ) desc="Windows Server 2019" ;;
-    "win2016"* ) desc="Windows Server 2016" ;;
-    "win2012"* ) desc="Windows Server 2012" ;;
+    "win2003"* ) desc="Windows Server 2003" ;;
     "win2008"* ) desc="Windows Server 2008" ;;
+    "win2012"* ) desc="Windows Server 2012" ;;
+    "win2016"* ) desc="Windows Server 2016" ;;
+    "win2019"* ) desc="Windows Server 2019" ;;
+    "win2022"* ) desc="Windows Server 2022" ;;
+    "win2025"* ) desc="Windows Server 2025" ;;   
   esac
 
   if [ -z "$desc" ]; then
@@ -434,9 +438,12 @@ printEdition() {
     "winvista"* )
       edition="Business"
       ;;
-    "win2025"* | "win2022"* | "win2019"* | "win2016"* | "win2012"* | "win2008"* )
+    "win2025"* | "win2022"* | "win2019"* | "win2016"* )
       edition="Standard"
       ;;
+    "win2012"* | "win2008"* | "win2003"* )
+      edition="Standard"
+      ;;      
   esac
 
   [ -n "$edition" ] && result="$result $edition"
@@ -510,6 +517,9 @@ fromFile() {
     *"server2008"* | *"server_2008"* )
       id="win2008r2"
       ;;
+    *"server2003"* | *"server_2003"* )
+      id="win2003r2"
+      ;;      
   esac
 
   if [ -n "$id" ]; then
@@ -900,6 +910,11 @@ getLink2() {
       size=3243413504
       sum="9c36fed4255bd05a8506b2da88f9aad73643395e155e609398aacd2b5276289c"
       url="Windows%20Vista/en_windows_vista_with_sp2_x86_dvd_342266.iso"
+      ;;
+    "win2003r2" )
+      size=3
+      sum="xx"
+      url="Windows%20Server%202003%20R2/en_win_srv_2003_r2_standard_x64_with_sp2_cd1_x13-05757.iso"
       ;;
     "winxpx86" )
       size=617756672
@@ -1962,6 +1977,19 @@ migrateFiles() {
   return 0
 }
 
+skipVersion() {
+
+  local version="$1"
+
+  case "${version,,}" in
+    "win2003"* | "win2k"* | "winxp"* | "win9"* )
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
 detectLegacy() {
 
   local dir="$1"
@@ -2001,19 +2029,21 @@ detectLegacy() {
   fi
 
   if [ -f "$dir/CDROM_NT.5" ]; then
-    DETECTED="win2kx86"
+    DETECTED="win2k"
     desc=$(printEdition "$DETECTED" "Windows 2000")
     info "Detected: $desc" && return 0
   fi
 
   if [ -f "$dir/WIN51AA" ] || [ -f "$dir/WIN51AD" ] || [ -f "$dir/WIN51AS" ] || [ -f "$dir/WIN51MA" ] || [ -f "$dir/WIN51MD" ]; then
-    desc="Windows Server 2003"
-    info "Detected: $desc" && error "$desc is not supported yet!" && exit 54
+    DETECTED="win2003r2"
+    desc=$(printEdition "$DETECTED" "Windows Server 2003")
+    info "Detected: $desc" && return 0
   fi
 
   if [ -f "$dir/WIN51IA" ] || [ -f "$dir/WIN51IB" ] || [ -f "$dir/WIN51ID" ] || [ -f "$dir/WIN51IL" ] || [ -f "$dir/WIN51IS" ]; then
-    desc="Windows Server 2003"
-    info "Detected: $desc" && error "$desc is not supported yet!" && exit 54
+    DETECTED="win2003r2"
+    desc=$(printEdition "$DETECTED" "Windows Server 2003")
+    info "Detected: $desc" && return 0
   fi
 
   return 1
@@ -2060,6 +2090,241 @@ prepare2k() {
 
   local dir="$2"
   ETFS="[BOOT]/Boot-NoEmul.img"
+
+  return 0
+}
+
+prepare2k3() {
+
+  local dir="$2"
+  local arch="x86"
+  local target="$dir/I386"
+  local drivers="$TMP/drivers"
+
+  ETFS="[BOOT]/Boot-NoEmul.img"
+
+  if [ -d "$dir/AMD64" ]; then
+    arch="amd64"
+    target="$dir/AMD64"
+  fi
+
+  local msg="Adding drivers to image..."
+  info "$msg" && html "$msg"
+
+  mkdir -p "$drivers"
+
+  if ! tar -xf /drivers.txz -C "$drivers" --warning=no-timestamp; then
+    error "Failed to extract driver!" && return 1
+  fi
+
+  cp "$drivers/viostor/2k3/$arch/viostor.sys" "$target"
+
+  mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor"
+  cp "$drivers/viostor/2k3/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor"
+  cp "$drivers/viostor/2k3/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor"
+  cp "$drivers/viostor/2k3/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor"
+
+  mkdir -p "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+  cp "$drivers/NetKVM/2k3/$arch/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+  cp "$drivers/NetKVM/2k3/$arch/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+  cp "$drivers/NetKVM/2k3/$arch/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+
+  if [ ! -f "$target/TXTSETUP.SIF" ]; then
+    error "The file TXTSETUP.SIF could not be found!" && return 1
+  fi
+
+  sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\nviostor.sys=1,,,,,,4_,4,1,,,1,4/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device\"/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00020000=\"viostor\"/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$target/TXTSETUP.SIF"
+
+  mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata"
+
+  cp -a "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata"
+  cp -a "$drivers/sata/xp/$arch/." "$target"
+
+  sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.cat = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.inf = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,4_,4,1,,,1,4/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaahci.cat = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaAHCI.inf = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$target/TXTSETUP.SIF"
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$target/TXTSETUP.SIF"
+
+  rm -rf "$drivers"
+
+  local key pid file setup
+  setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini | head -n 1)
+  pid=$(<"$setup")
+  pid="${pid:(-4)}"
+  pid="${pid:0:3}"
+
+  if [[ "$pid" == "270" ]]; then
+    warn "this version of Windows Server 2003 requires a volume license key (VLK), it will ask for one during installation."
+  fi
+
+  if [[ "${arch,,}" == "x86" ]]; then
+    # Windows Server 2003 x86 generic key (no activation, trial-only)
+    # This is not a pirated key, it comes from the official MS documentation.
+    key="PWBJC-22697-D4CVH-FCJWW-DTF9J"
+  else
+    # Windows Server 2003 x64 generic key (no activation, trial-only)
+    # This is not a pirated key, it comes from the official MS documentation.
+    key="XCP6P-7WVXP-F8FQ4-JV6CD-6XV28"
+  fi
+
+  local oem=""
+  local folder="/oem"
+
+  [ ! -d "$folder" ] && folder="/OEM"
+  [ ! -d "$folder" ] && folder="$STORAGE/oem"
+  [ ! -d "$folder" ] && folder="$STORAGE/OEM"
+
+  if [ -d "$folder" ]; then
+
+    file=$(find "$folder" -maxdepth 1 -type f -iname install.bat | head -n 1)
+
+    if [ -f "$file" ]; then
+      unix2dos -q "$file"
+      oem="\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat\\\"\""
+    fi
+  fi
+
+  local username="Docker"
+  local password="*"
+
+  [ -n "$PASSWORD" ] && password="$PASSWORD"
+  [ -n "$USERNAME" ] && username=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g')
+
+  find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
+
+  {       echo "[Data]"
+          echo "    AutoPartition=1"
+          echo "    MsDosInitiated=\"0\""
+          echo "    UnattendedInstall=\"Yes\""
+          echo "    AutomaticUpdates=\"Yes\""
+          echo ""
+          echo "[Unattended]"
+          echo "    UnattendSwitch=Yes"
+          echo "    UnattendMode=FullUnattended"
+          echo "    FileSystem=NTFS"
+          echo "    OemSkipEula=Yes"
+          echo "    OemPreinstall=Yes"
+          echo "    Repartition=Yes"
+          echo "    WaitForReboot=\"No\""
+          echo "    DriverSigningPolicy=\"Ignore\""
+          echo "    NonDriverSigningPolicy=\"Ignore\""
+          echo "    OemPnPDriversPath=\"Drivers\viostor;Drivers\NetKVM;Drivers\sata\""
+          echo "    NoWaitAfterTextMode=1"
+          echo "    NoWaitAfterGUIMode=1"
+          echo "    FileSystem-ConvertNTFS"
+          echo "    ExtendOemPartition=0"
+          echo "    Hibernation=\"No\""
+          echo ""
+          echo "[GuiUnattended]"
+          echo "    OEMSkipRegional=1"
+          echo "    OemSkipWelcome=1"
+          echo "    AdminPassword=$password"
+          echo "    TimeZone=0"
+          echo "    AutoLogon=Yes"
+          echo "    AutoLogonCount=65432"
+          echo ""
+          echo "[UserData]"
+          echo "    FullName=\"$username\""
+          echo "    ComputerName=\"*\""
+          echo "    OrgName=\"Windows for Docker\""
+          echo "    ProductKey=$key"
+          echo ""
+          echo "[Identification]"
+          echo "    JoinWorkgroup = WORKGROUP"
+          echo ""
+          echo "[Networking]"
+          echo "    InstallDefaultComponents=Yes"
+          echo ""
+          echo "[Branding]"
+          echo "    BrandIEUsingUnattended=Yes"
+          echo ""
+          echo "[URL]"
+          echo "    Home_Page = http://www.google.com"
+          echo "    Search_Page = http://www.google.com"
+          echo ""
+          echo "[TerminalServices]"
+          echo "    AllowConnections=1"
+          echo ""
+  } | unix2dos > "$target/WINNT.SIF"
+
+  {       echo "Windows Registry Editor Version 5.00"
+          echo ""
+          echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Security]"
+          echo "\"FirstRunDisabled\"=dword:00000001"
+          echo "\"UpdatesDisableNotify\"=dword:00000001"
+          echo "\"FirewallDisableNotify\"=dword:00000001"
+          echo "\"AntiVirusDisableNotify\"=dword:00000001"
+          echo ""
+          echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\wscsvc]"
+          echo "\"Start\"=dword:00000004"
+          echo ""
+          echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\StandardProfile\GloballyOpenPorts\List]"
+          echo "\"3389:TCP\"=\"3389:TCP:*:Enabled:@xpsp2res.dll,-22009\""
+          echo ""
+          echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa]"
+          echo "\"LimitBlankPasswordUse\"=dword:00000000"
+          echo ""
+          echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Applets\Tour]"
+          echo "\"RunCount\"=dword:00000000"
+          echo ""
+          echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]"
+          echo "\"HideFileExt\"=dword:00000000"
+          echo ""
+          echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]"
+          echo "\"DefaultUserName\"=\"$username\""
+          echo "\"DefaultDomainName\"=\"Dockur\""
+          echo "\"AltDefaultUserName\"=\"$username\""
+          echo "\"AltDefaultDomainName\"=\"Dockur\""
+          echo "\"AutoAdminLogon\"=\"1\""
+          echo ""
+          echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]"
+          echo "\"DefaultSettings.BitsPerPel\"=dword:00000020"
+          echo "\"DefaultSettings.XResolution\"=dword:00000780"
+          echo "\"DefaultSettings.YResolution\"=dword:00000438"
+          echo ""
+          echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce]"
+          echo "\"ScreenSaver\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"SCRNSAVE.EXE\\\" /t REG_SZ /d \\\"off\\\"\""
+          echo "\"ScreenSaverOff\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"ScreenSaveActive\\\" /t REG_SZ /d \\\"0\\\"\""
+          echo "$oem"
+  } | unix2dos > "$dir/\$OEM\$/install.reg"
+
+  {       echo "Set WshShell = WScript.CreateObject(\"WScript.Shell\")"
+          echo "Set WshNetwork = WScript.CreateObject(\"WScript.Network\")"
+          echo "Set oMachine = GetObject(\"WinNT://\" & WshNetwork.ComputerName)"
+          echo "Set oInfoUser = GetObject(\"WinNT://\" & WshNetwork.ComputerName & \"/Administrator,user\")"
+          echo "Set oUser = oMachine.MoveHere(oInfoUser.ADsPath,\"$username\")"
+          echo ""
+  } | unix2dos > "$dir/\$OEM\$/admin.vbs"
+
+  {       echo "[COMMANDS]"
+          echo "\"REGEDIT /s install.reg\""
+          echo "\"Wscript admin.vbs\""
+          echo ""
+  } | unix2dos > "$dir/\$OEM\$/cmdlines.txt"
+
+  [ ! -d "$folder" ] && return 0
+
+  msg="Adding OEM folder to image..."
+  info "$msg" && html "$msg"
+
+  local dest="$dir/\$OEM\$/\$1/"
+  mkdir -p "$dest"
+
+  if ! cp -r "$folder" "$dest"; then
+    error "Failed to copy OEM folder!" && return 1
+  fi
 
   return 0
 }
