@@ -32,8 +32,8 @@ handle_curl_error() {
         # https://pubs.opengroup.org/onlinepubs/009695399/basedefs/signal.h.html
         INT) error "Curl was interrupted!" ;;
         # There could be other signals but these are most common
-        SEGV | ABRT ) error "Curl crashed! Failed exploitation attempt? Please report any core dumps to curl developers." ;;
-        *) error "Curl terminated due to a fatal signal!" ;;
+        SEGV | ABRT ) error "Curl crashed! Please report any core dumps to curl developers." ;;
+        *) error "Curl terminated due to fatal signal $error_code !" ;;
       esac
   esac
 
