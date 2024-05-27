@@ -927,7 +927,7 @@ buildImage() {
     error "File $BOOT does already exist?!" && return 1
   fi
 
-  if [ -f "$ETFS" ]; then
+  if [ ! -f "$dir/$ETFS" ]; then
     error "Failed to locate file \"$ETFS\" in ISO image!" && return 1
   fi
 
