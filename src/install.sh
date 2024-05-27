@@ -620,7 +620,7 @@ prepareImage() {
     missing=$(basename "$dir/$EFISYS")
     [ ! -f "$dir/$ETFS" ] && missing=$(basename "$dir/$ETFS")
 
-    error "failed to locate file '${missing,,}' in ISO image!"
+    error "Failed to locate file \"${missing,,}\" in ISO image!"
     return 1
   fi
 
@@ -925,6 +925,10 @@ buildImage() {
 
   if [ -f "$BOOT" ]; then
     error "File $BOOT does already exist?!" && return 1
+  fi
+
+  if [ -f "$ETFS" ]; then
+    error "Failed to locate file \"$ETFS\" in ISO image!" && return 1
   fi
 
   base=$(basename "$BOOT")
