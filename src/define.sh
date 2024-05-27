@@ -2240,7 +2240,7 @@ prepareInstall() {
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\ServerOOBE\SecurityOOBE]"
           echo "\"DontLaunchSecurityOOBE\"=dword:00000000"
-          echo ""          
+          echo ""
           echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]"
           echo "\"DefaultUserName\"=\"$username\""
           echo "\"DefaultDomainName\"=\"Dockur\""
