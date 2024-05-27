@@ -70,6 +70,9 @@ parseVersion() {
     "xp64" | "xpx64" | "winxp64" | "winxpx64" | "windowsxp64" | "windowsxpx64" )
       VERSION="winxpx64"
       ;;
+    "25" | "2025" | "win25" | "win2025" | "windows2025" | "windows 2025" )
+      VERSION="win2025-eval"
+      ;;      
     "22" | "2022" | "win22" | "win2022" | "windows2022" | "windows 2022" )
       VERSION="win2022-eval"
       ;;
@@ -599,6 +602,7 @@ switchEdition() {
     "win81${PLATFORM,,}-enterprise-eval" )
       DETECTED="win81${PLATFORM,,}-enterprise"
       ;;
+    "win2025-eval" ) DETECTED="win2025" ;;
     "win2022-eval" ) DETECTED="win2022" ;;
     "win2019-eval" ) DETECTED="win2019" ;;
     "win2016-eval" ) DETECTED="win2016" ;;
@@ -656,6 +660,10 @@ getMido() {
       size=3961473024
       sum="2dedd44c45646c74efc5a028f65336027e14a56f76686a4631cf94ffe37c72f2"
       ;;
+    "win2025-eval" )
+      size=5307996160
+      sum="16442d1c0509bcbb25b715b1b322a15fb3ab724a42da0f384b9406ca1c124ed4"
+      ;;      
     "win2022-eval" )
       size=5044094976
       sum="3e4fa6d8507b554856fc9ca6079cc402df11a8b79344871669f0251535255325"
@@ -702,14 +710,26 @@ getLink1() {
   [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
 
   case "${id,,}" in
-    "win11x64" )
+    "win11x64" | "win11x64-enterprise" | "win11x64-enterprise-eval" )
       size=5946128384
       sum="5bb1459034f50766ee480d895d751af73a4af30814240ae32ebc5633546a5af7"
       url="11/en-us_windows_11_23h2_x64.iso"
       ;;
-    "win10x64" )
-      size=4957009920
-      sum="6673e2ab6c6939a74eceff2c2bb4d36feb94ff8a6f71700adef0f0b998fdcaca"
+    "win11x64-iot" | "win11x64-enterprise-iot-eval" )
+      [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
+      size=4821989376
+      sum="e8f1431c4e6289b3997c20eadbb2576670300bb6e1cf8948b5d7af179010a962"
+      url="26100.1.240331-1435.ge_release_CLIENT_ENTERPRISES_OEM_x64FRE_en-us.iso"
+      ;;
+    "win11x64-ltsc" | "win11x64-enterprise-ltsc-eval" )
+      [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
+      size=4821989376
+      sum="e8f1431c4e6289b3997c20eadbb2576670300bb6e1cf8948b5d7af179010a962"
+      url="26100.1.240331-1435.ge_release_CLIENT_ENTERPRISES_OEM_x64FRE_en-us.iso"
+      ;;
+    "win10x64" | "win10x64-enterprise" | "win10x64-enterprise-eval" )
+      size=5675616256
+      sum="99c13b3afb1375661fc79496025cabe3f9ef5a555fc8ea767a48937b0f4bcace"
       url="10/en-us_windows_10_22h2_x64.iso"
       ;;
     "win10x64-iot" | "win10x64-enterprise-iot-eval" )
@@ -726,6 +746,11 @@ getLink1() {
       size=4320526336
       sum="d8333cf427eb3318ff6ab755eb1dd9d433f0e2ae43745312c1cd23e83ca1ce51"
       url="8.x/8.1/en_windows_8.1_with_update_x64_dvd_6051480.iso"
+      ;;
+    "win2025" | "win2025-eval" )
+      size=5307176960
+      sum="2293897341febdcea599f5412300b470b5288c6fd2b89666a7b27d283e8d3cf3"
+      url="server/2025/en-us_windows_server_2025_preview_x64_dvd_ce9eb1a5.iso"
       ;;
     "win2022" | "win2022-eval" )
       size=5365624832
@@ -1238,6 +1263,31 @@ getLink4() {
         "zh" | "zh-"* ) url="cn_windows_8.1_enterprise_with_update_x64_dvd_6050374.iso" ;;
       esac
       ;;
+    "win2025" | "win2025-eval" )
+      case "${culture,,}" in
+        "cs" | "cs-"* ) url="cs-cz_windows_server_2025_preview_x64_dvd_8b1f5b49.iso" ;;
+        "de" | "de-"* ) url="de-de_windows_server_2025_preview_x64_dvd_1c3dfe1c.iso" ;;
+        "en" | "en-"* )
+          size=5307176960
+          sum="2293897341febdcea599f5412300b470b5288c6fd2b89666a7b27d283e8d3cf3"
+          url="en-us_windows_server_2025_preview_x64_dvd_ce9eb1a5.iso" ;;
+        "es" | "es-"* ) url="es-es_windows_server_2025_preview_x64_dvd_b07cc858.iso" ;;
+        "fr" | "fr-"* ) url="fr-fr_windows_server_2025_preview_x64_dvd_036e8a78.iso" ;;
+        "hu" | "hu-"* ) url="hu-hu_windows_server_2025_preview_x64_dvd_2d5d77e5.iso" ;;
+        "it" | "it-"* ) url="it-it_windows_server_2025_preview_x64_dvd_eaccac73.iso" ;;
+        "ja" | "ja-"* ) url="ja-jp_windows_server_2025_preview_x64_dvd_62f802be.iso" ;;
+        "ko" | "ko-"* ) url="ko-kr_windows_server_2025_preview_x64_dvd_e2c3e8f0.iso" ;;
+        "nl" | "nl-"* ) url="nl-nl_windows_server_2025_preview_x64_dvd_314b4ed1.iso" ;;
+        "pl" | "pl-"* ) url="pl-pl_windows_server_2025_preview_x64_dvd_be4b099e.iso" ;;
+        "br" | "pt-br" ) url="pt-br_windows_server_2025_preview_x64_dvd_993c803a.iso" ;;
+        "pt" | "pt-"* ) url="pt-pt_windows_server_2025_preview_x64_dvd_869aa534.iso" ;;
+        "ru" | "ru-"* ) url="ru-ru_windows_server_2025_preview_x64_dvd_5ada1817.iso" ;;
+        "sv" | "sv-"* ) url="sv-se_windows_server_2025_preview_x64_dvd_5fafd4f7.iso" ;;
+        "tr" | "tr-"* ) url="tr-tr_windows_server_2025_preview_x64_dvd_3aab7fda.iso" ;;
+        "zh-hk" | "zh-tw" ) url="zh-tw_windows_server_2025_preview_x64_dvd_9b147dcd.iso" ;;
+        "zh" | "zh-"* ) url="zh-cn_windows_server_2025_preview_x64_dvd_a12bb0bf.iso" ;;
+      esac
+      ;;      
     "win2022" | "win2022-eval" )
       case "${culture,,}" in
         "cs" | "cs-"* ) url="cs-cz_windows_server_2022_updated_april_2024_x64_dvd_164349f3.iso" ;;
@@ -1910,6 +1960,63 @@ migrateFiles() {
   ! mv -f "$STORAGE/$file" "$base" && return 1
 
   return 0
+}
+
+detectLegacy() {
+
+  local dir="$1"
+  local find find2 desc
+
+  find=$(find "$dir" -maxdepth 1 -type d -iname win95 | head -n 1)
+
+  if [ -n "$find" ]; then
+    DETECTED="win95"
+    desc=$(printEdition "$DETECTED" "Windows 95")
+    info "Detected: $desc" && return 0
+  fi
+
+  find=$(find "$dir" -maxdepth 1 -type d -iname win98 | head -n 1)
+
+  if [ -n "$find" ]; then
+    DETECTED="win98"
+    desc=$(printEdition "$DETECTED" "Windows 98")
+    info "Detected: $desc" && return 0
+  fi
+
+  find=$(find "$dir" -maxdepth 1 -type d -iname win9x | head -n 1)
+
+  if [ -n "$find" ]; then
+    DETECTED="win9x"
+    desc=$(printEdition "$DETECTED" "Windows ME")
+    info "Detected: $desc" && return 0
+  fi
+
+  find=$(find "$dir" -maxdepth 1 -type d -iname win51 | head -n 1)
+  find2=$(find "$dir" -maxdepth 1 -type f -iname setupxp.htm | head -n 1)
+
+  if [ -n "$find" ] || [ -n "$find2" ] || [ -f "$dir/WIN51AP" ] || [ -f "$dir/WIN51IC" ]; then
+    [ -d "$dir/AMD64" ] && DETECTED="winxpx64" || DETECTED="winxpx86"
+    desc=$(printEdition "$DETECTED" "Windows XP")
+    info "Detected: $desc" && return 0
+  fi
+
+  if [ -f "$dir/CDROM_NT.5" ]; then
+    DETECTED="win2kx86"
+    desc=$(printEdition "$DETECTED" "Windows 2000")
+    info "Detected: $desc" && return 0
+  fi
+
+  if [ -f "$dir/WIN51AA" ] || [ -f "$dir/WIN51AD" ] || [ -f "$dir/WIN51AS" ] || [ -f "$dir/WIN51MA" ] || [ -f "$dir/WIN51MD" ]; then
+    desc="Windows Server 2003"
+    info "Detected: $desc" && error "$desc is not supported yet!" && exit 54
+  fi
+
+  if [ -f "$dir/WIN51IA" ] || [ -f "$dir/WIN51IB" ] || [ -f "$dir/WIN51ID" ] || [ -f "$dir/WIN51IL" ] || [ -f "$dir/WIN51IS" ]; then
+    desc="Windows Server 2003"
+    info "Detected: $desc" && error "$desc is not supported yet!" && exit 54
+  fi
+
+  return 1
 }
 
 prepareLegacy() {
