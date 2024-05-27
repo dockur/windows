@@ -2170,13 +2170,13 @@ prepare2k3() {
   fi
 
   if [[ "${arch,,}" == "x86" ]]; then
-    # Windows Server 2003 x86 generic key (no activation, trial-only)
+    # Windows Server 2003 Standard x86 generic key (no activation, trial-only)
     # This is not a pirated key, it comes from the official MS documentation.
-    key="PWBJC-22697-D4CVH-FCJWW-DTF9J"
+    key="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
   else
-    # Windows Server 2003 x64 generic key (no activation, trial-only)
+    # Windows Server 2003 Standard x64 generic key (no activation, trial-only)
     # This is not a pirated key, it comes from the official MS documentation.
-    key="XCP6P-7WVXP-F8FQ4-JV6CD-6XV28"
+    key="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
   fi
 
   local oem=""
