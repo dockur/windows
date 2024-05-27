@@ -6,12 +6,18 @@ handle_curl_error() {
   local error_code="$1"
 
   case "$error_code" in
+    1) error "Unsupported protocol!" ;;
+    2) error "Failed to initialize curl!" ;;
+    3) error "The URL format is malformed!" ;;
+    5) error "Failed to resolve address of proxy host!" ;;
     6) error "Failed to resolve Microsoft servers! Is there an Internet connection?" ;;
     7) error "Failed to contact Microsoft servers! Is there an Internet connection or is the server down?" ;;
     8) error "Microsoft servers returned a malformed HTTP response!" ;;
+    16) error "A problem was detected in the HTTP2 framing layer!" ;;
     22) error "Microsoft servers returned a failing HTTP status code!" ;;
     23) error "Failed at writing Windows media to disk! Out of disk space or permission error?" ;;
-    26) error "Ran out of memory during download!" ;;
+    26) error "Failed to read Windows media from disk!" ;;
+    27) error "Ran out of memory during download!" ;;
     28) error "Connection timed out to Microsoft server!" ;;
     35) error "SSL connection error from Microsoft server!" ;;
     36) error "Failed to continue earlier download!" ;;
