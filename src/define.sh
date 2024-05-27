@@ -70,6 +70,9 @@ parseVersion() {
     "xp64" | "xpx64" | "winxp64" | "winxpx64" | "windowsxp64" | "windowsxpx64" )
       VERSION="winxpx64"
       ;;
+    "25" | "2025" | "win25" | "win2025" | "windows2025" | "windows 2025" )
+      VERSION="win2025-eval"
+      ;;      
     "22" | "2022" | "win22" | "win2022" | "windows2022" | "windows 2022" )
       VERSION="win2022-eval"
       ;;
@@ -599,6 +602,7 @@ switchEdition() {
     "win81${PLATFORM,,}-enterprise-eval" )
       DETECTED="win81${PLATFORM,,}-enterprise"
       ;;
+    "win2025-eval" ) DETECTED="win2025" ;;
     "win2022-eval" ) DETECTED="win2022" ;;
     "win2019-eval" ) DETECTED="win2019" ;;
     "win2016-eval" ) DETECTED="win2016" ;;
