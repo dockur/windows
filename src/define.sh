@@ -72,7 +72,7 @@ parseVersion() {
       ;;
     "25" | "2025" | "win25" | "win2025" | "windows2025" | "windows 2025" )
       VERSION="win2025-eval"
-      ;;      
+      ;;
     "22" | "2022" | "win22" | "win2022" | "windows2022" | "windows 2022" )
       VERSION="win2022-eval"
       ;;
@@ -90,7 +90,7 @@ parseVersion() {
       ;;
     "2003" | "2003r2" | "win2003" | "win2003r2" | "windows2003" | "windows 2003" )
       VERSION="win2003r2"
-      ;;      
+      ;;
     "core11" | "core 11" )
       VERSION="core11"
       [ -z "$DETECTED" ] && DETECTED="win11x64"
@@ -379,7 +379,7 @@ printVersion() {
     "win2016"* ) desc="Windows Server 2016" ;;
     "win2019"* ) desc="Windows Server 2019" ;;
     "win2022"* ) desc="Windows Server 2022" ;;
-    "win2025"* ) desc="Windows Server 2025" ;;   
+    "win2025"* ) desc="Windows Server 2025" ;;
   esac
 
   if [ -z "$desc" ]; then
@@ -443,7 +443,7 @@ printEdition() {
       ;;
     "win2012"* | "win2008"* | "win2003"* )
       edition="Standard"
-      ;;      
+      ;;
   esac
 
   [ -n "$edition" ] && result="$result $edition"
@@ -519,7 +519,7 @@ fromFile() {
       ;;
     *"server2003"* | *"server_2003"* )
       id="win2003r2"
-      ;;      
+      ;;
   esac
 
   if [ -n "$id" ]; then
@@ -673,7 +673,7 @@ getMido() {
     "win2025-eval" )
       size=5307996160
       sum="16442d1c0509bcbb25b715b1b322a15fb3ab724a42da0f384b9406ca1c124ed4"
-      ;;      
+      ;;
     "win2022-eval" )
       size=5044094976
       sum="3e4fa6d8507b554856fc9ca6079cc402df11a8b79344871669f0251535255325"
@@ -1302,7 +1302,7 @@ getLink4() {
         "zh-hk" | "zh-tw" ) url="zh-tw_windows_server_2025_preview_x64_dvd_9b147dcd.iso" ;;
         "zh" | "zh-"* ) url="zh-cn_windows_server_2025_preview_x64_dvd_a12bb0bf.iso" ;;
       esac
-      ;;      
+      ;;
     "win2022" | "win2022-eval" )
       case "${culture,,}" in
         "cs" | "cs-"* ) url="cs-cz_windows_server_2022_updated_april_2024_x64_dvd_164349f3.iso" ;;
@@ -2054,7 +2054,7 @@ prepareInstall() {
   local dir="$2"
   local desc="$3"
   local arch="$4"
-  local key="$5"  
+  local key="$5"
   local driver="$6"
   local drivers="$TMP/drivers"
 
