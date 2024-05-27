@@ -61,6 +61,7 @@ download_windows() {
 
   local id="$1"
   local lang="$2"
+  local desc="$3"
   local sku_id=""
   local language=""
   local session_id=""
@@ -134,7 +135,7 @@ download_windows() {
 
   if [ -z "$sku_id" ]; then
     language=$(getLanguage "$lang" "desc")
-    error "No download for the $language language available!"
+    error "No download in the $language language available for $desc!"
     return 1
   fi
 
@@ -176,6 +177,7 @@ download_windows_eval() {
 
   local id="$1"
   local lang="$2"
+  local desc="$3"
   local filter=""
   local culture=""
   local language=""
@@ -247,7 +249,6 @@ download_windows_eval() {
     if [[ "${lang,,}" == "en" ]] || [[ "${lang,,}" == "en-"* ]]; then
       error "Windows server download page gave us no download link!"
     else
-      desc=$(printEdition "$id" "$desc")
       language=$(getLanguage "$lang" "desc")
       error "No download in the $language language available for $desc!"
     fi
@@ -323,13 +324,13 @@ getWindows() {
 
   case "${version,,}" in
     "win81${PLATFORM,,}" | "win10${PLATFORM,,}" | "win11${PLATFORM,,}" )
-      download_windows "$version" "$lang" && return 0
+      download_windows "$version" "$lang" "$edition" && return 0
       ;;
     "win11${PLATFORM,,}-enterprise"* | "win10${PLATFORM,,}-enterprise"* )
-      download_windows_eval "$version" "$lang" && return 0
+      download_windows_eval "$version" "$lang" "$edition" && return 0
       ;;
     "win2022-eval" | "win2019-eval" | "win2016-eval" | "win2012r2-eval" )
-      download_windows_eval "$version" "$lang" && return 0
+      download_windows_eval "$version" "$lang" "$edition" && return 0
       ;;
     "win81${PLATFORM,,}-enterprise-eval" )
       MIDO_URL="https://download.microsoft.com/download/B/9/9/B999286E-0A47-406D-8B3D-5B5AD7373A4A/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_ENTERPRISE_EVAL_EN-US-IR3_CENA_X64FREE_EN-US_DV9.ISO" && return 0
@@ -438,8 +439,9 @@ getESD() {
 
   size=$(stat -c%s "$dir/$eFile")
   if ((size<20)); then
+    desc=$(printEdition "$version" "$desc")
     language=$(getLanguage "$lang" "desc")
-    error "the $language language is not supported by this download method!" && return 1
+    error "No download in the $language language available for $desc!" && return 1
   fi
 
   local tag="FilePath"
