@@ -702,6 +702,7 @@ addDriver() {
     "win81x64"* ) folder="w10/amd64" ;;
     "win10x64"* ) folder="w10/amd64" ;;
     "win11x64"* ) folder="w11/amd64" ;;
+    "win2025"* ) folder="2k22/amd64" ;;    
     "win2022"* ) folder="2k22/amd64" ;;
     "win2019"* ) folder="2k19/amd64" ;;
     "win2016"* ) folder="2k16/amd64" ;;
