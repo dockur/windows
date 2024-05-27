@@ -489,63 +489,6 @@ setXML() {
   return 0
 }
 
-detectLegacy() {
-
-  local dir="$1"
-  local find find2 desc
-
-  find=$(find "$dir" -maxdepth 1 -type d -iname win95 | head -n 1)
-
-  if [ -n "$find" ]; then
-    DETECTED="win95"
-    desc=$(printEdition "$DETECTED" "Windows 95")
-    info "Detected: $desc" && return 0
-  fi
-
-  find=$(find "$dir" -maxdepth 1 -type d -iname win98 | head -n 1)
-
-  if [ -n "$find" ]; then
-    DETECTED="win98"
-    desc=$(printEdition "$DETECTED" "Windows 98")
-    info "Detected: $desc" && return 0
-  fi
-
-  find=$(find "$dir" -maxdepth 1 -type d -iname win9x | head -n 1)
-
-  if [ -n "$find" ]; then
-    DETECTED="win9x"
-    desc=$(printEdition "$DETECTED" "Windows ME")
-    info "Detected: $desc" && return 0
-  fi
-
-  find=$(find "$dir" -maxdepth 1 -type d -iname win51 | head -n 1)
-  find2=$(find "$dir" -maxdepth 1 -type f -iname setupxp.htm | head -n 1)
-
-  if [ -n "$find" ] || [ -n "$find2" ] || [ -f "$dir/WIN51AP" ] || [ -f "$dir/WIN51IC" ]; then
-    [ -d "$dir/AMD64" ] && DETECTED="winxpx64" || DETECTED="winxpx86"
-    desc=$(printEdition "$DETECTED" "Windows XP")
-    info "Detected: $desc" && return 0
-  fi
-
-  if [ -f "$dir/CDROM_NT.5" ]; then
-    DETECTED="win2kx86"
-    desc=$(printEdition "$DETECTED" "Windows 2000")
-    info "Detected: $desc" && return 0
-  fi
-
-  if [ -f "$dir/WIN51AA" ] || [ -f "$dir/WIN51AD" ] || [ -f "$dir/WIN51AS" ] || [ -f "$dir/WIN51MA" ] || [ -f "$dir/WIN51MD" ]; then
-    desc="Windows Server 2003"
-    info "Detected: $desc" && error "$desc is not supported yet!" && exit 54
-  fi
-
-  if [ -f "$dir/WIN51IA" ] || [ -f "$dir/WIN51IB" ] || [ -f "$dir/WIN51ID" ] || [ -f "$dir/WIN51IL" ] || [ -f "$dir/WIN51IS" ]; then
-    desc="Windows Server 2003"
-    info "Detected: $desc" && error "$desc is not supported yet!" && exit 54
-  fi
-
-  return 1
-}
-
 skipVersion() {
 
   local version="$1"
