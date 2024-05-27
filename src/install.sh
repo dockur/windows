@@ -489,19 +489,6 @@ setXML() {
   return 0
 }
 
-skipVersion() {
-
-  local version="$1"
-
-  case "${version,,}" in
-    "win2k"* | "winxp"* | "win9"* )
-      return 0
-      ;;
-  esac
-
-  return 1
-}
-
 detectImage() {
 
   local dir="$1"
@@ -588,17 +575,19 @@ prepareImage() {
 
   local iso="$1"
   local dir="$2"
-  local missing
+  local desc missing
+
+  desc=$(printVersion "$DETECTED" "$DETECTED")
 
   case "${DETECTED,,}" in
     "win9"* | "win2k"* )
       MACHINE="pc-i440fx-2.4" ;;
-    "winxp"* | "winvistax86"* |  "win7x86"* )
+    "winvistax86"* | "win7x86"* | "winxp"* | "win2003"* )
       MACHINE="pc-q35-2.10" ;;
   esac
 
   case "${DETECTED,,}" in
-    "win9"* | "winxp"* | "win2k"* )
+    "win9"* | "win2k"* | "winxp"* | "win2003"* )
       HV="N"
       BOOT_MODE="windows_legacy" ;;
     "winvista"* | "win7"* | "win2008"* )
@@ -606,18 +595,22 @@ prepareImage() {
   esac
 
   case "${DETECTED,,}" in
-    "winxp"* )
-      DISK_TYPE="blk"
-      prepareXP "$iso" "$dir" && return 0
-      error "Failed to prepare Windows XP ISO!" && return 1 ;;
     "win9"* )
       DISK_TYPE="auto"
       prepare9x "$iso" "$dir" && return 0
-      error "Failed to prepare Windows 9x ISO!" && return 1 ;;
+      error "Failed to prepare $desc ISO!" && return 1 ;;
     "win2k"* )
       DISK_TYPE="auto"
       prepare2k "$iso" "$dir" && return 0
-      error "Failed to prepare Windows 2000 ISO!" && return 1 ;;
+      error "Failed to prepare $desc ISO!" && return 1 ;;
+    "winxp"* )
+      DISK_TYPE="blk"
+      prepareXP "$iso" "$dir" && return 0
+      error "Failed to prepare $desc ISO!" && return 1 ;;      
+    "win2003"* )
+      DISK_TYPE="blk"
+      prepare2k3 "$iso" "$dir" && return 0
+      error "Failed to prepare $desc ISO!" && return 1 ;;
   esac
 
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
@@ -962,7 +955,7 @@ buildImage() {
   else
 
     case "${DETECTED,,}" in
-      "win2k"* | "winxp"* )
+      "win2k"* | "winxp"* | "win2003"* )
         ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -boot-load-seg 1984 -boot-load-size 4 -c "$cat" -iso-level 2 -J -l -D -N -joliet-long \
                       -relaxed-filenames -V "${LABEL::30}" -quiet "$dir" 2> "$log" && failed="y" ;;
       "win9"* )
