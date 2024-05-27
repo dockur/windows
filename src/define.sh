@@ -661,8 +661,8 @@ getMido() {
       sum="2dedd44c45646c74efc5a028f65336027e14a56f76686a4631cf94ffe37c72f2"
       ;;
     "win2025-eval" )
-      size=343
-      sum="xxx"
+      size=5307996160
+      sum="16442d1c0509bcbb25b715b1b322a15fb3ab724a42da0f384b9406ca1c124ed4"
       ;;      
     "win2022-eval" )
       size=5044094976
