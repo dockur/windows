@@ -620,13 +620,13 @@ prepareImage() {
     missing=$(basename "$dir/$EFISYS")
     [ ! -f "$dir/$ETFS" ] && missing=$(basename "$dir/$ETFS")
 
-    error "Failed to locate file \"${missing,,}\" in ISO image!"
+    error "Failed to locate file \"${missing,,}\" in $desc ISO image!"
     return 1
   fi
 
   prepareLegacy "$iso" "$dir" && return 0
 
-  error "Failed to extract boot image from ISO!"
+  error "Failed to extract boot image from $desc ISO image!"
   return 1
 }
 
