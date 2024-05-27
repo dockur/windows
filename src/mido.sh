@@ -104,7 +104,7 @@ download_windows() {
   [[ "$DEBUG" == [Yy1]* ]] && echo -n "Getting Product edition ID: "
   # tr: Filter for only numerics to prevent HTTP parameter injection
   # head -c was recently added to POSIX: https://austingroupbugs.net/view.php?id=407
-  product_edition_id="$(echo "$iso_download_page_html" | grep -Eo '<option value="[0-9]+">Windows' | cut -d '"' -f 2 | head -n 1 | tr -cd '0-9' | head -c 16)"
+  product_edition_id=$(echo "$iso_download_page_html" | grep -Eo '<option value="[0-9]+">Windows' | cut -d '"' -f 2 | head -n 1 | tr -cd '0-9' | head -c 16)
   [[ "$DEBUG" == [Yy1]* ]] && echo "$product_edition_id"
 
   [[ "$DEBUG" == [Yy1]* ]] && echo "Permit Session ID: $session_id"
