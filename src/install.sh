@@ -597,19 +597,19 @@ prepareImage() {
   case "${DETECTED,,}" in
     "win9"* )
       DISK_TYPE="auto"
-      prepare9x "$iso" "$dir" && return 0
+      prepare9x "$iso" "$dir" "$desc" && return 0
       error "Failed to prepare $desc ISO!" && return 1 ;;
     "win2k"* )
       DISK_TYPE="auto"
-      prepare2k "$iso" "$dir" && return 0
+      prepare2k "$iso" "$dir" "$desc" && return 0
       error "Failed to prepare $desc ISO!" && return 1 ;;
     "winxp"* )
       DISK_TYPE="blk"
-      prepareXP "$iso" "$dir" && return 0
+      prepareXP "$iso" "$dir" "$desc" && return 0
       error "Failed to prepare $desc ISO!" && return 1 ;;      
     "win2003"* )
       DISK_TYPE="blk"
-      prepare2k3 "$iso" "$dir" && return 0
+      prepare2k3 "$iso" "$dir" "$desc" && return 0
       error "Failed to prepare $desc ISO!" && return 1 ;;
   esac
 
