@@ -624,7 +624,7 @@ prepareImage() {
     return 1
   fi
 
-  prepareLegacy "$iso" "$dir" && return 0
+  prepareLegacy "$iso" "$dir" "$desc" && return 0
 
   error "Failed to extract boot image from $desc ISO image!"
   return 1
