@@ -87,12 +87,12 @@ kubectl apply -f kubernetes.yml
   |---|---|---|
   | `win11`   | Windows 11 Pro           | 6.4 GB   |
   | `win11e`  | Windows 11 Enterprise    | 5.8 GB   |
-  | `win10`   | Windows 10 Pro           | 5.8 GB   |
+  | `win10`   | Windows 10 Pro           | 5.7 GB   |
   | `ltsc10`  | Windows 10 LTSC          | 4.6 GB   |
   | `win10e`  | Windows 10 Enterprise    | 5.2 GB   |
   ||||  
-  | `win8`    | Windows 8.1 Pro          | 4.2 GB   |
-  | `win8e`   | Windows 8.1 Enterprise   | 3.8 GB   |
+  | `win8`    | Windows 8.1 Pro          | 4.0 GB   |
+  | `win8e`   | Windows 8.1 Enterprise   | 3.7 GB   |
   | `win7`    | Windows 7 Enterprise     | 3.0 GB   |
   | `vista`   | Windows Vista Enterprise | 3.0 GB   |
   | `winxp`   | Windows XP Professional  | 0.6 GB   |
@@ -179,22 +179,9 @@ kubectl apply -f kubernetes.yml
 
   Replace the example path `/home/user/example.iso` with the filename of your desired ISO file, the value of `VERSION` will be ignored in this case.
 
-* ### How do I customize the installation?
-
-  If you want to modify the settings used during the automatic installation, you can do this by editing the answer file corresponding to your Windows edition, for example [win11x64.xml](https://raw.githubusercontent.com/dockur/windows/master/assets/win11x64.xml) in the case of Windows 11 Pro.
-
-  Apply your modifications to it, and add this line to your compose file:
-
-  ```yaml
-  volumes:
-    -  /home/user/example.xml:/custom.xml
-  ```
-
-  Replace the example path `/home/user/example.xml` with the filename of the modified XML file.
-
 * ### How do I run a script after installation?
 
-  To run your own script after installation, you can create a file called `install.bat` and place it in a folder together with other files it needs (programs to install for example). Then bind it in your compose file like this:
+  To run your own script after installation, you can create a file called `install.bat` and place it in a folder together with any additional files it needs (software to be installed for example). Then bind that folder in your compose file like this:
 
   ```yaml
   volumes:
@@ -205,7 +192,7 @@ kubectl apply -f kubernetes.yml
 
 * ### How do I perform a manual installation?
 
-  It's best to use the automatic installation, as it prevents common issues that occur when running Windows inside a virtualized environment and optimizes various settings to give you maximum performance.
+  It's best to stick to the automatic installation, as it adjusts various settings to prevent common issues when running Windows inside a virtual environment.
 
   However, if you insist on performing the installation manually, add the following environment variable to your compose file:
 
@@ -214,32 +201,6 @@ kubectl apply -f kubernetes.yml
     MANUAL: "Y"
   ```
 
-  Then follow these steps:
-
-  - Start the container and connect to [port 8006](http://localhost:8006) of the container in your web browser. After the download is finished, you will see the Windows installation screen.
-
-  - Start the installation by clicking `Install now`. On the next screen, press 'OK' when prompted to `Load driver`.
-
-  -  Select the `VirtIO SCSI` driver from the list that matches your Windows version. So for Windows 11, select `D:\amd64\w11\vioscsi.inf` and click 'Next'.
-
-  - Accept the license agreement and select your preferred Windows edition, like Home or Pro.
-
-  - Choose `Custom: Install Windows only (advanced)`, and click `Load driver` on the next screen.
-
-  - Select 'Browse' and navigate to the `D:\NetKVM\w11\amd64` folder, and click 'OK'.
-
-  - Select the `VirtIO Ethernet Adapter` from the list and click 'Next'.
-
-  - Select `Drive 0` and click 'Next'.
-
-  - Wait until Windows finishes copying files and completes the installation.
-
-  - Once you see the desktop, open File Explorer and navigate to the CD-ROM drive (`E:\`).
-
-  - Double-click on `virtio-win-gt-x64.msi` and proceed to install the VirtIO drivers.
-
-  Enjoy your brand new machine, and don't forget to star this repo!
- 
 * ### How do I verify if my system supports KVM?
 
   To verify if your system supports KVM, run the following commands:
@@ -251,11 +212,11 @@ kubectl apply -f kubernetes.yml
 
   If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check the virtualization settings in the BIOS.
 
-* ### How do I increase the amount of CPU or RAM?
+* ### How do I change the amount of CPU or RAM?
 
-  By default, 2 CPU cores and 4 GB of RAM are allocated to the container, as those are the minimum requirements of Windows 11.
+  By default, the container will be allowed to use a maximum of 2 CPU cores and 4 GB of RAM.
 
-  If there arises a need to increase this, add the following environment variables:
+  If you want to adjust this, you can specify the desired amount using the following environment variables:
 
   ```yaml
   environment:
@@ -265,12 +226,14 @@ kubectl apply -f kubernetes.yml
 
 * ### How do I configure the username and password?
 
-  By default, a user called `Docker` is created during installation with an empty password. You can change these credentials in your compose file:
+  By default, a user called `Docker` is created during the installation, with an empty password.
+
+  If you want to use different credentials, you can change them in your compose file:
 
   ```yaml
   environment:
-    USERNAME: "john"
-    PASSWORD: "secret"
+    USERNAME: "bill"
+    PASSWORD: "gates"
   ```
 
 * ### How do I connect using RDP?
@@ -279,7 +242,7 @@ kubectl apply -f kubernetes.yml
 
   So for a better experience you can connect using any Microsoft Remote Desktop client to the IP of the container, using the username `Docker` and by leaving the password empty.
 
-  There is a good RDP client for [Android](https://play.google.com/store/apps/details?id=com.microsoft.rdc.androidx) available from the Play Store and one for [iOS](https://apps.apple.com/nl/app/microsoft-remote-desktop/id714464092?l=en-GB) in the Apple Store. For Linux you can use [FreeRDP](https://www.freerdp.com/) and on Windows just type `mstsc` in the search box.
+  There is a RDP client for [Android](https://play.google.com/store/apps/details?id=com.microsoft.rdc.androidx) available from the Play Store and one for [iOS](https://apps.apple.com/nl/app/microsoft-remote-desktop/id714464092?l=en-GB) in the Apple Store. For Linux you can use [FreeRDP](https://www.freerdp.com/) and on Windows just type `mstsc` in the search box.
 
 * ### How do I assign an individual IP address to the container?
 

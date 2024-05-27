@@ -105,6 +105,10 @@ parseVersion() {
       VERSION="win10x64-enterprise-iot-eval"
       [ -z "$DETECTED" ] && DETECTED="win10x64-iot"
       ;;
+    "ltsc11" | "11ltsc" | "win11-ltsc" | "win11x64-ltsc" | "win11x64-enterprise-ltsc-eval" )
+      VERSION="win11x64-enterprise-ltsc-eval"
+      [ -z "$DETECTED" ] && DETECTED="win11x64-iot"
+      ;;
     "ltsc10" | "10ltsc" | "win10-ltsc" | "win10x64-ltsc" | "win10x64-enterprise-ltsc-eval" )
       VERSION="win10x64-enterprise-ltsc-eval"
       [ -z "$DETECTED" ] && DETECTED="win10x64-ltsc"
@@ -358,6 +362,10 @@ printVersion() {
     "win10"* ) desc="Windows 10" ;;
     "win11"* ) desc="Windows 11" ;;
     "winxp"* ) desc="Windows XP" ;;
+    "win9x"* ) desc="Windows ME" ;;
+    "win98"* ) desc="Windows 98" ;;
+    "win95"* ) desc="Windows 95" ;;
+    "win2k"* ) desc="Windows 2000" ;;
     "winvista"* ) desc="Windows Vista" ;;
     "win2025"* ) desc="Windows Server 2025" ;;
     "win2022"* ) desc="Windows Server 2022" ;;
@@ -556,19 +564,10 @@ getVersion() {
           *" enterprise"* ) id="$id-enterprise" ;;
         esac
       ;;
-    "win10"* )
-        case "${name,,}" in
-          *" iot"* ) id="$id-iot" ;;
-          *" ltsc"* ) id="$id-ltsc" ;;
-          *" home"* ) id="$id-home" ;;
-          *" education"* ) id="$id-education" ;;
-          *" enterprise evaluation"* ) id="$id-enterprise-eval" ;;
-          *" enterprise"* ) id="$id-enterprise" ;;
-        esac
-      ;;
-    "win11"* )
+    "win10"* | "win11"* )
        case "${name,,}" in
           *" iot"* ) id="$id-iot" ;;
+          *" ltsc"* ) id="$id-ltsc" ;;
           *" home"* ) id="$id-home" ;;
           *" education"* ) id="$id-education" ;;
           *" enterprise evaluation"* ) id="$id-enterprise-eval" ;;
@@ -628,6 +627,14 @@ getMido() {
     "win11x64-enterprise-eval" )
       size=6209064960
       sum="c8dbc96b61d04c8b01faf6ce0794fdf33965c7b350eaa3eb1e6697019902945c"
+      ;;
+    "win11x64-enterprise-ltsc-eval" )
+      size=4428627968
+      sum="8abf91c9cd408368dc73aab3425d5e3c02dae74900742072eb5c750fc637c195"
+      ;;
+    "win11x64-enterprise-iot-eval" )
+      size=4428627968
+      sum="8abf91c9cd408368dc73aab3425d5e3c02dae74900742072eb5c750fc637c195"
       ;;
     "win10x64" )
       size=6140975104
@@ -1034,6 +1041,18 @@ getLink4() {
         "zh" | "zh-"* ) url="zh-cn_windows_11_business_editions_version_23h2_updated_april_2024_x64_dvd_3db5a62b.iso" ;;
       esac
       ;;
+    "win11x64-iot" | "win11x64-enterprise-iot-eval" )
+      [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
+      size=4821989376
+      sum="e8f1431c4e6289b3997c20eadbb2576670300bb6e1cf8948b5d7af179010a962"
+      url="26100.1.240331-1435.ge_release_CLIENTENTERPRISE_OEM_x64FRE_en-us.iso"
+      ;;
+    "win11x64-ltsc" | "win11x64-enterprise-ltsc-eval" )
+      [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
+      size=4821989376
+      sum="e8f1431c4e6289b3997c20eadbb2576670300bb6e1cf8948b5d7af179010a962"
+      url="26100.1.240331-1435.ge_release_CLIENTENTERPRISE_OEM_x64FRE_en-us.iso"
+      ;;
     "win10x64" )
       case "${culture,,}" in
         "ar" | "ar-"* ) url="ar-sa_windows_10_consumer_editions_version_22h2_updated_april_2024_x64_dvd_9a92dc89.iso" ;;
@@ -1168,12 +1187,6 @@ getLink4() {
         "zh-hk" | "zh-tw" ) url="zh-tw_windows_10_enterprise_ltsc_2021_x64_dvd_80dba877.iso" ;;
         "zh" | "zh-"* ) url="zh-cn_windows_10_enterprise_ltsc_2021_x64_dvd_033b7312.iso" ;;
       esac
-      ;;
-    "win11x64-iot" | "win11x64-enterprise-iot-eval" )
-      [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
-      size=6248140800
-      sum="5d9b86ad467bc89f488d1651a6c5ad3656a7ea923f9f914510657a24c501bb86"
-      url="en-us_windows_11_iot_enterprise_version_23h2_x64_dvd_fb37549c.iso"
       ;;
     "win10x64-iot" | "win10x64-enterprise-iot-eval" )
       [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
@@ -1918,6 +1931,32 @@ prepareLegacy() {
   return 1
 }
 
+prepare9x() {
+
+  local iso="$1"
+  local dir="$2"
+  local file="$dir/boot.img"
+
+  ETFS=$(basename "$file")
+  [ -f "$file" ] && [ -s "$file" ] && return 0
+  rm -f "$file"
+
+  local src="[BOOT]/Boot-1.44M.img"
+  [ ! -f "$dir/$src" ] && error "Boot floppy not found!" && return 1
+
+  cp "$dir/$src" "$file" && return 0
+
+  return 1
+}
+
+prepare2k() {
+
+  local dir="$2"
+  ETFS="[BOOT]/Boot-NoEmul.img"
+
+  return 0
+}
+
 prepareXP() {
 
   local dir="$2"
@@ -1932,10 +1971,13 @@ prepareXP() {
     target="$dir/AMD64"
   fi
 
-  rm -rf "$drivers"
+  local msg="Adding drivers to image..."
+  info "$msg" && html "$msg"
 
-  if ! 7z x /run/drivers.iso -o"$drivers" > /dev/null; then
-    error "Failed to extract driver ISO file!" && return 1
+  mkdir -p "$drivers"
+
+  if ! tar -xf /drivers.txz -C "$drivers" --warning=no-timestamp; then
+    error "Failed to extract driver!" && return 1
   fi
 
   cp "$drivers/viostor/xp/$arch/viostor.sys" "$target"
@@ -1978,14 +2020,16 @@ prepareXP() {
   sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$target/TXTSETUP.SIF"
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$target/TXTSETUP.SIF"
 
-  local key pid setup
+  rm -rf "$drivers"
+
+  local key pid file setup
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini | head -n 1)
   pid=$(<"$setup")
   pid="${pid:(-4)}"
   pid="${pid:0:3}"
 
   if [[ "$pid" == "270" ]]; then
-    info "Warning: this XP version requires a volume license, it will reject the generic key during installation."
+    warn "this version of Windows XP requires a volume license key (VLK), it will ask for one during installation."
   fi
 
   if [[ "${arch,,}" == "x86" ]]; then
@@ -1998,10 +2042,28 @@ prepareXP() {
     key="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
   fi
 
+  local oem=""
+  local folder="/oem"
+
+  [ ! -d "$folder" ] && folder="/OEM"
+  [ ! -d "$folder" ] && folder="$STORAGE/oem"
+  [ ! -d "$folder" ] && folder="$STORAGE/OEM"
+
+  if [ -d "$folder" ]; then
+
+    file=$(find "$folder" -maxdepth 1 -type f -iname install.bat | head -n 1)
+
+    if [ -f "$file" ]; then
+      unix2dos -q "$file"
+      oem="\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat\\\"\""
+    fi
+  fi
+
   local username="Docker"
   local password="*"
-  [ -n "$USERNAME" ] && username="$USERNAME"
+
   [ -n "$PASSWORD" ] && password="$PASSWORD"
+  [ -n "$USERNAME" ] && username=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g')
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
@@ -2055,9 +2117,6 @@ prepareXP() {
           echo "    Home_Page = http://www.google.com"
           echo "    Search_Page = http://www.google.com"
           echo ""
-          echo "[RegionalSettings]"
-          echo "    Language=00000409"
-          echo ""
           echo "[TerminalServices]"
           echo "    AllowConnections=1"
           echo ""
@@ -2098,10 +2157,10 @@ prepareXP() {
           echo "\"DefaultSettings.XResolution\"=dword:00000780"
           echo "\"DefaultSettings.YResolution\"=dword:00000438"
           echo ""
-          echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnceEx]"
+          echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce]"
           echo "\"ScreenSaver\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"SCRNSAVE.EXE\\\" /t REG_SZ /d \\\"off\\\"\""
           echo "\"ScreenSaverOff\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"ScreenSaveActive\\\" /t REG_SZ /d \\\"0\\\"\""
-          echo ""
+          echo "$oem"
   } | unix2dos > "$dir/\$OEM\$/install.reg"
 
   {       echo "Set WshShell = WScript.CreateObject(\"WScript.Shell\")"
@@ -2118,7 +2177,18 @@ prepareXP() {
           echo ""
   } | unix2dos > "$dir/\$OEM\$/cmdlines.txt"
 
-  rm -rf "$drivers"
+  [ ! -d "$folder" ] && return 0
+
+  msg="Adding OEM folder to image..."
+  info "$msg" && html "$msg"
+
+  local dest="$dir/\$OEM\$/\$1/"
+  mkdir -p "$dest"
+
+  if ! cp -r "$folder" "$dest"; then
+    error "Failed to copy OEM folder!" && return 1
+  fi
+
   return 0
 }
 

@@ -35,4 +35,4 @@ cat "$QEMU_TERM" 2> /dev/null | tee "$QEMU_PTY" &
 wait $! || :
 
 sleep 1 & wait $!
-finish 0
+[ ! -f "$QEMU_END" ] && finish 0

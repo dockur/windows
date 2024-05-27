@@ -29,7 +29,12 @@ boot() {
 
   if [ -s "$QEMU_PTY" ]; then
     if [ "$(stat -c%s "$QEMU_PTY")" -gt 7 ]; then
-      if ! grep -Fq "BOOTMGR is missing" "$QEMU_PTY"; then
+      local fail=""
+      if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+        grep -Fq "No bootable device." "$QEMU_PTY" && fail="y"
+        grep -Fq "BOOTMGR is missing" "$QEMU_PTY" && fail="y"
+      fi
+      if [ -z "$fail" ]; then
         info "Windows started succesfully, visit http://localhost:8006/ to view the screen..."
         return 0
       fi
@@ -37,6 +42,11 @@ boot() {
   fi
 
   error "Timeout while waiting for QEMU to boot the machine!"
+
+  local pid
+  pid=$(<"$QEMU_PID")
+  { kill -15 "$pid" || true; } 2>/dev/null
+
   return 0
 }
 
@@ -49,18 +59,14 @@ ready() {
     local last
     local bios="Booting from Hard"
     last=$(grep "^Booting.*" "$QEMU_PTY" | tail -1)
-    if [[ "${last,,}" == "${bios,,}"* ]]; then
-      if ! grep -Fq "BOOTMGR is missing" "$QEMU_PTY"; then
-        return 0
-      fi
-    fi
-    return 1
+    [[ "${last,,}" != "${bios,,}"* ]] && return 1
+    grep -Fq "No bootable device." "$QEMU_PTY" && return 1
+    grep -Fq "BOOTMGR is missing" "$QEMU_PTY" && return 1
+    return 0
   fi
 
   local line="\"Windows Boot Manager\""
-  if grep -Fq "$line" "$QEMU_PTY"; then
-    return 0
-  fi
+  grep -Fq "$line" "$QEMU_PTY" && return 0
 
   return 1
 }
