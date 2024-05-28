@@ -515,7 +515,12 @@ detectImage() {
   fi
 
   info "Detecting version from ISO image..."
-  detectLegacy "$dir" && return 0
+
+  if detectLegacy "$dir"; then
+    desc=$(printEdition "$DETECTED" "$DETECTED")
+    info "Detected: $desc"
+    return 0
+  fi
 
   local src wim info
   src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
@@ -579,39 +584,8 @@ prepareImage() {
 
   desc=$(printVersion "$DETECTED" "$DETECTED")
 
-  case "${DETECTED,,}" in
-    "win9"* | "win2k"* )
-      MACHINE="pc-i440fx-2.4" ;;
-    "winvistax86"* | "win7x86"* | "winxp"* | "win2003"* )
-      MACHINE="pc-q35-2.10" ;;
-  esac
-
-  case "${DETECTED,,}" in
-    "win9"* | "win2k"* | "winxp"* | "win2003"* )
-      HV="N"
-      BOOT_MODE="windows_legacy" ;;
-    "winvista"* | "win7"* | "win2008"* )
-      BOOT_MODE="windows_legacy" ;;
-  esac
-
-  case "${DETECTED,,}" in
-    "win9"* )
-      DISK_TYPE="auto"
-      prepare9x "$iso" "$dir" "$desc" && return 0
-      error "Failed to prepare $desc ISO!" && return 1 ;;
-    "win2k"* )
-      DISK_TYPE="auto"
-      prepare2k "$iso" "$dir" "$desc" && return 0
-      error "Failed to prepare $desc ISO!" && return 1 ;;
-    "winxp"* )
-      DISK_TYPE="blk"
-      prepareXP "$iso" "$dir" "$desc" && return 0
-      error "Failed to prepare $desc ISO!" && return 1 ;;
-    "win2003"* )
-      DISK_TYPE="blk"
-      prepare2k3 "$iso" "$dir" "$desc" && return 0
-      error "Failed to prepare $desc ISO!" && return 1 ;;
-  esac
+  ! setMachine "$DETECTED" "$iso" "$dir" "$desc" && return 1
+  skipVersion "$DETECTED" && return 0
 
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
 
@@ -620,13 +594,13 @@ prepareImage() {
     missing=$(basename "$dir/$EFISYS")
     [ ! -f "$dir/$ETFS" ] && missing=$(basename "$dir/$ETFS")
 
-    error "Failed to locate file \"${missing,,}\" in $desc ISO image!"
+    error "Failed to locate file \"${missing,,}\" in ISO image!"
     return 1
   fi
 
   prepareLegacy "$iso" "$dir" "$desc" && return 0
 
-  error "Failed to extract boot image from $desc ISO image!"
+  error "Failed to extract boot image from ISO image!"
   return 1
 }
 
@@ -927,10 +901,6 @@ buildImage() {
     error "File $BOOT does already exist?!" && return 1
   fi
 
-  if [ ! -f "$dir/$ETFS" ]; then
-    error "Failed to locate file \"$ETFS\" in ISO image!" && return 1
-  fi
-
   base=$(basename "$BOOT")
   local out="$TMP/${base%.*}.tmp"
   rm -f "$out"
@@ -940,6 +910,12 @@ buildImage() {
   local msg="Building $desc image..."
   info "$msg" && html "$msg"
 
+  [ -z "$LABEL" ] && LABEL="Windows"
+
+  if [ ! -f "$dir/$ETFS" ]; then
+    error "Failed to locate file \"$ETFS\" in ISO image!" && return 1
+  fi
+
   size=$(du -h -b --max-depth=0 "$dir" | cut -f1)
   size_gb=$(( (size + 1073741823)/1073741824 ))
   space=$(df --output=avail -B 1 "$TMP" | tail -n 1)
@@ -948,8 +924,6 @@ buildImage() {
   if (( size > space )); then
     error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB." && return 1
   fi
-
-  [ -z "$LABEL" ] && LABEL="Windows"
 
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
 

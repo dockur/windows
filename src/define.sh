@@ -1977,78 +1977,6 @@ migrateFiles() {
   return 0
 }
 
-skipVersion() {
-
-  local version="$1"
-
-  case "${version,,}" in
-    "win2003"* | "win2k"* | "winxp"* | "win9"* )
-      return 0
-      ;;
-  esac
-
-  return 1
-}
-
-detectLegacy() {
-
-  local dir="$1"
-  local find find2 desc
-
-  find=$(find "$dir" -maxdepth 1 -type d -iname win95 | head -n 1)
-
-  if [ -n "$find" ]; then
-    DETECTED="win95"
-    desc=$(printEdition "$DETECTED" "Windows 95")
-    info "Detected: $desc" && return 0
-  fi
-
-  find=$(find "$dir" -maxdepth 1 -type d -iname win98 | head -n 1)
-
-  if [ -n "$find" ]; then
-    DETECTED="win98"
-    desc=$(printEdition "$DETECTED" "Windows 98")
-    info "Detected: $desc" && return 0
-  fi
-
-  find=$(find "$dir" -maxdepth 1 -type d -iname win9x | head -n 1)
-
-  if [ -n "$find" ]; then
-    DETECTED="win9x"
-    desc=$(printEdition "$DETECTED" "Windows ME")
-    info "Detected: $desc" && return 0
-  fi
-
-  find=$(find "$dir" -maxdepth 1 -type d -iname win51 | head -n 1)
-  find2=$(find "$dir" -maxdepth 1 -type f -iname setupxp.htm | head -n 1)
-
-  if [ -n "$find" ] || [ -n "$find2" ] || [ -f "$dir/WIN51AP" ] || [ -f "$dir/WIN51IC" ]; then
-    [ -d "$dir/AMD64" ] && DETECTED="winxpx64" || DETECTED="winxpx86"
-    desc=$(printEdition "$DETECTED" "Windows XP")
-    info "Detected: $desc" && return 0
-  fi
-
-  if [ -f "$dir/CDROM_NT.5" ]; then
-    DETECTED="win2k"
-    desc=$(printEdition "$DETECTED" "Windows 2000")
-    info "Detected: $desc" && return 0
-  fi
-
-  if [ -f "$dir/WIN51AA" ] || [ -f "$dir/WIN51AD" ] || [ -f "$dir/WIN51AS" ] || [ -f "$dir/WIN51MA" ] || [ -f "$dir/WIN51MD" ]; then
-    DETECTED="win2003r2"
-    desc=$(printEdition "$DETECTED" "Windows Server 2003")
-    info "Detected: $desc" && return 0
-  fi
-
-  if [ -f "$dir/WIN51IA" ] || [ -f "$dir/WIN51IB" ] || [ -f "$dir/WIN51ID" ] || [ -f "$dir/WIN51IL" ] || [ -f "$dir/WIN51IS" ]; then
-    DETECTED="win2003r2"
-    desc=$(printEdition "$DETECTED" "Windows Server 2003")
-    info "Detected: $desc" && return 0
-  fi
-
-  return 1
-}
-
 prepareInstall() {
 
   local dir="$2"
@@ -2363,28 +2291,96 @@ prepareLegacy() {
   return 1
 }
 
-prepare9x() {
+detectLegacy() {
 
-  local dir="$2"
-  local desc="$3"
+  local dir="$1"
+  local find find2
 
-  ETFS="[BOOT]/Boot-1.44M.img"
-  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
+  find=$(find "$dir" -maxdepth 1 -type d -iname win95 | head -n 1)
+  [ -n "$find" ] && DETECTED="win95" && return 0
 
-  error "Failed to locate file \"$ETFS\" in $desc ISO image!"
+  find=$(find "$dir" -maxdepth 1 -type d -iname win98 | head -n 1)
+  [ -n "$find" ] && DETECTED="win98" && return 0
+
+  find=$(find "$dir" -maxdepth 1 -type d -iname win9x | head -n 1)
+  [ -n "$find" ] && DETECTED="win9x" && return 0
+
+  find=$(find "$dir" -maxdepth 1 -type f -iname cdrom_nt.5 | head -n 1)
+  [ -n "$find" ] && DETECTED="win2k" && return 0
+
+  find=$(find "$dir" -maxdepth 1 -type d -iname win51 | head -n 1)
+  find2=$(find "$dir" -maxdepth 1 -type f -iname setupxp.htm | head -n 1)
+
+  if [ -n "$find" ] || [ -n "$find2" ] || [ -f "$dir/WIN51AP" ] || [ -f "$dir/WIN51IC" ]; then
+    [ -d "$dir/AMD64" ] && DETECTED="winxpx64" && return 0
+    DETECTED="winxpx86" && return 0
+  fi
+
+  if [ -f "$dir/WIN51IA" ] || [ -f "$dir/WIN51IB" ] || [ -f "$dir/WIN51ID" ] || [ -f "$dir/WIN51IL" ] || [ -f "$dir/WIN51IS" ]; then
+    DETECTED="win2003r2" && return 0
+  fi
+
+  if [ -f "$dir/WIN51AA" ] || [ -f "$dir/WIN51AD" ] || [ -f "$dir/WIN51AS" ] || [ -f "$dir/WIN51MA" ] || [ -f "$dir/WIN51MD" ]; then
+    DETECTED="win2003r2" && return 0
+  fi
+
   return 1
 }
 
-prepare2k() {
+skipVersion() {
 
-  local dir="$2"
-  local desc="$3"
+  local id="$1"
 
-  ETFS="[BOOT]/Boot-NoEmul.img"
-  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
+  case "${id,,}" in
+    "win9"* | "winxp"* | "win2k"* | "win2003"* )
+      return 0 ;;
+  esac
 
-  error "Failed to locate file \"$ETFS\" in $desc ISO image!"
   return 1
+}
+
+setMachine() {
+
+  local id="$1"
+  local iso="$2"
+  local dir="$3"
+  local desc="$4"
+
+  case "${id,,}" in
+    "win9"* | "win2k"* )
+      MACHINE="pc-i440fx-2.4" ;;
+    "winxp"* | "win2003"* | "winvistax86"* | "win7x86"* )
+      MACHINE="pc-q35-2.10" ;;
+  esac
+
+  case "${id,,}" in
+    "win9"* | "win2k"* | "winxp"* | "win2003"* )
+      HV="N"
+      BOOT_MODE="windows_legacy" ;;
+    "winvista"* | "win7"* | "win2008"* )
+      BOOT_MODE="windows_legacy" ;;
+  esac
+
+  case "${id,,}" in
+    "win9"* )
+      DISK_TYPE="auto"
+      ETFS="[BOOT]/Boot-1.44M.img" ;;
+    "win2k"* )
+      DISK_TYPE="auto"
+      ETFS="[BOOT]/Boot-NoEmul.img" ;;
+    "winxp"* )
+      DISK_TYPE="blk"
+      if ! prepareXP "$iso" "$dir" "$desc"; then
+        error "Failed to prepare $desc ISO!" && return 1
+      fi ;;
+    "win2003"* )
+      DISK_TYPE="blk"
+      if ! prepare2k3 "$iso" "$dir" "$desc"; then
+        error "Failed to prepare $desc ISO!" && return 1
+      fi ;;
+  esac
+
+  return 0
 }
 
 return 0
