@@ -1993,57 +1993,34 @@ skipVersion() {
 detectLegacy() {
 
   local dir="$1"
-  local find find2 desc
+  local find find2
 
   find=$(find "$dir" -maxdepth 1 -type d -iname win95 | head -n 1)
-
-  if [ -n "$find" ]; then
-    DETECTED="win95"
-    desc=$(printEdition "$DETECTED" "Windows 95")
-    info "Detected: $desc" && return 0
-  fi
+  [ -n "$find" ] && DETECTED="win95" && return 0
 
   find=$(find "$dir" -maxdepth 1 -type d -iname win98 | head -n 1)
-
-  if [ -n "$find" ]; then
-    DETECTED="win98"
-    desc=$(printEdition "$DETECTED" "Windows 98")
-    info "Detected: $desc" && return 0
-  fi
+  [ -n "$find" ] && DETECTED="win98" && return 0
 
   find=$(find "$dir" -maxdepth 1 -type d -iname win9x | head -n 1)
+  [ -n "$find" ] && DETECTED="win9x" && return 0
 
-  if [ -n "$find" ]; then
-    DETECTED="win9x"
-    desc=$(printEdition "$DETECTED" "Windows ME")
-    info "Detected: $desc" && return 0
-  fi
+  find=$(find "$dir" -maxdepth 1 -type f -iname cdrom_nt.5 | head -n 1)
+  [ -n "$find" ] && DETECTED="win2k" && return 0
 
   find=$(find "$dir" -maxdepth 1 -type d -iname win51 | head -n 1)
   find2=$(find "$dir" -maxdepth 1 -type f -iname setupxp.htm | head -n 1)
 
   if [ -n "$find" ] || [ -n "$find2" ] || [ -f "$dir/WIN51AP" ] || [ -f "$dir/WIN51IC" ]; then
-    [ -d "$dir/AMD64" ] && DETECTED="winxpx64" || DETECTED="winxpx86"
-    desc=$(printEdition "$DETECTED" "Windows XP")
-    info "Detected: $desc" && return 0
-  fi
-
-  if [ -f "$dir/CDROM_NT.5" ]; then
-    DETECTED="win2k"
-    desc=$(printEdition "$DETECTED" "Windows 2000")
-    info "Detected: $desc" && return 0
-  fi
-
-  if [ -f "$dir/WIN51AA" ] || [ -f "$dir/WIN51AD" ] || [ -f "$dir/WIN51AS" ] || [ -f "$dir/WIN51MA" ] || [ -f "$dir/WIN51MD" ]; then
-    DETECTED="win2003r2"
-    desc=$(printEdition "$DETECTED" "Windows Server 2003")
-    info "Detected: $desc" && return 0
+    [ -d "$dir/AMD64" ] && DETECTED="winxpx64" && return 0
+    DETECTED="winxpx86" && return 0
   fi
 
   if [ -f "$dir/WIN51IA" ] || [ -f "$dir/WIN51IB" ] || [ -f "$dir/WIN51ID" ] || [ -f "$dir/WIN51IL" ] || [ -f "$dir/WIN51IS" ]; then
-    DETECTED="win2003r2"
-    desc=$(printEdition "$DETECTED" "Windows Server 2003")
-    info "Detected: $desc" && return 0
+    DETECTED="win2003r2" && return 0
+  fi
+
+  if [ -f "$dir/WIN51AA" ] || [ -f "$dir/WIN51AD" ] || [ -f "$dir/WIN51AS" ] || [ -f "$dir/WIN51MA" ] || [ -f "$dir/WIN51MD" ]; then
+    DETECTED="win2003r2" && return 0
   fi
 
   return 1
@@ -2357,30 +2334,6 @@ prepareLegacy() {
     error "Failed to extract boot image from $desc ISO!" && return 1
   fi
 
-  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
-
-  error "Failed to locate file \"$ETFS\" in $desc ISO image!"
-  return 1
-}
-
-prepare9x() {
-
-  local dir="$2"
-  local desc="$3"
-
-  ETFS="[BOOT]/Boot-1.44M.img"
-  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
-
-  error "Failed to locate file \"$ETFS\" in $desc ISO image!"
-  return 1
-}
-
-prepare2k() {
-
-  local dir="$2"
-  local desc="$3"
-
-  ETFS="[BOOT]/Boot-NoEmul.img"
   [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
 
   error "Failed to locate file \"$ETFS\" in $desc ISO image!"
