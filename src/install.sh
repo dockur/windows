@@ -584,7 +584,7 @@ prepareImage() {
 
   desc=$(printVersion "$DETECTED" "$DETECTED")
 
-  ! setMachine "$DETECTED" "$iso" "$dir" && return 1
+  ! setMachine "$DETECTED" "$iso" "$dir" "$desc" && return 1
   skipVersion "$DETECTED" && return 0
 
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
