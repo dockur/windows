@@ -2344,9 +2344,7 @@ setMachine() {
   local id="$1"
   local iso="$2"
   local dir="$3"
-  local desc=""
-
-  desc=$(printVersion "$id" "$id")
+  local desc="$4"
 
   case "${id,,}" in
     "win9"* | "win2k"* )
