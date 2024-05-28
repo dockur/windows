@@ -515,7 +515,12 @@ detectImage() {
   fi
 
   info "Detecting version from ISO image..."
-  detectLegacy "$dir" && return 0
+
+  if detectLegacy "$dir"; then
+    desc=$(printEdition "$DETECTED" "$DETECTED")
+    info "Detected: $desc"
+    return 0
+  fi
 
   local src wim info
   src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
@@ -597,12 +602,12 @@ prepareImage() {
   case "${DETECTED,,}" in
     "win9"* )
       DISK_TYPE="auto"
-      prepare9x "$iso" "$dir" "$desc" && return 0
-      error "Failed to prepare $desc ISO!" && return 1 ;;
+      ETFS="[BOOT]/Boot-1.44M.img"
+      return 0
     "win2k"* )
       DISK_TYPE="auto"
-      prepare2k "$iso" "$dir" "$desc" && return 0
-      error "Failed to prepare $desc ISO!" && return 1 ;;
+      ETFS="[BOOT]/Boot-NoEmul.img"
+      return 0
     "winxp"* )
       DISK_TYPE="blk"
       prepareXP "$iso" "$dir" "$desc" && return 0
@@ -927,10 +932,6 @@ buildImage() {
     error "File $BOOT does already exist?!" && return 1
   fi
 
-  if [ ! -f "$dir/$ETFS" ]; then
-    error "Failed to locate file \"$ETFS\" in ISO image!" && return 1
-  fi
-
   base=$(basename "$BOOT")
   local out="$TMP/${base%.*}.tmp"
   rm -f "$out"
@@ -940,6 +941,12 @@ buildImage() {
   local msg="Building $desc image..."
   info "$msg" && html "$msg"
 
+  [ -z "$LABEL" ] && LABEL="Windows"
+
+  if [ ! -f "$dir/$ETFS" ]; then
+    error "Failed to locate file \"$ETFS\" in ISO image!" && return 1
+  fi
+
   size=$(du -h -b --max-depth=0 "$dir" | cut -f1)
   size_gb=$(( (size + 1073741823)/1073741824 ))
   space=$(df --output=avail -B 1 "$TMP" | tail -n 1)
@@ -948,8 +955,6 @@ buildImage() {
   if (( size > space )); then
     error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB." && return 1
   fi
-
-  [ -z "$LABEL" ] && LABEL="Windows"
 
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
 
