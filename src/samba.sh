@@ -72,19 +72,20 @@ mkdir -p "$share"
 
 ! smbd && smbd --debug-stdout
 
-legacy="N"
+legacy=""
 
 if [ -f "$STORAGE/windows.old" ]; then
   MT=$(<"$STORAGE/windows.old")
-  [[ "${MT,,}" == "pc-q35-2"* ]] && legacy="Y"
+  [[ "${MT,,}" == "pc-q35-2"* ]] && legacy="y"
+  [[ "${MT,,}" == "pc-i440fx-2"* ]] && legacy="y"
 fi
 
-if [[ "$legacy" == [Yy1]* ]]; then
+if [ -n "$legacy" ]; then
   [[ "$DHCP" == [Yy1]* ]] && return 0
-  # Enable NetBIOS on Windows XP
+  # Enable NetBIOS on Windows XP and lower
   ! nmbd && nmbd --debug-stdout
 else
-  # Enable Web Service Discovery
+  # Enable Web Service Discovery on Vista and up
   wsdd -i "$interface" -p -n "$hostname" &
   echo "$!" > /var/run/wsdd.pid
 fi
