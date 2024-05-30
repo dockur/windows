@@ -11,7 +11,6 @@ set -Eeuo pipefail
 : "${LANGUAGE:=""}"
 : "${USERNAME:=""}"
 : "${PASSWORD:=""}"
-: "${README:=""}"
 
 MIRRORS=5
 PLATFORM="x64"
