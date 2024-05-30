@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+: "${README:="Y"}"
 : "${SAMBA:="Y"}"
 
 [[ "$SAMBA" != [Yy1]* ]] && return 0
@@ -50,25 +51,27 @@ mkdir -p "$share"
         echo "    force group = root"
 } > "/etc/samba/smb.conf"
 
-{      echo "--------------------------------------------------------"
-        echo " $APP for Docker v$(</run/version)..."
-        echo " For support visit $SUPPORT"
-        echo "--------------------------------------------------------"
-        echo ""
-        echo "Using this folder you can share files with the host machine."
-        echo ""
-        echo "To change its location, include the following bind mount in your compose file:"
-        echo ""
-        echo "  volumes:"
-        echo "    - \"/home/user/example:/shared\""
-        echo ""
-        echo "Or in your run command:"
-        echo ""
-        echo "  -v \"/home/user/example:/shared\""
-        echo ""
-        echo "Replace the example path /home/user/example with the desired shared folder."
-        echo ""
-} | unix2dos > "$share/readme.txt"
+if [[ "$README" == [Yy1]* ]] ;then
+  { echo "--------------------------------------------------------"
+    echo " $APP for Docker v$(</run/version)..."
+    echo " For support visit $SUPPORT"
+    echo "--------------------------------------------------------"
+    echo ""
+    echo "Using this folder you can share files with the host machine."
+    echo ""
+    echo "To change its location, include the following bind mount in your compose file:"
+    echo ""
+    echo "  volumes:"
+    echo "    - \"/home/user/example:/shared\""
+    echo ""
+    echo "Or in your run command:"
+    echo ""
+    echo "  -v \"/home/user/example:/shared\""
+    echo ""
+    echo "Replace the example path /home/user/example with the desired shared folder."
+    echo ""
+  } | unix2dos > "$share/readme.txt"
+fi
 
 ! smbd && smbd --debug-stdout
 

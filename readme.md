@@ -161,6 +161,13 @@ kubectl apply -f kubernetes.yml
 
   The example folder `/home/user/example` will be available as ` \\host.lan\Data`. You can optionally map this path to a drive letter in Windows, for easier access.
 
+  At boot, the file `readme.txt` will be created on the folder unless you disable it:
+
+  ```yaml
+  environment:
+    README: "N"
+  ```
+
 * ### How do I install a custom image?
 
   In order to download an unsupported ISO image that is not selectable from the list above, specify the URL of that ISO in the `VERSION` environment variable, for example:
