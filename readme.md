@@ -86,6 +86,7 @@ kubectl apply -f kubernetes.yml
   | **Value** | **Version**              | **Size** |
   |---|---|---|
   | `win11`   | Windows 11 Pro           | 6.4 GB   |
+  | `ltsc11`  | Windows 11 LTSC        | 4.6 GB   |
   | `win11e`  | Windows 11 Enterprise    | 5.8 GB   |
   | `win10`   | Windows 10 Pro           | 5.7 GB   |
   | `ltsc10`  | Windows 10 LTSC          | 4.6 GB   |
@@ -97,11 +98,13 @@ kubectl apply -f kubernetes.yml
   | `vista`   | Windows Vista Enterprise | 3.0 GB   |
   | `winxp`   | Windows XP Professional  | 0.6 GB   |
   ||||
+  | `2025`    | Windows Server 2025      | 5.0 GB   |
   | `2022`    | Windows Server 2022      | 4.7 GB   |
   | `2019`    | Windows Server 2019      | 5.3 GB   |
   | `2016`    | Windows Server 2016      | 6.5 GB   |
   | `2012`    | Windows Server 2012      | 4.3 GB   |
   | `2008`    | Windows Server 2008      | 3.0 GB   |
+  | `2003`    | Windows Server 2003      | 0.6 GB   |
   ||||
   | `core11`  | Tiny 11 Core             | 2.1 GB   |
   | `tiny11`  | Tiny 11                  | 3.8 GB   |
