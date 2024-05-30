@@ -2158,7 +2158,7 @@ prepareInstall() {
           echo "\"LimitBlankPasswordUse\"=dword:00000000"
           echo ""
           echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\srvWiz]"
-          echo "@=dword:00000000"          
+          echo "@=dword:00000000"
           echo ""
           echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Applets\Tour]"
           echo "\"RunCount\"=dword:00000000"
