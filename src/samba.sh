@@ -21,34 +21,11 @@ if [ ! -d "$share" ] && [ -d "$STORAGE/shared" ]; then
 fi
 
 mkdir -p "$share"
-if [ -z "$(ls -A "$share")" ] ;then
+
+if [ -z "$(ls -A "$share")" ]; then
+
   chmod 777 "$share"
-  {      echo "[global]"
-          echo "    server string = Dockur"
-          echo "    netbios name = $hostname"
-          echo "    workgroup = WORKGROUP"
-          echo "    interfaces = $interface"
-          echo "    bind interfaces only = yes"
-          echo "    security = user"
-          echo "    guest account = nobody"
-          echo "    map to guest = Bad User"
-          echo "    server min protocol = NT1"
-          echo ""
-          echo "    # disable printing services"
-          echo "    load printers = no"
-          echo "    printing = bsd"
-          echo "    printcap name = /dev/null"
-          echo "    disable spoolss = yes"
-          echo ""
-          echo "[Data]"
-          echo "    path = $share"
-          echo "    comment = Shared"
-          echo "    writable = yes"
-          echo "    guest ok = yes"
-          echo "    guest only = yes"
-          echo "    force user = root"
-          echo "    force group = root"
-  } > "/etc/samba/smb.conf"
+
   {      echo "--------------------------------------------------------"
           echo " $APP for Docker v$(</run/version)..."
           echo " For support visit $SUPPORT"
@@ -68,7 +45,35 @@ if [ -z "$(ls -A "$share")" ] ;then
           echo "Replace the example path /home/user/example with the desired shared folder."
           echo ""
   } | unix2dos > "$share/readme.txt"
+
 fi
+
+{      echo "[global]"
+        echo "    server string = Dockur"
+        echo "    netbios name = $hostname"
+        echo "    workgroup = WORKGROUP"
+        echo "    interfaces = $interface"
+        echo "    bind interfaces only = yes"
+        echo "    security = user"
+        echo "    guest account = nobody"
+        echo "    map to guest = Bad User"
+        echo "    server min protocol = NT1"
+        echo ""
+        echo "    # disable printing services"
+        echo "    load printers = no"
+        echo "    printing = bsd"
+        echo "    printcap name = /dev/null"
+        echo "    disable spoolss = yes"
+        echo ""
+        echo "[Data]"
+        echo "    path = $share"
+        echo "    comment = Shared"
+        echo "    writable = yes"
+        echo "    guest ok = yes"
+        echo "    guest only = yes"
+        echo "    force user = root"
+        echo "    force group = root"
+} > "/etc/samba/smb.conf"
 
 ! smbd && smbd --debug-stdout
 
