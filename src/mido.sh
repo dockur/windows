@@ -416,7 +416,9 @@ getESD() {
   local fFile="products_filter.xml"
 
   { wget "$winCatalog" -O "$dir/$wFile" -q --timeout=30; rc=$?; } || :
+
   (( rc == 4 )) && error "Failed to download $winCatalog , network failure!" && return 1
+  (( rc == 8 )) && error "Failed to download $winCatalog , server issued an error response!" && return 1
   (( rc != 0 )) && error "Failed to download $winCatalog , reason: $rc" && return 1
 
   cd "$dir"
@@ -495,8 +497,6 @@ verifyFile() {
   fi
 
   error "The downloaded file has an invalid $algo checksum: $hash , while expected value was: $check. Please report this at $SUPPORT/issues"
-
-  rm -f "$iso"
   return 1
 }
 
@@ -539,19 +539,17 @@ downloadFile() {
 
   if (( rc == 0 )) && [ -f "$iso" ]; then
     total=$(stat -c%s "$iso")
-    if [ "$total" -gt 100000000 ]; then
-      ! verifyFile "$iso" "$size" "$total" "$sum" && return 1
-      html "Download finished successfully..." && return 0
+    if [ "$total" -lt 100000000 ]; then
+      error "Downloaded ISO is only $total bytes?" && return 1
     fi
+    ! verifyFile "$iso" "$size" "$total" "$sum" && return 1
+    html "Download finished successfully..." && return 0
   fi
 
-  if (( rc != 4 )); then
-    error "Failed to download $url , reason: $rc"
-  else
-    error "Failed to download $url , network failure!"
-  fi
+  (( rc == 4 )) && error "Failed to download $url , network failure!" && return 1
+  (( rc == 8 )) && error "Failed to download $url , server issued an error response!" && return 1
 
-  rm -f "$iso"
+  error "Failed to download $url , reason: $rc"
   return 1
 }
 
@@ -567,6 +565,7 @@ downloadImage() {
     base=$(basename "$iso")
     desc=$(fromFile "$base")
     downloadFile "$iso" "$version" "" "" "" "$desc" && return 0
+    rm -f "$iso"
     return 1
   fi
 
@@ -591,6 +590,7 @@ downloadImage() {
       size=$(getMido "$version" "$lang" "size" )
       sum=$(getMido "$version" "$lang" "sum")
       downloadFile "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$desc" && return 0
+      rm -f "$iso"
     fi
   fi
 
@@ -607,6 +607,7 @@ downloadImage() {
     if getESD "$TMP/esd" "$version" "$lang" "$desc"; then
       ISO="${ISO%.*}.esd"
       downloadFile "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$lang" "$desc" && return 0
+      rm -f "$ISO"
       ISO="$iso"
     fi
 
@@ -624,6 +625,7 @@ downloadImage() {
       size=$(getSize "$i" "$version" "$lang")
       sum=$(getHash "$i" "$version" "$lang")
       downloadFile "$iso" "$url" "$sum" "$size" "$lang" "$desc" && return 0
+      rm -f "$iso"
     fi
 
   done
