@@ -75,7 +75,10 @@ fi
         echo "    force group = root"
 } > "/etc/samba/smb.conf"
 
-! smbd && smbd --debug-stdout
+if ! smbd; then
+  error "Samba daemon failed to start!"
+  smbd -i --debug-stdout || true
+fi
 
 legacy=""
 
@@ -86,9 +89,11 @@ if [ -f "$STORAGE/windows.old" ]; then
 fi
 
 if [ -n "$legacy" ]; then
-  [[ "$DHCP" == [Yy1]* ]] && return 0
   # Enable NetBIOS on Windows XP and lower
-  ! nmbd && nmbd --debug-stdout
+  if ! nmbd; then
+    error "NetBIOS daemon failed to start!"
+    nmbd -i --debug-stdout || true
+  fi
 else
   # Enable Web Service Discovery on Vista and up
   wsdd -i "$interface" -p -n "$hostname" &
