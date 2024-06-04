@@ -333,6 +333,8 @@ kubectl apply -f kubernetes.yml
     - /dev/bus/usb
   ```
 
+  Please note that in case of USB disk drives it is needed to wait until after the installation is completed, before adding them. Otherwise Windows will try to install itself to wrong disk, as the order of the disks will be rearranged.
+
 * ### Is this project legal?
 
   Yes, this project contains only open-source code and does not distribute any copyrighted material. Any product keys found in the code are just generic placeholders provided by Microsoft for trial purposes. So under all applicable laws, this project would be considered legal.
