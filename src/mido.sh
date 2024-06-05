@@ -85,7 +85,7 @@ download_windows() {
 
   local url="https://www.microsoft.com/en-us/software-download/windows$windows_version"
   case "$windows_version" in
-    8 | 10) url="${url}ISO";;
+    8 | 10) url+="ISO";;
   esac
 
   # uuidgen: For MacOS (installed by default) and other systems (e.g. with no /proc) that don't have a kernel interface for generating random UUIDs
@@ -546,10 +546,11 @@ downloadFile() {
     html "Download finished successfully..." && return 0
   fi
 
-  (( rc == 4 )) && error "Failed to download $url , network failure!" && return 1
-  (( rc == 8 )) && error "Failed to download $url , server issued an error response!" && return 1
+  msg="Failed to download $url"
+  (( rc == 4 )) && error "$msg , network failure!" && return 1
+  (( rc == 8 )) && error "$msg , server issued an error response!" && return 1
 
-  error "Failed to download $url , reason: $rc"
+  error "$msg , reason: $rc"
   return 1
 }
 
@@ -581,7 +582,7 @@ downloadImage() {
       desc=$(printEdition "$version" "$desc")
       error "The $language language version of $desc is not available, please switch to English." && return 1
     fi
-    desc="$desc in $language"
+    desc+=" in $language"
   fi
 
   if isMido "$version" "$lang"; then
