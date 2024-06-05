@@ -167,10 +167,13 @@ abortInstall() {
 
   local dir="$1"
   local iso="$2"
+  local efi
 
   [[ "${iso,,}" == *".esd" ]] && exit 60
 
-  if [ ! -d "$dir/EFI" ]; then
+  efi=$(find "$dir" -maxdepth 1 -type d -iname efi | head -n 1)
+
+  if [ -z "$efi" ]; then
     [[ "${PLATFORM,,}" == "x64" ]] && BOOT_MODE="windows_legacy"
   fi
 
