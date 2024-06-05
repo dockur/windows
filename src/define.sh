@@ -446,7 +446,7 @@ printEdition() {
       ;;
   esac
 
-  [ -n "$edition" ] && result="$result $edition"
+  [ -n "$edition" ] && result+=" $edition"
 
   echo "$result"
   return 0
