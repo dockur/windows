@@ -417,9 +417,10 @@ getESD() {
 
   { wget "$winCatalog" -O "$dir/$wFile" -q --timeout=30; rc=$?; } || :
 
-  (( rc == 4 )) && error "Failed to download $winCatalog , network failure!" && return 1
-  (( rc == 8 )) && error "Failed to download $winCatalog , server issued an error response!" && return 1
-  (( rc != 0 )) && error "Failed to download $winCatalog , reason: $rc" && return 1
+  msg="Failed to download $winCatalog"
+  (( rc == 4 )) && error "$msg , network failure!" && return 1
+  (( rc == 8 )) && error "$msg , server issued an error response!" && return 1
+  (( rc != 0 )) && error "$msg , reason: $rc" && return 1
 
   cd "$dir"
 
