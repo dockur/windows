@@ -519,19 +519,19 @@ downloadFile() {
     progress="--progress=dot:giga"
   fi
 
-  local msg="Downloading $desc..."
-  html "$msg"
+  local msg="Downloading $desc"
+  html "$msg..."
 
   domain=$(echo "$url" | awk -F/ '{print $3}')
   dots=$(echo "$domain" | tr -cd '.' | wc -c)
   (( dots > 1 )) && domain=$(expr "$domain" : '.*\.\(.*\..*\)')
 
   if [ -n "$domain" ] && [[ "${domain,,}" != *"microsoft.com" ]]; then
-    msg="Downloading $desc from $domain..."
+    msg="Downloading $desc from $domain"
   fi
 
-  info "$msg"
-  /run/progress.sh "$iso" "$size" "Downloading $desc ([P])..." &
+  info "$msg..."
+  /run/progress.sh "$iso" "$size" "$msg ([P])..." &
 
   { wget "$url" -O "$iso" -q --timeout=30 --show-progress "$progress"; rc=$?; } || :
 
