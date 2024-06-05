@@ -557,7 +557,7 @@ detectImage() {
 
   if [[ "${LANGUAGE,,}" != "en" ]] && [[ "${LANGUAGE,,}" != "en-"* ]]; then
     language=$(getLanguage "$LANGUAGE" "desc")
-    desc="$desc ($language)"
+    desc=+" ($language)"
   fi
 
   info "Detected: $desc"
