@@ -179,6 +179,14 @@ kubectl apply -f kubernetes.yml
 
   Replace the example path `/home/user/example.iso` with the filename of your desired ISO file, the value of `VERSION` will be ignored in this case.
 
+  If you want to download the ISO beforehand, you can use [Mido](https://github.com/ElliotKillick/Mido):
+
+  ```bash
+  wget https://raw.githubusercontent.com/ElliotKillick/Mido/main/Mido.sh
+  chmod a+x Mido.sh
+  ./Mido.sh --help
+  ```
+
 * ### How do I run a script after installation?
 
   To run your own script after installation, you can create a file called `install.bat` and place it in a folder together with any additional files it needs (software to be installed for example). Then bind that folder in your compose file like this:
