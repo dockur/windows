@@ -333,7 +333,7 @@ kubectl apply -f kubernetes.yml
     - /dev/bus/usb
   ```
 
-  Please note that in case of USB disk drives, it is needed to wait until after the installation is completed before adding them. Otherwise Windows tries to install itself to wrong disk, as the order of the disks will get rearranged.
+  In case the device is a USB disk drive, please wait until after the installation is completed before connecting it. Otherwise the installation may fail, as the order of the disks can get rearranged.
 
 * ### Is this project legal?
 
