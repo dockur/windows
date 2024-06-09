@@ -216,7 +216,7 @@ _graceful_shutdown() {
 
 SERIAL="pty"
 MONITOR="telnet:localhost:$QEMU_PORT,server,nowait,nodelay"
-MONITOR="$MONITOR -daemonize -D $QEMU_LOG -pidfile $QEMU_PID"
+MONITOR+=" -daemonize -D $QEMU_LOG -pidfile $QEMU_PID"
 
 _trap _graceful_shutdown SIGTERM SIGHUP SIGINT SIGABRT SIGQUIT
 

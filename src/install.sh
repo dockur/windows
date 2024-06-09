@@ -167,10 +167,13 @@ abortInstall() {
 
   local dir="$1"
   local iso="$2"
+  local efi
 
   [[ "${iso,,}" == *".esd" ]] && exit 60
 
-  if [ ! -d "$dir/EFI" ]; then
+  efi=$(find "$dir" -maxdepth 1 -type d -iname efi | head -n 1)
+
+  if [ -z "$efi" ]; then
     [[ "${PLATFORM,,}" == "x64" ]] && BOOT_MODE="windows_legacy"
   fi
 
@@ -557,7 +560,7 @@ detectImage() {
 
   if [[ "${LANGUAGE,,}" != "en" ]] && [[ "${LANGUAGE,,}" != "en-"* ]]; then
     language=$(getLanguage "$LANGUAGE" "desc")
-    desc="$desc ($language)"
+    desc=+" ($language)"
   fi
 
   info "Detected: $desc"
@@ -669,7 +672,7 @@ addDriver() {
     "win81x64"* ) folder="w8.1/amd64" ;;
     "win10x64"* ) folder="w10/amd64" ;;
     "win11x64"* ) folder="w11/amd64" ;;
-    "win2025"* ) folder="2k22/amd64" ;;
+    "win2025"* ) folder="w11/amd64" ;;
     "win2022"* ) folder="2k22/amd64" ;;
     "win2019"* ) folder="2k19/amd64" ;;
     "win2016"* ) folder="2k16/amd64" ;;

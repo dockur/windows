@@ -85,7 +85,7 @@ download_windows() {
 
   local url="https://www.microsoft.com/en-us/software-download/windows$windows_version"
   case "$windows_version" in
-    8 | 10) url="${url}ISO";;
+    8 | 10) url+="ISO";;
   esac
 
   # uuidgen: For MacOS (installed by default) and other systems (e.g. with no /proc) that don't have a kernel interface for generating random UUIDs
@@ -416,8 +416,11 @@ getESD() {
   local fFile="products_filter.xml"
 
   { wget "$winCatalog" -O "$dir/$wFile" -q --timeout=30; rc=$?; } || :
-  (( rc == 4 )) && error "Failed to download $winCatalog , network failure!" && return 1
-  (( rc != 0 )) && error "Failed to download $winCatalog , reason: $rc" && return 1
+
+  msg="Failed to download $winCatalog"
+  (( rc == 4 )) && error "$msg , network failure!" && return 1
+  (( rc == 8 )) && error "$msg , server issued an error response!" && return 1
+  (( rc != 0 )) && error "$msg , reason: $rc" && return 1
 
   cd "$dir"
 
@@ -495,8 +498,6 @@ verifyFile() {
   fi
 
   error "The downloaded file has an invalid $algo checksum: $hash , while expected value was: $check. Please report this at $SUPPORT/issues"
-
-  rm -f "$iso"
   return 1
 }
 
@@ -519,19 +520,19 @@ downloadFile() {
     progress="--progress=dot:giga"
   fi
 
-  local msg="Downloading $desc..."
-  html "$msg"
+  local msg="Downloading $desc"
+  html "$msg..."
 
   domain=$(echo "$url" | awk -F/ '{print $3}')
   dots=$(echo "$domain" | tr -cd '.' | wc -c)
   (( dots > 1 )) && domain=$(expr "$domain" : '.*\.\(.*\..*\)')
 
   if [ -n "$domain" ] && [[ "${domain,,}" != *"microsoft.com" ]]; then
-    msg="Downloading $desc from $domain..."
+    msg="Downloading $desc from $domain"
   fi
 
-  info "$msg"
-  /run/progress.sh "$iso" "$size" "Downloading $desc ([P])..." &
+  info "$msg..."
+  /run/progress.sh "$iso" "$size" "$msg ([P])..." &
 
   { wget "$url" -O "$iso" -q --timeout=30 --show-progress "$progress"; rc=$?; } || :
 
@@ -539,19 +540,18 @@ downloadFile() {
 
   if (( rc == 0 )) && [ -f "$iso" ]; then
     total=$(stat -c%s "$iso")
-    if [ "$total" -gt 100000000 ]; then
-      ! verifyFile "$iso" "$size" "$total" "$sum" && return 1
-      html "Download finished successfully..." && return 0
+    if [ "$total" -lt 100000000 ]; then
+      error "Downloaded ISO is only $total bytes?" && return 1
     fi
+    ! verifyFile "$iso" "$size" "$total" "$sum" && return 1
+    html "Download finished successfully..." && return 0
   fi
 
-  if (( rc != 4 )); then
-    error "Failed to download $url , reason: $rc"
-  else
-    error "Failed to download $url , network failure!"
-  fi
+  msg="Failed to download $url"
+  (( rc == 4 )) && error "$msg , network failure!" && return 1
+  (( rc == 8 )) && error "$msg , server issued an error response!" && return 1
 
-  rm -f "$iso"
+  error "$msg , reason: $rc"
   return 1
 }
 
@@ -567,6 +567,7 @@ downloadImage() {
     base=$(basename "$iso")
     desc=$(fromFile "$base")
     downloadFile "$iso" "$version" "" "" "" "$desc" && return 0
+    rm -f "$iso"
     return 1
   fi
 
@@ -582,7 +583,7 @@ downloadImage() {
       desc=$(printEdition "$version" "$desc")
       error "The $language language version of $desc is not available, please switch to English." && return 1
     fi
-    desc="$desc in $language"
+    desc+=" in $language"
   fi
 
   if isMido "$version" "$lang"; then
@@ -591,6 +592,7 @@ downloadImage() {
       size=$(getMido "$version" "$lang" "size" )
       sum=$(getMido "$version" "$lang" "sum")
       downloadFile "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$desc" && return 0
+      rm -f "$iso"
     fi
   fi
 
@@ -607,6 +609,7 @@ downloadImage() {
     if getESD "$TMP/esd" "$version" "$lang" "$desc"; then
       ISO="${ISO%.*}.esd"
       downloadFile "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$lang" "$desc" && return 0
+      rm -f "$ISO"
       ISO="$iso"
     fi
 
@@ -624,6 +627,7 @@ downloadImage() {
       size=$(getSize "$i" "$version" "$lang")
       sum=$(getHash "$i" "$version" "$lang")
       downloadFile "$iso" "$url" "$sum" "$size" "$lang" "$desc" && return 0
+      rm -f "$iso"
     fi
 
   done
