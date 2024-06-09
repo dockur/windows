@@ -86,26 +86,22 @@ kubectl apply -f kubernetes.yml
   | **Value** | **Version**              | **Size** |
   |---|---|---|
   | `win11`   | Windows 11 Pro           | 6.4 GB   |
-  | `ltsc11`  | Windows 11 LTSC        | 4.6 GB   |
   | `win11e`  | Windows 11 Enterprise    | 5.8 GB   |
-  ||||
   | `win10`   | Windows 10 Pro           | 5.7 GB   |
   | `ltsc10`  | Windows 10 LTSC          | 4.6 GB   |
   | `win10e`  | Windows 10 Enterprise    | 5.2 GB   |
-  ||||
+  ||||  
   | `win8`    | Windows 8.1 Pro          | 4.0 GB   |
   | `win8e`   | Windows 8.1 Enterprise   | 3.7 GB   |
   | `win7`    | Windows 7 Enterprise     | 3.0 GB   |
   | `vista`   | Windows Vista Enterprise | 3.0 GB   |
   | `winxp`   | Windows XP Professional  | 0.6 GB   |
   ||||
-  | `2025`    | Windows Server 2025      | 5.0 GB   |
   | `2022`    | Windows Server 2022      | 4.7 GB   |
   | `2019`    | Windows Server 2019      | 5.3 GB   |
   | `2016`    | Windows Server 2016      | 6.5 GB   |
   | `2012`    | Windows Server 2012      | 4.3 GB   |
   | `2008`    | Windows Server 2008      | 3.0 GB   |
-  | `2003`    | Windows Server 2003      | 0.6 GB   |
   ||||
   | `core11`  | Tiny 11 Core             | 2.1 GB   |
   | `tiny11`  | Tiny 11                  | 3.8 GB   |
@@ -124,16 +120,14 @@ kubectl apply -f kubernetes.yml
 
   You can choose between `Arabic`, `Bulgarian`, `Chinese`, `Croatian`, `Czech`, `Danish`, `Dutch`, `Estonian`, `Finnish`, `French`, `German`, `Greek`, `Hebrew`, `Hungarian`, `Italian`, `Japanese`, `Korean`, `Latvian`, `Lithuanian`, `Norwegian`, `Polish`, `Portuguese`, `Romanian`, `Russian`, `Serbian`, `Slovak`, `Slovenian`, `Spanish`, `Swedish`, `Turkish`, `Thai` and `Ukrainian`.
 
-  If you want to use a keyboard layout or locale that is not the default for your selected language, you can add the `KEYBOARD` and `REGION` variables with a culture code, like this:
+  If you want to use a keyboard layout or locale that is not the default for the selected language, you can add the `KEYBOARD` and `REGION` variables with a culture code, like this:
 
   ```yaml
   environment:
     REGION: "en-US"
     KEYBOARD: "en-US"
   ```
-
-  Please note that changing these values will have no effect after the installation already has been performed. In that case you can use the Control Panel inside Windows for these settings.
-
+  
 * ### How do I change the storage location?
 
   To change the storage location, include the following bind mount in your compose file:
@@ -341,7 +335,7 @@ kubectl apply -f kubernetes.yml
 
 * ### Is this project legal?
 
-  Yes, this project contains only open-source code and does not distribute any copyrighted material. Any product keys found in the code are just generic placeholders provided by Microsoft for trial purposes. So under all applicable laws, this project will be considered legal.
+  Yes, this project contains only open-source code and does not distribute any copyrighted material. Any product keys found in the code are just generic placeholders provided by Microsoft for trial purposes. So under all applicable laws, this project would be considered legal.
 
 ## Stars
 [![Stars](https://starchart.cc/dockur/windows.svg?variant=adaptive)](https://starchart.cc/dockur/windows)
