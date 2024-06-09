@@ -120,14 +120,16 @@ kubectl apply -f kubernetes.yml
 
   You can choose between `Arabic`, `Bulgarian`, `Chinese`, `Croatian`, `Czech`, `Danish`, `Dutch`, `Estonian`, `Finnish`, `French`, `German`, `Greek`, `Hebrew`, `Hungarian`, `Italian`, `Japanese`, `Korean`, `Latvian`, `Lithuanian`, `Norwegian`, `Polish`, `Portuguese`, `Romanian`, `Russian`, `Serbian`, `Slovak`, `Slovenian`, `Spanish`, `Swedish`, `Turkish`, `Thai` and `Ukrainian`.
 
-  If you want to use a keyboard layout or locale that is not the default for the selected language, you can add the `KEYBOARD` and `REGION` variables with a culture code, like this:
+  If you want to use a keyboard layout or locale that is not the default for your selected language, you can add the `KEYBOARD` and `REGION` variables with a culture code, like this:
 
   ```yaml
   environment:
     REGION: "en-US"
     KEYBOARD: "en-US"
   ```
-  
+
+  Please note that changing these values will have no effect after the installation already has been performed. In that case you can use the Control Panel inside Windows for these settings.
+
 * ### How do I change the storage location?
 
   To change the storage location, include the following bind mount in your compose file:
@@ -343,7 +345,7 @@ kubectl apply -f kubernetes.yml
 
 * ### Is this project legal?
 
-  Yes, this project contains only open-source code and does not distribute any copyrighted material. Any product keys found in the code are just generic placeholders provided by Microsoft for trial purposes. So under all applicable laws, this project would be considered legal.
+  Yes, this project contains only open-source code and does not distribute any copyrighted material. Any product keys found in the code are just generic placeholders provided by Microsoft for trial purposes. So under all applicable laws, this project will be considered legal.
 
 ## Stars
 [![Stars](https://starchart.cc/dockur/windows.svg?variant=adaptive)](https://starchart.cc/dockur/windows)
