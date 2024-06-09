@@ -201,17 +201,6 @@ kubectl apply -f kubernetes.yml
     MANUAL: "Y"
   ```
 
-* ### How do I verify if my system supports KVM?
-
-  To verify if your system supports KVM, run the following commands:
-
-  ```bash
-  sudo apt install cpu-checker
-  sudo kvm-ok
-  ```
-
-  If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check the virtualization settings in the BIOS.
-
 * ### How do I change the amount of CPU or RAM?
 
   By default, the container will be allowed to use a maximum of 2 CPU cores and 4 GB of RAM.
@@ -334,6 +323,17 @@ kubectl apply -f kubernetes.yml
   ```
 
   In case the device is a USB disk drive, please wait until after the installation is completed before connecting it. Otherwise the installation may fail, as the order of the disks can get rearranged.
+
+* ### How do I verify if my system supports KVM?
+
+  To verify if your system supports KVM, run the following commands:
+
+  ```bash
+  sudo apt install cpu-checker
+  sudo kvm-ok
+  ```
+
+  If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check the virtualization settings in the BIOS.
 
 * ### How do I run macOS in a container?
 
