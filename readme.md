@@ -120,14 +120,16 @@ kubectl apply -f kubernetes.yml
 
   You can choose between `Arabic`, `Bulgarian`, `Chinese`, `Croatian`, `Czech`, `Danish`, `Dutch`, `Estonian`, `Finnish`, `French`, `German`, `Greek`, `Hebrew`, `Hungarian`, `Italian`, `Japanese`, `Korean`, `Latvian`, `Lithuanian`, `Norwegian`, `Polish`, `Portuguese`, `Romanian`, `Russian`, `Serbian`, `Slovak`, `Slovenian`, `Spanish`, `Swedish`, `Turkish`, `Thai` and `Ukrainian`.
 
-  If you want to use a keyboard layout or locale that is not the default for the selected language, you can add the `KEYBOARD` and `REGION` variables with a culture code, like this:
+  If you want to use a keyboard layout or locale that is not the default for your selected language, you can add the `KEYBOARD` and `REGION` variables with a culture code, like this:
 
   ```yaml
   environment:
     REGION: "en-US"
     KEYBOARD: "en-US"
   ```
-  
+
+  Please note that changing these values will have no effect after the installation already has been performed. In that case you can use the Control Panel inside Windows for these settings.
+
 * ### How do I change the storage location?
 
   To change the storage location, include the following bind mount in your compose file:
@@ -326,14 +328,16 @@ kubectl apply -f kubernetes.yml
 
 * ### How do I verify if my system supports KVM?
 
-  To verify if your system supports KVM, run the following commands:
+  To verify that your system supports KVM, run the following commands:
 
   ```bash
   sudo apt install cpu-checker
   sudo kvm-ok
   ```
 
-  If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check the virtualization settings in the BIOS.
+  If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check whether the virtualization extensions (`Intel VT-x` or `AMD SVM`) are enabled in your BIOS. If you are running the container inside a VM instead of directly on the host, you will also need to enable nested virtualization in its settings. If you are using a cloud provider, you may be out of luck as most of them do not allow nested virtualization for their VPS's. If you are using Windows 10 or MacOS, you are also out of luck, as only Linux and Windows 11 support KVM.
+
+  If you don't receive any error from `kvm-ok` at all, but the container still complains that `/dev/kvm` is missing, it might help to add `privileged: true` to your compose file (or `--privileged` to your `run` command), to rule out any permission issue.
 
 * ### How do I run macOS in a container?
 
@@ -341,7 +345,7 @@ kubectl apply -f kubernetes.yml
 
 * ### Is this project legal?
 
-  Yes, this project contains only open-source code and does not distribute any copyrighted material. Any product keys found in the code are just generic placeholders provided by Microsoft for trial purposes. So under all applicable laws, this project would be considered legal.
+  Yes, this project contains only open-source code and does not distribute any copyrighted material. Any product keys found in the code are just generic placeholders provided by Microsoft for trial purposes. So under all applicable laws, this project will be considered legal.
 
 ## Stars
 [![Stars](https://starchart.cc/dockur/windows.svg?variant=adaptive)](https://starchart.cc/dockur/windows)
