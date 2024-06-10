@@ -2075,6 +2075,12 @@ prepareInstall() {
     fi
   fi
 
+  [ -z "$YRES" ] && YRES="720"
+  [ -z "$XRES" ] && XRES="1280"
+
+  XHEX=$(printf '%x\n' "$XRES")
+  YHEX=$(printf '%x\n' "$YRES")
+
   local username="Docker"
   local password="*"
 
@@ -2125,8 +2131,8 @@ prepareInstall() {
           echo ""
           echo "[Display]"
           echo "    BitsPerPel=32"
-          echo "    YResolution=720"
-          echo "    XResolution=1280"
+          echo "    XResolution=$XRES"
+          echo "    YResolution=$YRES"
           echo ""
           echo "[Networking]"
           echo "    InstallDefaultComponents=Yes"
@@ -2186,13 +2192,13 @@ prepareInstall() {
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]"
           echo "\"DefaultSettings.BitsPerPel\"=dword:00000020"
-          echo "\"DefaultSettings.XResolution\"=dword:00000500"
-          echo "\"DefaultSettings.YResolution\"=dword:000002D0"
+          echo "\"DefaultSettings.XResolution\"=dword:00000$XHEX"
+          echo "\"DefaultSettings.YResolution\"=dword:00000$YHEX"
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Hardware Profiles\Current\System\CurrentControlSet\Control\VIDEO\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]"
           echo "\"DefaultSettings.BitsPerPel\"=dword:00000020"
-          echo "\"DefaultSettings.XResolution\"=dword:00000500"
-          echo "\"DefaultSettings.YResolution\"=dword:000002D0"
+          echo "\"DefaultSettings.XResolution\"=dword:00000$XHEX"
+          echo "\"DefaultSettings.YResolution\"=dword:00000$YHEX"
           echo ""
           echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce]"
           echo "\"ScreenSaver\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"SCRNSAVE.EXE\\\" /t REG_SZ /d \\\"off\\\"\""
