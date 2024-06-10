@@ -616,13 +616,13 @@ updateXML() {
 
   local asset="$1"
   local language="$2"
-  local x y culture region user admin pass keyboard
+  local culture region user admin pass keyboard
 
-  [ -n "$YRES" ] && y="$YRES" || y="720"
-  [ -n "$XRES" ] && x="$XRES" || x="1280"
+  [ -z "$YRES" ] && YRES="720"
+  [ -z "$XRES" ] && XRES="1280"
   
-  sed -i "s/<VerticalResolution>1080<\/VerticalResolution>/<VerticalResolution>$y<\/VerticalResolution>/g" "$asset"
-  sed -i "s/<HorizontalResolution>1920<\/HorizontalResolution>/<HorizontalResolution>$x<\/HorizontalResolution>/g" "$asset"
+  sed -i "s/<VerticalResolution>1080<\/VerticalResolution>/<VerticalResolution>$YRES<\/VerticalResolution>/g" "$asset"
+  sed -i "s/<HorizontalResolution>1920<\/HorizontalResolution>/<HorizontalResolution>$XRES<\/HorizontalResolution>/g" "$asset"
 
   culture=$(getLanguage "$language" "culture")
 
