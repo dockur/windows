@@ -119,10 +119,11 @@ finishInstall() {
   fi
 
   rm -f "$STORAGE/windows.old"
-  rm -f "$STORAGE/windows.type"
+  rm -f "$STORAGE/windows.vga"
   rm -f "$STORAGE/windows.base"
   rm -f "$STORAGE/windows.boot"
   rm -f "$STORAGE/windows.mode"
+  rm -f "$STORAGE/windows.type"
 
   cp -f /run/version "$STORAGE/windows.ver"
 
@@ -153,6 +154,12 @@ finishInstall() {
         echo "$BOOT_MODE" > "$STORAGE/windows.mode"
       fi
     fi
+  fi
+
+  [[ "${PLATFORM,,}" == "arm64" ]] && VGA="virtio-gpu"  
+
+  if [ -n "${VGA:-}" ] && [[ "${VGA:-}" != "virtio" ]]; then
+    echo "$VGA" > "$STORAGE/windows.vga"
   fi
 
   if [ -n "${DISK_TYPE:-}" ] && [[ "${DISK_TYPE:-}" != "scsi" ]]; then
@@ -967,7 +974,14 @@ bootWindows() {
 
   rm -rf "$TMP"
 
-  [[ "${PLATFORM,,}" == "arm64" ]] && VGA="virtio-gpu"
+  if [ -s "$STORAGE/windows.vga" ] && [ -f "$STORAGE/windows.vga" ]; then
+    VGA=$(<"$STORAGE/windows.vga")
+  else
+    if [[ "${PLATFORM,,}" == "arm64" ]]; then
+      VGA="virtio-gpu"
+      echo "$VGA" > "$STORAGE/windows.vga"
+    fi
+  fi
 
   if [ -s "$STORAGE/windows.type" ] && [ -f "$STORAGE/windows.type" ]; then
     DISK_TYPE=$(<"$STORAGE/windows.type")
