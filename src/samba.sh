@@ -3,8 +3,8 @@ set -Eeuo pipefail
 
 : "${SAMBA:="Y"}"
 
-[[ "$SAMBA" != [Yy1]* ]] && return 0
-[[ "$NETWORK" != [Yy1]* ]] && return 0
+[[ "$SAMBA" == [Nn]* ]] && return 0
+[[ "$NETWORK" == [Nn]* ]] && return 0
 
 hostname="host.lan"
 interface="dockerbridge"
