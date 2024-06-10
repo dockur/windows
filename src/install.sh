@@ -973,16 +973,13 @@ bootWindows() {
   rm -rf "$TMP"
 
   if [ -s "$STORAGE/windows.vga" ] && [ -f "$STORAGE/windows.vga" ]; then
-    VGA=$(<"$STORAGE/windows.vga")
+    [ -z "${VGA:-}" ] && VGA=$(<"$STORAGE/windows.vga")
   else
-    if [[ "${PLATFORM,,}" == "arm64" ]]; then
-      VGA="virtio-gpu"
-      echo "$VGA" > "$STORAGE/windows.vga"
-    fi
+    [ -z "${VGA:-}" ] && [[ "${PLATFORM,,}" == "arm64" ]] && VGA="virtio-gpu"
   fi
 
   if [ -s "$STORAGE/windows.type" ] && [ -f "$STORAGE/windows.type" ]; then
-    DISK_TYPE=$(<"$STORAGE/windows.type")
+    [ -z "${DISK_TYPE:-}" ] && DISK_TYPE=$(<"$STORAGE/windows.type")
   fi
 
   if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then
