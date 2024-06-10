@@ -616,7 +616,12 @@ updateXML() {
 
   local asset="$1"
   local language="$2"
+  local vertical="720"
+  local horizontal="1280"
   local culture region user admin pass keyboard
+
+  sed -i "s/<VerticalResolution>1080<\/VerticalResolution>/<VerticalResolution>$vertical<\/VerticalResolution>/g" "$asset"
+  sed -i "s/<HorizontalResolution>1920<\/HorizontalResolution>/<HorizontalResolution>$horizontal<\/HorizontalResolution>/g" "$asset"
 
   culture=$(getLanguage "$language" "culture")
 
