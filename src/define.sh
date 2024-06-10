@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+: "${XRES:=""}"
+: "${YRES:=""}"
 : "${VERIFY:=""}"
 : "${REGION:=""}"
 : "${MANUAL:=""}"
