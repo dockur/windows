@@ -156,9 +156,7 @@ finishInstall() {
     fi
   fi
 
-  [[ "${PLATFORM,,}" == "arm64" ]] && VGA="virtio-gpu"  
-
-  if [ -n "${VGA:-}" ] && [[ "${VGA:-}" != "virtio" ]]; then
+  if [ -n "${VGA:-}" ] && [[ "${VGA:-}" != "virtio" ]] && [[ "${VGA:-}" != "ramfb" ]]; then
     echo "$VGA" > "$STORAGE/windows.vga"
   fi
 
