@@ -119,10 +119,11 @@ finishInstall() {
   fi
 
   rm -f "$STORAGE/windows.old"
-  rm -f "$STORAGE/windows.type"
+  rm -f "$STORAGE/windows.vga"
   rm -f "$STORAGE/windows.base"
   rm -f "$STORAGE/windows.boot"
   rm -f "$STORAGE/windows.mode"
+  rm -f "$STORAGE/windows.type"
 
   cp -f /run/version "$STORAGE/windows.ver"
 
@@ -153,6 +154,10 @@ finishInstall() {
         echo "$BOOT_MODE" > "$STORAGE/windows.mode"
       fi
     fi
+  fi
+
+  if [ -n "${VGA:-}" ] && [[ "${VGA:-}" != "virtio" ]] && [[ "${VGA:-}" != "ramfb" ]]; then
+    echo "$VGA" > "$STORAGE/windows.vga"
   fi
 
   if [ -n "${DISK_TYPE:-}" ] && [[ "${DISK_TYPE:-}" != "scsi" ]]; then
@@ -613,6 +618,12 @@ updateXML() {
   local language="$2"
   local culture region user admin pass keyboard
 
+  [ -z "$YRES" ] && YRES="720"
+  [ -z "$XRES" ] && XRES="1280"
+  
+  sed -i "s/<VerticalResolution>1080<\/VerticalResolution>/<VerticalResolution>$YRES<\/VerticalResolution>/g" "$asset"
+  sed -i "s/<HorizontalResolution>1920<\/HorizontalResolution>/<HorizontalResolution>$XRES<\/HorizontalResolution>/g" "$asset"
+
   culture=$(getLanguage "$language" "culture")
 
   if [ -n "$culture" ] && [[ "${culture,,}" != "en-us" ]]; then
@@ -967,10 +978,14 @@ bootWindows() {
 
   rm -rf "$TMP"
 
-  [[ "${PLATFORM,,}" == "arm64" ]] && VGA="virtio-gpu"
+  if [ -s "$STORAGE/windows.vga" ] && [ -f "$STORAGE/windows.vga" ]; then
+    [ -z "${VGA:-}" ] && VGA=$(<"$STORAGE/windows.vga")
+  else
+    [ -z "${VGA:-}" ] && [[ "${PLATFORM,,}" == "arm64" ]] && VGA="virtio-gpu"
+  fi
 
   if [ -s "$STORAGE/windows.type" ] && [ -f "$STORAGE/windows.type" ]; then
-    DISK_TYPE=$(<"$STORAGE/windows.type")
+    [ -z "${DISK_TYPE:-}" ] && DISK_TYPE=$(<"$STORAGE/windows.type")
   fi
 
   if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then

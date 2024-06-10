@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+: "${XRES:=""}"
+: "${YRES:=""}"
 : "${VERIFY:=""}"
 : "${REGION:=""}"
 : "${MANUAL:=""}"
@@ -2073,6 +2075,12 @@ prepareInstall() {
     fi
   fi
 
+  [ -z "$YRES" ] && YRES="720"
+  [ -z "$XRES" ] && XRES="1280"
+
+  XHEX=$(printf '%x\n' "$XRES")
+  YHEX=$(printf '%x\n' "$YRES")
+
   local username="Docker"
   local password="*"
 
@@ -2118,12 +2126,13 @@ prepareInstall() {
           echo "    OrgName=\"Windows for Docker\""
           echo "    ProductKey=$key"
           echo ""
-          echo "[LicenseFilePrintData]"
-          echo "    AutoMode=PerServer"
-          echo "    AutoUsers=5"
-          echo ""
           echo "[Identification]"
           echo "    JoinWorkgroup = WORKGROUP"
+          echo ""
+          echo "[Display]"
+          echo "    BitsPerPel=32"
+          echo "    XResolution=$XRES"
+          echo "    YResolution=$YRES"
           echo ""
           echo "[Networking]"
           echo "    InstallDefaultComponents=Yes"
@@ -2139,6 +2148,17 @@ prepareInstall() {
           echo "    AllowConnections=1"
           echo ""
   } | unix2dos > "$target/WINNT.SIF"
+
+  if [[ "$driver" == "2k3" ]]; then
+    {       echo "[Components]"
+            echo "    TerminalServer=On"
+            echo ""
+            echo "[LicenseFilePrintData]"
+            echo "    AutoMode=PerServer"
+            echo "    AutoUsers=5"
+            echo ""
+    } | unix2dos >> "$target/WINNT.SIF"
+  fi
 
   {       echo "Windows Registry Editor Version 5.00"
           echo ""
@@ -2157,17 +2177,11 @@ prepareInstall() {
           echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa]"
           echo "\"LimitBlankPasswordUse\"=dword:00000000"
           echo ""
-          echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\srvWiz]"
-          echo "@=dword:00000000"
-          echo ""
           echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Applets\Tour]"
           echo "\"RunCount\"=dword:00000000"
           echo ""
           echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]"
           echo "\"HideFileExt\"=dword:00000000"
-          echo ""
-          echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\ServerOOBE\SecurityOOBE]"
-          echo "\"DontLaunchSecurityOOBE\"=dword:00000000"
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]"
           echo "\"DefaultUserName\"=\"$username\""
@@ -2178,14 +2192,30 @@ prepareInstall() {
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]"
           echo "\"DefaultSettings.BitsPerPel\"=dword:00000020"
-          echo "\"DefaultSettings.XResolution\"=dword:00000780"
-          echo "\"DefaultSettings.YResolution\"=dword:00000438"
+          echo "\"DefaultSettings.XResolution\"=dword:00000$XHEX"
+          echo "\"DefaultSettings.YResolution\"=dword:00000$YHEX"
+          echo ""
+          echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Hardware Profiles\Current\System\CurrentControlSet\Control\VIDEO\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]"
+          echo "\"DefaultSettings.BitsPerPel\"=dword:00000020"
+          echo "\"DefaultSettings.XResolution\"=dword:00000$XHEX"
+          echo "\"DefaultSettings.YResolution\"=dword:00000$YHEX"
           echo ""
           echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce]"
           echo "\"ScreenSaver\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"SCRNSAVE.EXE\\\" /t REG_SZ /d \\\"off\\\"\""
           echo "\"ScreenSaverOff\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"ScreenSaveActive\\\" /t REG_SZ /d \\\"0\\\"\""
           echo "$oem"
+          echo ""
   } | unix2dos > "$dir/\$OEM\$/install.reg"
+
+  if [[ "$driver" == "2k3" ]]; then
+    {       echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\srvWiz]"
+            echo "@=dword:00000000"
+            echo ""
+            echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\ServerOOBE\SecurityOOBE]"
+            echo "\"DontLaunchSecurityOOBE\"=dword:00000000"
+            echo ""
+    } | unix2dos >> "$dir/\$OEM\$/install.reg"
+  fi
 
   {       echo "Set WshShell = WScript.CreateObject(\"WScript.Shell\")"
           echo "Set WshNetwork = WScript.CreateObject(\"WScript.Network\")"
