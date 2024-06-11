@@ -335,9 +335,17 @@ kubectl apply -f kubernetes.yml
   sudo kvm-ok
   ```
 
-  If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check whether the virtualization extensions (`Intel VT-x` or `AMD SVM`) are enabled in your BIOS. If you are running the container inside a VM instead of directly on the host, you will also need to enable nested virtualization in its settings. If you are using a cloud provider, you may be out of luck as most of them do not allow nested virtualization for their VPS's. If you are using Windows 10 or MacOS, you are also out of luck, as only Linux and Windows 11 support KVM.
+  If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, please check whether:
 
-  If you don't receive any error from `kvm-ok` at all, but the container still complains that `/dev/kvm` is missing, it might help to add `privileged: true` to your compose file (or `--privileged` to your `run` command), to rule out any permission issue.
+  - the virtualization extensions (`Intel VT-x` or `AMD SVM`) are enabled in your BIOS.
+
+  - you are running an operating system that supports them, like Linux or Windows 11 (macOS and Windows 10 do not unfortunately).
+
+  - you enabled "nested virtualization" if you are running the container inside a virtual machine.
+
+  - you are not using a cloud provider, as most of them do not allow nested virtualization for their VPS's.
+
+  If you didn't receive any error from `kvm-ok` at all, but the container still complains that `/dev/kvm` is missing, it might help to add `privileged: true` to your compose file (or `--privileged` to your `run` command), to rule out any permission issue.
 
 * ### How do I run macOS in a container?
 
