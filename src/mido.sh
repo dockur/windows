@@ -418,6 +418,7 @@ getESD() {
   { wget "$winCatalog" -O "$dir/$wFile" -q --timeout=30; rc=$?; } || :
 
   msg="Failed to download $winCatalog"
+  (( rc == 3 )) && error "$msg , cannot write file (disk full?)" && return 1
   (( rc == 4 )) && error "$msg , network failure!" && return 1
   (( rc == 8 )) && error "$msg , server issued an error response!" && return 1
   (( rc != 0 )) && error "$msg , reason: $rc" && return 1
@@ -509,9 +510,15 @@ downloadFile() {
   local size="$4"
   local lang="$5"
   local desc="$6"
-  local rc total progress domain dots
+  local rc total progress domain dots space folder
 
   rm -f "$iso"
+
+  if [ -n "$size" ] && [[ "$size" != "0" ]]; then
+    folder=$(dirname -- "$iso")
+    space=$(df --output=avail -B 1 "$folder" | tail -n 1)
+    (( size > space )) && error "Not enough free space left to download file!" && return 1
+  fi
 
   # Check if running with interactive TTY or redirected to docker log
   if [ -t 1 ]; then
@@ -548,6 +555,7 @@ downloadFile() {
   fi
 
   msg="Failed to download $url"
+  (( rc == 3 )) && error "$msg , cannot write file (disk full?)" && return 1
   (( rc == 4 )) && error "$msg , network failure!" && return 1
   (( rc == 8 )) && error "$msg , server issued an error response!" && return 1
 
