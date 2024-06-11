@@ -395,7 +395,7 @@ kubectl apply -f kubernetes.yml
 
 ## Disclaimer ⚖️
 
-The product names, logos, brands, and other trademarks referred to within this project are the property of their respective trademark holders. This project is not affiliated, sponsored, or endorsed by Microsoft Corporation.
+*The product names, logos, brands, and other trademarks referred to within this project are the property of their respective trademark holders. This project is not affiliated, sponsored, or endorsed by Microsoft Corporation.*
 
 [build_url]: https://github.com/dockur/windows/
 [hub_url]: https://hub.docker.com/r/dockurr/windows/
