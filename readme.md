@@ -13,18 +13,18 @@
 
 Windows inside a Docker container.
 
-## Features
+## Features ✨
 
  - Multi-language
  - ISO downloader
  - KVM acceleration
  - Web-based viewer
 
-## Video
+## Video 📺
 
 [![Youtube](https://img.youtube.com/vi/xhGYobuG508/0.jpg)](https://www.youtube.com/watch?v=xhGYobuG508)
 
-## Usage
+## Usage 🐳
 
 Via Docker Compose:
 
@@ -58,7 +58,7 @@ Via Kubernetes:
 kubectl apply -f kubernetes.yml
 ```
 
-## FAQ
+## FAQ 💬
 
 * ### How do I use it?
 
@@ -115,10 +115,45 @@ kubectl apply -f kubernetes.yml
 
   ```yaml
   environment:
-    LANGUAGE: "Chinese"
+    LANGUAGE: "cn"
   ```
-
-  You can choose between `Arabic`, `Bulgarian`, `Chinese`, `Croatian`, `Czech`, `Danish`, `Dutch`, `Estonian`, `Finnish`, `French`, `German`, `Greek`, `Hebrew`, `Hungarian`, `Italian`, `Japanese`, `Korean`, `Latvian`, `Lithuanian`, `Norwegian`, `Polish`, `Portuguese`, `Romanian`, `Russian`, `Serbian`, `Slovak`, `Slovenian`, `Spanish`, `Swedish`, `Turkish`, `Thai` and `Ukrainian`.
+  
+  You can choose between:
+  
+    - 🇦🇪 **Arabic**: `ar`
+    - 🇧🇬 **Bulgarian**: `bg`
+    - 🇨🇳 **Chinese (simplified)**: `cn`
+    - 🇹🇼 **Chinese (traditional)**: `tw`
+    - 🇭🇷 **Croation**: `hr`
+    - 🇨🇿 **Czech**: `cs`
+    - 🇩🇰 **Danish**: `da`
+    - 🇳🇱 **Dutch**: `nl`
+    - 🇬🇧 **English**: `en`
+    - 🇪🇪 **Estionian**: `et`
+    - 🇫🇮 **Finnish**: `fi`
+    - 🇫🇷 **French**: `fr`
+    - 🇩🇪 **German**: `de`
+    - 🇬🇷 **Greek**: `el`
+    - 🇮🇱 **Hebrew**: `he`
+    - 🇭🇺 **Hungarian**: `hu`
+    - 🇮🇹 **Italian**: `it`
+    - 🇯🇵 **Japanese**: `ja`
+    - 🇰🇷 **Korean**: `ko`
+    - 🇱🇻 **Latvian**: `lv`
+    - 🇱🇹 **Lithuanian**: `lt`
+    - 🇳🇴 **Norwegian**: `nb`
+    - 🇵🇱 **Polish**: `pl`
+    - 🇵🇹 **Portuguese**: `pt`
+    - 🇷🇴 **Romanian**: `ro`
+    - 🇷🇺 **Russian**: `ru`
+    - 🇷🇸 **Serbian**: `sr`
+    - 🇸🇰 **Slovak**: `sk`
+    - 🇸🇮 **Slovenian**: `sl`
+    - 🇪🇸 **Spanish**: `es`
+    - 🇸🇪 **Swedish**: `sv`
+    - 🇹🇭 **Thai**: `th`
+    - 🇹🇷 **Turkish**: `tr`
+    - 🇺🇦 **Ukrainian**: `ua`
 
   If you want to use a keyboard layout or locale that is not the default for your selected language, you can add the `KEYBOARD` and `REGION` variables with a culture code, like this:
 
@@ -355,10 +390,10 @@ kubectl apply -f kubernetes.yml
 
   Yes, this project contains only open-source code and does not distribute any copyrighted material. Any product keys found in the code are just generic placeholders provided by Microsoft for trial purposes. So under all applicable laws, this project will be considered legal.
 
-## Stars
+## Stars 🌟
 [![Stars](https://starchart.cc/dockur/windows.svg?variant=adaptive)](https://starchart.cc/dockur/windows)
 
-## Disclaimer
+## Disclaimer ⚖️
 
 The product names, logos, brands, and other trademarks referred to within this project are the property of their respective trademark holders. This project is not affiliated, sponsored, or endorsed by Microsoft Corporation.
 
