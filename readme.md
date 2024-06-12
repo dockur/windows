@@ -116,45 +116,10 @@ kubectl apply -f kubernetes.yml
 
   ```yaml
   environment:
-    LANGUAGE: "cn"
+    LANGUAGE: "French"
   ```
   
-  You can choose between:
-  
-    - 🇦🇪 **Arabic**: `ar`
-    - 🇧🇬 **Bulgarian**: `bg`
-    - 🇨🇳 **Chinese (simplified)**: `cn`
-    - 🇹🇼 **Chinese (traditional)**: `tw`
-    - 🇭🇷 **Croation**: `hr`
-    - 🇨🇿 **Czech**: `cs`
-    - 🇩🇰 **Danish**: `da`
-    - 🇳🇱 **Dutch**: `nl`
-    - 🇬🇧 **English**: `en`
-    - 🇪🇪 **Estionian**: `et`
-    - 🇫🇮 **Finnish**: `fi`
-    - 🇫🇷 **French**: `fr`
-    - 🇩🇪 **German**: `de`
-    - 🇬🇷 **Greek**: `el`
-    - 🇮🇱 **Hebrew**: `he`
-    - 🇭🇺 **Hungarian**: `hu`
-    - 🇮🇹 **Italian**: `it`
-    - 🇯🇵 **Japanese**: `ja`
-    - 🇰🇷 **Korean**: `ko`
-    - 🇱🇻 **Latvian**: `lv`
-    - 🇱🇹 **Lithuanian**: `lt`
-    - 🇳🇴 **Norwegian**: `nb`
-    - 🇵🇱 **Polish**: `pl`
-    - 🇵🇹 **Portuguese**: `pt`
-    - 🇷🇴 **Romanian**: `ro`
-    - 🇷🇺 **Russian**: `ru`
-    - 🇷🇸 **Serbian**: `sr`
-    - 🇸🇰 **Slovak**: `sk`
-    - 🇸🇮 **Slovenian**: `sl`
-    - 🇪🇸 **Spanish**: `es`
-    - 🇸🇪 **Swedish**: `sv`
-    - 🇹🇭 **Thai**: `th`
-    - 🇹🇷 **Turkish**: `tr`
-    - 🇺🇦 **Ukrainian**: `ua`
+  You can choose between: 🇦🇪 Arabic, 🇧🇬 Bulgarian, 🇨🇳 Chinese, 🇭🇷 Croatian, 🇨🇿 Czech, 🇩🇰 Danish, 🇳🇱 Dutch, 🇬🇧 English, 🇪🇪 Estionian, 🇫🇮 Finnish, 🇫🇷 French, 🇩🇪 German, 🇬🇷 Greek, 🇮🇱 Hebrew, 🇭🇺 Hungarian, 🇮🇹 Italian, 🇯🇵 Japanese, 🇰🇷 Korean, 🇱🇻 Latvian, 🇱🇹 Lithuanian, 🇳🇴 Norwegian, 🇵🇱 Polish, 🇵🇹 Portuguese, 🇷🇴 Romanian, 🇷🇺 Russian, 🇷🇸 Serbian, 🇸🇰 Slovak, 🇸🇮 Slovenian, 🇪🇸 Spanish, 🇸🇪 Swedish, 🇹🇭 Thai, 🇹🇷 Turkish and 🇺🇦 Ukrainian.
 
   If you want to use a keyboard layout or locale that is not the default for your selected language, you can add the `KEYBOARD` and `REGION` variables with a culture code, like this:
 
