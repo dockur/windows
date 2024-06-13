@@ -27,9 +27,6 @@ spec:
           protocol: TCP
         - containerPort: 3389
           protocol: UDP
-      resources:
-        limits:
-          devices.kubevirt.io/kvm: 1
       securityContext:
         privileged: true
       env:
@@ -42,10 +39,15 @@ spec:
       volumeMounts:
         - mountPath: /storage
           name: storage
+        - mountPath: /dev/kvm
+          name: dev-kvm
   volumes:
     - name: storage
       persistentVolumeClaim:
         claimName: windows-pvc
+    - name: dev-kvm
+      hostPath:
+        path: /dev/kvm
 ---
 apiVersion: v1
 kind: Service
@@ -60,14 +62,11 @@ spec:
       protocol: TCP
       port: 8006
       targetPort: 8006
-      nodePort: 48006
     - name: tcp-3389
       protocol: TCP
       port: 3389
       targetPort: 3389
-      nodePort: 43389
     - name: udp-3389
       protocol: UDP
       port: 3389
       targetPort: 3389
-      nodePort: 43388
