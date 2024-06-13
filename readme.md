@@ -61,7 +61,7 @@ kubectl apply -f kubernetes.yml
 
 ## FAQ 💬
 
-* ### How do I use it?
+### How do I use it?
 
   Very simple! These are the steps:
   
@@ -73,7 +73,7 @@ kubectl apply -f kubernetes.yml
   
   Enjoy your brand new machine, and don't forget to star this repo!
 
-* ### How do I select the Windows version?
+### How do I select the Windows version?
 
   By default, Windows 11 will be installed. But you can add the `VERSION` environment variable to your compose file, in order to specify an alternative Windows version to be downloaded:
 
@@ -108,9 +108,10 @@ kubectl apply -f kubernetes.yml
   | `tiny11`  | Tiny 11                  | 3.8 GB   |
   | `tiny10`  | Tiny 10                  | 3.6 GB   |
 
-  To install ARM64 versions of Windows use [dockur/windows-arm](https://github.com/dockur/windows-arm/).
+> [!TIP]
+> To install ARM64 versions of Windows use [dockur/windows-arm](https://github.com/dockur/windows-arm/).
 
-* ### How do I select the Windows language?
+### How do I select the Windows language?
 
   By default, the English version of Windows will be downloaded. But you can add the `LANGUAGE` environment variable to your compose file, in order to specify an alternative language:
 
@@ -121,6 +122,8 @@ kubectl apply -f kubernetes.yml
   
   You can choose between: 🇦🇪 Arabic, 🇧🇬 Bulgarian, 🇨🇳 Chinese, 🇭🇷 Croatian, 🇨🇿 Czech, 🇩🇰 Danish, 🇳🇱 Dutch, 🇬🇧 English, 🇪🇪 Estionian, 🇫🇮 Finnish, 🇫🇷 French, 🇩🇪 German, 🇬🇷 Greek, 🇮🇱 Hebrew, 🇭🇺 Hungarian, 🇮🇹 Italian, 🇯🇵 Japanese, 🇰🇷 Korean, 🇱🇻 Latvian, 🇱🇹 Lithuanian, 🇳🇴 Norwegian, 🇵🇱 Polish, 🇵🇹 Portuguese, 🇷🇴 Romanian, 🇷🇺 Russian, 🇷🇸 Serbian, 🇸🇰 Slovak, 🇸🇮 Slovenian, 🇪🇸 Spanish, 🇸🇪 Swedish, 🇹🇭 Thai, 🇹🇷 Turkish and 🇺🇦 Ukrainian.
 
+### How do I select the keyboard layout?
+
   If you want to use a keyboard layout or locale that is not the default for your selected language, you can add the `KEYBOARD` and `REGION` variables with a culture code, like this:
 
   ```yaml
@@ -129,9 +132,10 @@ kubectl apply -f kubernetes.yml
     KEYBOARD: "en-US"
   ```
 
-  Please note that changing these values will have no effect after the installation already has been performed. In that case you can use the Control Panel inside Windows for these settings.
+> [!NOTE]  
+>  Changing these values will have no effect after the installation already has been performed. Use the control panel inside Windows in that case.
 
-* ### How do I change the storage location?
+### How do I change the storage location?
 
   To change the storage location, include the following bind mount in your compose file:
 
@@ -142,7 +146,7 @@ kubectl apply -f kubernetes.yml
 
   Replace the example path `/var/win` with the desired storage folder.
 
-* ### How do I change the size of the disk?
+### How do I change the size of the disk?
 
   To expand the default size of 64 GB, add the `DISK_SIZE` setting to your compose file and set it to your preferred capacity:
 
@@ -151,9 +155,10 @@ kubectl apply -f kubernetes.yml
     DISK_SIZE: "256G"
   ```
   
-  This can also be used to resize the existing disk to a larger capacity without any data loss.
+> [!TIP]
+> This can also be used to resize the existing disk to a larger capacity without any data loss.
 
-* ### How do I share files with the host?
+### How do I share files with the host?
 
   Open 'File Explorer' and click on the 'Network' section, you will see a computer called `host.lan`. Double-click it and it will show a folder called `Data`, which can be binded to any folder on your host via the compose file:
 
@@ -162,9 +167,12 @@ kubectl apply -f kubernetes.yml
     -  /home/user/example:/shared
   ```
 
-  The example folder `/home/user/example` will be available as ` \\host.lan\Data`. You can optionally map this path to a drive letter in Windows, for easier access.
+  The example folder `/home/user/example` will be available as ` \\host.lan\Data`.
+  
+> [!TIP]
+> You can map this path to a drive letter in Windows, for easier access.
 
-* ### How do I install a custom image?
+### How do I install a custom image?
 
   In order to download an unsupported ISO image that is not selectable from the list above, specify the URL of that ISO in the `VERSION` environment variable, for example:
   
@@ -182,7 +190,7 @@ kubectl apply -f kubernetes.yml
 
   Replace the example path `/home/user/example.iso` with the filename of your desired ISO file, the value of `VERSION` will be ignored in this case.
 
-* ### How do I run a script after installation?
+### How do I run a script after installation?
 
   To run your own script after installation, you can create a file called `install.bat` and place it in a folder together with any additional files it needs (software to be installed for example). Then bind that folder in your compose file like this:
 
@@ -193,7 +201,7 @@ kubectl apply -f kubernetes.yml
 
   The example folder `/home/user/example` will be copied to `C:\OEM` during installation and the containing `install.bat` will be executed during the last step.
 
-* ### How do I perform a manual installation?
+### How do I perform a manual installation?
 
   It's best to stick to the automatic installation, as it adjusts various settings to prevent common issues when running Windows inside a virtual environment.
 
@@ -204,7 +212,7 @@ kubectl apply -f kubernetes.yml
     MANUAL: "Y"
   ```
 
-* ### How do I change the amount of CPU or RAM?
+### How do I change the amount of CPU or RAM?
 
   By default, the container will be allowed to use a maximum of 2 CPU cores and 4 GB of RAM.
 
@@ -216,7 +224,7 @@ kubectl apply -f kubernetes.yml
     CPU_CORES: "4"
   ```
 
-* ### How do I configure the username and password?
+### How do I configure the username and password?
 
   By default, a user called `Docker` is created during the installation, with an empty password.
 
@@ -228,7 +236,7 @@ kubectl apply -f kubernetes.yml
     PASSWORD: "gates"
   ```
 
-* ### How do I connect using RDP?
+### How do I connect using RDP?
 
   The web-viewer is mainly meant to be used during installation, as its picture quality is low, and it has no audio or clipboard for example.
 
@@ -236,7 +244,7 @@ kubectl apply -f kubernetes.yml
 
   There is a RDP client for [Android](https://play.google.com/store/apps/details?id=com.microsoft.rdc.androidx) available from the Play Store and one for [iOS](https://apps.apple.com/nl/app/microsoft-remote-desktop/id714464092?l=en-GB) in the Apple Store. For Linux you can use [FreeRDP](https://www.freerdp.com/) and on Windows just type `mstsc` in the search box.
 
-* ### How do I assign an individual IP address to the container?
+### How do I assign an individual IP address to the container?
 
   By default, the container uses bridge networking, which shares the IP address with the host. 
 
@@ -270,9 +278,10 @@ kubectl apply -f kubernetes.yml
  
   An added benefit of this approach is that you won't have to perform any port mapping anymore, since all ports will be exposed by default.
 
-  Please note that this IP address won't be accessible from the Docker host due to the design of macvlan, which doesn't permit communication between the two. If this is a concern, you need to create a [second macvlan](https://blog.oddbit.com/post/2018-03-12-using-docker-macvlan-networks/#host-access) as a workaround.
+> [!IMPORTANT]  
+> This IP address won't be accessible from the Docker host due to the design of macvlan, which doesn't permit communication between the two. If this is a concern, you need to create a [second macvlan](https://blog.oddbit.com/post/2018-03-12-using-docker-macvlan-networks/#host-access) as a workaround.
 
-* ### How can Windows acquire an IP address from my router?
+### How can Windows acquire an IP address from my router?
 
   After configuring the container for macvlan (see above), it is possible for Windows to become part of your home network by requesting an IP from your router, just like a real PC.
 
@@ -287,9 +296,10 @@ kubectl apply -f kubernetes.yml
     - 'c *:* rwm'
   ```
 
-  Please note that in this mode, the container and Windows will each have their own separate IPs. The container will keep the macvlan IP, and Windows will use the DHCP IP.
+> [!NOTE]  
+> In this mode, the container and Windows will each have their own separate IPs.
 
-* ### How do I add multiple disks?
+### How do I add multiple disks?
 
   To create additional disks, modify your compose file like this:
   
@@ -302,7 +312,7 @@ kubectl apply -f kubernetes.yml
     - /mnt/data/example:/storage3
   ```
 
-* ### How do I pass-through a disk?
+### How do I pass-through a disk?
 
   It is possible to pass-through disk devices directly by adding them to your compose file in this way:
 
@@ -314,7 +324,7 @@ kubectl apply -f kubernetes.yml
 
   Use `/disk1` if you want it to become your main drive, and use `/disk2` and higher to add them as secondary drives.
 
-* ### How do I pass-through a USB device?
+### How do I pass-through a USB device?
 
   To pass-through a USB device, first lookup its vendor and product id via the `lsusb` command, then add them to your compose file like this:
 
@@ -325,9 +335,10 @@ kubectl apply -f kubernetes.yml
     - /dev/bus/usb
   ```
 
-  In case the device is a USB disk drive, please wait until after the installation is completed before connecting it. Otherwise the installation may fail, as the order of the disks can get rearranged.
+> [!IMPORTANT]
+> In case the device is a USB disk drive, please wait until after the installation is completed before connecting it. Otherwise the installation may fail, as the order of the disks can get rearranged.
 
-* ### How do I verify if my system supports KVM?
+### How do I verify if my system supports KVM?
 
   To verify that your system supports KVM, run the following commands:
 
@@ -348,11 +359,11 @@ kubectl apply -f kubernetes.yml
 
   If you didn't receive any error from `kvm-ok` at all, but the container still complains that `/dev/kvm` is missing, it might help to add `privileged: true` to your compose file (or `--privileged` to your `run` command), to rule out any permission issue.
 
-* ### How do I run macOS in a container?
+### How do I run macOS in a container?
 
   You can use [dockur/macos](https://github.com/dockur/macos) for that. It shares many of the same features, except for the automatic installation.
 
-* ### Is this project legal?
+### Is this project legal?
 
   Yes, this project contains only open-source code and does not distribute any copyrighted material. Any product keys found in the code are just generic placeholders provided by Microsoft for trial purposes. So under all applicable laws, this project will be considered legal.
 
