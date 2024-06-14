@@ -357,7 +357,7 @@ kubectl apply -f kubernetes.yml
 
   - you are not using a cloud provider, as most of them do not allow nested virtualization for their VPS's.
 
-  If you didn't receive any error from `kvm-ok` at all, but the container still complains that `/dev/kvm` is missing, it might help to add `privileged: true` to your compose file (or `--privileged` to your `run` command), to rule out any permission issue.
+  If you didn't receive any error from `kvm-ok` at all, but the container still complains that `/dev/kvm` is missing, it might help to add `privileged: true` to your compose file (or `--privileged` to your `run` command), to rule out any permission issue. In addition, make sure you are not running docker through docker desktop since this can also cause issues as well. 
 
 ### How do I run macOS in a container?
 
