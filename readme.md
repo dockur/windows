@@ -133,7 +133,7 @@ kubectl apply -f kubernetes.yml
   ```
 
 > [!NOTE]  
->  Changing these values will have no effect after the installation already has been performed. Use the control panel inside Windows in that case.
+>  Changing these values will have no effect after the installation has been performed already. Use the control panel inside Windows in that case.
 
 ### How do I change the storage location?
 
