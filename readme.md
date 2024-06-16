@@ -133,7 +133,7 @@ kubectl apply -f kubernetes.yml
   ```
 
 > [!NOTE]  
->  Changing these values will have no effect after the installation already has been performed. Use the control panel inside Windows in that case.
+>  Changing these values will have no effect after the installation has been performed already. Use the control panel inside Windows in that case.
 
 ### How do I change the storage location?
 
@@ -283,7 +283,7 @@ kubectl apply -f kubernetes.yml
 
 ### How can Windows acquire an IP address from my router?
 
-  After configuring the container for macvlan (see above), it is possible for Windows to become part of your home network by requesting an IP from your router, just like a real PC.
+  After configuring the container for [macvlan](#how-do-i-assign-an-individual-ip-address-to-the-container), it is possible for Windows to become part of your home network by requesting an IP from your router, just like a real PC.
 
   To enable this mode, add the following lines to your compose file:
 
@@ -336,7 +336,7 @@ kubectl apply -f kubernetes.yml
   ```
 
 > [!IMPORTANT]
-> In case the device is a USB disk drive, please wait until after the installation is completed before connecting it. Otherwise the installation may fail, as the order of the disks can get rearranged.
+> If the device is a USB disk drive, please wait until after the installation is completed before connecting it. Otherwise the installation may fail, as the order of the disks can get rearranged.
 
 ### How do I verify if my system supports KVM?
 
