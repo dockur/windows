@@ -114,18 +114,18 @@ kubectl apply -f kubernetes.yml
 
 ### How do I select the Windows language?
 
-  By default, the English version of Windows will be downloaded. But you can add the `LANGUAGE` environment variable to your compose file, in order to specify an alternative language:
+  By default, the English version of Windows downloadeds. But you adding the `LANGUAGE` environment variable in your compose file, ordering to specify an alternative language:
 
   ```yaml
   environment:
     LANGUAGE: "French"
   ```
   
-  You can choose between: 🇦🇪 Arabic, 🇧🇬 Bulgarian, 🇨🇳 Chinese, 🇭🇷 Croatian, 🇨🇿 Czech, 🇩🇰 Danish, 🇳🇱 Dutch, 🇬🇧 English, 🇪🇪 Estionian, 🇫🇮 Finnish, 🇫🇷 French, 🇩🇪 German, 🇬🇷 Greek, 🇮🇱 Hebrew, 🇭🇺 Hungarian, 🇮🇹 Italian, 🇯🇵 Japanese, 🇰🇷 Korean, 🇱🇻 Latvian, 🇱🇹 Lithuanian, 🇳🇴 Norwegian, 🇵🇱 Polish, 🇵🇹 Portuguese, 🇷🇴 Romanian, 🇷🇺 Russian, 🇷🇸 Serbian, 🇸🇰 Slovak, 🇸🇮 Slovenian, 🇪🇸 Spanish, 🇸🇪 Swedish, 🇹🇭 Thai, 🇹🇷 Turkish and 🇺🇦 Ukrainian.
+  You choose between: 🇦🇪 Arabic, 🇧🇬 Bulgarian, 🇨🇳 Chinese, 🇭🇷 Croatian, 🇨🇿 Czech, 🇩🇰 Danish, 🇳🇱 Dutch, 🇬🇧 English, 🇪🇪 Estionian, 🇫🇮 Finnish, 🇫🇷 French, 🇩🇪 German, 🇬🇷 Greek, 🇮🇱 Hebrew, 🇭🇺 Hungarian, 🇮🇹 Italian, 🇯🇵 Japanese, 🇰🇷 Korean, 🇱🇻 Latvian, 🇱🇹 Lithuanian, 🇳🇴 Norwegian, 🇵🇱 Polish, 🇵🇹 Portuguese, 🇷🇴 Romanian, 🇷🇺 Russian, 🇷🇸 Serbian, 🇸🇰 Slovak, 🇸🇮 Slovenian, 🇪🇸 Spanish, 🇸🇪 Swedish, 🇹🇭 Thai, 🇹🇷 Turkish and 🇺🇦 Ukrainian.
 
 ### How do I select the keyboard layout?
 
-  If you want to use a keyboard layout or locale that is not the default for your selected language, you can add the `KEYBOARD` and `REGION` variables with a culture code, like this:
+  Want using keyboard layouts or locales that's not your default for selected language? Add the `KEYBOARD` and `REGION` variables with culture codes, like this:
 
   ```yaml
   environment:
@@ -138,18 +138,18 @@ kubectl apply -f kubernetes.yml
 
 ### How do I change the storage location?
 
-  To change the storage location, include the following bind mount in your compose file:
+  Change your storage locations? Include following bind mount in your compose file:
 
   ```yaml
   volumes:
     - /var/win:/storage
   ```
 
-  Replace the example path `/var/win` with the desired storage folder.
+  Replace the example path `/var/win` with your desired storage folder.
 
 ### How do I change the size of the disk?
 
-  To expand the default size of 512 GB, add the `DISK_SIZE` setting to your compose file and set it to your preferred capacity:
+  Expand your default size of 512 GB, add the `DISK_SIZE` setting in your compose file and sets your preferred capacity:
 
   ```yaml
   environment:
@@ -171,25 +171,25 @@ kubectl apply -f kubernetes.yml
   Your example folder `/home/user/example` availables ` \\host.lan\Data`.
  
 > [!TIP]
-> You may map this path to a drive letter in Windows, for easier access.
+> You map this path to a drive letter in Windows, for easier access.
 
 ### How do I install a custom image?
 
-  In order to download an unsupported ISO image that is not selectable from the list above, specify one of your URL to ISO in the `VERSION` environment variable, for example:
+  Ordering downloading an unsupported ISO image that's not selectable from the list above? Specify one of your URL to ISO in the `VERSION` environment variable, for example:
   
   ```yaml
   environment:
     VERSION: "https://example.com/win.iso"
   ```
 
-  Alternatively, you skip downloading and use a local file instead, by binding it in your compose file in this way:
+  Alternatively, you skip downloading and using local file instead, by binding it in your compose file on this way:
   
   ```yaml
   volumes:
     - /home/user/example.iso:/custom.iso
   ```
 
-  Replace the example path `/home/user/example.iso` with the filename of your desired ISO file, the value of `VERSION` will be ignored in your case.
+  Replace the example path `/home/user/example.iso` with the filename of your desired ISO file, the value of `VERSION`, means you,  will ignored in your case.
 
 ### How do I run a script after installation?
 
@@ -200,7 +200,7 @@ kubectl apply -f kubernetes.yml
     -  /home/user/example:/oem
   ```
 
-  Your example folder `/home/user/example` copied to `C:\OEM` during installation and the containing `install.bat` will be executed during the last step.
+  Your example folder `/home/user/example` copied to `C:\OEM` during installation. The containing `install.bat` will executed during last steps.
 
 ### How do I perform a manual installation?
 
@@ -217,7 +217,7 @@ kubectl apply -f kubernetes.yml
 
   By default, container allows using maximum of 8 CPU cores and 8 GB of RAM.
 
-  Want to adjust this? Specify the desired amount using the following environment variables:
+  Want to adjust this? Specify the desired amount using following environment variables:
 
   ```yaml
   environment:
@@ -227,9 +227,9 @@ kubectl apply -f kubernetes.yml
 
 ### How do I configure my username and password?
 
-  By default, you called `Docker`, created during the installation, with empty password.
+  By default, you called `Docker`, created during the installation, without password.
 
-  Want to use different credentials? Change them in your compose file:
+  Want using different credentials? Change them in your compose file:
 
   ```yaml
   environment:
@@ -280,7 +280,7 @@ kubectl apply -f kubernetes.yml
   An adds benefit to approaches is won't have performing any port mapping anymore, since all ports are exposed by default.
 
 > [!IMPORTANT]  
-> This IP address won't be accessible from the Docker host due to the design of macvlan, which doesn't permit communication between the two. If this is a concern, you need to create a [second macvlan](https://blog.oddbit.com/post/2018-03-12-using-docker-macvlan-networks/#host-access) as current workaround.
+> This IP address won't be accessible from the Docker host due to design of macvlan, which doesn't permit communication between the two. If this is a concern, you need to create a [second macvlan](https://blog.oddbit.com/post/2018-03-12-using-docker-macvlan-networks/#host-access) as current workaround.
 
 ### How my Windows acquiring an IP address from my router?
 
@@ -302,7 +302,7 @@ kubectl apply -f kubernetes.yml
 
 ### How do I add multiple disks?
 
-  Really to create your additional disks? Modify compose file like this:
+  Really creating your additional disks? Modify compose file like this:
   
   ```yaml
   environment:
@@ -317,7 +317,7 @@ kubectl apply -f kubernetes.yml
 
 ### How do I pass-through a disk?
 
-  Possibles passing-through disk devices directly by adding them in your compose file this way:
+  Possibles passing-through disk devices directly, adding them in your compose file this way:
 
   ```yaml
   devices:
@@ -326,7 +326,7 @@ kubectl apply -f kubernetes.yml
 ...
   ```
 
-  Use `/disk1` if you want it to become your main drive, and use `/disk2` and higher to add them as futher drives.
+  Use `/disk1` if you want it to become your main drive, and use `/disk2` and higher, adding them as futher drives.
 
 ### How do I pass-through a USB device?
 
@@ -344,7 +344,7 @@ kubectl apply -f kubernetes.yml
 
 ### How do I verify if my system supports KVM?
 
-  To verify that your system supports KVM, run followings:
+  Verifying your system supports KVM? Run followings:
 
   ```bash
   sudo apt install cpu-checker
@@ -376,7 +376,7 @@ kubectl apply -f kubernetes.yml
 
 ## Disclaimer ⚖️
 
-*The product names, logos, brands, and other trademarks referred to within us are the property of their respective trademark holders. This project not affiliated, sponsored, or endorsed by Microsoft Corporation.*
+*The product names, logos, brands, and other trademarks referres within us are the property of their respective trademark holders. This project not affiliated, sponsored, or endorsed by Microsoft Corporation.*
 
 [build_url]: https://github.com/dockur/windows/
 [hub_url]: https://hub.docker.com/r/dockurr/windows/
