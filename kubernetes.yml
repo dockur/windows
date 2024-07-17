@@ -7,7 +7,7 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 64Gi
+      storage: 512Gi
 ---
 apiVersion: v1
 kind: Pod
@@ -30,17 +30,21 @@ spec:
       securityContext:
         privileged: true
       env:
+        - name: VERSION
+          value: "win11e"
         - name: RAM_SIZE
-          value: 4G
+          value: 8G
         - name: CPU_CORES
-          value: "2"
+          value: "8"
         - name: DISK_SIZE
-          value: "64G"
+          value: "512G"
       volumeMounts:
         - mountPath: /storage
           name: storage
         - mountPath: /dev/kvm
           name: dev-kvm
+        - mountPath: /dev/net/tun
+          name: dev-net-tun
   volumes:
     - name: storage
       persistentVolumeClaim:
@@ -48,6 +52,9 @@ spec:
     - name: dev-kvm
       hostPath:
         path: /dev/kvm
+    - name: dev-net-tun
+      hostPath:
+        path: /dev/net/tun
 ---
 apiVersion: v1
 kind: Service
