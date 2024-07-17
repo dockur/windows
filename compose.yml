@@ -3,9 +3,10 @@ services:
     image: dockurr/windows
     container_name: windows
     environment:
-      VERSION: "win11"
+      VERSION: "win11e"
     devices:
       - /dev/kvm
+      - /dev/net/tun
     cap_add:
       - NET_ADMIN
     ports:
