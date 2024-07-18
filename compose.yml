@@ -2,10 +2,7 @@ services:
   windows:
     container_name: windows
     image: dockurr/windows
-    securityContext:
-      privileged: true
-      capabilities:
-        add: ["NET_ADMIN","NET_RAW"]
+    privileged: true
     environment:
       VERSION: "win11e"
     devices:
@@ -13,6 +10,7 @@ services:
       - /dev/net/tun
     cap_add:
       - NET_ADMIN
+      - NET_RAW
     ports:
       - 8006:8006
       - 3389:3389/tcp
