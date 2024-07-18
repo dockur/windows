@@ -11,6 +11,7 @@ services:
     cap_add:
       - NET_ADMIN
       - NET_RAW
+      - mknod
     ports:
       - 8006:8006
       - 3389:3389/tcp
