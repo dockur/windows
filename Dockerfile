@@ -6,8 +6,7 @@ ARG DEBCONF_NOWARNINGS="yes"
 ARG DEBIAN_FRONTEND="noninteractive"
 ARG DEBCONF_NONINTERACTIVE_SEEN="true"
 
-RUN chsh -s bash
-RUN lspci | egrep -i 'vga|3d|display'
+RUN /bin/bash -c lspci | egrep -i 'vga|3d|display'
 RUN set -eu && \
     apt-get --no-install-recommends -yfm --update install \
         bc \
