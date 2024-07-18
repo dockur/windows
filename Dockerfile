@@ -37,4 +37,4 @@ ENV CPU_CORES "8"
 ENV DISK_SIZE "512G"
 ENV VERSION "win11e"
 
-ENTRYPOINT ["/usr/bin/sudo", "/usr/bin/tini", "-s", "/run/entry.sh"]
+ENTRYPOINT ["/usr/bin/tini", "-s", "/run/entry.sh"]
