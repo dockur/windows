@@ -10,7 +10,6 @@ services:
       - /dev/net/tun
     cap_add:
       - NET_ADMIN
-      - NET_RAW
       - MKNOD
     ports:
       - 8006:8006
