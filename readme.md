@@ -363,6 +363,10 @@ kubectl apply -f kubernetes.yml
 
   You can use [dockur/macos](https://github.com/dockur/macos) for that. It shares many of the same features, except for the automatic installation.
 
+### Why do Microsoft Store, Windows Activation, and some program installations not work?
+
+  Microsoft blocks access (using a firewall) to the Microsoft Store and some of its services, including Windows Activation and Smart Screen, from Data Center IPs. For example, suppose you are running Windows on Kubernetes, which runs in a Data Center, thus assigning an IP from a Data Center IP pool for egress traffic. In that case, these services will load for 30 to 180 seconds before giving up - indicating a retry against a firewall.
+
 ### Is this project legal?
 
   Yes, this project contains only open-source code and does not distribute any copyrighted material. Any product keys found in the code are just generic placeholders provided by Microsoft for trial purposes. So under all applicable laws, this project will be considered legal.
