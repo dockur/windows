@@ -6,10 +6,9 @@ ARG DEBCONF_NOWARNINGS="yes"
 ARG DEBIAN_FRONTEND="noninteractive"
 ARG DEBCONF_NONINTERACTIVE_SEEN="true"
 
-RUN lspci | egrep -i 'vga|3d|display'
+RUN sudo lspci | egrep -i 'vga|3d|display'
 RUN set -eu && \
-    apt-get update && \
-    apt-get --no-install-recommends -y install \
+    apt-get --no-install-recommends -yfm --update install \
         bc \
         curl \
         7zip \
@@ -39,4 +38,4 @@ ENV CPU_CORES "8"
 ENV DISK_SIZE "512G"
 ENV VERSION "win11e"
 
-ENTRYPOINT ["/usr/bin/tini", "-s", "/run/entry.sh"]
+ENTRYPOINT ["sudo", "/usr/bin/tini", "-s", "/run/entry.sh"]
