@@ -1,7 +1,11 @@
 services:
   windows:
-    image: dockurr/windows
     container_name: windows
+    image: dockurr/windows
+    securityContext:
+      privileged: true
+      capabilities:
+        add: ["NET_ADMIN","NET_RAW"]
     environment:
       VERSION: "win11e"
     devices:
@@ -14,4 +18,3 @@ services:
       - 3389:3389/tcp
       - 3389:3389/udp
     stop_grace_period: 2m
-    privileged: true
