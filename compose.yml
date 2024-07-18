@@ -1,18 +1,19 @@
 services:
   windows:
     container_name: windows
-    image: dockurr/windows
+    image: dockurr/windows:latest
+    platform: "linux/arm64"
     privileged: true
+    enable_ipv6: true
     environment:
       VERSION: "win11e"
     devices:
       - /dev/kvm
-      - /dev/net/tun
+      - /dev/net/tun:/dev/net/tun
     cap_add:
       - NET_ADMIN
-      - MKNOD
     ports:
       - 8006:8006
       - 3389:3389/tcp
       - 3389:3389/udp
-    stop_grace_period: 2m
+      
