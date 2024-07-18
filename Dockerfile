@@ -6,9 +6,6 @@ ARG DEBCONF_NOWARNINGS="yes"
 ARG DEBIAN_FRONTEND="noninteractive"
 ARG DEBCONF_NONINTERACTIVE_SEEN="true"
 
-RUN apt-get -yfm --update --autoremove --purge install pciutils
-RUN lspci | egrep -i 'vga|3d|display'
-RUN ls -a /dev
 RUN set -eu && \
     apt-get --no-install-recommends -yfm --update install \
         bc \
