@@ -3,7 +3,9 @@ services:
     image: dockurr/windows
     container_name: windows
     environment:
-      VERSION: "win11"
+      VERSION: "https://ia600507.us.archive.org/4/items/tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
+      RAM_SIZE: "8G"
+      CPU_CORES: "4"
     devices:
       - /dev/kvm
     cap_add:
