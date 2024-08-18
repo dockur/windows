@@ -710,6 +710,12 @@ addDriver() {
     [[ "${driver,,}" == "pvpanic" ]] && return 0
   fi
 
+  if [[ "${id,,}" == "win11x64-iot" ]] || [[ "${id,,}" == "win11x64-ltsc" ]]; then
+    [[ "${driver,,}" == "smbus" ]] && return 0
+    [[ "${driver,,}" == "pvpanic" ]] && return 0
+    [[ "${driver,,}" == "viogpudo" ]] && return 0
+  fi
+
   local dest="$path/$target/$driver"
   mv "$path/$driver/$folder" "$dest"
 
