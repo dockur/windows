@@ -950,12 +950,12 @@ getLink3() {
   local sum=""
   local size=""
   local host="https://drive.massgrave.dev"
+  local s22="windows_server_2022_updated_july_2024_x64_dvd_fee121d6"  
   local c11="windows_11_consumer_editions_version_23h2_updated_july_2024_x64_dvd_13e3dd80"
   local b11="windows_11_business_editions_version_23h2_updated_july_2024_x64_dvd"
   local c10="windows_10_consumer_editions_version_22h2_updated_july_2024_x64_dvd_3245b006"
-  local b10="windows_11_business_editions_version_23h2_updated_july_2024_x64_dvd"
-  local s22="windows_server_2022_updated_july_2024_x64_dvd_fee121d6"
-  
+  local b10="windows_10_business_editions_version_22h2_updated_july_2024_x64_dvd"
+
   culture=$(getLanguage "$lang" "culture")
 
   case "${id,,}" in
@@ -969,8 +969,8 @@ getLink3() {
         "el" | "el-"* ) url="el-gr_${c11}.iso" ;;
         "gb" | "en-gb" ) url="en-gb_${c11}.iso" ;;
         "en" | "en-"* )
-          size=7004780544
-          sum="a6c21313210182e0315054789a2b658b77394d5544b69b5341075492f89f51e5"
+          size=7165775872
+          sum="b84e497c019e95ba9aee9da3d86e679454cba1a426593711f0f4d426f48fc845"
           url="en-us_${c11}.iso" ;;
         "mx" | "es-mx" ) url="es-mx_${c11}.iso" ;;
         "es" | "es-"* ) url="es-es_${c11}.iso" ;;
@@ -1014,8 +1014,8 @@ getLink3() {
         "el" | "el-"* ) url="el-gr_${b11}_c8957889.iso" ;;
         "gb" | "en-gb" ) url="en-gb_${b11}_deb8a337.iso" ;;
         "en" | "en-"* )
-          size=6879023104
-          sum="3d4d388d6ffa371956304fa7401347b4535fd10e3137978a8f7750b790a43521"
+          size=7035154432
+          sum="651e02efa8efe5c3ed6f99f91a934604add93d0fa28a5e7e29898d47bc92eba5"
           url="en-us_${b11}_5a07b6a4.iso" ;;
         "mx" | "es-mx" ) url="es-mx_${b11}_2c5e4da9.iso" ;;
         "es" | "es-"* ) url="es-es_${b11}_4fde1bd2.iso" ;;
@@ -1071,8 +1071,8 @@ getLink3() {
         "el" | "el-"* ) url="el-gr_${c10}.iso" ;;
         "gb" | "en-gb" ) url="en-gb_${c10}.iso" ;;
         "en" | "en-"* )
-          size=6605459456
-          sum="b072627c9b8d9f62af280faf2a8b634376f91dc73ea1881c81943c151983aa4a"
+          size=7151144960
+          sum="2eda4701d3e4061eccfdf0ad264b69392e67e2a29fef9eb7d7a57150b08e87e0"
           url="en-us_${c10}.iso" ;;
         "mx" | "es-mx" ) url="es-mx_${c10}.iso" ;;
         "es" | "es-"* ) url="es-es_${c10}.iso" ;;
@@ -1116,8 +1116,8 @@ getLink3() {
         "el" | "el-"* ) url="el-gr_${b10}_4f7921a5.iso" ;;
         "gb" | "en-gb" ) url="en-gb_${b10}_77325f32.iso" ;;
         "en" | "en-"* )
-          size=6428377088
-          sum="05fe9de04c2626bd00fbe69ad19129b2dbb75a93a2fe030ebfb2256d937ceab8"
+          size=6978310144
+          sum="7847abd6f39abd02dc8089c4177d354f9eb66fa0ee2fe8ae20e596e675d1ab67"
           url="en-us_${b10}_c004521a.iso" ;;
         "mx" | "es-mx" ) url="es-mx_${b10}_56d48916.iso" ;;
         "es" | "es-"* ) url="es-es_${b10}_4e057a75.iso" ;;
@@ -1276,8 +1276,8 @@ getLink3() {
         "cs" | "cs-"* ) url="cs-cz_${s22}.iso" ;;
         "de" | "de-"* ) url="de-de_${s22}.iso" ;;
         "en" | "en-"* )
-          size=5515755520
-          sum="7f41d603224e8a0bf34ba957d3abf0a02437ab75000dd758b5ce3f050963e91f"
+          size=5933062144
+          sum="5b6c4fab1027ed15cbd4179b8a41b184304ba362fa0053b3bad6ac070ee74281"
           url="en-us_${s22}.iso" ;;
         "es" | "es-"* ) url="es-es_${s22}.iso" ;;
         "fr" | "fr-"* ) url="fr-fr_${s22}.iso" ;;
@@ -1301,8 +1301,8 @@ getLink3() {
         "cs" | "cs-"* ) url="cs-cz_windows_server_2019_x64_dvd_3781c31c.iso" ;;
         "de" | "de-"* ) url="de-de_windows_server_2019_x64_dvd_132f7aa4.iso" ;;
         "en" | "en-"* )
-          size=4843268096
-          sum="4c5dd63efee50117986a2e38d4b3a3fbaf3c1c15e2e7ea1d23ef9d8af148dd2d"
+          size=5651695616
+          sum="ea247e5cf4df3e5829bfaaf45d899933a2a67b1c700a02ee8141287a8520261c"
           url="en-us_windows_server_2019_x64_dvd_f9475476.iso" ;;
         "es" | "es-"* ) url="es-es_windows_server_2019_x64_dvd_3ce0fd9e.iso" ;;
         "fr" | "fr-"* ) url="fr-fr_windows_server_2019_x64_dvd_f6f6acf6.iso" ;;
@@ -1326,8 +1326,8 @@ getLink3() {
         "cs" | "cs-"* ) url="cs_windows_server_2016_vl_x64_dvd_11636699.iso" ;;
         "de" | "de-"* ) url="de_windows_server_2016_vl_x64_dvd_11636696.iso" ;;
         "en" | "en-"* )
-          size=5653628928
-          sum="4caeb24b661fcede81cd90661aec31aa69753bf49a5ac247253dd021bc1b5cbb"
+          size=6003804160
+          sum="47919ce8b4993f531ca1fa3f85941f4a72b47ebaa4d3a321fecf83ca9d17e6b8"
           url="en_windows_server_2016_vl_x64_dvd_11636701.iso" ;;
         "es" | "es-"* ) url="es_windows_server_2016_vl_x64_dvd_11636712.iso" ;;
         "fr" | "fr-"* ) url="fr_windows_server_2016_vl_x64_dvd_11636729.iso" ;;
@@ -1351,8 +1351,8 @@ getLink3() {
         "cs" | "cs-"* ) url="cs_windows_server_2012_r2_vl_with_update_x64_dvd_6052752.iso" ;;
         "de" | "de-"* ) url="de_windows_server_2012_r2_vl_with_update_x64_dvd_6052780.iso" ;;
         "en" | "en-"* )
-          size=5397889024
-          sum="f351e89eb88a96af4626ceb3450248b8573e3ed5924a4e19ea891e6003b62e4e"
+          size=5400115200
+          sum="0e883ce28eb5c6f58a3a3007be978d43edb1035a4585506c1c4504c9e143408d"
           url="en_windows_server_2012_r2_vl_with_update_x64_dvd_6052766.iso" ;;
         "es" | "es-"* ) url="es_windows_server_2012_r2_vl_with_update_x64_dvd_6052831.iso" ;;
         "fr" | "fr-"* ) url="fr_windows_server_2012_r2_vl_with_update_x64_dvd_6052772.iso" ;;
@@ -1377,8 +1377,8 @@ getLink3() {
         "cs" | "cs-"* ) url="cs_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_617402.iso" ;;
         "de" | "de-"* ) url="de_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_617404.iso" ;;
         "en" | "en-"* )
-          size=3166584832
-          sum="dfd9890881b7e832a927c38310fb415b7ea62ac5a896671f2ce2a111998f0df8"
+          size=3166720000
+          sum="9b0cd5b11cc2e92badb74450f0cac03006d3c63a2ada36cb1eb95c1bf4b2608f"
           url="en_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_617403.iso" ;;
         "es" | "es-"* ) url="es_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_617410.iso" ;;
         "fr" | "fr-"* ) url="fr_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_617392.iso" ;;
