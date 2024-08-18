@@ -620,7 +620,7 @@ updateXML() {
 
   [ -z "$YRES" ] && YRES="720"
   [ -z "$XRES" ] && XRES="1280"
-  
+
   sed -i "s/<VerticalResolution>1080<\/VerticalResolution>/<VerticalResolution>$YRES<\/VerticalResolution>/g" "$asset"
   sed -i "s/<HorizontalResolution>1920<\/HorizontalResolution>/<HorizontalResolution>$XRES<\/HorizontalResolution>/g" "$asset"
 
@@ -703,6 +703,11 @@ addDriver() {
 
   if [[ "${id,,}" == "winvista"* ]]; then
     [[ "${driver,,}" == "viorng" ]] && return 0
+  fi
+
+  if [[ "${id,,}" == "win2025"* ]]; then
+    [[ "${driver,,}" == "smbus" ]] && return 0
+    [[ "${driver,,}" == "pvpanic" ]] && return 0
   fi
 
   local dest="$path/$target/$driver"
