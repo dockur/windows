@@ -82,7 +82,7 @@ kubectl apply -f kubernetes.yml
     VERSION: "win11"
   ```
 
-Select from the values below:
+  Select from the values below:
   
   | **Value** | **Version**              | **Size** |
   |---|---|---|
@@ -112,7 +112,8 @@ Select from the values below:
   | `tiny11`  | Tiny 11                  | 3.8 GB   |
   | `tiny10`  | Tiny 10                  | 3.6 GB   |
   
-  To install ARM64 versions of Windows use [dockur/windows-arm](https://github.com/dockur/windows-arm/).
+> [!TIP]
+> To install ARM64 versions of Windows use [dockur/windows-arm](https://github.com/dockur/windows-arm/).
 
 ### How do I select the Windows language?
 
