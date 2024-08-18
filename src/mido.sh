@@ -548,7 +548,7 @@ downloadFile() {
   if (( rc == 0 )) && [ -f "$iso" ]; then
     total=$(stat -c%s "$iso")
     if [ "$total" -lt 100000000 ]; then
-      error "Downloaded ISO is only $total bytes?" && return 1
+      error "Downloaded file $url is only $total bytes?" && return 1
     fi
     ! verifyFile "$iso" "$size" "$total" "$sum" && return 1
     html "Download finished successfully..." && return 0
