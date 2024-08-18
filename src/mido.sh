@@ -191,10 +191,10 @@ download_windows_eval() {
       windows_version="windows-11-enterprise" ;;
     "win11${PLATFORM,,}-enterprise-iot-eval" )
       enterprise_type="iot"
-      windows_version="windows-11-iot-enterprise-ltsc" ;;
+      windows_version="windows-11-iot-enterprise-ltsc-eval" ;;
     "win11${PLATFORM,,}-enterprise-ltsc-eval" )
       enterprise_type="iot"
-      windows_version="windows-11-iot-enterprise-ltsc" ;;
+      windows_version="windows-11-iot-enterprise-ltsc-eval" ;;
     "win10${PLATFORM,,}-enterprise-eval" )
       enterprise_type="enterprise"
       windows_version="windows-10-enterprise" ;;
