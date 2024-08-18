@@ -620,7 +620,7 @@ updateXML() {
 
   [ -z "$YRES" ] && YRES="720"
   [ -z "$XRES" ] && XRES="1280"
-  
+
   sed -i "s/<VerticalResolution>1080<\/VerticalResolution>/<VerticalResolution>$YRES<\/VerticalResolution>/g" "$asset"
   sed -i "s/<HorizontalResolution>1920<\/HorizontalResolution>/<HorizontalResolution>$XRES<\/HorizontalResolution>/g" "$asset"
 
@@ -683,7 +683,7 @@ addDriver() {
     "win81x64"* ) folder="w8.1/amd64" ;;
     "win10x64"* ) folder="w10/amd64" ;;
     "win11x64"* ) folder="w11/amd64" ;;
-    "win2025"* ) folder="w11/amd64" ;;
+    "win2025"* ) folder="2k25/amd64" ;;
     "win2022"* ) folder="2k22/amd64" ;;
     "win2019"* ) folder="2k19/amd64" ;;
     "win2016"* ) folder="2k16/amd64" ;;
@@ -701,9 +701,16 @@ addDriver() {
 
   [ ! -d "$path/$driver/$folder" ] && return 0
 
-  if [[ "${id,,}" == "winvista"* ]]; then
-    [[ "${driver,,}" == "viorng" ]] && return 0
-  fi
+  case "${id,,}" in
+    "winvista"* )
+      [[ "${driver,,}" == "viorng" ]] && return 0
+      ;;
+    "win2025"* | "win11x64-iot"* | "win11x64-ltsc"* )
+      [[ "${driver,,}" == "smbus" ]] && return 0
+      [[ "${driver,,}" == "pvpanic" ]] && return 0
+      [[ "${driver,,}" == "viogpudo" ]] && return 0
+      ;;
+  esac
 
   local dest="$path/$target/$driver"
   mv "$path/$driver/$folder" "$dest"

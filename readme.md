@@ -91,7 +91,7 @@ kubectl apply -f kubernetes.yml
   | `win10`   | Windows 10 Pro           | 5.7 GB   |
   | `ltsc10`  | Windows 10 LTSC          | 4.6 GB   |
   | `win10e`  | Windows 10 Enterprise    | 5.2 GB   |
-  ||||  
+  ||||
   | `win8`    | Windows 8.1 Pro          | 4.0 GB   |
   | `win8e`   | Windows 8.1 Enterprise   | 3.7 GB   |
   | `win7`    | Windows 7 Enterprise     | 3.0 GB   |

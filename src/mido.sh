@@ -191,10 +191,10 @@ download_windows_eval() {
       windows_version="windows-11-enterprise" ;;
     "win11${PLATFORM,,}-enterprise-iot-eval" )
       enterprise_type="iot"
-      windows_version="windows-11-iot-enterprise-ltsc" ;;
+      windows_version="windows-11-iot-enterprise-ltsc-eval" ;;
     "win11${PLATFORM,,}-enterprise-ltsc-eval" )
       enterprise_type="iot"
-      windows_version="windows-11-iot-enterprise-ltsc" ;;
+      windows_version="windows-11-iot-enterprise-ltsc-eval" ;;
     "win10${PLATFORM,,}-enterprise-eval" )
       enterprise_type="enterprise"
       windows_version="windows-10-enterprise" ;;
@@ -548,7 +548,7 @@ downloadFile() {
   if (( rc == 0 )) && [ -f "$iso" ]; then
     total=$(stat -c%s "$iso")
     if [ "$total" -lt 100000000 ]; then
-      error "Downloaded ISO is only $total bytes?" && return 1
+      error "Invalid download link: $url (is only $total bytes?). Please report this issue." && return 1
     fi
     ! verifyFile "$iso" "$size" "$total" "$sum" && return 1
     html "Download finished successfully..." && return 0
