@@ -14,7 +14,7 @@ set -Eeuo pipefail
 : "${USERNAME:=""}"
 : "${PASSWORD:=""}"
 
-MIRRORS=5
+MIRRORS=4
 PLATFORM="x64"
 
 parseVersion() {
@@ -941,45 +941,6 @@ getLink2() {
 
 getLink3() {
 
-  local id="$1"
-  local lang="$2"
-  local ret="$3"
-  local url=""
-  local sum=""
-  local size=""
-  local host="https://file.cnxiaobai.com/Windows"
-
-  [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
-
-  case "${id,,}" in
-    "core11" )
-      size=2159738880
-      sum="78f0f44444ff95b97125b43e560a72e0d6ce0a665cf9f5573bf268191e5510c1"
-      url="%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny11%20core%20x64%20beta%201.iso"
-      ;;
-    "tiny11" )
-      size=3788177408
-      sum="a028800a91addc35d8ae22dce7459b67330f7d69d2f11c70f53c0fdffa5b4280"
-      url="%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny11%202311%20x64.iso"
-      ;;
-    "tiny10" )
-      size=3839819776
-      sum="a11116c0645d892d6a5a7c585ecc1fa13aa66f8c7cc6b03bf1f27bd16860cc35"
-      url="%E7%B3%BB%E7%BB%9F%E5%AE%89%E8%A3%85%E5%8C%85/Tiny%2010_11/tiny10%2023H2%20x64.iso"
-      ;;
-  esac
-
-  case "${ret,,}" in
-    "sum" ) echo "$sum" ;;
-    "size" ) echo "$size" ;;
-    *) [ -n "$url" ] && echo "$host/$url";;
-  esac
-
-  return 0
-}
-
-getLink4() {
-
   # Fallbacks for users who cannot connect to the Microsoft servers
 
   local id="$1"
@@ -1820,7 +1781,7 @@ getLink4() {
   return 0
 }
 
-getLink5() {
+getLink4() {
 
   local id="$1"
   local lang="$2"
