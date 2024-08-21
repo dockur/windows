@@ -12,7 +12,7 @@
 
 </div></h1>
 
-Windows inside a Docker container.
+Windows inside a Docker container. - A fork of Dockurs Windows project
 
 ## Features ✨
 
@@ -20,6 +20,7 @@ Windows inside a Docker container.
  - ISO downloader
  - KVM acceleration
  - Web-based viewer
+ -  Easy to configure (Added by me)
 
 ## Video 📺
 
@@ -29,10 +30,12 @@ Windows inside a Docker container.
 
 Via Docker Compose:
 
+It is highly reccomended to use this method as you can change some settings for your user account, locale, windows version, and the resources assigned to the vm
+
 ```yaml
 services:
   windows:
-    image: dockurr/windows
+    image: tj5miniop/windows-docker
     container_name: windows
     environment:
       VERSION: "win11"
@@ -43,21 +46,7 @@ services:
     ports:
       - 8006:8006
       - 3389:3389/tcp
-      - 3389:3389/udp
-    stop_grace_period: 2m
-```
-
-Via Docker CLI:
-
-```bash
-docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-timeout 120 dockurr/windows
-```
-
-Via Kubernetes:
-
-```shell
-kubectl apply -f kubernetes.yml
-```
+      - 3389:
 
 ## FAQ 💬
 
