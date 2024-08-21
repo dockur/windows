@@ -4,6 +4,9 @@ services:
     container_name: windows
     environment:
       VERSION: "win11"
+      RAM_SIZE: "4G" # Change the RAM Size
+      DISK_SIZE: "64G" # Change the disk size
+      CPU_CORES: "2" #Change this to Change the number of CPU Cres the VM has access to
     devices:
       - /dev/kvm
     cap_add:

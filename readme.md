@@ -50,6 +50,11 @@ services:
 
 ## FAQ 💬
 
+
+### Why do Microsoft Store, Windows Activation, and some program installations not work?
+
+  Microsoft blocks access (using a firewall) to the Microsoft Store and some of its services, including Windows Activation and Smart Screen, from Data Center IPs. For example, suppose you are running Windows on Kubernetes, which runs in a Data Center, thus assigning an IP from a Data Center IP pool for egress traffic. In that case, these services will load for 30 to 180 seconds before giving up - indicating a retry against a firewall.
+  
 ### How do I use it?
 
   Very simple! These are the steps:
@@ -179,47 +184,6 @@ services:
 
   Replace the example path `/home/user/example.iso` with the filename of your desired ISO file, the value of `VERSION` will be ignored in this case.
 
-### How do I run a script after installation?
-
-  To run your own script after installation, you can create a file called `install.bat` and place it in a folder together with any additional files it needs (software to be installed for example). Then bind that folder in your compose file like this:
-
-  ```yaml
-  volumes:
-    -  /home/user/example:/oem
-  ```
-
-  The example folder `/home/user/example` will be copied to `C:\OEM` during installation and the containing `install.bat` will be executed during the last step.
-
-### How do I perform a manual installation?
-
-  It's best to stick to the automatic installation, as it adjusts various settings to prevent common issues when running Windows inside a virtual environment.
-
-  However, if you insist on performing the installation manually, add the following environment variable to your compose file:
-
-  ```yaml
-  environment:
-    MANUAL: "Y"
-  ```
-
-### How do I change the amount of CPU or RAM?
-
-  By default, the container will be allowed to use a maximum of 2 CPU cores and 4 GB of RAM.
-
-  If you want to adjust this, you can specify the desired amount using the following environment variables:
-
-  ```yaml
-  environment:
-    RAM_SIZE: "8G"
-    CPU_CORES: "4"
-  ```
-
-### How do I configure the username and password?
-
-  By default, a user called `Docker` is created during the installation, with an empty password.
-
-  If you want to use different credentials, you can change them in your compose file:
-
-  ```yaml
   environment:
     USERNAME: "bill"
     PASSWORD: "gates"
