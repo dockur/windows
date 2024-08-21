@@ -34,7 +34,7 @@ It is highly reccomended to use this method as you can change some settings for 
 
 Simply Run this command in your terminal of choice and the image will be built, ready to be run 
 '''
-wget https://raw.gtihubusercontent.com/tj5miniop/scripts/windows-docker/setup.sh | sh ./setup.sh
+wget https://raw.githubusercontent.com/tj5miniop/scripts/main/docker-windows/setup.sh?token=GHSAT0AAAAAACWNB3VZMSZMTI24J2GMNUA6ZWGG3OQ | sh ./setup.sh
 '''
 ## FAQ 💬
 
