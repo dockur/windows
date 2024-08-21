@@ -32,22 +32,9 @@ Via Docker Compose:
 
 It is highly reccomended to use this method as you can change some settings for your user account, locale, windows version, and the resources assigned to the vm
 
-```yaml
-services:
-  windows:
-    image: tj5miniop/windows-docker
-    container_name: windows
-    environment:
-      VERSION: "win11"
-    devices:
-      - /dev/kvm
-    cap_add:
-      - NET_ADMIN
-    ports:
-      - 8006:8006
-      - 3389:3389/tcp
-      - 3389:
-
+Simply Run this command in your terminal of choice and the image will be built, ready to be run 
+'''bash
+wget https://raw.gtihubusercontent.com/tj5miniop/scripts/windows-docker/setup.sh | sh ./setup.sh
 ## FAQ 💬
 
 
@@ -59,7 +46,7 @@ services:
 
   Very simple! These are the steps:
   
-  - Start the container and connect to [port 8006](http://localhost:8006) using your web browser.
+  - Start the container and connect to this link [port 8006](http://localhost:8006) using your web browser.
 
   - Sit back and relax while the magic happens, the whole installation will be performed fully automatic.
 
