@@ -33,8 +33,9 @@ Via Docker Compose:
 It is highly reccomended to use this method as you can change some settings for your user account, locale, windows version, and the resources assigned to the vm
 
 Simply Run this command in your terminal of choice and the image will be built, ready to be run 
-'''bash
+'''
 wget https://raw.gtihubusercontent.com/tj5miniop/scripts/windows-docker/setup.sh | sh ./setup.sh
+'''
 ## FAQ 💬
 
 
