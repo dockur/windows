@@ -32,19 +32,31 @@ To use this project, create a `docker-compose.yml` file with the following conte
 version: '3'
 services:
   windows:
+    image: tj5miniop/windows
     container_name: windows
-    image: dockurr/windows
-    ports:
-      - "8006:8006"
-    volumes:
-      - /var/win:/storage
     environment:
-      - VERSION=win11
-      - LANGUAGE=English
-      - USERNAME=bill
-      - PASSWORD=gates
+      VERSION: "win11"
+      RAM_SIZE: "4G" # Change the RAM Size
+      DISK_SIZE: "64G" # Change the disk size
+      CPU_CORES: "2" #Change this to Change the number of CPU Cres the VM has access to
+    devices:
+      - /dev/kvm
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8006:8006
+      - 3389:3389/tcp
+      - 3389:3389/udp
+    stop_grace_period: 2m
+
 ```
 Then, run `docker-compose up -d` to start the container.
+
+---
+
+You could also locally build the image by -  
+### cloning the repo using git
+### using docker build to build the image (Tip - Use the -t argument to give it a unique name in the username/image format eg - tj5miniop/windows11)
 
 ## FAQ
 
