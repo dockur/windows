@@ -950,11 +950,11 @@ getLink3() {
   local sum=""
   local size=""
   local host="https://drive.massgrave.dev"
-  local s22="windows_server_2022_updated_july_2024_x64_dvd_fee121d6"  
-  local c11="windows_11_consumer_editions_version_23h2_updated_july_2024_x64_dvd_13e3dd80"
-  local b11="windows_11_business_editions_version_23h2_updated_july_2024_x64_dvd"
-  local c10="windows_10_consumer_editions_version_22h2_updated_july_2024_x64_dvd_3245b006"
-  local b10="windows_10_business_editions_version_22h2_updated_july_2024_x64_dvd"
+  local s22="windows_server_2022_updated_aug_2024_x64_dvd_17b2bb17"  
+  local c11="windows_11_consumer_editions_version_23h2_updated_aug_2024_x64_dvd_d3e1c088"
+  local b11="windows_11_business_editions_version_23h2_updated_aug_2024_x64_dvd"
+  local c10="windows_10_consumer_editions_version_22h2_updated_aug_2024_x86_dvd_2454bb57"
+  local b10="windows_10_business_editions_version_22h2_updated_aug_2024_x64_dvd"
 
   culture=$(getLanguage "$lang" "culture")
 
