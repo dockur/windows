@@ -705,11 +705,6 @@ addDriver() {
     "winvista"* )
       [[ "${driver,,}" == "viorng" ]] && return 0
       ;;
-    "win2025"* | "win11x64-iot"* | "win11x64-ltsc"* )
-      [[ "${driver,,}" == "smbus" ]] && return 0
-      [[ "${driver,,}" == "pvpanic" ]] && return 0
-      [[ "${driver,,}" == "viogpudo" ]] && return 0
-      ;;
   esac
 
   local dest="$path/$target/$driver"
