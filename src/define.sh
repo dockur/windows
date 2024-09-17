@@ -729,14 +729,14 @@ getLink1() {
       ;;
     "win11x64-iot" | "win11x64-enterprise-iot-eval" )
       [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
-      size=4821989376
-      sum="e8f1431c4e6289b3997c20eadbb2576670300bb6e1cf8948b5d7af179010a962"
+      size=4501397504
+      sum="aaa4bd3254c1af5f9ce07f50db68fdead7a305878f2425c059ecd6b062a855b3"
       url="11/26100.1.240331-1435.ge_release_CLIENT_ENTERPRISES_OEM_x64FRE_en-us.iso"
       ;;
     "win11x64-ltsc" | "win11x64-enterprise-ltsc-eval" )
       [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
-      size=4821989376
-      sum="e8f1431c4e6289b3997c20eadbb2576670300bb6e1cf8948b5d7af179010a962"
+      size=4501397504
+      sum="aaa4bd3254c1af5f9ce07f50db68fdead7a305878f2425c059ecd6b062a855b3"
       url="11/26100.1.240331-1435.ge_release_CLIENT_ENTERPRISES_OEM_x64FRE_en-us.iso"
       ;;
     "win10x64" | "win10x64-enterprise" | "win10x64-enterprise-eval" )
