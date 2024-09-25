@@ -1928,7 +1928,7 @@ prepareInstall() {
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$target/TXTSETUP.SIF"
 
   if [ ! -d "$drivers/sata/xp/$arch" ]; then
-    error "Failed to locate required SATA drivers!" && return 1  
+    error "Failed to locate required SATA drivers!" && return 1
   fi
 
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata"
