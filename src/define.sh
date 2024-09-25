@@ -1897,10 +1897,18 @@ prepareInstall() {
 
   cp "$drivers/viostor/$driver/$arch/viostor.sys" "$target"
 
+  if [ ! -f "$drivers/viostor/$driver/$arch/viostor.sys" ]; then
+    error "Failed to locate required storage drivers!" && return 1  
+  fi
+  
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor"
   cp "$drivers/viostor/$driver/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor"
   cp "$drivers/viostor/$driver/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor"
   cp "$drivers/viostor/$driver/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor"
+
+  if [ ! -f "$drivers/NetKVM/$driver/$arch/netkvm.sys" ]; then
+    error "Failed to locate required network drivers!" && return 1  
+  fi
 
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/NetKVM"
   cp "$drivers/NetKVM/$driver/$arch/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
@@ -1919,8 +1927,11 @@ prepareInstall() {
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$target/TXTSETUP.SIF"
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$target/TXTSETUP.SIF"
 
-  mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata"
+  if [ ! -d "$drivers/sata/xp/$arch" ]; then
+    error "Failed to locate required SATA drivers!" && return 1  
+  fi
 
+  mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata"
   cp -a "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata"
   cp -a "$drivers/sata/xp/$arch/." "$target"
 
