@@ -1895,12 +1895,12 @@ prepareInstall() {
   local target
   [[ "${arch,,}" == "x86" ]] && target="$dir/I386" || target="$dir/AMD64"
 
-  cp "$drivers/viostor/$driver/$arch/viostor.sys" "$target"
-
   if [ ! -f "$drivers/viostor/$driver/$arch/viostor.sys" ]; then
     error "Failed to locate required storage drivers!" && return 1  
   fi
-  
+
+  cp "$drivers/viostor/$driver/$arch/viostor.sys" "$target"
+
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor"
   cp "$drivers/viostor/$driver/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor"
   cp "$drivers/viostor/$driver/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor"
