@@ -1896,7 +1896,7 @@ prepareInstall() {
   [[ "${arch,,}" == "x86" ]] && target="$dir/I386" || target="$dir/AMD64"
 
   if [ ! -f "$drivers/viostor/$driver/$arch/viostor.sys" ]; then
-    error "Failed to locate required storage drivers!" && return 1  
+    error "Failed to locate required storage drivers!" && return 1
   fi
 
   cp "$drivers/viostor/$driver/$arch/viostor.sys" "$target"
@@ -1907,7 +1907,7 @@ prepareInstall() {
   cp "$drivers/viostor/$driver/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor"
 
   if [ ! -f "$drivers/NetKVM/$driver/$arch/netkvm.sys" ]; then
-    error "Failed to locate required network drivers!" && return 1  
+    error "Failed to locate required network drivers!" && return 1
   fi
 
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/NetKVM"
