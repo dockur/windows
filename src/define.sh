@@ -950,105 +950,10 @@ getLink3() {
   local sum=""
   local size=""
   local host="https://drive.massgrave.dev"
-  local s22="windows_server_2022_updated_aug_2024_x64_dvd_17b2bb17"  
-  local c11="windows_11_consumer_editions_version_23h2_updated_aug_2024_x64_dvd_d3e1c088"
-  local b11="windows_11_business_editions_version_23h2_updated_aug_2024_x64_dvd"
-  local c10="windows_10_consumer_editions_version_22h2_updated_aug_2024_x86_dvd_2454bb57"
-  local b10="windows_10_business_editions_version_22h2_updated_aug_2024_x64_dvd"
 
   culture=$(getLanguage "$lang" "culture")
 
   case "${id,,}" in
-    "win11x64" )
-      case "${culture,,}" in
-        "ar" | "ar-"* ) url="ar-sa_${c11}.iso" ;;
-        "bg" | "bg-"* ) url="bg-bg_${c11}.iso" ;;
-        "cs" | "cs-"* ) url="cs-cz_${c11}.iso" ;;
-        "da" | "da-"* ) url="da-dk_${c11}.iso" ;;
-        "de" | "de-"* ) url="de-de_${c11}.iso" ;;
-        "el" | "el-"* ) url="el-gr_${c11}.iso" ;;
-        "gb" | "en-gb" ) url="en-gb_${c11}.iso" ;;
-        "en" | "en-"* )
-          size=7174344704
-          sum="c37962a65405106323ccd9c8b26a148959413a8b4cae22be315338f283a25e60"
-          url="en-us_${c11}.iso" ;;
-        "mx" | "es-mx" ) url="es-mx_${c11}.iso" ;;
-        "es" | "es-"* ) url="es-es_${c11}.iso" ;;
-        "et" | "et-"* ) url="et-ee_${c11}.iso" ;;
-        "fi" | "fi-"* ) url="fi-fi_${c11}.iso" ;;
-        "ca" | "fr-ca" ) url="fr-ca_${c11}.iso" ;;
-        "fr" | "fr-"* ) url="fr-fr_${c11}.iso" ;;
-        "he" | "he-"* ) url="he-il_${c11}.iso" ;;
-        "hr" | "hr-"* ) url="hr-hr_${c11}.iso" ;;
-        "hu" | "hu-"* ) url="hu-hu_${c11}.iso" ;;
-        "it" | "it-"* ) url="it-it_${c11}.iso" ;;
-        "ja" | "ja-"* ) url="ja-jp_${c11}.iso" ;;
-        "ko" | "ko-"* ) url="ko-kr_${c11}.iso" ;;
-        "lt" | "lt-"* ) url="lt-lt_${c11}.iso" ;;
-        "lv" | "lv-"* ) url="lv-lv_${c11}.iso" ;;
-        "nb" | "nb-"* ) url="nb-no_${c11}.iso" ;;
-        "nl" | "nl-"* ) url="nl-nl_${c11}.iso" ;;
-        "pl" | "pl-"* ) url="pl-pl_${c11}.iso" ;;
-        "br" | "pt-br" ) url="pt-br_${c11}.iso" ;;
-        "pt" | "pt-"* ) url="pt-pt_${c11}.iso" ;;
-        "ro" | "ro-"* ) url="ro-ro_${c11}.iso" ;;
-        "ru" | "ru-"* ) url="ru-ru_${c11}.iso" ;;
-        "sk" | "sk-"* ) url="sk-sk_${c11}.iso" ;;
-        "sl" | "sl-"* ) url="sl-si_${c11}.iso" ;;
-        "sr" | "sr-"* ) url="sr-latn-rs_${c11}.iso" ;;
-        "sv" | "sv-"* ) url="sv-se_${c11}.iso" ;;
-        "th" | "th-"* ) url="th-th_${c11}.iso" ;;
-        "tr" | "tr-"* ) url="tr-tr_${c11}.iso" ;;
-        "uk" | "uk-"* ) url="uk-ua_${c11}.iso" ;;
-        "zh-hk" | "zh-tw" ) url="zh-tw_${c11}.iso" ;;
-        "zh" | "zh-"* ) url="zh-cn_${c11}.iso" ;;
-      esac
-      ;;
-    "win11x64-enterprise" | "win11x64-enterprise-eval" )
-      case "${culture,,}" in
-        "ar" | "ar-"* ) url="ar-sa_${b11}_e8f50c77.iso" ;;
-        "bg" | "bg-"* ) url="bg-bg_${b11}_4917d646.iso" ;;
-        "cs" | "cs-"* ) url="cs-cz_${b11}_7423efd7.iso" ;;
-        "da" | "da-"* ) url="da-dk_${b11}_320e7939.iso" ;;
-        "de" | "de-"* ) url="de-de_${b11}_0a30ec34.iso" ;;
-        "el" | "el-"* ) url="el-gr_${b11}_8094f396.iso" ;;
-        "gb" | "en-gb" ) url="en-gb_${b11}_d2bfefb8.iso" ;;
-        "en" | "en-"* )
-          size=7058937856
-          sum="16366a1970d98b590295f5858eb2aae5577ef870a148de42bd3ed051e78010fb"
-          url="en-us_${b11}_4b6aa6b4.iso" ;;
-        "mx" | "es-mx" ) url="es-mx_${b11}_a3ff371e.iso" ;;
-        "es" | "es-"* ) url="es-es_${b11}_49584d0f.iso" ;;
-        "et" | "et-"* ) url="et-ee_${b11}_9418af12.iso" ;;
-        "fi" | "fi-"* ) url="fi-fi_${b11}_f99ef6d3.iso" ;;
-        "ca" | "fr-ca" ) url="fr-ca_${b11}_3b3e23dc.iso" ;;
-        "fr" | "fr-"* ) url="fr-fr_${b11}_e5a1eeb4.iso" ;;
-        "he" | "he-"* ) url="he-il_${b11}_52d76f40.iso" ;;
-        "hr" | "hr-"* ) url="hr-hr_${b11}_c93171de.iso" ;;
-        "hu" | "hu-"* ) url="hu-hu_${b11}_0ac31337.iso" ;;
-        "it" | "it-"* ) url="it-it_${b11}_d1670509.iso" ;;
-        "ja" | "ja-"* ) url="ja-jp_${b11}_6394f8d8.iso" ;;
-        "ko" | "ko-"* ) url="ko-kr_${b11}_ad04a091.iso" ;;
-        "lt" | "lt-"* ) url="lt-lt_${b11}_75df52ae.iso" ;;
-        "lv" | "lv-"* ) url="lv-lv_${b11}_f498cffc.iso" ;;
-        "nb" | "nb-"* ) url="nb-no_${b11}_a4cdddfc.iso" ;;
-        "nl" | "nl-"* ) url="nl-nl_${b11}_03c01555.iso" ;;
-        "pl" | "pl-"* ) url="pl-pl_${b11}_d5274f4d.iso" ;;
-        "br" | "pt-br" ) url="pt-br_${b11}_662860be.iso" ;;
-        "pt" | "pt-"* ) url="pt-pt_${b11}_ec70d402.iso" ;;
-        "ro" | "ro-"* ) url="ro-ro_${b11}_d76af266.iso" ;;
-        "ru" | "ru-"* ) url="ru-ru_${b11}_689ea9dc.iso" ;;
-        "sk" | "sk-"* ) url="sk-sk_${b11}_358e8bce.iso" ;;
-        "sl" | "sl-"* ) url="sl-si_${b11}_69a9feb3.iso" ;;
-        "sr" | "sr-"* ) url="sr-latn-rs_${b11}_23247970.iso" ;;
-        "sv" | "sv-"* ) url="sv-se_${b11}_2b228b50.iso" ;;
-        "th" | "th-"* ) url="th-th_${b11}_6914e97f.iso" ;;
-        "tr" | "tr-"* ) url="tr-tr_${b11}_20dd43f1.iso" ;;
-        "uk" | "uk-"* ) url="uk-ua_${b11}_ed5be63e.iso" ;;
-        "zh-hk" | "zh-tw" ) url="zh-tw_${b11}_beaade88.iso" ;;
-        "zh" | "zh-"* ) url="zh-cn_${b11}_6ca91c94.iso" ;;
-      esac
-      ;;
     "win11x64-iot" | "win11x64-enterprise-iot-eval" )
       [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
       size=4821989376
@@ -1060,96 +965,6 @@ getLink3() {
       size=4821989376
       sum="e8f1431c4e6289b3997c20eadbb2576670300bb6e1cf8948b5d7af179010a962"
       url="26100.1.240331-1435.ge_release_CLIENTENTERPRISE_OEM_x64FRE_en-us.iso"
-      ;;
-    "win10x64" )
-      case "${culture,,}" in
-        "ar" | "ar-"* ) url="ar-sa_${c10}.iso" ;;
-        "bg" | "bg-"* ) url="bg-bg_${c10}.iso" ;;
-        "cs" | "cs-"* ) url="cs-cz_${c10}.iso" ;;
-        "da" | "da-"* ) url="da-dk_${c10}.iso" ;;
-        "de" | "de-"* ) url="de-de_${c10}.iso" ;;
-        "el" | "el-"* ) url="el-gr_${c10}.iso" ;;
-        "gb" | "en-gb" ) url="en-gb_${c10}.iso" ;;
-        "en" | "en-"* )
-          size=4950300672
-          sum="bbe2caba5ae2562166ed1ed0d7b54678c7cb9a3fe25dcb1e27c8f6993a95b498"
-          url="en-us_${c10}.iso" ;;
-        "mx" | "es-mx" ) url="es-mx_${c10}.iso" ;;
-        "es" | "es-"* ) url="es-es_${c10}.iso" ;;
-        "et" | "et-"* ) url="et-ee_${c10}.iso" ;;
-        "fi" | "fi-"* ) url="fi-fi_${c10}.iso" ;;
-        "ca" | "fr-ca" ) url="fr-ca_${c10}.iso" ;;
-        "fr" | "fr-"* ) url="fr-fr_${c10}.iso" ;;
-        "he" | "he-"* ) url="he-il_${c10}.iso" ;;
-        "hr" | "hr-"* ) url="hr-hr_${c10}.iso" ;;
-        "hu" | "hu-"* ) url="hu-hu_${c10}.iso" ;;
-        "it" | "it-"* ) url="it-it_${c10}.iso" ;;
-        "ja" | "ja-"* ) url="ja-jp_${c10}.iso" ;;
-        "ko" | "ko-"* ) url="ko-kr_${c10}.iso" ;;
-        "lt" | "lt-"* ) url="lt-lt_${c10}.iso" ;;
-        "lv" | "lv-"* ) url="lv-lv_${c10}.iso" ;;
-        "nb" | "nb-"* ) url="nb-no_${c10}.iso" ;;
-        "nl" | "nl-"* ) url="nl-nl_${c10}.iso" ;;
-        "pl" | "pl-"* ) url="pl-pl_${c10}.iso" ;;
-        "br" | "pt-br" ) url="pt-br_${c10}.iso" ;;
-        "pt" | "pt-"* ) url="pt-pt_${c10}.iso" ;;
-        "ro" | "ro-"* ) url="ro-ro_${c10}.iso" ;;
-        "ru" | "ru-"* ) url="ru-ru_${c10}.iso" ;;
-        "sk" | "sk-"* ) url="sk-sk_${c10}.iso" ;;
-        "sl" | "sl-"* ) url="sl-si_${c10}.iso" ;;
-        "sr" | "sr-"* ) url="sr-latn-rs_${c10}.iso" ;;
-        "sv" | "sv-"* ) url="sv-se_${c10}.iso" ;;
-        "th" | "th-"* ) url="th-th_${c10}.iso" ;;
-        "tr" | "tr-"* ) url="tr-tr_${c10}.iso" ;;
-        "uk" | "uk-"* ) url="uk-ua_${c10}.iso" ;;
-        "zh-hk" | "zh-tw" ) url="zh-tw_${c10}.iso" ;;
-        "zh" | "zh-"* ) url="zh-cn_${c10}.iso" ;;
-      esac
-      ;;
-    "win10x64-enterprise" | "win10x64-enterprise-eval" )
-      case "${culture,,}" in
-        "ar" | "ar-"* ) url="ar-sa_${b10}_92a8794f.iso" ;;
-        "bg" | "bg-"* ) url="bg-bg_${b10}_5c7ee697.iso" ;;
-        "cs" | "cs-"* ) url="cs-cz_${b10}_c8ad70aa.iso" ;;
-        "da" | "da-"* ) url="da-dk_${b10}_5a51835f.iso" ;;
-        "de" | "de-"* ) url="de-de_${b10}_e24c9809.iso" ;;
-        "el" | "el-"* ) url="el-gr_${b10}_a340838b.iso" ;;
-        "gb" | "en-gb" ) url="en-gb_${b10}_e758d63e.iso" ;;
-        "en" | "en-"* )
-          size=6976530432
-          sum="290cdbfe5f9b9a76dad12981e5f27eba353c535ffd8c83fdc4691a925f93f487"
-          url="en-us_${b10}_633dcd07.iso" ;;
-        "mx" | "es-mx" ) url="es-mx_${b10}_0c82aba5.iso" ;;
-        "es" | "es-"* ) url="es-es_${b10}_d12d0e1a.iso" ;;
-        "et" | "et-"* ) url="et-ee_${b10}_021c20ff.iso" ;;
-        "fi" | "fi-"* ) url="fi-fi_${b10}_8fcefb87.iso" ;;
-        "ca" | "fr-ca" ) url="fr-ca_${b10}_b0588c68.iso" ;;
-        "fr" | "fr-"* ) url="fr-fr_${b10}_8766236b.iso" ;;
-        "he" | "he-"* ) url="he-il_${b10}_e34ccebf.iso" ;;
-        "hr" | "hr-"* ) url="hr-hr_${b10}_ea8c7c60.iso" ;;
-        "hu" | "hu-"* ) url="hu-hu_${b10}_8381df72.iso" ;;
-        "it" | "it-"* ) url="it-it_${b10}_1e265790.iso" ;;
-        "ja" | "ja-"* ) url="ja-jp_${b10}_6334dde3.iso" ;;
-        "ko" | "ko-"* ) url="ko-kr_${b10}_092c4fe2.iso" ;;
-        "lt" | "lt-"* ) url="lt-lt_${b10}_5425bdce.iso" ;;
-        "lv" | "lv-"* ) url="lv-lv_${b10}_5426a93f.iso" ;;
-        "nb" | "nb-"* ) url="nb-no_${b10}_67cd70cf.iso" ;;
-        "nl" | "nl-"* ) url="nl-nl_${b10}_43418e31.iso" ;;
-        "pl" | "pl-"* ) url="pl-pl_${b10}_7d9fc23a.iso" ;;
-        "br" | "pt-br" ) url="pt-br_${b10}_159a147c.iso" ;;
-        "pt" | "pt-"* ) url="pt-pt_${b10}_003df1d7.iso" ;;
-        "ro" | "ro-"* ) url="ro-ro_${b10}_068fb76e.iso" ;;
-        "ru" | "ru-"* ) url="ru-ru_${b10}_71cdb226.iso" ;;
-        "sk" | "sk-"* ) url="sk-sk_${b10}_22793411.iso" ;;
-        "sl" | "sl-"* ) url="sl-si_${b10}_91ae3317.iso" ;;
-        "sr" | "sr-"* ) url="sr-latn-rs_${b10}_4f8045aa.iso" ;;
-        "sv" | "sv-"* ) url="sv-se_${b10}_fe117cac.iso" ;;
-        "th" | "th-"* ) url="th-th_${b10}_15986f75.iso" ;;
-        "tr" | "tr-"* ) url="tr-tr_${b10}_71319f58.iso" ;;
-        "uk" | "uk-"* ) url="uk-ua_${b10}_0555f2a3.iso" ;;
-        "zh-hk" | "zh-tw" ) url="zh-tw_${b10}_ebffe3cd.iso" ;;
-        "zh" | "zh-"* ) url="zh-cn_${b10}_2dce9717.iso" ;;
-      esac
       ;;
     "win10x64-ltsc" | "win10x64-enterprise-ltsc-eval" )
       case "${culture,,}" in
@@ -1269,31 +1084,6 @@ getLink3() {
         "tr" | "tr-"* ) url="tr-tr_windows_server_2025_preview_x64_dvd_3aab7fda.iso" ;;
         "zh-hk" | "zh-tw" ) url="zh-tw_windows_server_2025_preview_x64_dvd_9b147dcd.iso" ;;
         "zh" | "zh-"* ) url="zh-cn_windows_server_2025_preview_x64_dvd_a12bb0bf.iso" ;;
-      esac
-      ;;
-    "win2022" | "win2022-eval" )
-      case "${culture,,}" in
-        "cs" | "cs-"* ) url="cs-cz_${s22}.iso" ;;
-        "de" | "de-"* ) url="de-de_${s22}.iso" ;;
-        "en" | "en-"* )
-          size=5966127104
-          sum="0b70ea0e3969ad63dfe7e819d76d37ea37582e9f29e0f8d70b38e6b978406ee9"
-          url="en-us_${s22}.iso" ;;
-        "es" | "es-"* ) url="es-es_${s22}.iso" ;;
-        "fr" | "fr-"* ) url="fr-fr_${s22}.iso" ;;
-        "hu" | "hu-"* ) url="hu-hu_${s22}.iso" ;;
-        "it" | "it-"* ) url="it-it_${s22}.iso" ;;
-        "ja" | "ja-"* ) url="ja-jp_${s22}.iso" ;;
-        "ko" | "ko-"* ) url="ko-kr_${s22}.iso" ;;
-        "nl" | "nl-"* ) url="nl-nl_${s22}.iso" ;;
-        "pl" | "pl-"* ) url="pl-pl_${s22}.iso" ;;
-        "br" | "pt-br" ) url="pt-br_${s22}.iso" ;;
-        "pt" | "pt-"* ) url="pt-pt_${s22}.iso" ;;
-        "ru" | "ru-"* ) url="ru-ru_${s22}.iso" ;;
-        "sv" | "sv-"* ) url="sv-se_${s22}.iso" ;;
-        "tr" | "tr-"* ) url="tr-tr_${s22}.iso" ;;
-        "zh-hk" | "zh-tw" ) url="zh-tw_${s22}.iso" ;;
-        "zh" | "zh-"* ) url="zh-cn_${s22}.iso" ;;
       esac
       ;;
     "win2019" | "win2019-eval" )
@@ -1895,12 +1685,20 @@ prepareInstall() {
   local target
   [[ "${arch,,}" == "x86" ]] && target="$dir/I386" || target="$dir/AMD64"
 
+  if [ ! -f "$drivers/viostor/$driver/$arch/viostor.sys" ]; then
+    error "Failed to locate required storage drivers!" && return 1
+  fi
+
   cp "$drivers/viostor/$driver/$arch/viostor.sys" "$target"
 
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor"
   cp "$drivers/viostor/$driver/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor"
   cp "$drivers/viostor/$driver/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor"
   cp "$drivers/viostor/$driver/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor"
+
+  if [ ! -f "$drivers/NetKVM/$driver/$arch/netkvm.sys" ]; then
+    error "Failed to locate required network drivers!" && return 1
+  fi
 
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/NetKVM"
   cp "$drivers/NetKVM/$driver/$arch/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
@@ -1919,8 +1717,11 @@ prepareInstall() {
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$target/TXTSETUP.SIF"
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$target/TXTSETUP.SIF"
 
-  mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata"
+  if [ ! -d "$drivers/sata/xp/$arch" ]; then
+    error "Failed to locate required SATA drivers!" && return 1
+  fi
 
+  mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata"
   cp -a "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata"
   cp -a "$drivers/sata/xp/$arch/." "$target"
 

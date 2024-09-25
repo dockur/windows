@@ -105,10 +105,6 @@ kubectl apply -f kubernetes.yml
   | `2012`    | Windows Server 2012      | 4.3 GB   |
   | `2008`    | Windows Server 2008      | 3.0 GB   |
   | `2003`    | Windows Server 2003      | 0.6 GB   |
-  ||||
-  | `core11`  | Tiny 11 Core             | 2.1 GB   |
-  | `tiny11`  | Tiny 11                  | 3.8 GB   |
-  | `tiny10`  | Tiny 10                  | 3.6 GB   |
 
 > [!TIP]
 > To install ARM64 versions of Windows use [dockur/windows-arm](https://github.com/dockur/windows-arm/).
