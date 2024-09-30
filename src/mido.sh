@@ -318,6 +318,7 @@ getWindows() {
 
   case "${version,,}" in
     "win11${PLATFORM,,}-enterprise-iot-eval" ) ;;
+    "win11${PLATFORM,,}-enterprise-ltsc-eval" ) ;;
     * )
       if [[ "${PLATFORM,,}" != "x64" ]]; then
         error "No download for the ${PLATFORM^^} platform available for $edition!"
