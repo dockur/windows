@@ -386,7 +386,7 @@ printVersion() {
 
   if [ -z "$desc" ]; then
     desc="Windows"
-    [[ "${PLATFORM,,}" != "x64" ]] && desc="$desc for ${PLATFORM}"
+    [[ "${PLATFORM,,}" != "x64" ]] && desc+=" for ${PLATFORM}"
   fi
 
   echo "$desc"
