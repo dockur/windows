@@ -2134,7 +2134,7 @@ setMachine() {
       if ! prepare2k3 "$iso" "$dir" "$desc"; then
         error "Failed to prepare $desc ISO!" && return 1
       fi ;;
-    "win2025"* | "win11x64-iot"* | "win11x64-ltsc"* )
+    "win2025"* | "win11x64"* )
       # Temporary: Use IDE CD to workaround install bug
       MEDIA_TYPE="ide" ;;
   esac
