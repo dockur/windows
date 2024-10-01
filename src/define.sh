@@ -115,7 +115,7 @@ parseVersion() {
       ;;
     "ltsc11" | "11ltsc" | "win11-ltsc" | "win11x64-ltsc" | "win11x64-enterprise-ltsc-eval" )
       VERSION="win11x64-enterprise-ltsc-eval"
-      [ -z "$DETECTED" ] && DETECTED="win11x64-iot"
+      [ -z "$DETECTED" ] && DETECTED="win11x64-ltsc"
       ;;
     "ltsc10" | "10ltsc" | "win10-ltsc" | "win10x64-ltsc" | "win10x64-enterprise-ltsc-eval" )
       VERSION="win10x64-enterprise-ltsc-eval"
@@ -420,7 +420,7 @@ printEdition() {
       edition="Education"
       ;;
     *"-iot" | *"-iot-eval" )
-      edition="IoT"
+      edition="LTSC"
       ;;
     *"-ltsc" | *"-ltsc-eval" )
       edition="LTSC"
