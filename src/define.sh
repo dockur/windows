@@ -637,8 +637,8 @@ getMido() {
 
   case "${id,,}" in
     "win11x64" )
-      size=6812706816
-      sum="36de5ecb7a0daa58dce68c03b9465a543ed0f5498aa8ae60ab45fb7c8c4ae402"
+      size=5819484160
+      sum="b56b911bf18a2ceaeb3904d87e7c770bdf92d3099599d61ac2497b91bf190b11"
       ;;
     "win11x64-enterprise-eval" )
       size=6209064960
