@@ -320,7 +320,7 @@ kubectl apply -f kubernetes.yml
     - /dev/sdc:/disk2
   ```
 
-  Use `/disk1` if you want it to become your main drive, and use `/disk2` and higher to add them as secondary drives.
+  Use `/disk1` if you want it to become your main drive (which will be formatted during installation), and use `/disk2` and higher to add them as secondary drives (which will stay untouched).
 
 ### How do I pass-through a USB device?
 
