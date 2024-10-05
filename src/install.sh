@@ -156,10 +156,6 @@ finishInstall() {
     fi
   fi
 
-  if [ -n "${VGA:-}" ] && [[ "${VGA:-}" != "virtio" ]] && [[ "${VGA:-}" != "ramfb" ]]; then
-    echo "$VGA" > "$STORAGE/windows.vga"
-  fi
-
   if [ -n "${DISK_TYPE:-}" ] && [[ "${DISK_TYPE:-}" != "scsi" ]]; then
     echo "$DISK_TYPE" > "$STORAGE/windows.type"
   fi
@@ -979,12 +975,6 @@ buildImage() {
 bootWindows() {
 
   rm -rf "$TMP"
-
-  if [ -s "$STORAGE/windows.vga" ] && [ -f "$STORAGE/windows.vga" ]; then
-    [ -z "${VGA:-}" ] && VGA=$(<"$STORAGE/windows.vga")
-  else
-    [ -z "${VGA:-}" ] && [[ "${PLATFORM,,}" == "arm64" ]] && VGA="virtio-gpu"
-  fi
 
   if [ -s "$STORAGE/windows.type" ] && [ -f "$STORAGE/windows.type" ]; then
     [ -z "${DISK_TYPE:-}" ] && DISK_TYPE=$(<"$STORAGE/windows.type")
