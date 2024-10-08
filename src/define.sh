@@ -2111,7 +2111,6 @@ setMachine() {
 
   case "${id,,}" in
     "win9"* | "win2k"* | "winxp"* | "win2003"* )
-      HV="N"
       BOOT_MODE="windows_legacy" ;;
     "winvista"* | "win7"* | "win2008"* )
       BOOT_MODE="windows_legacy" ;;
