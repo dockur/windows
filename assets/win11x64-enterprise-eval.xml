@@ -448,6 +448,11 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>23</Order>
+          <CommandLine>rd /q c:\Windows.old 2>nul</CommandLine>
+          <Description>Remove empty Windows.old folder</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>24</Order>
           <CommandLine>cmd /C if exist "C:\OEM\install.bat" start "Install" "cmd /C C:\OEM\install.bat"</CommandLine>
           <Description>Execute custom script from the OEM folder if exists</Description>
         </SynchronousCommand>
