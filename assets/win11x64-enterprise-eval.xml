@@ -443,6 +443,11 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>22</Order>
+          <CommandLine>pnputil -i -a C:\Windows\Drivers\viogpudo\viogpudo.inf</CommandLine>
+          <Description>Install VirtIO display driver</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>23</Order>
           <CommandLine>cmd /C if exist "C:\OEM\install.bat" start "Install" "cmd /C C:\OEM\install.bat"</CommandLine>
           <Description>Execute custom script from the OEM folder if exists</Description>
         </SynchronousCommand>

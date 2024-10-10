@@ -701,6 +701,9 @@ addDriver() {
     "winvista"* )
       [[ "${driver,,}" == "viorng" ]] && return 0
       ;;
+    "win11x64"* | "win2025"* )
+      [[ "${driver,,}" == "viogpudo" ]] && return 0
+      ;;
   esac
 
   local dest="$path/$target/$driver"
@@ -737,6 +740,7 @@ addDrivers() {
   addDriver "$version" "$drivers" "$target" "smbus"
   addDriver "$version" "$drivers" "$target" "qxldod"
   addDriver "$version" "$drivers" "$target" "viorng"
+  addDriver "$version" "$drivers" "$target" "viomem"  
   addDriver "$version" "$drivers" "$target" "viostor"
   addDriver "$version" "$drivers" "$target" "NetKVM"
   addDriver "$version" "$drivers" "$target" "Balloon"
