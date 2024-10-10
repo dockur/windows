@@ -111,30 +111,6 @@ kubectl apply -f kubernetes.yml
 > [!TIP]
 > To install ARM64 versions of Windows use [dockur/windows-arm](https://github.com/dockur/windows-arm/).
 
-### How do I select the Windows language?
-
-  By default, the English version of Windows will be downloaded. But you can add the `LANGUAGE` environment variable to your compose file, in order to specify an alternative language:
-
-  ```yaml
-  environment:
-    LANGUAGE: "French"
-  ```
-  
-  You can choose between: 🇦🇪 Arabic, 🇧🇬 Bulgarian, 🇨🇳 Chinese, 🇭🇷 Croatian, 🇨🇿 Czech, 🇩🇰 Danish, 🇳🇱 Dutch, 🇬🇧 English, 🇪🇪 Estionian, 🇫🇮 Finnish, 🇫🇷 French, 🇩🇪 German, 🇬🇷 Greek, 🇮🇱 Hebrew, 🇭🇺 Hungarian, 🇮🇹 Italian, 🇯🇵 Japanese, 🇰🇷 Korean, 🇱🇻 Latvian, 🇱🇹 Lithuanian, 🇳🇴 Norwegian, 🇵🇱 Polish, 🇵🇹 Portuguese, 🇷🇴 Romanian, 🇷🇺 Russian, 🇷🇸 Serbian, 🇸🇰 Slovak, 🇸🇮 Slovenian, 🇪🇸 Spanish, 🇸🇪 Swedish, 🇹🇭 Thai, 🇹🇷 Turkish and 🇺🇦 Ukrainian.
-
-### How do I select the keyboard layout?
-
-  If you want to use a keyboard layout or locale that is not the default for your selected language, you can add the `KEYBOARD` and `REGION` variables with a culture code, like this:
-
-  ```yaml
-  environment:
-    REGION: "en-US"
-    KEYBOARD: "en-US"
-  ```
-
-> [!NOTE]  
->  Changing these values will have no effect after the installation has been performed already. Use the control panel inside Windows in that case.
-
 ### How do I change the storage location?
 
   To change the storage location, include the following bind mount in your compose file:
@@ -235,6 +211,31 @@ kubectl apply -f kubernetes.yml
     USERNAME: "bill"
     PASSWORD: "gates"
   ```
+
+### How do I select the Windows language?
+
+  By default, the English version of Windows will be downloaded. But you can add the `LANGUAGE` environment variable to your compose file, in order to specify an alternative language:
+
+  ```yaml
+  environment:
+    LANGUAGE: "French"
+  ```
+  
+  You can choose between: 🇦🇪 Arabic, 🇧🇬 Bulgarian, 🇨🇳 Chinese, 🇭🇷 Croatian, 🇨🇿 Czech, 🇩🇰 Danish, 🇳🇱 Dutch, 🇬🇧 English, 🇪🇪 Estionian, 🇫🇮 Finnish, 🇫🇷 French, 🇩🇪 German, 🇬🇷 Greek, 🇮🇱 Hebrew, 🇭🇺 Hungarian, 🇮🇹 Italian, 🇯🇵 Japanese, 🇰🇷 Korean, 🇱🇻 Latvian, 🇱🇹 Lithuanian, 🇳🇴 Norwegian, 🇵🇱 Polish, 🇵🇹 Portuguese, 🇷🇴 Romanian, 🇷🇺 Russian, 🇷🇸 Serbian, 🇸🇰 Slovak, 🇸🇮 Slovenian, 🇪🇸 Spanish, 🇸🇪 Swedish, 🇹🇭 Thai, 🇹🇷 Turkish and 🇺🇦 Ukrainian.
+
+### How do I select the keyboard layout?
+
+  If you want to use a keyboard layout or locale that is not the default for your selected language, you can add the `KEYBOARD` and `REGION` variables with a culture code, like this:
+
+  ```yaml
+  environment:
+    REGION: "en-US"
+    KEYBOARD: "en-US"
+  ```
+
+> [!NOTE]  
+>  Changing these values will have no effect after the installation has been performed already. Use the control panel inside Windows in that case.
+>
 
 ### How do I connect using RDP?
 
