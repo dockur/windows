@@ -451,7 +451,7 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>23</Order>
-          <CommandLine>rd /q c:\Windows.old 2>nul</CommandLine>
+          <CommandLine>cmd /C rd /q C:\Windows.old</CommandLine>
           <Description>Remove empty Windows.old folder</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
