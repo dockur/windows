@@ -309,7 +309,7 @@ getWindows() {
   info "$msg" && html "$msg"
 
   case "${version,,}" in
-    "win2008r2" | "win81${PLATFORM,,}-enterprise"* | "win11${PLATFORM,,}-enterprise-iot-eval" )
+    "win2008r2" | "win81${PLATFORM,,}-enterprise"* | "win11${PLATFORM,,}-enterprise-iot"* | "win11${PLATFORM,,}-enterprise-ltsc"* )
       if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
         error "No download in the $language language available for $edition!"
         MIDO_URL="" && return 1
@@ -317,8 +317,8 @@ getWindows() {
   esac
 
   case "${version,,}" in
-    "win11${PLATFORM,,}-enterprise-iot-eval" ) ;;
-    "win11${PLATFORM,,}-enterprise-ltsc-eval" ) ;;
+    "win11${PLATFORM,,}-enterprise-iot"* ) ;;
+    "win11${PLATFORM,,}-enterprise-ltsc"* ) ;;
     * )
       if [[ "${PLATFORM,,}" != "x64" ]]; then
         error "No download for the ${PLATFORM^^} platform available for $edition!"
@@ -341,6 +341,11 @@ getWindows() {
     * ) error "Invalid VERSION specified, value \"$version\" is not recognized!" ;;
   esac
 
+  if [[ "${PLATFORM,,}" != "x64" ]]; then
+    MIDO_URL=""
+    return 1
+  fi
+
   if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
     MIDO_URL=""
     return 1
@@ -349,6 +354,10 @@ getWindows() {
   case "${version,,}" in
     "win81${PLATFORM,,}-enterprise"* )
       MIDO_URL="https://download.microsoft.com/download/B/9/9/B999286E-0A47-406D-8B3D-5B5AD7373A4A/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_ENTERPRISE_EVAL_EN-US-IR3_CENA_X64FREE_EN-US_DV9.ISO"
+      return 0
+      ;;
+    "win11${PLATFORM,,}-enterprise-iot"* | "win11${PLATFORM,,}-enterprise-ltsc"* )
+      MIDO_URL="https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.1.240331-1435.ge_release_CLIENT_IOT_LTSC_EVAL_x64FRE_en-us.iso"
       return 0
       ;;
     "win2025-eval" )
