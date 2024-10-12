@@ -309,7 +309,7 @@ getWindows() {
   info "$msg" && html "$msg"
 
   case "${version,,}" in
-    "win2008r2" | "win81${PLATFORM,,}-enterprise-eval" | "win11${PLATFORM,,}-enterprise-iot-eval" )
+    "win2008r2" | "win81${PLATFORM,,}-enterprise"* | "win11${PLATFORM,,}-enterprise-iot-eval" )
       if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
         error "No download in the $language language available for $edition!"
         MIDO_URL="" && return 1
