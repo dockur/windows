@@ -1665,7 +1665,10 @@ prepareInstall() {
   local arch="$4"
   local key="$5"
   local driver="$6"
-  local drivers="$TMP/drivers"
+  local drivers="/run/shm/drivers"
+
+  rm -rf "$drivers"
+  mkdir -p "$drivers"
 
   ETFS="[BOOT]/Boot-NoEmul.img"
 
@@ -1675,8 +1678,6 @@ prepareInstall() {
 
   local msg="Adding drivers to image..."
   info "$msg" && html "$msg"
-
-  mkdir -p "$drivers"
 
   if ! tar -xf /drivers.txz -C "$drivers" --warning=no-timestamp; then
     error "Failed to extract drivers!" && return 1
