@@ -712,18 +712,20 @@ addDriver() {
 addDrivers() {
 
   local src="$1"
-  local file="$2"
-  local index="$3"
-  local version="$4"
+  local tmp="$2"
+  local file="$3"
+  local index="$4"
+  local version="$5"
+  local drivers="$tmp/drivers"
+
+  rm -rf "$drivers"
+  mkdir -p "$drivers"
 
   local msg="Adding drivers to image..."
   info "$msg" && html "$msg"
 
-  local drivers="$TMP/drivers"
-  mkdir -p "$drivers"
-
   if ! tar -xf /drivers.txz -C "$drivers" --warning=no-timestamp; then
-    error "Failed to extract driver!" && return 1
+    error "Failed to extract drivers from archive!" && return 1
   fi
 
   local target="\$WinPEDriver\$"
@@ -738,8 +740,8 @@ addDrivers() {
   addDriver "$version" "$drivers" "$target" "smbus"
   addDriver "$version" "$drivers" "$target" "qxldod"
   addDriver "$version" "$drivers" "$target" "viorng"
-  addDriver "$version" "$drivers" "$target" "viomem"  
   addDriver "$version" "$drivers" "$target" "viostor"
+  addDriver "$version" "$drivers" "$target" "viomem"
   addDriver "$version" "$drivers" "$target" "NetKVM"
   addDriver "$version" "$drivers" "$target" "Balloon"
   addDriver "$version" "$drivers" "$target" "vioscsi"
@@ -797,6 +799,7 @@ updateImage() {
   local dir="$1"
   local asset="$2"
   local language="$3"
+  local tmp="/run/shm/img"
   local file="autounattend.xml"
   local org="${file//.xml/.org}"
   local dat="${file//.xml/.dat}"
@@ -811,6 +814,9 @@ updateImage() {
       warn "no answer file provided, $FB."
     fi
   fi
+
+  rm -rf "$tmp"
+  mkdir -p "$tmp"
 
   src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
 
@@ -832,7 +838,7 @@ updateImage() {
     index="2"
   fi
 
-  if ! addDrivers "$src" "$wim" "$index" "$DETECTED"; then
+  if ! addDrivers "$src" "$tmp" "$wim" "$index" "$DETECTED"; then
     error "Failed to add drivers to image!" && return 1
   fi
 
@@ -840,17 +846,14 @@ updateImage() {
     error "Failed to add OEM folder to image!" && return 1
   fi
 
-  if wimlib-imagex extract "$wim" "$index" "/$file" "--dest-dir=$TMP" >/dev/null 2>&1; then
-    if ! wimlib-imagex extract "$wim" "$index" "/$dat" "--dest-dir=$TMP" >/dev/null 2>&1; then
-      if ! wimlib-imagex extract "$wim" "$index" "/$org" "--dest-dir=$TMP" >/dev/null 2>&1; then
+  if wimlib-imagex extract "$wim" "$index" "/$file" "--dest-dir=$tmp" >/dev/null 2>&1; then
+    if ! wimlib-imagex extract "$wim" "$index" "/$dat" "--dest-dir=$tmp" >/dev/null 2>&1; then
+      if ! wimlib-imagex extract "$wim" "$index" "/$org" "--dest-dir=$tmp" >/dev/null 2>&1; then
         if ! wimlib-imagex update "$wim" "$index" --command "rename /$file /$org" > /dev/null; then
           warn "failed to backup original answer file ($file)."
         fi
       fi
     fi
-    rm -f "$TMP/$dat"
-    rm -f "$TMP/$org"
-    rm -f "$TMP/$file"
   fi
 
   if [[ "$MANUAL" != [Yy1]* ]]; then
@@ -858,7 +861,7 @@ updateImage() {
     xml=$(basename "$asset")
     info "Adding $xml for automatic installation..."
 
-    local answer="$TMP/$xml"
+    local answer="$tmp/$xml"
     cp "$asset" "$answer"
     updateXML "$answer" "$language"
 
@@ -869,21 +872,17 @@ updateImage() {
       wimlib-imagex update "$wim" "$index" --command "add $answer /$dat" > /dev/null || true
     fi
 
-    rm -f "$answer"
-
   fi
 
   if [[ "$MANUAL" == [Yy1]* ]]; then
 
     wimlib-imagex update "$wim" "$index" --command "delete --force /$file" > /dev/null || true
 
-    if wimlib-imagex extract "$wim" "$index" "/$org" "--dest-dir=$TMP" >/dev/null 2>&1; then
-      if ! wimlib-imagex update "$wim" "$index" --command "add $TMP/$org /$file" > /dev/null; then
+    if wimlib-imagex extract "$wim" "$index" "/$org" "--dest-dir=$tmp" >/dev/null 2>&1; then
+      if ! wimlib-imagex update "$wim" "$index" --command "add $tmp/$org /$file" > /dev/null; then
         warn "failed to restore original answer file ($org)."
       fi
     fi
-
-    rm -f "$TMP/$org"
 
   fi
 
@@ -899,6 +898,7 @@ updateImage() {
     fi
   fi
 
+  rm -rf "$tmp"
   return 0
 }
 
