@@ -725,7 +725,7 @@ addDrivers() {
   local msg="Adding drivers to image..."
   info "$msg" && html "$msg"
 
-  if ! tar -xf /drivers.txz -C "$drivers" --warning=no-timestamp; then
+  if ! bsdtar -xf /drivers.txz -C "$drivers"; then
     error "Failed to extract drivers from archive!" && return 1
   fi
 
