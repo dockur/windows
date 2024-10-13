@@ -139,7 +139,7 @@ kubectl apply -f kubernetes.yml
 
   ```yaml
   volumes:
-    -  /home/user/example:/shared
+    -  /home/user/example:/data
   ```
 
   The example folder `/home/user/example` will be available as ` \\host.lan\Data`.

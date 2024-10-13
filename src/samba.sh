@@ -14,7 +14,15 @@ if [[ "$DHCP" == [Yy1]* ]]; then
   interface="$VM_NET_DEV"
 fi
 
-share="/shared"
+share="/data"
+
+if [ ! -d "$share" ] && [ -d "$STORAGE/data" ]; then
+  share="$STORAGE/data"
+fi
+
+if [ ! -d "$share" ] && [ -d "/shared" ]; then
+  share="/shared"
+fi
 
 if [ ! -d "$share" ] && [ -d "$STORAGE/shared" ]; then
   share="$STORAGE/shared"
@@ -36,11 +44,11 @@ if [ -z "$(ls -A "$share")" ]; then
           echo "To change its location, include the following bind mount in your compose file:"
           echo ""
           echo "  volumes:"
-          echo "    - \"/home/user/example:/shared\""
+          echo "    - \"/home/user/example:/data\""
           echo ""
           echo "Or in your run command:"
           echo ""
-          echo "  -v \"/home/user/example:/shared\""
+          echo "  -v \"/home/user/example:/data\""
           echo ""
           echo "Replace the example path /home/user/example with the desired shared folder."
           echo ""
