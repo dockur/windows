@@ -1715,21 +1715,21 @@ prepareInstall() {
     error "Failed to locate required storage drivers!" && return 1
   fi
 
-  cp "$drivers/viostor/$driver/$arch/viostor.sys" "$target"
+  cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$target"
 
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor"
-  cp "$drivers/viostor/$driver/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor"
-  cp "$drivers/viostor/$driver/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor"
-  cp "$drivers/viostor/$driver/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor"
+  cp -L "$drivers/viostor/$driver/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor"
+  cp -L "$drivers/viostor/$driver/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor"
+  cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor"
 
   if [ ! -f "$drivers/NetKVM/$driver/$arch/netkvm.sys" ]; then
     error "Failed to locate required network drivers!" && return 1
   fi
 
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/NetKVM"
-  cp "$drivers/NetKVM/$driver/$arch/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
-  cp "$drivers/NetKVM/$driver/$arch/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
-  cp "$drivers/NetKVM/$driver/$arch/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
 
   if [ ! -f "$target/TXTSETUP.SIF" ]; then
     error "The file TXTSETUP.SIF could not be found!" && return 1
