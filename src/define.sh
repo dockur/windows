@@ -1653,7 +1653,7 @@ addFolder() {
   local dest="$src/\$OEM\$/\$1/OEM"
   mkdir -p "$dest"
 
-  ! cp -r "$folder/." "$dest" && return 1
+  ! cp -Lr "$folder/." "$dest" && return 1
 
   local file
   file=$(find "$dest" -maxdepth 1 -type f -iname install.bat | head -n 1)
@@ -1748,8 +1748,8 @@ prepareInstall() {
   fi
 
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata"
-  cp -r "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata"
-  cp -r "$drivers/sata/xp/$arch/." "$target"
+  cp -Lr "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata"
+  cp -Lr "$drivers/sata/xp/$arch/." "$target"
 
   sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$target/TXTSETUP.SIF"
   sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$target/TXTSETUP.SIF"
