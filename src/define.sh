@@ -1665,7 +1665,7 @@ prepareInstall() {
   local arch="$4"
   local key="$5"
   local driver="$6"
-  local drivers="/run/shm/drivers"
+  local drivers="/tmp/drivers"
 
   rm -rf "$drivers"
   mkdir -p "$drivers"
@@ -1723,8 +1723,8 @@ prepareInstall() {
   fi
 
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata"
-  cp -a "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata"
-  cp -a "$drivers/sata/xp/$arch/." "$target"
+  cp -r "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata"
+  cp -r "$drivers/sata/xp/$arch/." "$target"
 
   sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$target/TXTSETUP.SIF"
   sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$target/TXTSETUP.SIF"
@@ -1963,10 +1963,10 @@ prepareInstall() {
   msg="Adding OEM folder to image..."
   info "$msg" && html "$msg"
 
-  local dest="$dir/\$OEM\$/\$1/"
+  local dest="$dir/\$OEM\$/\$1/OEM"
   mkdir -p "$dest"
 
-  if ! cp -r "$folder" "$dest"; then
+  if ! cp -r "$folder/." "$dest"; then
     error "Failed to copy OEM folder!" && return 1
   fi
 
