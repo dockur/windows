@@ -1637,6 +1637,31 @@ validVersion() {
   return 1
 }
 
+addFolder() {
+
+  local src="$1"
+  local folder="/oem"
+
+  [ ! -d "$folder" ] && folder="/OEM"
+  [ ! -d "$folder" ] && folder="$STORAGE/oem"
+  [ ! -d "$folder" ] && folder="$STORAGE/OEM"
+  [ ! -d "$folder" ] && return 0
+
+  local msg="Adding OEM folder to image..."
+  info "$msg" && html "$msg"
+
+  local dest="$src/\$OEM\$/\$1/OEM"
+  mkdir -p "$dest"
+
+  ! cp -Lr "$folder/." "$dest" && return 1
+
+  local file
+  file=$(find "$dest" -maxdepth 1 -type f -iname install.bat | head -n 1)
+  [ -f "$file" ] && unix2dos -q "$file"
+
+  return 0
+}
+
 migrateFiles() {
 
   local base="$1"
@@ -1665,7 +1690,7 @@ prepareInstall() {
   local arch="$4"
   local key="$5"
   local driver="$6"
-  local drivers="/run/shm/drivers"
+  local drivers="/tmp/drivers"
 
   rm -rf "$drivers"
   mkdir -p "$drivers"
@@ -1723,8 +1748,8 @@ prepareInstall() {
   fi
 
   mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata"
-  cp -a "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata"
-  cp -a "$drivers/sata/xp/$arch/." "$target"
+  cp -Lr "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata"
+  cp -Lr "$drivers/sata/xp/$arch/." "$target"
 
   sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$target/TXTSETUP.SIF"
   sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$target/TXTSETUP.SIF"
@@ -1749,22 +1774,13 @@ prepareInstall() {
     warn "this version of $desc requires a volume license key (VLK), it will ask for one during installation."
   fi
 
-  local oem=""
-  local folder="/oem"
-
-  [ ! -d "$folder" ] && folder="/OEM"
-  [ ! -d "$folder" ] && folder="$STORAGE/oem"
-  [ ! -d "$folder" ] && folder="$STORAGE/OEM"
-
-  if [ -d "$folder" ]; then
-
-    file=$(find "$folder" -maxdepth 1 -type f -iname install.bat | head -n 1)
-
-    if [ -f "$file" ]; then
-      unix2dos -q "$file"
-      oem="\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat\\\"\""
-    fi
+  if ! addFolder "$dir"; then
+    error "Failed to add OEM folder to image!" && return 1
   fi
+
+  local oem=""
+  local install="$dir/\$OEM\$/\$1/OEM/install.bat"
+  [ -f "$install" ] && oem="\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat\\\"\""
 
   [ -z "$YRES" ] && YRES="720"
   [ -z "$XRES" ] && XRES="1280"
@@ -1957,18 +1973,6 @@ prepareInstall() {
           echo "\"Wscript admin.vbs\""
           echo ""
   } | unix2dos > "$dir/\$OEM\$/cmdlines.txt"
-
-  [ ! -d "$folder" ] && return 0
-
-  msg="Adding OEM folder to image..."
-  info "$msg" && html "$msg"
-
-  local dest="$dir/\$OEM\$/\$1/"
-  mkdir -p "$dest"
-
-  if ! cp -r "$folder" "$dest"; then
-    error "Failed to copy OEM folder!" && return 1
-  fi
 
   return 0
 }

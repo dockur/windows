@@ -704,8 +704,9 @@ addDriver() {
   esac
 
   local dest="$path/$target/$driver"
-  mv "$path/$driver/$folder" "$dest"
+  mkdir -p "$dest"
 
+  cp -Lr "$path/$driver/$folder/." "$dest"
   return 0
 }
 
@@ -756,7 +757,7 @@ addDrivers() {
       # Workaround Virtio GPU driver bug
       local dst="$src/\$OEM\$/\$\$/Drivers"
       mkdir -p "$dst"
-      ! cp -a "$dest/." "$dst" && return 1
+      ! cp -Lr "$dest/." "$dst" && return 1
       rm -rf "$dest/viogpudo"
       ;;
   esac
@@ -769,37 +770,12 @@ addDrivers() {
   return 0
 }
 
-addFolder() {
-
-  local src="$1"
-  local folder="/oem"
-
-  [ ! -d "$folder" ] && folder="/OEM"
-  [ ! -d "$folder" ] && folder="$STORAGE/oem"
-  [ ! -d "$folder" ] && folder="$STORAGE/OEM"
-  [ ! -d "$folder" ] && return 0
-
-  local msg="Adding OEM folder to image..."
-  info "$msg" && html "$msg"
-
-  local dest="$src/\$OEM\$/\$1/OEM"
-  mkdir -p "$dest"
-
-  ! cp -a "$folder/." "$dest" && return 1
-
-  local file
-  file=$(find "$dest" -maxdepth 1 -type f -iname install.bat | head -n 1)
-  [ -f "$file" ] && unix2dos -q "$file"
-
-  return 0
-}
-
 updateImage() {
 
   local dir="$1"
   local asset="$2"
   local language="$3"
-  local tmp="/run/shm/img"
+  local tmp="/tmp/install"
   local file="autounattend.xml"
   local org="${file//.xml/.org}"
   local dat="${file//.xml/.dat}"
