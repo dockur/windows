@@ -704,8 +704,9 @@ addDriver() {
   esac
 
   local dest="$path/$target/$driver"
-  mv "$path/$driver/$folder" "$dest"
+  mkdir -p "$dest"
 
+  cp -Lr "$path/$driver/$folder/." "$dest"
   return 0
 }
 
@@ -756,7 +757,7 @@ addDrivers() {
       # Workaround Virtio GPU driver bug
       local dst="$src/\$OEM\$/\$\$/Drivers"
       mkdir -p "$dst"
-      ! cp -r "$dest/." "$dst" && return 1
+      ! cp -Lr "$dest/." "$dst" && return 1
       rm -rf "$dest/viogpudo"
       ;;
   esac
