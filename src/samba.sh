@@ -14,47 +14,52 @@ if [[ "$DHCP" == [Yy1]* ]]; then
   interface="$VM_NET_DEV"
 fi
 
-share="/data"
+addShare() {
+  local dir="$1"
+  local name="$2"
+  local comment="$3"
 
-if [ ! -d "$share" ] && [ -d "$STORAGE/data" ]; then
-  share="$STORAGE/data"
-fi
+  mkdir -p "$dir" || return 1
 
-if [ ! -d "$share" ] && [ -d "/shared" ]; then
-  share="/shared"
-fi
+  if [ -z "$(ls -A "$dir")" ]; then
 
-if [ ! -d "$share" ] && [ -d "$STORAGE/shared" ]; then
-  share="$STORAGE/shared"
-fi
+    chmod 777 "$dir"
 
-mkdir -p "$share"
+    {      echo "--------------------------------------------------------"
+            echo " $APP for Docker v$(</run/version)..."
+            echo " For support visit $SUPPORT"
+            echo "--------------------------------------------------------"
+            echo ""
+            echo "Using this folder you can share files with the host machine."
+            echo ""
+            echo "To change its location, include the following bind mount in your compose file:"
+            echo ""
+            echo "  volumes:"
+            echo "    - \"/home/example:/${name,,}\""
+            echo ""
+            echo "Or in your run command:"
+            echo ""
+            echo "  -v \"/home/example:/${name,,}\""
+            echo ""
+            echo "Replace the example path /home/example with the desired shared folder."
+            echo ""
+    } | unix2dos > "$dir/readme.txt"
 
-if [ -z "$(ls -A "$share")" ]; then
+  fi
 
-  chmod 777 "$share"
+  {      echo ""
+          echo "[$name]"
+          echo "    path = $dir"
+          echo "    comment = $comment"
+          echo "    writable = yes"
+          echo "    guest ok = yes"
+          echo "    guest only = yes"
+          echo "    force user = root"
+          echo "    force group = root"
+  } >> "/etc/samba/smb.conf"
 
-  {      echo "--------------------------------------------------------"
-          echo " $APP for Docker v$(</run/version)..."
-          echo " For support visit $SUPPORT"
-          echo "--------------------------------------------------------"
-          echo ""
-          echo "Using this folder you can share files with the host machine."
-          echo ""
-          echo "To change its location, include the following bind mount in your compose file:"
-          echo ""
-          echo "  volumes:"
-          echo "    - \"/home/user/example:/data\""
-          echo ""
-          echo "Or in your run command:"
-          echo ""
-          echo "  -v \"/home/user/example:/data\""
-          echo ""
-          echo "Replace the example path /home/user/example with the desired shared folder."
-          echo ""
-  } | unix2dos > "$share/readme.txt"
-
-fi
+  return 0
+}
 
 {      echo "[global]"
         echo "    server string = Dockur"
@@ -72,16 +77,17 @@ fi
         echo "    printing = bsd"
         echo "    printcap name = /dev/null"
         echo "    disable spoolss = yes"
-        echo ""
-        echo "[Data]"
-        echo "    path = $share"
-        echo "    comment = Shared"
-        echo "    writable = yes"
-        echo "    guest ok = yes"
-        echo "    guest only = yes"
-        echo "    force user = root"
-        echo "    force group = root"
 } > "/etc/samba/smb.conf"
+
+share="/data"
+[ ! -d "$share" ] && [ -d "$STORAGE/data" ] && share="$STORAGE/data"
+[ ! -d "$share" ] && [ -d "/shared" ] && share="/shared"
+[ ! -d "$share" ] && [ -d "$STORAGE/shared" ] && share="$STORAGE/shared"
+
+addShare "$share" "Data" "Shared" || error "Failed to create shared folder!"
+
+[ -d "/data2" ] && addShare "/data2" "Data2" "Shared"
+[ -d "/data3" ] && addShare "/data3" "Data3" "Shared"
 
 if ! smbd; then
   error "Samba daemon failed to start!"
