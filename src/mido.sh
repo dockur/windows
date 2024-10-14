@@ -592,7 +592,7 @@ downloadFile() {
     if [ "$total" -lt 100000000 ]; then
       error "Invalid download link: $url (is only $total bytes?). Please report this at $SUPPORT/issues." && return 1
     fi
-    ! verifyFile "$iso" "$size" "$total" "$sum" && return 1
+    verifyFile "$iso" "$size" "$total" "$sum" || return 1
     html "Download finished successfully..." && return 0
   fi
 
