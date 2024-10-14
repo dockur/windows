@@ -588,7 +588,7 @@ prepareImage() {
 
   desc=$(printVersion "$DETECTED" "$DETECTED")
 
-  ! setMachine "$DETECTED" "$iso" "$dir" "$desc" && return 1
+  setMachine "$DETECTED" "$iso" "$dir" "$desc" || return 1
   skipVersion "$DETECTED" && return 0
 
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
@@ -815,11 +815,11 @@ updateImage() {
   fi
 
   if ! addDrivers "$src" "$tmp" "$wim" "$index" "$DETECTED"; then
-    error "Failed to add drivers to image!" && return 1
+    error "Failed to add drivers to image!"
   fi
 
   if ! addFolder "$src"; then
-    error "Failed to add OEM folder to image!" && return 1
+    error "Failed to add OEM folder to image!"
   fi
 
   if wimlib-imagex extract "$wim" "$index" "/$file" "--dest-dir=$tmp" >/dev/null 2>&1; then
@@ -956,7 +956,7 @@ buildImage() {
   [ -s "$log" ] && error="$(<"$log")"
   [[ "$error" != "$hide" ]] && echo "$error"
 
-  ! mv -f "$out" "$BOOT" && return 1
+  mv -f "$out" "$BOOT" || return 1
   return 0
 }
 
