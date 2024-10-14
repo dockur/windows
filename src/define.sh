@@ -1651,9 +1651,8 @@ addFolder() {
   info "$msg" && html "$msg"
 
   local dest="$src/\$OEM\$/\$1/OEM"
-  mkdir -p "$dest"
-
-  ! cp -Lr "$folder/." "$dest" && return 1
+  mkdir -p "$dest" || return 1
+  cp -Lr "$folder/." "$dest" || return 1
 
   local file
   file=$(find "$dest" -maxdepth 1 -type f -iname install.bat | head -n 1)
@@ -1715,21 +1714,21 @@ prepareInstall() {
     error "Failed to locate required storage drivers!" && return 1
   fi
 
-  cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$target"
+  cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$target" || return 1
 
-  mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor"
-  cp -L "$drivers/viostor/$driver/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor"
-  cp -L "$drivers/viostor/$driver/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor"
-  cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor"
+  mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
+  cp -L "$drivers/viostor/$driver/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
+  cp -L "$drivers/viostor/$driver/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
+  cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
 
   if [ ! -f "$drivers/NetKVM/$driver/$arch/netkvm.sys" ]; then
     error "Failed to locate required network drivers!" && return 1
   fi
 
-  mkdir -p "$dir/\$OEM\$/\$1/Drivers/NetKVM"
-  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
-  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
-  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM"
+  mkdir -p "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
+  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
+  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
+  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
 
   if [ ! -f "$target/TXTSETUP.SIF" ]; then
     error "The file TXTSETUP.SIF could not be found!" && return 1
@@ -1747,9 +1746,9 @@ prepareInstall() {
     error "Failed to locate required SATA drivers!" && return 1
   fi
 
-  mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata"
-  cp -Lr "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata"
-  cp -Lr "$drivers/sata/xp/$arch/." "$target"
+  mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata" || return 1
+  cp -Lr "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata" || return 1
+  cp -Lr "$drivers/sata/xp/$arch/." "$target" || return 1
 
   sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$target/TXTSETUP.SIF"
   sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$target/TXTSETUP.SIF"
