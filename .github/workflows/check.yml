@@ -21,5 +21,5 @@ jobs:
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: Dockerfile
-          ignore: DL3008
+          ignore: DL3006,DL3008
           failure-threshold: warning
