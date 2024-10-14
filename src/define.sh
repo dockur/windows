@@ -1677,7 +1677,7 @@ migrateFiles() {
   [[ "${version,,}" == "win7x64" ]] && file="en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.iso"
 
   [ ! -f "$STORAGE/$file" ] && return 0
-  ! mv -f "$STORAGE/$file" "$base" && return 1
+  mv -f "$STORAGE/$file" "$base" || return 1
 
   return 0
 }
@@ -1996,7 +1996,7 @@ prepare2k3() {
     key="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
   fi
 
-  ! prepareInstall "$iso" "$dir" "$desc" "$arch" "$key" "$driver" && return 1
+  prepareInstall "$iso" "$dir" "$desc" "$arch" "$key" "$driver" || return 1
 
   return 0
 }
@@ -2021,7 +2021,7 @@ prepareXP() {
     key="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
   fi
 
-  ! prepareInstall "$iso" "$dir" "$desc" "$arch" "$key" "$driver" && return 1
+  prepareInstall "$iso" "$dir" "$desc" "$arch" "$key" "$driver" || return 1
 
   return 0
 }

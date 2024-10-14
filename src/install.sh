@@ -541,7 +541,7 @@ detectImage() {
   fi
 
   info=$(wimlib-imagex info -xml "$wim" | tr -d '\000')
-  ! checkPlatform "$info" && exit 67
+  checkPlatform "$info" || exit 67
 
   DETECTED=$(detectVersion "$info")
 
@@ -588,7 +588,7 @@ prepareImage() {
 
   desc=$(printVersion "$DETECTED" "$DETECTED")
 
-  ! setMachine "$DETECTED" "$iso" "$dir" "$desc" && return 1
+  setMachine "$DETECTED" "$iso" "$dir" "$desc" || return 1
   skipVersion "$DETECTED" && return 0
 
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
@@ -815,11 +815,11 @@ updateImage() {
   fi
 
   if ! addDrivers "$src" "$tmp" "$wim" "$index" "$DETECTED"; then
-    error "Failed to add drivers to image!" && return 1
+    error "Failed to add drivers to image!"
   fi
 
   if ! addFolder "$src"; then
-    error "Failed to add OEM folder to image!" && return 1
+    error "Failed to add OEM folder to image!"
   fi
 
   if wimlib-imagex extract "$wim" "$index" "/$file" "--dest-dir=$tmp" >/dev/null 2>&1; then
@@ -884,7 +884,8 @@ removeImage() {
 
   [ ! -f "$iso" ] && return 0
   [ -n "$CUSTOM" ] && return 0
-  ! rm -f "$iso" 2> /dev/null && warn "failed to remove $iso !"
+
+  rm -f "$iso" 2> /dev/null || warn "failed to remove $iso !"
 
   return 0
 }
@@ -927,20 +928,20 @@ buildImage() {
 
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
 
-    ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -V "${LABEL::30}" \
-                  -udf -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -allow-limited-size -quiet "$dir" 2> "$log" && failed="y"
+    genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -V "${LABEL::30}" \
+                  -udf -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -allow-limited-size -quiet "$dir" 2> "$log" || failed="y"
 
   else
 
     case "${DETECTED,,}" in
       "win2k"* | "winxp"* | "win2003"* )
-        ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -boot-load-seg 1984 -boot-load-size 4 -c "$cat" -iso-level 2 -J -l -D -N -joliet-long \
-                      -relaxed-filenames -V "${LABEL::30}" -quiet "$dir" 2> "$log" && failed="y" ;;
+        genisoimage -o "$out" -b "$ETFS" -no-emul-boot -boot-load-seg 1984 -boot-load-size 4 -c "$cat" -iso-level 2 -J -l -D -N -joliet-long \
+                      -relaxed-filenames -V "${LABEL::30}" -quiet "$dir" 2> "$log" || failed="y" ;;
       "win9"* )
-        ! genisoimage -o "$out" -b "$ETFS" -J -r -V "${LABEL::30}" -quiet "$dir" 2> "$log" && failed="y" ;;
+        genisoimage -o "$out" -b "$ETFS" -J -r -V "${LABEL::30}" -quiet "$dir" 2> "$log" || failed="y" ;;
       * )
-        ! genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "${LABEL::30}" \
-                      -udf -allow-limited-size -quiet "$dir" 2> "$log" && failed="y" ;;
+        genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "${LABEL::30}" \
+                      -udf -allow-limited-size -quiet "$dir" 2> "$log" || failed="y" ;;
     esac
 
   fi
@@ -956,7 +957,7 @@ buildImage() {
   [ -s "$log" ] && error="$(<"$log")"
   [[ "$error" != "$hide" ]] && echo "$error"
 
-  ! mv -f "$out" "$BOOT" && return 1
+  mv -f "$out" "$BOOT" || return 1
   return 0
 }
 
