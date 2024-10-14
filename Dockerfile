@@ -1,4 +1,4 @@
-FROM scratch
+FROM --platform=linux/amd64 scratch AS build-amd64
 COPY --from=qemux/qemu-docker:6.05 / /
 
 ARG VERSION_ARG="0.0"
@@ -30,6 +30,9 @@ COPY --chmod=755 ./assets /run/assets
 
 ADD --chmod=755 https://raw.githubusercontent.com/christgau/wsdd/v0.8/src/wsdd.py /usr/sbin/wsdd
 ADD --chmod=664 https://github.com/qemus/virtiso-whql/releases/download/v1.9.43-0/virtio-win-1.9.43.tar.xz /drivers.txz
+
+FROM --platform=linux/arm64 dockurr/windows-arm:2.20 AS build-arm64
+FROM build-${TARGETARCH}
 
 EXPOSE 8006 3389
 VOLUME /storage
