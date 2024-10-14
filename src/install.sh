@@ -706,7 +706,8 @@ addDriver() {
   local dest="$path/$target/$driver"
   mkdir -p "$dest"
 
-  cp -Lr "$path/$driver/$folder/." "$dest"
+  cp -Lr "$path/$driver/$folder/." "$dest" || return 1
+
   return 0
 }
 
@@ -735,29 +736,29 @@ addDrivers() {
 
   wimlib-imagex update "$file" "$index" --command "delete --force --recursive /$target" >/dev/null || true
 
-  addDriver "$version" "$drivers" "$target" "qxl"
-  addDriver "$version" "$drivers" "$target" "viofs"
-  addDriver "$version" "$drivers" "$target" "sriov"
-  addDriver "$version" "$drivers" "$target" "smbus"
-  addDriver "$version" "$drivers" "$target" "qxldod"
-  addDriver "$version" "$drivers" "$target" "viorng"
-  addDriver "$version" "$drivers" "$target" "viostor"
-  addDriver "$version" "$drivers" "$target" "viomem"
-  addDriver "$version" "$drivers" "$target" "NetKVM"
-  addDriver "$version" "$drivers" "$target" "Balloon"
-  addDriver "$version" "$drivers" "$target" "vioscsi"
-  addDriver "$version" "$drivers" "$target" "pvpanic"
-  addDriver "$version" "$drivers" "$target" "vioinput"
-  addDriver "$version" "$drivers" "$target" "viogpudo"
-  addDriver "$version" "$drivers" "$target" "vioserial"
-  addDriver "$version" "$drivers" "$target" "qemupciserial"
+  addDriver "$version" "$drivers" "$target" "qxl" || return 1
+  addDriver "$version" "$drivers" "$target" "viofs" || return 1
+  addDriver "$version" "$drivers" "$target" "sriov" || return 1
+  addDriver "$version" "$drivers" "$target" "smbus" || return 1
+  addDriver "$version" "$drivers" "$target" "qxldod" || return 1
+  addDriver "$version" "$drivers" "$target" "viorng" || return 1
+  addDriver "$version" "$drivers" "$target" "viostor" || return 1
+  addDriver "$version" "$drivers" "$target" "viomem" || return 1
+  addDriver "$version" "$drivers" "$target" "NetKVM" || return 1
+  addDriver "$version" "$drivers" "$target" "Balloon" || return 1
+  addDriver "$version" "$drivers" "$target" "vioscsi" || return 1
+  addDriver "$version" "$drivers" "$target" "pvpanic" || return 1
+  addDriver "$version" "$drivers" "$target" "vioinput" || return 1
+  addDriver "$version" "$drivers" "$target" "viogpudo" || return 1
+  addDriver "$version" "$drivers" "$target" "vioserial" || return 1
+  addDriver "$version" "$drivers" "$target" "qemupciserial" || return 1
 
   case "${version,,}" in
     "win11x64"* | "win2025"* )
       # Workaround Virtio GPU driver bug
       local dst="$src/\$OEM\$/\$\$/Drivers"
       mkdir -p "$dst"
-      ! cp -Lr "$dest/." "$dst" && return 1
+      cp -Lr "$dest/." "$dst" || return 1
       rm -rf "$dest/viogpudo"
       ;;
   esac
