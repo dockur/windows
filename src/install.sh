@@ -704,8 +704,7 @@ addDriver() {
   esac
 
   local dest="$path/$target/$driver"
-  mkdir -p "$dest"
-
+  mkdir -p "$dest" || return 1
   cp -Lr "$path/$driver/$folder/." "$dest" || return 1
 
   return 0
@@ -732,7 +731,7 @@ addDrivers() {
 
   local target="\$WinPEDriver\$"
   local dest="$drivers/$target"
-  mkdir -p "$dest"
+  mkdir -p "$dest" || return 1
 
   wimlib-imagex update "$file" "$index" --command "delete --force --recursive /$target" >/dev/null || true
 
@@ -757,7 +756,7 @@ addDrivers() {
     "win11x64"* | "win2025"* )
       # Workaround Virtio GPU driver bug
       local dst="$src/\$OEM\$/\$\$/Drivers"
-      mkdir -p "$dst"
+      mkdir -p "$dst" || return 1
       cp -Lr "$dest/." "$dst" || return 1
       rm -rf "$dest/viogpudo"
       ;;
