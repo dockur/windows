@@ -1,5 +1,5 @@
 FROM scratch AS build-amd64
-COPY --from=qemux/qemu-docker:6.05 / /
+COPY --from=qemux/qemu-docker:6.06 / /
 
 ARG VERSION_ARG="0.0"
 ARG DEBCONF_NOWARNINGS="yes"
