@@ -157,6 +157,11 @@ finishInstall() {
     fi
   fi
 
+  if [ -n "${ARGS:-}" ]; then
+    ARGUMENTS="$ARGS ${ARGUMENTS:-}"
+    echo "$ARGS" > "$STORAGE/windows.args"
+  fi
+
   if [ -n "${DISK_TYPE:-}" ] && [[ "${DISK_TYPE:-}" != "scsi" ]]; then
     echo "$DISK_TYPE" > "$STORAGE/windows.type"
   fi
@@ -966,10 +971,9 @@ bootWindows() {
 
   rm -rf "$TMP"
 
-  if [ -s "$STORAGE/windows.args" ] && [ -f "$STORAGE/windows.args" ]; then
-    local args=""
-    args=$(<"$STORAGE/windows.args")
-    ARGUMENTS="$args ${ARGUMENTS:-}"
+  if [ -f "$STORAGE/windows.args" ]; then
+    ARGS=$(<"$STORAGE/windows.args")
+    ARGUMENTS="$ARGS ${ARGUMENTS:-}"
   fi
 
   if [ -s "$STORAGE/windows.type" ] && [ -f "$STORAGE/windows.type" ]; then
