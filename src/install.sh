@@ -120,6 +120,7 @@ finishInstall() {
 
   rm -f "$STORAGE/windows.old"
   rm -f "$STORAGE/windows.vga"
+  rm -f "$STORAGE/windows.args"
   rm -f "$STORAGE/windows.base"
   rm -f "$STORAGE/windows.boot"
   rm -f "$STORAGE/windows.mode"
@@ -964,6 +965,12 @@ buildImage() {
 bootWindows() {
 
   rm -rf "$TMP"
+
+  if [ -s "$STORAGE/windows.args" ] && [ -f "$STORAGE/windows.args" ]; then
+    local args=""
+    args=$(<"$STORAGE/windows.args")
+    ARGUMENTS="$args ${ARGUMENTS:-}"
+  fi
 
   if [ -s "$STORAGE/windows.type" ] && [ -f "$STORAGE/windows.type" ]; then
     [ -z "${DISK_TYPE:-}" ] && DISK_TYPE=$(<"$STORAGE/windows.type")
