@@ -2111,7 +2111,7 @@ setMachine() {
       MACHINE="pc-i440fx-2.4" ;;
     "winxp"* | "win2003"* | "winvistax86"* | "win7x86"* )
       # Some 32-bit Windows crash if 64 bit PCI hole size is >2G.
-      ARGS="-global q35-pcihost.x-pci-hole64-fix=false"
+      ARGS="-global q35-pcihost.x-pci-hole64-fix=false" ;;
   esac
 
   case "${id,,}" in
