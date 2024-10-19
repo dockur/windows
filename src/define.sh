@@ -2107,34 +2107,32 @@ setMachine() {
   local desc="$4"
 
   case "${id,,}" in
-    "win9"* | "win2k"* )
-      MACHINE="pc-i440fx-2.4" ;;
-    "winxp"* | "win2003"* | "winvistax86"* | "win7x86"* )
-      # Some 32-bit Windows crash if 64 bit PCI hole size is >2G.
-      ARGS="-global q35-pcihost.x-pci-hole64-fix=false" ;;
-  esac
-
-  case "${id,,}" in
     "win9"* )
-      DISK_TYPE="auto"
-      BOOT_MODE="windows_legacy"
       ETFS="[BOOT]/Boot-1.44M.img" ;;
     "win2k"* )
-      DISK_TYPE="auto"
-      BOOT_MODE="windows_legacy"
       ETFS="[BOOT]/Boot-NoEmul.img" ;;
     "winxp"* )
-      DISK_TYPE="blk"
-      BOOT_MODE="windows_legacy"
       if ! prepareXP "$iso" "$dir" "$desc"; then
         error "Failed to prepare $desc ISO!" && return 1
       fi ;;
     "win2003"* )
-      DISK_TYPE="blk"
-      BOOT_MODE="windows_legacy"
       if ! prepare2k3 "$iso" "$dir" "$desc"; then
         error "Failed to prepare $desc ISO!" && return 1
       fi ;;
+  esac
+
+  case "${id,,}" in
+    "win9"* | "win2k"* )
+      USB="None"
+      DISK_TYPE="auto"
+      MACHINE="pc-i440fx-2.4"
+      BOOT_MODE="windows_legacy" ;;
+    "winxp"* | "win2003"* )
+      USB="None"
+      DISK_TYPE="blk"
+      BOOT_MODE="windows_legacy"
+      # Some 32-bit Windows crash if 64 bit PCI hole size is >2G.
+      ARGS="-global q35-pcihost.x-pci-hole64-fix=false" ;;
     "winvista"* | "win7"* | "win2008"* )
       BOOT_MODE="windows_legacy" ;;
   esac
