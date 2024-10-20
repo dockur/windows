@@ -94,16 +94,8 @@ if ! smbd; then
   smbd -i --debug-stdout || true
 fi
 
-legacy=""
-
-if [ -f "$STORAGE/windows.old" ]; then
-  MT=$(<"$STORAGE/windows.old")
-  [[ "${MT,,}" == "pc-q35-2"* ]] && legacy="y"
-  [[ "${MT,,}" == "pc-i440fx-2"* ]] && legacy="y"
-fi
-
-if [ -n "$legacy" ]; then
-  # Enable NetBIOS on Windows XP and lower
+if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
+  # Enable NetBIOS on Windows 7 and lower
   if ! nmbd; then
     error "NetBIOS daemon failed to start!"
     nmbd -i --debug-stdout || true

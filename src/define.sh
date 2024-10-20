@@ -2107,36 +2107,34 @@ setMachine() {
   local desc="$4"
 
   case "${id,,}" in
-    "win9"* | "win2k"* )
-      MACHINE="pc-i440fx-2.4" ;;
-    "winxp"* | "win2003"* | "winvistax86"* | "win7x86"* )
-      MACHINE="pc-q35-2.10" ;;
-  esac
-
-  case "${id,,}" in
-    "win9"* | "win2k"* | "winxp"* | "win2003"* )
-      BOOT_MODE="windows_legacy" ;;
-    "winvista"* | "win7"* | "win2008"* )
-      BOOT_MODE="windows_legacy" ;;
-  esac
-
-  case "${id,,}" in
     "win9"* )
-      DISK_TYPE="auto"
       ETFS="[BOOT]/Boot-1.44M.img" ;;
     "win2k"* )
-      DISK_TYPE="auto"
       ETFS="[BOOT]/Boot-NoEmul.img" ;;
     "winxp"* )
-      DISK_TYPE="blk"
       if ! prepareXP "$iso" "$dir" "$desc"; then
         error "Failed to prepare $desc ISO!" && return 1
       fi ;;
     "win2003"* )
-      DISK_TYPE="blk"
       if ! prepare2k3 "$iso" "$dir" "$desc"; then
         error "Failed to prepare $desc ISO!" && return 1
       fi ;;
+  esac
+
+  case "${id,,}" in
+    "win9"* | "win2k"* )
+      USB="None"
+      DISK_TYPE="auto"
+      MACHINE="pc-i440fx-2.4"
+      BOOT_MODE="windows_legacy" ;;
+    "winxp"* | "win2003"* )
+      USB="None"
+      DISK_TYPE="blk"
+      BOOT_MODE="windows_legacy"
+      # Prevent bluescreen if 64 bit PCI hole size is >2G.
+      ARGS="-global q35-pcihost.x-pci-hole64-fix=false" ;;
+    "winvista"* | "win7"* | "win2008"* )
+      BOOT_MODE="windows_legacy" ;;
   esac
 
   return 0
