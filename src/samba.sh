@@ -97,6 +97,7 @@ fi
 legacy=""
 
 if [ -f "$STORAGE/windows.old" ]; then
+  # TODO
   MT=$(<"$STORAGE/windows.old")
   [[ "${MT,,}" == "pc-q35-2"* ]] && legacy="y"
   [[ "${MT,,}" == "pc-i440fx-2"* ]] && legacy="y"
