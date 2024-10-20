@@ -2123,12 +2123,10 @@ setMachine() {
 
   case "${id,,}" in
     "win9"* | "win2k"* )
-      USB="None"
       DISK_TYPE="auto"
       MACHINE="pc-i440fx-2.4"
       BOOT_MODE="windows_legacy" ;;
     "winxp"* | "win2003"* )
-      USB="None"
       DISK_TYPE="blk"
       BOOT_MODE="windows_legacy"
       # Prevent bluescreen if 64 bit PCI hole size is >2G.
