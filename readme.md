@@ -34,7 +34,7 @@ services:
     image: dockurr/windows
     container_name: windows
     environment:
-      VERSION: "win11"
+      VERSION: "11"
     devices:
       - /dev/kvm
     cap_add:
@@ -78,34 +78,34 @@ kubectl apply -f kubernetes.yml
 
   ```yaml
   environment:
-    VERSION: "win11"
+    VERSION: "11"
   ```
 
   Select from the values below:
   
-  | **Value** | **Version**              | **Size** |
+  | **Value** | **Version**           | **Size** |
   |---|---|---|
-  | `win11`   | Windows 11 Pro           | 5.4 GB   |
-  | `ltsc11`  | Windows 11 LTSC    | 4.2 GB   |
-  | `win11e`  | Windows 11 Enterprise    | 5.8 GB   |
+  | `11`   | Windows 11 Pro           | 5.4 GB   |
+  | `11l`  | Windows 11 LTSC          | 4.2 GB   |
+  | `11e`  | Windows 11 Enterprise    | 5.8 GB   |
   ||||
-  | `win10`   | Windows 10 Pro           | 5.7 GB   |
-  | `ltsc10`  | Windows 10 LTSC          | 4.6 GB   |
-  | `win10e`  | Windows 10 Enterprise    | 5.2 GB   |
+  | `10`   | Windows 10 Pro           | 5.7 GB   |
+  | `10l`  | Windows 10 LTSC          | 4.6 GB   |
+  | `10e`  | Windows 10 Enterprise    | 5.2 GB   |
   ||||
-  | `win8`    | Windows 8.1 Pro          | 4.0 GB   |
-  | `win8e`   | Windows 8.1 Enterprise   | 3.7 GB   |
-  | `win7`    | Windows 7 Enterprise     | 3.0 GB   |
-  | `vista`   | Windows Vista Enterprise | 3.0 GB   |
-  | `winxp`   | Windows XP Professional  | 0.6 GB   |
+  | `8`    | Windows 8.1 Pro          | 4.0 GB   |
+  | `8e`   | Windows 8.1 Enterprise   | 3.7 GB   |
+  | `7`    | Windows 7 Enterprise     | 3.0 GB   |
+  | `vista`| Windows Vista Enterprise | 3.0 GB   |
+  | `xp`   | Windows XP Professional  | 0.6 GB   |
   ||||
-  | `2025`    | Windows Server 2025      | 5.0 GB   |
-  | `2022`    | Windows Server 2022      | 4.7 GB   |
-  | `2019`    | Windows Server 2019      | 5.3 GB   |
-  | `2016`    | Windows Server 2016      | 6.5 GB   |
-  | `2012`    | Windows Server 2012      | 4.3 GB   |
-  | `2008`    | Windows Server 2008      | 3.0 GB   |
-  | `2003`    | Windows Server 2003      | 0.6 GB   |
+  | `2025` | Windows Server 2025      | 5.0 GB   |
+  | `2022` | Windows Server 2022      | 4.7 GB   |
+  | `2019` | Windows Server 2019      | 5.3 GB   |
+  | `2016` | Windows Server 2016      | 6.5 GB   |
+  | `2012` | Windows Server 2012      | 4.3 GB   |
+  | `2008` | Windows Server 2008      | 3.0 GB   |
+  | `2003` | Windows Server 2003      | 0.6 GB   |
 
 > [!TIP]
 > To install ARM64 versions of Windows use [dockur/windows-arm](https://github.com/dockur/windows-arm/).
