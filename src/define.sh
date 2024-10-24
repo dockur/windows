@@ -32,11 +32,11 @@ parseVersion() {
     "11e" | "win11e" | "windows11e" | "windows 11e" )
       VERSION="win11x64-enterprise-eval"
       ;;
-    "iot11" | "11i" | "11iot" | "win11i" | "win11-iot" | "win11x64-iot" | "win11x64-enterprise-iot-eval" )
+    "11i" | "11iot" | "iot11" | "win11i" | "win11-iot" | "win11x64-iot" | "win11x64-enterprise-iot-eval" )
       VERSION="win11x64-enterprise-iot-eval"
       [ -z "$DETECTED" ] && DETECTED="win11x64-iot"
       ;;
-    "ltsc11" | "11l" | "11ltsc" | "win11l" | "win11-ltsc" | "win11x64-ltsc" | "win11x64-enterprise-ltsc-eval" )
+    "11l" | "11ltsc" | "ltsc11" | "win11l" | "win11-ltsc" | "win11x64-ltsc" | "win11x64-enterprise-ltsc-eval" )
       VERSION="win11x64-enterprise-ltsc-eval"
       [ -z "$DETECTED" ] && DETECTED="win11x64-ltsc"
       ;;
@@ -46,11 +46,11 @@ parseVersion() {
     "10e" | "win10e" | "windows10e" | "windows 10e" )
       VERSION="win10x64-enterprise-eval"
       ;;
-    "iot10" | "10i" | "10iot" | "win10i" | "win10-iot" | "win10x64-iot" | "win10x64-enterprise-iot-eval" )
+    "10i" | "10iot" | "iot10" | "win10i" | "win10-iot" | "win10x64-iot" | "win10x64-enterprise-iot-eval" )
       VERSION="win10x64-enterprise-iot-eval"
       [ -z "$DETECTED" ] && DETECTED="win10x64-iot"
       ;;
-    "ltsc10" | "10l" | "10ltsc" | "win10l" | "win10-ltsc" | "win10x64-ltsc" | "win10x64-enterprise-ltsc-eval" )
+    "10l" | "10ltsc" | "ltsc10" | "win10l" | "win10-ltsc" | "win10x64-ltsc" | "win10x64-enterprise-ltsc-eval" )
       VERSION="win10x64-enterprise-ltsc-eval"
       [ -z "$DETECTED" ] && DETECTED="win10x64-ltsc"
       ;;
@@ -71,21 +71,21 @@ parseVersion() {
       VERSION="win7x86"
       [ -z "$DETECTED" ] && DETECTED="win7x86-enterprise"
       ;;
-    "vista" | "winvista" | "windowsvista" | "windows vista" )
+    "6" | "vista" | "winvista" | "windowsvista" | "windows vista" )
       VERSION="winvistax64"
       [ -z "$DETECTED" ] && DETECTED="winvistax64-enterprise"
       ;;
-    "vistu" | "winvistu" | "windowsvistu" | "windows vistu" )
+    "6u" | "vistu" | "winvistu" | "windowsvistu" | "windows vistu" )
       VERSION="winvistax64-ultimate"
       ;;
-    "vistax86" | "winvistax86" | "windowsvistax86"  | "winvistax86-enterprise" )
+    "6x86" | "vistax86" | "winvistax86" | "windowsvistax86"  | "winvistax86-enterprise" )
       VERSION="winvistax86"
       [ -z "$DETECTED" ] && DETECTED="winvistax86-enterprise"
       ;;
-    "xp" | "xp32" | "xpx86" | "winxp" | "winxp86" | "windowsxp" | "windows xp" )
+    "5" | "xp" | "xp32" | "xpx86" | "5x86" | "winxp" | "winxp86" | "windowsxp" | "windows xp" )
       VERSION="winxpx86"
       ;;
-    "xp64" | "xpx64" | "winxp64" | "winxpx64" | "windowsxp64" | "windowsxpx64" )
+    "5x64" | "xp64" | "xpx64" | "winxp64" | "winxpx64" | "windowsxp64" | "windowsxpx64" )
       VERSION="winxpx64"
       ;;
     "25" | "2025" | "win25" | "win2025" | "windows2025" | "windows 2025" )
