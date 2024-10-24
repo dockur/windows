@@ -596,7 +596,7 @@ getVersion() {
           *" enterprise"* ) id="$id-enterprise" ;;
         esac
       ;;
-    "win2025"* | "win2022"* | "win2019"* | "win2016"* | "win2012"* | "win2008"* )
+    "win2025"* | "win2022"* | "win2019"* | "win2016"* | "win2012"* | "win2008"* | "win2003"* )
        case "${name,,}" in
           *" evaluation"* ) id="$id-eval" ;;
         esac
