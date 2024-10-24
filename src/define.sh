@@ -26,19 +26,35 @@ parseVersion() {
   [ -z "$VERSION" ] && VERSION="win11"
 
   case "${VERSION,,}" in
-    "11" | "11p" | "win11" | "win11p" | "windows11" | "windows 11" )
+    "11" | "11p" | "win11" | "pro11" | "win11p" | "windows11" | "windows 11" )
       VERSION="win11x64"
       ;;
     "11e" | "win11e" | "windows11e" | "windows 11e" )
       VERSION="win11x64-enterprise-eval"
       ;;
-    "10" | "10p" | "win10" | "win10p" | "windows10" | "windows 10" )
+    "iot11" | "11iot" | "win11-iot" | "win11x64-iot" | "win11x64-enterprise-iot-eval" | "11i")
+      VERSION="win11x64-enterprise-iot-eval"
+      [ -z "$DETECTED" ] && DETECTED="win11x64-iot"
+      ;;
+    "ltsc11" | "11ltsc" | "win11-ltsc" | "win11x64-ltsc" | "win11x64-enterprise-ltsc-eval" | "11l")
+      VERSION="win11x64-enterprise-ltsc-eval"
+      [ -z "$DETECTED" ] && DETECTED="win11x64-ltsc"
+      ;;
+    "10" | "10p" | "win10" | "pro10" | "win10p" | "windows10" | "windows 10" )
       VERSION="win10x64"
       ;;
     "10e" | "win10e" | "windows10e" | "windows 10e" )
       VERSION="win10x64-enterprise-eval"
       ;;
-    "8" | "8p" | "81" | "81p" | "8.1" | "win8" | "win8p" | "win81" | "win81p" | "windows 8" )
+    "iot10" | "10iot" | "win10-iot" | "win10x64-iot" | "win10x64-enterprise-iot-eval" "10i")
+      VERSION="win10x64-enterprise-iot-eval"
+      [ -z "$DETECTED" ] && DETECTED="win10x64-iot"
+      ;;
+    "ltsc10" | "10ltsc" | "win10-ltsc" | "win10x64-ltsc" | "win10x64-enterprise-ltsc-eval" | "10l")
+      VERSION="win10x64-enterprise-ltsc-eval"
+      [ -z "$DETECTED" ] && DETECTED="win10x64-ltsc"
+      ;;
+    "8" | "8p" | "81" | "81p" | "pro8" | "8.1" | "win8" | "win8p" | "win81" | "win81p" | "windows 8" )
       VERSION="win81x64"
       ;;
     "8e" | "81e" | "8.1e" | "win8e" | "win81e" | "windows 8e" )
@@ -103,22 +119,6 @@ parseVersion() {
       ;;
    "tiny10" | "tiny 10" )
       VERSION="tiny10"
-      [ -z "$DETECTED" ] && DETECTED="win10x64-ltsc"
-      ;;
-    "iot11" | "11iot" | "win11-iot" | "win11x64-iot" | "win11x64-enterprise-iot-eval" )
-      VERSION="win11x64-enterprise-iot-eval"
-      [ -z "$DETECTED" ] && DETECTED="win11x64-iot"
-      ;;
-    "iot10" | "10iot" | "win10-iot" | "win10x64-iot" | "win10x64-enterprise-iot-eval" )
-      VERSION="win10x64-enterprise-iot-eval"
-      [ -z "$DETECTED" ] && DETECTED="win10x64-iot"
-      ;;
-    "ltsc11" | "11ltsc" | "win11-ltsc" | "win11x64-ltsc" | "win11x64-enterprise-ltsc-eval" )
-      VERSION="win11x64-enterprise-ltsc-eval"
-      [ -z "$DETECTED" ] && DETECTED="win11x64-ltsc"
-      ;;
-    "ltsc10" | "10ltsc" | "win10-ltsc" | "win10x64-ltsc" | "win10x64-enterprise-ltsc-eval" )
-      VERSION="win10x64-enterprise-ltsc-eval"
       [ -z "$DETECTED" ] && DETECTED="win10x64-ltsc"
       ;;
   esac
