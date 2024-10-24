@@ -32,11 +32,11 @@ parseVersion() {
     "11e" | "win11e" | "windows11e" | "windows 11e" )
       VERSION="win11x64-enterprise-eval"
       ;;
-    "iot11" | "11i" | "11iot" | "win11i" | "win11-iot" | "win11x64-iot" | "win11x64-enterprise-iot-eval" )
+    "11i" | "11iot" | "iot11" | "win11i" | "win11-iot" | "win11x64-iot" | "win11x64-enterprise-iot-eval" )
       VERSION="win11x64-enterprise-iot-eval"
       [ -z "$DETECTED" ] && DETECTED="win11x64-iot"
       ;;
-    "ltsc11" | "11l" | "11ltsc" | "win11l" | "win11-ltsc" | "win11x64-ltsc" | "win11x64-enterprise-ltsc-eval" )
+    "11l" | "11ltsc" | "ltsc11" | "win11l" | "win11-ltsc" | "win11x64-ltsc" | "win11x64-enterprise-ltsc-eval" )
       VERSION="win11x64-enterprise-ltsc-eval"
       [ -z "$DETECTED" ] && DETECTED="win11x64-ltsc"
       ;;
@@ -46,11 +46,11 @@ parseVersion() {
     "10e" | "win10e" | "windows10e" | "windows 10e" )
       VERSION="win10x64-enterprise-eval"
       ;;
-    "iot10" | "10i" | "10iot" | "win10i" | "win10-iot" | "win10x64-iot" | "win10x64-enterprise-iot-eval" )
+    "10i" | "10iot" | "iot10" | "win10i" | "win10-iot" | "win10x64-iot" | "win10x64-enterprise-iot-eval" )
       VERSION="win10x64-enterprise-iot-eval"
       [ -z "$DETECTED" ] && DETECTED="win10x64-iot"
       ;;
-    "ltsc10" | "10l" | "10ltsc" | "win10l" | "win10-ltsc" | "win10x64-ltsc" | "win10x64-enterprise-ltsc-eval" )
+    "10l" | "10ltsc" | "ltsc10" | "win10l" | "win10-ltsc" | "win10x64-ltsc" | "win10x64-enterprise-ltsc-eval" )
       VERSION="win10x64-enterprise-ltsc-eval"
       [ -z "$DETECTED" ] && DETECTED="win10x64-ltsc"
       ;;
@@ -71,21 +71,21 @@ parseVersion() {
       VERSION="win7x86"
       [ -z "$DETECTED" ] && DETECTED="win7x86-enterprise"
       ;;
-    "vista" | "winvista" | "windowsvista" | "windows vista" )
+    "vista" | "6" | "winvista" | "windowsvista" | "windows vista" )
       VERSION="winvistax64"
       [ -z "$DETECTED" ] && DETECTED="winvistax64-enterprise"
       ;;
-    "vistu" | "winvistu" | "windowsvistu" | "windows vistu" )
+    "vistu" | "6u" | "winvistu" | "windowsvistu" | "windows vistu" )
       VERSION="winvistax64-ultimate"
       ;;
-    "vistax86" | "winvistax86" | "windowsvistax86"  | "winvistax86-enterprise" )
+    "vistax86" | "6x86" | "winvistax86" | "windowsvistax86"  | "winvistax86-enterprise" )
       VERSION="winvistax86"
       [ -z "$DETECTED" ] && DETECTED="winvistax86-enterprise"
       ;;
-    "xp" | "xp32" | "xpx86" | "winxp" | "winxp86" | "windowsxp" | "windows xp" )
+    "xp" | "xp32" | "xpx86" | "5" | "5x86" | "winxp" | "winxp86" | "windowsxp" | "windows xp" )
       VERSION="winxpx86"
       ;;
-    "xp64" | "xpx64" | "winxp64" | "winxpx64" | "windowsxp64" | "windowsxpx64" )
+    "xp64" | "xpx64" | "5x64" | "winxp64" | "winxpx64" | "windowsxp64" | "windowsxpx64" )
       VERSION="winxpx64"
       ;;
     "25" | "2025" | "win25" | "win2025" | "windows2025" | "windows 2025" )
@@ -473,6 +473,9 @@ fromFile() {
       ;;
   esac
 
+  local add=""
+  [[ "$arch" != "x64" ]] && add="$arch"
+
   case "${file// /_}" in
     "win7"* | "win_7"* | *"windows7"* | *"windows_7"* )
       id="win7${arch}"
@@ -502,25 +505,25 @@ fromFile() {
       id="tiny10"
       ;;
     *"server2025"* | *"server_2025"* )
-      id="win2025"
+      id="win2025${add}"
       ;;
     *"server2022"* | *"server_2022"* )
-      id="win2022"
+      id="win2022${add}"
       ;;
     *"server2019"* | *"server_2019"* )
-      id="win2019"
+      id="win2019${add}"
       ;;
     *"server2016"* | *"server_2016"* )
-      id="win2016"
+      id="win2016${add}"
       ;;
     *"server2012"* | *"server_2012"* )
-      id="win2012r2"
+      id="win2012r2${add}"
       ;;
     *"server2008"* | *"server_2008"* )
-      id="win2008r2"
+      id="win2008r2${add}"
       ;;
     *"server2003"* | *"server_2003"* )
-      id="win2003r2"
+      id="win2003r2${add}"
       ;;
   esac
 
@@ -538,18 +541,22 @@ fromName() {
   local name="$1"
   local arch="$2"
 
+  local add=""
+  [[ "$arch" != "x64" ]] && add="$arch"
+
   case "${name,,}" in
-    *"server 2025"* ) id="win2025" ;;
-    *"server 2022"* ) id="win2022" ;;
-    *"server 2019"* ) id="win2019" ;;
-    *"server 2016"* ) id="win2016" ;;
-    *"server 2012"* ) id="win2012r2" ;;
-    *"server 2008"* ) id="win2008r2" ;;
     *"windows 7"* ) id="win7${arch}" ;;
     *"windows 8"* ) id="win81${arch}" ;;
     *"windows 10"* ) id="win10${arch}" ;;
     *"windows 11"* ) id="win11${arch}" ;;
     *"windows vista"* ) id="winvista${arch}" ;;
+    *"server 2025"* ) id="win2025${add}" ;;
+    *"server 2022"* ) id="win2022${add}" ;;
+    *"server 2019"* ) id="win2019${add}" ;;
+    *"server 2016"* ) id="win2016${add}" ;;
+    *"server 2012"* ) id="win2012r2${add}" ;;
+    *"server 2008"* ) id="win2008r2${add}" ;;
+    *"server 2003"* ) id="win2003r2${add}" ;;
   esac
 
   echo "$id"
@@ -2128,11 +2135,15 @@ setMachine() {
       BOOT_MODE="windows_legacy" ;;
     "winxp"* | "win2003"* )
       DISK_TYPE="blk"
-      BOOT_MODE="windows_legacy"
-      # Prevent bluescreen if 64 bit PCI hole size is >2G.
-      ARGS="-global q35-pcihost.x-pci-hole64-fix=false" ;;
+      BOOT_MODE="windows_legacy" ;;
     "winvista"* | "win7"* | "win2008"* )
       BOOT_MODE="windows_legacy" ;;
+  esac
+
+  case "${id,,}" in
+    "winxp"* | "win2003"* | "winvistax86"* | "win7x86"* | "win2008r2x86"* )
+      # Prevent bluescreen if 64 bit PCI hole size is >2G.
+      ARGS="-global q35-pcihost.x-pci-hole64-fix=false" ;;
   esac
 
   return 0
