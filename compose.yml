@@ -1,9 +1,13 @@
+version: '3'
+
 services:
   windows:
     image: dockurr/windows
     container_name: windows
     environment:
       VERSION: "win11"
+      # Set to GPU index (e.g., "0"), PCI address, or "none"
+      NVIDIA_VISIBLE_DEVICES: ${GPU_ID:-none}
     devices:
       - /dev/kvm
     cap_add:
@@ -13,3 +17,24 @@ services:
       - 3389:3389/tcp
       - 3389:3389/udp
     stop_grace_period: 2m
+    # Add script execution hooks using local path
+    labels:
+      - "com.docker.compose.project.working_dir=${PWD}"
+    hooks:
+      pre-start:
+        cmd: ${PWD}/gpu-switch.sh start windows
+      post-stop:
+        cmd: ${PWD}/gpu-switch.sh stop windows
+    # Add privileged mode and additional capabilities for GPU management
+    privileged: true
+    volumes:
+      - ${PWD}/gpu-switch.sh:/usr/local/bin/gpu-switch.sh:ro
+      - /dev/bus/usb:/dev/bus/usb
+      - /dev/input:/dev/input
+      # Add volume for persistence if needed
+      - windows_data:/mnt/user/domains/windows
+    restart: unless-stopped
+
+volumes:
+  windows_data:
+    external: true
