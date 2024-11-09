@@ -95,8 +95,8 @@ kubectl apply -f kubernetes.yml
   ||||
   | `8`    | Windows 8.1 Pro          | 4.0 GB   |
   | `8e`   | Windows 8.1 Enterprise   | 3.7 GB   |
-  | `7`    | Windows 7 Enterprise     | 3.0 GB   |
-  | `vista`| Windows Vista Enterprise | 3.0 GB   |
+  | `7e`   | Windows 7 Enterprise     | 3.0 GB   |
+  | `ve`   | Windows Vista Enterprise | 3.0 GB   |
   | `xp`   | Windows XP Professional  | 0.6 GB   |
   ||||
   | `2025` | Windows Server 2025      | 5.0 GB   |
