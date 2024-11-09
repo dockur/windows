@@ -961,12 +961,6 @@ getLink3() {
   culture=$(getLanguage "$lang" "culture")
 
   case "${id,,}" in
-    "win11x64-iot" | "win11x64-enterprise-iot-eval" )
-      [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
-      size=5144817664
-      sum="4f59662a96fc1da48c1b415d6c369d08af55ddd64e8f1c84e0166d9e50405d7a"
-      url="en-us_windows_11_iot_enterprise_ltsc_2024_x64_dvd_f6b14814.iso"
-      ;;
     "win11x64-ltsc" | "win11x64-enterprise-ltsc-eval" )
       case "${culture,,}" in
         "ar" | "ar-"* ) url="ar-sa_windows_11_enterprise_ltsc_2024_x64_dvd_8012f159.iso" ;;
@@ -977,8 +971,8 @@ getLink3() {
         "el" | "el-"* ) url="el-gr_windows_11_enterprise_ltsc_2024_x64_dvd_54eaabb2.iso" ;;
         "gb" | "en-gb" ) url="en-gb_windows_11_enterprise_ltsc_2024_x64_dvd_e2137661.iso" ;;
         "en" | "en-"* )
-          size=111
-          sum="XXX"
+          size=5125844992
+          sum="157d8365a517c40afeb3106fdd74d0836e1025debbc343f2080e1a8687607f51"
           url="en-us_windows_11_enterprise_ltsc_2024_x64_dvd_965cfb00.iso" ;;
         "mx" | "es-mx" ) url="es-mx_windows_11_enterprise_ltsc_2024_x64_dvd_3310c094.iso" ;;
         "es" | "es-"* ) url="es-es_windows_11_enterprise_ltsc_2024_x64_dvd_77392d61.iso" ;;
@@ -1011,6 +1005,12 @@ getLink3() {
         "zh-hk" | "zh-tw" ) url="zh-tw_windows_11_enterprise_ltsc_2024_x64_dvd_6287d84d.iso" ;;
         "zh" | "zh-"* ) url="zh-cn_windows_11_enterprise_ltsc_2024_x64_dvd_cff9cd2d.iso" ;;
       esac
+      ;;
+    "win11x64-iot" | "win11x64-enterprise-iot-eval" )
+      [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
+      size=5144817664
+      sum="4f59662a96fc1da48c1b415d6c369d08af55ddd64e8f1c84e0166d9e50405d7a"
+      url="en-us_windows_11_iot_enterprise_ltsc_2024_x64_dvd_f6b14814.iso"
       ;;
     "win10x64-ltsc" | "win10x64-enterprise-ltsc-eval" )
       case "${culture,,}" in
