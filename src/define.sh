@@ -71,14 +71,14 @@ parseVersion() {
       VERSION="win7x86"
       [ -z "$DETECTED" ] && DETECTED="win7x86-enterprise"
       ;;
-    "vista" | "6" | "winvista" | "windowsvista" | "windows vista" )
+    "vista" | "ve" | "6" | "winvista" | "windowsvista" | "windows vista" )
       VERSION="winvistax64"
       [ -z "$DETECTED" ] && DETECTED="winvistax64-enterprise"
       ;;
-    "vistu" | "6u" | "winvistu" | "windowsvistu" | "windows vistu" )
+    "vistu" | "vu" | "6u" | "winvistu" | "windowsvistu" | "windows vistu" )
       VERSION="winvistax64-ultimate"
       ;;
-    "vistax86" | "6x86" | "winvistax86" | "windowsvistax86"  | "winvistax86-enterprise" )
+    "vistax86" | "vex86" | "6x86" | "winvistax86" | "windowsvistax86"  | "winvistax86-enterprise" )
       VERSION="winvistax86"
       [ -z "$DETECTED" ] && DETECTED="winvistax86-enterprise"
       ;;
