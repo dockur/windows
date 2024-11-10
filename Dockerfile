@@ -31,7 +31,7 @@ COPY --chmod=755 ./assets /run/assets
 ADD --chmod=755 https://raw.githubusercontent.com/christgau/wsdd/v0.8/src/wsdd.py /usr/sbin/wsdd
 ADD --chmod=664 https://github.com/qemus/virtiso-whql/releases/download/v1.9.43-0/virtio-win-1.9.43.tar.xz /drivers.txz
 
-FROM dockurr/windows-arm:2.20 AS build-arm64
+FROM dockurr/windows-arm:2.21 AS build-arm64
 FROM build-${TARGETARCH}
 
 EXPOSE 8006 3389
