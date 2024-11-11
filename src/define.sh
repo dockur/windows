@@ -967,10 +967,10 @@ getLink3() {
   local l10="windows_10_enterprise_ltsc_2021_x64_dvd"
   local c11="windows_11_consumer_editions_version_24h2_x64_dvd"
   local b11="windows_11_business_editions_version_24h2_x64_dvd"
-  local s22="windows_server_2022_updated_oct_2024_x64_dvd_d1a47ecc"
+  local w22="windows_server_2022_updated_oct_2024_x64_dvd_d1a47ecc"
   local b10="windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd"
   local c10="windows_10_consumer_editions_version_22h2_updated_oct_2024_x64_dvd_d0cfb2e9"
-  
+
   culture=$(getLanguage "$lang" "culture")
 
   case "${id,,}" in
@@ -984,8 +984,8 @@ getLink3() {
         "el" | "el-"* ) url="el-gr_${c11}_9e6ef9a0.iso" ;;
         "gb" | "en-gb" ) url="en-gb_${c11}_4b3a8183.iso" ;;
         "en" | "en-"* )
-          size=111
-          sum="xxx"
+          size=5819484160
+          sum="b56b911bf18a2ceaeb3904d87e7c770bdf92d3099599d61ac2497b91bf190b11"
           url="en-us_${c11}_1d5fcad3.iso" ;;
         "mx" | "es-mx" ) url="es-es_${c11}_3bc0e5c3.iso" ;;
         "es" | "es-"* ) url="es-mx_${c11}_a28d9dab.iso" ;;
@@ -1029,8 +1029,8 @@ getLink3() {
         "el" | "el-"* ) url="el-gr_${b11}_946ba34d.iso" ;;
         "gb" | "en-gb" ) url="en-gb_${b11}_27d8c2f1.iso" ;;
         "en" | "en-"* )
-          size=111
-          sum="xxx"
+          size=5722114048
+          sum="d0dca325314322518ae967d58c3061bcae57ee9743a8a1cf374aad8637e5e8ac"
           url="en-us_${b11}_59a1851e.iso" ;;
         "mx" | "es-mx" ) url="es-es_${b11}_86632f8d.iso" ;;
         "es" | "es-"* ) url="es-mx_${b11}_6ee25ce4.iso" ;;
@@ -1125,8 +1125,8 @@ getLink3() {
         "el" | "el-"* ) url="el-gr_${c10}.iso" ;;
         "gb" | "en-gb" ) url="en-gb_${c10}.iso" ;;
         "en" | "en-"* )
-          size=111
-          sum="xxx"
+          size=7176140800
+          sum="dda45d271061937657689b30944c792be97405fd5ca2110094049dc01a9201ec"
           url="en-us_${c10}.iso" ;;
         "mx" | "es-mx" ) url="es-mx_${c10}.iso" ;;
         "es" | "es-"* ) url="es-es_${c10}.iso" ;;
@@ -1170,8 +1170,8 @@ getLink3() {
         "el" | "el-"* ) url="el-gr_${b10}_3dcced88.iso" ;;
         "gb" | "en-gb" ) url="en-gb_${b10}_4b87ccc8.iso" ;;
         "en" | "en-"* )
-          size=111
-          sum="xxx"
+          size=6985318400
+          sum="cd224fff371bbce4ab2120a3ace8ed30dc5c48c87f766ff699eed3327d0db83e"
           url="en-us_${b10}_66a185c7.iso" ;;
         "mx" | "es-mx" ) url="es-mx_${b10}_c71c3a9b.iso" ;;
         "es" | "es-"* ) url="es-es_${b10}_6a893bdb.iso" ;;
@@ -1305,8 +1305,8 @@ getLink3() {
         "cs" | "cs-"* ) url="cs-cz_${w25}_4f54e1b0.iso" ;;
         "de" | "de-"* ) url="de-de_${w25}_5282a882.iso" ;;
         "en" | "en-"* )
-          size=111
-          sum="xxx"
+          size=6013794304
+          sum="854109e1f215a29fc3541188297a6ca97c8a8f0f8c4dd6236b78dfdf845bf75e"
           url="en-us_${w25}_b7ec10f3.iso" ;;
         "es" | "es-"* ) url="es-es_${w25}_c15f0ce2.iso" ;;
         "fr" | "fr-"* ) url="fr-fr_${w25}_bd6be507.iso" ;;
@@ -1327,27 +1327,27 @@ getLink3() {
       ;;
     "win2022" | "win2022-eval" )
       case "${culture,,}" in
-        "cs" | "cs-"* ) url="cs-cz_${s22}.iso" ;;
-        "de" | "de-"* ) url="de-de_${s22}.iso" ;;
+        "cs" | "cs-"* ) url="cs-cz_${w22}.iso" ;;
+        "de" | "de-"* ) url="de-de_${w22}.iso" ;;
         "en" | "en-"* )
-          size=111
-          sum="xxx"
-          url="en-us_${s22}.iso" ;;
-        "es" | "es-"* ) url="es-es_${s22}.iso" ;;
-        "fr" | "fr-"* ) url="fr-fr_${s22}.iso" ;;
-        "hu" | "hu-"* ) url="hu-hu_${s22}.iso" ;;
-        "it" | "it-"* ) url="it-it_${s22}.iso" ;;
-        "ja" | "ja-"* ) url="ja-jp_${s22}.iso" ;;
-        "ko" | "ko-"* ) url="ko-kr_${s22}.iso" ;;
-        "nl" | "nl-"* ) url="nl-nl_${s22}.iso" ;;
-        "pl" | "pl-"* ) url="pl-pl_${s22}.iso" ;;
-        "br" | "pt-br" ) url="pt-br_${s22}.iso" ;;
-        "pt" | "pt-"* ) url="pt-pt_${s22}.iso" ;;
-        "ru" | "ru-"* ) url="ru-ru_${s22}.iso" ;;
-        "sv" | "sv-"* ) url="sv-se_${s22}.iso" ;;
-        "tr" | "tr-"* ) url="tr-tr_${s22}.iso" ;;
-        "zh-hk" | "zh-tw" ) url="zh-tw_${s22}.iso" ;;
-        "zh" | "zh-"* ) url="zh-cn_${s22}.iso" ;;
+          size=5973856256
+          sum="61fa400b6e8f54e644529d024b18a578547147cdf815ea66c4b7961798717291"
+          url="en-us_${w22}.iso" ;;
+        "es" | "es-"* ) url="es-es_${w22}.iso" ;;
+        "fr" | "fr-"* ) url="fr-fr_${w22}.iso" ;;
+        "hu" | "hu-"* ) url="hu-hu_${w22}.iso" ;;
+        "it" | "it-"* ) url="it-it_${w22}.iso" ;;
+        "ja" | "ja-"* ) url="ja-jp_${w22}.iso" ;;
+        "ko" | "ko-"* ) url="ko-kr_${w22}.iso" ;;
+        "nl" | "nl-"* ) url="nl-nl_${w22}.iso" ;;
+        "pl" | "pl-"* ) url="pl-pl_${w22}.iso" ;;
+        "br" | "pt-br" ) url="pt-br_${w22}.iso" ;;
+        "pt" | "pt-"* ) url="pt-pt_${w22}.iso" ;;
+        "ru" | "ru-"* ) url="ru-ru_${w22}.iso" ;;
+        "sv" | "sv-"* ) url="sv-se_${w22}.iso" ;;
+        "tr" | "tr-"* ) url="tr-tr_${w22}.iso" ;;
+        "zh-hk" | "zh-tw" ) url="zh-tw_${w22}.iso" ;;
+        "zh" | "zh-"* ) url="zh-cn_${w22}.iso" ;;
       esac
       ;;
     "win2019" | "win2019-eval" )
