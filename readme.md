@@ -340,24 +340,28 @@ kubectl apply -f kubernetes.yml
 
 ### How do I verify if my system supports KVM?
 
-  To verify that your system supports KVM, run the following commands:
+  Only Linux and Windows 11 support KVM virtualization, macOS and Windows 10 do not unfortunately.
+  
+  You can run the following commands in Linux to check your system:
 
   ```bash
   sudo apt install cpu-checker
   sudo kvm-ok
   ```
 
-  If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, please check whether:
+  If you receive an error from `kvm-ok` indicating that KVM cannot be used, please check whether:
 
   - the virtualization extensions (`Intel VT-x` or `AMD SVM`) are enabled in your BIOS.
-
-  - you are running an operating system that supports them, like Linux or Windows 11 (macOS and Windows 10 do not unfortunately).
 
   - you enabled "nested virtualization" if you are running the container inside a virtual machine.
 
   - you are not using a cloud provider, as most of them do not allow nested virtualization for their VPS's.
 
-  If you didn't receive any error from `kvm-ok` at all, but the container still complains that `/dev/kvm` is missing, it might help to add `privileged: true` to your compose file (or `--privileged` to your `run` command), to rule out any permission issue.
+  If you do not receive any error from `kvm-ok` but the container still complains about KVM, please check whether:
+
+  - you are not using "Docker Desktop for Linux" as it does not support KVM, instead make use of Docker Engine directly.
+ 
+  - it could help to add `privileged: true` to your compose file (or `sudo` to your `run` command), to rule out any permission issue.
 
 ### How do I run macOS in a container?
 
