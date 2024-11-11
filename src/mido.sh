@@ -305,7 +305,7 @@ getWindows() {
   language=$(getLanguage "$lang" "desc")
   edition=$(printEdition "$version" "$desc")
 
-  local msg="Requesting $desc from Microsoft server..."
+  local msg="Requesting $desc from the Microsoft servers..."
   info "$msg" && html "$msg"
 
   case "${version,,}" in
@@ -610,12 +610,17 @@ downloadImage() {
   local iso="$1"
   local version="$2"
   local lang="$3"
+  local delay=5
   local tried="n"
+  local success="n"
   local url sum size base desc language
+  local msg="Will retry after $delay seconds..."
 
   if [[ "${version,,}" == "http"* ]]; then
     base=$(basename "$iso")
     desc=$(fromFile "$base")
+    downloadFile "$iso" "$version" "" "" "" "$desc" && return 0
+    info "$msg" && html "$msg" && sleep "$delay"
     downloadFile "$iso" "$version" "" "" "" "$desc" && return 0
     rm -f "$iso"
     return 1
@@ -637,10 +642,22 @@ downloadImage() {
   fi
 
   if isMido "$version" "$lang"; then
+
     tried="y"
+    success="n"
+
     if getWindows "$version" "$lang" "$desc"; then
+      success="y"
+    else
+      info "$msg" && html "$msg" && sleep "$delay"
+      getWindows "$version" "$lang" "$desc" && success="y"
+    fi
+
+    if [[ "$success" == "y" ]]; then
       size=$(getMido "$version" "$lang" "size" )
       sum=$(getMido "$version" "$lang" "sum")
+      downloadFile "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$desc" && return 0
+      info "$msg" && html "$msg" && sleep "$delay"
       downloadFile "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$desc" && return 0
       rm -f "$iso"
     fi
@@ -655,9 +672,19 @@ downloadImage() {
     fi
 
     tried="y"
+    success="n"
 
     if getESD "$TMP/esd" "$version" "$lang" "$desc"; then
+      success="y"
+    else
+      info "$msg" && html "$msg" && sleep "$delay"
+      getESD "$TMP/esd" "$version" "$lang" "$desc" && success="y"
+    fi
+
+    if [[ "$success" == "y" ]]; then
       ISO="${ISO%.*}.esd"
+      downloadFile "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$lang" "$desc" && return 0
+      info "$msg" && html "$msg" && sleep "$delay"
       downloadFile "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$lang" "$desc" && return 0
       rm -f "$ISO"
       ISO="$iso"
@@ -676,6 +703,8 @@ downloadImage() {
       tried="y"
       size=$(getSize "$i" "$version" "$lang")
       sum=$(getHash "$i" "$version" "$lang")
+      downloadFile "$iso" "$url" "$sum" "$size" "$lang" "$desc" && return 0
+      info "$msg" && html "$msg" && sleep "$delay"
       downloadFile "$iso" "$url" "$sum" "$size" "$lang" "$desc" && return 0
       rm -f "$iso"
     fi
