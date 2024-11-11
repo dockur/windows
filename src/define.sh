@@ -957,53 +957,156 @@ getLink3() {
   local sum=""
   local size=""
   local host="https://drive.massgrave.dev"
-
+  local w19="windows_server_2019_x64_dvd"
+  local w25="windows_server_2025_x64_dvd"
+  local w16="windows_server_2016_vl_x64_dvd"
+  local w12="windows_server_2012_r2_vl_with_update_x64_dvd"
+  local w08="windows_server_2008_r2_with_sp1_vl_build_x64_dvd"
+  local w81="windows_8.1_enterprise_with_update_x64_dvd"
+  local l11="windows_11_enterprise_ltsc_2024_x64_dvd"
+  local l10="windows_10_enterprise_ltsc_2021_x64_dvd"
+  local c11="windows_11_consumer_editions_version_24h2_x64_dvd"
+  local b11="windows_11_business_editions_version_24h2_x64_dvd"
+  local s22="windows_server_2022_updated_oct_2024_x64_dvd_d1a47ecc"
+  local b10="windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd"
+  local c10="windows_10_consumer_editions_version_22h2_updated_oct_2024_x64_dvd_d0cfb2e9"
+  
   culture=$(getLanguage "$lang" "culture")
 
   case "${id,,}" in
+    "win11x64" )
+      case "${culture,,}" in
+        "ar" | "ar-"* ) url="ar-sa_${c11}_3c9a7ef3.iso" ;;
+        "bg" | "bg-"* ) url="bg-bg_${c11}_f8623745.iso" ;;
+        "cs" | "cs-"* ) url="cs-cz_${c11}_ae72ca80.iso" ;;
+        "da" | "da-"* ) url="da-dk_${c11}_4f25c452.iso" ;;
+        "de" | "de-"* ) url="de-de_${c11}_bc4adebe.iso" ;;
+        "el" | "el-"* ) url="el-gr_${c11}_9e6ef9a0.iso" ;;
+        "gb" | "en-gb" ) url="en-gb_${c11}_4b3a8183.iso" ;;
+        "en" | "en-"* )
+          size=111
+          sum="xxx"
+          url="en-us_${c11}_1d5fcad3.iso" ;;
+        "mx" | "es-mx" ) url="es-es_${c11}_3bc0e5c3.iso" ;;
+        "es" | "es-"* ) url="es-mx_${c11}_a28d9dab.iso" ;;
+        "et" | "et-"* ) url="et-ee_${c11}_48306c65.iso" ;;
+        "fi" | "fi-"* ) url="fi-fi_${c11}_21618747.iso" ;;
+        "ca" | "fr-ca" ) url="fr-ca_${c11}_42755257.iso" ;;
+        "fr" | "fr-"* ) url="fr-fr_${c11}_033875c5.iso" ;;
+        "he" | "he-"* ) url="he-il_${c11}_533bc3ac.iso" ;;
+        "hr" | "hr-"* ) url="hr-hr_${c11}_40c769ed.iso" ;;
+        "hu" | "hu-"* ) url="hu-hu_${c11}_7d2259d6.iso" ;;
+        "it" | "it-"* ) url="it-it_${c11}_33e81ff0.iso" ;;
+        "ja" | "ja-"* ) url="ja-jp_${c11}_fc6538fd.iso" ;;
+        "ko" | "ko-"* ) url="ko-kr_${c11}_f09a396b.iso" ;;
+        "lt" | "lt-"* ) url="lt-lt_${c11}_22d54265.iso" ;;
+        "lv" | "lv-"* ) url="lv-lv_${c11}_5ff65441.iso" ;;
+        "nb" | "nb-"* ) url="nb-no_${c11}_5a5d625b.iso" ;;
+        "nl" | "nl-"* ) url="nl-nl_${c11}_7959020a.iso" ;;
+        "pl" | "pl-"* ) url="pl-pl_${c11}_c0dcd21b.iso" ;;
+        "br" | "pt-br" ) url="pt-br_${c11}_751fe150.iso" ;;
+        "pt" | "pt-"* ) url="pt-pt_${c11}_e0df188a.iso" ;;
+        "ro" | "ro-"* ) url="ro-ro_${c11}_0821b265.iso" ;;
+        "ru" | "ru-"* ) url="ru-ru_${c11}_784471d8.iso" ;;
+        "sk" | "sk-"* ) url="sk-sk_${c11}_fd13020e.iso" ;;
+        "sl" | "sl-"* ) url="sl-si_${c11}_9aa9f408.iso" ;;
+        "sr" | "sr-"* ) url="sr-latn-rs_${c11}_febab1a9.iso" ;;
+        "sv" | "sv-"* ) url="sv-se_${c11}_fe34647f.iso" ;;
+        "th" | "th-"* ) url="th-th_${c11}_fc3e523e.iso" ;;
+        "tr" | "tr-"* ) url="tr-tr_${c11}_443fefaf.iso" ;;
+        "uk" | "uk-"* ) url="uk-ua_${c11}_32966915.iso" ;;
+        "zh-hk" | "zh-tw" ) url="zh-tw_${c11}_d0825b63.iso" ;;
+        "zh" | "zh-"* ) url="zh-cn_${c11}_bfc0d79b.iso" ;;
+      esac
+      ;;
+    "win11x64-enterprise" | "win11x64-enterprise-eval" )
+      case "${culture,,}" in
+        "ar" | "ar-"* ) url="ar-sa_${b11}_47dae48e.iso" ;;
+        "bg" | "bg-"* ) url="bg-bg_${b11}_4231caca.iso" ;;
+        "cs" | "cs-"* ) url="cs-cz_${b11}_ca1661fd.iso" ;;
+        "da" | "da-"* ) url="da-dk_${b11}_ac0db9fc.iso" ;;
+        "de" | "de-"* ) url="de-de_${b11}_87a70226.iso" ;;
+        "el" | "el-"* ) url="el-gr_${b11}_946ba34d.iso" ;;
+        "gb" | "en-gb" ) url="en-gb_${b11}_27d8c2f1.iso" ;;
+        "en" | "en-"* )
+          size=111
+          sum="xxx"
+          url="en-us_${b11}_59a1851e.iso" ;;
+        "mx" | "es-mx" ) url="es-es_${b11}_86632f8d.iso" ;;
+        "es" | "es-"* ) url="es-mx_${b11}_6ee25ce4.iso" ;;
+        "et" | "et-"* ) url="et-ee_${b11}_c26c1e3a.iso" ;;
+        "fi" | "fi-"* ) url="fi-fi_${b11}_59dd0bb5.iso" ;;
+        "ca" | "fr-ca" ) url="fr-ca_${b11}_a02f0c99.iso" ;;
+        "fr" | "fr-"* ) url="fr-fr_${b11}_c0a4510e.iso" ;;
+        "he" | "he-"* ) url="he-il_${b11}_c844d280.iso" ;;
+        "hr" | "hr-"* ) url="hr-hr_${b11}_6e4839cc.iso" ;;
+        "hu" | "hu-"* ) url="hu-hu_${b11}_aed71101.iso" ;;
+        "it" | "it-"* ) url="it-it_${b11}_5552c3a1.iso" ;;
+        "ja" | "ja-"* ) url="ja-jp_${b11}_7fdb7541.iso" ;;
+        "ko" | "ko-"* ) url="ko-kr_${b11}_646bb9fc.iso" ;;
+        "lt" | "lt-"* ) url="lt-lt_${b11}_54d6d7e2.iso" ;;
+        "lv" | "lv-"* ) url="lv-lv_${b11}_acee0541.iso" ;;
+        "nb" | "nb-"* ) url="nb-no_${b11}_78f22960.iso" ;;
+        "nl" | "nl-"* ) url="nl-nl_${b11}_0719b251.iso" ;;
+        "pl" | "pl-"* ) url="pl-pl_${b11}_1a183794.iso" ;;
+        "br" | "pt-br" ) url="pt-br_${b11}_ecc90645.iso" ;;
+        "pt" | "pt-"* ) url="pt-pt_${b11}_e7bf77a1.iso" ;;
+        "ro" | "ro-"* ) url="ro-ro_${b11}_9adc8d7b.iso" ;;
+        "ru" | "ru-"* ) url="ru-ru_${b11}_f9b9b5d6.iso" ;;
+        "sk" | "sk-"* ) url="sk-sk_${b11}_1a91433b.iso" ;;
+        "sl" | "sl-"* ) url="sl-si_${b11}_0b79bd14.iso" ;;
+        "sr" | "sr-"* ) url="sr-latn-rs_${b11}_8a4b35b5.iso" ;;
+        "sv" | "sv-"* ) url="sv-se_${b11}_55ad9818.iso" ;;
+        "th" | "th-"* ) url="th-th_${b11}_a2a350c3.iso" ;;
+        "tr" | "tr-"* ) url="tr-tr_${b11}_f35a9f1b.iso" ;;
+        "uk" | "uk-"* ) url="uk-ua_${b11}_38ff1d1d.iso" ;;
+        "zh-hk" | "zh-tw" ) url="zh-tw_${b11}_a9b30de5.iso" ;;
+        "zh" | "zh-"* ) url="zh-cn_${b11}_5f9e5858.iso" ;;
+      esac
+      ;;
     "win11x64-ltsc" | "win11x64-enterprise-ltsc-eval" )
       case "${culture,,}" in
-        "ar" | "ar-"* ) url="ar-sa_windows_11_enterprise_ltsc_2024_x64_dvd_8012f159.iso" ;;
-        "bg" | "bg-"* ) url="bg-bg_windows_11_enterprise_ltsc_2024_x64_dvd_2778f4e8.iso" ;;
-        "cs" | "cs-"* ) url="cs-cz_windows_11_enterprise_ltsc_2024_x64_dvd_d4ef05f2.iso" ;;
-        "da" | "da-"* ) url="da-dk_windows_11_enterprise_ltsc_2024_x64_dvd_c231c267.iso" ;;
-        "de" | "de-"* ) url="de-de_windows_11_enterprise_ltsc_2024_x64_dvd_4f136f69.iso" ;;
-        "el" | "el-"* ) url="el-gr_windows_11_enterprise_ltsc_2024_x64_dvd_54eaabb2.iso" ;;
-        "gb" | "en-gb" ) url="en-gb_windows_11_enterprise_ltsc_2024_x64_dvd_e2137661.iso" ;;
+        "ar" | "ar-"* ) url="ar-sa_${l11}_8012f159.iso" ;;
+        "bg" | "bg-"* ) url="bg-bg_${l11}_2778f4e8.iso" ;;
+        "cs" | "cs-"* ) url="cs-cz_${l11}_d4ef05f2.iso" ;;
+        "da" | "da-"* ) url="da-dk_${l11}_c231c267.iso" ;;
+        "de" | "de-"* ) url="de-de_${l11}_4f136f69.iso" ;;
+        "el" | "el-"* ) url="el-gr_${l11}_54eaabb2.iso" ;;
+        "gb" | "en-gb" ) url="en-gb_${l11}_e2137661.iso" ;;
         "en" | "en-"* )
           size=5125844992
           sum="157d8365a517c40afeb3106fdd74d0836e1025debbc343f2080e1a8687607f51"
-          url="en-us_windows_11_enterprise_ltsc_2024_x64_dvd_965cfb00.iso" ;;
-        "mx" | "es-mx" ) url="es-mx_windows_11_enterprise_ltsc_2024_x64_dvd_3310c094.iso" ;;
-        "es" | "es-"* ) url="es-es_windows_11_enterprise_ltsc_2024_x64_dvd_77392d61.iso" ;;
-        "et" | "et-"* ) url="et-ee_windows_11_enterprise_ltsc_2024_x64_dvd_2dbd4bfe.iso" ;;
-        "fi" | "fi-"* ) url="fi-fi_windows_11_enterprise_ltsc_2024_x64_dvd_998f5df6.iso" ;;
-        "ca" | "fr-ca" ) url="fr-ca_windows_11_enterprise_ltsc_2024_x64_dvd_78732953.iso" ;;
-        "fr" | "fr-"* ) url="fr-fr_windows_11_enterprise_ltsc_2024_x64_dvd_d66e386e.iso" ;;
-        "he" | "he-"* ) url="he-il_windows_11_enterprise_ltsc_2024_x64_dvd_fae050ec.iso" ;;
-        "hr" | "hr-"* ) url="hr-hr_windows_11_enterprise_ltsc_2024_x64_dvd_e3594411.iso" ;;
-        "hu" | "hu-"* ) url="hu-hu_windows_11_enterprise_ltsc_2024_x64_dvd_8fea6034.iso" ;;
-        "it" | "it-"* ) url="it-it_windows_11_enterprise_ltsc_2024_x64_dvd_1e8cabb6.iso" ;;
-        "ja" | "ja-"* ) url="ja-jp_windows_11_enterprise_ltsc_2024_x64_dvd_e59ad418.iso" ;;
-        "ko" | "ko-"* ) url="ko-kr_windows_11_enterprise_ltsc_2024_x64_dvd_b6b6eb18.iso" ;;
-        "lt" | "lt-"* ) url="lt-lt_windows_11_enterprise_ltsc_2024_x64_dvd_145479e9.iso" ;;
-        "lv" | "lv-"* ) url="lv-lv_windows_11_enterprise_ltsc_2024_x64_dvd_e0ebc53d.iso" ;;
-        "nb" | "nb-"* ) url="nb-no_windows_11_enterprise_ltsc_2024_x64_dvd_d41eeb48.iso" ;;
-        "nl" | "nl-"* ) url="nl-nl_windows_11_enterprise_ltsc_2024_x64_dvd_e3063aab.iso" ;;
-        "pl" | "pl-"* ) url="pl-pl_windows_11_enterprise_ltsc_2024_x64_dvd_e00807a1.iso" ;;
-        "br" | "pt-br" ) url="pt-br_windows_11_enterprise_ltsc_2024_x64_dvd_2bb6b75b.iso" ;;
-        "pt" | "pt-"* ) url="pt-pt_windows_11_enterprise_ltsc_2024_x64_dvd_2f34bd6b.iso" ;;
-        "ro" | "ro-"* ) url="ro-ro_windows_11_enterprise_ltsc_2024_x64_dvd_2eadb4df.iso" ;;
-        "ru" | "ru-"* ) url="ru-ru_windows_11_enterprise_ltsc_2024_x64_dvd_f9af5773.iso" ;;
-        "sk" | "sk-"* ) url="sk-sk_windows_11_enterprise_ltsc_2024_x64_dvd_03b916e7.iso" ;;
-        "sl" | "sl-"* ) url="sl-si_windows_11_enterprise_ltsc_2024_x64_dvd_310b3a76.iso" ;;
-        "sr" | "sr-"* ) url="sr-latn-rs_windows_11_enterprise_ltsc_2024_x64_dvd_3dfa5da5.iso" ;;
-        "sv" | "sv-"* ) url="sv-se_windows_11_enterprise_ltsc_2024_x64_dvd_191cf991.iso" ;;
-        "th" | "th-"* ) url="th-th_windows_11_enterprise_ltsc_2024_x64_dvd_47ce2c8a.iso" ;;
-        "tr" | "tr-"* ) url="tr-tr_windows_11_enterprise_ltsc_2024_x64_dvd_27bdab81.iso" ;;
-        "uk" | "uk-"* ) url="uk-ua_windows_11_enterprise_ltsc_2024_x64_dvd_b3f00872.iso" ;;
-        "zh-hk" | "zh-tw" ) url="zh-tw_windows_11_enterprise_ltsc_2024_x64_dvd_6287d84d.iso" ;;
-        "zh" | "zh-"* ) url="zh-cn_windows_11_enterprise_ltsc_2024_x64_dvd_cff9cd2d.iso" ;;
+          url="en-us_${l11}_965cfb00.iso" ;;
+        "mx" | "es-mx" ) url="es-mx_${l11}_3310c094.iso" ;;
+        "es" | "es-"* ) url="es-es_${l11}_77392d61.iso" ;;
+        "et" | "et-"* ) url="et-ee_${l11}_2dbd4bfe.iso" ;;
+        "fi" | "fi-"* ) url="fi-fi_${l11}_998f5df6.iso" ;;
+        "ca" | "fr-ca" ) url="fr-ca_${l11}_78732953.iso" ;;
+        "fr" | "fr-"* ) url="fr-fr_${l11}_d66e386e.iso" ;;
+        "he" | "he-"* ) url="he-il_${l11}_fae050ec.iso" ;;
+        "hr" | "hr-"* ) url="hr-hr_${l11}_e3594411.iso" ;;
+        "hu" | "hu-"* ) url="hu-hu_${l11}_8fea6034.iso" ;;
+        "it" | "it-"* ) url="it-it_${l11}_1e8cabb6.iso" ;;
+        "ja" | "ja-"* ) url="ja-jp_${l11}_e59ad418.iso" ;;
+        "ko" | "ko-"* ) url="ko-kr_${l11}_b6b6eb18.iso" ;;
+        "lt" | "lt-"* ) url="lt-lt_${l11}_145479e9.iso" ;;
+        "lv" | "lv-"* ) url="lv-lv_${l11}_e0ebc53d.iso" ;;
+        "nb" | "nb-"* ) url="nb-no_${l11}_d41eeb48.iso" ;;
+        "nl" | "nl-"* ) url="nl-nl_${l11}_e3063aab.iso" ;;
+        "pl" | "pl-"* ) url="pl-pl_${l11}_e00807a1.iso" ;;
+        "br" | "pt-br" ) url="pt-br_${l11}_2bb6b75b.iso" ;;
+        "pt" | "pt-"* ) url="pt-pt_${l11}_2f34bd6b.iso" ;;
+        "ro" | "ro-"* ) url="ro-ro_${l11}_2eadb4df.iso" ;;
+        "ru" | "ru-"* ) url="ru-ru_${l11}_f9af5773.iso" ;;
+        "sk" | "sk-"* ) url="sk-sk_${l11}_03b916e7.iso" ;;
+        "sl" | "sl-"* ) url="sl-si_${l11}_310b3a76.iso" ;;
+        "sr" | "sr-"* ) url="sr-latn-rs_${l11}_3dfa5da5.iso" ;;
+        "sv" | "sv-"* ) url="sv-se_${l11}_191cf991.iso" ;;
+        "th" | "th-"* ) url="th-th_${l11}_47ce2c8a.iso" ;;
+        "tr" | "tr-"* ) url="tr-tr_${l11}_27bdab81.iso" ;;
+        "uk" | "uk-"* ) url="uk-ua_${l11}_b3f00872.iso" ;;
+        "zh-hk" | "zh-tw" ) url="zh-tw_${l11}_6287d84d.iso" ;;
+        "zh" | "zh-"* ) url="zh-cn_${l11}_cff9cd2d.iso" ;;
       esac
       ;;
     "win11x64-iot" | "win11x64-enterprise-iot-eval" )
@@ -1012,94 +1115,139 @@ getLink3() {
       sum="4f59662a96fc1da48c1b415d6c369d08af55ddd64e8f1c84e0166d9e50405d7a"
       url="en-us_windows_11_iot_enterprise_ltsc_2024_x64_dvd_f6b14814.iso"
       ;;
-    "win10x64-enterprise" | "win10x64-enterprise-eval" )
+    "win10x64" )
       case "${culture,,}" in
-        "ar" | "ar-"* ) url="ar-sa_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_72d26609.iso" ;;
-        "bg" | "bg-"* ) url="bg-bg_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_916cba75.iso" ;;
-        "cs" | "cs-"* ) url="cs-cz_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_737b3dce.iso" ;;
-        "da" | "da-"* ) url="da-dk_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_beb2874a.iso" ;;
-        "de" | "de-"* ) url="de-de_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_e5656293.iso" ;;
-        "el" | "el-"* ) url="el-gr_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_3dcced88.iso" ;;
-        "gb" | "en-gb" ) url="en-gb_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_4b87ccc8.iso" ;;
+        "ar" | "ar-"* ) url="ar-sa_${c10}.iso" ;;
+        "bg" | "bg-"* ) url="bg-bg_${c10}.iso" ;;
+        "cs" | "cs-"* ) url="cs-cz_${c10}.iso" ;;
+        "da" | "da-"* ) url="da-dk_${c10}.iso" ;;
+        "de" | "de-"* ) url="de-de_${c10}.iso" ;;
+        "el" | "el-"* ) url="el-gr_${c10}.iso" ;;
+        "gb" | "en-gb" ) url="en-gb_${c10}.iso" ;;
         "en" | "en-"* )
           size=111
           sum="xxx"
-          url="en-us_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_66a185c7.iso" ;;
-        "mx" | "es-mx" ) url="es-mx_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_c71c3a9b.iso" ;;
-        "es" | "es-"* ) url="es-es_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_6a893bdb.iso" ;;
-        "et" | "et-"* ) url="et-ee_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_e73ca294.iso" ;;
-        "fi" | "fi-"* ) url="fi-fi_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_b4138a1f.iso" ;;
-        "ca" | "fr-ca" ) url="fr-ca_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_fa1fcfd1.iso" ;;
-        "fr" | "fr-"* ) url="fr-fr_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_2582115c.iso" ;;
-        "he" | "he-"* ) url="he-il_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_070da6e1.iso" ;;
-        "hr" | "hr-"* ) url="hr-hr_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_7ab0b83d.iso" ;;
-        "hu" | "hu-"* ) url="hu-hu_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_9ae1341c.iso" ;;
-        "it" | "it-"* ) url="it-it_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_ed9771c1.iso" ;;
-        "ja" | "ja-"* ) url="ja-jp_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_41fb6974.iso" ;;
-        "ko" | "ko-"* ) url="ko-kr_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_8ee84458.iso" ;;
-        "lt" | "lt-"* ) url="lt-lt_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_dde00c8b.iso" ;;
-        "lv" | "lv-"* ) url="lv-lv_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_3c6ec670.iso" ;;
-        "nb" | "nb-"* ) url="nb-no_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_5c0830a7.iso" ;;
-        "nl" | "nl-"* ) url="nl-nl_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_98c1911c.iso" ;;
-        "pl" | "pl-"* ) url="pl-pl_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_21470c6f.iso" ;;
-        "br" | "pt-br" ) url="pt-br_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_a8287ba4.iso" ;;
-        "pt" | "pt-"* ) url="pt-pt_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_927e183d.iso" ;;
-        "ro" | "ro-"* ) url="ro-ro_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_05768a51.iso" ;;
-        "ru" | "ru-"* ) url="ru-ru_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_e0d31c6c.iso" ;;
-        "sk" | "sk-"* ) url="sk-sk_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_a09d6210.iso" ;;
-        "sl" | "sl-"* ) url="sl-si_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_b6e9be37.iso" ;;
-        "sr" | "sr-"* ) url="sr-latn-rs_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_d3114222.iso" ;;
-        "sv" | "sv-"* ) url="sv-se_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_4fbbd5fa.iso" ;;
-        "th" | "th-"* ) url="th-th_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_c820f914.iso" ;;
-        "tr" | "tr-"* ) url="tr-tr_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_62d51ca5.iso" ;;
-        "uk" | "uk-"* ) url="uk-ua_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_3d50cf88.iso" ;;
-        "zh-hk" | "zh-tw" ) url="zh-tw_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_2fab2287.iso" ;;
-        "zh" | "zh-"* ) url="zh-cn_windows_10_business_editions_version_22h2_updated_oct_2024_x64_dvd_52bd0537.iso" ;;
+          url="en-us_${c10}.iso" ;;
+        "mx" | "es-mx" ) url="es-mx_${c10}.iso" ;;
+        "es" | "es-"* ) url="es-es_${c10}.iso" ;;
+        "et" | "et-"* ) url="et-ee_${c10}.iso" ;;
+        "fi" | "fi-"* ) url="fi-fi_${c10}.iso" ;;
+        "ca" | "fr-ca" ) url="fr-ca_${c10}.iso" ;;
+        "fr" | "fr-"* ) url="fr-fr_${c10}.iso" ;;
+        "he" | "he-"* ) url="he-il_${c10}.iso" ;;
+        "hr" | "hr-"* ) url="hr-hr_${c10}.iso" ;;
+        "hu" | "hu-"* ) url="hu-hu_${c10}.iso" ;;
+        "it" | "it-"* ) url="it-it_${c10}.iso" ;;
+        "ja" | "ja-"* ) url="ja-jp_${c10}.iso" ;;
+        "ko" | "ko-"* ) url="ko-kr_${c10}.iso" ;;
+        "lt" | "lt-"* ) url="lt-lt_${c10}.iso" ;;
+        "lv" | "lv-"* ) url="lv-lv_${c10}.iso" ;;
+        "nb" | "nb-"* ) url="nb-no_${c10}.iso" ;;
+        "nl" | "nl-"* ) url="nl-nl_${c10}.iso" ;;
+        "pl" | "pl-"* ) url="pl-pl_${c10}.iso" ;;
+        "br" | "pt-br" ) url="pt-br_${c10}.iso" ;;
+        "pt" | "pt-"* ) url="pt-pt_${c10}.iso" ;;
+        "ro" | "ro-"* ) url="ro-ro_${c10}.iso" ;;
+        "ru" | "ru-"* ) url="ru-ru_${c10}.iso" ;;
+        "sk" | "sk-"* ) url="sk-sk_${c10}.iso" ;;
+        "sl" | "sl-"* ) url="sl-si_${c10}.iso" ;;
+        "sr" | "sr-"* ) url="sr-latn-rs_${c10}.iso" ;;
+        "sv" | "sv-"* ) url="sv-se_${c10}.iso" ;;
+        "th" | "th-"* ) url="th-th_${c10}.iso" ;;
+        "tr" | "tr-"* ) url="tr-tr_${c10}.iso" ;;
+        "uk" | "uk-"* ) url="uk-ua_${c10}.iso" ;;
+        "zh-hk" | "zh-tw" ) url="zh-tw_${c10}.iso" ;;
+        "zh" | "zh-"* ) url="zh-cn_${c10}.iso" ;;
+      esac
+      ;;
+    "win10x64-enterprise" | "win10x64-enterprise-eval" )
+      case "${culture,,}" in
+        "ar" | "ar-"* ) url="ar-sa_${b10}_72d26609.iso" ;;
+        "bg" | "bg-"* ) url="bg-bg_${b10}_916cba75.iso" ;;
+        "cs" | "cs-"* ) url="cs-cz_${b10}_737b3dce.iso" ;;
+        "da" | "da-"* ) url="da-dk_${b10}_beb2874a.iso" ;;
+        "de" | "de-"* ) url="de-de_${b10}_e5656293.iso" ;;
+        "el" | "el-"* ) url="el-gr_${b10}_3dcced88.iso" ;;
+        "gb" | "en-gb" ) url="en-gb_${b10}_4b87ccc8.iso" ;;
+        "en" | "en-"* )
+          size=111
+          sum="xxx"
+          url="en-us_${b10}_66a185c7.iso" ;;
+        "mx" | "es-mx" ) url="es-mx_${b10}_c71c3a9b.iso" ;;
+        "es" | "es-"* ) url="es-es_${b10}_6a893bdb.iso" ;;
+        "et" | "et-"* ) url="et-ee_${b10}_e73ca294.iso" ;;
+        "fi" | "fi-"* ) url="fi-fi_${b10}_b4138a1f.iso" ;;
+        "ca" | "fr-ca" ) url="fr-ca_${b10}_fa1fcfd1.iso" ;;
+        "fr" | "fr-"* ) url="fr-fr_${b10}_2582115c.iso" ;;
+        "he" | "he-"* ) url="he-il_${b10}_070da6e1.iso" ;;
+        "hr" | "hr-"* ) url="hr-hr_${b10}_7ab0b83d.iso" ;;
+        "hu" | "hu-"* ) url="hu-hu_${b10}_9ae1341c.iso" ;;
+        "it" | "it-"* ) url="it-it_${b10}_ed9771c1.iso" ;;
+        "ja" | "ja-"* ) url="ja-jp_${b10}_41fb6974.iso" ;;
+        "ko" | "ko-"* ) url="ko-kr_${b10}_8ee84458.iso" ;;
+        "lt" | "lt-"* ) url="lt-lt_${b10}_dde00c8b.iso" ;;
+        "lv" | "lv-"* ) url="lv-lv_${b10}_3c6ec670.iso" ;;
+        "nb" | "nb-"* ) url="nb-no_${b10}_5c0830a7.iso" ;;
+        "nl" | "nl-"* ) url="nl-nl_${b10}_98c1911c.iso" ;;
+        "pl" | "pl-"* ) url="pl-pl_${b10}_21470c6f.iso" ;;
+        "br" | "pt-br" ) url="pt-br_${b10}_a8287ba4.iso" ;;
+        "pt" | "pt-"* ) url="pt-pt_${b10}_927e183d.iso" ;;
+        "ro" | "ro-"* ) url="ro-ro_${b10}_05768a51.iso" ;;
+        "ru" | "ru-"* ) url="ru-ru_${b10}_e0d31c6c.iso" ;;
+        "sk" | "sk-"* ) url="sk-sk_${b10}_a09d6210.iso" ;;
+        "sl" | "sl-"* ) url="sl-si_${b10}_b6e9be37.iso" ;;
+        "sr" | "sr-"* ) url="sr-latn-rs_${b10}_d3114222.iso" ;;
+        "sv" | "sv-"* ) url="sv-se_${b10}_4fbbd5fa.iso" ;;
+        "th" | "th-"* ) url="th-th_${b10}_c820f914.iso" ;;
+        "tr" | "tr-"* ) url="tr-tr_${b10}_62d51ca5.iso" ;;
+        "uk" | "uk-"* ) url="uk-ua_${b10}_3d50cf88.iso" ;;
+        "zh-hk" | "zh-tw" ) url="zh-tw_${b10}_2fab2287.iso" ;;
+        "zh" | "zh-"* ) url="zh-cn_${b10}_52bd0537.iso" ;;
       esac
       ;;
     "win10x64-ltsc" | "win10x64-enterprise-ltsc-eval" )
       case "${culture,,}" in
-        "ar" | "ar-"* ) url="ar-sa_windows_10_enterprise_ltsc_2021_x64_dvd_60bc2a7a.iso" ;;
-        "bg" | "bg-"* ) url="bg-bg_windows_10_enterprise_ltsc_2021_x64_dvd_b0887275.iso" ;;
-        "cs" | "cs-"* ) url="cs-cz_windows_10_enterprise_ltsc_2021_x64_dvd_d624c653.iso" ;;
-        "da" | "da-"* ) url="da-dk_windows_10_enterprise_ltsc_2021_x64_dvd_6ec511bb.iso" ;;
-        "de" | "de-"* ) url="de-de_windows_10_enterprise_ltsc_2021_x64_dvd_71796d33.iso" ;;
-        "el" | "el-"* ) url="el-gr_windows_10_enterprise_ltsc_2021_x64_dvd_c83eab34.iso" ;;
-        "gb" | "en-gb" ) url="en-gb_windows_10_enterprise_ltsc_2021_x64_dvd_7fe51fe8.iso" ;;
+        "ar" | "ar-"* ) url="ar-sa_${l10}_60bc2a7a.iso" ;;
+        "bg" | "bg-"* ) url="bg-bg_${l10}_b0887275.iso" ;;
+        "cs" | "cs-"* ) url="cs-cz_${l10}_d624c653.iso" ;;
+        "da" | "da-"* ) url="da-dk_${l10}_6ec511bb.iso" ;;
+        "de" | "de-"* ) url="de-de_${l10}_71796d33.iso" ;;
+        "el" | "el-"* ) url="el-gr_${l10}_c83eab34.iso" ;;
+        "gb" | "en-gb" ) url="en-gb_${l10}_7fe51fe8.iso" ;;
         "en" | "en-"* )
           size=4899461120
           sum="c90a6df8997bf49e56b9673982f3e80745058723a707aef8f22998ae6479597d"
-          url="en-us_windows_10_enterprise_ltsc_2021_x64_dvd_d289cf96.iso" ;;
-        "mx" | "es-mx" ) url="es-mx_windows_10_enterprise_ltsc_2021_x64_dvd_f6aaf384.iso" ;;
-        "es" | "es-"* ) url="es-es_windows_10_enterprise_ltsc_2021_x64_dvd_51d721ea.iso" ;;
-        "et" | "et-"* ) url="et-ee_windows_10_enterprise_ltsc_2021_x64_dvd_012a5c50.iso" ;;
-        "fi" | "fi-"* ) url="fi-fi_windows_10_enterprise_ltsc_2021_x64_dvd_551582d9.iso" ;;
-        "ca" | "fr-ca" ) url="fr-ca_windows_10_enterprise_ltsc_2021_x64_dvd_2770e649.iso" ;;
-        "fr" | "fr-"* ) url="fr-fr_windows_10_enterprise_ltsc_2021_x64_dvd_bda01eb0.iso" ;;
-        "he" | "he-"* ) url="he-il_windows_10_enterprise_ltsc_2021_x64_dvd_3a55ecd6.iso" ;;
-        "hr" | "hr-"* ) url="hr-hr_windows_10_enterprise_ltsc_2021_x64_dvd_f5085b75.iso" ;;
-        "hu" | "hu-"* ) url="hu-hu_windows_10_enterprise_ltsc_2021_x64_dvd_d541ddb3.iso" ;;
-        "it" | "it-"* ) url="it-it_windows_10_enterprise_ltsc_2021_x64_dvd_0c1aa034.iso" ;;
-        "ja" | "ja-"* ) url="ja-jp_windows_10_enterprise_ltsc_2021_x64_dvd_ef58c6a1.iso" ;;
-        "ko" | "ko-"* ) url="ko-kr_windows_10_enterprise_ltsc_2021_x64_dvd_6d26f398.iso" ;;
-        "lt" | "lt-"* ) url="lt-lt_windows_10_enterprise_ltsc_2021_x64_dvd_9ffbbd5b.iso" ;;
-        "lv" | "lv-"* ) url="lv-lv_windows_10_enterprise_ltsc_2021_x64_dvd_6c89d2e0.iso" ;;
-        "nb" | "nb-"* ) url="nb-no_windows_10_enterprise_ltsc_2021_x64_dvd_c65c51a5.iso" ;;
-        "nl" | "nl-"* ) url="nl-nl_windows_10_enterprise_ltsc_2021_x64_dvd_88f53466.iso" ;;
-        "pl" | "pl-"* ) url="pl-pl_windows_10_enterprise_ltsc_2021_x64_dvd_eff40776.iso" ;;
-        "br" | "pt-br" ) url="pt-br_windows_10_enterprise_ltsc_2021_x64_dvd_f318268e.iso" ;;
-        "pt" | "pt-"* ) url="pt-pt_windows_10_enterprise_ltsc_2021_x64_dvd_f2e9b6a0.iso" ;;
-        "ro" | "ro-"* ) url="ro-ro_windows_10_enterprise_ltsc_2021_x64_dvd_ae2284d6.iso" ;;
-        "ru" | "ru-"* ) url="ru-ru_windows_10_enterprise_ltsc_2021_x64_dvd_5044a1e7.iso" ;;
-        "sk" | "sk-"* ) url="sk-sk_windows_10_enterprise_ltsc_2021_x64_dvd_d6c64c5f.iso" ;;
-        "sl" | "sl-"* ) url="sl-si_windows_10_enterprise_ltsc_2021_x64_dvd_ec090386.iso" ;;
-        "sr" | "sr-"* ) url="sr-latn-rs_windows_10_enterprise_ltsc_2021_x64_dvd_2d2f8815.iso" ;;
-        "sv" | "sv-"* ) url="sv-se_windows_10_enterprise_ltsc_2021_x64_dvd_9a28bb6b.iso" ;;
-        "th" | "th-"* ) url="th-th_windows_10_enterprise_ltsc_2021_x64_dvd_b7ed34d6.iso" ;;
-        "tr" | "tr-"* ) url="tr-tr_windows_10_enterprise_ltsc_2021_x64_dvd_e55b1896.iso" ;;
-        "uk" | "uk-"* ) url="uk-ua_windows_10_enterprise_ltsc_2021_x64_dvd_816da3c3.iso" ;;
-        "zh-hk" | "zh-tw" ) url="zh-tw_windows_10_enterprise_ltsc_2021_x64_dvd_80dba877.iso" ;;
-        "zh" | "zh-"* ) url="zh-cn_windows_10_enterprise_ltsc_2021_x64_dvd_033b7312.iso" ;;
+          url="en-us_${l10}_d289cf96.iso" ;;
+        "mx" | "es-mx" ) url="es-mx_${l10}_f6aaf384.iso" ;;
+        "es" | "es-"* ) url="es-es_${l10}_51d721ea.iso" ;;
+        "et" | "et-"* ) url="et-ee_${l10}_012a5c50.iso" ;;
+        "fi" | "fi-"* ) url="fi-fi_${l10}_551582d9.iso" ;;
+        "ca" | "fr-ca" ) url="fr-ca_${l10}_2770e649.iso" ;;
+        "fr" | "fr-"* ) url="fr-fr_${l10}_bda01eb0.iso" ;;
+        "he" | "he-"* ) url="he-il_${l10}_3a55ecd6.iso" ;;
+        "hr" | "hr-"* ) url="hr-hr_${l10}_f5085b75.iso" ;;
+        "hu" | "hu-"* ) url="hu-hu_${l10}_d541ddb3.iso" ;;
+        "it" | "it-"* ) url="it-it_${l10}_0c1aa034.iso" ;;
+        "ja" | "ja-"* ) url="ja-jp_${l10}_ef58c6a1.iso" ;;
+        "ko" | "ko-"* ) url="ko-kr_${l10}_6d26f398.iso" ;;
+        "lt" | "lt-"* ) url="lt-lt_${l10}_9ffbbd5b.iso" ;;
+        "lv" | "lv-"* ) url="lv-lv_${l10}_6c89d2e0.iso" ;;
+        "nb" | "nb-"* ) url="nb-no_${l10}_c65c51a5.iso" ;;
+        "nl" | "nl-"* ) url="nl-nl_${l10}_88f53466.iso" ;;
+        "pl" | "pl-"* ) url="pl-pl_${l10}_eff40776.iso" ;;
+        "br" | "pt-br" ) url="pt-br_${l10}_f318268e.iso" ;;
+        "pt" | "pt-"* ) url="pt-pt_${l10}_f2e9b6a0.iso" ;;
+        "ro" | "ro-"* ) url="ro-ro_${l10}_ae2284d6.iso" ;;
+        "ru" | "ru-"* ) url="ru-ru_${l10}_5044a1e7.iso" ;;
+        "sk" | "sk-"* ) url="sk-sk_${l10}_d6c64c5f.iso" ;;
+        "sl" | "sl-"* ) url="sl-si_${l10}_ec090386.iso" ;;
+        "sr" | "sr-"* ) url="sr-latn-rs_${l10}_2d2f8815.iso" ;;
+        "sv" | "sv-"* ) url="sv-se_${l10}_9a28bb6b.iso" ;;
+        "th" | "th-"* ) url="th-th_${l10}_b7ed34d6.iso" ;;
+        "tr" | "tr-"* ) url="tr-tr_${l10}_e55b1896.iso" ;;
+        "uk" | "uk-"* ) url="uk-ua_${l10}_816da3c3.iso" ;;
+        "zh-hk" | "zh-tw" ) url="zh-tw_${l10}_80dba877.iso" ;;
+        "zh" | "zh-"* ) url="zh-cn_${l10}_033b7312.iso" ;;
       esac
       ;;
     "win10x64-iot" | "win10x64-enterprise-iot-eval" )
@@ -1110,198 +1258,198 @@ getLink3() {
       ;;
     "win81x64-enterprise" | "win81x64-enterprise-eval" )
       case "${culture,,}" in
-        "ar" | "ar-"* ) url="ar_windows_8.1_enterprise_with_update_x64_dvd_6050360.iso" ;;
-        "bg" | "bg-"* ) url="bg_windows_8.1_enterprise_with_update_x64_dvd_6050367.iso" ;;
-        "cs" | "cs-"* ) url="cs_windows_8.1_enterprise_with_update_x64_dvd_6050393.iso" ;;
-        "da" | "da-"* ) url="da_windows_8.1_enterprise_with_update_x64_dvd_6050394.iso" ;;
-        "de" | "de-"* ) url="de_windows_8.1_enterprise_with_update_x64_dvd_6050501.iso" ;;
-        "el" | "el-"* ) url="el_windows_8.1_enterprise_with_update_x64_dvd_6050503.iso" ;;
-        "gb" | "en-gb" ) url="en-gb_windows_8.1_enterprise_with_update_x64_dvd_6054383.iso" ;;
+        "ar" | "ar-"* ) url="ar_${w81}_6050360.iso" ;;
+        "bg" | "bg-"* ) url="bg_${w81}_6050367.iso" ;;
+        "cs" | "cs-"* ) url="cs_${w81}_6050393.iso" ;;
+        "da" | "da-"* ) url="da_${w81}_6050394.iso" ;;
+        "de" | "de-"* ) url="de_${w81}_6050501.iso" ;;
+        "el" | "el-"* ) url="el_${w81}_6050503.iso" ;;
+        "gb" | "en-gb" ) url="en-gb_${w81}_6054383.iso" ;;
         "en" | "en-"* )
           size=4139163648
           sum="c3c604c03677504e8905090a8ce5bb1dde76b6fd58e10f32e3a25bef21b2abe1"
-          url="en_windows_8.1_enterprise_with_update_x64_dvd_6054382.iso" ;;
-        "es" | "es-"* ) url="es_windows_8.1_enterprise_with_update_x64_dvd_6050578.iso" ;;
-        "et" | "et-"* ) url="et_windows_8.1_enterprise_with_update_x64_dvd_6054384.iso" ;;
-        "fi" | "fi-"* ) url="fi_windows_8.1_enterprise_with_update_x64_dvd_6050497.iso" ;;
-        "fr" | "fr-"* ) url="fr_windows_8.1_enterprise_with_update_x64_dvd_6050499.iso" ;;
-        "he" | "he-"* ) url="he_windows_8.1_enterprise_with_update_x64_dvd_6050504.iso" ;;
-        "hr" | "hr-"* ) url="hr_windows_8.1_enterprise_with_update_x64_dvd_6050391.iso" ;;
-        "hu" | "hu-"* ) url="hu_windows_8.1_enterprise_with_update_x64_dvd_6050505.iso" ;;
-        "it" | "it-"* ) url="it_windows_8.1_enterprise_with_update_x64_dvd_6050507.iso" ;;
-        "ja" | "ja-"* ) url="ja_windows_8.1_enterprise_with_update_x64_dvd_6050508.iso" ;;
-        "ko" | "ko-"* ) url="ko_windows_8.1_enterprise_with_update_x64_dvd_6050509.iso" ;;
-        "lt" | "lt-"* ) url="lt_windows_8.1_enterprise_with_update_x64_dvd_6050511.iso" ;;
-        "lv" | "lv-"* ) url="lv_windows_8.1_enterprise_with_update_x64_dvd_6050510.iso" ;;
-        "nb" | "nb-"* ) url="nb_windows_8.1_enterprise_with_update_x64_dvd_6050512.iso" ;;
-        "nl" | "nl-"* ) url="nl_windows_8.1_enterprise_with_update_x64_dvd_6054381.iso" ;;
-        "pl" | "pl-"* ) url="pl_windows_8.1_enterprise_with_update_x64_dvd_6050515.iso" ;;
-        "br" | "pt-br" ) url="pt_windows_8.1_enterprise_with_update_x64_dvd_6050521.iso" ;;
-        "pt" | "pt-"* ) url="pp_windows_8.1_enterprise_with_update_x64_dvd_6050526.iso" ;;
-        "ro" | "ro-"* ) url="ro_windows_8.1_enterprise_with_update_x64_dvd_6050534.iso" ;;
-        "ru" | "ru-"* ) url="ru_windows_8.1_enterprise_with_update_x64_dvd_6050542.iso" ;;
-        "sk" | "sk-"* ) url="sk_windows_8.1_enterprise_with_update_x64_dvd_6050562.iso" ;;
-        "sl" | "sl-"* ) url="sl_windows_8.1_enterprise_with_update_x64_dvd_6050570.iso" ;;
-        "sr" | "sr-"* ) url="sr-latn_windows_8.1_enterprise_with_update_x64_dvd_6050553.iso" ;;
-        "sv" | "sv-"* ) url="sv_windows_8.1_enterprise_with_update_x64_dvd_6050590.iso" ;;
-        "th" | "th-"* ) url="th_windows_8.1_enterprise_with_update_x64_dvd_6050602.iso" ;;
-        "tr" | "tr-"* ) url="tr_windows_8.1_enterprise_with_update_x64_dvd_6050609.iso" ;;
-        "uk" | "uk-"* ) url="uk_windows_8.1_enterprise_with_update_x64_dvd_6050618.iso" ;;
-        "zh-hk" ) url="hk_windows_8.1_enterprise_with_update_x64_dvd_6050380.iso" ;;
-        "zh-tw" ) url="tw_windows_8.1_enterprise_with_update_x64_dvd_6050387.iso" ;;
-        "zh" | "zh-"* ) url="cn_windows_8.1_enterprise_with_update_x64_dvd_6050374.iso" ;;
+          url="en_${w81}_6054382.iso" ;;
+        "es" | "es-"* ) url="es_${w81}_6050578.iso" ;;
+        "et" | "et-"* ) url="et_${w81}_6054384.iso" ;;
+        "fi" | "fi-"* ) url="fi_${w81}_6050497.iso" ;;
+        "fr" | "fr-"* ) url="fr_${w81}_6050499.iso" ;;
+        "he" | "he-"* ) url="he_${w81}_6050504.iso" ;;
+        "hr" | "hr-"* ) url="hr_${w81}_6050391.iso" ;;
+        "hu" | "hu-"* ) url="hu_${w81}_6050505.iso" ;;
+        "it" | "it-"* ) url="it_${w81}_6050507.iso" ;;
+        "ja" | "ja-"* ) url="ja_${w81}_6050508.iso" ;;
+        "ko" | "ko-"* ) url="ko_${w81}_6050509.iso" ;;
+        "lt" | "lt-"* ) url="lt_${w81}_6050511.iso" ;;
+        "lv" | "lv-"* ) url="lv_${w81}_6050510.iso" ;;
+        "nb" | "nb-"* ) url="nb_${w81}_6050512.iso" ;;
+        "nl" | "nl-"* ) url="nl_${w81}_6054381.iso" ;;
+        "pl" | "pl-"* ) url="pl_${w81}_6050515.iso" ;;
+        "br" | "pt-br" ) url="pt_${w81}_6050521.iso" ;;
+        "pt" | "pt-"* ) url="pp_${w81}_6050526.iso" ;;
+        "ro" | "ro-"* ) url="ro_${w81}_6050534.iso" ;;
+        "ru" | "ru-"* ) url="ru_${w81}_6050542.iso" ;;
+        "sk" | "sk-"* ) url="sk_${w81}_6050562.iso" ;;
+        "sl" | "sl-"* ) url="sl_${w81}_6050570.iso" ;;
+        "sr" | "sr-"* ) url="sr-latn_${w81}_6050553.iso" ;;
+        "sv" | "sv-"* ) url="sv_${w81}_6050590.iso" ;;
+        "th" | "th-"* ) url="th_${w81}_6050602.iso" ;;
+        "tr" | "tr-"* ) url="tr_${w81}_6050609.iso" ;;
+        "uk" | "uk-"* ) url="uk_${w81}_6050618.iso" ;;
+        "zh-hk" ) url="hk_${w81}_6050380.iso" ;;
+        "zh-tw" ) url="tw_${w81}_6050387.iso" ;;
+        "zh" | "zh-"* ) url="cn_${w81}_6050374.iso" ;;
       esac
       ;;
     "win2025" | "win2025-eval" )
       case "${culture,,}" in
-        "cs" | "cs-"* ) url="cs-cz_windows_server_2025_x64_dvd_4f54e1b0.iso" ;;
-        "de" | "de-"* ) url="de-de_windows_server_2025_x64_dvd_5282a882.iso" ;;
+        "cs" | "cs-"* ) url="cs-cz_${w25}_4f54e1b0.iso" ;;
+        "de" | "de-"* ) url="de-de_${w25}_5282a882.iso" ;;
         "en" | "en-"* )
           size=111
           sum="xxx"
-          url="en-us_windows_server_2025_x64_dvd_b7ec10f3.iso" ;;
-        "es" | "es-"* ) url="es-es_windows_server_2025_x64_dvd_c15f0ce2.iso" ;;
-        "fr" | "fr-"* ) url="fr-fr_windows_server_2025_x64_dvd_bd6be507.iso" ;;
-        "hu" | "hu-"* ) url="hu-hu_windows_server_2025_x64_dvd_e13eb8bf.iso" ;;
-        "it" | "it-"* ) url="it-it_windows_server_2025_x64_dvd_98437899.iso" ;;
-        "ja" | "ja-"* ) url="ja-jp_windows_server_2025_x64_dvd_7a2e979b.iso" ;;
-        "ko" | "ko-"* ) url="ko-kr_windows_server_2025_x64_dvd_85109737.iso" ;;
-        "nl" | "nl-"* ) url="nl-nl_windows_server_2025_x64_dvd_5c3218f3.iso" ;;
-        "pl" | "pl-"* ) url="pl-pl_windows_server_2025_x64_dvd_aa368cf8.iso" ;;
-        "br" | "pt-br" ) url="pt-br_windows_server_2025_x64_dvd_66107129.iso" ;;
-        "pt" | "pt-"* ) url="pt-pt_windows_server_2025_x64_dvd_62bb3c31.iso" ;;
-        "ru" | "ru-"* ) url="ru-ru_windows_server_2025_x64_dvd_2dfe1679.iso" ;;
-        "sv" | "sv-"* ) url="sv-se_windows_server_2025_x64_dvd_512bf117.iso" ;;
-        "tr" | "tr-"* ) url="tr-tr_windows_server_2025_x64_dvd_a03fe256.iso" ;;
-        "zh-hk" | "zh-tw" ) url="zh-tw_windows_server_2025_x64_dvd_6d2c01e3.iso" ;;
-        "zh" | "zh-"* ) url="zh-cn_windows_server_2025_x64_dvd_1d93dd12.iso" ;;
+          url="en-us_${w25}_b7ec10f3.iso" ;;
+        "es" | "es-"* ) url="es-es_${w25}_c15f0ce2.iso" ;;
+        "fr" | "fr-"* ) url="fr-fr_${w25}_bd6be507.iso" ;;
+        "hu" | "hu-"* ) url="hu-hu_${w25}_e13eb8bf.iso" ;;
+        "it" | "it-"* ) url="it-it_${w25}_98437899.iso" ;;
+        "ja" | "ja-"* ) url="ja-jp_${w25}_7a2e979b.iso" ;;
+        "ko" | "ko-"* ) url="ko-kr_${w25}_85109737.iso" ;;
+        "nl" | "nl-"* ) url="nl-nl_${w25}_5c3218f3.iso" ;;
+        "pl" | "pl-"* ) url="pl-pl_${w25}_aa368cf8.iso" ;;
+        "br" | "pt-br" ) url="pt-br_${w25}_66107129.iso" ;;
+        "pt" | "pt-"* ) url="pt-pt_${w25}_62bb3c31.iso" ;;
+        "ru" | "ru-"* ) url="ru-ru_${w25}_2dfe1679.iso" ;;
+        "sv" | "sv-"* ) url="sv-se_${w25}_512bf117.iso" ;;
+        "tr" | "tr-"* ) url="tr-tr_${w25}_a03fe256.iso" ;;
+        "zh-hk" | "zh-tw" ) url="zh-tw_${w25}_6d2c01e3.iso" ;;
+        "zh" | "zh-"* ) url="zh-cn_${w25}_1d93dd12.iso" ;;
       esac
       ;;
     "win2022" | "win2022-eval" )
       case "${culture,,}" in
-        "cs" | "cs-"* ) url="cs-cz_windows_server_2022_updated_oct_2024_x64_dvd_d1a47ecc.iso" ;;
-        "de" | "de-"* ) url="de-de_windows_server_2022_updated_oct_2024_x64_dvd_d1a47ecc.iso" ;;
+        "cs" | "cs-"* ) url="cs-cz_${s22}.iso" ;;
+        "de" | "de-"* ) url="de-de_${s22}.iso" ;;
         "en" | "en-"* )
           size=111
           sum="xxx"
-          url="en-us_windows_server_2022_updated_oct_2024_x64_dvd_d1a47ecc.iso" ;;
-        "es" | "es-"* ) url="es-es_windows_server_2022_updated_oct_2024_x64_dvd_d1a47ecc.iso" ;;
-        "fr" | "fr-"* ) url="fr-fr_windows_server_2022_updated_oct_2024_x64_dvd_d1a47ecc.iso" ;;
-        "hu" | "hu-"* ) url="hu-hu_windows_server_2022_updated_oct_2024_x64_dvd_d1a47ecc.iso" ;;
-        "it" | "it-"* ) url="it-it_windows_server_2022_updated_oct_2024_x64_dvd_d1a47ecc.iso" ;;
-        "ja" | "ja-"* ) url="ja-jp_windows_server_2022_updated_oct_2024_x64_dvd_d1a47ecc.iso" ;;
-        "ko" | "ko-"* ) url="ko-kr_windows_server_2022_updated_oct_2024_x64_dvd_d1a47ecc.iso" ;;
-        "nl" | "nl-"* ) url="nl-nl_windows_server_2022_updated_oct_2024_x64_dvd_d1a47ecc.iso" ;;
-        "pl" | "pl-"* ) url="pl-pl_windows_server_2022_updated_oct_2024_x64_dvd_d1a47ecc.iso" ;;
-        "br" | "pt-br" ) url="pt-br_windows_server_2022_updated_oct_2024_x64_dvd_d1a47ecc.iso" ;;
-        "pt" | "pt-"* ) url="pt-pt_windows_server_2022_updated_oct_2024_x64_dvd_d1a47ecc.iso" ;;
-        "ru" | "ru-"* ) url="ru-ru_windows_server_2022_updated_oct_2024_x64_dvd_d1a47ecc.iso" ;;
-        "sv" | "sv-"* ) url="sv-se_windows_server_2022_updated_oct_2024_x64_dvd_d1a47ecc.iso" ;;
-        "tr" | "tr-"* ) url="tr-tr_windows_server_2022_updated_oct_2024_x64_dvd_d1a47ecc.iso" ;;
-        "zh-hk" | "zh-tw" ) url="zh-tw_windows_server_2022_updated_oct_2024_x64_dvd_d1a47ecc.iso" ;;
-        "zh" | "zh-"* ) url="zh-cn_windows_server_2022_updated_oct_2024_x64_dvd_d1a47ecc.iso" ;;
+          url="en-us_${s22}.iso" ;;
+        "es" | "es-"* ) url="es-es_${s22}.iso" ;;
+        "fr" | "fr-"* ) url="fr-fr_${s22}.iso" ;;
+        "hu" | "hu-"* ) url="hu-hu_${s22}.iso" ;;
+        "it" | "it-"* ) url="it-it_${s22}.iso" ;;
+        "ja" | "ja-"* ) url="ja-jp_${s22}.iso" ;;
+        "ko" | "ko-"* ) url="ko-kr_${s22}.iso" ;;
+        "nl" | "nl-"* ) url="nl-nl_${s22}.iso" ;;
+        "pl" | "pl-"* ) url="pl-pl_${s22}.iso" ;;
+        "br" | "pt-br" ) url="pt-br_${s22}.iso" ;;
+        "pt" | "pt-"* ) url="pt-pt_${s22}.iso" ;;
+        "ru" | "ru-"* ) url="ru-ru_${s22}.iso" ;;
+        "sv" | "sv-"* ) url="sv-se_${s22}.iso" ;;
+        "tr" | "tr-"* ) url="tr-tr_${s22}.iso" ;;
+        "zh-hk" | "zh-tw" ) url="zh-tw_${s22}.iso" ;;
+        "zh" | "zh-"* ) url="zh-cn_${s22}.iso" ;;
       esac
       ;;
     "win2019" | "win2019-eval" )
       case "${culture,,}" in
-        "cs" | "cs-"* ) url="cs-cz_windows_server_2019_x64_dvd_3781c31c.iso" ;;
-        "de" | "de-"* ) url="de-de_windows_server_2019_x64_dvd_132f7aa4.iso" ;;
+        "cs" | "cs-"* ) url="cs-cz_${w19}_3781c31c.iso" ;;
+        "de" | "de-"* ) url="de-de_${w19}_132f7aa4.iso" ;;
         "en" | "en-"* )
           size=5651695616
           sum="ea247e5cf4df3e5829bfaaf45d899933a2a67b1c700a02ee8141287a8520261c"
-          url="en-us_windows_server_2019_x64_dvd_f9475476.iso" ;;
-        "es" | "es-"* ) url="es-es_windows_server_2019_x64_dvd_3ce0fd9e.iso" ;;
-        "fr" | "fr-"* ) url="fr-fr_windows_server_2019_x64_dvd_f6f6acf6.iso" ;;
-        "hu" | "hu-"* ) url="hu-hu_windows_server_2019_x64_dvd_1d834c46.iso" ;;
-        "it" | "it-"* ) url="it-it_windows_server_2019_x64_dvd_454267de.iso" ;;
-        "ja" | "ja-"* ) url="ja-jp_windows_server_2019_x64_dvd_3899c3a3.iso" ;;
-        "ko" | "ko-"* ) url="ko-kr_windows_server_2019_x64_dvd_84101c0a.iso" ;;
-        "nl" | "nl-"* ) url="nl-nl_windows_server_2019_x64_dvd_f69d914e.iso" ;;
-        "pl" | "pl-"* ) url="pl-pl_windows_server_2019_x64_dvd_a50263e1.iso" ;;
-        "br" | "pt-br" ) url="pt-br_windows_server_2019_x64_dvd_aee8c1c2.iso" ;;
-        "pt" | "pt-"* ) url="pt-pt_windows_server_2019_x64_dvd_464373e8.iso" ;;
-        "ru" | "ru-"* ) url="ru-ru_windows_server_2019_x64_dvd_e02b76ba.iso" ;;
-        "sv" | "sv-"* ) url="sv-se_windows_server_2019_x64_dvd_48c1aeff.iso" ;;
-        "tr" | "tr-"* ) url="tr-tr_windows_server_2019_x64_dvd_b51af600.iso" ;;
-        "zh-hk" | "zh-tw" ) url="zh-tw_windows_server_2019_x64_dvd_a4c80409.iso" ;;
-        "zh" | "zh-"* ) url="zh-cn_windows_server_2019_x64_dvd_19d65722.iso" ;;
+          url="en-us_${w19}_f9475476.iso" ;;
+        "es" | "es-"* ) url="es-es_${w19}_3ce0fd9e.iso" ;;
+        "fr" | "fr-"* ) url="fr-fr_${w19}_f6f6acf6.iso" ;;
+        "hu" | "hu-"* ) url="hu-hu_${w19}_1d834c46.iso" ;;
+        "it" | "it-"* ) url="it-it_${w19}_454267de.iso" ;;
+        "ja" | "ja-"* ) url="ja-jp_${w19}_3899c3a3.iso" ;;
+        "ko" | "ko-"* ) url="ko-kr_${w19}_84101c0a.iso" ;;
+        "nl" | "nl-"* ) url="nl-nl_${w19}_f69d914e.iso" ;;
+        "pl" | "pl-"* ) url="pl-pl_${w19}_a50263e1.iso" ;;
+        "br" | "pt-br" ) url="pt-br_${w19}_aee8c1c2.iso" ;;
+        "pt" | "pt-"* ) url="pt-pt_${w19}_464373e8.iso" ;;
+        "ru" | "ru-"* ) url="ru-ru_${w19}_e02b76ba.iso" ;;
+        "sv" | "sv-"* ) url="sv-se_${w19}_48c1aeff.iso" ;;
+        "tr" | "tr-"* ) url="tr-tr_${w19}_b51af600.iso" ;;
+        "zh-hk" | "zh-tw" ) url="zh-tw_${w19}_a4c80409.iso" ;;
+        "zh" | "zh-"* ) url="zh-cn_${w19}_19d65722.iso" ;;
       esac
       ;;
     "win2016" | "win2016-eval" )
       case "${culture,,}" in
-        "cs" | "cs-"* ) url="cs_windows_server_2016_vl_x64_dvd_11636699.iso" ;;
-        "de" | "de-"* ) url="de_windows_server_2016_vl_x64_dvd_11636696.iso" ;;
+        "cs" | "cs-"* ) url="cs_${w16}_11636699.iso" ;;
+        "de" | "de-"* ) url="de_${w16}_11636696.iso" ;;
         "en" | "en-"* )
           size=6003804160
           sum="47919ce8b4993f531ca1fa3f85941f4a72b47ebaa4d3a321fecf83ca9d17e6b8"
-          url="en_windows_server_2016_vl_x64_dvd_11636701.iso" ;;
-        "es" | "es-"* ) url="es_windows_server_2016_vl_x64_dvd_11636712.iso" ;;
-        "fr" | "fr-"* ) url="fr_windows_server_2016_vl_x64_dvd_11636729.iso" ;;
-        "hu" | "hu-"* ) url="hu_windows_server_2016_vl_x64_dvd_11636720.iso" ;;
-        "it" | "it-"* ) url="it_windows_server_2016_vl_x64_dvd_11636710.iso" ;;
-        "ja" | "ja-"* ) url="ja_windows_server_2016_vl_x64_dvd_11645964.iso" ;;
-        "ko" | "ko-"* ) url="ko_windows_server_2016_vl_x64_dvd_11636709.iso" ;;
-        "nl" | "nl-"* ) url="nl_windows_server_2016_vl_x64_dvd_11636731.iso" ;;
-        "pl" | "pl-"* ) url="pl_windows_server_2016_vl_x64_dvd_11636719.iso" ;;
-        "br" | "pt-br" ) url="pt_windows_server_2016_vl_x64_dvd_11636697.iso" ;;
-        "pt" | "pt-"* ) url="pp_windows_server_2016_vl_x64_dvd_11637454.iso" ;;
-        "ru" | "ru-"* ) url="ru_windows_server_2016_vl_x64_dvd_11636694.iso" ;;
-        "sv" | "sv-"* ) url="sv_windows_server_2016_vl_x64_dvd_11636706.iso" ;;
-        "tr" | "tr-"* ) url="tr_windows_server_2016_vl_x64_dvd_11636725.iso" ;;
-        "zh-hk" | "zh-tw" ) url="ct_windows_server_2016_vl_x64_dvd_11636717.iso" ;;
-        "zh" | "zh-"* ) url="cn_windows_server_2016_vl_x64_dvd_11636695.iso" ;;
+          url="en_${w16}_11636701.iso" ;;
+        "es" | "es-"* ) url="es_${w16}_11636712.iso" ;;
+        "fr" | "fr-"* ) url="fr_${w16}_11636729.iso" ;;
+        "hu" | "hu-"* ) url="hu_${w16}_11636720.iso" ;;
+        "it" | "it-"* ) url="it_${w16}_11636710.iso" ;;
+        "ja" | "ja-"* ) url="ja_${w16}_11645964.iso" ;;
+        "ko" | "ko-"* ) url="ko_${w16}_11636709.iso" ;;
+        "nl" | "nl-"* ) url="nl_${w16}_11636731.iso" ;;
+        "pl" | "pl-"* ) url="pl_${w16}_11636719.iso" ;;
+        "br" | "pt-br" ) url="pt_${w16}_11636697.iso" ;;
+        "pt" | "pt-"* ) url="pp_${w16}_11637454.iso" ;;
+        "ru" | "ru-"* ) url="ru_${w16}_11636694.iso" ;;
+        "sv" | "sv-"* ) url="sv_${w16}_11636706.iso" ;;
+        "tr" | "tr-"* ) url="tr_${w16}_11636725.iso" ;;
+        "zh-hk" | "zh-tw" ) url="ct_${w16}_11636717.iso" ;;
+        "zh" | "zh-"* ) url="cn_${w16}_11636695.iso" ;;
       esac
       ;;
     "win2012r2" | "win2012r2-eval" )
       case "${culture,,}" in
-        "cs" | "cs-"* ) url="cs_windows_server_2012_r2_vl_with_update_x64_dvd_6052752.iso" ;;
-        "de" | "de-"* ) url="de_windows_server_2012_r2_vl_with_update_x64_dvd_6052780.iso" ;;
+        "cs" | "cs-"* ) url="cs_${w12}_6052752.iso" ;;
+        "de" | "de-"* ) url="de_${w12}_6052780.iso" ;;
         "en" | "en-"* )
           size=5400115200
           sum="0e883ce28eb5c6f58a3a3007be978d43edb1035a4585506c1c4504c9e143408d"
-          url="en_windows_server_2012_r2_vl_with_update_x64_dvd_6052766.iso" ;;
-        "es" | "es-"* ) url="es_windows_server_2012_r2_vl_with_update_x64_dvd_6052831.iso" ;;
-        "fr" | "fr-"* ) url="fr_windows_server_2012_r2_vl_with_update_x64_dvd_6052772.iso" ;;
-        "hu" | "hu-"* ) url="hu_windows_server_2012_r2_vl_with_update_x64_dvd_6052786.iso" ;;
-        "it" | "it-"* ) url="it_windows_server_2012_r2_vl_with_update_x64_dvd_6052792.iso" ;;
-        "ja" | "ja-"* ) url="ja_windows_server_2012_r2_vl_with_update_x64_dvd_6052800.iso" ;;
-        "ko" | "ko-"* ) url="ko_windows_server_2012_r2_vl_with_update_x64_dvd_6052806.iso" ;;
-        "nl" | "nl-"* ) url="nl_windows_server_2012_r2_vl_with_update_x64_dvd_6052760.iso" ;;
-        "pl" | "pl-"* ) url="pl_windows_server_2012_r2_vl_with_update_x64_dvd_6052815.iso" ;;
-        "br" | "pt-br" ) url="pt_windows_server_2012_r2_vl_with_update_x64_dvd_6052819.iso" ;;
-        "pt" | "pt-"* ) url="pp_windows_server_2012_r2_vl_with_update_x64_dvd_6052823.iso" ;;
-        "ru" | "ru-"* ) url="ru_windows_server_2012_r2_vl_with_update_x64_dvd_6052827.iso" ;;
-        "sv" | "sv-"* ) url="sv_windows_server_2012_r2_vl_with_update_x64_dvd_6052835.iso" ;;
-        "tr" | "tr-"* ) url="tr_windows_server_2012_r2_vl_with_update_x64_dvd_6052838.iso" ;;
-        "zh-hk" ) url="hk_windows_server_2012_r2_vl_with_update_x64_dvd_6052739.iso" ;;
-        "zh-tw" ) url="tw_windows_server_2012_r2_vl_with_update_x64_dvd_6052746.iso" ;;
-        "zh" | "zh-"* ) url="cn_windows_server_2012_r2_vl_with_update_x64_dvd_6052729.iso" ;;
+          url="en_${w12}_6052766.iso" ;;
+        "es" | "es-"* ) url="es_${w12}_6052831.iso" ;;
+        "fr" | "fr-"* ) url="fr_${w12}_6052772.iso" ;;
+        "hu" | "hu-"* ) url="hu_${w12}_6052786.iso" ;;
+        "it" | "it-"* ) url="it_${w12}_6052792.iso" ;;
+        "ja" | "ja-"* ) url="ja_${w12}_6052800.iso" ;;
+        "ko" | "ko-"* ) url="ko_${w12}_6052806.iso" ;;
+        "nl" | "nl-"* ) url="nl_${w12}_6052760.iso" ;;
+        "pl" | "pl-"* ) url="pl_${w12}_6052815.iso" ;;
+        "br" | "pt-br" ) url="pt_${w12}_6052819.iso" ;;
+        "pt" | "pt-"* ) url="pp_${w12}_6052823.iso" ;;
+        "ru" | "ru-"* ) url="ru_${w12}_6052827.iso" ;;
+        "sv" | "sv-"* ) url="sv_${w12}_6052835.iso" ;;
+        "tr" | "tr-"* ) url="tr_${w12}_6052838.iso" ;;
+        "zh-hk" ) url="hk_${w12}_6052739.iso" ;;
+        "zh-tw" ) url="tw_${w12}_6052746.iso" ;;
+        "zh" | "zh-"* ) url="cn_${w12}_6052729.iso" ;;
       esac
       ;;
     "win2008r2" | "win2008r2-eval" )
       case "${culture,,}" in
-        "cs" | "cs-"* ) url="cs_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_617402.iso" ;;
-        "de" | "de-"* ) url="de_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_617404.iso" ;;
+        "cs" | "cs-"* ) url="cs_${w08}_617402.iso" ;;
+        "de" | "de-"* ) url="de_${w08}_617404.iso" ;;
         "en" | "en-"* )
           size=3166720000
           sum="9b0cd5b11cc2e92badb74450f0cac03006d3c63a2ada36cb1eb95c1bf4b2608f"
-          url="en_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_617403.iso" ;;
-        "es" | "es-"* ) url="es_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_617410.iso" ;;
-        "fr" | "fr-"* ) url="fr_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_617392.iso" ;;
-        "hu" | "hu-"* ) url="hu_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_617415.iso" ;;
-        "it" | "it-"* ) url="it_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_619596.iso" ;;
-        "ja" | "ja-"* ) url="ja_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_631466.iso" ;;
-        "ko" | "ko-"* ) url="ko_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_617409.iso" ;;
-        "nl" | "nl-"* ) url="nl_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_617395.iso" ;;
-        "pl" | "pl-"* ) url="pl_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_617397.iso" ;;
-        "br" | "pt-br" ) url="pt_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_617394.iso" ;;
-        "pt" | "pt-"* ) url="pp_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_617411.iso" ;;
-        "ru" | "ru-"* ) url="ru_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_617421.iso" ;;
-        "sv" | "sv-"* ) url="sv_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_617400.iso" ;;
-        "tr" | "tr-"* ) url="tr_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_617416.iso" ;;
-        "zh-hk" ) url="hk_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_617386.iso" ;;
-        "zh-tw" ) url="tw_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_617405.iso" ;;
-        "zh" | "zh-"* ) url="cn_windows_server_2008_r2_with_sp1_vl_build_x64_dvd_617396.iso" ;;
+          url="en_${w08}_617403.iso" ;;
+        "es" | "es-"* ) url="es_${w08}_617410.iso" ;;
+        "fr" | "fr-"* ) url="fr_${w08}_617392.iso" ;;
+        "hu" | "hu-"* ) url="hu_${w08}_617415.iso" ;;
+        "it" | "it-"* ) url="it_${w08}_619596.iso" ;;
+        "ja" | "ja-"* ) url="ja_${w08}_631466.iso" ;;
+        "ko" | "ko-"* ) url="ko_${w08}_617409.iso" ;;
+        "nl" | "nl-"* ) url="nl_${w08}_617395.iso" ;;
+        "pl" | "pl-"* ) url="pl_${w08}_617397.iso" ;;
+        "br" | "pt-br" ) url="pt_${w08}_617394.iso" ;;
+        "pt" | "pt-"* ) url="pp_${w08}_617411.iso" ;;
+        "ru" | "ru-"* ) url="ru_${w08}_617421.iso" ;;
+        "sv" | "sv-"* ) url="sv_${w08}_617400.iso" ;;
+        "tr" | "tr-"* ) url="tr_${w08}_617416.iso" ;;
+        "zh-hk" ) url="hk_${w08}_617386.iso" ;;
+        "zh-tw" ) url="tw_${w08}_617405.iso" ;;
+        "zh" | "zh-"* ) url="cn_${w08}_617396.iso" ;;
       esac
       ;;
     "win7x64" | "win7x64-enterprise" )
