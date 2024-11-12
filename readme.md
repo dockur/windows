@@ -361,7 +361,7 @@ kubectl apply -f kubernetes.yml
 
   - you are not using "Docker Desktop for Linux" as it does not support KVM, instead make use of Docker Engine directly.
  
-  - it could help to add `privileged: true` to your compose file (or `sudo` to your `run` command), to rule out any permission issue.
+  - it could help to add `privileged: true` to your compose file (or `sudo` to your `docker run` command), to rule out any permission issue.
 
 ### How do I run macOS in a container?
 
