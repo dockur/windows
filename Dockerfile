@@ -32,6 +32,10 @@ ADD --chmod=755 https://raw.githubusercontent.com/christgau/wsdd/v0.8/src/wsdd.p
 ADD --chmod=664 https://github.com/qemus/virtiso-whql/releases/download/v1.9.43-0/virtio-win-1.9.43.tar.xz /drivers.txz
 
 FROM dockurr/windows-arm:2.22 AS build-arm64
+
+ARG VERSION_ARG="0.0"
+RUN echo "$VERSION_ARG" > /run/version
+
 FROM build-${TARGETARCH}
 
 EXPOSE 8006 3389
