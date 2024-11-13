@@ -1,7 +1,7 @@
 ARG VERSION_ARG="4.00"
 
 FROM scratch AS build-amd64
-COPY --from=qemux/qemu-docker:6.06 / /
+COPY --from=qemux/qemu-docker:6.07 / /
 
 ARG DEBCONF_NOWARNINGS="yes"
 ARG DEBIAN_FRONTEND="noninteractive"
