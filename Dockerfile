@@ -1,4 +1,4 @@
-ARG VERSION_ARG="4.00"
+ARG VERSION_ARG="4.02"
 
 FROM scratch AS build-amd64
 COPY --from=qemux/qemu-docker:6.07 / /
