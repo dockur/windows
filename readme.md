@@ -58,6 +58,16 @@ Via Kubernetes:
 kubectl apply -f kubernetes.yml
 ```
 
+## Compatibility ⚙️
+
+| **Product**  | **Platform**   | |
+|---|---|---|
+| Docker Engine | Linux| ✅ |
+| Docker Desktop | Linux | ❌ |
+| Docker Desktop | macOS | ❌ |
+| Docker Desktop | Windows 11 | ✅ |
+| Docker Desktop | Windows 10 | ❌ |
+
 ## FAQ 💬
 
 ### How do I use it?
