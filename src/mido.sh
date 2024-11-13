@@ -457,7 +457,7 @@ getESD() {
   local eFile="esd_edition.xml"
   local fFile="products_filter.xml"
 
-  { wget "$winCatalog" -O "$dir/$wFile" -q --timeout=30; rc=$?; } || :
+  { wget "$winCatalog" -O "$dir/$wFile" -q --timeout=30 --no-http-keep-alive; rc=$?; } || :
 
   msg="Failed to download $winCatalog"
   (( rc == 3 )) && error "$msg , cannot write file (disk full?)" && return 1
@@ -583,7 +583,7 @@ downloadFile() {
   info "$msg..."
   /run/progress.sh "$iso" "$size" "$msg ([P])..." &
 
-  { wget "$url" -O "$iso" -q --timeout=30 --show-progress "$progress"; rc=$?; } || :
+  { wget "$url" -O "$iso" -q --timeout=30 --no-http-keep-alive --show-progress "$progress"; rc=$?; } || :
 
   fKill "progress.sh"
 
