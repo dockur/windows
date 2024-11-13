@@ -1,7 +1,7 @@
 ARG VERSION_ARG="4.00"
 
 FROM scratch AS build-amd64
-COPY --from=qemux/qemu-docker:6.06 / /
+COPY --from=qemux/qemu-docker:6.07 / /
 
 ARG DEBCONF_NOWARNINGS="yes"
 ARG DEBIAN_FRONTEND="noninteractive"
@@ -37,8 +37,8 @@ FROM build-${TARGETARCH}
 ARG VERSION_ARG="4.00"
 RUN echo "$VERSION_ARG" > /run/version
 
-EXPOSE 8006 3389
 VOLUME /storage
+EXPOSE 8006 3389
 
 ENV VERSION="11"
 ENV RAM_SIZE="4G"
