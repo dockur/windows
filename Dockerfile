@@ -1,7 +1,7 @@
-ARG VERSION_ARG="4.00"
-
+ARG VERSION_ARG="latest"
 FROM scratch AS build-amd64
-COPY --from=qemux/qemu-docker:6.07 / /
+
+COPY --from=qemux/qemu-docker:6.08 / /
 
 ARG DEBCONF_NOWARNINGS="yes"
 ARG DEBIAN_FRONTEND="noninteractive"
@@ -11,6 +11,7 @@ RUN set -eu && \
     apt-get update && \
     apt-get --no-install-recommends -y install \
         bc \
+        jq \
         curl \
         7zip \
         wsdd \
@@ -34,7 +35,7 @@ ADD --chmod=664 https://github.com/qemus/virtiso-whql/releases/download/v1.9.43-
 FROM dockurr/windows-arm:${VERSION_ARG} AS build-arm64
 FROM build-${TARGETARCH}
 
-ARG VERSION_ARG="4.00"
+ARG VERSION_ARG="0.00"
 RUN echo "$VERSION_ARG" > /run/version
 
 VOLUME /storage

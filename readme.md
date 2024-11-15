@@ -103,7 +103,6 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   | `10l`  | Windows 10 LTSC          | 4.6 GB   |
   | `10e`  | Windows 10 Enterprise    | 5.2 GB   |
   ||||
-  | `8`    | Windows 8.1 Pro          | 4.0 GB   |
   | `8e`   | Windows 8.1 Enterprise   | 3.7 GB   |
   | `7e`   | Windows 7 Enterprise     | 3.0 GB   |
   | `ve`   | Windows Vista Enterprise | 3.0 GB   |

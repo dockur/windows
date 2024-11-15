@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-: "${XRES:=""}"
-: "${YRES:=""}"
+: "${WIDTH:=""}"
+: "${HEIGHT:=""}"
 : "${VERIFY:=""}"
 : "${REGION:=""}"
 : "${MANUAL:=""}"
@@ -164,7 +164,7 @@ getLanguage() {
       desc="English"
       culture="en-GB" ;;
     "en" | "en-"* )
-      lang="English (United States)"
+      lang="English"
       desc="English"
       culture="en-US" ;;
     "mx" | "es-mx" )
@@ -280,15 +280,15 @@ getLanguage() {
       desc="$lang"
       culture="uk-UA" ;;
     "hk" | "zh-hk" | "cn-hk" )
-      lang="Chinese Traditional"
+      lang="Chinese (Traditional)"
       desc="Chinese HK"
       culture="zh-TW" ;;
     "tw" | "zh-tw" | "cn-tw" )
-      lang="Chinese Traditional"
+      lang="Chinese (Traditional)"
       desc="Chinese TW"
       culture="zh-TW" ;;
     "zh" | "zh-"* | "cn" | "cn-"* )
-      lang="Chinese Simplified"
+      lang="Chinese (Simplified)"
       desc="Chinese"
       culture="zh-CN" ;;
   esac
@@ -671,10 +671,6 @@ getMido() {
       size=4898582528
       sum="e4ab2e3535be5748252a8d5d57539a6e59be8d6726345ee10e7afd2cb89fefb5"
       ;;
-    "win81x64" )
-      size=4320526336
-      sum="d8333cf427eb3318ff6ab755eb1dd9d433f0e2ae43745312c1cd23e83ca1ce51"
-      ;;
     "win81x64-enterprise-eval" )
       size=3961473024
       sum="2dedd44c45646c74efc5a028f65336027e14a56f76686a4631cf94ffe37c72f2"
@@ -765,6 +761,11 @@ getLink1() {
       size=4320526336
       sum="d8333cf427eb3318ff6ab755eb1dd9d433f0e2ae43745312c1cd23e83ca1ce51"
       url="8.x/8.1/en_windows_8.1_with_update_x64_dvd_6051480.iso"
+      ;;
+    "win81x64-enterprise" | "win81x64-enterprise-eval" )
+      size=4139163648
+      sum="c3c604c03677504e8905090a8ce5bb1dde76b6fd58e10f32e3a25bef21b2abe1"
+      url="8.x/8.1/en_windows_8.1_enterprise_with_update_x64_dvd_6054382.iso"
       ;;
     "win2025" | "win2025-eval" )
       size=5307176960
@@ -2122,11 +2123,11 @@ prepareInstall() {
   local install="$dir/\$OEM\$/\$1/OEM/install.bat"
   [ -f "$install" ] && oem="\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat\\\"\""
 
-  [ -z "$YRES" ] && YRES="720"
-  [ -z "$XRES" ] && XRES="1280"
+  [ -z "$WIDTH" ] && WIDTH="1280"
+  [ -z "$HEIGHT" ] && HEIGHT="720"
 
-  XHEX=$(printf '%x\n' "$XRES")
-  YHEX=$(printf '%x\n' "$YRES")
+  XHEX=$(printf '%x\n' "$WIDTH")
+  YHEX=$(printf '%x\n' "$HEIGHT")
 
   local username="Docker"
   local password="*"
@@ -2178,8 +2179,8 @@ prepareInstall() {
           echo ""
           echo "[Display]"
           echo "    BitsPerPel=32"
-          echo "    XResolution=$XRES"
-          echo "    YResolution=$YRES"
+          echo "    XResolution=$WIDTH"
+          echo "    YResolution=$HEIGHT"
           echo ""
           echo "[Networking]"
           echo "    InstallDefaultComponents=Yes"
