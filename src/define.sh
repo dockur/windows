@@ -164,7 +164,7 @@ getLanguage() {
       desc="English"
       culture="en-GB" ;;
     "en" | "en-"* )
-      lang="English (United States)"
+      lang="English"
       desc="English"
       culture="en-US" ;;
     "mx" | "es-mx" )
@@ -280,15 +280,15 @@ getLanguage() {
       desc="$lang"
       culture="uk-UA" ;;
     "hk" | "zh-hk" | "cn-hk" )
-      lang="Chinese Traditional"
+      lang="Chinese (Traditional)"
       desc="Chinese HK"
       culture="zh-TW" ;;
     "tw" | "zh-tw" | "cn-tw" )
-      lang="Chinese Traditional"
+      lang="Chinese (Traditional)"
       desc="Chinese TW"
       culture="zh-TW" ;;
     "zh" | "zh-"* | "cn" | "cn-"* )
-      lang="Chinese Simplified"
+      lang="Chinese (Simplified)"
       desc="Chinese"
       culture="zh-CN" ;;
   esac
