@@ -57,38 +57,6 @@ get_agent() {
   return 0
 }
 
-convert_language() {
-
-  local lang=""
-
-  case "${1,,}" in
-    "gb" | "en-gb" )
-      lang="English International" ;;
-    "en" | "en-"* )
-      lang="English" ;;
-    "mx" | "es-mx" )
-      lang="Spanish (Mexico)" ;;
-    "ca" | "fr-ca" )
-      lang="French Canadian" ;;
-    "br" | "pt-br" )
-      lang="Brazilian Portuguese" ;;
-    "sr" | "sr-"* )
-      lang="Serbian Latin" ;;
-    "hk" | "zh-hk" | "cn-hk" )
-      lang="Chinese (Traditional)" ;;
-    "tw" | "zh-tw" | "cn-tw" )
-      lang="Chinese (Traditional)" ;;
-    "zh" | "zh-"* | "cn" | "cn-"* )
-      lang="Chinese (Simplified)" ;;
-    * )
-      lang=$(getLanguage "$1" "name") ;;
-  esac
-
-
-  echo "$lang"
-  return 0
-}
-
 download_windows() {
 
   local id="$1"
@@ -110,8 +78,7 @@ download_windows() {
   local profile="606624d44113"
 
   user_agent=$(get_agent)
-  language=$(convert_language "$lang")
-  [ -z "$language" ] && error "Invalid language: $lang" && return 1
+  language=$(getLanguage "$lang" "name")
 
   case "${id,,}" in
     "win11x64" ) windows_version="11" && download_type="1" ;;
