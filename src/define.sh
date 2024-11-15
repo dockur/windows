@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-: "${XRES:=""}"
-: "${YRES:=""}"
+: "${WIDTH:=""}"
+: "${HEIGHT:=""}"
 : "${VERIFY:=""}"
 : "${REGION:=""}"
 : "${MANUAL:=""}"
@@ -2123,11 +2123,11 @@ prepareInstall() {
   local install="$dir/\$OEM\$/\$1/OEM/install.bat"
   [ -f "$install" ] && oem="\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat\\\"\""
 
-  [ -z "$YRES" ] && YRES="720"
-  [ -z "$XRES" ] && XRES="1280"
+  [ -z "$WIDTH" ] && WIDTH="1280"
+  [ -z "$HEIGHT" ] && HEIGHT="720"
 
-  XHEX=$(printf '%x\n' "$XRES")
-  YHEX=$(printf '%x\n' "$YRES")
+  XHEX=$(printf '%x\n' "$WIDTH")
+  YHEX=$(printf '%x\n' "$HEIGHT")
 
   local username="Docker"
   local password="*"
@@ -2179,8 +2179,8 @@ prepareInstall() {
           echo ""
           echo "[Display]"
           echo "    BitsPerPel=32"
-          echo "    XResolution=$XRES"
-          echo "    YResolution=$YRES"
+          echo "    XResolution=$WIDTH"
+          echo "    YResolution=$HEIGHT"
           echo ""
           echo "[Networking]"
           echo "    InstallDefaultComponents=Yes"
