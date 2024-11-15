@@ -113,7 +113,6 @@ download_windows() {
     return 1
   fi
 
-
   [[ "$DEBUG" == [Yy1]* ]] && echo "Permit Session ID: $session_id"
   # Permit Session ID
   curl --silent --max-time 30 --output /dev/null --user-agent "$user_agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "https://vlscppe.microsoft.com/tags?org_id=y6jn8c31&session_id=$session_id" || {
