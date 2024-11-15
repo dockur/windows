@@ -762,6 +762,11 @@ getLink1() {
       sum="d8333cf427eb3318ff6ab755eb1dd9d433f0e2ae43745312c1cd23e83ca1ce51"
       url="8.x/8.1/en_windows_8.1_with_update_x64_dvd_6051480.iso"
       ;;
+    "win81x64-enterprise" | "win81x64-enterprise-eval" )
+      size=111
+      sum="xxx"
+      url="8.x/8.1/en_windows_8.1_enterprise_with_update_x64_dvd_6054382.iso"
+      ;;
     "win2025" | "win2025-eval" )
       size=5307176960
       sum="2293897341febdcea599f5412300b470b5288c6fd2b89666a7b27d283e8d3cf3"
