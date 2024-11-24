@@ -4,25 +4,26 @@ set -Eeuo pipefail
 handle_curl_error() {
 
   local error_code="$1"
+  local server_name="$2"
 
   case "$error_code" in
     1) error "Unsupported protocol!" ;;
     2) error "Failed to initialize curl!" ;;
     3) error "The URL format is malformed!" ;;
     5) error "Failed to resolve address of proxy host!" ;;
-    6) error "Failed to resolve Microsoft servers! Is there an Internet connection?" ;;
-    7) error "Failed to contact Microsoft servers! Is there an Internet connection or is the server down?" ;;
-    8) error "Microsoft servers returned a malformed HTTP response!" ;;
+    6) error "Failed to resolve $server_name servers! Is there an Internet connection?" ;;
+    7) error "Failed to contact $server_name servers! Is there an Internet connection or is the server down?" ;;
+    8) error "$server_name servers returned a malformed HTTP response!" ;;
     16) error "A problem was detected in the HTTP2 framing layer!" ;;
-    22) error "Microsoft servers returned a failing HTTP status code!" ;;
+    22) error "$server_name servers returned a failing HTTP status code!" ;;
     23) error "Failed at writing Windows media to disk! Out of disk space or permission error?" ;;
     26) error "Failed to read Windows media from disk!" ;;
     27) error "Ran out of memory during download!" ;;
-    28) error "Connection timed out to Microsoft server!" ;;
-    35) error "SSL connection error from Microsoft server!" ;;
+    28) error "Connection timed out to $server_name server!" ;;
+    35) error "SSL connection error from $server_name server!" ;;
     36) error "Failed to continue earlier download!" ;;
-    52) error "Received no data from the Microsoft server!" ;;
-    63) error "Microsoft servers returned an unexpectedly large response!" ;;
+    52) error "Received no data from the $server_name server!" ;;
+    63) error "$server_name servers returned an unexpectedly large response!" ;;
     # POSIX defines exit statuses 1-125 as usable by us
     # https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_08_02
     $((error_code <= 125)))
@@ -100,7 +101,7 @@ download_windows() {
   # Remove "Accept" header that curl sends by default
   [[ "$DEBUG" == [Yy1]* ]] && echo "Parsing download page: ${url}"
   download_page_html=$(curl --silent --max-time 30 --user-agent "$user_agent" --header "Accept:" --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url") || {
-    handle_curl_error $?
+    handle_curl_error "$?" "Microsoft"
     return $?
   }
 
@@ -117,14 +118,14 @@ download_windows() {
   # Permit Session ID
   curl --silent --max-time 30 --output /dev/null --user-agent "$user_agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "https://vlscppe.microsoft.com/tags?org_id=y6jn8c31&session_id=$session_id" || {
     # This should only happen if there's been some change to how this API works
-    handle_curl_error $?
+    handle_curl_error "$?" "Microsoft"
     return $?
   }
 
   [[ "$DEBUG" == [Yy1]* ]] && echo -n "Getting language SKU ID: "
   sku_url="https://www.microsoft.com/software-download-connector/api/getskuinformationbyproductedition?profile=$profile&ProductEditionId=$product_edition_id&SKU=undefined&friendlyFileName=undefined&Locale=en-US&sessionID=$session_id"
   language_skuid_json=$(curl --silent --max-time 30 --request GET --user-agent "$user_agent" --referer "$url" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$sku_url") || {
-    handle_curl_error $?
+    handle_curl_error "$?" "Microsoft"
     return $?
   }
 
@@ -229,7 +230,7 @@ download_windows_eval() {
 
   [[ "$DEBUG" == [Yy1]* ]] && echo "Parsing download page: ${url}"
   iso_download_page_html=$(curl --silent --max-time 30 --user-agent "$user_agent" --location --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url") || {
-    handle_curl_error $?
+    handle_curl_error "$?" "Microsoft"
     return $?
   }
 
@@ -287,7 +288,7 @@ download_windows_eval() {
 
   iso_download_link=$(curl --silent --max-time 30 --user-agent "$user_agent" --location --output /dev/null --silent --write-out "%{url_effective}" --head --fail --proto =https --tlsv1.2 --http1.1 -- "$iso_download_link") || {
     # This should only happen if the Microsoft servers are down
-    handle_curl_error $?
+    handle_curl_error "$?" "Microsoft"
     return $?
   }
 
@@ -425,6 +426,215 @@ getCatalog() {
     *) echo "";;
   esac
 
+  return 0
+}
+
+getMG() {
+
+  local version="$1"
+  local lang="$2"
+  local desc="$3"
+
+  local locale=""
+  local culture=""
+  local language=""
+  local user_agent=""
+
+  user_agent=$(get_agent)
+  language=$(getLanguage "$lang" "desc")
+  culture=$(getLanguage "$lang" "culture")
+
+  local msg="Requesting download link from massgrave.dev..."
+  info "$msg" && html "$msg"
+
+  local pattern=""
+  local locale="${culture,,}"
+  local platform="${PLATFORM,,}"
+  local url="https://massgrave.dev/"
+
+  if [[ "${PLATFORM,,}" != "arm64" ]]; then
+
+    case "${version,,}" in
+      "win11${PLATFORM,,}" )
+        url+="windows_11_links"
+        pattern="consumer"
+        ;;
+      "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval" )
+        url+="windows_11_links"
+        pattern="business"
+        ;;
+      "win11${PLATFORM,,}-ltsc" | "win11${PLATFORM,,}-enterprise-ltsc-eval" )
+        url+="windows_ltsc_links"
+        pattern="11_enterprise_ltsc"
+        ;;
+      "win11${PLATFORM,,}-iot" | "win11${PLATFORM,,}-enterprise-iot-eval" )
+        url+="windows_ltsc_links"
+        pattern="11_iot"
+        ;;
+      "win10${PLATFORM,,}" )
+        url+="windows_10_links"
+        pattern="consumer"
+        ;;
+      "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" )
+        url+="windows_10_links"
+        pattern="business"
+        ;;
+      "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
+        url+="windows_ltsc_links"
+        pattern="10_enterprise_ltsc"
+        ;;
+      "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval" )
+        url+="windows_ltsc_links"
+        pattern="10_iot"
+        ;;
+      "win81${PLATFORM,,}-enterprise" | "win81${PLATFORM,,}-enterprise-eval" )
+        url+="windows_8.1_links"
+        pattern="8.1_enterprise"
+        locale=$(getLanguage "$lang" "code")
+        [[ "$locale" == "sr" ]] && locale="sr-latn"
+        ;;
+      "win2025" | "win2025-eval" )
+        url+="windows_server_links"
+        pattern="server_2025"
+        ;;
+      "win2022" | "win2022-eval" )
+        url+="windows_server_links"
+        pattern="server_2022"
+        ;;
+      "win2019" | "win2019-eval" )
+        url+="windows_server_links"
+        pattern="server_2019"
+        ;;
+      "win2016" | "win2016-eval" )
+        url+="windows_server_links"
+        pattern="server_2016"
+        locale=$(getLanguage "$lang" "code")
+        [[ "$locale" == "hk" ]] && locale="ct"
+        [[ "$locale" == "tw" ]] && locale="ct"
+        ;;
+      "win2012r2" | "win2012r2-eval" )
+        url+="windows_server_links"
+        pattern="server_2012_r2"
+        locale=$(getLanguage "$lang" "code")
+        ;;
+      "win2008r2" | "win2008r2-eval" )
+        url+="windows_server_links"
+        pattern="server_2008_r2"
+        locale=$(getLanguage "$lang" "code")
+        ;;
+      "win7x64" | "win7x64-enterprise" )
+        url+="windows_7_links"
+        pattern="enterprise"
+        locale=$(getLanguage "$lang" "code")
+        ;;
+      "win7x64-ultimate" )
+        url+="windows_7_links"
+        pattern="ultimate"
+        locale=$(getLanguage "$lang" "code")
+        ;;
+      "win7x86" | "win7x86-enterprise" )
+        platform="x86"
+        url+="windows_7_links"
+        pattern="enterprise"
+        locale=$(getLanguage "$lang" "code")
+        ;;
+      "win7x86-ultimate" )
+        platform="x86"
+        url+="windows_7_links"
+        pattern="ultimate"
+        locale=$(getLanguage "$lang" "code")
+        ;;
+      "winvistax64" | "winvistax64-enterprise" )
+        url+="windows_vista_links"
+        pattern="enterprise"
+        locale=$(getLanguage "$lang" "code")
+        ;;
+      "winvistax64-ultimate" )
+        url+="windows_vista_links"
+        pattern="sp2"
+        locale=$(getLanguage "$lang" "code")
+        ;;
+      "winvistax86" | "winvistax86-enterprise" )
+        platform="x86"
+        url+="windows_vista_links"
+        pattern="enterprise"
+        locale=$(getLanguage "$lang" "code")
+        ;;
+      "winvistax86-ultimate" )
+        platform="x86"
+        url+="windows_vista_links"
+        pattern="sp2"
+        locale=$(getLanguage "$lang" "code")
+        ;;
+      "winxpx86" )
+        platform="x86"
+        url+="windows_xp_links"
+        pattern="xp"
+        locale=$(getLanguage "$lang" "code")
+        [[ "$locale" == "pt" ]] && locale="pt-br"
+        [[ "$locale" == "pp" ]] && locale="pt-pt"
+        [[ "$locale" == "cn" ]] && locale="zh-hans"
+        [[ "$locale" == "hk" ]] && locale="zh-hk"
+        [[ "$locale" == "tw" ]] && locale="zh-tw"
+        ;;
+      "winxpx64" )
+        url+="windows_xp_links"
+        pattern="xp"
+        locale=$(getLanguage "$lang" "code")
+        ;;
+    esac
+
+  else
+
+    case "${version,,}" in
+      "win11${PLATFORM,,}" | "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval" )
+        url+="windows_arm_links"
+        pattern="11_business"
+        ;;
+      "win11${PLATFORM,,}-ltsc" | "win11${PLATFORM,,}-enterprise-ltsc-eval" )
+        url+="windows_arm_links"
+        pattern="11_iot_enterprise_ltsc"
+        ;;
+      "win10${PLATFORM,,}" | "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" )
+        url+="windows_arm_links"
+        pattern="Pro_10"
+        locale="$language"
+        [[ "$locale" == "Chinese" ]] && locale="ChnSimp"
+        [[ "$locale" == "Chinese HK" ]] && locale="ChnTrad"
+        [[ "$locale" == "Chinese TW" ]] && locale="ChnTrad"
+        ;;
+      "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
+        url+="windows_arm_links"
+        pattern="10_iot_enterprise_ltsc"
+        ;;
+    esac
+
+  fi
+
+  local body=""
+
+  [[ "$DEBUG" == [Yy1]* ]] && echo "Parsing download page: ${url}"
+  body=$(curl --silent --max-time 30 --user-agent "$user_agent" --location --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url") || {
+    handle_curl_error "$?" "Massgrave"
+    return $?
+  }
+
+  local list=""
+  list=$(echo "$body" | grep -Eo "(http|https)://[a-zA-Z0-9./?=_%:-]*" | grep -i '\.iso$')
+
+  local result=""
+  result=$(echo "$list" | grep -i "${platform}" | grep "${pattern}" | grep -i -m 1 "${locale,,}_")
+
+  if [ -z "$result" ]; then
+    if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
+      error "No download in the $language language available for $desc!"
+    else
+      error "Failed to parse download link for $desc! Please report this at $SUPPORT/issues."
+    fi
+    return 1
+  fi
+
+  MG_URL="$result"
   return 0
 }
 
@@ -711,6 +921,31 @@ downloadImage() {
     fi
 
   done
+
+  if isMG "$version" "$lang"; then
+
+    if [[ "$tried" != "n" ]]; then
+      info "Failed to download $desc, will try a diferent method now..."
+    fi
+
+    tried="y"
+    success="n"
+
+    if getMG "$version" "$lang" "$desc"; then
+      success="y"
+    else
+      info "$msg" && html "$msg" && sleep "$delay"
+      getMG "$version" "$lang" "$desc" && success="y"
+    fi
+
+    if [[ "$success" == "y" ]]; then
+      downloadFile "$iso" "$MG_URL" "" "" "$lang" "$desc" && return 0
+      info "$msg" && html "$msg" && sleep "$delay"
+      downloadFile "$iso" "$MG_URL" "" "" "$lang" "$desc" && return 0
+      rm -f "$iso"
+    fi
+
+  fi
 
   return 1
 }
