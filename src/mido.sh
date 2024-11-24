@@ -441,146 +441,175 @@ getMG() {
   local user_agent=""
 
   user_agent=$(get_agent)
-  language=$(getLanguage "$lang" "name")
+  language=$(getLanguage "$lang" "desc")
   culture=$(getLanguage "$lang" "culture")
 
   local msg="Requesting download link from massgrave.dev..."
   info "$msg" && html "$msg"
 
   local pattern=""
-  local platform="x64"
   local locale="${culture,,}"
+  local platform="${PLATFORM,,}"
   local url="https://massgrave.dev/"
 
-  case "${version,,}" in
-    "win11${PLATFORM,,}" )
-      url+="windows_11_links"
-      pattern="consumer"
-      ;;
-    "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval" )
-      url+="windows_11_links"
-      pattern="business"
-      ;;
-    "win11${PLATFORM,,}-ltsc" | "win11${PLATFORM,,}-enterprise-ltsc-eval" )
-      url+="windows_ltsc_links"
-      pattern="11_enterprise_ltsc"
-      ;;
-    "win11${PLATFORM,,}-iot" | "win11${PLATFORM,,}-enterprise-iot-eval" )
-      url+="windows_ltsc_links"
-      pattern="11_iot"
-      ;;
-    "win10${PLATFORM,,}" )
-      url+="windows_10_links"
-      pattern="consumer"
-      ;;
-    "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" )
-      url+="windows_10_links"
-      pattern="business"
-      ;;
-    "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-      url+="windows_ltsc_links"
-      pattern="10_enterprise_ltsc"
-      ;;
-    "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval" )
-      url+="windows_ltsc_links"
-      pattern="10_iot"
-      ;;
-    "win81${PLATFORM,,}-enterprise" | "win81${PLATFORM,,}-enterprise-eval" )
-      url+="windows_8.1_links"
-      pattern="8.1_enterprise"
-      locale=$(getLanguage "$lang" "code")
-      [[ "$locale" == "sr" ]] && locale="sr-latn"
-      ;;
-    "win2025" | "win2025-eval" )
-      url+="windows_server_links"
-      pattern="server_2025"
-      ;;
-    "win2022" | "win2022-eval" )
-      url+="windows_server_links"
-      pattern="server_2022"
-      ;;
-    "win2019" | "win2019-eval" )
-      url+="windows_server_links"
-      pattern="server_2019"
-      ;;
-    "win2016" | "win2016-eval" )
-      url+="windows_server_links"
-      pattern="server_2016"
-      locale=$(getLanguage "$lang" "code")
-      [[ "$locale" == "hk" ]] && locale="ct"
-      [[ "$locale" == "tw" ]] && locale="ct"
-      ;;
-    "win2012r2" | "win2012r2-eval" )
-      url+="windows_server_links"
-      pattern="server_2012_r2"
-      locale=$(getLanguage "$lang" "code")
-      ;;
-    "win2008r2" | "win2008r2-eval" )
-      url+="windows_server_links"
-      pattern="server_2008_r2"
-      locale=$(getLanguage "$lang" "code")
-      ;;
-    "win7x64" | "win7x64-enterprise" )
-      url+="windows_7_links"
-      pattern="enterprise"
-      locale=$(getLanguage "$lang" "code")
-      ;;
-    "win7x64-ultimate" )
-      url+="windows_7_links"
-      pattern="ultimate"
-      locale=$(getLanguage "$lang" "code")
-      ;;
-    "win7x86" | "win7x86-enterprise" )
-      platform="x86"
-      url+="windows_7_links"
-      pattern="enterprise"
-      locale=$(getLanguage "$lang" "code")
-      ;;
-    "win7x86-ultimate" )
-      platform="x86"
-      url+="windows_7_links"
-      pattern="ultimate"
-      locale=$(getLanguage "$lang" "code")
-      ;;
-    "winvistax64" | "winvistax64-enterprise" )
-      url+="windows_vista_links"
-      pattern="enterprise"
-      locale=$(getLanguage "$lang" "code")
-      ;;
-    "winvistax64-ultimate" )
-      url+="windows_vista_links"
-      pattern="sp2"
-      locale=$(getLanguage "$lang" "code")
-      ;;
-    "winvistax86" | "winvistax86-enterprise" )
-      platform="x86"
-      url+="windows_vista_links"
-      pattern="enterprise"
-      locale=$(getLanguage "$lang" "code")
-      ;;
-    "winvistax86-ultimate" )
-      platform="x86"
-      url+="windows_vista_links"
-      pattern="sp2"
-      locale=$(getLanguage "$lang" "code")
-      ;;
-    "winxpx86" )
-      platform="x86"
-      url+="windows_xp_links"
-      pattern="xp"
-      locale=$(getLanguage "$lang" "code")
-      [[ "$locale" == "pt" ]] && locale="pt-br"
-      [[ "$locale" == "pp" ]] && locale="pt-pt"
-      [[ "$locale" == "cn" ]] && locale="zh-hans"
-      [[ "$locale" == "hk" ]] && locale="zh-hk"
-      [[ "$locale" == "tw" ]] && locale="zh-tw"
-      ;;
-    "winxpx64" )
-      url+="windows_xp_links"
-      pattern="xp"
-      locale=$(getLanguage "$lang" "code")
-      ;;
-  esac
+  if [[ "${PLATFORM,,}" != "arm64" ]]; then
+
+    case "${version,,}" in
+      "win11${PLATFORM,,}" )
+        url+="windows_11_links"
+        pattern="consumer"
+        ;;
+      "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval" )
+        url+="windows_11_links"
+        pattern="business"
+        ;;
+      "win11${PLATFORM,,}-ltsc" | "win11${PLATFORM,,}-enterprise-ltsc-eval" )
+        url+="windows_ltsc_links"
+        pattern="11_enterprise_ltsc"
+        ;;
+      "win11${PLATFORM,,}-iot" | "win11${PLATFORM,,}-enterprise-iot-eval" )
+        url+="windows_ltsc_links"
+        pattern="11_iot"
+        ;;
+      "win10${PLATFORM,,}" )
+        url+="windows_10_links"
+        pattern="consumer"
+        ;;
+      "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" )
+        url+="windows_10_links"
+        pattern="business"
+        ;;
+      "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
+        url+="windows_ltsc_links"
+        pattern="10_enterprise_ltsc"
+        ;;
+      "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval" )
+        url+="windows_ltsc_links"
+        pattern="10_iot"
+        ;;
+      "win81${PLATFORM,,}-enterprise" | "win81${PLATFORM,,}-enterprise-eval" )
+        url+="windows_8.1_links"
+        pattern="8.1_enterprise"
+        locale=$(getLanguage "$lang" "code")
+        [[ "$locale" == "sr" ]] && locale="sr-latn"
+        ;;
+      "win2025" | "win2025-eval" )
+        url+="windows_server_links"
+        pattern="server_2025"
+        ;;
+      "win2022" | "win2022-eval" )
+        url+="windows_server_links"
+        pattern="server_2022"
+        ;;
+      "win2019" | "win2019-eval" )
+        url+="windows_server_links"
+        pattern="server_2019"
+        ;;
+      "win2016" | "win2016-eval" )
+        url+="windows_server_links"
+        pattern="server_2016"
+        locale=$(getLanguage "$lang" "code")
+        [[ "$locale" == "hk" ]] && locale="ct"
+        [[ "$locale" == "tw" ]] && locale="ct"
+        ;;
+      "win2012r2" | "win2012r2-eval" )
+        url+="windows_server_links"
+        pattern="server_2012_r2"
+        locale=$(getLanguage "$lang" "code")
+        ;;
+      "win2008r2" | "win2008r2-eval" )
+        url+="windows_server_links"
+        pattern="server_2008_r2"
+        locale=$(getLanguage "$lang" "code")
+        ;;
+      "win7x64" | "win7x64-enterprise" )
+        url+="windows_7_links"
+        pattern="enterprise"
+        locale=$(getLanguage "$lang" "code")
+        ;;
+      "win7x64-ultimate" )
+        url+="windows_7_links"
+        pattern="ultimate"
+        locale=$(getLanguage "$lang" "code")
+        ;;
+      "win7x86" | "win7x86-enterprise" )
+        platform="x86"
+        url+="windows_7_links"
+        pattern="enterprise"
+        locale=$(getLanguage "$lang" "code")
+        ;;
+      "win7x86-ultimate" )
+        platform="x86"
+        url+="windows_7_links"
+        pattern="ultimate"
+        locale=$(getLanguage "$lang" "code")
+        ;;
+      "winvistax64" | "winvistax64-enterprise" )
+        url+="windows_vista_links"
+        pattern="enterprise"
+        locale=$(getLanguage "$lang" "code")
+        ;;
+      "winvistax64-ultimate" )
+        url+="windows_vista_links"
+        pattern="sp2"
+        locale=$(getLanguage "$lang" "code")
+        ;;
+      "winvistax86" | "winvistax86-enterprise" )
+        platform="x86"
+        url+="windows_vista_links"
+        pattern="enterprise"
+        locale=$(getLanguage "$lang" "code")
+        ;;
+      "winvistax86-ultimate" )
+        platform="x86"
+        url+="windows_vista_links"
+        pattern="sp2"
+        locale=$(getLanguage "$lang" "code")
+        ;;
+      "winxpx86" )
+        platform="x86"
+        url+="windows_xp_links"
+        pattern="xp"
+        locale=$(getLanguage "$lang" "code")
+        [[ "$locale" == "pt" ]] && locale="pt-br"
+        [[ "$locale" == "pp" ]] && locale="pt-pt"
+        [[ "$locale" == "cn" ]] && locale="zh-hans"
+        [[ "$locale" == "hk" ]] && locale="zh-hk"
+        [[ "$locale" == "tw" ]] && locale="zh-tw"
+        ;;
+      "winxpx64" )
+        url+="windows_xp_links"
+        pattern="xp"
+        locale=$(getLanguage "$lang" "code")
+        ;;
+    esac
+
+  else
+
+    case "${version,,}" in
+      "win11${PLATFORM,,}" | "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval" )
+        url+="windows_arm_links"
+        pattern="11_business"
+        ;;
+      "win11${PLATFORM,,}-ltsc" | "win11${PLATFORM,,}-enterprise-ltsc-eval" )
+        url+="windows_arm_links"
+        pattern="11_iot_enterprise_ltsc"
+        ;;
+      "win10${PLATFORM,,}" | "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" )
+        url+="windows_arm_links"
+        pattern="Pro_10"
+        locale="$language"
+        [[ "$locale" == "Chinese" ]] && locale="ChnSimp"
+        [[ "$locale" == "Chinese HK" ]] && locale="ChnTrad"
+        [[ "$locale" == "Chinese TW" ]] && locale="ChnTrad"
+        ;;
+      "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
+        url+="windows_arm_links"
+        pattern="10_iot_enterprise_ltsc"
+        ;;
+    esac
+  
+  fi
 
   local body=""
 
@@ -591,10 +620,10 @@ getMG() {
   }
 
   local list=""
-  list=$(echo "$body" | grep -Eo "(http|https)://[a-zA-Z0-9./?=_%:-]*" | grep '\.iso$')
+  list=$(echo "$body" | grep -Eo "(http|https)://[a-zA-Z0-9./?=_%:-]*" | grep -i '\.iso$')
 
   local result=""
-  result=$(echo "$list" | grep "${platform}" | grep "${pattern}" | grep -m 1 "${locale,,}_")
+  result=$(echo "$list" | grep -i "${platform}" | grep "${pattern}" | grep -i -m 1 "${locale,,}_")
 
   if [ -z "$result" ]; then
     if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
