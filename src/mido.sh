@@ -608,7 +608,7 @@ getMG() {
         pattern="10_iot_enterprise_ltsc"
         ;;
     esac
-  
+
   fi
 
   local body=""
