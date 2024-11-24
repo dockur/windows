@@ -1142,10 +1142,10 @@ isMG() {
       ;;
     "win2025" | "win2025-eval" | "win2022" | "win2022-eval" | "win2019" | "win2019-eval" )
       return 0
-      ;;    
+      ;;
     "win2016" | "win2016-eval" | "win2012r2" | "win2012r2-eval" | "win2008r2" | "win2008r2-eval" )
       return 0
-      ;;    
+      ;;
     "win7x64" | "win7x64-enterprise" | "win7x64-ultimate" | "win7x86" | "win7x86-enterprise" | "win7x86-ultimate" )
       return 0
       ;;
