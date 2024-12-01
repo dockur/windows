@@ -1,10 +1,11 @@
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: windows-pvc
 spec:
   accessModes:
-    - ReadWriteOnce
+  - ReadWriteOnce
   resources:
     requests:
       storage: 64Gi
@@ -16,59 +17,61 @@ metadata:
   labels:
     name: windows
 spec:
-  terminationGracePeriodSeconds: 120 # the Kubernetes default is 30 seconds and it may be not enough
   containers:
-    - name: windows
-      image: dockurr/windows
-      ports:
-        - containerPort: 8006
-          protocol: TCP
-        - containerPort: 3389
-          protocol: TCP
-        - containerPort: 3389
-          protocol: UDP
-      securityContext:
-        privileged: true
-      env:
-        - name: VERSION
-          value: "11"
-        - name: RAM_SIZE
-          value: "4G"
-        - name: CPU_CORES
-          value: "2"
-        - name: DISK_SIZE
-          value: "64G"
-      volumeMounts:
-        - mountPath: /storage
-          name: storage
-        - mountPath: /dev/kvm
-          name: dev-kvm
+  - name: windows
+    image: dockurr/windows
+    env:
+    - name: VERSION
+      value: "11"
+    - name: RAM_SIZE
+      value: "4G"
+    - name: CPU_CORES
+      value: "2"
+    - name: DISK_SIZE
+      value: "64G"
+    ports:
+    - containerPort: 8006
+    - containerPort: 3389
+    - containerPort: 3389
+      protocol: UDP
+    securityContext:
+      capabilities:
+        add:
+        - NET_ADMIN
+      privileged: true
+    volumeMounts:
+    - mountPath: /storage
+      name: storage
+    - mountPath: /dev/kvm
+      name: dev-kvm
+    - mountPath: /dev/net/tun
+      name: dev-tun
+  terminationGracePeriodSeconds: 120
   volumes:
-    - name: storage
-      persistentVolumeClaim:
-        claimName: windows-pvc
-    - name: dev-kvm
-      hostPath:
-        path: /dev/kvm
+  - name: storage
+    persistentVolumeClaim:
+      claimName: windows-pvc
+  - hostPath:
+      path: /dev/kvm
+    name: dev-kvm
+  - hostPath:
+      path: /dev/net/tun
+      type: CharDevice
+    name: dev-tun
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: windows
 spec:
-  type: NodePort
+  ports:
+  - name: tcp-8006
+    port: 8006
+  - name: tcp-3389
+    port: 3389
+  - name: udp-3389
+    port: 3389
+    protocol: UDP
   selector:
     name: windows
-  ports:
-    - name: tcp-8006
-      protocol: TCP
-      port: 8006
-      targetPort: 8006
-    - name: tcp-3389
-      protocol: TCP
-      port: 3389
-      targetPort: 3389
-    - name: udp-3389
-      protocol: UDP
-      port: 3389
-      targetPort: 3389
+  type: NodePort
