@@ -28,6 +28,9 @@ spec:
         - containerPort: 3389
           protocol: UDP
       securityContext:
+        capabilities:
+          add:
+          - NET_ADMIN
         privileged: true
       env:
         - name: VERSION
@@ -43,6 +46,8 @@ spec:
           name: storage
         - mountPath: /dev/kvm
           name: dev-kvm
+        - mountPath: /dev/net/tun
+          name: dev-tun
   volumes:
     - name: storage
       persistentVolumeClaim:
@@ -50,6 +55,10 @@ spec:
     - name: dev-kvm
       hostPath:
         path: /dev/kvm
+    - name: dev-tun
+      hostPath:
+        path: /dev/net/tun
+        type: CharDevice
 ---
 apiVersion: v1
 kind: Service
