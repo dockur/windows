@@ -18,7 +18,7 @@ metadata:
     name: windows
 spec:
   containers:
-    - name: windows
+  - name: windows
     image: dockurr/windows
     env:
     - name: VERSION
