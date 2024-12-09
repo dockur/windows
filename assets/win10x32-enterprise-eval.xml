@@ -10,7 +10,7 @@
       <UILanguage>en-US</UILanguage>
       <UserLocale>en-US</UserLocale>
     </component>
-    <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-Setup" processorArchitecture="amd32" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DiskConfiguration>
         <Disk wcm:action="add">
           <DiskID>0</DiskID>
@@ -88,23 +88,23 @@
     </component>
   </settings>
   <settings pass="offlineServicing">
-    <component name="Microsoft-Windows-LUA-Settings" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-LUA-Settings" processorArchitecture="amd32" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <EnableLUA>false</EnableLUA>
     </component>
   </settings>
   <settings pass="generalize">
-    <component name="Microsoft-Windows-PnPSysprep" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-PnPSysprep" processorArchitecture="amd32" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <PersistAllDeviceInstalls>true</PersistAllDeviceInstalls>
     </component>
-    <component name="Microsoft-Windows-Security-SPP" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-Security-SPP" processorArchitecture="amd32" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <SkipRearm>1</SkipRearm>
     </component>
   </settings>
   <settings pass="specialize">
-    <component name="Microsoft-Windows-Security-SPP-UX" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-Security-SPP-UX" processorArchitecture="amd32" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <SkipAutoActivation>true</SkipAutoActivation>
     </component>
-    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd32" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <ComputerName>*</ComputerName>
       <OEMInformation>
         <Manufacturer>Dockur</Manufacturer>
@@ -116,34 +116,34 @@
       </OEMInformation>
       <OEMName>Windows for Docker</OEMName>
     </component>
-    <component name="Microsoft-Windows-ErrorReportingCore" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-ErrorReportingCore" processorArchitecture="amd32" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DisableWER>1</DisableWER>
     </component>
-    <component name="Microsoft-Windows-IE-InternetExplorer" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-IE-InternetExplorer" processorArchitecture="amd32" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DisableAccelerators>true</DisableAccelerators>
       <DisableFirstRunWizard>true</DisableFirstRunWizard>
       <Home_Page>https://google.com</Home_Page>
       <Help_Page>about:blank</Help_Page>
     </component>
-    <component name="Microsoft-Windows-IE-InternetExplorer" processorArchitecture="wow64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-IE-InternetExplorer" processorArchitecture="wow32" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DisableAccelerators>true</DisableAccelerators>
       <DisableFirstRunWizard>true</DisableFirstRunWizard>
       <Home_Page>https://google.com</Home_Page>
       <Help_Page>about:blank</Help_Page>
     </component>
-    <component name="Microsoft-Windows-SQMApi" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-SQMApi" processorArchitecture="amd32" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <CEIPEnabled>0</CEIPEnabled>
     </component>
-    <component name="Microsoft-Windows-SystemRestore-Main" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-SystemRestore-Main" processorArchitecture="amd32" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DisableSR>1</DisableSR>
     </component>
-    <component name="Microsoft-Windows-International-Core" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-International-Core" processorArchitecture="amd32" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <InputLocale>0409:00000409</InputLocale>
       <SystemLocale>en-US</SystemLocale>
       <UILanguage>en-US</UILanguage>
       <UserLocale>en-US</UserLocale>
     </component>
-    <component name="Microsoft-Windows-Deployment" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-Deployment" processorArchitecture="amd32" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <RunSynchronous>
         <RunSynchronousCommand wcm:action="add">
           <Order>1</Order>
@@ -248,13 +248,13 @@
         </RunSynchronousCommand>
       </RunSynchronous>
     </component>
-    <component name="Microsoft-Windows-TerminalServices-LocalSessionManager" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-TerminalServices-LocalSessionManager" processorArchitecture="amd32" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <fDenyTSConnections>false</fDenyTSConnections>
     </component>
-    <component name="Microsoft-Windows-TerminalServices-RDP-WinStationExtensions" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-TerminalServices-RDP-WinStationExtensions" processorArchitecture="amd32" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <UserAuthentication>0</UserAuthentication>
     </component>
-    <component name="Networking-MPSSVC-Svc" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Networking-MPSSVC-Svc" processorArchitecture="amd32" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <FirewallGroups>
         <FirewallGroup wcm:action="add" wcm:keyValue="RemoteDesktop">
           <Active>true</Active>
@@ -270,10 +270,10 @@
     <component name="Microsoft-Windows-SecureStartup-FilterDriver" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <PreventDeviceEncryption>true</PreventDeviceEncryption>
     </component>
-    <component name="Microsoft-Windows-EnhancedStorage-Adm" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-EnhancedStorage-Adm" processorArchitecture="amd32" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <TCGSecurityActivationDisabled>1</TCGSecurityActivationDisabled>
     </component>
-    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd32" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <UserAccounts>
         <LocalAccounts>
           <LocalAccount wcm:action="add">
@@ -301,8 +301,8 @@
       </AutoLogon>
       <Display>
         <ColorDepth>32</ColorDepth>
-        <HorizontalResolution>1920</HorizontalResolution>
-        <VerticalResolution>1080</VerticalResolution>
+        <HorizontalResolution>720</HorizontalResolution>
+        <VerticalResolution>1280</VerticalResolution>
       </Display>
       <OOBE>
         <HideEULAPage>true</HideEULAPage>
