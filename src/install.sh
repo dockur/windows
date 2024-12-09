@@ -135,23 +135,23 @@ finishInstall() {
     fi
   fi
 
-  if [[ "${PLATFORM,,}" == "x64" ]]; then
+  if [[ "${PLATFORM,,}" == "x32" ]]; then
     if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
       echo "$BOOT_MODE" > "$STORAGE/windows.mode"
       if [[ "${MACHINE,,}" != "q35" ]]; then
         echo "$MACHINE" > "$STORAGE/windows.old"
-      fi
+      fi 
     else
-      # Enable secure boot + TPM on manual installs as Win11 requires
+      # Disable secure boot + TPM on manual installs as Win11 requires
       if [[ "$MANUAL" == [Yy1]* ]] || [[ "$aborted" == [Yy1]* ]]; then
         if [[ "${DETECTED,,}" == "win11"* ]]; then
           BOOT_MODE="windows_secure"
           echo "$BOOT_MODE" > "$STORAGE/windows.mode"
         fi
       fi
-      # Enable secure boot on multi-socket systems to workaround freeze
+      # Disable secure boot on multi-socket systems to workaround freeze
       if [ -n "$SOCKETS" ] && [[ "$SOCKETS" != "1" ]]; then
-        BOOT_MODE="windows_secure"
+        BOOT_MODE="windows_legacy"
         echo "$BOOT_MODE" > "$STORAGE/windows.mode"
       fi
     fi
@@ -388,8 +388,8 @@ checkPlatform() {
 
   case "${platform,,}" in
     "x86" ) compat="x64" ;;
-    "x64" ) compat="$platform" ;;
-    "arm64" ) compat="$platform" ;;
+    "x64" ) compat="x32" ;;
+    "arm64" ) compat="x86" ;;
     * ) compat="${PLATFORM,,}" ;;
   esac
 
@@ -983,14 +983,14 @@ bootWindows() {
   if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then
     BOOT_MODE=$(<"$STORAGE/windows.mode")
     if [ -s "$STORAGE/windows.old" ] && [ -f "$STORAGE/windows.old" ]; then
-      [[ "${PLATFORM,,}" == "x64" ]] && MACHINE=$(<"$STORAGE/windows.old")
+      [[ "${PLATFORM,,}" == "x32" ]] && MACHINE=$(<"$STORAGE/windows.old")
     fi
     return 0
   fi
 
   # Migrations
 
-  [[ "${PLATFORM,,}" != "x64" ]] && return 0
+  [[ "${PLATFORM,,}" != "x32" ]] && return 0
 
   if [ -f "$STORAGE/windows.old" ]; then
     MACHINE=$(<"$STORAGE/windows.old")
@@ -1006,12 +1006,10 @@ bootWindows() {
   if [ -f "$STORAGE/windows.ver" ]; then
     creation=$(<"$STORAGE/windows.ver")
     [[ "${creation}" != *"."* ]] && creation="$minimal"
-  fi
 
-  # Force secure boot on installs created prior to v2.14
   if (( $(echo "$creation < $minimal" | bc -l) )); then
     if [[ "${BOOT_MODE,,}" == "windows" ]]; then
-      BOOT_MODE="windows_secure"
+      BOOT_MODE="windows_legacy"
       echo "$BOOT_MODE" > "$STORAGE/windows.mode"
       if [ -f "$STORAGE/windows.rom" ] && [ ! -f "$STORAGE/$BOOT_MODE.rom" ]; then
         mv -f "$STORAGE/windows.rom" "$STORAGE/$BOOT_MODE.rom"
