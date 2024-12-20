@@ -620,10 +620,11 @@ getMG() {
   }
 
   local list=""
-  list=$(echo "$body" | grep -Eo "(http|https)://[a-zA-Z0-9./?=_%:-]*" | grep -i '\.iso$')
+  list=$(echo "$body" | xmllint --html --nonet --xpath "//a[contains(text(), '.iso')]" - 2>/dev/null)
 
   local result=""
   result=$(echo "$list" | grep -i "${platform}" | grep "${pattern}" | grep -i -m 1 "${locale,,}_")
+  result=$(echo "$result" | sed -r 's/.*href="([^"]+).*/\1/g')
 
   if [ -z "$result" ]; then
     if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
