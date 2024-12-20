@@ -501,7 +501,7 @@ fromFile() {
   local desc="$1"
   local file="${1,,}"
   local arch="${PLATFORM,,}"
-  
+
   file="${file//-/_}"
   file="${file// /_}"
 
