@@ -635,6 +635,21 @@ getMG() {
     return 1
   fi
 
+  local domain="buzzheavier.com"
+
+  if [[ "$result" = *"$domain"* ]]; then
+    result=$(curl --silent --max-time 30 --request GET --user-agent "$user_agent" --referer "$result" --head --proto =https --tlsv1.2 --http1.1 -- "$result/download") || {
+      handle_curl_error "$?" "$domain"
+      return $?
+    }
+    result=$(echo "$result" | grep -i -m 1 "hx-redirect:")
+    if [ -z "$result" ]; then
+      error "Failed to extract redirect location! Please report this at $SUPPORT/issues."
+      return 1
+    fi
+    result="https://${domain}${result:13}"
+  fi
+
   MG_URL="$result"
   return 0
 }
