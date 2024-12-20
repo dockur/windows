@@ -502,7 +502,10 @@ fromFile() {
   local file="${1,,}"
   local arch="${PLATFORM,,}"
 
-  case "${file// /_}" in
+  file="${file//-/_}"
+  file="${file// /_}"
+
+  case "$file" in
     *"_x64_"* | *"_x64."*)
       arch="x64"
       ;;
@@ -517,7 +520,7 @@ fromFile() {
   local add=""
   [[ "$arch" != "x64" ]] && add="$arch"
 
-  case "${file// /_}" in
+  case "$file" in
     "win7"* | "win_7"* | *"windows7"* | *"windows_7"* )
       id="win7${arch}"
       ;;
