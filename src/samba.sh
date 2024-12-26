@@ -86,8 +86,14 @@ share="/data"
 
 addShare "$share" "Data" "Shared" || error "Failed to create shared folder!"
 
-[ -d "/data2" ] && addShare "/data2" "Data2" "Shared"
-[ -d "/data3" ] && addShare "/data3" "Data3" "Shared"
+IFS=',' read -r -a dirs <<< "${SHARED_DIRS:-}"
+# Traverse the directory and create shares
+for dir in "${dirs[@]}"; do
+  if [ -d "$dir" ]; then
+    dir_name=$(basename "$dir")
+    addShare "$dir" "$dir_name" "Shared $dir_name" || error "Failed to create shared folder for $dir!"
+  fi
+done
 
 if ! smbd; then
   error "Samba daemon failed to start!"
