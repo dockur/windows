@@ -613,7 +613,7 @@ getMG() {
 
   local body=""
 
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Parsing download page: ${url}"
+  [[ "$DEBUG" == [Yy1]* ]] && echo "Parsing product page: ${url}"
   body=$(curl --silent --max-time 30 --user-agent "$user_agent" --location --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url") || {
     handle_curl_error "$?" "Massgrave"
     return $?
@@ -625,8 +625,9 @@ getMG() {
   local result=""
   result=$(echo "$list" | grep -i "${platform}" | grep "${pattern}" | grep -i -m 1 "${locale,,}_")
   result=$(echo "$result" | sed -r 's/.*href="([^"]+).*/\1/g')
+  local page="$result"
 
-  if [ -z "$result" ]; then
+  if [ -z "$page" ]; then
     if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
       error "No download in the $language language available for $desc!"
     else
@@ -635,22 +636,33 @@ getMG() {
     return 1
   fi
 
-  local domain="buzzheavier.com"
+  [[ "$DEBUG" == [Yy1]* ]] && echo "Parsing download page: ${page}"
+  result=$(curl --silent --max-time 30 --request GET --user-agent "$user_agent" --referer "$url" --head --proto =https --tlsv1.2 --http1.1 -- "$page") || {
+    handle_curl_error "$?" "Massgrave"
+    return $?
+  }
 
-  if [[ "$result" = *"$domain"* ]]; then
-    result=$(curl --silent --max-time 30 --request GET --user-agent "$user_agent" --referer "$result" --head --proto =https --tlsv1.2 --http1.1 -- "$result/download") || {
-      handle_curl_error "$?" "$domain"
+  if [[ "${result,,}" == *"content-type: text"* ]]; then
+    body=$(curl --silent --max-time 30 --user-agent "$user_agent" --referer "$url" --location --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$page") || {
+      handle_curl_error "$?" "Massgrave"
       return $?
     }
-    result=$(echo "$result" | grep -i -m 1 "hx-redirect:")
-    if [ -z "$result" ]; then
-      error "Failed to extract redirect location! Please report this at $SUPPORT/issues."
+
+    list=$(echo "$body" | xmllint --html --nonet --xpath "//a[contains(@href, '.iso')]" - 2>/dev/null)
+    list=$(echo "$list" | sed -r 's/.*href="([^"]+).*/\1/g')
+    page=$(echo "$list" | sed 's/&amp;/\&/g;')
+
+    if [ -z "$page" ]; then
+      if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
+        error "No download in the $language language available for $desc!"
+      else
+        error "Failed to parse download link for $desc! Please report this at $SUPPORT/issues."
+      fi
       return 1
     fi
-    result="https://${domain}${result:13}"
   fi
 
-  MG_URL="$result"
+  MG_URL="$page"
   return 0
 }
 
