@@ -86,15 +86,14 @@ share="/data"
 
 addShare "$share" "Data" "Shared" || error "Failed to create shared folder!"
 
-IFS=',' read -r -a dirs <<< "${SHARED_DIRS:-}"
-# Traverse the directory and create shares
-index_dir=1
+[ -d "/data2" ] && addShare "/data2" "Data2" "Shared"
+[ -d "/data3" ] && addShare "/data3" "Data3" "Shared"
+
+IFS=',' read -r -a dirs <<< "${SHARES:-}"
 for dir in "${dirs[@]}"; do
-  if [ -d "$dir" ]; then
-    dir_name=$(basename "$dir")
-    addShare "$dir" "${dir_name}_${index_dir}" "Shared $dir_name" || error "Failed to create shared folder for $dir!"
-    ((index_dir++))
-  fi
+  [ ! -d "$dir" ] && continue
+  dir_name=$(basename "$dir")
+  addShare "$dir" "$dir_name" "Shared $dir_name" || error "Failed to create shared folder for $dir!"
 done
 
 if ! smbd; then
