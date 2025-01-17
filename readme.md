@@ -211,6 +211,15 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
     CPU_CORES: "4"
   ```
 
+### How do I bypass RAM check?
+
+By default, the container checks if there is enough RAM available to boot. 
+You can skip this step using the following environment variable:
+  ```yaml
+  environment:
+    RAM_CHECK: "N"
+  ```
+
 ### How do I configure the username and password?
 
   By default, a user called `Docker` is created during the installation, with an empty password.
