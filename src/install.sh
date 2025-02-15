@@ -76,8 +76,6 @@ startInstall() {
 
     BOOT="$STORAGE/$file"
 
-    ! migrateFiles "$BOOT" "$VERSION" && error "Migration failed!" && exit 57
-
   fi
 
   skipInstall "$BOOT" && return 1
