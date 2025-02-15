@@ -5,6 +5,7 @@ set -Eeuo pipefail
 : "${HEIGHT:=""}"
 : "${VERIFY:=""}"
 : "${REGION:=""}"
+: "${EDITION:=""}"
 : "${MANUAL:=""}"
 : "${REMOVE:=""}"
 : "${VERSION:=""}"
@@ -1110,66 +1111,12 @@ isESD() {
   return 1
 }
 
-isMG() {
-
-  local id="$1"
-  local lang="$2"
-
-  case "${id,,}" in
-    "win11${PLATFORM,,}" )
-      return 0
-      ;;
-    "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval" )
-      return 0
-      ;;
-    "win11${PLATFORM,,}-ltsc" | "win11${PLATFORM,,}-enterprise-ltsc-eval" )
-      return 0
-      ;;
-    "win11${PLATFORM,,}-iot" | "win11${PLATFORM,,}-enterprise-iot-eval" )
-      return 0
-      ;;
-    "win10${PLATFORM,,}" )
-      return 0
-      ;;
-    "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" )
-      return 0
-      ;;
-    "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-      return 0
-      ;;
-    "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval" )
-      return 0
-      ;;
-    "win81${PLATFORM,,}-enterprise" | "win81${PLATFORM,,}-enterprise-eval" )
-      return 0
-      ;;
-    "win2025" | "win2025-eval" | "win2022" | "win2022-eval" | "win2019" | "win2019-eval" )
-      return 0
-      ;;
-    "win2016" | "win2016-eval" | "win2012r2" | "win2012r2-eval" | "win2008r2" | "win2008r2-eval" )
-      return 0
-      ;;
-    "win7x64" | "win7x64-enterprise" | "win7x64-ultimate" | "win7x86" | "win7x86-enterprise" | "win7x86-ultimate" )
-      return 0
-      ;;
-    "winvistax64" | "winvistax64-enterprise" | "winvistax64-ultimate" | "winvistax86" | "winvistax86-enterprise" | "winvistax86-ultimate" )
-      return 0
-      ;;
-    "winxpx86" | "winxpx64" )
-      return 0
-      ;;
-  esac
-
-  return 1
-}
-
 validVersion() {
 
   local id="$1"
   local lang="$2"
   local url
 
-  isMG "$id" "$lang" && return 0
   isESD "$id" "$lang" && return 0
   isMido "$id" "$lang" && return 0
 
@@ -1203,27 +1150,6 @@ addFolder() {
   local file
   file=$(find "$dest" -maxdepth 1 -type f -iname install.bat | head -n 1)
   [ -f "$file" ] && unix2dos -q "$file"
-
-  return 0
-}
-
-migrateFiles() {
-
-  local base="$1"
-  local version="$2"
-  local file=""
-
-  [ -f "$base" ] && return 0
-
-  [[ "${version,,}" == "tiny10" ]] && file="tiny10_x64_23h2.iso"
-  [[ "${version,,}" == "tiny11" ]] && file="tiny11_2311_x64.iso"
-  [[ "${version,,}" == "core11" ]] && file="tiny11_core_x64_beta_1.iso"
-  [[ "${version,,}" == "winxpx86" ]] && file="en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
-  [[ "${version,,}" == "winvistax64" ]] && file="en_windows_vista_sp2_x64_dvd_342267.iso"
-  [[ "${version,,}" == "win7x64" ]] && file="en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.iso"
-
-  [ ! -f "$STORAGE/$file" ] && return 0
-  mv -f "$STORAGE/$file" "$base" || return 1
 
   return 0
 }

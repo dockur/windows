@@ -76,8 +76,6 @@ startInstall() {
 
     BOOT="$STORAGE/$file"
 
-    ! migrateFiles "$BOOT" "$VERSION" && error "Migration failed!" && exit 57
-
   fi
 
   skipInstall "$BOOT" && return 1
@@ -666,6 +664,11 @@ updateXML() {
     sed -z "s/<Password>...............<Value \/>/<Password>\n              <Value>$pass<\/Value>/g" -i "$asset"
     sed -z "s/<AdministratorPassword>...........<Value \/>/<AdministratorPassword>\n          <Value>$admin<\/Value>/g" -i "$asset"
     sed -z "s/<AdministratorPassword>...............<Value \/>/<AdministratorPassword>\n              <Value>$admin<\/Value>/g" -i "$asset"
+  fi
+
+  if [ -n "$EDITION" ]; then
+    [[ "${EDITION^^}" == "CORE" ]] && EDITION="STANDARDCORE"
+    sed -i "s/SERVERSTANDARD<\/Value>/SERVER${EDITION^^}<\/Value>/g" "$asset"
   fi
 
   return 0
