@@ -668,10 +668,7 @@ updateXML() {
 
   if [ -n "$EDITION" ]; then
     [[ "${EDITION^^}" == "CORE" ]] && EDITION="STANDARDCORE"
-    sed -i "s/<Value>Windows Server 2025 SERVERSTANDARD<\/Value>/<Value>Windows Server 2025 SERVER${EDITION^^}<\/Value>/g" "$asset"
-    sed -i "s/<Value>Windows Server 2022 SERVERSTANDARD<\/Value>/<Value>Windows Server 2022 SERVER${EDITION^^}<\/Value>/g" "$asset"
-    sed -i "s/<Value>Windows Server 2019 SERVERSTANDARD<\/Value>/<Value>Windows Server 2019 SERVER${EDITION^^}<\/Value>/g" "$asset"
-    sed -i "s/<Value>Windows Server 2016 SERVERSTANDARD<\/Value>/<Value>Windows Server 2016 SERVER${EDITION^^}<\/Value>/g" "$asset"
+    sed -i "s/SERVERSTANDARD<\/Value>/SERVER${EDITION^^}<\/Value>/g" "$asset"
   fi
 
   return 0
