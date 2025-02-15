@@ -5,6 +5,7 @@ set -Eeuo pipefail
 : "${HEIGHT:=""}"
 : "${VERIFY:=""}"
 : "${REGION:=""}"
+: "${EDITION:=""}"
 : "${MANUAL:=""}"
 : "${REMOVE:=""}"
 : "${VERSION:=""}"
