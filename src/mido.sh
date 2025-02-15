@@ -244,7 +244,7 @@ download_windows_eval() {
 
   filter="https://go.microsoft.com/fwlink/?linkid=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country,,}"
 
-  if ! echo "$iso_download_page_html" | grep -io "$filter"; then
+  if ! echo "$iso_download_page_html" | grep -io "$filter" > /dev/null; then
     filter="https://go.microsoft.com/fwlink/p/?linkid=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country,,}"
   fi
 
