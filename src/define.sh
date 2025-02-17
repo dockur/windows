@@ -593,7 +593,9 @@ fromName() {
     *"windows 7"* ) id="win7${arch}" ;;
     *"windows 8"* ) id="win81${arch}" ;;
     *"windows 10"* ) id="win10${arch}" ;;
+    *"optimum 10"* ) id="win10${arch}" ;;
     *"windows 11"* ) id="win11${arch}" ;;
+    *"optimum 11"* ) id="win11${arch}" ;;
     *"windows vista"* ) id="winvista${arch}" ;;
     *"server 2025"* ) id="win2025${add}" ;;
     *"server 2022"* ) id="win2022${add}" ;;
