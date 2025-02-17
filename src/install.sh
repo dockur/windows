@@ -680,7 +680,12 @@ addDriver() {
   local path="$2"
   local target="$3"
   local driver="$4"
+  local desc=""
   local folder=""
+
+  if [ -z "$id" ]; then
+    warn "no Windows version specified for \"$driver\" driver!" && return 0
+  fi
 
   case "${id,,}" in
     "win7x86"* ) folder="w7/x86" ;;
@@ -701,7 +706,8 @@ addDriver() {
   esac
 
   if [ -z "$folder" ]; then
-    warn "no \"$driver\" driver found for \"$DETECTED\" !" && return 0
+    desc=$(printVersion "$id" "$id")
+    warn "no \"$driver\" driver available for \"$desc\" !" && return 0
   fi
 
   [ ! -d "$path/$driver/$folder" ] && return 0
@@ -733,6 +739,11 @@ addDrivers() {
 
   local msg="Adding drivers to image..."
   info "$msg" && html "$msg"
+
+  if [ -z "$version" ]; then
+    version="win11x64"
+    warn "Windows version unknown, falling back to Windows 11 drivers..."
+  fi
 
   if ! bsdtar -xf /drivers.txz -C "$drivers"; then
     error "Failed to extract drivers from archive!" && return 1
