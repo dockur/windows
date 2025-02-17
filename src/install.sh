@@ -734,16 +734,16 @@ addDrivers() {
   local version="$5"
   local drivers="$tmp/drivers"
 
-  if [ -z "$version" ]; then
-    version="win11x64"
-    warn "Windows version unknown, falling back to Windows 11 drivers..."
-  fi
-
   rm -rf "$drivers"
   mkdir -p "$drivers"
 
   local msg="Adding drivers to image..."
   info "$msg" && html "$msg"
+
+  if [ -z "$version" ]; then
+    version="win11x64"
+    warn "Windows version unknown, falling back to Windows 11 drivers..."
+  fi
 
   if ! bsdtar -xf /drivers.txz -C "$drivers"; then
     error "Failed to extract drivers from archive!" && return 1
