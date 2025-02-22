@@ -695,16 +695,16 @@ getMido() {
       sum="b56b911bf18a2ceaeb3904d87e7c770bdf92d3099599d61ac2497b91bf190b11"
       ;;
     "win11x64-enterprise-eval" )
-      size=6209064960
-      sum="c8dbc96b61d04c8b01faf6ce0794fdf33965c7b350eaa3eb1e6697019902945c"
+      size=4295096320
+      sum="dad633276073f14f3e0373ef7e787569e216d54942ce522b39451c8f2d38ad43"
       ;;
     "win11x64-enterprise-ltsc-eval" )
-      size=4428627968
-      sum="8abf91c9cd408368dc73aab3425d5e3c02dae74900742072eb5c750fc637c195"
+      size=5060020224
+      sum="2cee70bd183df42b92a2e0da08cc2bb7a2a9ce3a3841955a012c0f77aeb3cb29"
       ;;
     "win11x64-enterprise-iot-eval" )
-      size=4428627968
-      sum="8abf91c9cd408368dc73aab3425d5e3c02dae74900742072eb5c750fc637c195"
+      size=5060020224
+      sum="2cee70bd183df42b92a2e0da08cc2bb7a2a9ce3a3841955a012c0f77aeb3cb29"
       ;;
     "win10x64" )
       size=6140975104
