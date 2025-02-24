@@ -773,9 +773,9 @@ getLink1() {
 
   case "${id,,}" in
     "win11x64" | "win11x64-enterprise" | "win11x64-enterprise-eval" )
-      size=5946128384
-      sum="5bb1459034f50766ee480d895d751af73a4af30814240ae32ebc5633546a5af7"
-      url="11/en-us_windows_11_23h2_x64.iso"
+      size=5332989952
+      sum="aa1ad990f930d907b7a34ea897abbb0dfbe47552ca8acc146f92e40381839e05"
+      url="11/en-us_windows_11_24h2_x64.iso"
       ;;
     "win11x64-iot" | "win11x64-enterprise-iot-eval" )
       [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
