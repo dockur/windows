@@ -2,8 +2,19 @@ services:
   windows:
     image: dockurr/windows
     container_name: windows
+    privileged: true
+    healthcheck:
+      test: "[ -f /data/ready ] || exit 1"
+      interval: 60s
+      retries: 5
+      start_period: 300s
+      timeout: 2s
     environment:
       VERSION: "11"
+      USERNAME: "bill"
+      PASSWORD: "gates"
+      DEBUG: "y"
+      MANUAL: "n"
     devices:
       - /dev/kvm
       - /dev/net/tun
@@ -14,3 +25,7 @@ services:
       - 3389:3389/tcp
       - 3389:3389/udp
     stop_grace_period: 2m
+    volumes:
+      - ./scripts:/oem
+      - ./shared:/data
+      - ./custom.xml:/custom.xml
