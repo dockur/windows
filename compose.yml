@@ -7,7 +7,7 @@ services:
       test: "[ -f /data/ready ] || exit 1"
       interval: 60s
       retries: 5
-      start_period: 300s
+      start_period: 480s
       timeout: 2s
     environment:
       VERSION: "11"
@@ -29,3 +29,22 @@ services:
       - ./scripts:/oem
       - ./shared:/data
       - ./custom.xml:/custom.xml
+    networks:
+      vlan:
+        ipv4_address: 192.168.0.100
+      vlan-1:
+        ipv4_address: 192.168.1.100
+
+networks:
+  vlan:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.0.0/24
+  vlan-1:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.1.0/24
