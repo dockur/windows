@@ -1,6 +1,6 @@
 services:
   windows:
-    image: dockurr/windows
+    build: .
     container_name: windows
     privileged: true
     healthcheck:
