@@ -202,6 +202,10 @@ detectCustom() {
   local file base
   CUSTOM=""
 
+  if [ -d "/custom.iso" ]; then
+    error "The file /custom.iso has an invalid path!" && return 1
+  fi
+
   file=$(find / -maxdepth 1 -type f -iname custom.iso | head -n 1)
   [ ! -s "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso | head -n 1)
 
