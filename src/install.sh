@@ -491,6 +491,10 @@ setXML() {
 
   local file="/custom.xml"
 
+  if [ -d "$file" ]; then
+    warn "The file $file has an invalid path!"
+  fi
+
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="$STORAGE/custom.xml"
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/custom.xml"
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="$1"
