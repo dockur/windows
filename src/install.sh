@@ -200,10 +200,16 @@ abortInstall() {
 detectCustom() {
 
   local file base
+  local fname="custom.iso"
+
   CUSTOM=""
 
-  file=$(find / -maxdepth 1 -type f -iname custom.iso | head -n 1)
-  [ ! -s "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname custom.iso | head -n 1)
+  if [ -d "/$fname" ]; then
+    error "The file /$fname has an invalid path!" && return 1
+  fi
+
+  file=$(find / -maxdepth 1 -type f -iname "$fname" | head -n 1)
+  [ ! -s "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$fname" | head -n 1)
 
   if [ ! -s "$file" ] && [[ "${VERSION,,}" != "http"* ]]; then
     base=$(basename "$VERSION")
@@ -486,6 +492,10 @@ detectLanguage() {
 setXML() {
 
   local file="/custom.xml"
+
+  if [ -d "$file" ]; then
+    warn "The file $file has an invalid path!"
+  fi
 
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="$STORAGE/custom.xml"
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/custom.xml"
