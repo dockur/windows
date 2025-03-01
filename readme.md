@@ -176,7 +176,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
     - /home/user/example.iso:/custom.iso
   ```
 
-  Replace the example path `/home/user/example.iso` with the filename of your desired ISO file, the value of `VERSION` will be ignored in this case.
+  Replace the example path `/home/user/example.iso` with the filename of your desired ISO file. The value of `VERSION` will be ignored in this case.
 
 ### How do I run a script after installation?
 
@@ -298,7 +298,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   After configuring the container for [macvlan](#how-do-i-assign-an-individual-ip-address-to-the-container), it is possible for Windows to become part of your home network by requesting an IP from your router, just like a real PC.
 
-  To enable this mode, add the following lines to your compose file:
+  To enable this mode, in which the container and Windows will have separate IP addresses, add the following lines to your compose file:
 
   ```yaml
   environment:
@@ -308,9 +308,6 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   device_cgroup_rules:
     - 'c *:* rwm'
   ```
-
-> [!NOTE]  
-> In this mode, the container and Windows will each have their own separate IPs.
 
 ### How do I add multiple disks?
 
@@ -348,8 +345,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
     - /dev/bus/usb
   ```
 
-> [!IMPORTANT]
-> If the device is a USB disk drive, please wait until after the installation is completed before connecting it. Otherwise the installation may fail, as the order of the disks can get rearranged.
+  If the device is a USB disk drive, please wait until after the installation is fully completed before connecting it. Otherwise the installation may fail, as the order of the disks can get rearranged.
 
 ### How do I verify if my system supports KVM?
 
