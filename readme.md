@@ -214,9 +214,9 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I configure the username and password?
 
-  By default, a user called `Docker` is created during the installation, with an empty password.
+  By default, a user called `Docker` (with an empty password) is created during installation.
 
-  If you want to use different credentials, you can change them in your compose file:
+  If you want to use different credentials, you can configure them (only BEFORE installation) in your compose file:
 
   ```yaml
   environment:
@@ -226,7 +226,9 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I select the Windows language?
 
-  By default, the English version of Windows will be downloaded. But you can add the `LANGUAGE` environment variable to your compose file, in order to specify an alternative language:
+  By default, the English version of Windows will be downloaded.
+  
+  But before installation you can add the `LANGUAGE` environment variable to your compose file, in order to specify an alternative language:
 
   ```yaml
   environment:
@@ -237,17 +239,13 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I select the keyboard layout?
 
-  If you want to use a keyboard layout or locale that is not the default for your selected language, you can add the `KEYBOARD` and `REGION` variables with a culture code, like this:
+  If you want to use a keyboard layout or locale that is not the default for your selected language, before installation you can add  `KEYBOARD` and `REGION` variables like this:
 
   ```yaml
   environment:
     REGION: "en-US"
     KEYBOARD: "en-US"
   ```
-
-> [!NOTE]  
->  Changing these values will have no effect after the installation has been performed already. Use the control panel inside Windows in that case.
->
 
 ### How do I connect using RDP?
 
