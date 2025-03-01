@@ -146,7 +146,9 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I share files with the host?
 
-  Open 'File Explorer' and click on the 'Network' section, you will see a computer called `host.lan`. Double-click it and it will show a folder called `Data`, which can be bound to any folder on your host via the compose file:
+  Open 'File Explorer' and click on the 'Network' section, you will see a computer called `host.lan`.
+  
+  Double-click it and it will show a folder called `Data`, which can be bound to any folder on your host via the compose file:
 
   ```yaml
   volumes:
@@ -160,7 +162,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I install a custom image?
 
-  In order to download an unsupported ISO image that is not selectable from the list above, specify the URL of that ISO in the `VERSION` environment variable, for example:
+  In order to download an unsupported ISO image, specify its URL in the `VERSION` environment variable:
   
   ```yaml
   environment:
