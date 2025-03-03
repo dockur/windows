@@ -99,6 +99,10 @@ for dir in "${dirs[@]}"; do
   addShare "$dir" "$dir_name" "Shared $dir_name" || error "Failed to create shared folder for $dir!"
 done
 
+# Fix Samba permissions
+[ -d /run/samba/msg.lock ] && chmod -R 0755 /run/samba/msg.lock
+[ -d /var/log/samba/cores ] && chmod -R 0700 /var/log/samba/cores
+
 if ! smbd; then
   error "Samba daemon failed to start!"
   smbd -i --debug-stdout || true
