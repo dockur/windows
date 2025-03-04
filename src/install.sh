@@ -1012,40 +1012,6 @@ bootWindows() {
     return 0
   fi
 
-  # Migrations
-
-  [[ "${PLATFORM,,}" != "x64" ]] && return 0
-
-  if [ -f "$STORAGE/windows.old" ]; then
-    MACHINE=$(<"$STORAGE/windows.old")
-    [ -z "$MACHINE" ] && MACHINE="q35"
-    BOOT_MODE="windows_legacy"
-    echo "$BOOT_MODE" > "$STORAGE/windows.mode"
-    return 0
-  fi
-
-  local creation="1.10"
-  local minimal="2.14"
-
-  if [ -f "$STORAGE/windows.ver" ]; then
-    creation=$(<"$STORAGE/windows.ver")
-    [[ "${creation}" != *"."* ]] && creation="$minimal"
-  fi
-
-  # Force secure boot on installs created prior to v2.14
-  if (( $(echo "$creation < $minimal" | bc -l) )); then
-    if [[ "${BOOT_MODE,,}" == "windows" ]]; then
-      BOOT_MODE="windows_secure"
-      echo "$BOOT_MODE" > "$STORAGE/windows.mode"
-      if [ -f "$STORAGE/windows.rom" ] && [ ! -f "$STORAGE/$BOOT_MODE.rom" ]; then
-        mv -f "$STORAGE/windows.rom" "$STORAGE/$BOOT_MODE.rom"
-      fi
-      if [ -f "$STORAGE/windows.vars" ] && [ ! -f "$STORAGE/$BOOT_MODE.vars" ]; then
-        mv -f "$STORAGE/windows.vars" "$STORAGE/$BOOT_MODE.vars"
-      fi
-    fi
-  fi
-
   return 0
 }
 
