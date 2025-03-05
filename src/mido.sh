@@ -348,12 +348,7 @@ getWindows() {
     return 1
   fi
 
-  if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
-    MIDO_URL=""
-    return 1
-  fi
-  
-  MIDO_URL=$(getIso "$version")
+  MIDO_URL=$(getMido "$version" "$lang" "")
   [ -z "$MIDO_URL" ] && return 1
 
   return 0
