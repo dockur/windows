@@ -476,7 +476,9 @@ verifyFile() {
   local check="$4"
 
   if [ -n "$size" ] && [[ "$total" != "$size" ]] && [[ "$size" != "0" ]]; then
-    warn "The downloaded file has an unexpected size: $total bytes, while expected value was: $size bytes. Please report this at $SUPPORT/issues"
+    if [[ "$VERIFY" == [Yy1]* ]] || [[ "$DEBUG" == [Yy1]* ]]; then
+      warn "The downloaded file has a different size ( $total bytes) than expected ( $size bytes). Please report this at $SUPPORT/issues"
+    fi
   fi
 
   local hash=""
@@ -499,7 +501,7 @@ verifyFile() {
     info "Succesfully verified ISO!" && return 0
   fi
 
-  error "The downloaded file has an invalid $algo checksum: $hash , while expected value was: $check. Please report this at $SUPPORT/issues"
+  error "The downloaded file has an unknown $algo checksum: $hash , as the expected value was: $check. Please report this at $SUPPORT/issues"
   return 1
 }
 
@@ -558,7 +560,7 @@ downloadFile() {
   msg="Failed to download $url"
   (( rc == 3 )) && error "$msg , cannot write file (disk full?)" && return 1
   (( rc == 4 )) && error "$msg , network failure!" && return 1
-  (( rc == 8 )) && error "$msg , server issued an error response!" && return 1
+  (( rc == 8 )) && error "$msg , server issued an error response! Please report this at $SUPPORT/issues." && return 1
 
   error "$msg , reason: $rc"
   return 1
