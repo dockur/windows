@@ -669,7 +669,7 @@ switchEdition() {
     "win81${PLATFORM,,}-enterprise-eval" )
       DETECTED="win81${PLATFORM,,}-enterprise"
       ;;
-    "win7${PLATFORM,,}-enterprise-eval" )
+    "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise-eval" )
       DETECTED="win7${PLATFORM,,}-enterprise"
       ;;
     "win2025-eval" ) DETECTED="win2025" ;;
