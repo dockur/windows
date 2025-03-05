@@ -702,6 +702,7 @@ getMido() {
     "win11x64-enterprise-eval" )
       size=4295096320
       sum="dad633276073f14f3e0373ef7e787569e216d54942ce522b39451c8f2d38ad43"
+      url="https://software-static.download.prss.microsoft.com/dbazure/988969d5-f34g-4e03-ac9d-1f9786c66751/22621.525.220925-0207.ni_release_svc_refresh_CLIENTENTERPRISEEVAL_OEMRET_x64FRE_en-us.iso"
       ;;
     "win11x64-enterprise-iot-eval" | "win11x64-enterprise-ltsc-eval" )
       size=5060020224
