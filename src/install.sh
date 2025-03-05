@@ -1006,9 +1006,10 @@ bootWindows() {
 
   if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then
     BOOT_MODE=$(<"$STORAGE/windows.mode")
-    if [ -s "$STORAGE/windows.old" ] && [ -f "$STORAGE/windows.old" ]; then
-      [[ "${PLATFORM,,}" == "x64" ]] && MACHINE=$(<"$STORAGE/windows.old")
-    fi
+  fi
+
+  if [ -s "$STORAGE/windows.old" ] && [ -f "$STORAGE/windows.old" ]; then
+    [[ "${PLATFORM,,}" == "x64" ]] && MACHINE=$(<"$STORAGE/windows.old")
   fi
 
   return 0
