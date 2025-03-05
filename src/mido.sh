@@ -343,11 +343,6 @@ getWindows() {
     * ) error "Invalid VERSION specified, value \"$version\" is not recognized!" ;;
   esac
 
-  if [[ "${PLATFORM,,}" != "x64" ]]; then
-    MIDO_URL=""
-    return 1
-  fi
-
   MIDO_URL=$(getMido "$version" "$lang" "")
   [ -z "$MIDO_URL" ] && return 1
 
