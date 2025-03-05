@@ -310,7 +310,7 @@ getWindows() {
   info "$msg" && html "$msg"
 
   case "${version,,}" in
-    "win11${PLATFORM,,}-enterprise-iot"* | "win11${PLATFORM,,}-enterprise-ltsc"* )
+    "win2008r2" | "win81${PLATFORM,,}-enterprise"* | "win11${PLATFORM,,}-enterprise-iot"* | "win11${PLATFORM,,}-enterprise-ltsc"* )
       if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
         error "No download in the $language language available for $edition!"
         MIDO_URL="" && return 1
@@ -338,7 +338,54 @@ getWindows() {
     "win2025-eval" | "win2022-eval" | "win2019-eval" | "win2016-eval" | "win2012r2-eval" )
       download_windows_eval "$version" "$lang" "$edition" && return 0
       ;;
+    "win81${PLATFORM,,}-enterprise"* | "win2008r2" )
+      ;;
     * ) error "Invalid VERSION specified, value \"$version\" is not recognized!" ;;
+  esac
+
+  if [[ "${PLATFORM,,}" != "x64" ]]; then
+    MIDO_URL=""
+    return 1
+  fi
+
+  if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
+    MIDO_URL=""
+    return 1
+  fi
+
+  case "${version,,}" in
+    "win81${PLATFORM,,}-enterprise"* )
+      MIDO_URL="https://download.microsoft.com/download/B/9/9/B999286E-0A47-406D-8B3D-5B5AD7373A4A/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_ENTERPRISE_EVAL_EN-US-IR3_CENA_X64FREE_EN-US_DV9.ISO"
+      return 0
+      ;;
+    "win11${PLATFORM,,}-enterprise-iot"* | "win11${PLATFORM,,}-enterprise-ltsc"* )
+      MIDO_URL="https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.1.240331-1435.ge_release_CLIENT_IOT_LTSC_EVAL_x64FRE_en-us.iso"
+      return 0
+      ;;
+    "win2025-eval" )
+      MIDO_URL="https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.1.240331-1435.ge_release_SERVER_EVAL_x64FRE_en-us.iso"
+      return 0
+      ;;
+    "win2022-eval" )
+      MIDO_URL="https://software-static.download.prss.microsoft.com/sg/download/888969d5-f34g-4e03-ac9d-1f9786c66749/SERVER_EVAL_x64FRE_en-us.iso"
+      return 0
+      ;;
+    "win2019-eval" )
+      MIDO_URL="https://software-download.microsoft.com/download/pr/17763.737.190906-2324.rs5_release_svc_refresh_SERVER_EVAL_x64FRE_en-us_1.iso"
+      return 0
+      ;;
+    "win2016-eval" )
+      MIDO_URL="https://software-download.microsoft.com/download/pr/Windows_Server_2016_Datacenter_EVAL_en-us_14393_refresh.ISO"
+      return 0
+      ;;
+    "win2012r2-eval" )
+      MIDO_URL="https://download.microsoft.com/download/6/2/A/62A76ABB-9990-4EFC-A4FE-C7D698DAEB96/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_SERVER_EVAL_EN-US-IR3_SSS_X64FREE_EN-US_DV9.ISO"
+      return 0
+      ;;
+    "win2008r2" )
+      MIDO_URL="https://download.microsoft.com/download/4/1/D/41DEA7E0-B30D-4012-A1E3-F24DC03BA1BB/7601.17514.101119-1850_x64fre_server_eval_en-us-GRMSXEVAL_EN_DVD.iso"
+      return 0
+      ;;
   esac
 
   MIDO_URL=""
