@@ -63,7 +63,7 @@ parseVersion() {
       ;;
     "7" | "7e" | "win7" | "win7e" | "windows7" | "windows 7" )
       VERSION="win7x64"
-      [ -z "$DETECTED" ] && DETECTED="win7x64-enterprise"
+      [ -z "$DETECTED" ] && DETECTED="win7x64-enterprise-eval"
       ;;
     "7u" | "win7u" | "windows7u" | "windows 7u" )
       VERSION="win7x64-ultimate"
@@ -624,6 +624,7 @@ getVersion() {
           *" home"* ) id="$id-home" ;;
           *" starter"* ) id="$id-starter" ;;
           *" ultimate"* ) id="$id-ultimate" ;;
+          *" enterprise evaluation"* ) id="$id-enterprise-eval" ;;
           *" enterprise"* ) id="$id-enterprise" ;;
         esac
       ;;
@@ -668,6 +669,9 @@ switchEdition() {
     "win81${PLATFORM,,}-enterprise-eval" )
       DETECTED="win81${PLATFORM,,}-enterprise"
       ;;
+    "win7${PLATFORM,,}-enterprise-eval" )
+      DETECTED="win7${PLATFORM,,}-enterprise"
+      ;;
     "win2025-eval" ) DETECTED="win2025" ;;
     "win2022-eval" ) DETECTED="win2022" ;;
     "win2019-eval" ) DETECTED="win2019" ;;
@@ -676,6 +680,45 @@ switchEdition() {
     "win2008r2-eval" ) DETECTED="win2008r2" ;;
   esac
 
+  return 0
+}
+
+getIso() {
+
+  local id="$1"
+  local url=""
+
+  case "${id,,}" in
+    "win7${PLATFORM,,}-enterprise"* )
+      url="http://care.dlservice.microsoft.com/dl/download/evalx/win7/x64/EN/7600.16385.090713-1255_x64fre_enterprise_en-us_EVAL_Eval_Enterprise-GRMCENXEVAL_EN_DVD.iso"
+      ;;
+    "win81${PLATFORM,,}-enterprise"* )
+      url="https://download.microsoft.com/download/B/9/9/B999286E-0A47-406D-8B3D-5B5AD7373A4A/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_ENTERPRISE_EVAL_EN-US-IR3_CENA_X64FREE_EN-US_DV9.ISO"
+      ;;
+    "win11${PLATFORM,,}-enterprise-iot"* | "win11${PLATFORM,,}-enterprise-ltsc"* )
+      url="https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.1.240331-1435.ge_release_CLIENT_IOT_LTSC_EVAL_x64FRE_en-us.iso"
+      ;;
+    "win2025-eval" )
+      url="https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.1.240331-1435.ge_release_SERVER_EVAL_x64FRE_en-us.iso"
+      ;;
+    "win2022-eval" )
+      url="https://software-static.download.prss.microsoft.com/sg/download/888969d5-f34g-4e03-ac9d-1f9786c66749/SERVER_EVAL_x64FRE_en-us.iso"
+      ;;
+    "win2019-eval" )
+      url="https://software-download.microsoft.com/download/pr/17763.737.190906-2324.rs5_release_svc_refresh_SERVER_EVAL_x64FRE_en-us_1.iso"
+      ;;
+    "win2016-eval" )
+      url="https://software-download.microsoft.com/download/pr/Windows_Server_2016_Datacenter_EVAL_en-us_14393_refresh.ISO"
+      ;;
+    "win2012r2-eval" )
+      url="https://download.microsoft.com/download/6/2/A/62A76ABB-9990-4EFC-A4FE-C7D698DAEB96/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_SERVER_EVAL_EN-US-IR3_SSS_X64FREE_EN-US_DV9.ISO"
+      ;;
+    "win2008r2" )
+      url="https://download.microsoft.com/download/4/1/D/41DEA7E0-B30D-4012-A1E3-F24DC03BA1BB/7601.17514.101119-1850_x64fre_server_eval_en-us-GRMSXEVAL_EN_DVD.iso"
+      ;;
+  esac
+
+  echo "$url"
   return 0
 }
 
@@ -719,6 +762,10 @@ getMido() {
       sum="e4ab2e3535be5748252a8d5d57539a6e59be8d6726345ee10e7afd2cb89fefb5"
       ;;
     "win81x64-enterprise-eval" )
+      size=3961473024
+      sum="2dedd44c45646c74efc5a028f65336027e14a56f76686a4631cf94ffe37c72f2"
+      ;;
+    "win7x64-enterprise-eval" )
       size=3961473024
       sum="2dedd44c45646c74efc5a028f65336027e14a56f76686a4631cf94ffe37c72f2"
       ;;
@@ -844,7 +891,7 @@ getLink1() {
       sum="dfd9890881b7e832a927c38310fb415b7ea62ac5a896671f2ce2a111998f0df8"
       url="server/2008r2/en_windows_server_2008_r2_with_sp1_x64_dvd_617601-018.iso"
       ;;
-    "win7x64" | "win7x64-enterprise" )
+    "win7x64" | "win7x64-enterprise" | "win7x64-enterprise-eval" )
       size=3182604288
       sum="ee69f3e9b86ff973f632db8e01700c5724ef78420b175d25bae6ead90f6805a7"
       url="7/en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.iso"
@@ -928,7 +975,7 @@ getLink2() {
       sum="dfd9890881b7e832a927c38310fb415b7ea62ac5a896671f2ce2a111998f0df8"
       url="Windows%20Server%202008%20R2/en_windows_server_2008_r2_with_sp1_x64_dvd_617601.iso"
       ;;
-    "win7x64" | "win7x64-enterprise" )
+    "win7x64" | "win7x64-enterprise" | "win7x64-enterprise-eval" )
       size=3182604288
       sum="ee69f3e9b86ff973f632db8e01700c5724ef78420b175d25bae6ead90f6805a7"
       url="Windows%207/en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.iso"
