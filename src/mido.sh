@@ -476,7 +476,9 @@ verifyFile() {
   local check="$4"
 
   if [ -n "$size" ] && [[ "$total" != "$size" ]] && [[ "$size" != "0" ]]; then
-    warn "The downloaded file has a different size ( $total bytes) than expected ( $size bytes). Please report this at $SUPPORT/issues"
+    if [[ "$VERIFY" == [Yy1]* ]] || [[ "$DEBUG" == [Yy1]* ]]; then
+      warn "The downloaded file has a different size ( $total bytes) than expected ( $size bytes). Please report this at $SUPPORT/issues"
+    fi
   fi
 
   local hash=""
@@ -499,7 +501,7 @@ verifyFile() {
     info "Succesfully verified ISO!" && return 0
   fi
 
-  error "The downloaded file has an unknown $algo checksum: $hash , while expected value was: $check. Please report this at $SUPPORT/issues"
+  error "The downloaded file has an unknown $algo checksum: $hash , as the expected value was: $check. Please report this at $SUPPORT/issues"
   return 1
 }
 
