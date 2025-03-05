@@ -59,7 +59,7 @@ parseVersion() {
       VERSION="win81x64"
       ;;
     "8e" | "81e" | "8.1e" | "win8e" | "win81e" | "windows 8e" )
-      VERSION="win81x64-enterprise-eval"
+      VERSION="win81x64-enterprise"
       ;;
     "7" | "7e" | "win7" | "win7e" | "windows7" | "windows 7" )
       VERSION="win7x64"
@@ -665,9 +665,6 @@ switchEdition() {
     "win10${PLATFORM,,}-enterprise-eval" )
       DETECTED="win10${PLATFORM,,}-enterprise"
       ;;
-    "win81${PLATFORM,,}-enterprise-eval" )
-      DETECTED="win81${PLATFORM,,}-enterprise"
-      ;;
     "win2025-eval" ) DETECTED="win2025" ;;
     "win2022-eval" ) DETECTED="win2022" ;;
     "win2019-eval" ) DETECTED="win2019" ;;
@@ -718,10 +715,6 @@ getMido() {
       size=4898582528
       sum="e4ab2e3535be5748252a8d5d57539a6e59be8d6726345ee10e7afd2cb89fefb5"
       ;;
-    "win81x64-enterprise-eval" )
-      size=3961473024
-      sum="2dedd44c45646c74efc5a028f65336027e14a56f76686a4631cf94ffe37c72f2"
-      ;;
     "win2025-eval" )
       size=5307996160
       sum="16442d1c0509bcbb25b715b1b322a15fb3ab724a42da0f384b9406ca1c124ed4"
@@ -741,10 +734,6 @@ getMido() {
     "win2012r2-eval" )
       size=4542291968
       sum="6612b5b1f53e845aacdf96e974bb119a3d9b4dcb5b82e65804ab7e534dc7b4d5"
-      ;;
-    "win2008r2" )
-      size=3166840832
-      sum="30832ad76ccfa4ce48ccb936edefe02079d42fb1da32201bf9e3a880c8ed6312"
       ;;
   esac
 
