@@ -59,7 +59,7 @@ parseVersion() {
       VERSION="win81x64"
       ;;
     "8e" | "81e" | "8.1e" | "win8e" | "win81e" | "windows 8e" )
-      VERSION="win81x64-enterprise-eval"
+      VERSION="win81x64-enterprise"
       ;;
     "7" | "7e" | "win7" | "win7e" | "windows7" | "windows 7" )
       VERSION="win7x64"
@@ -664,9 +664,6 @@ switchEdition() {
       ;;
     "win10${PLATFORM,,}-enterprise-eval" )
       DETECTED="win10${PLATFORM,,}-enterprise"
-      ;;
-    "win81${PLATFORM,,}-enterprise-eval" )
-      DETECTED="win81${PLATFORM,,}-enterprise"
       ;;
     "win2025-eval" ) DETECTED="win2025" ;;
     "win2022-eval" ) DETECTED="win2022" ;;
