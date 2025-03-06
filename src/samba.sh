@@ -102,6 +102,7 @@ done
 # Fix Samba permissions
 [ -d /run/samba/msg.lock ] && chmod -R 0755 /run/samba/msg.lock
 [ -d /var/log/samba/cores ] && chmod -R 0700 /var/log/samba/cores
+[ -d /var/cache/samba/msg.lock ] && chmod -R 0755 /var/cache/samba/msg.lock
 
 if ! smbd; then
   error "Samba daemon failed to start!"
