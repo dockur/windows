@@ -45,6 +45,12 @@ spec:
           - containerPort: 3389
             name: rdp
             protocol: TCP
+          - containerPort: 3389
+            name: udp
+            protocol: UDP
+          - containerPort: 5900
+            name: vnc
+            protocol: TCP
         securityContext:
           capabilities:
             add:
@@ -85,6 +91,14 @@ spec:
       port: 3389
       protocol: TCP
       targetPort: 3389
+    - name: udp
+      port: 3389
+      protocol: UDP
+      targetPort: 3389
+    - name: vnc
+      port: 5900
+      protocol: TCP
+      targetPort: 5900
   selector:
     app: windows
   type: ClusterIP
