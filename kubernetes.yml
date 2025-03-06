@@ -10,68 +10,95 @@ spec:
     requests:
       storage: 64Gi
 ---
-apiVersion: v1
-kind: Pod
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: windows
   labels:
     name: windows
 spec:
-  containers:
-  - name: windows
-    image: dockurr/windows
-    env:
-    - name: VERSION
-      value: "11"
-    - name: RAM_SIZE
-      value: "4G"
-    - name: CPU_CORES
-      value: "2"
-    - name: DISK_SIZE
-      value: "64G"
-    ports:
-    - containerPort: 8006
-    - containerPort: 3389
-    - containerPort: 3389
-      protocol: UDP
-    securityContext:
-      capabilities:
-        add:
-        - NET_ADMIN
-      privileged: true
-    volumeMounts:
-    - mountPath: /storage
-      name: storage
-    - mountPath: /dev/kvm
-      name: dev-kvm
-    - mountPath: /dev/net/tun
-      name: dev-tun
-  terminationGracePeriodSeconds: 120
-  volumes:
-  - name: storage
-    persistentVolumeClaim:
-      claimName: windows-pvc
-  - hostPath:
-      path: /dev/kvm
-    name: dev-kvm
-  - hostPath:
-      path: /dev/net/tun
-      type: CharDevice
-    name: dev-tun
+  replicas: 1
+  selector:
+    matchLabels:
+      app: windows
+  template:
+    metadata:
+      labels:
+        app: windows
+    spec:
+      containers:
+      - name: windows
+        image: dockurr/windows
+        env:
+        - name: VERSION
+          value: "11"
+        - name: RAM_SIZE
+          value: "4G"
+        - name: CPU_CORES
+          value: "2"
+        - name: DISK_SIZE
+          value: "64G"
+        ports:
+          - containerPort: 8006
+            name: http
+            protocol: TCP
+          - containerPort: 3389
+            name: rdp
+            protocol: TCP
+          - containerPort: 3389
+            name: udp
+            protocol: UDP
+          - containerPort: 5900
+            name: vnc
+            protocol: TCP
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+          privileged: true
+        volumeMounts:
+        - mountPath: /storage
+          name: storage
+        - mountPath: /dev/kvm
+          name: dev-kvm
+        - mountPath: /dev/net/tun
+          name: dev-tun
+      terminationGracePeriodSeconds: 120
+      volumes:
+      - name: storage
+        persistentVolumeClaim:
+          claimName: windows-pvc
+      - hostPath:
+          path: /dev/kvm
+        name: dev-kvm
+      - hostPath:
+          path: /dev/net/tun
+          type: CharDevice
+        name: dev-tun
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: windows
 spec:
+  internalTrafficPolicy: Cluster
   ports:
-  - name: tcp-8006
-    port: 8006
-  - name: tcp-3389
-    port: 3389
-  - name: udp-3389
-    port: 3389
-    protocol: UDP
+    - name: http
+      port: 8006
+      protocol: TCP
+      targetPort: 8006
+    - name: rdp
+      port: 3389
+      protocol: TCP
+      targetPort: 3389
+    - name: udp
+      port: 3389
+      protocol: UDP
+      targetPort: 3389
+    - name: vnc
+      port: 5900
+      protocol: TCP
+      targetPort: 5900
   selector:
-    name: windows
-  type: NodePort
+    app: windows
+  type: ClusterIP
