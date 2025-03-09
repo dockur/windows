@@ -58,8 +58,8 @@ parseVersion() {
     "8" | "8p" | "81" | "81p" | "pro8" | "8.1" | "win8" | "win8p" | "win81" | "win81p" | "windows 8" )
       VERSION="win81x64"
       ;;
-    "8e" | "81e" | "8.1e" | "win8e" | "win81e" | "windows 8e" )
-      VERSION="win81x64-enterprise-eval"
+    "8e" | "81e" | "8.1e" | "win8e" | "win81e" | "windows 8e" | "win81lite"
+      VERSION="win81x86lite"
       ;;
     "7" | "7e" | "win7" | "win7e" | "windows7" | "windows 7" )
       VERSION="win7x64"
@@ -666,8 +666,8 @@ switchEdition() {
     "win10${PLATFORM,,}-enterprise-eval" )
       DETECTED="win10${PLATFORM,,}-enterprise"
       ;;
-    "win81${PLATFORM,,}-enterprise-eval" )
-      DETECTED="win81${PLATFORM,,}-enterprise"
+    "win81${PLATFORM,,}-lite" )
+      DETECTED="win81${PLATFORM,,}-lite"
       ;;
     "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise-eval" )
       DETECTED="win7${PLATFORM,,}-enterprise"
@@ -723,10 +723,10 @@ getMido() {
       sum="e4ab2e3535be5748252a8d5d57539a6e59be8d6726345ee10e7afd2cb89fefb5"
       url="https://software-download.microsoft.com/download/pr/19044.1288.211006-0501.21h2_release_svc_refresh_CLIENT_LTSC_EVAL_x64FRE_en-us.iso"
       ;;
-    "win81x64-enterprise-eval" )
-      size=3961473024
+    "win81x86lite" )
+      size=793
       sum="2dedd44c45646c74efc5a028f65336027e14a56f76686a4631cf94ffe37c72f2"
-      url="https://download.microsoft.com/download/B/9/9/B999286E-0A47-406D-8B3D-5B5AD7373A4A/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_ENTERPRISE_EVAL_EN-US-IR3_CENA_X64FREE_EN-US_DV9.ISO"
+      url="https://archive.org/download/win-8.1-pro-lite/WIN%208.1%20PRO%20LITE.iso"
       ;;
     "win7x64" | "win7x64-enterprise-eval" )
       size=3121248256
