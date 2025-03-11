@@ -162,6 +162,11 @@
           <Path>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\CurrentVersion\NetworkList\Signatures\FirstNetwork" /v Category /t REG_DWORD /d 1 /f</Path>
           <Description>Set Network Location to Home</Description>
         </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>2</Order>
+          <Path>pnputil -i -a C:\Windows\Drivers\viogpudo\viogpudo.inf</Path>
+          <Description>Install VirtIO display driver</Description>
+        </RunSynchronousCommand>
       </RunSynchronous>
     </component>
     <component name="Microsoft-Windows-ServerManager-SvrMgrNc" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
@@ -340,16 +345,11 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>21</Order>
-          <CommandLine>pnputil -i -a C:\Windows\Drivers\viogpudo\viogpudo.inf</CommandLine>
-          <Description>Install VirtIO display driver</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>22</Order>
           <CommandLine>cmd /C rd /q C:\Windows.old</CommandLine>
           <Description>Remove empty Windows.old folder</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>23</Order>
+          <Order>22</Order>
           <CommandLine>cmd /C if exist "C:\OEM\install.bat" start "Install" "cmd /C C:\OEM\install.bat"</CommandLine>
           <Description>Execute custom script from the OEM folder if exists</Description>
         </SynchronousCommand>
