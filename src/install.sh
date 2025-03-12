@@ -140,16 +140,16 @@ finishInstall() {
         echo "$MACHINE" > "$STORAGE/windows.old"
       fi
     else
-      # Enable secure boot + TPM on manual installs as Win11 requires
+      # Disable secure boot + TPM on manual installs as Win11 requires
       if [[ "$MANUAL" == [Yy1]* ]] || [[ "$aborted" == [Yy1]* ]]; then
         if [[ "${DETECTED,,}" == "win11"* ]]; then
-          BOOT_MODE="windows_secure"
+          BOOT_MODE="windows_legacy"
           echo "$BOOT_MODE" > "$STORAGE/windows.mode"
         fi
       fi
-      # Enable secure boot on multi-socket systems to workaround freeze
+      # Disable secure boot on multi-socket systems to workaround freeze
       if [ -n "$SOCKETS" ] && [[ "$SOCKETS" != "1" ]]; then
-        BOOT_MODE="windows_secure"
+        BOOT_MODE="windows_legacy"
         echo "$BOOT_MODE" > "$STORAGE/windows.mode"
       fi
     fi
