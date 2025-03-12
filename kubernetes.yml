@@ -32,10 +32,6 @@ spec:
         env:
         - name: VERSION
           value: "11"
-        - name: RAM_SIZE
-          value: "4G"
-        - name: CPU_CORES
-          value: "2"
         - name: DISK_SIZE
           value: "64G"
         ports:
