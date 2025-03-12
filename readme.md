@@ -44,6 +44,8 @@ services:
       - 8006:8006
       - 3389:3389/tcp
       - 3389:3389/udp
+    volumes:
+      - ./windows:/storage
     restart: always
     stop_grace_period: 2m
 ```
@@ -51,7 +53,7 @@ services:
 Via Docker CLI:
 
 ```bash
-docker run -it --rm -p 8006:8006 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN --stop-timeout 120 dockurr/windows
+docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -v ${PWD:-.}/windows:/storage --stop-timeout 120 dockurr/windows
 ```
 
 Via Kubernetes:
@@ -127,10 +129,10 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   ```yaml
   volumes:
-    - /var/win:/storage
+    - ./windows:/storage
   ```
 
-  Replace the example path `/var/win` with the desired storage folder.
+  Replace the example path `./windows` with the desired storage folder or named volume.
 
 ### How do I change the size of the disk?
 
@@ -152,10 +154,10 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   ```yaml
   volumes:
-    -  /home/user/example:/data
+    -  ./example:/data
   ```
 
-  The example folder `/home/user/example` will be available as ` \\host.lan\Data`.
+  The example folder `./example` will be available as ` \\host.lan\Data`.
   
 > [!TIP]
 > You can map this path to a drive letter in Windows, for easier access.
@@ -173,10 +175,10 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   
   ```yaml
   volumes:
-    - /home/user/example.iso:/custom.iso
+    - ./example.iso:/custom.iso
   ```
 
-  Replace the example path `/home/user/example.iso` with the filename of your desired ISO file. The value of `VERSION` will be ignored in this case.
+  Replace the example path `./example.iso` with the filename of your desired ISO file. The value of `VERSION` will be ignored in this case.
 
 ### How do I run a script after installation?
 
@@ -186,10 +188,10 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   ```yaml
   volumes:
-    -  /home/user/example:/oem
+    -  ./example:/oem
   ```
 
-  The example folder `/home/user/example` will be copied to `C:\OEM` and the containing `install.bat` will be executed during the last step of the automatic installation.
+  The example folder `./example` will be copied to `C:\OEM` and the containing `install.bat` will be executed during the last step of the automatic installation.
 
 ### How do I perform a manual installation?
 
@@ -318,8 +320,8 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
     DISK2_SIZE: "32G"
     DISK3_SIZE: "64G"
   volumes:
-    - /home/example:/storage2
-    - /mnt/data/example:/storage3
+    - ./example2:/storage2
+    - ./example3:/storage3
   ```
 
 ### How do I pass-through a disk?
