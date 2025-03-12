@@ -44,6 +44,8 @@ services:
       - 8006:8006
       - 3389:3389/tcp
       - 3389:3389/udp
+    volumes:
+      - ./windows:/storage
     restart: always
     stop_grace_period: 2m
 ```
@@ -51,7 +53,7 @@ services:
 Via Docker CLI:
 
 ```bash
-docker run -it --rm -p 8006:8006 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN --stop-timeout 120 dockurr/windows
+docker run -it --rm --name windows -p 8006:8006 -p 3389:3389 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -v ${PWD:-.}/windows:/storage --stop-timeout 120 dockurr/windows
 ```
 
 Via Kubernetes:
@@ -127,10 +129,10 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   ```yaml
   volumes:
-    - /var/win:/storage
+    - ./windows:/storage
   ```
 
-  Replace the example path `/var/win` with the desired storage folder.
+  Replace the example path `./windows` with the desired storage folder or named volume.
 
 ### How do I change the size of the disk?
 
