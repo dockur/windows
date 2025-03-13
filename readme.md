@@ -178,7 +178,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   By default, a user called `Docker` (with an empty password) is created during installation.
 
-  If you want to use different credentials, you can configure them (only BEFORE installation) in your compose file:
+  If you want to use different credentials, you can configure them in your compose file (only before installation):
 
   ```yaml
   environment:
@@ -201,13 +201,23 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I select the keyboard layout?
 
-  If you want to use a keyboard layout or locale that is not the default for your selected language, before installation you can add  `KEYBOARD` and `REGION` variables like this:
+  If you want to use a keyboard layout or locale that is not the default for your selected language, you can add  `KEYBOARD` and `REGION` variables like this (before installation):
 
   ```yaml
   environment:
     REGION: "en-US"
     KEYBOARD: "en-US"
   ```
+
+### How do I set the product key?
+
+  By default, an evaluation version of Windows will be installed, but if you have product key you can add a `KEY` variable like this (before installation):
+
+  ```yaml
+  environment:
+    KEY: "XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"
+  ```
+
 ### How do I install a custom image?
 
   In order to download an unsupported ISO image, specify its URL in the `VERSION` environment variable:
