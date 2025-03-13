@@ -1176,9 +1176,7 @@ prepareInstall() {
 
   local dir="$2"
   local desc="$3"
-  local arch="$4"
-  local key="$5"
-  local driver="$6"
+  local driver="$4"
   local drivers="/tmp/drivers"
 
   rm -rf "$drivers"
@@ -1197,7 +1195,8 @@ prepareInstall() {
     error "Failed to extract drivers!" && return 1
   fi
 
-  local target
+  local arch target
+  [ -d "$dir/AMD64" ] && arch="amd64" || arch="x86"
   [[ "${arch,,}" == "x86" ]] && target="$dir/I386" || target="$dir/AMD64"
 
   if [ ! -f "$drivers/viostor/$driver/$arch/viostor.sys" ]; then
@@ -1320,7 +1319,7 @@ prepareInstall() {
           echo "    FullName=\"$username\""
           echo "    ComputerName=\"*\""
           echo "    OrgName=\"Windows for Docker\""
-          echo "    ProductKey=$key"
+          echo "    ProductKey=$KEY"
           echo ""
           echo "[Identification]"
           echo "    JoinWorkgroup = WORKGROUP"
@@ -1471,22 +1470,18 @@ prepare2k3() {
   local iso="$1"
   local dir="$2"
   local desc="$3"
-  local driver="2k3"
-  local arch key
-
-  [ -d "$dir/AMD64" ] && arch="amd64" || arch="x86"
 
   if [[ "${arch,,}" == "x86" ]]; then
     # Windows Server 2003 Standard x86 generic key (no activation, trial-only)
     # This is not a pirated key, it comes from the official MS documentation.
-    key="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
+    [ -z "$KEY" ] && KEY="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
   else
     # Windows Server 2003 Standard x64 generic key (no activation, trial-only)
     # This is not a pirated key, it comes from the official MS documentation.
-    key="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
+    [ -z "$KEY" ] && KEY="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
   fi
 
-  prepareInstall "$iso" "$dir" "$desc" "$arch" "$key" "$driver" || return 1
+  prepareInstall "$iso" "$dir" "$desc" "2k3" || return 1
 
   return 0
 }
@@ -1496,22 +1491,18 @@ prepareXP() {
   local iso="$1"
   local dir="$2"
   local desc="$3"
-  local driver="xp"
-  local arch key
-
-  [ -d "$dir/AMD64" ] && arch="amd64" || arch="x86"
 
   if [[ "${arch,,}" == "x86" ]]; then
     # Windows XP Professional x86 generic key (no activation, trial-only)
     # This is not a pirated key, it comes from the official MS documentation.
-    key="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
+    [ -z "$KEY" ] && KEY="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
   else
     # Windows XP Professional x64 generic key (no activation, trial-only)
     # This is not a pirated key, it comes from the official MS documentation.
-    key="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
+    [ -z "$KEY" ] && KEY="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
   fi
 
-  prepareInstall "$iso" "$dir" "$desc" "$arch" "$key" "$driver" || return 1
+  prepareInstall "$iso" "$dir" "$desc" "xp" || return 1
 
   return 0
 }
