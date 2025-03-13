@@ -1282,6 +1282,24 @@ prepareInstall() {
   [ -n "$PASSWORD" ] && password="$PASSWORD"
   [ -n "$USERNAME" ] && username=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g')
 
+  if [[ "${driver,,}" == "xp" ]]; then
+    if [[ "${arch,,}" == "x86" ]]; then
+      # Windows XP Professional x86 generic key (no activation, trial-only)
+      [ -z "$KEY" ] && KEY="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
+    else
+      # Windows XP Professional x64 generic key (no activation, trial-only)
+      [ -z "$KEY" ] && KEY="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
+    fi
+  else
+    if [[ "${arch,,}" == "x86" ]]; then
+      # Windows Server 2003 Standard x86 generic key (no activation, trial-only)
+      [ -z "$KEY" ] && KEY="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
+    else
+      # Windows Server 2003 Standard x64 generic key (no activation, trial-only)
+      [ -z "$KEY" ] && KEY="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
+    fi
+  fi
+
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
   {       echo "[Data]"
@@ -1465,48 +1483,6 @@ prepareInstall() {
   return 0
 }
 
-prepare2k3() {
-
-  local iso="$1"
-  local dir="$2"
-  local desc="$3"
-
-  if [[ "${arch,,}" == "x86" ]]; then
-    # Windows Server 2003 Standard x86 generic key (no activation, trial-only)
-    # This is not a pirated key, it comes from the official MS documentation.
-    [ -z "$KEY" ] && KEY="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
-  else
-    # Windows Server 2003 Standard x64 generic key (no activation, trial-only)
-    # This is not a pirated key, it comes from the official MS documentation.
-    [ -z "$KEY" ] && KEY="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
-  fi
-
-  prepareInstall "$iso" "$dir" "$desc" "2k3" || return 1
-
-  return 0
-}
-
-prepareXP() {
-
-  local iso="$1"
-  local dir="$2"
-  local desc="$3"
-
-  if [[ "${arch,,}" == "x86" ]]; then
-    # Windows XP Professional x86 generic key (no activation, trial-only)
-    # This is not a pirated key, it comes from the official MS documentation.
-    [ -z "$KEY" ] && KEY="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
-  else
-    # Windows XP Professional x64 generic key (no activation, trial-only)
-    # This is not a pirated key, it comes from the official MS documentation.
-    [ -z "$KEY" ] && KEY="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
-  fi
-
-  prepareInstall "$iso" "$dir" "$desc" "xp" || return 1
-
-  return 0
-}
-
 prepareLegacy() {
 
   local iso="$1"
@@ -1593,11 +1569,11 @@ setMachine() {
     "win2k"* )
       ETFS="[BOOT]/Boot-NoEmul.img" ;;
     "winxp"* )
-      if ! prepareXP "$iso" "$dir" "$desc"; then
+      if ! prepareInstall "$iso" "$dir" "$desc" "xp"; then
         error "Failed to prepare $desc ISO!" && return 1
       fi ;;
     "win2003"* )
-      if ! prepare2k3 "$iso" "$dir" "$desc"; then
+      if ! prepareInstall "$iso" "$dir" "$desc" "2k3"; then
         error "Failed to prepare $desc ISO!" && return 1
       fi ;;
   esac
