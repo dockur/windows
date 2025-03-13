@@ -681,6 +681,11 @@ updateXML() {
     sed -i "s/SERVERSTANDARD<\/Value>/SERVER${EDITION^^}<\/Value>/g" "$asset"
   fi
 
+  if [ -n "$KEY" ]; then
+    sed -i '/<ProductKey>/,/<\/ProductKey>/d' "$asset"
+    sed -i "s/<\/UserData>/  <ProductKey>\n          <Key>${KEY}<\/Key>\n          <WillShowUI>OnError<\/WillShowUI>\n        <\/ProductKey>\n      <\/UserData>/g" "$asset"
+  fi
+
   return 0
 }
 
