@@ -659,6 +659,7 @@ getVersion() {
     "win2025"* | "win2022"* | "win2019"* | "win2016"* | "win2012"* | "win2008"* | "win2003"* )
        case "${name,,}" in
           *" evaluation"* ) id="$id-eval" ;;
+          *" hyper-v server"* ) id="$id-hv" ;;
         esac
       ;;
   esac
@@ -759,6 +760,11 @@ getMido() {
       size=5652088832
       sum="6dae072e7f78f4ccab74a45341de0d6e2d45c39be25f1f5920a2ab4f51d7bcbb"
       url="https://software-download.microsoft.com/download/pr/17763.737.190906-2324.rs5_release_svc_refresh_SERVER_EVAL_x64FRE_en-us_1.iso"
+     ;;
+    "win2019-hv" )
+      size=1
+      sum="xxx"
+      url="https://software-download.microsoft.com/download/pr/17763.557.190612-0019.rs5_release_svc_refresh_SERVERHYPERCORE_OEM_x64FRE_en-us.ISO"
      ;;
     "win2016-eval" )
       size=6972221440
@@ -1293,6 +1299,7 @@ prepareInstall() {
   [ -n "$PASSWORD" ] && password="$PASSWORD"
   [ -n "$USERNAME" ] && username=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g')
 
+  # These are not pirated keys, they come from the official MS documentation.
   if [[ "${driver,,}" == "xp" ]]; then
     if [[ "${arch,,}" == "x86" ]]; then
       # Windows XP Professional x86 generic key (no activation, trial-only)
