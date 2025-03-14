@@ -615,7 +615,7 @@ fromName() {
     *"server 2012"* ) id="win2012r2${add}" ;;
     *"server 2008"* ) id="win2008r2${add}" ;;
     *"server 2003"* ) id="win2003r2${add}" ;;
-    *"hyper-v server"* ) id="win2019${add}-hv" ;;
+    *"hyper-v server"* ) id="win2019${add}" ;;
   esac
 
   echo "$id"
