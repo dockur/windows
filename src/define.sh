@@ -102,6 +102,9 @@ parseVersion() {
     "16" | "2016" | "win16" | "win2016" | "windows2016" | "windows 2016" )
       VERSION="win2016-eval"
       ;;
+    "hv" | "hyperv" | "hyper v" | "hyper-v" | "19hv" | "2019hv" | "win2019hv")
+      VERSION="win2019-hv"
+      ;;
     "2012" | "2012r2" | "win2012" | "win2012r2" | "windows2012" | "windows 2012" )
       VERSION="win2012r2-eval"
       ;;
@@ -418,6 +421,7 @@ printVersion() {
     "win95"* ) desc="Windows 95" ;;
     "win2k"* ) desc="Windows 2000" ;;
     "winvista"* ) desc="Windows Vista" ;;
+    "win2019-hv"* ) desc="Hyper-V Server" ;;
     "win2003"* ) desc="Windows Server 2003" ;;
     "win2008"* ) desc="Windows Server 2008" ;;
     "win2012"* ) desc="Windows Server 2012" ;;
@@ -462,6 +466,9 @@ printEdition() {
     *"-education" )
       edition="Education"
       ;;
+    *"-hv" )
+      edition="2019"
+      ;;
     *"-iot" | *"-iot-eval" )
       edition="LTSC"
       ;;
@@ -483,11 +490,12 @@ printEdition() {
     "winvista"* )
       edition="Business"
       ;;
-    "win2025"* | "win2022"* | "win2019"* | "win2016"* )
-      edition="Standard"
-      ;;
-    "win2012"* | "win2008"* | "win2003"* )
-      edition="Standard"
+    "win2025"* | "win2022"* | "win2019"* | "win2016"* | "win2012"* | "win2008"* | "win2003"* )
+      case "${EDITION^^}" in
+        *"DATACENTER"* ) edition="Datacenter" ;;
+        "CORE" | "STANDARDCORE" ) edition="Core" ;;
+        * ) edition="Standard" ;;
+      esac
       ;;
   esac
 
@@ -550,6 +558,9 @@ fromFile() {
     "tiny10"* | "tiny_10"* )
       id="tiny10"
       ;;
+    *"_serverhypercore_"* )
+      id="win2019${add}-hv"
+      ;;
     *"server2025"* | *"server_2025"* )
       id="win2025${add}"
       ;;
@@ -605,6 +616,7 @@ fromName() {
     *"server 2012"* ) id="win2012r2${add}" ;;
     *"server 2008"* ) id="win2008r2${add}" ;;
     *"server 2003"* ) id="win2003r2${add}" ;;
+    *"hyper-v server"* ) id="win2019${add}" ;;
   esac
 
   echo "$id"
@@ -648,6 +660,7 @@ getVersion() {
     "win2025"* | "win2022"* | "win2019"* | "win2016"* | "win2012"* | "win2008"* | "win2003"* )
        case "${name,,}" in
           *" evaluation"* ) id="$id-eval" ;;
+          *"hyper-v server"* ) id="$id-hv" ;;
         esac
       ;;
   esac
@@ -748,6 +761,11 @@ getMido() {
       size=5652088832
       sum="6dae072e7f78f4ccab74a45341de0d6e2d45c39be25f1f5920a2ab4f51d7bcbb"
       url="https://software-download.microsoft.com/download/pr/17763.737.190906-2324.rs5_release_svc_refresh_SERVER_EVAL_x64FRE_en-us_1.iso"
+     ;;
+    "win2019-hv" )
+      size=3072712704
+      sum="48e9b944518e5bbc80876a9a7ff99716f386f404f4be48dca47e16a66ae7872c"
+      url="https://software-download.microsoft.com/download/pr/17763.557.190612-0019.rs5_release_svc_refresh_SERVERHYPERCORE_OEM_x64FRE_en-us.ISO"
      ;;
     "win2016-eval" )
       size=6972221440
@@ -1282,6 +1300,7 @@ prepareInstall() {
   [ -n "$PASSWORD" ] && password="$PASSWORD"
   [ -n "$USERNAME" ] && username=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g')
 
+  # These are not pirated keys, they come from the official MS documentation.
   if [[ "${driver,,}" == "xp" ]]; then
     if [[ "${arch,,}" == "x86" ]]; then
       # Windows XP Professional x86 generic key (no activation, trial-only)
