@@ -250,12 +250,12 @@ extractESD() {
   mkdir -p "$dir"
 
   size=16106127360
-  size_gb=$(( (size + 1073741823)/1073741824 ))
+  size_gb=$(formatBytes "$size")
   space=$(df --output=avail -B 1 "$dir" | tail -n 1)
-  space_gb=$(( (space + 1073741823)/1073741824 ))
+  space_gb=$(formatBytes "$space")
 
   if (( size > space )); then
-    error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB." && return 1
+    error "Not enough free space in $STORAGE, have $space_gb available but need at least $size_gb." && return 1
   fi
 
   local esdImageCount
@@ -341,16 +341,16 @@ extractImage() {
   mkdir -p "$dir"
 
   size=$(stat -c%s "$iso")
-  size_gb=$(( (size + 1073741823)/1073741824 ))
+  size_gb=$(formatBytes "$size")
   space=$(df --output=avail -B 1 "$dir" | tail -n 1)
-  space_gb=$(( (space + 1073741823)/1073741824 ))
+  space_gb=$(formatBytes "$space")
 
   if ((size<100000000)); then
     error "Invalid ISO file: Size is smaller than 100 MB" && return 1
   fi
 
   if (( size > space )); then
-    error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB." && return 1
+    error "Not enough free space in $STORAGE, have $space_gb available but need at least $size_gb." && return 1
   fi
 
   rm -rf "$dir"
@@ -953,12 +953,12 @@ buildImage() {
   fi
 
   size=$(du -h -b --max-depth=0 "$dir" | cut -f1)
-  size_gb=$(( (size + 1073741823)/1073741824 ))
+  size_gb=$(formatBytes "$size")
   space=$(df --output=avail -B 1 "$TMP" | tail -n 1)
-  space_gb=$(( (space + 1073741823)/1073741824 ))
+  space_gb=$(formatBytes "$space")
 
   if (( size > space )); then
-    error "Not enough free space in $STORAGE, have $space_gb GB available but need at least $size_gb GB." && return 1
+    error "Not enough free space in $STORAGE, have $space_gb available but need at least $size_gb." && return 1
   fi
 
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
