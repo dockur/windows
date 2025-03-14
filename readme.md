@@ -211,11 +211,20 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I set the product key?
 
-  By default, an evaluation version of Windows will be installed, but if you have product key you can add a `KEY` variable like this (before installation):
+  By default, an evaluation version of Windows will be installed, but if you have a product key you can add a `KEY` variable like this (before installation):
 
   ```yaml
   environment:
-    KEY: "XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"
+    KEY: "xxxxx-xxxxx-xxxxx-xxxxx-xxxxx"
+  ```
+
+### How do I select the edition?
+
+  Windows Server offers a minimalistic Core edition without a GUI. To select those non-standard editions, you can add a `EDITION` variable like this (before installation):
+
+  ```yaml
+  environment:
+    EDITION: "core"
   ```
 
 ### How do I install a custom image?
