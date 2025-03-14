@@ -558,7 +558,7 @@ fromFile() {
       id="tiny10"
       ;;
     *"_serverhypercore_"* )
-      id="win2019${add}"
+      id="win2019${add}-hv"
       ;;
     *"server2025"* | *"server_2025"* )
       id="win2025${add}"
