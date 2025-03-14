@@ -421,6 +421,7 @@ printVersion() {
     "win95"* ) desc="Windows 95" ;;
     "win2k"* ) desc="Windows 2000" ;;
     "winvista"* ) desc="Windows Vista" ;;
+    "win2019-hv"* ) desc="Hyper-V Server" ;;
     "win2003"* ) desc="Windows Server 2003" ;;
     "win2008"* ) desc="Windows Server 2008" ;;
     "win2012"* ) desc="Windows Server 2012" ;;
@@ -466,7 +467,7 @@ printEdition() {
       edition="Education"
       ;;
     *"-hv" )
-      edition="Hyper-V"
+      edition="2019"
       ;;
     *"-iot" | *"-iot-eval" )
       edition="LTSC"
