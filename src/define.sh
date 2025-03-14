@@ -615,7 +615,7 @@ fromName() {
     *"server 2012"* ) id="win2012r2${add}" ;;
     *"server 2008"* ) id="win2008r2${add}" ;;
     *"server 2003"* ) id="win2003r2${add}" ;;
-    *"hyper-v server"* ) id="win2019${add}" ;;
+    *"hyper-v server"* ) id="win2019${add}-hv" ;;
   esac
 
   echo "$id"
@@ -659,7 +659,7 @@ getVersion() {
     "win2025"* | "win2022"* | "win2019"* | "win2016"* | "win2012"* | "win2008"* | "win2003"* )
        case "${name,,}" in
           *" evaluation"* ) id="$id-eval" ;;
-          *" hyper-v server"* ) id="$id-hv" ;;
+          *"hyper-v server"* ) id="$id-hv" ;;
         esac
       ;;
   esac
