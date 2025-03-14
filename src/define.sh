@@ -102,6 +102,9 @@ parseVersion() {
     "16" | "2016" | "win16" | "win2016" | "windows2016" | "windows 2016" )
       VERSION="win2016-eval"
       ;;
+    "hv" | "hyperv" | "hyper v" | "hyper-v" | "19hv" | "2019hv" | "win2019hv")
+      VERSION="win2019-hv"
+      ;;
     "2012" | "2012r2" | "win2012" | "win2012r2" | "windows2012" | "windows 2012" )
       VERSION="win2012r2-eval"
       ;;
@@ -462,6 +465,9 @@ printEdition() {
     *"-education" )
       edition="Education"
       ;;
+    *"-hv" )
+      edition="Hyper-V"
+      ;;
     *"-iot" | *"-iot-eval" )
       edition="LTSC"
       ;;
@@ -483,11 +489,12 @@ printEdition() {
     "winvista"* )
       edition="Business"
       ;;
-    "win2025"* | "win2022"* | "win2019"* | "win2016"* )
-      edition="Standard"
-      ;;
-    "win2012"* | "win2008"* | "win2003"* )
-      edition="Standard"
+    "win2025"* | "win2022"* | "win2019"* | "win2016"* | "win2012"* | "win2008"* | "win2003"* )
+      case "${EDITION^^}" in
+        *"DATACENTER"* ) edition="Datacenter" ;;
+        "CORE" | "STANDARDCORE" ) edition="Core" ;;
+        * ) edition="Standard" ;;
+      esac
       ;;
   esac
 
@@ -549,6 +556,9 @@ fromFile() {
       ;;
     "tiny10"* | "tiny_10"* )
       id="tiny10"
+      ;;
+    *"_serverhypercore_"* )
+      id="win2019${add}"
       ;;
     *"server2025"* | *"server_2025"* )
       id="win2025${add}"
