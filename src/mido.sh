@@ -516,14 +516,15 @@ downloadFile() {
   local size="$4"
   local lang="$5"
   local desc="$6"
-  local rc total progress domain dots space folder
+  local rc total total_gb progress domain dots space folder
 
   rm -f "$iso"
 
   if [ -n "$size" ] && [[ "$size" != "0" ]]; then
     folder=$(dirname -- "$iso")
     space=$(df --output=avail -B 1 "$folder" | tail -n 1)
-    (( size > space )) && error "Not enough free space left to download file!" && return 1
+    total_gb=$(formatBytes "$space")
+    (( size > space )) && error "Not enough free space to download file, only $total_gb left!" && return 1
   fi
 
   # Check if running with interactive TTY or redirected to docker log
@@ -553,8 +554,9 @@ downloadFile() {
 
   if (( rc == 0 )) && [ -f "$iso" ]; then
     total=$(stat -c%s "$iso")
+    total_gb=$(formatBytes "$total")
     if [ "$total" -lt 100000000 ]; then
-      error "Invalid download link: $url (is only $total bytes?). Please report this at $SUPPORT/issues." && return 1
+      error "Invalid download link: $url (is only $total_gb ?). Please report this at $SUPPORT/issues." && return 1
     fi
     verifyFile "$iso" "$size" "$total" "$sum" || return 1
     html "Download finished successfully..." && return 0
