@@ -12,7 +12,6 @@ RUN set -eu && \
     apt-get --no-install-recommends -y install \
         bc \
         jq \
-        curl \
         7zip \
         wsdd \
         samba \
