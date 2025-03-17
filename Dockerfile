@@ -12,7 +12,6 @@ RUN set -eu && \
     apt-get --no-install-recommends -y install \
         bc \
         jq \
-        curl \
         7zip \
         wsdd \
         samba \
@@ -38,7 +37,7 @@ ARG VERSION_ARG="0.00"
 RUN echo "$VERSION_ARG" > /run/version
 
 VOLUME /storage
-EXPOSE 8006 3389
+EXPOSE 80 3389
 
 ENV VERSION="11"
 ENV RAM_SIZE="4G"
