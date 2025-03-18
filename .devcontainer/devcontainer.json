@@ -1,7 +1,6 @@
 {
   "dockerComposeFile": "../compose.yml",
   "service": "windows",
-  "workspaceFolder": "/app",
   "customizations": {
     "vscode": {
       "settings": {
