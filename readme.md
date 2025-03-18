@@ -62,7 +62,7 @@ Via Kubernetes:
 kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/master/kubernetes.yml
 ```
 
-Via Google Codespaces:
+Via Github Codespaces:
 
 [`Click here to launch this container in the cloud!`](https://github.com/codespaces/new?skip_quickstart=true&machine=basicLinux32gb&repo=743140652&ref=master&devcontainer_path=.devcontainer.json)
 
