@@ -7,6 +7,7 @@ set -Eeuo pipefail
 
 cd /run
 
+. utils.sh      # Load functions
 . reset.sh      # Initialize system
 . define.sh     # Define versions
 . mido.sh       # Download code
