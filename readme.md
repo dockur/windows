@@ -78,7 +78,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   Very simple! These are the steps:
   
-  - Start the container and connect to [port 8006](http://localhost:8006) using your web browser.
+  - Start the container and connect to [port 8006](http://127.0.0.1:8006/) using your web browser.
 
   - Sit back and relax while the magic happens, the whole installation will be performed fully automatic.
 
