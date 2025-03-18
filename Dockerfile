@@ -11,7 +11,6 @@ RUN set -eu && \
     apt-get update && \
     apt-get --no-install-recommends -y install \
         bc \
-        jq \
         7zip \
         wsdd \
         samba \
