@@ -292,7 +292,7 @@
           <Description>Enable File Sharing</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>23</Order>
+          <Order>19</Order>
           <CommandLine>cmd /C echo 20.20.20.1     host.lan >> %WINDIR%\system32\drivers\etc\hosts</CommandLine>
           <Description>Add entry in hosts file</Description>
         </SynchronousCommand>
