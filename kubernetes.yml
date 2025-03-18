@@ -82,7 +82,7 @@ spec:
     - name: http
       port: 8006
       protocol: TCP
-      targetPort: 80
+      targetPort: 8006
     - name: rdp
       port: 3389
       protocol: TCP
