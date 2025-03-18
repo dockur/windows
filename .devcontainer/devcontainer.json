@@ -1,4 +1,0 @@
-{
-  "dockerComposeFile": "../compose.yml",
-  "service": "windows"
-}
