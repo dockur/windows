@@ -628,6 +628,8 @@ updateXML() {
   local language="$2"
   local culture region user admin pass keyboard
 
+  sed -i "s/ 20.20.20.1 / ${VM_NET_IP%.*}.1 /g" "$asset"
+
   [ -z "$HEIGHT" ] && HEIGHT="720"
   [ -z "$WIDTH" ] && WIDTH="1280"
 

@@ -1491,6 +1491,12 @@ prepareInstall() {
           echo ""
           echo "Call Domain.MoveHere(LocalAdminADsPath, \"$username\")"
           echo ""
+          echo "Set oFSO = CreateObject(\"Scripting.FileSystemObject\")"
+          echo "Set oHosts = oFSO.GetFile(\"C:\Windows\System32\drivers\etc\hosts\")"
+          echo "Set fileAPPEND = oFSO.OpenTextFile(\"C:\Windows\System32\drivers\etc\hosts\", 8, true)"
+          echo "fileAPPEND.Write(\"${VM_NET_IP%.*}.1      host.lan\")"
+          echo "fileAPPEND.Close()"
+          echo ""
   } | unix2dos > "$dir/\$OEM\$/admin.vbs"
 
   {       echo "[COMMANDS]"
