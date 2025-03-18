@@ -1,0 +1,4 @@
+{
+  "service": "windows",
+  "dockerComposeFile": "compose.yml"
+}
