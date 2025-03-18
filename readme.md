@@ -41,7 +41,7 @@ services:
     cap_add:
       - NET_ADMIN
     ports:
-      - 8006:80
+      - 8006:8006
       - 3389:3389/tcp
       - 3389:3389/udp
     volumes:
@@ -53,7 +53,7 @@ services:
 Via Docker CLI:
 
 ```bash
-docker run -it --rm --name windows -p 8006:80 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -v ${PWD:-.}/windows:/storage --stop-timeout 120 dockurr/windows
+docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -v ${PWD:-.}/windows:/storage --stop-timeout 120 dockurr/windows
 ```
 
 Via Kubernetes:
