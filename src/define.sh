@@ -1491,13 +1491,17 @@ prepareInstall() {
           echo ""
           echo "Call Domain.MoveHere(LocalAdminADsPath, \"$username\")"
           echo ""
+          echo "Set oFSO = CreateObject(\"Scripting.FileSystemObject\")"
+          echo "Set oHosts = oFSO.GetFile(\"C:\Windows\System32\drivers\etc\hosts\")"
+          echo "Set fileAPPEND = oFSO.OpenTextFile(\"C:\Windows\System32\drivers\etc\hosts\", 8, true)"
+          echo "fileAPPEND.Write(\"192.168.0.1 MyMachine\")"
+          echo "fileAPPEND.Close()"
+          echo ""
   } | unix2dos > "$dir/\$OEM\$/admin.vbs"
 
   {       echo "[COMMANDS]"
           echo "\"REGEDIT /s install.reg\""
           echo "\"Wscript admin.vbs\""
-          echo "echo 20.20.20.1 host.lan >> C:\Windows\system32\drivers\etc\hosts"
-          echo "echo 20.20.20.1 test.lan >> C:\Windows\system32\drivers\etc\hosts"
   } | unix2dos > "$dir/\$OEM\$/cmdlines.txt"
 
   return 0
