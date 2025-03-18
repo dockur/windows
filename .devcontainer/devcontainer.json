@@ -1,19 +1,4 @@
 {
   "dockerComposeFile": "../compose.yml",
-  "service": "windows",
-  "customizations": {
-    "vscode": {
-      "settings": {
-        "editor.fontSize": 16,
-        "terminal.integrated.fontSize": 16,
-        "terminal.integrated.scrollback": 1000
-      },
-      "extensions": [
-        "dbaeumer.vscode-eslint",
-        "hashicorp.terraform",
-        "nhoizey.gremlins",
-        "hashicorp.hcl"
-      ]
-    }
-  }
+  "service": "windows"
 }
