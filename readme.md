@@ -26,7 +26,7 @@ Windows inside a Docker container.
 
 ## Usage 🐳
 
-Via Docker Compose:
+##### Via Docker Compose:
 
 ```yaml
 services:
@@ -50,19 +50,19 @@ services:
     stop_grace_period: 2m
 ```
 
-Via Docker CLI:
+##### Via Docker CLI:
 
 ```bash
 docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -v ${PWD:-.}/windows:/storage --stop-timeout 120 dockurr/windows
 ```
 
-Via Kubernetes:
+##### Via Kubernetes:
 
 ```shell
 kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/master/kubernetes.yml
 ```
 
-Via Github Codespaces:
+##### Via Github Codespaces:
 
 [`Click here to launch this container in the cloud!`](https://github.com/codespaces/new?skip_quickstart=true&machine=basicLinux32gb&repo=743140652&ref=master&devcontainer_path=.devcontainer.json)
 
