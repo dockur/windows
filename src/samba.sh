@@ -14,7 +14,7 @@ if [[ "$DHCP" == [Yy1]* ]]; then
   interface="$VM_NET_DEV"
 fi
 
-if [[ "${NETWORK,,}" == "user"* ]];
+if [[ "${NETWORK,,}" == "user"* ]]; then
   hostname="$IP"
   interface="$VM_NET_DEV"
 fi
