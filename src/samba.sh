@@ -14,6 +14,11 @@ if [[ "$DHCP" == [Yy1]* ]]; then
   interface="$VM_NET_DEV"
 fi
 
+if [[ "${NETWORK,,}" == "user"* ]];
+  hostname="$IP"
+  interface="$VM_NET_DEV"
+fi
+
 addShare() {
   local dir="$1"
   local name="$2"
