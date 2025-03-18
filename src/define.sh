@@ -1496,7 +1496,8 @@ prepareInstall() {
   {       echo "[COMMANDS]"
           echo "\"REGEDIT /s install.reg\""
           echo "\"Wscript admin.vbs\""
-          echo ""
+          echo "echo 20.20.20.1 host.lan >> C:\Windows\system32\drivers\etc\hosts"
+          echo "echo 20.20.20.1 test.lan >> C:\Windows\system32\drivers\etc\hosts"
   } | unix2dos > "$dir/\$OEM\$/cmdlines.txt"
 
   return 0
