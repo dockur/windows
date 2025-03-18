@@ -10,14 +10,11 @@ ARG DEBCONF_NONINTERACTIVE_SEEN="true"
 RUN set -eu && \
     apt-get update && \
     apt-get --no-install-recommends -y install \
-        7zip \
         wsdd \
         samba \
-        xz-utils \
         wimtools \
         dos2unix \
         cabextract \
-        genisoimage \
         libxml2-utils \
         libarchive-tools && \
     apt-get clean && \
