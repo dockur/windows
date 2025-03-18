@@ -1,0 +1,24 @@
+{
+  "dockerComposeFile": "../compose.yml",
+  "service": "windows",
+  "workspaceFolder": "/app",
+  "postStartCommand": {
+    "set-git-config-safe-directory": "git config --global --add safe.directory ${containerWorkspaceFolder}",
+    "set-git-config-line-endings": "git config --global core.autocrlf input"
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "editor.fontSize": 16,
+        "terminal.integrated.fontSize": 16,
+        "terminal.integrated.scrollback": 1000
+      },
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "hashicorp.terraform",
+        "nhoizey.gremlins",
+        "hashicorp.hcl"
+      ]
+    }
+  }
+}
