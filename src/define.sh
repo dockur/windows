@@ -1502,6 +1502,7 @@ prepareInstall() {
   {       echo "[COMMANDS]"
           echo "\"REGEDIT /s install.reg\""
           echo "\"Wscript admin.vbs\""
+          echo ""
   } | unix2dos > "$dir/\$OEM\$/cmdlines.txt"
 
   return 0
