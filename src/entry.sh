@@ -32,7 +32,8 @@ info "Booting ${APP}${BOOT_DESC} using QEMU v$version..."
 terminal
 ( sleep 30; boot ) &
 tail -fn +0 "$QEMU_LOG" 2>/dev/null &
-cat "$QEMU_TERM" 2> /dev/null | tee "$QEMU_PTY" | sed 's/\x1B\[[=0-9;]*[a-z]//gi' &
+cat "$QEMU_TERM" 2> /dev/null | tee "$QEMU_PTY" | \
+sed -e 's/\x1B\[[=0-9;]*[a-z]//gi' -e 's/failed to load Boot/skipped Boot/g' &
 wait $! || :
 
 sleep 1 & wait $!
