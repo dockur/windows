@@ -1300,6 +1300,9 @@ prepareInstall() {
   [ -n "$PASSWORD" ] && password="$PASSWORD"
   [ -n "$USERNAME" ] && username=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g')
 
+  local ip="20.20.20.1"
+  [ -n "${VM_NET_IP:-}" ] && ip="${VM_NET_IP%.*}.1"
+
   # These are not pirated keys, they come from the official MS documentation.
   if [[ "${driver,,}" == "xp" ]]; then
     if [[ "${arch,,}" == "x86" ]]; then
@@ -1494,7 +1497,7 @@ prepareInstall() {
           echo "Set oFSO = CreateObject(\"Scripting.FileSystemObject\")"
           echo "Set oHosts = oFSO.GetFile(\"C:\Windows\System32\drivers\etc\hosts\")"
           echo "Set fileAPPEND = oFSO.OpenTextFile(\"C:\Windows\System32\drivers\etc\hosts\", 8, true)"
-          echo "fileAPPEND.Write(\"${VM_NET_IP%.*}.1      host.lan\")"
+          echo "fileAPPEND.Write(\"$ip      host.lan\")"
           echo "fileAPPEND.Close()"
           echo ""
   } | unix2dos > "$dir/\$OEM\$/admin.vbs"
