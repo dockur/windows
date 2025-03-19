@@ -111,13 +111,7 @@ done
 if ! smbd; then
   error "Samba daemon failed to start!"
   smbd -i --debug-stdout || true
-else
-  if [[ "${NETWORK,,}" == "user"* ]]; then
-    NET_OPTS="${NET_OPTS/,hostfwd/,guestfwd=tcp:${VM_NET_IP%.*}.1:445-tcp:127.0.0.1:445,hostfwd}"
-  fi
 fi
-
-[[ "${NETWORK,,}" == "user"* ]] && return 0
 
 if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
   # Enable NetBIOS on Windows 7 and lower
