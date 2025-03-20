@@ -68,16 +68,14 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ## Compatibility ⚙️
 
-| **Product**  | **Platform**   | |
-|---|---|---|
-| Docker Engine     | Linux      | ✅ |
-| Docker Desktop    | Linux      | ❌ |
-| Docker Desktop    | macOS      | ❌ |
-| Docker Desktop    | Windows 11 | ✅ |
-| Docker Desktop    | Windows 10 | ❌ |
-| Podman            | Linux      | ✅ |
-| Podman Desktop    | Linux      | ✅ |
-| Github Codespaces | Cloud      | ✅ |
+| **Product**  | **Linux** | **Win11** | **Win10** | **macOS** |
+|---|---|---|---|---|
+| Docker CLI        | ✅   | ✅       | ❌        | ❌ |
+| Docker Desktop    | ❌   | ✅       | ❌        | ❌ | 
+| Podman CLI        | ✅   | ✅       | ❌        | ❌ | 
+| Podman Desktop    | ✅   | ✅       | ❌        | ❌ | 
+| Kubernetes        | ✅   | ✅       | ❌        | ❌ |
+| Github Codespaces | ✅   | ✅       | ✅        | ✅ | 
 
 ## FAQ 💬
 
