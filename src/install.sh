@@ -581,6 +581,11 @@ detectImage() {
   info "Detected: $desc"
   setXML "" && return 0
 
+  if [[ "${id,,}" == "win8x86"* ]] || [[ "${id,,}" == "win81x86"* ]] \
+  || [[ "${id,,}" == "win10x86"* ]] || [[ "${id,,}" == "win11x86"* ]]; then
+    error "The 32-bit version of $desc is not supported!" && return 1
+  fi
+
   msg="the answer file for $desc was not found ($DETECTED.xml)"
   local fallback="/run/assets/${DETECTED%%-*}.xml"
 
@@ -704,10 +709,6 @@ addDriver() {
 
   if [ -z "$id" ]; then
     warn "no Windows version specified for \"$driver\" driver!" && return 0
-  fi
-
-  if [[ "${id,,}" == "win10x86"* ]]; then
-    error "The 32-bit version of Windows 10 is not supported!" && exit 84
   fi
 
   case "${id,,}" in
