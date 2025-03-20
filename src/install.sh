@@ -726,7 +726,11 @@ addDriver() {
 
   if [ -z "$folder" ]; then
     desc=$(printVersion "$id" "$id")
-    warn "no \"$driver\" driver available for \"$desc\" !" && return 0
+    if [[ "${id,,}" != *"x86"* ]]; then
+      warn "no \"$driver\" driver available for \"$desc\" !" && return 0
+    else
+      warn "no \"$driver\" driver available for the 32-bit version of \"$desc\" !" && return 0
+    fi
   fi
 
   [ ! -d "$path/$driver/$folder" ] && return 0
