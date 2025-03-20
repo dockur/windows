@@ -706,6 +706,10 @@ addDriver() {
     warn "no Windows version specified for \"$driver\" driver!" && return 0
   fi
 
+  if [[ "${id,,}" == "win10x86"* ]]; then
+    error "The 32-bit version of Windows 10 is not supported!" && exit 84
+  fi
+
   case "${id,,}" in
     "win7x86"* ) folder="w7/x86" ;;
     "win7x64"* ) folder="w7/amd64" ;;
