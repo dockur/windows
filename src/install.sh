@@ -581,8 +581,8 @@ detectImage() {
   info "Detected: $desc"
   setXML "" && return 0
 
-  if [[ "${id,,}" == "win8x86"* ]] || [[ "${id,,}" == "win81x86"* ]] \
-  || [[ "${id,,}" == "win10x86"* ]] || [[ "${id,,}" == "win11x86"* ]]; then
+  if [[ "$DETECTED" == "win8x86"* ]] || [[ "$DETECTED" == "win81x86"* ]] \
+  || [[ "$DETECTED" == "win10x86"* ]] || [[ "$DETECTED" == "win11x86"* ]]; then
     error "The 32-bit version of $desc is not supported!" && return 1
   fi
 
