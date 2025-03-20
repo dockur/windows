@@ -70,11 +70,13 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 | **Product**  | **Platform**   | |
 |---|---|---|
-| Docker Engine     | Linux| ✅ |
-| Docker Desktop    | Linux | ❌ |
-| Docker Desktop    | macOS | ❌ |
+| Docker Engine     | Linux      | ✅ |
+| Docker Desktop    | Linux      | ❌ |
+| Docker Desktop    | macOS      | ❌ |
 | Docker Desktop    | Windows 11 | ✅ |
 | Docker Desktop    | Windows 10 | ❌ |
+| Podman            | Linux      | ✅ |
+| Podman Desktop    | Linux      | ✅ |
 | Github Codespaces | Cloud      | ✅ |
 
 ## FAQ 💬
