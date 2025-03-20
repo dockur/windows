@@ -33,8 +33,9 @@ terminal
 ( sleep 30; boot ) &
 tail -fn +0 "$QEMU_LOG" 2>/dev/null &
 cat "$QEMU_TERM" 2> /dev/null | tee "$QEMU_PTY" | \
-sed -e 's/\x1B\[[=0-9;]*[a-z]//gi' -e 's/failed to load Boot/skipped Boot/g' &
-wait $! || :
+sed -u -e 's/\x1B\[[=0-9;]*[a-z]//gi' \
+-e 's/failed to load Boot/skipped Boot/g' \
+-e 's/0): Not Found/0)/g' & wait $! || :
 
 sleep 1 & wait $!
 [ ! -f "$QEMU_END" ] && finish 0
