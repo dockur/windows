@@ -16,6 +16,7 @@ skipInstall() {
 
   if [ -f "$previous" ]; then
     previous=$(<"$previous")
+    previous="${previous//[![:print:]]/}"
     if [ -n "$previous" ]; then
       previous="$STORAGE/$previous"
       if [[ "${previous,,}" != "${iso,,}" ]]; then
@@ -1014,19 +1015,27 @@ bootWindows() {
 
   if [ -f "$STORAGE/windows.args" ]; then
     ARGS=$(<"$STORAGE/windows.args")
+    ARGS="${ARGS//[![:print:]]/}"
     ARGUMENTS="$ARGS ${ARGUMENTS:-}"
   fi
 
   if [ -s "$STORAGE/windows.type" ] && [ -f "$STORAGE/windows.type" ]; then
-    [ -z "${DISK_TYPE:-}" ] && DISK_TYPE=$(<"$STORAGE/windows.type")
+    if [ -z "${DISK_TYPE:-}" ]; then
+      DISK_TYPE=$(<"$STORAGE/windows.type")
+      DISK_TYPE="${DISK_TYPE//[![:print:]]/}"
+    fi
   fi
 
   if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then
     BOOT_MODE=$(<"$STORAGE/windows.mode")
+    BOOT_MODE="${BOOT_MODE//[![:print:]]/}"
   fi
 
   if [ -s "$STORAGE/windows.old" ] && [ -f "$STORAGE/windows.old" ]; then
-    [[ "${PLATFORM,,}" == "x64" ]] && MACHINE=$(<"$STORAGE/windows.old")
+    if [[ "${PLATFORM,,}" == "x64" ]]; then
+      MACHINE=$(<"$STORAGE/windows.old")
+      MACHINE="${MACHINE//[![:print:]]/}"
+    fi
   fi
 
   return 0
