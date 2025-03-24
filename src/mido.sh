@@ -93,6 +93,7 @@ download_windows() {
 
   # uuidgen: For MacOS (installed by default) and other systems (e.g. with no /proc) that don't have a kernel interface for generating random UUIDs
   session_id=$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random)
+  session_id="${session_id//[![:print:]]/}"
 
   # Get product edition ID for latest release of given Windows version
   # Product edition ID: This specifies both the Windows release (e.g. 22H2) and edition ("multi-edition" is default, either Home/Pro/Edu/etc., we select "Pro" in the answer files) in one number
