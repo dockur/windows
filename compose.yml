@@ -4,6 +4,11 @@ services:
     container_name: windows
     environment:
       VERSION: "11"
+      USERNAME: "Dr-Osama"
+      PASSWORD: "admin@123"
+      RAM_SIZE: "8G"
+      CPU_CORES: "2"
+      DISK_SIZE: "990G"
     devices:
       - /dev/kvm
       - /dev/net/tun
@@ -13,7 +18,4 @@ services:
       - 8006:8006
       - 3389:3389/tcp
       - 3389:3389/udp
-    volumes:
-      - ./windows:/storage
-    restart: always
     stop_grace_period: 2m
