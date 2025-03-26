@@ -206,7 +206,7 @@ detectCustom() {
   CUSTOM=""
 
   if [ -d "/$fname" ]; then
-    error "The file /$fname has an invalid path!" && return 1
+    error "The file /$fname does not exist, please check that you mapped it to a valid path!" && return 1
   fi
 
   file=$(find / -maxdepth 1 -type f -iname "$fname" | head -n 1)
@@ -495,7 +495,7 @@ setXML() {
   local file="/custom.xml"
 
   if [ -d "$file" ]; then
-    warn "The file $file has an invalid path!"
+    warn "The file $file does not exist, please check that you mapped it to a valid path!"
   fi
 
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="$STORAGE/custom.xml"
