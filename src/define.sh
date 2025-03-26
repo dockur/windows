@@ -887,7 +887,7 @@ getLink1() {
       sum="0b738b55a5ea388ad016535a5c8234daf2e5715a0638488ddd8a228a836055a1"
       url="7/en_windows_7_with_sp1_x64.iso"
       ;;
-    "win7x86" | "win7x86-enterprise" )
+    "win7x86" | "win7x86-enterprise" | "win7x86-enterprise-eval" )
       size=2434502656
       sum="8bdd46ff8cb8b8de9c4aba02706629c8983c45e87da110e64e13be17c8434dad"
       url="7/en_windows_7_enterprise_with_sp1_x86_dvd_u_677710.iso"
@@ -971,7 +971,7 @@ getLink2() {
       sum="36f4fa2416d0982697ab106e3a72d2e120dbcdb6cc54fd3906d06120d0653808"
       url="Windows%207/en_windows_7_ultimate_with_sp1_x64_dvd_u_677332.iso"
       ;;
-    "win7x86" | "win7x86-enterprise" )
+    "win7x86" | "win7x86-enterprise" | "win7x86-enterprise-eval" )
       size=2434502656
       sum="8bdd46ff8cb8b8de9c4aba02706629c8983c45e87da110e64e13be17c8434dad"
       url="Windows%207/en_windows_7_enterprise_with_sp1_x86_dvd_u_677710.iso"
@@ -1055,10 +1055,35 @@ getLink3() {
       sum="a11116c0645d892d6a5a7c585ecc1fa13aa66f8c7cc6b03bf1f27bd16860cc35"
       url="tiny-10-23-h2/tiny10%20x64%2023h2.iso"
       ;;
+    "win7x64" | "win7x64-enterprise" | "win7x64-enterprise-eval" )
+      size=3182604288
+      sum="ee69f3e9b86ff973f632db8e01700c5724ef78420b175d25bae6ead90f6805a7"
+      url="en_windows_7_enterprise_with_sp1_x64_dvd_u_677651_202006/en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.iso"
+      ;;
+    "win7x64-ultimate" )
+      size=3320903680
+      sum="36f4fa2416d0982697ab106e3a72d2e120dbcdb6cc54fd3906d06120d0653808"
+      url="win7-ult-sp1-english/Win7_Ult_SP1_English_x64.iso"
+      ;;
+    "win7x86" | "win7x86-enterprise" | "win7x86-enterprise-eval" )
+      size=2434502656
+      sum="8bdd46ff8cb8b8de9c4aba02706629c8983c45e87da110e64e13be17c8434dad"
+      url="en_windows_7_enterprise_with_sp1_x86_dvd_u_677710_202006/en_windows_7_enterprise_with_sp1_x86_dvd_u_677710.iso"
+      ;;
+    "win7x86-ultimate" )
+      size=2564476928
+      sum="e2c009a66d63a742941f5087acae1aa438dcbe87010bddd53884b1af6b22c940"
+      url="win7-ult-sp1-english/Win7_Ult_SP1_English_x32.iso"
+      ;;
     "winxpx86" )
       size=617756672
       sum="62b6c91563bad6cd12a352aa018627c314cfc5162d8e9f8af0756a642e602a46"
       url="XPPRO_SP3_ENU/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
+      ;;
+    "winxpx64" )
+      size=614166528
+      sum="8fac68e1e56c64ad9a2aa0ad464560282e67fa4f4dd51d09a66f4e548eb0f2d6"
+      url="windows-xp-all-sp-msdn-iso-files-en-de-ru-tr-x86-x64/en_win_xp_sp1_pro_x64_vl.iso"
       ;;
   esac
 
