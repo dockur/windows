@@ -36,6 +36,7 @@ boot() {
       fi
       if [ -z "$fail" ]; then
         info "Windows started succesfully, visit http://localhost:8006/ to view the screen..."
+        touch "$STORAGE/ready"
         return 0
       fi
     fi
@@ -160,6 +161,10 @@ _graceful_shutdown() {
   local code=$?
 
   set +e
+
+  if [ -f "$STORAGE/ready" ]; then
+    rm $STORAGE/ready
+  fi
 
   if [ -f "$QEMU_END" ]; then
     info "Received $1 while already shutting down..."

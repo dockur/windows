@@ -109,6 +109,39 @@ function Install-WinDump() {
     Validate-FileHash $BinaryPath $Hash SHA1
 }
 
+function Install-QGA() {
+    # Define QEMU Guest Agent installer URL (change version if needed)
+    $QGA_URL = "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso"
+    $QGA_ISO = "$env:TEMP\virtio-win.iso"
+
+    # Download QEMU Guest Agent ISO
+    Write-Host "Downloading QEMU Guest Agent ISO..."
+    curl.exe -L $QGA_URL -o $QGA_ISO
+
+    # Mount the ISO
+    Write-Host "Mounting ISO..."
+    $mount = Mount-DiskImage -ImagePath $QGA_ISO -PassThru | Get-Volume
+    $QGA_DRIVE = $mount.DriveLetter + ":"
+
+    # Define installer path
+    $QGA_MSI = "$QGA_DRIVE\guest-agent\qemu-ga-x86_64.msi"
+
+    # Install QEMU Guest Agent
+    Write-Host "Installing QEMU Guest Agent..."
+    Start-Process msiexec.exe -ArgumentList "/i `"$QGA_MSI`" /quiet /norestart" -Wait -NoNewWindow
+
+    Get-Service QEMU-GA
+
+    # Unmount the ISO
+    Write-Host "Unmounting ISO..."
+    Dismount-DiskImage -ImagePath $QGA_ISO
+
+    # Cleanup
+    Remove-Item -Path $QGA_ISO -Force
+
+    Write-Host "QEMU Guest Agent installation complete."
+}
+
 [System.IO.Directory]::CreateDirectory("C:\workspace")
 CheckStatus
 
@@ -125,6 +158,9 @@ Install-Python
 CheckStatus
 
 Install-WinDump
+CheckStatus
+
+Install-QGA
 CheckStatus
 
 pip install Pyro5==5.15

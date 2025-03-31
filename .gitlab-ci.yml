@@ -1,0 +1,36 @@
+services:
+  - name: docker:dind
+
+default:
+  image: docker:latest
+  artifacts:
+    expire_in: 1 week
+  interruptible: true
+  retry:
+    max: 2
+    when: runner_system_failure
+  tags:
+    - infra-docker-dind
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+stages:
+  - build
+
+build:
+  stage: build
+  variables:
+    IMAGE_NAME: "registry.digitalarsenal.net/low-level-hacks/third-party-build/dockur_windows"
+  rules:
+    - if: $CI_COMMIT_TAG
+      variables:
+        IMAGE_VERSION: "$CI_COMMIT_TAG"
+    - if: $CI_COMMIT_TAG == null
+      variables:
+        IMAGE_VERSION: "$CI_COMMIT_REF_SLUG"
+  before_script:
+    - apk add --no-cache docker-compose bash kmod
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$REGISTRY_PUSH_ACCESS_TOKEN" "$CI_REGISTRY"
+    - ./prepare_image.sh

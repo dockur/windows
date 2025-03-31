@@ -1036,13 +1036,17 @@ if ! startInstall; then
   exit 68
 fi
 
+if [ -e /storage/*.qcow2 ]; then
+  html "Windows already installed, skipping image preparation..."
+  return 0
+fi
+
 if [ ! -s "$ISO" ] || [ ! -f "$ISO" ]; then
   if ! downloadImage "$ISO" "$VERSION" "$LANGUAGE"; then
     rm -f "$ISO" 2> /dev/null || true
     exit 61
   fi
 fi
-
 if ! extractImage "$ISO" "$DIR" "$VERSION"; then
   rm -f "$ISO" 2> /dev/null || true
   exit 62

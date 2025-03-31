@@ -1,20 +1,19 @@
 services:
-  windows:
+  windows-build:
     build: .
-    container_name: windows
+    container_name: windows-build
     privileged: true
     healthcheck:
-      test: "[ -f /data/ready ] || exit 1"
-      interval: 60s
-      retries: 5
-      start_period: 480s
+      test: "[ -f /data/prepared ] || exit 1"
+      interval: 30s
+      retries: 50
+      start_period: 600s
       timeout: 2s
     environment:
       VERSION: "11"
       USERNAME: "bill"
       PASSWORD: "gates"
-      DEBUG: "y"
-      MANUAL: "n"
+      DISK_FMT: "qcow2"
     devices:
       - /dev/kvm
       - /dev/net/tun
@@ -22,29 +21,31 @@ services:
       - NET_ADMIN
     ports:
       - 8006:8006
-      - 3389:3389/tcp
-      - 3389:3389/udp
     stop_grace_period: 2m
     volumes:
       - ./scripts:/oem
-      - ./shared:/data
       - ./custom.xml:/custom.xml
-    networks:
-      vlan:
-        ipv4_address: 192.168.0.100
-      vlan-1:
-        ipv4_address: 192.168.1.100
+      - ./custom.iso:/custom.iso
 
-networks:
-  vlan:
-    driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: 192.168.0.0/24
-  vlan-1:
-    driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: 192.168.1.0/24
+  windows-installed:
+    image: $IMAGE_NAME:$IMAGE_VERSION
+    container_name: windows-installed
+    privileged: true
+    healthcheck:
+      test: "[ -f /storage/ready ] || exit 1"
+      interval: 30s
+      retries: 20
+      start_period: 60s
+      timeout: 2s
+    environment:
+      VERSION: "11"
+      USERNAME: "bill"
+      PASSWORD: "gates"
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8006:8006
+    stop_grace_period: 2m
