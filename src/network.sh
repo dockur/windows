@@ -25,6 +25,64 @@ ADD_ERR="Please add the following setting to your container:"
 # ######################################
 #  Functions
 # ######################################
+find_free_ip() {
+  local current_ip="$1"
+  local mask="$2"
+
+  # Get network prefix
+  IFS='.' read -r i1 i2 i3 i4 <<<"$current_ip"
+  IFS='.' read -r m1 m2 m3 m4 <<<"$(ip -o -f inet addr show | awk '/scope global/ {print $4}' | cut -d'/' -f2)"
+
+  network_ip=$((i1 & m1)).$((i2 & m2)).$((i3 & m3)).0
+  base_ip="$i1.$i2.$i3"
+
+  # Iterate over available IPs
+  for i in {2..254}; do
+    new_ip="$base_ip.$i"
+    if [[ "$new_ip" != "$current_ip" ]] && ! ping -c 1 -W 1 "$new_ip" &>/dev/null; then
+      echo "$new_ip"
+      return
+    fi
+  done
+
+  echo "No free IP found"
+}
+
+configure_guest_network_interface() {
+  if [[ "${NETWORK,,}" == "bridge"* ]]; then
+
+    HOST_INTERFACE="dockerbridge"
+    CURRENT_IP=$(ip addr show $HOST_INTERFACE | grep -oP 'inet \K[\d.]+')
+    MASK="$(ip -4 addr show $HOST_INTERFACE | awk '/inet / {print $2}' | cut -d'/' -f2)"
+
+    if [ -z "$CURRENT_IP" ]; then
+      echo "Error: Unable to retrieve the current IP address of $HOST_INTERFACE."
+      exit 1
+    fi
+
+    echo "Current Host IP: $CURRENT_IP"
+
+    IFS='.' read -r -a ip_parts <<<"$CURRENT_IP"
+    NEW_HOST_IP=$(find_free_ip "$CURRENT_IP" "$MASK")
+    GW="${ip_parts[0]}.${ip_parts[1]}.${ip_parts[2]}.1"
+
+    echo "New Host IP: $NEW_HOST_IP"
+
+    ip addr del $CURRENT_IP/$MASK dev $HOST_INTERFACE
+    ip addr add $NEW_HOST_IP/$MASK dev $HOST_INTERFACE
+
+    ip link set $HOST_INTERFACE down
+    ip link set $HOST_INTERFACE up
+
+    route add default gw $GW
+
+    echo -e '{"execute": "guest-exec", "arguments": {"path": "C:\\\\Windows\\\\System32\\\\netsh.exe", "arg": ["interface", "ipv4", "set", "address", "name=\\"Ethernet\\"", "static", "'"$CURRENT_IP"'", "255.255.255.0", "'"$GW"'"]}}' | nc -U /tmp/qga.sock -w 5
+    echo -e '{"execute": "guest-exec", "arguments": {"path": "C:\\\\Windows\\\\System32\\\\netsh.exe", "arg": ["interface", "ipv4", "add", "dnsservers", "name=\\"Ethernet\\"", "address=\\"'$GW'\\"", "index=\\"1\\""]}}' | nc -U /tmp/qga.sock -w 5
+
+  fi
+
+  return 0
+}
 
 configureDHCP() {
 
@@ -408,11 +466,6 @@ configureBridge() {
   # if ! ip link set dev "$VM_NET_TAP_2" master dockerbridge_2; then
   #   error "Failed to set IP link!" && return 1
   # fi
-
-  # add initial default route as well
-  if ! ip route add default dev dockerbridge via ${VM_NET_IP%.*}.1; then
-    error "Failed to setup default route" && return 10
-  fi
 
   NET_OPTS="-netdev tap,id=hostnet0,ifname=$VM_NET_TAP"
 
