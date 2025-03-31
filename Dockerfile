@@ -29,6 +29,8 @@ RUN set -eu && \
 COPY --chmod=755 ./src /run/
 COPY --chmod=755 ./assets /run/assets
 
+RUN mkdir /storage
+
 ADD --chmod=664 https://github.com/qemus/virtiso-whql/releases/download/v1.9.44-0/virtio-win-1.9.44.tar.xz /drivers.txz
 
 FROM dockurr/windows-arm:${VERSION_ARG} AS build-arm64
@@ -37,7 +39,6 @@ FROM build-${TARGETARCH}
 ARG VERSION_ARG="0.00"
 RUN echo "$VERSION_ARG" > /run/version
 
-VOLUME /storage
 EXPOSE 8006 3389
 
 ENV VERSION="11"

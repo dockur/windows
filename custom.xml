@@ -105,6 +105,10 @@
           <Order>4</Order>
           <Path>reg.exe add "HKLM\SYSTEM\Setup\MoSetup" /v AllowUpgradesWithUnsupportedTPMOrCPU /t REG_DWORD /d 1 /f</Path>
         </RunSynchronousCommand>
+          <SynchronousCommand wcm:action="add">
+          <Order>5</Order>
+          <Path>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Services\msiserver" /v Start /t REG_DWORD /d 2 /f</Path>
+        </SynchronousCommand>
       </RunSynchronous>
     </component>
   </settings>
@@ -456,12 +460,12 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>24</Order>
-          <CommandLine>cmd /C if exist "C:\OEM\install.bat" start "Install" "cmd /C C:\OEM\install.bat"</CommandLine>
+          <CommandLine>cmd /C if exist "C:\OEM\install.bat" cmd /C C:\OEM\install.bat</CommandLine>
           <Description>Execute custom script from the OEM folder if exists</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>25</Order>
-          <CommandLine>cmd /C "type nul > \\host.lan\Data\ready"</CommandLine>
+          <CommandLine>cmd /C "type nul > \\host.lan\Data\prepared"</CommandLine>
           <Description>Let host known that all configuration is done</Description>
         </SynchronousCommand>
       </FirstLogonCommands>
