@@ -15,6 +15,7 @@ services:
       PASSWORD: "gates"
       DISK_FMT: "qcow2"
       NETWORK: "Y"
+      DEBUG: "Y"
     devices:
       - /dev/kvm
       - /dev/net/tun
