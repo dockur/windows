@@ -14,13 +14,12 @@ services:
       USERNAME: "bill"
       PASSWORD: "gates"
       DISK_FMT: "qcow2"
+      NETWORK: "Y"
     devices:
       - /dev/kvm
       - /dev/net/tun
     cap_add:
       - NET_ADMIN
-    ports:
-      - 8006:8006
     stop_grace_period: 2m
     volumes:
       - ./scripts:/oem
@@ -46,6 +45,4 @@ services:
       - /dev/net/tun
     cap_add:
       - NET_ADMIN
-    ports:
-      - 8006:8006
     stop_grace_period: 2m

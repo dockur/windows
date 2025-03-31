@@ -5,7 +5,7 @@ set -Eeuo pipefail
 
 : "${MAC:=""}"
 : "${DHCP:="N"}"
-: "${NETWORK:="Y"}"
+: "${NETWORK:="bridge"}"
 : "${USER_PORTS:=""}"
 : "${HOST_PORTS:=""}"
 : "${ADAPTER:="virtio-net-pci"}"
