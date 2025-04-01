@@ -4,7 +4,7 @@ set -Eeuox pipefail
 source env.sh
 
 echo "start to build and install windows"
-docker compose up windows-build --build
+docker compose up windows-build -d --wait --build
 
 echo "windows installed, now stop container"
 docker stop windows-build
