@@ -20,6 +20,7 @@ set -Eeuox pipefail
 : "${DNSMASQ:="/usr/sbin/dnsmasq"}"
 : "${DNSMASQ_CONF_DIR:="/etc/dnsmasq.d"}"
 
+ETH_COUNT=$(ls /sys/class/net | grep -E '^eth[0-9]+$' | wc -l)
 ADD_ERR="Please add the following setting to your container:"
 
 # ######################################
@@ -50,34 +51,42 @@ find_free_ip() {
 
 configure_guest_network_interface() {
   if [[ "${NETWORK,,}" == "bridge"* ]]; then
+    for ((i = 0; i < ETH_COUNT; i++)); do
+      HOST_INTERFACE="dockerbridge$i"
+      CURRENT_IP=$(ip addr show $HOST_INTERFACE | grep -oP 'inet \K[\d.]+')
+      MASK="$(ip -4 addr show $HOST_INTERFACE | awk '/inet / {print $2}' | cut -d'/' -f2)"
 
-    HOST_INTERFACE="dockerbridge"
-    CURRENT_IP=$(ip addr show $HOST_INTERFACE | grep -oP 'inet \K[\d.]+')
-    MASK="$(ip -4 addr show $HOST_INTERFACE | awk '/inet / {print $2}' | cut -d'/' -f2)"
+      if [ -z "$CURRENT_IP" ]; then
+        echo "Error: Unable to retrieve the current IP address of $HOST_INTERFACE."
+        exit 1
+      fi
 
-    if [ -z "$CURRENT_IP" ]; then
-      echo "Error: Unable to retrieve the current IP address of $HOST_INTERFACE."
-      exit 1
-    fi
+      echo "Current Host IP: $CURRENT_IP"
 
-    echo "Current Host IP: $CURRENT_IP"
+      IFS='.' read -r -a ip_parts <<<"$CURRENT_IP"
+      NEW_HOST_IP=$(find_free_ip "$CURRENT_IP" "$MASK")
+      GW="${ip_parts[0]}.${ip_parts[1]}.${ip_parts[2]}.1"
 
-    IFS='.' read -r -a ip_parts <<<"$CURRENT_IP"
-    NEW_HOST_IP=$(find_free_ip "$CURRENT_IP" "$MASK")
-    GW="${ip_parts[0]}.${ip_parts[1]}.${ip_parts[2]}.1"
+      echo "New Host IP: $NEW_HOST_IP"
 
-    echo "New Host IP: $NEW_HOST_IP"
+      ip addr del $CURRENT_IP/$MASK dev $HOST_INTERFACE
+      ip addr add $NEW_HOST_IP/$MASK dev $HOST_INTERFACE
 
-    ip addr del $CURRENT_IP/$MASK dev $HOST_INTERFACE
-    ip addr add $NEW_HOST_IP/$MASK dev $HOST_INTERFACE
+      ip link set $HOST_INTERFACE down
+      ip link set $HOST_INTERFACE up
 
-    ip link set $HOST_INTERFACE down
-    ip link set $HOST_INTERFACE up
+      route add default gw $GW
 
-    route add default gw $GW
+      if [ $i -eq 0 ]; then
+        INTERFACE_NAME="Ethernet"
+      else
+        IDX=$((1 + i))
+        INTERFACE_NAME="Ethernet $IDX"
+      fi
 
-    echo -e '{"execute": "guest-exec", "arguments": {"path": "C:\\\\Windows\\\\System32\\\\netsh.exe", "arg": ["interface", "ipv4", "set", "address", "name=\\"Ethernet\\"", "static", "'"$CURRENT_IP"'", "255.255.255.0", "'"$GW"'"]}}' | nc -U /tmp/qga.sock -w 5
-    echo -e '{"execute": "guest-exec", "arguments": {"path": "C:\\\\Windows\\\\System32\\\\netsh.exe", "arg": ["interface", "ipv4", "add", "dnsservers", "name=\\"Ethernet\\"", "address=\\"'$GW'\\"", "index=\\"1\\""]}}' | nc -U /tmp/qga.sock -w 5
+      echo -e '{"execute": "guest-exec", "arguments": {"path": "C:\\\\Windows\\\\System32\\\\netsh.exe", "capture-output": true, "arg": ["interface", "ipv4", "set", "address", "'"$INTERFACE_NAME"'", "static", "'$CURRENT_IP'", "255.255.255.0", "'$GW'"]}}' | nc -U /tmp/qga.sock -w 5
+      echo -e '{"execute": "guest-exec", "arguments": {"path": "C:\\\\Windows\\\\System32\\\\netsh.exe", "capture-output": true, "arg": ["interface", "ipv4", "add", "dnsservers", "'"$INTERFACE_NAME"'", "1.1.1.1", "index=1"]}}' | nc -U /tmp/qga.sock -w 5
+    done
 
   fi
 
@@ -379,120 +388,72 @@ configureBridge() {
     fi
   fi
 
-  # Create a bridge with a static IP for the VM guest
+  for ((i = 0; i < ETH_COUNT; i++)); do
+    DOCKER_BRIDGE="dockerbridge$i"
+    NET_DEV="eth$i"
+    NET_TAP="qemu$i"
+    {
+      ip link add dev $DOCKER_BRIDGE type bridge
+      rc=$?
+    } || :
 
-  {
-    ip link add dev dockerbridge type bridge
-    rc=$?
-  } || :
+    if ((rc != 0)); then
+      error "Failed to create bridge. $ADD_ERR --cap-add NET_ADMIN" && return 1
+    fi
 
-  if ((rc != 0)); then
-    error "Failed to create bridge. $ADD_ERR --cap-add NET_ADMIN" && return 1
-  fi
+    # We need freshly created bridge to have IP address of the container
+    # For this reason we need to migrate IP from eth0 to dockerbridge.
+    for addr in $(ip --json addr show dev $NET_DEV | jq -c '.[0].addr_info[] | select(.family == "inet")'); do
+      cidr_addr=$(echo $addr | jq -r '[ .local, .prefixlen|tostring] | join("/")')
+      if ! ip addr add dev $DOCKER_BRIDGE $cidr_addr; then
+        error "Failed to add address for $DOCKER_BRIDGE interface"
+        exit 30
+      fi
+    done
 
-  # {
-  #   ip link add dev dockerbridge_2 type bridge
-  #   rc=$?
-  # } || :
-  # if ((rc != 0)); then
-  #   error "Failed to create bridge. $ADD_ERR --cap-add NET_ADMIN" && return 1
-  # fi
-
-  # We need freshly created bridge to have IP address of the container
-  # For this reason we need to migrate IP from eth0 to dockerbridge.
-  for addr in $(ip --json addr show dev $VM_NET_DEV | jq -c '.[0].addr_info[] | select(.family == "inet")'); do
-    cidr_addr=$(echo $addr | jq -r '[ .local, .prefixlen|tostring] | join("/")')
-    if ! ip addr add dev dockerbridge $cidr_addr; then
-      error "Failed to add address for dockerbridge interface"
+    if ! ip addr flush dev $NET_DEV; then
+      error "Failed to clear $NET_DEV interface addresses"
       exit 30
     fi
-  done
-  if ! ip addr flush dev $VM_NET_DEV; then
-    error "Failed to clear $VM_NET_DEV interface addresses"
-    exit 30
-  fi
 
-  while ! ip link set dockerbridge up; do
-    info "Waiting for IP address to become available..."
-    sleep 2
-  done
+    while ! ip link set $DOCKER_BRIDGE up; do
+      info "Waiting for IP address to become available..."
+      sleep 2
+    done
 
-  # # We need freshly created bridge to have IP address of the container
-  # # For this reason we need to migrate IP from eth0 to dockerbridge.
-  # for addr in $(ip --json addr show dev $VM_NET_DEV_2 | jq -c '.[0].addr_info[] | select(.family == "inet")'); do
-  #   cidr_addr=$(echo $addr | jq -r '[ .local, .prefixlen|tostring] | join("/")')
-  #   if ! ip addr add dev dockerbridge_2 $cidr_addr; then
-  #     error "Failed to add address for dockerbridge_2 interface"
-  #     exit 30
-  #   fi
-  # done
-  # if ! ip addr flush dev $VM_NET_DEV_2; then
-  #   error "Failed to clear $VM_NET_DEV_2 interface addresses"
-  #   exit 30
-  # fi
+    # QEMU Works with taps, set tap to the bridge created
+    if ! ip tuntap add dev "$NET_TAP" mode tap; then
+      error "$tuntap" && return 1
+    fi
 
-  # while ! ip link set dockerbridge_2 up; do
-  #   info "Waiting for IP address to become available..."
-  #   sleep 2
-  # done
+    while ! ip link set "$NET_TAP" up promisc on; do
+      info "Waiting for TAP to become available..."
+      sleep 2
+    done
 
-  # QEMU Works with taps, set tap to the bridge created
-  if ! ip tuntap add dev "$VM_NET_TAP" mode tap; then
-    error "$tuntap" && return 1
-  fi
+    if ! ip link set dev "$NET_TAP" master $DOCKER_BRIDGE; then
+      error "Failed to set IP link!" && return 1
+    fi
 
-  while ! ip link set "$VM_NET_TAP" up promisc on; do
-    info "Waiting for TAP to become available..."
-    sleep 2
-  done
+    if ! ip link set dev "$NET_DEV" master $DOCKER_BRIDGE; then
+      error "Failed to attach docker interface to bridge"
+    fi
 
-  if ! ip link set dev "$VM_NET_TAP" master dockerbridge; then
-    error "Failed to set IP link!" && return 1
-  fi
-
-  if ! ip link set dev "$VM_NET_DEV" master dockerbridge; then
-    error "Failed to attach docker interface to bridge"
-  fi
-
-  # if ! ip tuntap add dev "$VM_NET_TAP_2" mode tap; then
-  #   error "$tuntap" && return 1
-  # fi
-
-  # while ! ip link set "$VM_NET_TAP_2" up promisc on; do
-  #   info "Waiting for TAP to become available..."
-  #   sleep 2
-  # done
-
-  # if ! ip link set dev "$VM_NET_TAP_2" master dockerbridge_2; then
-  #   error "Failed to set IP link!" && return 1
-  # fi
-
-  NET_OPTS="-netdev tap,id=hostnet0,ifname=$VM_NET_TAP"
-
-  if [ -c /dev/vhost-net ]; then
-    {
-      exec 40>>/dev/vhost-net
+    NET_OPTS+=" -netdev tap,id=hostnet$i,ifname=$NET_TAP"
+    if [ -c /dev/vhost-net ]; then
+      fd=$((40 + i))
+      eval "exec $fd>>/dev/vhost-net"
       rc=$?
-    } 2>/dev/null || :
-    ((rc == 0)) && NET_OPTS+=",vhost=on,vhostfd=40"
-  fi
+      if ((rc == 0)); then
+        NET_OPTS+=",vhost=on,vhostfd=$fd"
+      fi
+    fi
 
-  NET_OPTS+=",script=no,downscript=no"
+    NET_OPTS+=",script=no,downscript=no "
 
-  # NET_OPTS+=" -netdev tap,id=hostnet1,ifname=$VM_NET_TAP_2"
-
-  # if [ -c /dev/vhost-net ]; then
-  #   {
-  #     exec 41>>/dev/vhost-net
-  #     rc=$?
-  #   } 2>/dev/null || :
-  #   ((rc == 0)) && NET_OPTS+=",vhost=on,vhostfd=41"
-  # fi
-
-  # NET_OPTS+=",script=no,downscript=no"
+  done
 
   return 0
-
 }
 
 closeNetwork() {
@@ -518,11 +479,21 @@ closeNetwork() {
 
     [[ "${NETWORK,,}" == "user"* ]] && return 0
 
-    ip link set "$VM_NET_TAP" down promisc off || true
-    ip link delete "$VM_NET_TAP" || true
+    if [[ "${NETWORK,,}" == "bridge"* ]]; then
+      for ((i = 0; i < ETH_COUNT; i++)); do
+        ip link set "qemu$i" down promisc off || true
+        ip link delete "qemu$i" || true
 
-    ip link set dockerbridge down || true
-    ip link delete dockerbridge || true
+        ip link set dockerbridge$i down || true
+        ip link delete dockerbridge$i || true
+      done
+    else
+      ip link set "$VM_NET_TAP" down promisc off || true
+      ip link delete "$VM_NET_TAP" || true
+
+      ip link set dockerbridge down || true
+      ip link delete dockerbridge || true
+    fi
 
   fi
 
@@ -666,16 +637,13 @@ else
     if ! configureBridge; then
 
       error "Failed to setup bridge networking"
+      for ((i = 0; i < ETH_COUNT; i++)); do
+        ip link set "$VM_NET_TAP$i" down promisc off &>null || true
+        ip link delete "$VM_NET_TAP$i" &>null || true
 
-      ip link set "$VM_NET_TAP" down promisc off &>null || true
-      ip link delete "$VM_NET_TAP" &>null || true
-      # ip link set "$VM_NET_TAP_2" down promisc off &>null || true
-      # ip link delete "$VM_NET_TAP_2" &>null || true
-
-      ip link set dockerbridge down &>null || true
-      ip link delete dockerbridge &>null || true
-      # ip link set dockerbridge_2 down &>null || true
-      # ip link delete dockerbridge_2 &>null || true
+        ip link set dockerbridge$i down &>null || true
+        ip link delete dockerbridge$i &>null || true
+      done
 
       exit 25
     fi
@@ -685,7 +653,13 @@ else
 fi
 
 NET_OPTS+=" -device $ADAPTER,romfile=,netdev=hostnet0,mac=$VM_NET_MAC,id=net0"
-# NET_OPTS+=" -device $ADAPTER_2,romfile=,netdev=hostnet1,mac=$VM_NET_MAC_2,id=net1"
+
+if [[ "${NETWORK,,}" == "bridge"* ]]; then
+  for ((i = 1; i < ETH_COUNT; i++)); do
+    MAC=$(printf "52:54:00:%02X:%02X:%02X" $((RANDOM % 256)) $((RANDOM % 256)) $((RANDOM % 256)))
+    NET_OPTS+=" -device $ADAPTER,romfile=,netdev=hostnet$i,mac=$MAC,id=net$i"
+  done
+fi
 
 NET_OPTS+=" -device virtio-serial-pci,id=virtserial0,bus=pcie.0,addr=0x6"
 NET_OPTS+=" -chardev socket,id=qga0,path=/tmp/qga.sock,server=on,wait=off"
