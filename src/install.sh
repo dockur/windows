@@ -200,13 +200,19 @@ abortInstall() {
 
 detectCustom() {
 
-  local file base
+  local dir file base
   local fname="custom.iso"
+  local boot="$STORAGE/windows.boot"
 
   CUSTOM=""
 
-  if [ -d "/$fname" ]; then
-    error "The file /$fname does not exist, please make sure that you mapped it to a valid path!" && return 1
+  dir=$(find / -maxdepth 1 -type d -iname "$fname" | head -n 1)
+  [ ! -d "$dir" ] && dir=$(find "$STORAGE" -maxdepth 1 -type d -iname "$fname" | head -n 1)
+
+  if [ -d "$dir" ]; then
+    if ! hasDisk || [ ! -f "$boot" ]; then
+      error "The bind $dir maps to a file that does not exist!" && return 1
+    fi
   fi
 
   file=$(find / -maxdepth 1 -type f -iname "$fname" | head -n 1)
