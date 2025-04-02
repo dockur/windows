@@ -18,14 +18,15 @@ skipInstall() {
     previous=$(<"$previous")
     previous="${previous//[![:print:]]/}"
     if [ -n "$previous" ]; then
-      previous="$STORAGE/$previous"
-      if [[ "${previous,,}" != "${iso,,}" ]]; then
+      if [[ "${STORAGE,,}/${previous,,}" != "${iso,,}" ]]; then
         if [ -f "$boot" ] && hasDisk; then
-          info "Detected that the version was changed, but ignoring this because Windows is already installed."
-          info "Please start with an empty /storage folder, if you want to install a different version of Windows."
+          if [[ "$previous" != "windows."* ]]; then
+            info "Detected that the version was changed, but ignoring this because Windows is already installed."
+            info "Please start with an empty /storage folder, if you want to install a different version of Windows."
+          fi
           return 0
         fi
-        [ -f "$previous" ] && rm -f "$previous"
+        rm -f "$STORAGE/$previous"
         return 1
       fi
     fi
@@ -203,7 +204,6 @@ detectCustom() {
   local dir file base
   local fname="custom.iso"
   local boot="$STORAGE/windows.boot"
-  local previous="$STORAGE/windows.base"
 
   CUSTOM=""
 
@@ -211,15 +211,9 @@ detectCustom() {
   [ ! -d "$dir" ] && dir=$(find "$STORAGE" -maxdepth 1 -type d -iname "$fname" | head -n 1)
 
   if [ -d "$dir" ]; then
-    if ! hasDisk || [ ! -f "$boot" ] || [ ! -f "$previous" ]; then
+    if ! hasDisk || [ ! -f "$boot" ]; then
       error "The bind $dir maps to a file that does not exist!" && return 1
     fi
-    previous=$(<"$previous")
-    previous="${previous//[![:print:]]/}"
-    ISO="$dir"
-    CUSTOM="$ISO"
-    BOOT="$STORAGE/$previous"
-    return 0
   fi
 
   file=$(find / -maxdepth 1 -type f -iname "$fname" | head -n 1)
