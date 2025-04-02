@@ -10,6 +10,7 @@ EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 skipInstall() {
 
   local iso="$1"
+  local method=""
   local magic byte
   local boot="$STORAGE/windows.boot"
   local previous="$STORAGE/windows.base"
@@ -18,14 +19,22 @@ skipInstall() {
     previous=$(<"$previous")
     previous="${previous//[![:print:]]/}"
     if [ -n "$previous" ]; then
-      previous="$STORAGE/$previous"
-      if [[ "${previous,,}" != "${iso,,}" ]]; then
+      if [[ "${STORAGE,,}/${previous,,}" != "${iso,,}" ]]; then
         if [ -f "$boot" ] && hasDisk; then
-          info "Detected that the version was changed, but ignoring this because Windows is already installed."
-          info "Please start with an empty /storage folder, if you want to install a different version of Windows."
+          if [[ "${iso,,}" == "${STORAGE,,}/windows."* ]]; then
+            method="your custom .iso file"
+          else
+            if [[ "${previous,,}" != "windows."* ]]; then
+              method="the VERSION variable"
+            fi
+          fi
+          if [ -n "$method" ]; then 
+            info "Detected that $method was changed, but ignoring this because Windows is already installed."
+            info "Please start with an empty /storage folder, if you want to install a different version of Windows."
+          fi
           return 0
         fi
-        [ -f "$previous" ] && rm -f "$previous"
+        rm -f "$STORAGE/$previous"
         return 1
       fi
     fi
@@ -200,13 +209,19 @@ abortInstall() {
 
 detectCustom() {
 
-  local file base
+  local dir file base
   local fname="custom.iso"
+  local boot="$STORAGE/windows.boot"
 
   CUSTOM=""
 
-  if [ -d "/$fname" ]; then
-    error "The file /$fname does not exist, please make sure that you mapped it to a valid path!" && return 1
+  dir=$(find / -maxdepth 1 -type d -iname "$fname" | head -n 1)
+  [ ! -d "$dir" ] && dir=$(find "$STORAGE" -maxdepth 1 -type d -iname "$fname" | head -n 1)
+
+  if [ -d "$dir" ]; then
+    if ! hasDisk || [ ! -f "$boot" ]; then
+      error "The bind $dir maps to a file that does not exist!" && return 1
+    fi
   fi
 
   file=$(find / -maxdepth 1 -type f -iname "$fname" | head -n 1)
@@ -495,7 +510,7 @@ setXML() {
   local file="/custom.xml"
 
   if [ -d "$file" ]; then
-    warn "The file $file does not exist, please make sure that you mapped it to a valid path!"
+    error "The bind $file maps to a file that does not exist!" && exit 67
   fi
 
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="$STORAGE/custom.xml"
