@@ -501,7 +501,7 @@ setXML() {
   local file="/custom.xml"
 
   if [ -d "$file" ]; then
-    warn "The file $file does not exist, please make sure that you mapped it to a valid path!"
+    error "The bind $file maps to a file that does not exist!" && exit 67
   fi
 
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="$STORAGE/custom.xml"
