@@ -203,6 +203,7 @@ detectCustom() {
   local dir file base
   local fname="custom.iso"
   local boot="$STORAGE/windows.boot"
+  local previous="$STORAGE/windows.base"
 
   CUSTOM=""
 
@@ -210,9 +211,15 @@ detectCustom() {
   [ ! -d "$dir" ] && dir=$(find "$STORAGE" -maxdepth 1 -type d -iname "$fname" | head -n 1)
 
   if [ -d "$dir" ]; then
-    if ! hasDisk || [ ! -f "$boot" ]; then
+    if ! hasDisk || [ ! -f "$boot" ] || [ ! -f "$previous" ]; then
       error "The bind $dir maps to a file that does not exist!" && return 1
     fi
+    previous=$(<"$previous")
+    previous="${previous//[![:print:]]/}"
+    ISO="$dir"
+    CUSTOM="$ISO"
+    BOOT="$STORAGE/$previous"
+    return 0
   fi
 
   file=$(find / -maxdepth 1 -type f -iname "$fname" | head -n 1)
