@@ -10,6 +10,7 @@ EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 skipInstall() {
 
   local iso="$1"
+  local method=""
   local magic byte
   local boot="$STORAGE/windows.boot"
   local previous="$STORAGE/windows.base"
@@ -20,8 +21,15 @@ skipInstall() {
     if [ -n "$previous" ]; then
       if [[ "${STORAGE,,}/${previous,,}" != "${iso,,}" ]]; then
         if [ -f "$boot" ] && hasDisk; then
-          if [[ "$previous" != "windows."* ]]; then
-            info "Detected that the version was changed, but ignoring this because Windows is already installed."
+          if [[ "${iso,,}" == "${STORAGE,,}/windows."* ]]; then
+            method="your custom .iso file"
+          else
+            if [[ "${previous,,}" != "windows."* ]]; then
+              method="the VERSION variable"
+            fi
+          fi
+          if [ -n "$method" ]; then 
+            info "Detected that $method was changed, but ignoring this because Windows is already installed."
             info "Please start with an empty /storage folder, if you want to install a different version of Windows."
           fi
           return 0
