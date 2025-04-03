@@ -256,7 +256,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   It's recommended to stick to the automatic installation, as it adjusts various settings to prevent common issues when running Windows inside a virtual environment.
 
-  However, if you insist on performing the installation manually on your own risk, add the following environment variable to your compose file:
+  However, if you insist on performing the installation manually at your own risk, add the following environment variable to your compose file:
 
   ```yaml
   environment:
