@@ -58,7 +58,7 @@ configure_guest_network_interface() {
 
       if [ -z "$CURRENT_IP" ]; then
         echo "Error: Unable to retrieve the current IP address of $HOST_INTERFACE."
-        exit 1
+        return 1
       fi
 
       echo "Current Host IP: $CURRENT_IP"
@@ -84,10 +84,33 @@ configure_guest_network_interface() {
         INTERFACE_NAME="Ethernet $IDX"
       fi
 
-      echo -e '{"execute": "guest-exec", "arguments": {"path": "C:\\\\Windows\\\\System32\\\\netsh.exe", "capture-output": true, "arg": ["interface", "ipv4", "set", "address", "'"$INTERFACE_NAME"'", "static", "'$CURRENT_IP'", "255.255.255.0", "'$GW'"]}}' | nc -U /tmp/qga.sock -w 5
-      echo -e '{"execute": "guest-exec", "arguments": {"path": "C:\\\\Windows\\\\System32\\\\netsh.exe", "capture-output": true, "arg": ["interface", "ipv4", "add", "dnsservers", "'"$INTERFACE_NAME"'", "1.1.1.1", "index=1"]}}' | nc -U /tmp/qga.sock -w 5
+      exit_code=0
+      python3 /run/qga.py powershell -Command "Set-NetIPInterface -InterfaceAlias '$INTERFACE_NAME' -Dhcp Disabled" || exit_code=$?
+      if [[ $exit_code -ne 0 ]]; then
+        echo "Failed to disable dhcp using qga.py" >&2
+        return 2
+      fi
+
+      if [[ -f "$STORAGE/interfaces_configured" ]]; then
+        python3 /run/qga.py powershell -Command "Remove-NetIPAddress -IPAddress '$CURRENT_IP' -Confirm:\$false" || true
+        python3 /run/qga.py powershell -Command "Remove-NetRoute -InterfaceAlias '$INTERFACE_NAME' -DestinationPrefix '0.0.0.0/0' -Confirm:\$false" || true
+      fi
+
+      python3 /run/qga.py powershell -Command "New-NetIPAddress -InterfaceAlias '$INTERFACE_NAME' -IPAddress '$CURRENT_IP' -PrefixLength 24 -DefaultGateway '$GW'" || exit_code=$?
+      if [[ $exit_code -ne 0 ]]; then
+        echo "Failed to set ip address using qga.py" >&2
+        return 3
+      fi
+
+      python3 /run/qga.py powershell -Command "Set-DnsClientServerAddress -InterfaceAlias '$INTERFACE_NAME' -ServerAddresses 1.1.1.1" || exit_code=$?
+      if [[ $exit_code -ne 0 ]]; then
+        echo "Failed to set dns server using qga.py" >&2
+        return 4
+      fi
+
     done
 
+    touch "$STORAGE/interfaces_configured"
   fi
 
   return 0
@@ -465,7 +488,10 @@ closeNetwork() {
   [[ "$NETWORK" == [Nn]* ]] && return 0
 
   exec 30<&- || true
-  exec 40<&- || true
+  for ((i = 0; i < ETH_COUNT; i++)); do
+    fd=$((40 + i))
+    eval "exec $fd<&-" || true
+  done
 
   if [[ "$DHCP" == [Yy1]* ]]; then
 

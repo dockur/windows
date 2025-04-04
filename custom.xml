@@ -465,6 +465,11 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>25</Order>
+          <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" /v "IPAutoconfigurationEnabled" /t REG_DWORD /d 0 /f</CommandLine>
+          <Description>Disable ip autoconfiguration for network interfaces</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>26</Order>
           <CommandLine>cmd /C "type nul > \\host.lan\Data\prepared"</CommandLine>
           <Description>Let host known that all configuration is done</Description>
         </SynchronousCommand>

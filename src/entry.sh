@@ -36,16 +36,38 @@ terminal
 (
     sleep 30
     boot
-    configure_guest_network_interface
-    info "Windows started succesfully, you can now connect using RDP"
-    if [[ "${NETWORK,,}" != "bridge"* ]]; then
-        info "or visit http://localhost:8006/ to view the screen..."
+
+    if ! configure_guest_network_interface; then
+        error "Failed to configure guest network interfaces"
+        exit 666
     fi
+
+    if [[ -n "${EXTRA_SCRIPT:-}" ]]; then
+        info "Executing extra script: $EXTRA_SCRIPT"
+        if ! "$EXTRA_SCRIPT"; then
+            error "Extra script failed"
+            exit 555
+        fi
+    fi
+
+    info "Windows started successfully, you can now connect using RDP or visit http://localhost:8006/ to view the screen..."
     touch "$STORAGE/ready"
 ) &
+bg_pid=$!
+
 tail -fn +0 "$QEMU_LOG" 2>/dev/null &
 cat "$QEMU_TERM" 2>/dev/null | tee "$QEMU_PTY" &
-wait $! || :
+term_pd=$!
+
+wait $bg_pid
+exit_code=$?
+
+if [[ $exit_code -ne 0 ]]; then
+    error "A critical process failed, exiting container..."
+    exit $exit_code
+fi
+
+wait $term_pd || :
 
 sleep 1 &
 wait $!
