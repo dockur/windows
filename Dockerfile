@@ -16,7 +16,8 @@ RUN set -eu && \
         dos2unix \
         cabextract \
         libxml2-utils \
-        libarchive-tools && \
+        libarchive-tools \
+        netcat-openbsd && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
