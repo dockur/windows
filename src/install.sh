@@ -172,6 +172,10 @@ finishInstall() {
     echo "$ARGS" > "$STORAGE/windows.args"
   fi
 
+  if [ -n "${VGA:-}" ] && [[ "${VGA:-}" != "virtio"* ]]; then
+    echo "$VGA" > "$STORAGE/windows.vga"
+  fi
+
   if [ -n "${USB:-}" ] && [[ "${USB:-}" != "qemu-xhci"* ]]; then
     echo "$USB" > "$STORAGE/windows.usb"
   fi
@@ -1062,6 +1066,13 @@ bootWindows() {
     ARGS=$(<"$STORAGE/windows.args")
     ARGS="${ARGS//[![:print:]]/}"
     ARGUMENTS="$ARGS ${ARGUMENTS:-}"
+  fi
+
+  if [ -s "$STORAGE/windows.vga" ] && [ -f "$STORAGE/windows.vga" ]; then
+    if [ -z "${VGA:-}" ]; then
+      VGA=$(<"$STORAGE/windows.vga")
+      VGA="${VGA//[![:print:]]/}"
+    fi
   fi
 
   if [ -s "$STORAGE/windows.usb" ] && [ -f "$STORAGE/windows.usb" ]; then
