@@ -171,7 +171,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I configure the username and password?
 
-  By default, a user called `Docker` (with an empty password) is created during installation.
+  By default, a user called `Docker` is created during installation and its password is `admin`.
 
   If you want to use different credentials, you can configure them in your compose file (only before installation):
 
@@ -259,7 +259,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   The web-viewer is mainly meant to be used during installation, as its picture quality is low, and it has no audio or clipboard for example.
 
-  So for a better experience you can connect using any Microsoft Remote Desktop client to the IP of the container, using the username `Docker` and by leaving the password empty.
+  So for a better experience you can connect using any Microsoft Remote Desktop client to the IP of the container, using the username `Docker` and password `admin`.
 
   There is a RDP client for [Android](https://play.google.com/store/apps/details?id=com.microsoft.rdc.androidx) available from the Play Store and one for [iOS](https://apps.apple.com/nl/app/microsoft-remote-desktop/id714464092?l=en-GB) in the Apple Store. For Linux you can use [FreeRDP](https://www.freerdp.com/) and on Windows just type `mstsc` in the search box.
 
