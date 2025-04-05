@@ -1340,11 +1340,14 @@ prepareInstall() {
   XHEX=$(printf '%x\n' "$WIDTH")
   YHEX=$(printf '%x\n' "$HEIGHT")
 
-  local username="Docker"
-  local password="*"
+  local username=""
+  local password=""
 
   [ -n "$PASSWORD" ] && password="$PASSWORD"
+  [ -z "$password" ] && password="admin"
+
   [ -n "$USERNAME" ] && username=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g')
+  [ -z "$username" ] && username="Docker"
 
   local ip="20.20.20.1"
   [ -n "${VM_NET_IP:-}" ] && ip="${VM_NET_IP%.*}.1"
