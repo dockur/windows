@@ -128,6 +128,8 @@ finishInstall() {
 
   rm -f "$STORAGE/windows.old"
   rm -f "$STORAGE/windows.vga"
+  rm -f "$STORAGE/windows.net"
+  rm -f "$STORAGE/windows.usb"
   rm -f "$STORAGE/windows.args"
   rm -f "$STORAGE/windows.base"
   rm -f "$STORAGE/windows.boot"
@@ -170,8 +172,16 @@ finishInstall() {
     echo "$ARGS" > "$STORAGE/windows.args"
   fi
 
+  if [ -n "${USB:-}" ] && [[ "${USB:-}" != "qemu-xhci"* ]]; then
+    echo "$USB" > "$STORAGE/windows.usb"
+  fi
+
   if [ -n "${DISK_TYPE:-}" ] && [[ "${DISK_TYPE:-}" != "scsi" ]]; then
     echo "$DISK_TYPE" > "$STORAGE/windows.type"
+  fi
+
+  if [ -n "${ADAPTER:-}" ] && [[ "${ADAPTER:-}" != "virtio-net-pci" ]]; then
+    echo "$ADAPTER" > "$STORAGE/windows.net"
   fi
 
   rm -rf "$TMP"
@@ -1052,6 +1062,20 @@ bootWindows() {
     ARGS=$(<"$STORAGE/windows.args")
     ARGS="${ARGS//[![:print:]]/}"
     ARGUMENTS="$ARGS ${ARGUMENTS:-}"
+  fi
+
+  if [ -s "$STORAGE/windows.usb" ] && [ -f "$STORAGE/windows.usb" ]; then
+    if [ -z "${USB:-}" ]; then
+      USB=$(<"$STORAGE/windows.usb")
+      USB="${USB//[![:print:]]/}"
+    fi
+  fi
+
+  if [ -s "$STORAGE/windows.net" ] && [ -f "$STORAGE/windows.net" ]; then
+    if [ -z "${ADAPTER:-}" ]; then
+      ADAPTER=$(<"$STORAGE/windows.net")
+      ADAPTER="${ADAPTER//[![:print:]]/}"
+    fi
   fi
 
   if [ -s "$STORAGE/windows.type" ] && [ -f "$STORAGE/windows.type" ]; then
