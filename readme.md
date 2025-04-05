@@ -105,7 +105,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   | `7e`   | Windows 7 Enterprise      | 3.0 GB   |
   | `ve`   | Windows Vista Enterprise  | 3.0 GB   |
   | `xp`   | Windows XP Professional   | 0.6 GB   |
-  | `2k`   | Windows 2000 Professional | 0.6 GB   | 
+  | `2k`   | Windows 2000 Professional | 0.3 GB   | 
   ||||  
   | `2025` | Windows Server 2025       | 5.6 GB   |
   | `2022` | Windows Server 2022       | 4.7 GB   |
