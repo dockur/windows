@@ -723,16 +723,18 @@ updateXML() {
     sed -i "s/<Username>Docker<\/Username>/<Username>$user<\/Username>/g" "$asset"
   fi
 
-  if [ -n "$PASSWORD" ]; then
-    pass=$(printf '%s' "${PASSWORD}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0)
-    admin=$(printf '%s' "${PASSWORD}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0)
-    sed -i "s/<Value>password<\/Value>/<Value>$admin<\/Value>/g" "$asset"
-    sed -i "s/<PlainText>true<\/PlainText>/<PlainText>false<\/PlainText>/g" "$asset"
-    sed -z "s/<Password>...........<Value \/>/<Password>\n          <Value>$pass<\/Value>/g" -i "$asset"
-    sed -z "s/<Password>...............<Value \/>/<Password>\n              <Value>$pass<\/Value>/g" -i "$asset"
-    sed -z "s/<AdministratorPassword>...........<Value \/>/<AdministratorPassword>\n          <Value>$admin<\/Value>/g" -i "$asset"
-    sed -z "s/<AdministratorPassword>...............<Value \/>/<AdministratorPassword>\n              <Value>$admin<\/Value>/g" -i "$asset"
-  fi
+  [ -n "$PASSWORD" ] && pass="$PASSWORD"
+  [ -z "$pass" ] && pass="admin"
+
+  pw=$(printf '%s' "${pass}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0)
+  admin=$(printf '%s' "${pass}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0)
+
+  sed -i "s/<Value>password<\/Value>/<Value>$admin<\/Value>/g" "$asset"
+  sed -i "s/<PlainText>true<\/PlainText>/<PlainText>false<\/PlainText>/g" "$asset"
+  sed -z "s/<Password>...........<Value \/>/<Password>\n          <Value>$pw<\/Value>/g" -i "$asset"
+  sed -z "s/<Password>...............<Value \/>/<Password>\n              <Value>$pw<\/Value>/g" -i "$asset"
+  sed -z "s/<AdministratorPassword>...........<Value \/>/<AdministratorPassword>\n          <Value>$admin<\/Value>/g" -i "$asset"
+  sed -z "s/<AdministratorPassword>...............<Value \/>/<AdministratorPassword>\n              <Value>$admin<\/Value>/g" -i "$asset"
 
   if [ -n "$EDITION" ]; then
     [[ "${EDITION^^}" == "CORE" ]] && EDITION="STANDARDCORE"
