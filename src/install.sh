@@ -28,7 +28,7 @@ skipInstall() {
               method="the VERSION variable"
             fi
           fi
-          if [ -n "$method" ]; then 
+          if [ -n "$method" ]; then
             info "Detected that $method was changed, but ignoring this because Windows is already installed."
             info "Please start with an empty /storage folder, if you want to install a different version of Windows."
           fi
@@ -185,6 +185,7 @@ abortInstall() {
   local efi
 
   [[ "${iso,,}" == *".esd" ]] && exit 60
+  [[ "${UNPACK:-}" == [Yy1]* ]] && exit 60
 
   efi=$(find "$dir" -maxdepth 1 -type d -iname efi | head -n 1)
 
@@ -336,7 +337,7 @@ extractImage() {
   local dir="$2"
   local version="$3"
   local desc="local ISO"
-  local size size_gb space space_gb
+  local file size size_gb space space_gb
 
   if [ -z "$CUSTOM" ]; then
     desc="downloaded ISO"
@@ -375,7 +376,26 @@ extractImage() {
     error "Failed to extract ISO file: $iso" && return 1
   fi
 
-  LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p')
+  if [[ "${UNPACK:-}" != [Yy1]* ]]; then
+
+    LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p')
+
+  else
+
+    file=$(find "$dir" -maxdepth 1 -type f -iname "*.iso" | head -n 1)
+
+    if [ -z "$file" ]; then
+      error "Failed to find any .iso file in archive!" && return 1
+    fi
+
+    if ! 7z x "$file" -o"$dir" > /dev/null; then
+      error "Failed to extract archive!" && return 1
+    fi
+
+    LABEL=$(isoinfo -d -i "$file" | sed -n 's/Volume id: //p')
+    rm -f "$file"
+
+  fi
 
   return 0
 }
