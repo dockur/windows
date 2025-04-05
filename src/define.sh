@@ -1343,11 +1343,11 @@ prepareInstall() {
   local username=""
   local password=""
 
-  [ -n "$PASSWORD" ] && password="$PASSWORD"
-  [ -z "$password" ] && password="admin"
-
   [ -n "$USERNAME" ] && username=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g')
   [ -z "$username" ] && username="Docker"
+
+  [ -n "$PASSWORD" ] && password=$(echo "$PASSWORD" | sed 's/"//g')
+  [ -z "$password" ] && password="admin"
 
   local ip="20.20.20.1"
   [ -n "${VM_NET_IP:-}" ] && ip="${VM_NET_IP%.*}.1"
