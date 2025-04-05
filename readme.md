@@ -91,28 +91,29 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   Select from the values below:
   
-  | **Value** | **Version**           | **Size** |
+  | **Value** | **Version**            | **Size** |
   |---|---|---|
-  | `11`   | Windows 11 Pro           | 5.4 GB   |
-  | `11l`  | Windows 11 LTSC          | 4.7 GB   |
-  | `11e`  | Windows 11 Enterprise    | 4.0 GB   |
+  | `11`   | Windows 11 Pro            | 5.4 GB   |
+  | `11l`  | Windows 11 LTSC           | 4.7 GB   |
+  | `11e`  | Windows 11 Enterprise     | 4.0 GB   |
   ||||
-  | `10`   | Windows 10 Pro           | 5.7 GB   |
-  | `10l`  | Windows 10 LTSC          | 4.6 GB   |
-  | `10e`  | Windows 10 Enterprise    | 5.2 GB   |
+  | `10`   | Windows 10 Pro            | 5.7 GB   |
+  | `10l`  | Windows 10 LTSC           | 4.6 GB   |
+  | `10e`  | Windows 10 Enterprise     | 5.2 GB   |
   ||||
-  | `8e`   | Windows 8.1 Enterprise   | 3.7 GB   |
-  | `7e`   | Windows 7 Enterprise     | 3.0 GB   |
-  | `ve`   | Windows Vista Enterprise | 3.0 GB   |
-  | `xp`   | Windows XP Professional  | 0.6 GB   |
-  ||||
-  | `2025` | Windows Server 2025      | 5.6 GB   |
-  | `2022` | Windows Server 2022      | 4.7 GB   |
-  | `2019` | Windows Server 2019      | 5.3 GB   |
-  | `2016` | Windows Server 2016      | 6.5 GB   |
-  | `2012` | Windows Server 2012      | 4.3 GB   |
-  | `2008` | Windows Server 2008      | 3.0 GB   |
-  | `2003` | Windows Server 2003      | 0.6 GB   |
+  | `8e`   | Windows 8.1 Enterprise    | 3.7 GB   |
+  | `7e`   | Windows 7 Enterprise      | 3.0 GB   |
+  | `ve`   | Windows Vista Enterprise  | 3.0 GB   |
+  | `xp`   | Windows XP Professional   | 0.6 GB   |
+  | `2k`   | Windows 2000 Professional | 0.4 GB   | 
+  ||||  
+  | `2025` | Windows Server 2025       | 5.6 GB   |
+  | `2022` | Windows Server 2022       | 4.7 GB   |
+  | `2019` | Windows Server 2019       | 5.3 GB   |
+  | `2016` | Windows Server 2016       | 6.5 GB   |
+  | `2012` | Windows Server 2012       | 4.3 GB   |
+  | `2008` | Windows Server 2008       | 3.0 GB   |
+  | `2003` | Windows Server 2003       | 0.6 GB   |
 
 > [!TIP]
 > To install ARM64 versions of Windows use [dockur/windows-arm](https://github.com/dockur/windows-arm/).
@@ -170,7 +171,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I configure the username and password?
 
-  By default, a user called `Docker` (with an empty password) is created during installation.
+  By default, a user called `Docker` is created during installation and its password is `admin`.
 
   If you want to use different credentials, you can configure them in your compose file (only before installation):
 
@@ -258,7 +259,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   The web-viewer is mainly meant to be used during installation, as its picture quality is low, and it has no audio or clipboard for example.
 
-  So for a better experience you can connect using any Microsoft Remote Desktop client to the IP of the container, using the username `Docker` and by leaving the password empty.
+  So for a better experience you can connect using any Microsoft Remote Desktop client to the IP of the container, using the username `Docker` and password `admin`.
 
   There is a RDP client for [Android](https://play.google.com/store/apps/details?id=com.microsoft.rdc.androidx) available from the Play Store and one for [iOS](https://apps.apple.com/nl/app/microsoft-remote-desktop/id714464092?l=en-GB) in the Apple Store. For Linux you can use [FreeRDP](https://www.freerdp.com/) and on Windows just type `mstsc` in the search box.
 

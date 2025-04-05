@@ -1,7 +1,7 @@
 ARG VERSION_ARG="latest"
 FROM scratch AS build-amd64
 
-COPY --from=qemux/qemu:7.08 / /
+COPY --from=qemux/qemu:7.09 / /
 
 ARG DEBCONF_NOWARNINGS="yes"
 ARG DEBIAN_FRONTEND="noninteractive"
@@ -16,7 +16,8 @@ RUN set -eu && \
         dos2unix \
         cabextract \
         libxml2-utils \
-        libarchive-tools && \
+        libarchive-tools \
+        netcat-openbsd && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 

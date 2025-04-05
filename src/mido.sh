@@ -472,6 +472,18 @@ getESD() {
   return 0
 }
 
+isCompressed() {
+
+  local file="$1"
+
+  case "${file,,}" in
+    *".7z" | *".zip" | *".rar" | *".lzma" | *".bz" | *".bz2" )
+      return 0 ;;
+  esac
+
+  return 1
+}
+
 verifyFile() {
 
   local iso="$1"
@@ -560,6 +572,7 @@ downloadFile() {
       error "Invalid download link: $url (is only $total_gb ?). Please report this at $SUPPORT/issues." && return 1
     fi
     verifyFile "$iso" "$size" "$total" "$sum" || return 1
+    isCompressed "$url" && UNPACK="Y"
     html "Download finished successfully..." && return 0
   fi
 
@@ -584,12 +597,14 @@ downloadImage() {
   local msg="Will retry after $delay seconds..."
 
   if [[ "${version,,}" == "http"* ]]; then
+
     base=$(basename "$iso")
     desc=$(fromFile "$base")
     downloadFile "$iso" "$version" "" "" "" "$desc" && return 0
     info "$msg" && html "$msg" && sleep "$delay"
     downloadFile "$iso" "$version" "" "" "" "$desc" && return 0
     rm -f "$iso"
+
     return 1
   fi
 

@@ -89,6 +89,9 @@ parseVersion() {
     "xp64" | "xpx64" | "5x64" | "winxp64" | "winxpx64" | "windowsxp64" | "windowsxpx64" )
       VERSION="winxpx64"
       ;;
+    "2k" | "2000" | "win2k" | "win2000" | "windows2k" | "windows2000" )
+      VERSION="win2kx86"
+      ;;
     "25" | "2025" | "win25" | "win2025" | "windows2025" | "windows 2025" )
       VERSION="win2025-eval"
       ;;
@@ -101,7 +104,7 @@ parseVersion() {
     "16" | "2016" | "win16" | "win2016" | "windows2016" | "windows 2016" )
       VERSION="win2016-eval"
       ;;
-    "hv" | "hyperv" | "hyper v" | "hyper-v" | "19hv" | "2019hv" | "win2019hv")
+    "hv" | "hyperv" | "hyper v" | "hyper-v" | "19hv" | "2019hv" | "win2019hv" )
       VERSION="win2019-hv"
       ;;
     "2012" | "2012r2" | "win2012" | "win2012r2" | "windows2012" | "windows 2012" )
@@ -912,6 +915,11 @@ getLink1() {
       sum="8fac68e1e56c64ad9a2aa0ad464560282e67fa4f4dd51d09a66f4e548eb0f2d6"
       url="xp/professional/en_win_xp_pro_x64_vl.iso"
       ;;
+    "win2kx86" )
+      size=331701982
+      sum="a93251b31f92316411bb48458a695d9051b13cdeba714c46f105012fdda45bf3"
+      url="2000/5.00.2195.6717_x86fre_client-professional_retail_en-us.7z"
+      ;;
   esac
 
   case "${ret,,}" in
@@ -1080,6 +1088,10 @@ getLink3() {
       sum="8fac68e1e56c64ad9a2aa0ad464560282e67fa4f4dd51d09a66f4e548eb0f2d6"
       url="windows-xp-all-sp-msdn-iso-files-en-de-ru-tr-x86-x64/en_win_xp_sp1_pro_x64_vl.iso"
       ;;
+    "win2kx86" )
+      size=386859008
+      sum="e3816f6e80b66ff686ead03eeafffe9daf020a5e4717b8bd4736b7c51733ba22"
+      url="MicrosoftWindows2000BuildCollection/5.00.2195.6717_x86fre_client-professional_retail_en-us-ZRMPFPP_EN.iso"
   esac
 
   case "${ret,,}" in
@@ -1216,88 +1228,103 @@ prepareInstall() {
   local driver="$4"
   local drivers="/tmp/drivers"
 
-  rm -rf "$drivers"
-  mkdir -p "$drivers"
-
   ETFS="[BOOT]/Boot-NoEmul.img"
 
   if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
     error "Failed to locate file \"$ETFS\" in $desc ISO image!" && return 1
   fi
 
-  local msg="Adding drivers to image..."
-  info "$msg" && html "$msg"
-
-  if ! bsdtar -xf /drivers.txz -C "$drivers"; then
-    error "Failed to extract drivers!" && return 1
-  fi
-
   local arch target
   [ -d "$dir/AMD64" ] && arch="amd64" || arch="x86"
   [[ "${arch,,}" == "x86" ]] && target="$dir/I386" || target="$dir/AMD64"
 
-  if [ ! -f "$drivers/viostor/$driver/$arch/viostor.sys" ]; then
-    error "Failed to locate required storage drivers!" && return 1
+  if [ ! -d "$target" ]; then
+    error "Failed to locate directory \"$target\" in $desc ISO image!" && return 1
   fi
 
-  cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$target" || return 1
+  if [[ "${driver,,}" == "xp" ]] || [[ "${driver,,}" == "2k3" ]]; then
 
-  mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
-  cp -L "$drivers/viostor/$driver/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
-  cp -L "$drivers/viostor/$driver/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
-  cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
+    local msg="Adding drivers to image..."
+    info "$msg" && html "$msg"
 
-  if [ ! -f "$drivers/NetKVM/$driver/$arch/netkvm.sys" ]; then
-    error "Failed to locate required network drivers!" && return 1
+    rm -rf "$drivers"
+    mkdir -p "$drivers"
+
+    if ! bsdtar -xf /drivers.txz -C "$drivers"; then
+      error "Failed to extract drivers!" && return 1
+    fi
+
+    if [ ! -f "$drivers/viostor/$driver/$arch/viostor.sys" ]; then
+      error "Failed to locate required storage drivers!" && return 1
+    fi
+
+    cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$target" || return 1
+
+    mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
+    cp -L "$drivers/viostor/$driver/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
+    cp -L "$drivers/viostor/$driver/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
+    cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
+
+    if [ ! -f "$drivers/NetKVM/$driver/$arch/netkvm.sys" ]; then
+      error "Failed to locate required network drivers!" && return 1
+    fi
+
+    mkdir -p "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
+    cp -L "$drivers/NetKVM/$driver/$arch/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
+    cp -L "$drivers/NetKVM/$driver/$arch/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
+    cp -L "$drivers/NetKVM/$driver/$arch/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
+
+    if [ ! -f "$target/TXTSETUP.SIF" ]; then
+      error "The file TXTSETUP.SIF could not be found!" && return 1
+    fi
+
+    sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\nviostor.sys=1,,,,,,4_,4,1,,,1,4/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device\"/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00020000=\"viostor\"/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$target/TXTSETUP.SIF"
+
+    if [ ! -d "$drivers/sata/xp/$arch" ]; then
+      error "Failed to locate required SATA drivers!" && return 1
+    fi
+
+    mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata" || return 1
+    cp -Lr "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata" || return 1
+    cp -Lr "$drivers/sata/xp/$arch/." "$target" || return 1
+
+    sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.cat = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.inf = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,4_,4,1,,,1,4/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaahci.cat = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaAHCI.inf = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$target/TXTSETUP.SIF"
+
+    rm -rf "$drivers"
+
   fi
-
-  mkdir -p "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
-  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
-  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
-  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
-
-  if [ ! -f "$target/TXTSETUP.SIF" ]; then
-    error "The file TXTSETUP.SIF could not be found!" && return 1
-  fi
-
-  sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\nviostor.sys=1,,,,,,4_,4,1,,,1,4/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device\"/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00020000=\"viostor\"/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$target/TXTSETUP.SIF"
-
-  if [ ! -d "$drivers/sata/xp/$arch" ]; then
-    error "Failed to locate required SATA drivers!" && return 1
-  fi
-
-  mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata" || return 1
-  cp -Lr "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata" || return 1
-  cp -Lr "$drivers/sata/xp/$arch/." "$target" || return 1
-
-  sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.cat = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.inf = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,4_,4,1,,,1,4/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaahci.cat = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaAHCI.inf = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$target/TXTSETUP.SIF"
-
-  rm -rf "$drivers"
 
   local pid file setup
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini | head -n 1)
-  pid=$(<"$setup")
-  pid="${pid:(-4)}"
-  pid="${pid:0:3}"
 
-  if [[ "$pid" == "270" ]]; then
-    warn "this version of $desc requires a volume license key (VLK), it will ask for one during installation."
+  if [ -n "$setup" ]; then
+
+    pid=$(<"$setup")
+    pid="${pid:(-4)}"
+    pid="${pid:0:3}"
+
+    if [[ "$pid" == "270" ]]; then
+      warn "this version of $desc requires a volume license key (VLK), it will ask for one during installation."
+    fi
+
   fi
+
+  mkdir -p "$dir/\$OEM\$"
 
   if ! addFolder "$dir"; then
     error "Failed to add OEM folder to image!" && return 1
@@ -1313,33 +1340,48 @@ prepareInstall() {
   XHEX=$(printf '%x\n' "$WIDTH")
   YHEX=$(printf '%x\n' "$HEIGHT")
 
-  local username="Docker"
-  local password="*"
+  local username=""
+  local password=""
 
-  [ -n "$PASSWORD" ] && password="$PASSWORD"
   [ -n "$USERNAME" ] && username=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g')
+  [ -z "$username" ] && username="Docker"
+
+  [ -n "$PASSWORD" ] && password=$(echo "$PASSWORD" | sed 's/"//g')
+  [ -z "$password" ] && password="admin"
 
   local ip="20.20.20.1"
   [ -n "${VM_NET_IP:-}" ] && ip="${VM_NET_IP%.*}.1"
 
   # These are not pirated keys, they come from the official MS documentation.
-  if [[ "${driver,,}" == "xp" ]]; then
-    if [[ "${arch,,}" == "x86" ]]; then
-      # Windows XP Professional x86 generic key (no activation, trial-only)
-      [ -z "$KEY" ] && KEY="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
-    else
-      # Windows XP Professional x64 generic key (no activation, trial-only)
-      [ -z "$KEY" ] && KEY="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
-    fi
-  else
-    if [[ "${arch,,}" == "x86" ]]; then
-      # Windows Server 2003 Standard x86 generic key (no activation, trial-only)
-      [ -z "$KEY" ] && KEY="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
-    else
-      # Windows Server 2003 Standard x64 generic key (no activation, trial-only)
-      [ -z "$KEY" ] && KEY="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
-    fi
-  fi
+  case "${driver,,}" in
+    "xp" )
+
+      if [[ "${arch,,}" == "x86" ]]; then
+        # Windows XP Professional x86 generic key (no activation, trial-only)
+        [ -z "$KEY" ] && KEY="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
+      else
+        # Windows XP Professional x64 generic key (no activation, trial-only)
+        [ -z "$KEY" ] && KEY="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
+      fi ;;
+
+    "2k3" )
+
+      if [[ "${arch,,}" == "x86" ]]; then
+        # Windows Server 2003 Standard x86 generic key (no activation, trial-only)
+        [ -z "$KEY" ] && KEY="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
+      else
+        # Windows Server 2003 Standard x64 generic key (no activation, trial-only)
+        [ -z "$KEY" ] && KEY="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
+      fi ;;
+
+    "2k" )
+
+      # Windows 2000 Professional x86 generic key
+      KEY="G74HG-XXQTJ-RTX64-QKP3F-HKHXP" ;;
+
+    * ) error "Unknown version: \"$driver\"" && return 1 ;;
+
+  esac
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
@@ -1378,7 +1420,7 @@ prepareInstall() {
           echo "    FullName=\"$username\""
           echo "    ComputerName=\"*\""
           echo "    OrgName=\"Windows for Docker\""
-          echo "    ProductKey=$KEY"
+          echo "    ProductID=$KEY"
           echo ""
           echo "[Identification]"
           echo "    JoinWorkgroup = WORKGROUP"
@@ -1437,12 +1479,14 @@ prepareInstall() {
           echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]"
           echo "\"HideFileExt\"=dword:00000000"
           echo ""
+          echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer]"
+          echo "\"NoWelcomeScreen\"=\"1\""
+          echo ""
           echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]"
-          echo "\"DefaultUserName\"=\"$username\""
-          echo "\"DefaultDomainName\"=\"Dockur\""
-          echo "\"AltDefaultUserName\"=\"$username\""
-          echo "\"AltDefaultDomainName\"=\"Dockur\""
           echo "\"AutoAdminLogon\"=\"1\""
+          echo "\"DefaultUserName\"=\"$username\""
+          echo "\"DefaultPassword\"=\"$password\""
+          echo "\"DefaultDomainName\"=\"Dockur\""
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]"
           echo "\"DefaultSettings.BitsPerPel\"=dword:00000020"
@@ -1513,11 +1557,13 @@ prepareInstall() {
           echo ""
           echo "Call Domain.MoveHere(LocalAdminADsPath, \"$username\")"
           echo ""
-          echo "Set oFSO = CreateObject(\"Scripting.FileSystemObject\")"
-          echo "Set oHosts = oFSO.GetFile(\"C:\Windows\System32\drivers\etc\hosts\")"
-          echo "Set fileAPPEND = oFSO.OpenTextFile(\"C:\Windows\System32\drivers\etc\hosts\", 8, true)"
-          echo "fileAPPEND.Write(\"$ip      host.lan\")"
-          echo "fileAPPEND.Close()"
+          echo "With (CreateObject(\"Scripting.FileSystemObject\"))"
+          echo "  SysRoot = WshShell.ExpandEnvironmentStrings(\"%SystemRoot%\")"
+          echo "  Set oFile = .OpenTextFile(SysRoot & \"\system32\drivers\etc\hosts\", 8, true)"
+          echo "  oFile.Write(\"$ip      host.lan\")"
+          echo "  oFile.Close()"
+          echo "  Set oFile = Nothing"
+          echo "End With"
           echo ""
   } | unix2dos > "$dir/\$OEM\$/admin.vbs"
 
@@ -1614,7 +1660,9 @@ setMachine() {
     "win9"* )
       ETFS="[BOOT]/Boot-1.44M.img" ;;
     "win2k"* )
-      ETFS="[BOOT]/Boot-NoEmul.img" ;;
+      if ! prepareInstall "$iso" "$dir" "$desc" "2k"; then
+        error "Failed to prepare $desc ISO!" && return 1
+      fi ;;
     "winxp"* )
       if ! prepareInstall "$iso" "$dir" "$desc" "xp"; then
         error "Failed to prepare $desc ISO!" && return 1
@@ -1626,9 +1674,19 @@ setMachine() {
   esac
 
   case "${id,,}" in
-    "win9"* | "win2k"* )
+    "win9"* )
+      USB="no"
+      VGA="cirrus"
       DISK_TYPE="auto"
+      ADAPTER="rtl8139"
       MACHINE="pc-i440fx-2.4"
+      BOOT_MODE="windows_legacy" ;;
+    "win2k"* )
+      VGA="cirrus"
+      MACHINE="pc"
+      USB="pci-ohci"
+      DISK_TYPE="auto"
+      ADAPTER="rtl8139"
       BOOT_MODE="windows_legacy" ;;
     "winxp"* | "win2003"* )
       DISK_TYPE="blk"
