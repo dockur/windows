@@ -1376,6 +1376,8 @@ prepareInstall() {
       # Windows 2000 Professional x86 generic key
       KEY="G74HG-XXQTJ-RTX64-QKP3F-HKHXP" ;;
 
+    * ) error "Unknown version: \"$driver\"" && return 1 ;;
+
   esac
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
