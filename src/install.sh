@@ -723,8 +723,7 @@ updateXML() {
     sed -i "s/<Username>Docker<\/Username>/<Username>$user<\/Username>/g" "$asset"
   fi
 
-  [ -n "$PASSWORD" ] && pass="$PASSWORD" || pass=""
-  [ -z "$pass" ] && pass="admin"
+  [ -n "$PASSWORD" ] && pass="$PASSWORD" || pass="admin"
 
   pw=$(printf '%s' "${pass}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0)
   admin=$(printf '%s' "${pass}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0)
