@@ -84,6 +84,21 @@ configure_guest_network_interface() {
         INTERFACE_NAME="Ethernet $IDX"
       fi
 
+      RETRIES=10
+      for i in $(seq 1 $RETRIES); do
+        OUTPUT=$(python3 /run/qga.py powershell -Command "(\$(Get-NetAdapter -Name '$INTERFACE_NAME').Status)")
+        STATUS=$(echo "$OUTPUT" | grep -A1 'STDOUT:' | tail -n1 | tr -d '\r' | xargs)
+
+        echo "Status: '$STATUS'"
+        if [[ "$STATUS" == "Up" ]]; then
+          echo "Interface '$INTERFACE_NAME' is up!"
+          break
+        else
+          echo "Waiting for interface '$INTERFACE_NAME' to be up... ($i/$RETRIES)"
+          sleep $SLEEP
+        fi
+      done
+
       exit_code=0
       python3 /run/qga.py powershell -Command "Set-NetIPInterface -InterfaceAlias '$INTERFACE_NAME' -Dhcp Disabled" || exit_code=$?
       if [[ $exit_code -ne 0 ]]; then
