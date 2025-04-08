@@ -1,7 +1,7 @@
 ARG VERSION_ARG="latest"
 FROM scratch AS build-amd64
 
-COPY --from=qemux/qemu-docker:6.13 / /
+COPY --from=qemux/qemu:7.10 / /
 
 ARG DEBCONF_NOWARNINGS="yes"
 ARG DEBIAN_FRONTEND="noninteractive"
@@ -10,19 +10,14 @@ ARG DEBCONF_NONINTERACTIVE_SEEN="true"
 RUN set -eu && \
     apt-get update && \
     apt-get --no-install-recommends -y install \
-        bc \
-        jq \
-        curl \
-        7zip \
         wsdd \
         samba \
-        xz-utils \
         wimtools \
         dos2unix \
         cabextract \
-        genisoimage \
         libxml2-utils \
-        libarchive-tools && \
+        libarchive-tools \
+        netcat-openbsd && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
