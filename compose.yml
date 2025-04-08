@@ -16,23 +16,28 @@ services:
       DISK_FMT: "qcow2"
       NETWORK: "Y"
       DEBUG: "Y"
+      COMMIT: "Y"
     devices:
       - /dev/kvm
       - /dev/net/tun
     cap_add:
       - NET_ADMIN
+    ports:
+      - 8006:8006
+      - 3389:3389/tcp
+      - 3389:3389/udp
+    restart: always
     stop_grace_period: 2m
     volumes:
+      - ./windows:/storage
       - ./scripts:/oem
-      - ./custom.xml:/custom.xml
-      - ./custom.iso:/custom.iso
 
   windows-installed:
     image: $IMAGE_NAME:$IMAGE_VERSION
     container_name: windows-installed
     privileged: true
     healthcheck:
-      test: "[ -f /storage/ready ] || exit 1"
+      test: "[ -f /local/ready ] || exit 1"
       interval: 30s
       retries: 20
       start_period: 60s
@@ -46,4 +51,9 @@ services:
       - /dev/net/tun
     cap_add:
       - NET_ADMIN
+    ports:
+      - 8006:8006
+      - 3389:3389/tcp
+      - 3389:3389/udp
+    restart: always
     stop_grace_period: 2m

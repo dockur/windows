@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 set -Eeuox pipefail
 
+: "${APP:="Windows"}"
+: "${PLATFORM:="x64"}"
 : "${BOOT_MODE:="windows"}"
-
-APP="Windows"
-SUPPORT="https://github.com/dockur/windows"
+: "${SUPPORT:="https://github.com/dockur/windows"}"
 
 cd /run
 
+. utils.sh   # Load functions
 . reset.sh   # Initialize system
 . define.sh  # Define versions
-. mido.sh    # Download code
+. mido.sh    # Download Windows
 . install.sh # Run installation
 . disk.sh    # Initialize disks
 . display.sh # Initialize graphics
@@ -56,7 +57,10 @@ terminal
 bg_pid=$!
 
 tail -fn +0 "$QEMU_LOG" 2>/dev/null &
-cat "$QEMU_TERM" 2>/dev/null | tee "$QEMU_PTY" &
+cat "$QEMU_TERM" 2>/dev/null | tee "$QEMU_PTY" |
+    sed -u -e 's/\x1B\[[=0-9;]*[a-z]//gi' \
+        -e 's/failed to load Boot/skipped Boot/g' \
+        -e 's/0): Not Found/0)/g' &
 term_pd=$!
 
 wait $bg_pid

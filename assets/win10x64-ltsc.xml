@@ -421,6 +421,11 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>20</Order>
+          <CommandLine>cmd /C echo 20.20.20.1     host.lan >> %WINDIR%\system32\drivers\etc\hosts</CommandLine>
+          <Description>Add entry in hosts file</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>21</Order>
           <CommandLine>cmd /C if exist "C:\OEM\install.bat" start "Install" "cmd /C C:\OEM\install.bat"</CommandLine>
           <Description>Execute custom script from the OEM folder if exists</Description>
         </SynchronousCommand>

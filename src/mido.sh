@@ -93,6 +93,7 @@ download_windows() {
 
   # uuidgen: For MacOS (installed by default) and other systems (e.g. with no /proc) that don't have a kernel interface for generating random UUIDs
   session_id=$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random)
+  session_id="${session_id//[![:print:]]/}"
 
   # Get product edition ID for latest release of given Windows version
   # Product edition ID: This specifies both the Windows release (e.g. 22H2) and edition ("multi-edition" is default, either Home/Pro/Edu/etc., we select "Pro" in the answer files) in one number
@@ -208,6 +209,9 @@ download_windows_eval() {
     "win2022-eval" )
       enterprise_type="server"
       windows_version="windows-server-2022" ;;
+    "win2019-hv" )
+      enterprise_type="server"
+      windows_version="hyper-v-server-2019" ;;
     "win2019-eval" )
       enterprise_type="server"
       windows_version="windows-server-2019" ;;
@@ -242,10 +246,10 @@ download_windows_eval() {
 
   [[ "$DEBUG" == [Yy1]* ]] && echo "Getting download link.."
 
-  if [[ "$enterprise_type" == "iot" ]]; then
-    filter="https://go.microsoft.com/fwlink/?linkid=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country^^}"
-  else
-    filter="https://go.microsoft.com/fwlink/p/?LinkID=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country^^}"
+  filter="https://go.microsoft.com/fwlink/?linkid=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country,,}"
+
+  if ! echo "$iso_download_page_html" | grep -io "$filter" > /dev/null; then
+    filter="https://go.microsoft.com/fwlink/p/?linkid=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country,,}"
   fi
 
   iso_download_links=$(echo "$iso_download_page_html" | grep -io "$filter") || {
@@ -310,7 +314,7 @@ getWindows() {
   info "$msg" && html "$msg"
 
   case "${version,,}" in
-    "win2008r2" | "win81${PLATFORM,,}-enterprise"* | "win11${PLATFORM,,}-enterprise-iot"* | "win11${PLATFORM,,}-enterprise-ltsc"* )
+    "win2008r2" | "win81${PLATFORM,,}"* | "win11${PLATFORM,,}-enterprise-iot"* | "win11${PLATFORM,,}-enterprise-ltsc"* )
       if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
         error "No download in the $language language available for $edition!"
         MIDO_URL="" && return 1
@@ -335,7 +339,7 @@ getWindows() {
     "win11${PLATFORM,,}-enterprise"* | "win10${PLATFORM,,}-enterprise"* )
       download_windows_eval "$version" "$lang" "$edition" && return 0
       ;;
-    "win2025-eval" | "win2022-eval" | "win2019-eval" | "win2016-eval" | "win2012r2-eval" )
+    "win2025-eval" | "win2022-eval" | "win2019-eval" | "win2019-hv" | "win2016-eval" | "win2012r2-eval" )
       download_windows_eval "$version" "$lang" "$edition" && return 0
       ;;
     "win81${PLATFORM,,}-enterprise"* | "win2008r2" )
@@ -343,53 +347,10 @@ getWindows() {
     * ) error "Invalid VERSION specified, value \"$version\" is not recognized!" ;;
   esac
 
-  if [[ "${PLATFORM,,}" != "x64" ]]; then
-    MIDO_URL=""
-    return 1
-  fi
+  MIDO_URL=$(getMido "$version" "$lang" "")
+  [ -z "$MIDO_URL" ] && return 1
 
-  if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
-    MIDO_URL=""
-    return 1
-  fi
-
-  case "${version,,}" in
-    "win81${PLATFORM,,}-enterprise"* )
-      MIDO_URL="https://download.microsoft.com/download/B/9/9/B999286E-0A47-406D-8B3D-5B5AD7373A4A/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_ENTERPRISE_EVAL_EN-US-IR3_CENA_X64FREE_EN-US_DV9.ISO"
-      return 0
-      ;;
-    "win11${PLATFORM,,}-enterprise-iot"* | "win11${PLATFORM,,}-enterprise-ltsc"* )
-      MIDO_URL="https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.1.240331-1435.ge_release_CLIENT_IOT_LTSC_EVAL_x64FRE_en-us.iso"
-      return 0
-      ;;
-    "win2025-eval" )
-      MIDO_URL="https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.1.240331-1435.ge_release_SERVER_EVAL_x64FRE_en-us.iso"
-      return 0
-      ;;
-    "win2022-eval" )
-      MIDO_URL="https://software-static.download.prss.microsoft.com/sg/download/888969d5-f34g-4e03-ac9d-1f9786c66749/SERVER_EVAL_x64FRE_en-us.iso"
-      return 0
-      ;;
-    "win2019-eval" )
-      MIDO_URL="https://software-download.microsoft.com/download/pr/17763.737.190906-2324.rs5_release_svc_refresh_SERVER_EVAL_x64FRE_en-us_1.iso"
-      return 0
-      ;;
-    "win2016-eval" )
-      MIDO_URL="https://software-download.microsoft.com/download/pr/Windows_Server_2016_Datacenter_EVAL_en-us_14393_refresh.ISO"
-      return 0
-      ;;
-    "win2012r2-eval" )
-      MIDO_URL="https://download.microsoft.com/download/6/2/A/62A76ABB-9990-4EFC-A4FE-C7D698DAEB96/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_SERVER_EVAL_EN-US-IR3_SSS_X64FREE_EN-US_DV9.ISO"
-      return 0
-      ;;
-    "win2008r2" )
-      MIDO_URL="https://download.microsoft.com/download/4/1/D/41DEA7E0-B30D-4012-A1E3-F24DC03BA1BB/7601.17514.101119-1850_x64fre_server_eval_en-us-GRMSXEVAL_EN_DVD.iso"
-      return 0
-      ;;
-  esac
-
-  MIDO_URL=""
-  return 1
+  return 0
 }
 
 getCatalog() {
@@ -426,243 +387,6 @@ getCatalog() {
     *) echo "";;
   esac
 
-  return 0
-}
-
-getMG() {
-
-  local version="$1"
-  local lang="$2"
-  local desc="$3"
-
-  local locale=""
-  local culture=""
-  local language=""
-  local user_agent=""
-
-  user_agent=$(get_agent)
-  language=$(getLanguage "$lang" "desc")
-  culture=$(getLanguage "$lang" "culture")
-
-  local msg="Requesting download link from massgrave.dev..."
-  info "$msg" && html "$msg"
-
-  local pattern=""
-  local locale="${culture,,}"
-  local platform="${PLATFORM,,}"
-  local url="https://massgrave.dev/"
-
-  if [[ "${PLATFORM,,}" != "arm64" ]]; then
-
-    case "${version,,}" in
-      "win11${PLATFORM,,}" )
-        url+="windows_11_links"
-        pattern="consumer"
-        ;;
-      "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval" )
-        url+="windows_11_links"
-        pattern="business"
-        ;;
-      "win11${PLATFORM,,}-ltsc" | "win11${PLATFORM,,}-enterprise-ltsc-eval" )
-        url+="windows_ltsc_links"
-        pattern="11_enterprise_ltsc"
-        ;;
-      "win11${PLATFORM,,}-iot" | "win11${PLATFORM,,}-enterprise-iot-eval" )
-        url+="windows_ltsc_links"
-        pattern="11_iot"
-        ;;
-      "win10${PLATFORM,,}" )
-        url+="windows_10_links"
-        pattern="consumer"
-        ;;
-      "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" )
-        url+="windows_10_links"
-        pattern="business"
-        ;;
-      "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-        url+="windows_ltsc_links"
-        pattern="10_enterprise_ltsc"
-        ;;
-      "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval" )
-        url+="windows_ltsc_links"
-        pattern="10_iot"
-        ;;
-      "win81${PLATFORM,,}-enterprise" | "win81${PLATFORM,,}-enterprise-eval" )
-        url+="windows_8.1_links"
-        pattern="8.1_enterprise"
-        locale=$(getLanguage "$lang" "code")
-        [[ "$locale" == "sr" ]] && locale="sr-latn"
-        ;;
-      "win2025" | "win2025-eval" )
-        url+="windows_server_links"
-        pattern="server_2025"
-        ;;
-      "win2022" | "win2022-eval" )
-        url+="windows_server_links"
-        pattern="server_2022"
-        ;;
-      "win2019" | "win2019-eval" )
-        url+="windows_server_links"
-        pattern="server_2019"
-        ;;
-      "win2016" | "win2016-eval" )
-        url+="windows_server_links"
-        pattern="server_2016"
-        locale=$(getLanguage "$lang" "code")
-        [[ "$locale" == "hk" ]] && locale="ct"
-        [[ "$locale" == "tw" ]] && locale="ct"
-        ;;
-      "win2012r2" | "win2012r2-eval" )
-        url+="windows_server_links"
-        pattern="server_2012_r2"
-        locale=$(getLanguage "$lang" "code")
-        ;;
-      "win2008r2" | "win2008r2-eval" )
-        url+="windows_server_links"
-        pattern="server_2008_r2"
-        locale=$(getLanguage "$lang" "code")
-        ;;
-      "win7x64" | "win7x64-enterprise" )
-        url+="windows_7_links"
-        pattern="enterprise"
-        locale=$(getLanguage "$lang" "code")
-        ;;
-      "win7x64-ultimate" )
-        url+="windows_7_links"
-        pattern="ultimate"
-        locale=$(getLanguage "$lang" "code")
-        ;;
-      "win7x86" | "win7x86-enterprise" )
-        platform="x86"
-        url+="windows_7_links"
-        pattern="enterprise"
-        locale=$(getLanguage "$lang" "code")
-        ;;
-      "win7x86-ultimate" )
-        platform="x86"
-        url+="windows_7_links"
-        pattern="ultimate"
-        locale=$(getLanguage "$lang" "code")
-        ;;
-      "winvistax64" | "winvistax64-enterprise" )
-        url+="windows_vista_links"
-        pattern="enterprise"
-        locale=$(getLanguage "$lang" "code")
-        ;;
-      "winvistax64-ultimate" )
-        url+="windows_vista_links"
-        pattern="sp2"
-        locale=$(getLanguage "$lang" "code")
-        ;;
-      "winvistax86" | "winvistax86-enterprise" )
-        platform="x86"
-        url+="windows_vista_links"
-        pattern="enterprise"
-        locale=$(getLanguage "$lang" "code")
-        ;;
-      "winvistax86-ultimate" )
-        platform="x86"
-        url+="windows_vista_links"
-        pattern="sp2"
-        locale=$(getLanguage "$lang" "code")
-        ;;
-      "winxpx86" )
-        platform="x86"
-        url+="windows_xp_links"
-        pattern="xp"
-        locale=$(getLanguage "$lang" "code")
-        [[ "$locale" == "pt" ]] && locale="pt-br"
-        [[ "$locale" == "pp" ]] && locale="pt-pt"
-        [[ "$locale" == "cn" ]] && locale="zh-hans"
-        [[ "$locale" == "hk" ]] && locale="zh-hk"
-        [[ "$locale" == "tw" ]] && locale="zh-tw"
-        ;;
-      "winxpx64" )
-        url+="windows_xp_links"
-        pattern="xp"
-        locale=$(getLanguage "$lang" "code")
-        ;;
-    esac
-
-  else
-
-    case "${version,,}" in
-      "win11${PLATFORM,,}" | "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval" )
-        url+="windows_arm_links"
-        pattern="11_business"
-        ;;
-      "win11${PLATFORM,,}-ltsc" | "win11${PLATFORM,,}-enterprise-ltsc-eval" )
-        url+="windows_arm_links"
-        pattern="11_iot_enterprise_ltsc"
-        ;;
-      "win10${PLATFORM,,}" | "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" )
-        url+="windows_arm_links"
-        pattern="Pro_10"
-        locale="$language"
-        [[ "$locale" == "Chinese" ]] && locale="ChnSimp"
-        [[ "$locale" == "Chinese HK" ]] && locale="ChnTrad"
-        [[ "$locale" == "Chinese TW" ]] && locale="ChnTrad"
-        ;;
-      "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-        url+="windows_arm_links"
-        pattern="10_iot_enterprise_ltsc"
-        ;;
-    esac
-
-  fi
-
-  local body=""
-
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Parsing product page: ${url}"
-  body=$(curl --silent --max-time 30 --user-agent "$user_agent" --location --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url") || {
-    handle_curl_error "$?" "Massgrave"
-    return $?
-  }
-
-  local list=""
-  list=$(echo "$body" | xmllint --html --nonet --xpath "//a[contains(text(), '.iso')]" - 2>/dev/null)
-
-  local result=""
-  result=$(echo "$list" | grep -i "${platform}" | grep "${pattern}" | grep -i -m 1 "${locale,,}_")
-  result=$(echo "$result" | sed -r 's/.*href="([^"]+).*/\1/g')
-  local page="$result"
-
-  if [ -z "$page" ]; then
-    if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
-      error "No download in the $language language available for $desc!"
-    else
-      error "Failed to parse download link for $desc! Please report this at $SUPPORT/issues."
-    fi
-    return 1
-  fi
-
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Parsing download page: ${page}"
-  result=$(curl --silent --max-time 30 --request GET --user-agent "$user_agent" --referer "$url" --head --proto =https --tlsv1.2 --http1.1 -- "$page") || {
-    handle_curl_error "$?" "Massgrave"
-    return $?
-  }
-
-  if [[ "${result,,}" == *"content-type: text"* ]]; then
-    body=$(curl --silent --max-time 30 --user-agent "$user_agent" --referer "$url" --location --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$page") || {
-      handle_curl_error "$?" "Massgrave"
-      return $?
-    }
-
-    list=$(echo "$body" | xmllint --html --nonet --xpath "//a[contains(@href, '.iso')]" - 2>/dev/null)
-    list=$(echo "$list" | sed -r 's/.*href="([^"]+).*/\1/g')
-    page=$(echo "$list" | sed 's/&amp;/\&/g;')
-
-    if [ -z "$page" ]; then
-      if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
-        error "No download in the $language language available for $desc!"
-      else
-        error "Failed to parse download link for $desc! Please report this at $SUPPORT/issues."
-      fi
-      return 1
-    fi
-  fi
-
-  MG_URL="$page"
   return 0
 }
 
@@ -748,6 +472,18 @@ getESD() {
   return 0
 }
 
+isCompressed() {
+
+  local file="$1"
+
+  case "${file,,}" in
+    *".7z" | *".zip" | *".rar" | *".lzma" | *".bz" | *".bz2" )
+      return 0 ;;
+  esac
+
+  return 1
+}
+
 verifyFile() {
 
   local iso="$1"
@@ -756,7 +492,9 @@ verifyFile() {
   local check="$4"
 
   if [ -n "$size" ] && [[ "$total" != "$size" ]] && [[ "$size" != "0" ]]; then
-    warn "The downloaded file has an unexpected size: $total bytes, while expected value was: $size bytes. Please report this at $SUPPORT/issues"
+    if [[ "$VERIFY" == [Yy1]* ]] || [[ "$DEBUG" == [Yy1]* ]]; then
+      warn "The downloaded file has a different size ( $total bytes) than expected ( $size bytes). Please report this at $SUPPORT/issues"
+    fi
   fi
 
   local hash=""
@@ -779,7 +517,7 @@ verifyFile() {
     info "Succesfully verified ISO!" && return 0
   fi
 
-  error "The downloaded file has an invalid $algo checksum: $hash , while expected value was: $check. Please report this at $SUPPORT/issues"
+  error "The downloaded file has an unknown $algo checksum: $hash , as the expected value was: $check. Please report this at $SUPPORT/issues"
   return 1
 }
 
@@ -791,14 +529,16 @@ downloadFile() {
   local size="$4"
   local lang="$5"
   local desc="$6"
-  local rc total progress domain dots space folder
+  local msg="Downloading $desc"
+  local rc total total_gb progress domain dots space folder
 
   rm -f "$iso"
 
   if [ -n "$size" ] && [[ "$size" != "0" ]]; then
     folder=$(dirname -- "$iso")
     space=$(df --output=avail -B 1 "$folder" | tail -n 1)
-    (( size > space )) && error "Not enough free space left to download file!" && return 1
+    total_gb=$(formatBytes "$space")
+    (( size > space )) && error "Not enough free space to download file, only $total_gb left!" && return 1
   fi
 
   # Check if running with interactive TTY or redirected to docker log
@@ -808,8 +548,8 @@ downloadFile() {
     progress="--progress=dot:giga"
   fi
 
-  local msg="Downloading $desc"
   html "$msg..."
+  /run/progress.sh "$iso" "$size" "$msg ([P])..." &
 
   domain=$(echo "$url" | awk -F/ '{print $3}')
   dots=$(echo "$domain" | tr -cd '.' | wc -c)
@@ -820,7 +560,6 @@ downloadFile() {
   fi
 
   info "$msg..."
-  /run/progress.sh "$iso" "$size" "$msg ([P])..." &
 
   { wget "$url" -O "$iso" -q --timeout=30 --no-http-keep-alive --show-progress "$progress"; rc=$?; } || :
 
@@ -828,17 +567,19 @@ downloadFile() {
 
   if (( rc == 0 )) && [ -f "$iso" ]; then
     total=$(stat -c%s "$iso")
+    total_gb=$(formatBytes "$total")
     if [ "$total" -lt 100000000 ]; then
-      error "Invalid download link: $url (is only $total bytes?). Please report this at $SUPPORT/issues." && return 1
+      error "Invalid download link: $url (is only $total_gb ?). Please report this at $SUPPORT/issues." && return 1
     fi
     verifyFile "$iso" "$size" "$total" "$sum" || return 1
+    isCompressed "$url" && UNPACK="Y"
     html "Download finished successfully..." && return 0
   fi
 
   msg="Failed to download $url"
   (( rc == 3 )) && error "$msg , cannot write file (disk full?)" && return 1
   (( rc == 4 )) && error "$msg , network failure!" && return 1
-  (( rc == 8 )) && error "$msg , server issued an error response!" && return 1
+  (( rc == 8 )) && error "$msg , server issued an error response! Please report this at $SUPPORT/issues." && return 1
 
   error "$msg , reason: $rc"
   return 1
@@ -856,12 +597,14 @@ downloadImage() {
   local msg="Will retry after $delay seconds..."
 
   if [[ "${version,,}" == "http"* ]]; then
+
     base=$(basename "$iso")
     desc=$(fromFile "$base")
     downloadFile "$iso" "$version" "" "" "" "$desc" && return 0
     info "$msg" && html "$msg" && sleep "$delay"
     downloadFile "$iso" "$version" "" "" "" "$desc" && return 0
     rm -f "$iso"
+
     return 1
   fi
 
@@ -949,31 +692,6 @@ downloadImage() {
     fi
 
   done
-
-  if isMG "$version" "$lang"; then
-
-    if [[ "$tried" != "n" ]]; then
-      info "Failed to download $desc, will try a diferent method now..."
-    fi
-
-    tried="y"
-    success="n"
-
-    if getMG "$version" "$lang" "$desc"; then
-      success="y"
-    else
-      info "$msg" && html "$msg" && sleep "$delay"
-      getMG "$version" "$lang" "$desc" && success="y"
-    fi
-
-    if [[ "$success" == "y" ]]; then
-      downloadFile "$iso" "$MG_URL" "" "" "$lang" "$desc" && return 0
-      info "$msg" && html "$msg" && sleep "$delay"
-      downloadFile "$iso" "$MG_URL" "" "" "$lang" "$desc" && return 0
-      rm -f "$iso"
-    fi
-
-  fi
 
   return 1
 }

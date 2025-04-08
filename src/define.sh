@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 set -Eeuox pipefail
 
+: "${KEY:=""}"
 : "${WIDTH:=""}"
 : "${HEIGHT:=""}"
 : "${VERIFY:=""}"
 : "${REGION:=""}"
+: "${EDITION:=""}"
 : "${MANUAL:=""}"
 : "${REMOVE:=""}"
 : "${VERSION:=""}"
@@ -15,7 +17,6 @@ set -Eeuox pipefail
 : "${PASSWORD:=""}"
 
 MIRRORS=3
-PLATFORM="x64"
 
 parseVersion() {
 
@@ -62,7 +63,7 @@ parseVersion() {
       ;;
     "7" | "7e" | "win7" | "win7e" | "windows7" | "windows 7" )
       VERSION="win7x64"
-      [ -z "$DETECTED" ] && DETECTED="win7x64-enterprise"
+      [ -z "$DETECTED" ] && DETECTED="win7x64-enterprise-eval"
       ;;
     "7u" | "win7u" | "windows7u" | "windows 7u" )
       VERSION="win7x64-ultimate"
@@ -88,6 +89,9 @@ parseVersion() {
     "xp64" | "xpx64" | "5x64" | "winxp64" | "winxpx64" | "windowsxp64" | "windowsxpx64" )
       VERSION="winxpx64"
       ;;
+    "2k" | "2000" | "win2k" | "win2000" | "windows2k" | "windows2000" )
+      VERSION="win2kx86"
+      ;;
     "25" | "2025" | "win25" | "win2025" | "windows2025" | "windows 2025" )
       VERSION="win2025-eval"
       ;;
@@ -99,6 +103,9 @@ parseVersion() {
       ;;
     "16" | "2016" | "win16" | "win2016" | "windows2016" | "windows 2016" )
       VERSION="win2016-eval"
+      ;;
+    "hv" | "hyperv" | "hyper v" | "hyper-v" | "19hv" | "2019hv" | "win2019hv" )
+      VERSION="win2019-hv"
       ;;
     "2012" | "2012r2" | "win2012" | "win2012r2" | "windows2012" | "windows 2012" )
       VERSION="win2012r2-eval"
@@ -416,6 +423,7 @@ printVersion() {
     "win95"* ) desc="Windows 95" ;;
     "win2k"* ) desc="Windows 2000" ;;
     "winvista"* ) desc="Windows Vista" ;;
+    "win2019-hv"* ) desc="Hyper-V Server" ;;
     "win2003"* ) desc="Windows Server 2003" ;;
     "win2008"* ) desc="Windows Server 2008" ;;
     "win2012"* ) desc="Windows Server 2012" ;;
@@ -460,6 +468,9 @@ printEdition() {
     *"-education" )
       edition="Education"
       ;;
+    *"-hv" )
+      edition="2019"
+      ;;
     *"-iot" | *"-iot-eval" )
       edition="LTSC"
       ;;
@@ -481,11 +492,12 @@ printEdition() {
     "winvista"* )
       edition="Business"
       ;;
-    "win2025"* | "win2022"* | "win2019"* | "win2016"* )
-      edition="Standard"
-      ;;
-    "win2012"* | "win2008"* | "win2003"* )
-      edition="Standard"
+    "win2025"* | "win2022"* | "win2019"* | "win2016"* | "win2012"* | "win2008"* | "win2003"* )
+      case "${EDITION^^}" in
+        *"DATACENTER"* ) edition="Datacenter" ;;
+        "CORE" | "STANDARDCORE" ) edition="Core" ;;
+        * ) edition="Standard" ;;
+      esac
       ;;
   esac
 
@@ -548,6 +560,9 @@ fromFile() {
     "tiny10"* | "tiny_10"* )
       id="tiny10"
       ;;
+    *"_serverhypercore_"* )
+      id="win2019${add}-hv"
+      ;;
     *"server2025"* | *"server_2025"* )
       id="win2025${add}"
       ;;
@@ -592,7 +607,9 @@ fromName() {
     *"windows 7"* ) id="win7${arch}" ;;
     *"windows 8"* ) id="win81${arch}" ;;
     *"windows 10"* ) id="win10${arch}" ;;
+    *"optimum 10"* ) id="win10${arch}" ;;
     *"windows 11"* ) id="win11${arch}" ;;
+    *"optimum 11"* ) id="win11${arch}" ;;
     *"windows vista"* ) id="winvista${arch}" ;;
     *"server 2025"* ) id="win2025${add}" ;;
     *"server 2022"* ) id="win2022${add}" ;;
@@ -601,6 +618,7 @@ fromName() {
     *"server 2012"* ) id="win2012r2${add}" ;;
     *"server 2008"* ) id="win2008r2${add}" ;;
     *"server 2003"* ) id="win2003r2${add}" ;;
+    *"hyper-v server"* ) id="win2019${add}" ;;
   esac
 
   echo "$id"
@@ -621,6 +639,7 @@ getVersion() {
           *" home"* ) id="$id-home" ;;
           *" starter"* ) id="$id-starter" ;;
           *" ultimate"* ) id="$id-ultimate" ;;
+          *" enterprise evaluation"* ) id="$id-enterprise-eval" ;;
           *" enterprise"* ) id="$id-enterprise" ;;
         esac
       ;;
@@ -643,6 +662,7 @@ getVersion() {
     "win2025"* | "win2022"* | "win2019"* | "win2016"* | "win2012"* | "win2008"* | "win2003"* )
        case "${name,,}" in
           *" evaluation"* ) id="$id-eval" ;;
+          *"hyper-v server"* ) id="$id-hv" ;;
         esac
       ;;
   esac
@@ -665,6 +685,9 @@ switchEdition() {
     "win81${PLATFORM,,}-enterprise-eval" )
       DETECTED="win81${PLATFORM,,}-enterprise"
       ;;
+    "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise-eval" )
+      DETECTED="win7${PLATFORM,,}-enterprise"
+      ;;
     "win2025-eval" ) DETECTED="win2025" ;;
     "win2022-eval" ) DETECTED="win2022" ;;
     "win2019-eval" ) DETECTED="win2019" ;;
@@ -681,6 +704,7 @@ getMido() {
   local id="$1"
   local lang="$2"
   local ret="$3"
+  local url=""
   local sum=""
   local size=""
 
@@ -692,16 +716,14 @@ getMido() {
       sum="b56b911bf18a2ceaeb3904d87e7c770bdf92d3099599d61ac2497b91bf190b11"
       ;;
     "win11x64-enterprise-eval" )
-      size=6209064960
-      sum="c8dbc96b61d04c8b01faf6ce0794fdf33965c7b350eaa3eb1e6697019902945c"
+      size=4295096320
+      sum="dad633276073f14f3e0373ef7e787569e216d54942ce522b39451c8f2d38ad43"
+      url="https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.1.240331-1435.ge_release_CLIENTENTERPRISEEVAL_OEMRET_A64FRE_en-us.iso"
       ;;
-    "win11x64-enterprise-ltsc-eval" )
-      size=4428627968
-      sum="8abf91c9cd408368dc73aab3425d5e3c02dae74900742072eb5c750fc637c195"
-      ;;
-    "win11x64-enterprise-iot-eval" )
-      size=4428627968
-      sum="8abf91c9cd408368dc73aab3425d5e3c02dae74900742072eb5c750fc637c195"
+    "win11x64-enterprise-iot-eval" | "win11x64-enterprise-ltsc-eval" )
+      size=5060020224
+      sum="2cee70bd183df42b92a2e0da08cc2bb7a2a9ce3a3841955a012c0f77aeb3cb29"
+      url="https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.1.240331-1435.ge_release_CLIENT_IOT_LTSC_EVAL_x64FRE_en-us.iso"
       ;;
     "win10x64" )
       size=6140975104
@@ -710,45 +732,59 @@ getMido() {
     "win10x64-enterprise-eval" )
       size=5550497792
       sum="ef7312733a9f5d7d51cfa04ac497671995674ca5e1058d5164d6028f0938d668"
+      url="https://software-static.download.prss.microsoft.com/dbazure/988969d5-f34g-4e03-ac9d-1f9786c66750/19045.2006.220908-0225.22h2_release_svc_refresh_CLIENTENTERPRISEEVAL_OEMRET_x64FRE_en-us.iso"
       ;;
     "win10x64-enterprise-ltsc-eval" )
       size=4898582528
       sum="e4ab2e3535be5748252a8d5d57539a6e59be8d6726345ee10e7afd2cb89fefb5"
+      url="https://software-download.microsoft.com/download/pr/19044.1288.211006-0501.21h2_release_svc_refresh_CLIENT_LTSC_EVAL_x64FRE_en-us.iso"
       ;;
     "win81x64-enterprise-eval" )
       size=3961473024
       sum="2dedd44c45646c74efc5a028f65336027e14a56f76686a4631cf94ffe37c72f2"
+      url="https://download.microsoft.com/download/B/9/9/B999286E-0A47-406D-8B3D-5B5AD7373A4A/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_ENTERPRISE_EVAL_EN-US-IR3_CENA_X64FREE_EN-US_DV9.ISO"
       ;;
     "win2025-eval" )
-      size=5307996160
-      sum="16442d1c0509bcbb25b715b1b322a15fb3ab724a42da0f384b9406ca1c124ed4"
+      size=6014152704
+      sum="d0ef4502e350e3c6c53c15b1b3020d38a5ded011bf04998e950720ac8579b23d"
+      url="https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.1742.240906-0331.ge_release_svc_refresh_SERVER_EVAL_x64FRE_en-us.iso"
       ;;
     "win2022-eval" )
       size=5044094976
       sum="3e4fa6d8507b554856fc9ca6079cc402df11a8b79344871669f0251535255325"
+      url="https://software-static.download.prss.microsoft.com/sg/download/888969d5-f34g-4e03-ac9d-1f9786c66749/SERVER_EVAL_x64FRE_en-us.iso"
       ;;
     "win2019-eval" )
       size=5652088832
       sum="6dae072e7f78f4ccab74a45341de0d6e2d45c39be25f1f5920a2ab4f51d7bcbb"
+      url="https://software-download.microsoft.com/download/pr/17763.737.190906-2324.rs5_release_svc_refresh_SERVER_EVAL_x64FRE_en-us_1.iso"
+     ;;
+    "win2019-hv" )
+      size=3072712704
+      sum="48e9b944518e5bbc80876a9a7ff99716f386f404f4be48dca47e16a66ae7872c"
+      url="https://software-download.microsoft.com/download/pr/17763.557.190612-0019.rs5_release_svc_refresh_SERVERHYPERCORE_OEM_x64FRE_en-us.ISO"
      ;;
     "win2016-eval" )
       size=6972221440
       sum="1ce702a578a3cb1ac3d14873980838590f06d5b7101c5daaccbac9d73f1fb50f"
+      url="https://software-download.microsoft.com/download/pr/Windows_Server_2016_Datacenter_EVAL_en-us_14393_refresh.ISO"
       ;;
     "win2012r2-eval" )
       size=4542291968
       sum="6612b5b1f53e845aacdf96e974bb119a3d9b4dcb5b82e65804ab7e534dc7b4d5"
+      url="https://download.microsoft.com/download/6/2/A/62A76ABB-9990-4EFC-A4FE-C7D698DAEB96/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_SERVER_EVAL_EN-US-IR3_SSS_X64FREE_EN-US_DV9.ISO"
       ;;
     "win2008r2" )
       size=3166840832
       sum="30832ad76ccfa4ce48ccb936edefe02079d42fb1da32201bf9e3a880c8ed6312"
+      url="https://download.microsoft.com/download/4/1/D/41DEA7E0-B30D-4012-A1E3-F24DC03BA1BB/7601.17514.101119-1850_x64fre_server_eval_en-us-GRMSXEVAL_EN_DVD.iso"
       ;;
   esac
 
   case "${ret,,}" in
     "sum" ) echo "$sum" ;;
     "size" ) echo "$size" ;;
-    *) echo "";;
+    *) echo "$url";;
   esac
 
   return 0
@@ -770,25 +806,23 @@ getLink1() {
 
   case "${id,,}" in
     "win11x64" | "win11x64-enterprise" | "win11x64-enterprise-eval" )
-      size=5946128384
-      sum="5bb1459034f50766ee480d895d751af73a4af30814240ae32ebc5633546a5af7"
-      url="11/en-us_windows_11_23h2_x64.iso"
+      size=5332989952
+      sum="aa1ad990f930d907b7a34ea897abbb0dfbe47552ca8acc146f92e40381839e05"
+      url="11/en-us_windows_11_24h2_x64.iso"
       ;;
     "win11x64-iot" | "win11x64-enterprise-iot-eval" )
-      [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
       size=5144817664
       sum="4f59662a96fc1da48c1b415d6c369d08af55ddd64e8f1c84e0166d9e50405d7a"
       url="11/X23-81951_26100.1742.240906-0331.ge_release_svc_refresh_CLIENT_ENTERPRISES_OEM_x64FRE_en-us.iso"
       ;;
     "win11x64-ltsc" | "win11x64-enterprise-ltsc-eval" )
-      [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
       size=5144817664
       sum="4f59662a96fc1da48c1b415d6c369d08af55ddd64e8f1c84e0166d9e50405d7a"
       url="11/X23-81951_26100.1742.240906-0331.ge_release_svc_refresh_CLIENT_ENTERPRISES_OEM_x64FRE_en-us.iso"
       ;;
     "win10x64" | "win10x64-enterprise" | "win10x64-enterprise-eval" )
-      size=5623582720
-      sum="57371545d752a79a8a8b163b209c7028915da661de83516e06ddae913290a855"
+      size=5535252480
+      sum="557871965263d0fd0a1ea50b5d0d0d7cb04a279148ca905c1c675c9bc0d5486c"
       url="10/en-us_windows_10_22h2_x64.iso"
       ;;
     "win10x64-iot" | "win10x64-enterprise-iot-eval" )
@@ -841,7 +875,7 @@ getLink1() {
       sum="dfd9890881b7e832a927c38310fb415b7ea62ac5a896671f2ce2a111998f0df8"
       url="server/2008r2/en_windows_server_2008_r2_with_sp1_x64_dvd_617601-018.iso"
       ;;
-    "win7x64" | "win7x64-enterprise" )
+    "win7x64" | "win7x64-enterprise" | "win7x64-enterprise-eval" )
       size=3182604288
       sum="ee69f3e9b86ff973f632db8e01700c5724ef78420b175d25bae6ead90f6805a7"
       url="7/en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.iso"
@@ -851,7 +885,7 @@ getLink1() {
       sum="0b738b55a5ea388ad016535a5c8234daf2e5715a0638488ddd8a228a836055a1"
       url="7/en_windows_7_with_sp1_x64.iso"
       ;;
-    "win7x86" | "win7x86-enterprise" )
+    "win7x86" | "win7x86-enterprise" | "win7x86-enterprise-eval" )
       size=2434502656
       sum="8bdd46ff8cb8b8de9c4aba02706629c8983c45e87da110e64e13be17c8434dad"
       url="7/en_windows_7_enterprise_with_sp1_x86_dvd_u_677710.iso"
@@ -880,6 +914,11 @@ getLink1() {
       size=614166528
       sum="8fac68e1e56c64ad9a2aa0ad464560282e67fa4f4dd51d09a66f4e548eb0f2d6"
       url="xp/professional/en_win_xp_pro_x64_vl.iso"
+      ;;
+    "win2kx86" )
+      size=331701982
+      sum="a93251b31f92316411bb48458a695d9051b13cdeba714c46f105012fdda45bf3"
+      url="2000/5.00.2195.6717_x86fre_client-professional_retail_en-us.7z"
       ;;
   esac
 
@@ -925,7 +964,7 @@ getLink2() {
       sum="dfd9890881b7e832a927c38310fb415b7ea62ac5a896671f2ce2a111998f0df8"
       url="Windows%20Server%202008%20R2/en_windows_server_2008_r2_with_sp1_x64_dvd_617601.iso"
       ;;
-    "win7x64" | "win7x64-enterprise" )
+    "win7x64" | "win7x64-enterprise" | "win7x64-enterprise-eval" )
       size=3182604288
       sum="ee69f3e9b86ff973f632db8e01700c5724ef78420b175d25bae6ead90f6805a7"
       url="Windows%207/en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.iso"
@@ -935,7 +974,7 @@ getLink2() {
       sum="36f4fa2416d0982697ab106e3a72d2e120dbcdb6cc54fd3906d06120d0653808"
       url="Windows%207/en_windows_7_ultimate_with_sp1_x64_dvd_u_677332.iso"
       ;;
-    "win7x86" | "win7x86-enterprise" )
+    "win7x86" | "win7x86-enterprise" | "win7x86-enterprise-eval" )
       size=2434502656
       sum="8bdd46ff8cb8b8de9c4aba02706629c8983c45e87da110e64e13be17c8434dad"
       url="Windows%207/en_windows_7_enterprise_with_sp1_x86_dvd_u_677710.iso"
@@ -1019,11 +1058,40 @@ getLink3() {
       sum="a11116c0645d892d6a5a7c585ecc1fa13aa66f8c7cc6b03bf1f27bd16860cc35"
       url="tiny-10-23-h2/tiny10%20x64%2023h2.iso"
       ;;
+    "win7x64" | "win7x64-enterprise" | "win7x64-enterprise-eval" )
+      size=3182604288
+      sum="ee69f3e9b86ff973f632db8e01700c5724ef78420b175d25bae6ead90f6805a7"
+      url="en_windows_7_enterprise_with_sp1_x64_dvd_u_677651_202006/en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.iso"
+      ;;
+    "win7x64-ultimate" )
+      size=3320903680
+      sum="36f4fa2416d0982697ab106e3a72d2e120dbcdb6cc54fd3906d06120d0653808"
+      url="win7-ult-sp1-english/Win7_Ult_SP1_English_x64.iso"
+      ;;
+    "win7x86" | "win7x86-enterprise" | "win7x86-enterprise-eval" )
+      size=2434502656
+      sum="8bdd46ff8cb8b8de9c4aba02706629c8983c45e87da110e64e13be17c8434dad"
+      url="en_windows_7_enterprise_with_sp1_x86_dvd_u_677710_202006/en_windows_7_enterprise_with_sp1_x86_dvd_u_677710.iso"
+      ;;
+    "win7x86-ultimate" )
+      size=2564476928
+      sum="e2c009a66d63a742941f5087acae1aa438dcbe87010bddd53884b1af6b22c940"
+      url="win7-ult-sp1-english/Win7_Ult_SP1_English_x32.iso"
+      ;;
     "winxpx86" )
       size=617756672
       sum="62b6c91563bad6cd12a352aa018627c314cfc5162d8e9f8af0756a642e602a46"
       url="XPPRO_SP3_ENU/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
       ;;
+    "winxpx64" )
+      size=614166528
+      sum="8fac68e1e56c64ad9a2aa0ad464560282e67fa4f4dd51d09a66f4e548eb0f2d6"
+      url="windows-xp-all-sp-msdn-iso-files-en-de-ru-tr-x86-x64/en_win_xp_sp1_pro_x64_vl.iso"
+      ;;
+    "win2kx86" )
+      size=386859008
+      sum="e3816f6e80b66ff686ead03eeafffe9daf020a5e4717b8bd4736b7c51733ba22"
+      url="MicrosoftWindows2000BuildCollection/5.00.2195.6717_x86fre_client-professional_retail_en-us-ZRMPFPP_EN.iso"
   esac
 
   case "${ret,,}" in
@@ -1110,66 +1178,12 @@ isESD() {
   return 1
 }
 
-isMG() {
-
-  local id="$1"
-  local lang="$2"
-
-  case "${id,,}" in
-    "win11${PLATFORM,,}" )
-      return 0
-      ;;
-    "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval" )
-      return 0
-      ;;
-    "win11${PLATFORM,,}-ltsc" | "win11${PLATFORM,,}-enterprise-ltsc-eval" )
-      return 0
-      ;;
-    "win11${PLATFORM,,}-iot" | "win11${PLATFORM,,}-enterprise-iot-eval" )
-      return 0
-      ;;
-    "win10${PLATFORM,,}" )
-      return 0
-      ;;
-    "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" )
-      return 0
-      ;;
-    "win10${PLATFORM,,}-ltsc" | "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-      return 0
-      ;;
-    "win10${PLATFORM,,}-iot" | "win10${PLATFORM,,}-enterprise-iot-eval" )
-      return 0
-      ;;
-    "win81${PLATFORM,,}-enterprise" | "win81${PLATFORM,,}-enterprise-eval" )
-      return 0
-      ;;
-    "win2025" | "win2025-eval" | "win2022" | "win2022-eval" | "win2019" | "win2019-eval" )
-      return 0
-      ;;
-    "win2016" | "win2016-eval" | "win2012r2" | "win2012r2-eval" | "win2008r2" | "win2008r2-eval" )
-      return 0
-      ;;
-    "win7x64" | "win7x64-enterprise" | "win7x64-ultimate" | "win7x86" | "win7x86-enterprise" | "win7x86-ultimate" )
-      return 0
-      ;;
-    "winvistax64" | "winvistax64-enterprise" | "winvistax64-ultimate" | "winvistax86" | "winvistax86-enterprise" | "winvistax86-ultimate" )
-      return 0
-      ;;
-    "winxpx86" | "winxpx64" )
-      return 0
-      ;;
-  esac
-
-  return 1
-}
-
 validVersion() {
 
   local id="$1"
   local lang="$2"
   local url
 
-  isMG "$id" "$lang" && return 0
   isESD "$id" "$lang" && return 0
   isMido "$id" "$lang" && return 0
 
@@ -1207,38 +1221,12 @@ addFolder() {
   return 0
 }
 
-migrateFiles() {
-
-  local base="$1"
-  local version="$2"
-  local file=""
-
-  [ -f "$base" ] && return 0
-
-  [[ "${version,,}" == "tiny10" ]] && file="tiny10_x64_23h2.iso"
-  [[ "${version,,}" == "tiny11" ]] && file="tiny11_2311_x64.iso"
-  [[ "${version,,}" == "core11" ]] && file="tiny11_core_x64_beta_1.iso"
-  [[ "${version,,}" == "winxpx86" ]] && file="en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
-  [[ "${version,,}" == "winvistax64" ]] && file="en_windows_vista_sp2_x64_dvd_342267.iso"
-  [[ "${version,,}" == "win7x64" ]] && file="en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.iso"
-
-  [ ! -f "$STORAGE/$file" ] && return 0
-  mv -f "$STORAGE/$file" "$base" || return 1
-
-  return 0
-}
-
 prepareInstall() {
 
   local dir="$2"
   local desc="$3"
-  local arch="$4"
-  local key="$5"
-  local driver="$6"
+  local driver="$4"
   local drivers="/tmp/drivers"
-
-  rm -rf "$drivers"
-  mkdir -p "$drivers"
 
   ETFS="[BOOT]/Boot-NoEmul.img"
 
@@ -1246,78 +1234,97 @@ prepareInstall() {
     error "Failed to locate file \"$ETFS\" in $desc ISO image!" && return 1
   fi
 
-  local msg="Adding drivers to image..."
-  info "$msg" && html "$msg"
-
-  if ! bsdtar -xf /drivers.txz -C "$drivers"; then
-    error "Failed to extract drivers!" && return 1
-  fi
-
-  local target
+  local arch target
+  [ -d "$dir/AMD64" ] && arch="amd64" || arch="x86"
   [[ "${arch,,}" == "x86" ]] && target="$dir/I386" || target="$dir/AMD64"
 
-  if [ ! -f "$drivers/viostor/$driver/$arch/viostor.sys" ]; then
-    error "Failed to locate required storage drivers!" && return 1
+  if [ ! -d "$target" ]; then
+    error "Failed to locate directory \"$target\" in $desc ISO image!" && return 1
   fi
 
-  cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$target" || return 1
+  if [[ "${driver,,}" == "xp" ]] || [[ "${driver,,}" == "2k3" ]]; then
 
-  mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
-  cp -L "$drivers/viostor/$driver/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
-  cp -L "$drivers/viostor/$driver/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
-  cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
+    local msg="Adding drivers to image..."
+    info "$msg" && html "$msg"
 
-  if [ ! -f "$drivers/NetKVM/$driver/$arch/netkvm.sys" ]; then
-    error "Failed to locate required network drivers!" && return 1
+    rm -rf "$drivers"
+    mkdir -p "$drivers"
+
+    if ! bsdtar -xf /drivers.txz -C "$drivers"; then
+      error "Failed to extract drivers!" && return 1
+    fi
+
+    if [ ! -f "$drivers/viostor/$driver/$arch/viostor.sys" ]; then
+      error "Failed to locate required storage drivers!" && return 1
+    fi
+
+    cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$target" || return 1
+
+    mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
+    cp -L "$drivers/viostor/$driver/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
+    cp -L "$drivers/viostor/$driver/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
+    cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
+
+    if [ ! -f "$drivers/NetKVM/$driver/$arch/netkvm.sys" ]; then
+      error "Failed to locate required network drivers!" && return 1
+    fi
+
+    mkdir -p "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
+    cp -L "$drivers/NetKVM/$driver/$arch/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
+    cp -L "$drivers/NetKVM/$driver/$arch/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
+    cp -L "$drivers/NetKVM/$driver/$arch/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
+
+    if [ ! -f "$target/TXTSETUP.SIF" ]; then
+      error "The file TXTSETUP.SIF could not be found!" && return 1
+    fi
+
+    sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\nviostor.sys=1,,,,,,4_,4,1,,,1,4/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device\"/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00020000=\"viostor\"/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$target/TXTSETUP.SIF"
+
+    if [ ! -d "$drivers/sata/xp/$arch" ]; then
+      error "Failed to locate required SATA drivers!" && return 1
+    fi
+
+    mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata" || return 1
+    cp -Lr "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata" || return 1
+    cp -Lr "$drivers/sata/xp/$arch/." "$target" || return 1
+
+    sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.cat = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.inf = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,4_,4,1,,,1,4/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaahci.cat = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaAHCI.inf = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$target/TXTSETUP.SIF"
+
+    rm -rf "$drivers"
+
   fi
-
-  mkdir -p "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
-  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
-  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
-  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
-
-  if [ ! -f "$target/TXTSETUP.SIF" ]; then
-    error "The file TXTSETUP.SIF could not be found!" && return 1
-  fi
-
-  sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\nviostor.sys=1,,,,,,4_,4,1,,,1,4/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device\"/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00020000=\"viostor\"/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$target/TXTSETUP.SIF"
-
-  if [ ! -d "$drivers/sata/xp/$arch" ]; then
-    error "Failed to locate required SATA drivers!" && return 1
-  fi
-
-  mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata" || return 1
-  cp -Lr "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata" || return 1
-  cp -Lr "$drivers/sata/xp/$arch/." "$target" || return 1
-
-  sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.cat = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.inf = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,4_,4,1,,,1,4/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaahci.cat = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaAHCI.inf = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$target/TXTSETUP.SIF"
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$target/TXTSETUP.SIF"
-
-  rm -rf "$drivers"
 
   local pid file setup
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini | head -n 1)
-  pid=$(<"$setup")
-  pid="${pid:(-4)}"
-  pid="${pid:0:3}"
 
-  if [[ "$pid" == "270" ]]; then
-    warn "this version of $desc requires a volume license key (VLK), it will ask for one during installation."
+  if [ -n "$setup" ]; then
+
+    pid=$(<"$setup")
+    pid="${pid:(-4)}"
+    pid="${pid:0:3}"
+
+    if [[ "$pid" == "270" ]]; then
+      warn "this version of $desc requires a volume license key (VLK), it will ask for one during installation."
+    fi
+
   fi
+
+  mkdir -p "$dir/\$OEM\$"
 
   if ! addFolder "$dir"; then
     error "Failed to add OEM folder to image!" && return 1
@@ -1333,11 +1340,48 @@ prepareInstall() {
   XHEX=$(printf '%x\n' "$WIDTH")
   YHEX=$(printf '%x\n' "$HEIGHT")
 
-  local username="Docker"
-  local password="*"
+  local username=""
+  local password=""
 
-  [ -n "$PASSWORD" ] && password="$PASSWORD"
   [ -n "$USERNAME" ] && username=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g')
+  [ -z "$username" ] && username="Docker"
+
+  [ -n "$PASSWORD" ] && password=$(echo "$PASSWORD" | sed 's/"//g')
+  [ -z "$password" ] && password="admin"
+
+  local ip="20.20.20.1"
+  [ -n "${VM_NET_IP:-}" ] && ip="${VM_NET_IP%.*}.1"
+
+  # These are not pirated keys, they come from the official MS documentation.
+  case "${driver,,}" in
+    "xp" )
+
+      if [[ "${arch,,}" == "x86" ]]; then
+        # Windows XP Professional x86 generic key (no activation, trial-only)
+        [ -z "$KEY" ] && KEY="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
+      else
+        # Windows XP Professional x64 generic key (no activation, trial-only)
+        [ -z "$KEY" ] && KEY="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
+      fi ;;
+
+    "2k3" )
+
+      if [[ "${arch,,}" == "x86" ]]; then
+        # Windows Server 2003 Standard x86 generic key (no activation, trial-only)
+        [ -z "$KEY" ] && KEY="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
+      else
+        # Windows Server 2003 Standard x64 generic key (no activation, trial-only)
+        [ -z "$KEY" ] && KEY="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
+      fi ;;
+
+    "2k" )
+
+      # Windows 2000 Professional x86 generic key
+      KEY="G74HG-XXQTJ-RTX64-QKP3F-HKHXP" ;;
+
+    * ) error "Unknown version: \"$driver\"" && return 1 ;;
+
+  esac
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
@@ -1376,7 +1420,7 @@ prepareInstall() {
           echo "    FullName=\"$username\""
           echo "    ComputerName=\"*\""
           echo "    OrgName=\"Windows for Docker\""
-          echo "    ProductKey=$key"
+          echo "    ProductID=$KEY"
           echo ""
           echo "[Identification]"
           echo "    JoinWorkgroup = WORKGROUP"
@@ -1435,12 +1479,14 @@ prepareInstall() {
           echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]"
           echo "\"HideFileExt\"=dword:00000000"
           echo ""
+          echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer]"
+          echo "\"NoWelcomeScreen\"=\"1\""
+          echo ""
           echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]"
-          echo "\"DefaultUserName\"=\"$username\""
-          echo "\"DefaultDomainName\"=\"Dockur\""
-          echo "\"AltDefaultUserName\"=\"$username\""
-          echo "\"AltDefaultDomainName\"=\"Dockur\""
           echo "\"AutoAdminLogon\"=\"1\""
+          echo "\"DefaultUserName\"=\"$username\""
+          echo "\"DefaultPassword\"=\"$password\""
+          echo "\"DefaultDomainName\"=\"Dockur\""
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]"
           echo "\"DefaultSettings.BitsPerPel\"=dword:00000020"
@@ -1511,6 +1557,14 @@ prepareInstall() {
           echo ""
           echo "Call Domain.MoveHere(LocalAdminADsPath, \"$username\")"
           echo ""
+          echo "With (CreateObject(\"Scripting.FileSystemObject\"))"
+          echo "  SysRoot = WshShell.ExpandEnvironmentStrings(\"%SystemRoot%\")"
+          echo "  Set oFile = .OpenTextFile(SysRoot & \"\system32\drivers\etc\hosts\", 8, true)"
+          echo "  oFile.Write(\"$ip      host.lan\")"
+          echo "  oFile.Close()"
+          echo "  Set oFile = Nothing"
+          echo "End With"
+          echo ""
   } | unix2dos > "$dir/\$OEM\$/admin.vbs"
 
   {       echo "[COMMANDS]"
@@ -1518,56 +1572,6 @@ prepareInstall() {
           echo "\"Wscript admin.vbs\""
           echo ""
   } | unix2dos > "$dir/\$OEM\$/cmdlines.txt"
-
-  return 0
-}
-
-prepare2k3() {
-
-  local iso="$1"
-  local dir="$2"
-  local desc="$3"
-  local driver="2k3"
-  local arch key
-
-  [ -d "$dir/AMD64" ] && arch="amd64" || arch="x86"
-
-  if [[ "${arch,,}" == "x86" ]]; then
-    # Windows Server 2003 Standard x86 generic key (no activation, trial-only)
-    # This is not a pirated key, it comes from the official MS documentation.
-    key="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
-  else
-    # Windows Server 2003 Standard x64 generic key (no activation, trial-only)
-    # This is not a pirated key, it comes from the official MS documentation.
-    key="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
-  fi
-
-  prepareInstall "$iso" "$dir" "$desc" "$arch" "$key" "$driver" || return 1
-
-  return 0
-}
-
-prepareXP() {
-
-  local iso="$1"
-  local dir="$2"
-  local desc="$3"
-  local driver="xp"
-  local arch key
-
-  [ -d "$dir/AMD64" ] && arch="amd64" || arch="x86"
-
-  if [[ "${arch,,}" == "x86" ]]; then
-    # Windows XP Professional x86 generic key (no activation, trial-only)
-    # This is not a pirated key, it comes from the official MS documentation.
-    key="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
-  else
-    # Windows XP Professional x64 generic key (no activation, trial-only)
-    # This is not a pirated key, it comes from the official MS documentation.
-    key="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
-  fi
-
-  prepareInstall "$iso" "$dir" "$desc" "$arch" "$key" "$driver" || return 1
 
   return 0
 }
@@ -1656,21 +1660,33 @@ setMachine() {
     "win9"* )
       ETFS="[BOOT]/Boot-1.44M.img" ;;
     "win2k"* )
-      ETFS="[BOOT]/Boot-NoEmul.img" ;;
+      if ! prepareInstall "$iso" "$dir" "$desc" "2k"; then
+        error "Failed to prepare $desc ISO!" && return 1
+      fi ;;
     "winxp"* )
-      if ! prepareXP "$iso" "$dir" "$desc"; then
+      if ! prepareInstall "$iso" "$dir" "$desc" "xp"; then
         error "Failed to prepare $desc ISO!" && return 1
       fi ;;
     "win2003"* )
-      if ! prepare2k3 "$iso" "$dir" "$desc"; then
+      if ! prepareInstall "$iso" "$dir" "$desc" "2k3"; then
         error "Failed to prepare $desc ISO!" && return 1
       fi ;;
   esac
 
   case "${id,,}" in
-    "win9"* | "win2k"* )
+    "win9"* )
+      USB="no"
+      VGA="cirrus"
       DISK_TYPE="auto"
+      ADAPTER="rtl8139"
       MACHINE="pc-i440fx-2.4"
+      BOOT_MODE="windows_legacy" ;;
+    "win2k"* )
+      VGA="cirrus"
+      MACHINE="pc"
+      USB="pci-ohci"
+      DISK_TYPE="auto"
+      ADAPTER="rtl8139"
       BOOT_MODE="windows_legacy" ;;
     "winxp"* | "win2003"* )
       DISK_TYPE="blk"

@@ -85,7 +85,7 @@ configure_guest_network_interface() {
       fi
 
       RETRIES=10
-      for i in $(seq 1 $RETRIES); do
+      for j in $(seq 1 $RETRIES); do
         OUTPUT=$(python3 /run/qga.py powershell -Command "(\$(Get-NetAdapter -Name '$INTERFACE_NAME').Status)")
         STATUS=$(echo "$OUTPUT" | grep -A1 'STDOUT:' | tail -n1 | tr -d '\r' | xargs)
 
@@ -94,8 +94,8 @@ configure_guest_network_interface() {
           echo "Interface '$INTERFACE_NAME' is up!"
           break
         else
-          echo "Waiting for interface '$INTERFACE_NAME' to be up... ($i/$RETRIES)"
-          sleep $SLEEP
+          echo "Waiting for interface '$INTERFACE_NAME' to be up... ($j/$RETRIES)"
+          sleep 1
         fi
       done
 

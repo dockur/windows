@@ -4,7 +4,7 @@ set -Eeuo pipefail
 source env.sh
 
 echo "start to build and install windows"
-docker compose up windows-build -d --build
+docker compose up windows-build -d --build --force-recreate
 
 echo "streaming logs..."
 docker logs -f windows-build | tee windows-build.log &
