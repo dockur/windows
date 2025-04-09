@@ -962,7 +962,7 @@ updateImage() {
 
   local find="$file"
   [[ "$MANUAL" == [Yy1]* ]] && find="$org"
-  path=$(find "$dir" -maxdepth 1 -type f -iname "$find" | head -n 1)
+  path=$(find "$dir" -maxdepth 1 -type f -iname "$find" -print -quit)
 
   if [ -f "$path" ]; then
     if [[ "$MANUAL" != [Yy1]* ]]; then
