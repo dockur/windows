@@ -1215,7 +1215,7 @@ addFolder() {
   cp -Lr "$folder/." "$dest" || return 1
 
   local file
-  file=$(find "$dest" -maxdepth 1 -type f -iname install.bat | head -n 1)
+  file=$(find "$dest" -maxdepth 1 -type f -iname install.bat  -print -quit)
   [ -f "$file" ] && unix2dos -q "$file"
 
   return 0
@@ -1310,7 +1310,7 @@ prepareInstall() {
   fi
 
   local pid file setup
-  setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini | head -n 1)
+  setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini -print -quit)
 
   if [ -n "$setup" ]; then
 
@@ -1606,20 +1606,20 @@ detectLegacy() {
   local dir="$1"
   local find find2
 
-  find=$(find "$dir" -maxdepth 1 -type d -iname win95 | head -n 1)
+  find=$(find "$dir" -maxdepth 1 -type d -iname win95 -print -quit)
   [ -n "$find" ] && DETECTED="win95" && return 0
 
-  find=$(find "$dir" -maxdepth 1 -type d -iname win98 | head -n 1)
+  find=$(find "$dir" -maxdepth 1 -type d -iname win98 -print -quit)
   [ -n "$find" ] && DETECTED="win98" && return 0
 
-  find=$(find "$dir" -maxdepth 1 -type d -iname win9x | head -n 1)
+  find=$(find "$dir" -maxdepth 1 -type d -iname win9x -print -quit)
   [ -n "$find" ] && DETECTED="win9x" && return 0
 
-  find=$(find "$dir" -maxdepth 1 -type f -iname cdrom_nt.5 | head -n 1)
+  find=$(find "$dir" -maxdepth 1 -type f -iname cdrom_nt.5 -print -quit)
   [ -n "$find" ] && DETECTED="win2k" && return 0
 
-  find=$(find "$dir" -maxdepth 1 -type d -iname win51 | head -n 1)
-  find2=$(find "$dir" -maxdepth 1 -type f -iname setupxp.htm | head -n 1)
+  find=$(find "$dir" -maxdepth 1 -type d -iname win51 -print -quit)
+  find2=$(find "$dir" -maxdepth 1 -type f -iname setupxp.htm -print -quit)
 
   if [ -n "$find" ] || [ -n "$find2" ] || [ -f "$dir/WIN51AP" ] || [ -f "$dir/WIN51IC" ]; then
     [ -d "$dir/AMD64" ] && DETECTED="winxpx64" && return 0
