@@ -201,7 +201,7 @@ abortInstall() {
   [[ "${iso,,}" == *".esd" ]] && exit 60
   [[ "${UNPACK:-}" == [Yy1]* ]] && exit 60
 
-  efi=$(find "$dir" -maxdepth 1 -type d -iname efi | head -n 1)
+  efi=$(find "$dir" -maxdepth 1 -type d -iname efi -print -quit)
 
   if [ -z "$efi" ]; then
     [[ "${PLATFORM,,}" == "x64" ]] && BOOT_MODE="windows_legacy"
@@ -230,8 +230,8 @@ detectCustom() {
 
   CUSTOM=""
 
-  dir=$(find / -maxdepth 1 -type d -iname "$fname" | head -n 1)
-  [ ! -d "$dir" ] && dir=$(find "$STORAGE" -maxdepth 1 -type d -iname "$fname" | head -n 1)
+  dir=$(find / -maxdepth 1 -type d -iname "$fname" -print -quit)
+  [ ! -d "$dir" ] && dir=$(find "$STORAGE" -maxdepth 1 -type d -iname "$fname" -print -quit)
 
   if [ -d "$dir" ]; then
     if ! hasDisk || [ ! -f "$boot" ]; then
@@ -239,8 +239,8 @@ detectCustom() {
     fi
   fi
 
-  file=$(find / -maxdepth 1 -type f -iname "$fname" | head -n 1)
-  [ ! -s "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$fname" | head -n 1)
+  file=$(find / -maxdepth 1 -type f -iname "$fname" -print -quit)
+  [ ! -s "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$fname" -print -quit)
 
   if [ ! -s "$file" ] && [[ "${VERSION,,}" != "http"* ]]; then
     base=$(basename "$VERSION")
@@ -396,7 +396,7 @@ extractImage() {
 
   else
 
-    file=$(find "$dir" -maxdepth 1 -type f -iname "*.iso" | head -n 1)
+    file=$(find "$dir" -maxdepth 1 -type f -iname "*.iso" -print -quit)
 
     if [ -z "$file" ]; then
       error "Failed to find any .iso file in archive!" && return 1
@@ -591,14 +591,14 @@ detectImage() {
   fi
 
   local src wim info
-  src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
+  src=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
 
   if [ ! -d "$src" ]; then
     warn "failed to locate 'sources' folder in ISO image, $FB" && return 1
   fi
 
-  wim=$(find "$src" -maxdepth 1 -type f -iname install.wim | head -n 1)
-  [ ! -f "$wim" ] && wim=$(find "$src" -maxdepth 1 -type f -iname install.esd | head -n 1)
+  wim=$(find "$src" -maxdepth 1 -type f -iname install.wim -print -quit)
+  [ ! -f "$wim" ] && wim=$(find "$src" -maxdepth 1 -type f -iname install.esd -print -quit)
 
   if [ ! -f "$wim" ]; then
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB" && return 1
@@ -892,14 +892,14 @@ updateImage() {
   rm -rf "$tmp"
   mkdir -p "$tmp"
 
-  src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
+  src=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
 
   if [ ! -d "$src" ]; then
     error "failed to locate 'sources' folder in ISO image, $FB" && return 1
   fi
 
-  wim=$(find "$src" -maxdepth 1 -type f -iname boot.wim | head -n 1)
-  [ ! -f "$wim" ] && wim=$(find "$src" -maxdepth 1 -type f -iname boot.esd | head -n 1)
+  wim=$(find "$src" -maxdepth 1 -type f -iname boot.wim -print -quit)
+  [ ! -f "$wim" ] && wim=$(find "$src" -maxdepth 1 -type f -iname boot.esd -print -quit)
 
   if [ ! -f "$wim" ]; then
     error "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB" && return 1
