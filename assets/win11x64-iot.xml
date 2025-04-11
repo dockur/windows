@@ -9,6 +9,7 @@
       <SystemLocale>en-US</SystemLocale>
       <UILanguage>en-US</UILanguage>
       <UserLocale>en-US</UserLocale>
+      <TimeZone>UTC</TimeZone>
     </component>
     <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DiskConfiguration>
@@ -105,6 +106,10 @@
           <Order>4</Order>
           <Path>reg.exe add "HKLM\SYSTEM\Setup\MoSetup" /v AllowUpgradesWithUnsupportedTPMOrCPU /t REG_DWORD /d 1 /f</Path>
         </RunSynchronousCommand>
+          <SynchronousCommand wcm:action="add">
+          <Order>5</Order>
+          <Path>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Services\msiserver" /v Start /t REG_DWORD /d 2 /f</Path>
+        </SynchronousCommand>
       </RunSynchronous>
     </component>
   </settings>
@@ -136,6 +141,7 @@
         <SupportURL>https://github.com/dockur/windows/issues</SupportURL>
       </OEMInformation>
       <OEMName>Windows for Docker</OEMName>
+      <TimeZone>UTC</TimeZone>
     </component>
     <component name="Microsoft-Windows-ErrorReportingCore" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DisableWER>1</DisableWER>
@@ -300,6 +306,7 @@
       <TCGSecurityActivationDisabled>1</TCGSecurityActivationDisabled>
     </component>
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <TimeZone>UTC</TimeZone>
       <UserAccounts>
         <LocalAccounts>
           <LocalAccount wcm:action="add">
@@ -461,8 +468,18 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>24</Order>
-          <CommandLine>cmd /C if exist "C:\OEM\install.bat" start "Install" "cmd /C C:\OEM\install.bat"</CommandLine>
+          <CommandLine>cmd /C if exist "C:\OEM\install.bat" cmd /C C:\OEM\install.bat</CommandLine>
           <Description>Execute custom script from the OEM folder if exists</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>25</Order>
+          <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" /v "IPAutoconfigurationEnabled" /t REG_DWORD /d 0 /f</CommandLine>
+          <Description>Disable ip autoconfiguration for network interfaces</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>26</Order>
+          <CommandLine>cmd /C "type nul > \\host.lan\Data\prepared"</CommandLine>
+          <Description>Let host known that all configuration is done</Description>
         </SynchronousCommand>
       </FirstLogonCommands>
     </component>

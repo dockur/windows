@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -Eeuo pipefail
+set -Eeuox pipefail
 
 # Configure QEMU for graceful shutdown
 
@@ -17,8 +17,9 @@ rm -f "$QEMU_DIR/qemu.*"
 touch "$QEMU_LOG"
 
 _trap() {
-  func="$1" ; shift
-  for sig ; do
+  func="$1"
+  shift
+  for sig; do
     trap "$func $sig" "$sig"
   done
 }
@@ -35,7 +36,6 @@ boot() {
         grep -Fq "BOOTMGR is missing" "$QEMU_PTY" && fail="y"
       fi
       if [ -z "$fail" ]; then
-        info "Windows started succesfully, visit http://127.0.0.1:8006/ to view the screen..."
         return 0
       fi
     fi
@@ -128,7 +128,7 @@ terminal() {
 
     if [ -n "$msg" ]; then
 
-      if [[ "${msg,,}" != "char"* ||  "$msg" != *"serial0)" ]]; then
+      if [[ "${msg,,}" != "char"* || "$msg" != *"serial0)" ]]; then
         echo "$msg"
       fi
 
@@ -161,6 +161,10 @@ _graceful_shutdown() {
 
   set +e
 
+  if [ -f "$STORAGE/ready" ]; then
+    rm $STORAGE/ready
+  fi
+
   if [ -f "$QEMU_END" ]; then
     info "Received $1 while already shutting down..."
     return
@@ -188,13 +192,13 @@ _graceful_shutdown() {
   fi
 
   # Send ACPI shutdown signal
-  echo 'system_powerdown' | nc -q 1 -w 1 localhost "${QEMU_PORT}" > /dev/null
+  echo 'system_powerdown' | nc -q 1 -w 1 localhost "${QEMU_PORT}" >/dev/null
 
   local cnt=0
   while [ "$cnt" -lt "$QEMU_TIMEOUT" ]; do
 
     sleep 1
-    cnt=$((cnt+1))
+    cnt=$((cnt + 1))
 
     ! isAlive "$pid" && break
     # Workaround for zombie pid
@@ -203,7 +207,7 @@ _graceful_shutdown() {
     info "Waiting for Windows to shutdown... ($cnt/$QEMU_TIMEOUT)"
 
     # Send ACPI shutdown signal
-    echo 'system_powerdown' | nc -q 1 -w 1 localhost "${QEMU_PORT}" > /dev/null
+    echo 'system_powerdown' | nc -q 1 -w 1 localhost "${QEMU_PORT}" >/dev/null
 
   done
 
