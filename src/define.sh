@@ -1412,7 +1412,7 @@ prepareInstall() {
           echo "    OEMSkipRegional=1"
           echo "    OemSkipWelcome=1"
           echo "    AdminPassword=$password"
-          echo "    TimeZone=0"
+          echo "    TimeZone=85"
           echo "    AutoLogon=Yes"
           echo "    AutoLogonCount=65432"
           echo ""
