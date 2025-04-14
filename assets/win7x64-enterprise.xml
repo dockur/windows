@@ -202,11 +202,6 @@
           <Description>Allow guest access to network shares</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>2</Order>
-          <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v LimitBlankPasswordUse /t REG_DWORD /d 0 /f</CommandLine>
-          <Description>Allow RDP login with blank password</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
           <Order>3</Order>
           <CommandLine>cmd /C wmic useraccount where name="Docker" set PasswordExpires=false</CommandLine>
           <Description>Password Never Expires</Description>
