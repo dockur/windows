@@ -1315,11 +1315,19 @@ prepareInstall() {
   if [ -n "$setup" ]; then
 
     pid=$(<"$setup")
-    pid="${pid:(-4)}"
-    pid="${pid:0:3}"
 
-    if [[ "$pid" == "270" ]]; then
-      warn "this version of $desc requires a volume license key (VLK), it will ask for one during installation."
+    if [[ "$driver" == "2k" ]]; then
+
+      echo "${pid:0:$((${#pid})) - 4}270" > "$setup"
+
+    else
+
+      pid="${pid:(-4)}"
+
+      if [[ "${pid:0:3}" == "270" ]]; then
+        warn "this version of $desc requires a volume license key (VLK), it will ask for one during installation."
+      fi
+
     fi
 
   fi
@@ -1376,12 +1384,13 @@ prepareInstall() {
 
     "2k" )
 
-      # Windows 2000 Professional x86 generic key
-      KEY="G74HG-XXQTJ-RTX64-QKP3F-HKHXP" ;;
+      KEY="" ;;
 
     * ) error "Unknown version: \"$driver\"" && return 1 ;;
 
   esac
+
+  [ -n "$KEY" ] && KEY="ProductID=$KEY"
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
@@ -1420,7 +1429,7 @@ prepareInstall() {
           echo "    FullName=\"$username\""
           echo "    ComputerName=\"*\""
           echo "    OrgName=\"Windows for Docker\""
-          echo "    ProductID=$KEY"
+          echo "    $KEY"
           echo ""
           echo "[Identification]"
           echo "    JoinWorkgroup = WORKGROUP"
@@ -1479,6 +1488,10 @@ prepareInstall() {
           echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer]"
           echo "\"NoWelcomeScreen\"=\"1\""
           echo ""
+          echo "[HKEY_CURRENT_USER\Software\Microsoft\Internet Connection Wizard]"
+          echo "\"Completed\"=\"1\""
+          echo "\"Desktopchanged\"=\"1\""
+          echo ""
           echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]"
           echo "\"AutoAdminLogon\"=\"1\""
           echo "\"DefaultUserName\"=\"$username\""
@@ -1502,11 +1515,18 @@ prepareInstall() {
           echo ""
   } | unix2dos > "$dir/\$OEM\$/install.reg"
 
+  if [[ "$driver" == "2k" ]]; then
+    {       echo "[HKEY_USERS\.DEFAULT\Software\Microsoft\Windows\CurrentVersion\Runonce]"
+            echo "\"^SetupICWDesktop\"=-"
+            echo ""
+    } | unix2dos >> "$dir/\$OEM\$/install.reg"
+  fi
+
   if [[ "$driver" == "2k3" ]]; then
     {       echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\srvWiz]"
             echo "@=dword:00000000"
             echo ""
-            echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\ServerOOBE\SecurityOOBE]"
+            echo "[HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\ServerOOBE\SecurityOOBE]"
             echo "\"DontLaunchSecurityOOBE\"=dword:00000000"
             echo ""
     } | unix2dos >> "$dir/\$OEM\$/install.reg"
