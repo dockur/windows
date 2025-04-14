@@ -222,13 +222,11 @@ abortInstall() {
   return 1
 }
 
-detectCustom() {
+findFile() {
 
   local dir file base
-  local fname="custom.iso"
+  local fname="$1"
   local boot="$STORAGE/windows.boot"
-
-  CUSTOM=""
 
   dir=$(find / -maxdepth 1 -type d -iname "$fname" -print -quit)
   [ ! -d "$dir" ] && dir=$(find "$STORAGE" -maxdepth 1 -type d -iname "$fname" -print -quit)
@@ -256,8 +254,21 @@ detectCustom() {
   [ -z "$size" ] || [[ "$size" == "0" ]] && return 0
 
   ISO="$file"
-  CUSTOM="$ISO"
+  CUSTOM="$file"
   BOOT="$STORAGE/windows.$size.iso"
+
+  return 0
+}
+
+detectCustom() {
+
+  CUSTOM=""
+
+  ! findFile "custom.iso" && return 1
+  [ -n "$CUSTOM" ] && return 0
+  
+  ! findFile "boot.iso" && return 1
+  [ -n "$CUSTOM" ] && return 0
 
   return 0
 }
