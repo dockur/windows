@@ -1128,7 +1128,7 @@ getLink4() {
       size=5819484160
       sum="b56b911bf18a2ceaeb3904d87e7c770bdf92d3099599d61ac2497b91bf190b11"
       url="windows-11-24h2-x64/Windows%2011%2024H2%20x64.iso"
-      ;;
+      ;; #https://archive.org/download/windows-11-24h2-iso_202501/Win11_24H2_English_x64.iso
     "win11x64-iot" | "win11x64-enterprise-iot-eval" )
       size=5144817664
       sum="4f59662a96fc1da48c1b415d6c369d08af55ddd64e8f1c84e0166d9e50405d7a"
@@ -1140,8 +1140,8 @@ getLink4() {
       url="Windows11LTSC/X23-81951_26100.1742.240906-0331.ge_release_svc_refresh_CLIENT_ENTERPRISES_OEM_x64FRE_en-us.iso"
       ;;
     "win10x64" | "win10x64-enterprise" | "win10x64-enterprise-eval" )
-      size=111
-      sum="aaa"
+      size=6978310144
+      sum="7847abd6f39abd02dc8089c4177d354f9eb66fa0ee2fe8ae20e596e675d1ab67"
       url="Windows-10-22H2-July-2024-64-bit-DVD-English/en-us_windows_10_business_editions_version_22h2_updated_july_2024_x64_dvd_c004521a.iso"
       ;;
     "win10x64-iot" | "win10x64-enterprise-iot-eval" )
