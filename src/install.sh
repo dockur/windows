@@ -834,7 +834,7 @@ addDrivers() {
     warn "Windows version unknown, falling back to Windows 11 drivers..."
   fi
 
-  if ! bsdtar -xf /drivers.txz -C "$drivers"; then
+  if ! bsdtar -xf /var/drivers.txz -C "$drivers"; then
     error "Failed to extract drivers from archive!" && return 1
   fi
 
