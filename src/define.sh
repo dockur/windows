@@ -1322,7 +1322,7 @@ prepareInstall() {
     rm -rf "$drivers"
     mkdir -p "$drivers"
 
-    if ! bsdtar -xf /drivers.txz -C "$drivers"; then
+    if ! bsdtar -xf /var/drivers.txz -C "$drivers"; then
       error "Failed to extract drivers!" && return 1
     fi
 
