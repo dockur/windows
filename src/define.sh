@@ -973,8 +973,8 @@ getLink2() {
       url="WINDOWS764_EN_DVD.iso"
       ;;
     "win7x86" | "win7x86-ultimate" )
-      size=2564476928
-      sum="e2c009a66d63a742941f5087acae1aa438dcbe87010bddd53884b1af6b22c940"
+      size=2564784128
+      sum="bd4c03c917d00a40222d92a6fab04981a7bd46140bda1888eb961a322e3c5d89"
       url="WINDOWS732_EN_DVD.iso"
       ;;
     "winxpx86" )
