@@ -530,9 +530,10 @@ downloadFile() {
   local lang="$5"
   local desc="$6"
   local msg="Downloading $desc"
-  local rc total total_gb progress domain dots space folder
+  local rc total total_gb progress domain dots agent space folder
 
   rm -f "$iso"
+  agent=$(get_agent)
 
   if [ -n "$size" ] && [[ "$size" != "0" ]]; then
     folder=$(dirname -- "$iso")
@@ -561,7 +562,7 @@ downloadFile() {
 
   info "$msg..."
 
-  { wget "$url" -O "$iso" -q --timeout=30 --no-http-keep-alive --show-progress "$progress"; rc=$?; } || :
+  { wget "$url" -O "$iso" -q --timeout=30 --no-http-keep-alive --user-agent "$agent" --show-progress "$progress"; rc=$?; } || :
 
   fKill "progress.sh"
 
@@ -569,7 +570,7 @@ downloadFile() {
     total=$(stat -c%s "$iso")
     total_gb=$(formatBytes "$total")
     if [ "$total" -lt 100000000 ]; then
-      error "Invalid download link: $url (is only $total_gb ?). Please report this at $SUPPORT/issues." && return 1
+      error "Invalid download link: $url (is only $total_gb ?). Please report this at $SUPPORT/issues" && return 1
     fi
     verifyFile "$iso" "$size" "$total" "$sum" || return 1
     isCompressed "$url" && UNPACK="Y"
@@ -579,7 +580,7 @@ downloadFile() {
   msg="Failed to download $url"
   (( rc == 3 )) && error "$msg , cannot write file (disk full?)" && return 1
   (( rc == 4 )) && error "$msg , network failure!" && return 1
-  (( rc == 8 )) && error "$msg , server issued an error response! Please report this at $SUPPORT/issues." && return 1
+  (( rc == 8 )) && error "$msg , server issued an error response! Please report this at $SUPPORT/issues" && return 1
 
   error "$msg , reason: $rc"
   return 1
