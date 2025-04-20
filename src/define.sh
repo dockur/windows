@@ -978,8 +978,8 @@ getLink2() {
       url="WINDOWS732_EN_DVD.iso"
       ;;
     "winxpx86" )
-      size=617756672
-      sum="62b6c91563bad6cd12a352aa018627c314cfc5162d8e9f8af0756a642e602a46"
+      size=618065920
+      sum="8177d0137dfe4e8296a85793f140806c9250a5992c8e0e50158c742767ad1182"
       url="WinXPsp3.iso"
       ;;
     "win2kx86" )
