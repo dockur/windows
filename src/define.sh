@@ -957,54 +957,6 @@ getLink2() {
   local url=""
   local sum=""
   local size=""
-  local host="https://nixsys.com/drivers"
-
-  [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
-
-  case "${id,,}" in
-    "win10x64" | "win10x64-enterprise" | "win10x64-enterprise-eval" )
-      size=7345668096
-      sum="76abc8f021702cc129c02c034c79faed7d505acf5c3ec7bbdec1e0cf61b230b0"
-      url="Windows10_x32x64_EN.iso"
-      ;;
-    "win7x64" | "win7x64-ultimate" )
-      size=3319478272
-      sum="3286963e1476082ba882a5058c205c264772bead9e99e15cd1cb255f04b72900"
-      url="WINDOWS764_EN_DVD.iso"
-      ;;
-    "win7x86" | "win7x86-ultimate" )
-      size=2564784128
-      sum="bd4c03c917d00a40222d92a6fab04981a7bd46140bda1888eb961a322e3c5d89"
-      url="WINDOWS732_EN_DVD.iso"
-      ;;
-    "winxpx86" )
-      size=618065920
-      sum="8177d0137dfe4e8296a85793f140806c9250a5992c8e0e50158c742767ad1182"
-      url="WinXPsp3.iso"
-      ;;
-    "win2kx86" )
-      size=387424256
-      sum="08b11c3897eb38d1e6566a17cec5cdf2b3c620444e160e3db200a7e223aabbd8"
-      url="Windows_2000_SP4.iso"
-  esac
-
-  case "${ret,,}" in
-    "sum" ) echo "$sum" ;;
-    "size" ) echo "$size" ;;
-    *) [ -n "$url" ] && echo "$host/$url";;
-  esac
-
-  return 0
-}
-
-getLink3() {
-
-  local id="$1"
-  local lang="$2"
-  local ret="$3"
-  local url=""
-  local sum=""
-  local size=""
   local host="https://files.dog/MSDN"
 
   [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
@@ -1085,6 +1037,54 @@ getLink3() {
       sum="8fac68e1e56c64ad9a2aa0ad464560282e67fa4f4dd51d09a66f4e548eb0f2d6"
       url="Windows%20XP/en_win_xp_pro_x64_vl.iso"
       ;;
+  esac
+
+  case "${ret,,}" in
+    "sum" ) echo "$sum" ;;
+    "size" ) echo "$size" ;;
+    *) [ -n "$url" ] && echo "$host/$url";;
+  esac
+
+  return 0
+}
+
+getLink3() {
+
+  local id="$1"
+  local lang="$2"
+  local ret="$3"
+  local url=""
+  local sum=""
+  local size=""
+  local host="https://nixsys.com/drivers"
+
+  [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
+
+  case "${id,,}" in
+    "win10x64" | "win10x64-enterprise" | "win10x64-enterprise-eval" )
+      size=7345668096
+      sum="76abc8f021702cc129c02c034c79faed7d505acf5c3ec7bbdec1e0cf61b230b0"
+      url="Windows10_x32x64_EN.iso"
+      ;;
+    "win7x64" | "win7x64-ultimate" )
+      size=3319478272
+      sum="3286963e1476082ba882a5058c205c264772bead9e99e15cd1cb255f04b72900"
+      url="WINDOWS764_EN_DVD.iso"
+      ;;
+    "win7x86" | "win7x86-ultimate" )
+      size=2564784128
+      sum="bd4c03c917d00a40222d92a6fab04981a7bd46140bda1888eb961a322e3c5d89"
+      url="WINDOWS732_EN_DVD.iso"
+      ;;
+    "winxpx86" )
+      size=618065920
+      sum="8177d0137dfe4e8296a85793f140806c9250a5992c8e0e50158c742767ad1182"
+      url="WinXPsp3.iso"
+      ;;
+    "win2kx86" )
+      size=387424256
+      sum="08b11c3897eb38d1e6566a17cec5cdf2b3c620444e160e3db200a7e223aabbd8"
+      url="Windows_2000_SP4.iso"
   esac
 
   case "${ret,,}" in
