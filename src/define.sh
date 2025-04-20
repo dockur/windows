@@ -16,7 +16,7 @@ set -Eeuo pipefail
 : "${USERNAME:=""}"
 : "${PASSWORD:=""}"
 
-MIRRORS=3
+MIRRORS=4
 
 parseVersion() {
 
@@ -1056,6 +1056,49 @@ getLink3() {
   local url=""
   local sum=""
   local size=""
+  local host="https://nixsys.com/drivers"
+
+  [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
+
+  case "${id,,}" in
+    "win7x64" | "win7x64-ultimate" )
+      size=3319478272
+      sum="3286963e1476082ba882a5058c205c264772bead9e99e15cd1cb255f04b72900"
+      url="WINDOWS764_EN_DVD.iso"
+      ;;
+    "win7x86" | "win7x86-ultimate" )
+      size=2564784128
+      sum="bd4c03c917d00a40222d92a6fab04981a7bd46140bda1888eb961a322e3c5d89"
+      url="WINDOWS732_EN_DVD.iso"
+      ;;
+    "winxpx86" )
+      size=618065920
+      sum="8177d0137dfe4e8296a85793f140806c9250a5992c8e0e50158c742767ad1182"
+      url="WinXPsp3.iso"
+      ;;
+    "win2kx86" )
+      size=387424256
+      sum="08b11c3897eb38d1e6566a17cec5cdf2b3c620444e160e3db200a7e223aabbd8"
+      url="Windows_2000_SP4.iso"
+  esac
+
+  case "${ret,,}" in
+    "sum" ) echo "$sum" ;;
+    "size" ) echo "$size" ;;
+    *) [ -n "$url" ] && echo "$host/$url";;
+  esac
+
+  return 0
+}
+
+getLink4() {
+
+  local id="$1"
+  local lang="$2"
+  local ret="$3"
+  local url=""
+  local sum=""
+  local size=""
   local host="https://archive.org/download"
 
   [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
@@ -1251,6 +1294,7 @@ addFolder() {
 
 prepareInstall() {
 
+  local pid=""
   local dir="$2"
   local desc="$3"
   local driver="$4"
@@ -1278,7 +1322,7 @@ prepareInstall() {
     rm -rf "$drivers"
     mkdir -p "$drivers"
 
-    if ! bsdtar -xf /drivers.txz -C "$drivers"; then
+    if ! bsdtar -xf /var/drivers.txz -C "$drivers"; then
       error "Failed to extract drivers!" && return 1
     fi
 
@@ -1337,27 +1381,32 @@ prepareInstall() {
 
   fi
 
-  local pid file setup
+  local setup
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini -print -quit)
 
   if [ -n "$setup" ]; then
 
     pid=$(<"$setup")
+    pid="${pid%$'\r'}"
+
+    case "$pid" in
+      *"000" | *"270" | *"OEM" ) ;;
+      * ) warn "unknown PID found in image: \"${pid:(-3)}\"" ;;
+    esac
 
     if [[ "$driver" == "2k" ]]; then
 
-      echo "${pid:0:$((${#pid})) - 4}270" > "$setup"
+      echo "${pid:0:$((${#pid})) - 3}270" > "$setup"
 
     else
 
-      pid="${pid:(-4)}"
-
-      if [[ "${pid:0:3}" == "270" ]]; then
+      if [[ "$pid" != *"270" ]]; then
+        echo "${pid:0:$((${#pid})) - 3}000" > "$setup"
+      else
         warn "this version of $desc requires a volume license key (VLK), it will ask for one during installation."
       fi
 
     fi
-
   fi
 
   mkdir -p "$dir/\$OEM\$"
@@ -1388,35 +1437,33 @@ prepareInstall() {
   local ip="20.20.20.1"
   [ -n "${VM_NET_IP:-}" ] && ip="${VM_NET_IP%.*}.1"
 
-  # These are not pirated keys, they come from the official MS documentation.
-  case "${driver,,}" in
-    "xp" )
+  if [ -z "$KEY" ] && [[ "$pid" != *"270" ]]; then
 
-      if [[ "${arch,,}" == "x86" ]]; then
-        # Windows XP Professional x86 generic key (no activation, trial-only)
-        [ -z "$KEY" ] && KEY="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
-      else
-        # Windows XP Professional x64 generic key (no activation, trial-only)
-        [ -z "$KEY" ] && KEY="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
-      fi ;;
+    # These are not pirated keys, they come from the official MS documentation.
+    case "${driver,,}" in
+      "xp" )
 
-    "2k3" )
+        if [[ "${arch,,}" == "x86" ]]; then
+          # Windows XP Professional x86 generic key (no activation, trial-only)
+          KEY="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
+        else
+          # Windows XP Professional x64 generic key (no activation, trial-only)
+          KEY="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
+        fi ;;
 
-      if [[ "${arch,,}" == "x86" ]]; then
-        # Windows Server 2003 Standard x86 generic key (no activation, trial-only)
-        [ -z "$KEY" ] && KEY="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
-      else
-        # Windows Server 2003 Standard x64 generic key (no activation, trial-only)
-        [ -z "$KEY" ] && KEY="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
-      fi ;;
+      "2k3" )
 
-    "2k" )
+        if [[ "${arch,,}" == "x86" ]]; then
+          # Windows Server 2003 Standard x86 generic key (no activation, trial-only)
+          KEY="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
+        else
+          # Windows Server 2003 Standard x64 generic key (no activation, trial-only)
+          KEY="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
+        fi ;;
 
-      KEY="" ;;
+    esac
 
-    * ) error "Unknown version: \"$driver\"" && return 1 ;;
-
-  esac
+  fi
 
   [ -n "$KEY" ] && KEY="ProductID=$KEY"
 
