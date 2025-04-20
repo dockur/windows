@@ -1386,21 +1386,26 @@ prepareInstall() {
   if [ -n "$setup" ]; then
 
     pid=$(<"$setup")
+    pid="${pid%$'\r'}"
+
+    case "$pid" in
+      *"000" | *"270" | *"OEM" ) ;;
+      * ) warn "unknown PID: ${pid:(-3)}" ;;
+    esac
 
     if [[ "$driver" == "2k" ]]; then
 
-      echo "${pid:0:$((${#pid})) - 4}270" > "$setup"
+      echo "${pid:0:$((${#pid})) - 3}270" > "$setup"
 
     else
 
-      pid="${pid:(-4)}"
-
-      if [[ "${pid:0:3}" == "270" ]]; then
+      if [[ "$pid" != *"270" ]]; then
+        echo "${pid:0:$((${#pid})) - 3}000" > "$setup"
+      else
         warn "this version of $desc requires a volume license key (VLK), it will ask for one during installation."
       fi
 
     fi
-
   fi
 
   mkdir -p "$dir/\$OEM\$"
