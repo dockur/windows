@@ -1294,6 +1294,7 @@ addFolder() {
 
 prepareInstall() {
 
+  local pid=""
   local dir="$2"
   local desc="$3"
   local driver="$4"
@@ -1380,8 +1381,7 @@ prepareInstall() {
 
   fi
 
-  local pid=""
-  local file setup
+  local setup
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini -print -quit)
 
   if [ -n "$setup" ]; then
