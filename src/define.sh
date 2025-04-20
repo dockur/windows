@@ -963,8 +963,8 @@ getLink2() {
 
   case "${id,,}" in
     "win10x64" | "win10x64-enterprise" | "win10x64-enterprise-eval" )
-      size=5535252480
-      sum="557871965263d0fd0a1ea50b5d0d0d7cb04a279148ca905c1c675c9bc0d5486c"
+      size=7345668096
+      sum="76abc8f021702cc129c02c034c79faed7d505acf5c3ec7bbdec1e0cf61b230b0"
       url="Windows10_x32x64_EN.iso"
       ;;
     "win7x64" | "win7x64-ultimate" )
