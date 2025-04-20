@@ -1140,9 +1140,9 @@ getLink4() {
       url="Windows11LTSC/X23-81951_26100.1742.240906-0331.ge_release_svc_refresh_CLIENT_ENTERPRISES_OEM_x64FRE_en-us.iso"
       ;;
     "win10x64" | "win10x64-enterprise" | "win10x64-enterprise-eval" )
-      size=6139469824
-      sum="d09dd10a633b642ffa712ddd98d96ca98ea5a714556727166d92fc659e5d852e"
-      url="en-us_windows_10_consumer_editions_version_22h2_updated_feb_2023_x64_dvd_c29e4bb3/en-us_windows_10_consumer_editions_version_22h2_updated_feb_2023_x64_dvd_c29e4bb3.iso"
+      size=111
+      sum="aaa"
+      url="Windows-10-22H2-July-2024-64-bit-DVD-English/en-us_windows_10_business_editions_version_22h2_updated_july_2024_x64_dvd_c004521a.iso"
       ;;
     "win10x64-iot" | "win10x64-enterprise-iot-eval" )
       size=4851668992
