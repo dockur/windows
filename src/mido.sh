@@ -562,14 +562,7 @@ downloadFile() {
 
   info "$msg..."
 
-  case "${domain,,}" in
-    *"archive.org" )
-      { wget2 "$url" -O "$iso" -q --timeout=30 --user-agent "$agent" --force-progress "$progress"; rc=$?; } || :
-      ;;
-    * )
-      { wget "$url" -O "$iso" -q --timeout=30 --no-http-keep-alive --user-agent "$agent" --show-progress "$progress"; rc=$?; } || :
-      ;;
-  esac
+  { wget "$url" -O "$iso" -q --timeout=30 --no-http-keep-alive --user-agent "$agent" --show-progress "$progress"; rc=$?; } || :
 
   fKill "progress.sh"
 
