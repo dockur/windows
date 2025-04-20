@@ -983,8 +983,8 @@ getLink2() {
       url="WinXPsp3.iso"
       ;;
     "win2kx86" )
-      size=386859008
-      sum="e3816f6e80b66ff686ead03eeafffe9daf020a5e4717b8bd4736b7c51733ba22"
+      size=387424256
+      sum="08b11c3897eb38d1e6566a17cec5cdf2b3c620444e160e3db200a7e223aabbd8"
       url="Windows_2000_SP4.iso"
   esac
 
