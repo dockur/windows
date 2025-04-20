@@ -16,7 +16,7 @@ set -Eeuo pipefail
 : "${USERNAME:=""}"
 : "${PASSWORD:=""}"
 
-MIRRORS=5
+MIRRORS=4
 
 parseVersion() {
 
@@ -1097,54 +1097,6 @@ getLink3() {
 }
 
 getLink4() {
-
-  local id="$1"
-  local lang="$2"
-  local ret="$3"
-  local url=""
-  local sum=""
-  local size=""
-  local host="https://files.pythonscratcher.net/Windows"
-
-  [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
-
-  case "${id,,}" in
-    "win11x64" | "win11x64-enterprise" | "win11x64-enterprise-eval" )
-      size=5332989952
-      sum="aa1ad990f930d907b7a34ea897abbb0dfbe47552ca8acc146f92e40381839e05"
-      url="11/en-us_windows_11_23h2_x64.iso"
-      ;;
-    "win10x64" | "win10x64-enterprise" | "win10x64-enterprise-eval" )
-      size=5535252480
-      sum="557871965263d0fd0a1ea50b5d0d0d7cb04a279148ca905c1c675c9bc0d5486c"
-      url="10/en-us_windows_10_22h2_x64.iso"
-      ;;
-    "win7x64" | "win7x64-ultimate" )
-      size=3319478272
-      sum="3286963e1476082ba882a5058c205c264772bead9e99e15cd1cb255f04b72900"
-      url="7/en_windows_7_with_sp1_x64.iso"
-      ;;
-    "winxpx86" )
-      size=618065920
-      sum="8177d0137dfe4e8296a85793f140806c9250a5992c8e0e50158c742767ad1182"
-      url="XP/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
-      ;;
-    "win2kx86" )
-      size=387424256
-      sum="08b11c3897eb38d1e6566a17cec5cdf2b3c620444e160e3db200a7e223aabbd8"
-      url="2000/5.00.2195.1_x86fre_client-professional_retail_en-us.7z"
-  esac
-
-  case "${ret,,}" in
-    "sum" ) echo "$sum" ;;
-    "size" ) echo "$size" ;;
-    *) [ -n "$url" ] && echo "$host/$url";;
-  esac
-
-  return 0
-}
-
-getLink5() {
 
   local id="$1"
   local lang="$2"
