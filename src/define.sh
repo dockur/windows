@@ -968,8 +968,8 @@ getLink2() {
       url="Windows10_x32x64_EN.iso"
       ;;
     "win7x64" | "win7x64-ultimate" )
-      size=3320903680
-      sum="36f4fa2416d0982697ab106e3a72d2e120dbcdb6cc54fd3906d06120d0653808"
+      size=3319478272
+      sum="3286963e1476082ba882a5058c205c264772bead9e99e15cd1cb255f04b72900"
       url="WINDOWS764_EN_DVD.iso"
       ;;
     "win7x86" | "win7x86-ultimate" )
