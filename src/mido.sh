@@ -530,9 +530,10 @@ downloadFile() {
   local lang="$5"
   local desc="$6"
   local msg="Downloading $desc"
-  local rc total total_gb progress domain dots space folder
+  local rc total total_gb progress domain dots agent space folder
 
   rm -f "$iso"
+  agent=$(get_agent)
 
   if [ -n "$size" ] && [[ "$size" != "0" ]]; then
     folder=$(dirname -- "$iso")
@@ -561,7 +562,7 @@ downloadFile() {
 
   info "$msg..."
 
-  { wget "$url" -O "$iso" -q --timeout=30 --no-http-keep-alive --show-progress "$progress"; rc=$?; } || :
+  { wget "$url" -O "$iso" -q --timeout=30 --no-http-keep-alive --user-agent "$agent" --show-progress "$progress"; rc=$?; } || :
 
   fKill "progress.sh"
 
