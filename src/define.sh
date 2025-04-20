@@ -924,8 +924,8 @@ getLink1() {
       url="vista/en_windows_vista_with_sp2_x86_dvd_342266.iso"
       ;;
     "win2003r2" )
-      size=652367872
-      sum="74245cba888f935b138b106c2744bec7f392925b472358960a0b5643cd6abb32"
+      size=731650535
+      sum="6b64bbae7eb00fd000cc887ffdc9f224d00c557daad7f756cfa373950b880dc8"
       url="server/2003r2/en_win_srv_2003_r2_standard_x64_with_sp2_cd1_cd2.zip"
       ;;
     "winxpx86" )
