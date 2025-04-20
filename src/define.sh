@@ -1390,7 +1390,7 @@ prepareInstall() {
 
     case "$pid" in
       *"000" | *"270" | *"OEM" ) ;;
-      * ) warn "unknown PID: ${pid:(-3)}" ;;
+      * ) warn "unknown PID found in image: \"${pid:(-3)}\"" ;;
     esac
 
     if [[ "$driver" == "2k" ]]; then
