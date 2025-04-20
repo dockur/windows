@@ -1124,11 +1124,16 @@ getLink4() {
       sum="a11116c0645d892d6a5a7c585ecc1fa13aa66f8c7cc6b03bf1f27bd16860cc35"
       url="tiny-10-23-h2/tiny10%20x64%2023h2.iso"
       ;;
-    "win11x64" | "win11x64-enterprise" | "win11x64-enterprise-eval" )
+    "win11x64" )
       size=5819484160
       sum="b56b911bf18a2ceaeb3904d87e7c770bdf92d3099599d61ac2497b91bf190b11"
       url="windows-11-24h2-x64/Windows%2011%2024H2%20x64.iso"
-      ;; #https://archive.org/download/windows-11-24h2-iso_202501/Win11_24H2_English_x64.iso
+      ;;
+    "win11x64-enterprise" | "win11x64-enterprise-eval" )
+      size=6209064960
+      sum="c8dbc96b61d04c8b01faf6ce0794fdf33965c7b350eaa3eb1e6697019902945c"
+      url="Windows11Enterprise23H2x64/22631.2428.231001-0608.23H2_NI_RELEASE_SVC_REFRESH_CLIENTENTERPRISEEVAL_OEMRET_x64FRE_en-us.iso"
+      ;;
     "win11x64-iot" | "win11x64-enterprise-iot-eval" )
       size=5144817664
       sum="4f59662a96fc1da48c1b415d6c369d08af55ddd64e8f1c84e0166d9e50405d7a"
