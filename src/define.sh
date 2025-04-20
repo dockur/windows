@@ -16,7 +16,7 @@ set -Eeuo pipefail
 : "${USERNAME:=""}"
 : "${PASSWORD:=""}"
 
-MIRRORS=3
+MIRRORS=4
 
 parseVersion() {
 
@@ -957,6 +957,54 @@ getLink2() {
   local url=""
   local sum=""
   local size=""
+  local host="https://nixsys.com/drivers"
+
+  [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
+
+  case "${id,,}" in
+    "win10x64" | "win10x64-enterprise" | "win10x64-enterprise-eval" )
+      size=5535252480
+      sum="557871965263d0fd0a1ea50b5d0d0d7cb04a279148ca905c1c675c9bc0d5486c"
+      url="Windows10_x32x64_EN.iso"
+      ;;
+    "win7x64" | "win7x64-ultimate" )
+      size=3320903680
+      sum="36f4fa2416d0982697ab106e3a72d2e120dbcdb6cc54fd3906d06120d0653808"
+      url="WINDOWS764_EN_DVD.iso"
+      ;;
+    "win7x86" | "win7x86-ultimate" )
+      size=2564476928
+      sum="e2c009a66d63a742941f5087acae1aa438dcbe87010bddd53884b1af6b22c940"
+      url="WINDOWS732_EN_DVD.iso"
+      ;;
+    "winxpx86" )
+      size=617756672
+      sum="62b6c91563bad6cd12a352aa018627c314cfc5162d8e9f8af0756a642e602a46"
+      url="WinXPsp3.iso"
+      ;;
+    "win2kx86" )
+      size=386859008
+      sum="e3816f6e80b66ff686ead03eeafffe9daf020a5e4717b8bd4736b7c51733ba22"
+      url="Windows_2000_SP4.iso"
+  esac
+
+  case "${ret,,}" in
+    "sum" ) echo "$sum" ;;
+    "size" ) echo "$size" ;;
+    *) [ -n "$url" ] && echo "$host/$url";;
+  esac
+
+  return 0
+}
+
+getLink3() {
+
+  local id="$1"
+  local lang="$2"
+  local ret="$3"
+  local url=""
+  local sum=""
+  local size=""
   local host="https://files.dog/MSDN"
 
   [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
@@ -1048,7 +1096,7 @@ getLink2() {
   return 0
 }
 
-getLink3() {
+getLink4() {
 
   local id="$1"
   local lang="$2"
