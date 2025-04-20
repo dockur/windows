@@ -1124,6 +1124,71 @@ getLink4() {
       sum="a11116c0645d892d6a5a7c585ecc1fa13aa66f8c7cc6b03bf1f27bd16860cc35"
       url="tiny-10-23-h2/tiny10%20x64%2023h2.iso"
       ;;
+    "win11x64" | "win11x64-enterprise" | "win11x64-enterprise-eval" )
+      size=111
+      sum="aaa"
+      url="windows-11-24h2-x64/Windows%2011%2024H2%20x64.iso"
+      ;;
+    "win11x64-iot" | "win11x64-enterprise-iot-eval" )
+      size=5144817664
+      sum="4f59662a96fc1da48c1b415d6c369d08af55ddd64e8f1c84e0166d9e50405d7a"
+      url="Windows11LTSC/X23-81951_26100.1742.240906-0331.ge_release_svc_refresh_CLIENT_ENTERPRISES_OEM_x64FRE_en-us.iso"
+      ;;
+    "win11x64-ltsc" | "win11x64-enterprise-ltsc-eval" )
+      size=5144817664
+      sum="4f59662a96fc1da48c1b415d6c369d08af55ddd64e8f1c84e0166d9e50405d7a"
+      url="Windows11LTSC/X23-81951_26100.1742.240906-0331.ge_release_svc_refresh_CLIENT_ENTERPRISES_OEM_x64FRE_en-us.iso"
+      ;;
+    "win10x64" | "win10x64-enterprise" | "win10x64-enterprise-eval" )
+      size=6139469824
+      sum="d09dd10a633b642ffa712ddd98d96ca98ea5a714556727166d92fc659e5d852e"
+      url="en-us_windows_10_consumer_editions_version_22h2_updated_feb_2023_x64_dvd_c29e4bb3/en-us_windows_10_consumer_editions_version_22h2_updated_feb_2023_x64_dvd_c29e4bb3.iso"
+      ;;
+    "win10x64-iot" | "win10x64-enterprise-iot-eval" )
+      size=4851668992
+      sum="a0334f31ea7a3e6932b9ad7206608248f0bd40698bfb8fc65f14fc5e4976c160"
+      url="en-us_windows_10_iot_enterprise_ltsc_2021_x64_dvd_257ad90f_202411/en-us_windows_10_iot_enterprise_ltsc_2021_x64_dvd_257ad90f.iso"
+      ;;
+    "win10x64-ltsc" | "win10x64-enterprise-ltsc-eval" )
+      size=4899461120
+      sum="c90a6df8997bf49e56b9673982f3e80745058723a707aef8f22998ae6479597d"
+      url="en-us_windows_10_enterprise_ltsc_2021_x64_dvd_d289cf96_202302/en-us_windows_10_enterprise_ltsc_2021_x64_dvd_d289cf96.iso"
+      ;;
+    "win81x64" )
+      size=4320526336
+      sum="d8333cf427eb3318ff6ab755eb1dd9d433f0e2ae43745312c1cd23e83ca1ce51"
+      url="en_windows_8.1_with_update_x64_dvd_6051480/en_windows_8.1_with_update_x64_dvd_6051480.iso"
+      ;;
+    "win81x64-enterprise" | "win81x64-enterprise-eval" )
+      size=4139163648
+      sum="c3c604c03677504e8905090a8ce5bb1dde76b6fd58e10f32e3a25bef21b2abe1"
+      url="en_windows_8.1_enterprise_with_update_x64_dvd/en_windows_8.1_enterprise_with_update_x64_dvd_6054382.iso"
+      ;;
+    "win2022" | "win2022-eval" )
+      size=5365624832
+      sum="c3c57bb2cf723973a7dcfb1a21e97dfa035753a7f111e348ad918bb64b3114db"
+      url="win-server-2022/2227-January_2024/en-us_windows_server_2022_updated_jan_2024_x64_dvd_2b7a0c9f.iso"
+      ;;
+    "win2019" | "win2019-eval" )
+      size=5575774208
+      sum="0067afe7fdc4e61f677bd8c35a209082aa917df9c117527fc4b2b52a447e89bb"
+      url="sw-dvd-9-win-server-std-core-2019-1809.18-64-bit-english-dc-std-mlf-x-22-74330/SW_DVD9_Win_Server_STD_CORE_2019_1809.18_64Bit_English_DC_STD_MLF_X22-74330.ISO"
+      ;;
+    "win2016" | "win2016-eval" )
+      size=6006587392
+      sum="af06e5483c786c023123e325cea4775050324d9e1366f46850b515ae43f764be"
+      url="en_windows_server_2016_updated_feb_2018_x64_dvd_11636692/en_windows_server_2016_updated_feb_2018_x64_dvd_11636692.iso"
+      ;;
+    "win2012r2" | "win2012r2-eval" )
+      size=5397889024
+      sum="f351e89eb88a96af4626ceb3450248b8573e3ed5924a4e19ea891e6003b62e4e"
+      url="en_windows_server_2012_r2_with_update_x64_dvd_6052708_202006/en_windows_server_2012_r2_with_update_x64_dvd_6052708.iso"
+      ;;
+    "win2008r2" | "win2008r2-eval" )
+      size=3166584832
+      sum="dfd9890881b7e832a927c38310fb415b7ea62ac5a896671f2ce2a111998f0df8"
+      url="en_windows_server_2008_r2_with_sp1_x64_dvd_617601_202006/en_windows_server_2008_r2_with_sp1_x64_dvd_617601.iso"
+      ;;
     "win7x64" | "win7x64-ultimate" )
       size=3320903680
       sum="36f4fa2416d0982697ab106e3a72d2e120dbcdb6cc54fd3906d06120d0653808"
@@ -1149,10 +1214,20 @@ getLink4() {
       sum="edf9f947c5791469fd7d2d40a5dcce663efa754f91847aa1d28ed7f585675b78"
       url="en_windows_vista_sp2_x64_dvd_342267_202010/en_windows_vista_sp2_x64_dvd_342267.iso"
       ;;
+    "winvistax64-enterprise" )
+      size=3205953536
+      sum="0a0cd511b3eac95c6f081419c9c65b12317b9d6a8d9707f89d646c910e788016"
+      url="en_windows_vista_enterprise_sp2_x64_dvd_342332_202007/en_windows_vista_enterprise_sp2_x64_dvd_342332.iso"
+      ;;
     "winvistax86" | "winvistax86-ultimate" )
       size=3243413504
       sum="9c36fed4255bd05a8506b2da88f9aad73643395e155e609398aacd2b5276289c"
       url="en_windows_vista_sp2_x86_dvd_342266/en_windows_vista_sp2_x86_dvd_342266.iso"
+      ;;
+    "winvistax86-enterprise" )
+      size=2420981760
+      sum="54e2720004041e7db988a391543ea5228b0affc28efcf9303d2d0ff9402067f5"
+      url="en_windows_vista_enterprise_sp2_x86_dvd_342329_202007/en_windows_vista_enterprise_sp2_x86_dvd_342329.iso"
       ;;
     "win2003r2" )
       size=652367872
