@@ -1125,8 +1125,8 @@ getLink4() {
       url="tiny-10-23-h2/tiny10%20x64%2023h2.iso"
       ;;
     "win11x64" | "win11x64-enterprise" | "win11x64-enterprise-eval" )
-      size=111
-      sum="aaa"
+      size=5819484160
+      sum="b56b911bf18a2ceaeb3904d87e7c770bdf92d3099599d61ac2497b91bf190b11"
       url="windows-11-24h2-x64/Windows%2011%2024H2%20x64.iso"
       ;;
     "win11x64-iot" | "win11x64-enterprise-iot-eval" )
