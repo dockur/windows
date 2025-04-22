@@ -1385,6 +1385,7 @@ addFolder() {
 prepareInstall() {
 
   local pid=""
+  local file=""
   local dir="$2"
   local desc="$3"
   local driver="$4"
@@ -1436,17 +1437,19 @@ prepareInstall() {
     cp -L "$drivers/NetKVM/$driver/$arch/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
     cp -L "$drivers/NetKVM/$driver/$arch/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
 
-    if [ ! -f "$target/TXTSETUP.SIF" ]; then
+    file=$(find "$target" -maxdepth 1 -type f -iname TXTSETUP.SIF -print -quit)
+
+    if [ -z "$file" ]; then
       error "The file TXTSETUP.SIF could not be found!" && return 1
     fi
 
-    sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$target/TXTSETUP.SIF"
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\nviostor.sys=1,,,,,,4_,4,1,,,1,4/' "$target/TXTSETUP.SIF"
-    sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device\"/' "$target/TXTSETUP.SIF"
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$target/TXTSETUP.SIF"
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00020000=\"viostor\"/' "$target/TXTSETUP.SIF"
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$target/TXTSETUP.SIF"
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$file"
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\nviostor.sys=1,,,,,,4_,4,1,,,1,4/' "$file"
+    sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device\"/' "$file"
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$file"
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00020000=\"viostor\"/' "$file"
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$file"
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$file"
 
     if [ ! -d "$drivers/sata/xp/$arch" ]; then
       error "Failed to locate required SATA drivers!" && return 1
@@ -1456,33 +1459,28 @@ prepareInstall() {
     cp -Lr "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata" || return 1
     cp -Lr "$drivers/sata/xp/$arch/." "$target" || return 1
 
-    sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$target/TXTSETUP.SIF"
-    sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$target/TXTSETUP.SIF"
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.cat = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.inf = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,4_,4,1,,,1,4/' "$target/TXTSETUP.SIF"
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaahci.cat = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaAHCI.inf = 1,,,,,,,1,0,0/' "$target/TXTSETUP.SIF"
-    sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$target/TXTSETUP.SIF"
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$target/TXTSETUP.SIF"
+    sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$file"
+    sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$file"
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.cat = 1,,,,,,,1,0,0/' "$file"
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.inf = 1,,,,,,,1,0,0/' "$file"
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,4_,4,1,,,1,4/' "$file"
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,,1,0,0/' "$file"
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaahci.cat = 1,,,,,,,1,0,0/' "$file"
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaAHCI.inf = 1,,,,,,,1,0,0/' "$file"
+    sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$file"
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$file"
 
     rm -rf "$drivers"
 
   fi
 
-  local setup
+  local key setup
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini -print -quit)
 
-  if [ -n "$setup" ]; then
+  if [ -n "$setup" ] && [ -z "$KEY" ]; then
 
     pid=$(<"$setup")
     pid="${pid%$'\r'}"
-
-    case "$pid" in
-      *"000" | *"270" | *"OEM" ) ;;
-      * ) warn "unknown PID found in image: \"${pid:(-3)}\"" ;;
-    esac
 
     if [[ "$driver" == "2k" ]]; then
 
@@ -1490,14 +1488,74 @@ prepareInstall() {
 
     else
 
-      if [[ "$pid" != *"270" ]]; then
-        echo "${pid:0:$((${#pid})) - 3}000" > "$setup"
-      else
-        warn "this version of $desc requires a volume license key (VLK), it will ask for one during installation."
-      fi
+      if [[ "$pid" == *"270" ]]; then
 
+        warn "this version of $desc requires a volume license key (VLK), it will ask for one during installation."
+
+      else
+
+        file=$(find "$target" -maxdepth 1 -type f -iname PID.INF -print -quit)
+
+        if [ -n "$file" ]; then
+
+          if [[ "$driver" == "2k3" ]]; then
+
+            key=$(grep -i -A 2 "StagingKey" "$file" | tail -n 2 | head -n 1)
+
+          else
+
+            key="${pid:$((${#pid})) - 8:5}"
+            if [[ "${pid^^}" == *"OEM" ]]; then
+              key=$(grep -i -A 2 "$key" "$file" | tail -n 2 | head -n 1)
+            else
+              key=$(grep -i -m 1 -A 2 "$key" "$file" | tail -n 2 | head -n 1)
+            fi
+            key="${key#*= }"
+
+          fi
+
+          key="${key%$'\r'}"
+          [[ "${#key}" == "29" ]] && KEY="$key"
+
+        fi
+
+        if [ -z "$KEY" ]; then
+
+          # These are NOT pirated keys, they come from official MS documentation.
+
+          case "${driver,,}" in
+            "xp" )
+
+              if [[ "${arch,,}" == "x86" ]]; then
+                # Windows XP Professional x86 generic trial key (no activation)
+                KEY="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
+              else
+                # Windows XP Professional x64 generic trial key (no activation)
+                KEY="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
+              fi ;;
+
+            "2k3" )
+
+              if [[ "${arch,,}" == "x86" ]]; then
+                # Windows Server 2003 Standard x86 generic trial key (no activation)
+                KEY="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
+              else
+                # Windows Server 2003 Standard x64 generic trial key (no activation)
+                KEY="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
+              fi ;;
+
+          esac
+
+          echo "${pid:0:$((${#pid})) - 3}000" > "$setup"
+
+        fi
+
+      fi
     fi
+
   fi
+
+  [ -n "$KEY" ] && KEY="ProductID=$KEY"
 
   mkdir -p "$dir/\$OEM\$"
 
@@ -1526,36 +1584,6 @@ prepareInstall() {
 
   local ip="20.20.20.1"
   [ -n "${VM_NET_IP:-}" ] && ip="${VM_NET_IP%.*}.1"
-
-  if [ -z "$KEY" ] && [[ "$pid" != *"270" ]]; then
-
-    # These are not pirated keys, they come from the official MS documentation.
-    case "${driver,,}" in
-      "xp" )
-
-        if [[ "${arch,,}" == "x86" ]]; then
-          # Windows XP Professional x86 generic key (no activation, trial-only)
-          KEY="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
-        else
-          # Windows XP Professional x64 generic key (no activation, trial-only)
-          KEY="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
-        fi ;;
-
-      "2k3" )
-
-        if [[ "${arch,,}" == "x86" ]]; then
-          # Windows Server 2003 Standard x86 generic key (no activation, trial-only)
-          KEY="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
-        else
-          # Windows Server 2003 Standard x64 generic key (no activation, trial-only)
-          KEY="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
-        fi ;;
-
-    esac
-
-  fi
-
-  [ -n "$KEY" ] && KEY="ProductID=$KEY"
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
@@ -1786,34 +1814,59 @@ prepareLegacy() {
 detectLegacy() {
 
   local dir="$1"
-  local find find2
+  local find
 
-  find=$(find "$dir" -maxdepth 1 -type d -iname win95 -print -quit)
+  find=$(find "$dir" -maxdepth 1 -type d -iname WIN95 -print -quit)
   [ -n "$find" ] && DETECTED="win95" && return 0
 
-  find=$(find "$dir" -maxdepth 1 -type d -iname win98 -print -quit)
+  find=$(find "$dir" -maxdepth 1 -type d -iname WIN98 -print -quit)
   [ -n "$find" ] && DETECTED="win98" && return 0
 
-  find=$(find "$dir" -maxdepth 1 -type d -iname win9x -print -quit)
+  find=$(find "$dir" -maxdepth 1 -type d -iname WIN9X -print -quit)
   [ -n "$find" ] && DETECTED="win9x" && return 0
 
-  find=$(find "$dir" -maxdepth 1 -type f -iname cdrom_nt.5 -print -quit)
-  [ -n "$find" ] && DETECTED="win2k" && return 0
+  find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_W.40 -print -quit)
+  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_S.40 -print -quit)
+  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_TS.40 -print -quit)
+  [ -n "$find" ] && DETECTED="winnt4" && return 0
 
-  find=$(find "$dir" -maxdepth 1 -type d -iname win51 -print -quit)
-  find2=$(find "$dir" -maxdepth 1 -type f -iname setupxp.htm -print -quit)
+  find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_NT.5 -print -quit)
 
-  if [ -n "$find" ] || [ -n "$find2" ] || [ -f "$dir/WIN51AP" ] || [ -f "$dir/WIN51IC" ]; then
-    [ -d "$dir/AMD64" ] && DETECTED="winxpx64" && return 0
-    DETECTED="winxpx86" && return 0
+  if [ -n "$find" ]; then
+
+    find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IA.5 -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_ID.5 -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IP.5 -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IS.5 -print -quit)
+    [ -n "$find" ] && DETECTED="win2k" && return 0
+
   fi
 
-  if [ -f "$dir/WIN51IA" ] || [ -f "$dir/WIN51IB" ] || [ -f "$dir/WIN51ID" ] || [ -f "$dir/WIN51IL" ] || [ -f "$dir/WIN51IS" ]; then
-    DETECTED="win2003r2" && return 0
-  fi
+  find=$(find "$dir" -maxdepth 1 -iname WIN51 -print -quit)
 
-  if [ -f "$dir/WIN51AA" ] || [ -f "$dir/WIN51AD" ] || [ -f "$dir/WIN51AS" ] || [ -f "$dir/WIN51MA" ] || [ -f "$dir/WIN51MD" ]; then
-    DETECTED="win2003r2" && return 0
+  if [ -n "$find" ]; then
+
+    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AP -print -quit)
+    [ -n "$find" ] && DETECTED="winxpx64" && return 0
+
+    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IC -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IP -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname setupxp.htm -print -quit)
+    [ -n "$find" ] && DETECTED="winxpx86" && return 0
+
+    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IS -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IA -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IB -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51ID -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IL -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IS -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AA -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AD -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AS -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51MA -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51MD -print -quit)
+    [ -n "$find" ] && DETECTED="win2003r2" && return 0
+
   fi
 
   return 1

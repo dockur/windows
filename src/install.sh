@@ -266,7 +266,7 @@ detectCustom() {
 
   ! findFile "custom.iso" && return 1
   [ -n "$CUSTOM" ] && return 0
-  
+
   ! findFile "boot.iso" && return 1
   [ -n "$CUSTOM" ] && return 0
 
