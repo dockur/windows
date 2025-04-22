@@ -1505,7 +1505,11 @@ prepareInstall() {
           else
 
             key="${pid:$((${#pid})) - 8:5}"
-            key=$(grep -i -A 2 "$key" "$file" | tail -n 2 | head -n 1)
+            if [[ "${pid^^}" == *"OEM" ]]; then
+              key=$(grep -i -A 2 "$key" "$file" | tail -n 2 | head -n 1)
+            else
+              key=$(grep -i -m 1 -A 2 "$key" "$file" | tail -n 2 | head -n 1)
+            fi
             key="${key#*= }"
 
           fi
