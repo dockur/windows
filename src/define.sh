@@ -1474,15 +1474,10 @@ prepareInstall() {
   local setup
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini -print -quit)
 
-  if [ -n "$setup" ]; then
+  if [ -n "$setup" ] && [ -z "$KEY" ]; then
 
     pid=$(<"$setup")
     pid="${pid%$'\r'}"
-
-    case "$pid" in
-      *"000" | *"270" | *"OEM" ) ;;
-      * ) warn "unknown PID found in image: \"${pid:(-3)}\"" ;;
-    esac
 
     if [[ "$driver" == "2k" ]]; then
 
@@ -1490,14 +1485,70 @@ prepareInstall() {
 
     else
 
-      if [[ "$pid" != *"270" ]]; then
-        echo "${pid:0:$((${#pid})) - 3}000" > "$setup"
-      else
-        warn "this version of $desc requires a volume license key (VLK), it will ask for one during installation."
-      fi
+      if [[ "$pid" == *"270" ]]; then
 
+        warn "this version of $desc requires a volume license key (VLK), it will ask for one during installation."
+
+      else
+
+        if [ -f "$target/PID.INF" ]; then
+
+          local product
+
+          if [[ "$driver" == "xp" ]]; then
+
+            product="${pid:$((${#pid})) - 8:5}"
+            product=$(grep -i -A 2 "$product" "$target/PID.INF" | tail -n 2 | head -n 1)
+            product="${product#*= }"
+
+          else
+
+            product=$(grep -i -A 2 "StagingKey" "$target/PID.INF" | tail -n 2 | head -n 1)
+
+          fi
+
+          product="${product%$'\r'}"
+          [[ "${#product}" == "29" ]] && KEY="$product" || warn "failed to extract key!"
+
+        fi
+
+        if [ -z "$KEY" ]; then
+
+          # These are not pirated keys, they come from the official MS documentation.
+
+          case "${driver,,}" in
+            "xp" )
+
+              if [[ "${arch,,}" == "x86" ]]; then
+                # Windows XP Professional x86 generic trial key (no activation)
+                KEY="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
+              else
+                # Windows XP Professional x64 generic trial key (no activation)
+                KEY="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
+              fi ;;
+
+            "2k3" )
+
+              if [[ "${arch,,}" == "x86" ]]; then
+                # Windows Server 2003 Standard x86 generic trial key (no activation)
+                KEY="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
+              else
+                # Windows Server 2003 Standard x64 generic trial key (no activation)
+                KEY="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
+              fi ;;
+
+          esac
+
+          echo "${pid:0:$((${#pid})) - 3}000" > "$setup"
+
+        fi
+
+      fi
     fi
+
   fi
+
+  [ -n "$KEY" ] && KEY="ProductID=$KEY"
 
   mkdir -p "$dir/\$OEM\$"
 
@@ -1526,36 +1577,6 @@ prepareInstall() {
 
   local ip="20.20.20.1"
   [ -n "${VM_NET_IP:-}" ] && ip="${VM_NET_IP%.*}.1"
-
-  if [ -z "$KEY" ] && [[ "$pid" != *"270" ]]; then
-
-    # These are not pirated keys, they come from the official MS documentation.
-    case "${driver,,}" in
-      "xp" )
-
-        if [[ "${arch,,}" == "x86" ]]; then
-          # Windows XP Professional x86 generic key (no activation, trial-only)
-          KEY="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
-        else
-          # Windows XP Professional x64 generic key (no activation, trial-only)
-          KEY="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
-        fi ;;
-
-      "2k3" )
-
-        if [[ "${arch,,}" == "x86" ]]; then
-          # Windows Server 2003 Standard x86 generic key (no activation, trial-only)
-          KEY="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
-        else
-          # Windows Server 2003 Standard x64 generic key (no activation, trial-only)
-          KEY="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
-        fi ;;
-
-    esac
-
-  fi
-
-  [ -n "$KEY" ] && KEY="ProductID=$KEY"
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
