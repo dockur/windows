@@ -1471,7 +1471,7 @@ prepareInstall() {
 
   fi
 
-  local setup
+  local key setup
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini -print -quit)
 
   if [ -n "$setup" ] && [ -z "$KEY" ]; then
@@ -1493,28 +1493,26 @@ prepareInstall() {
 
         if [ -f "$target/PID.INF" ]; then
 
-          local product
+          if [[ "$driver" == "2k3" ]]; then
 
-          if [[ "$driver" == "xp" ]]; then
-
-            product="${pid:$((${#pid})) - 8:5}"
-            product=$(grep -i -A 2 "$product" "$target/PID.INF" | tail -n 2 | head -n 1)
-            product="${product#*= }"
+            key=$(grep -i -A 2 "StagingKey" "$target/PID.INF" | tail -n 2 | head -n 1)
 
           else
 
-            product=$(grep -i -A 2 "StagingKey" "$target/PID.INF" | tail -n 2 | head -n 1)
+            key="${pid:$((${#pid})) - 8:5}"
+            key=$(grep -i -A 2 "$key" "$target/PID.INF" | tail -n 2 | head -n 1)
+            key="${key#*= }"
 
           fi
 
-          product="${product%$'\r'}"
-          [[ "${#product}" == "29" ]] && KEY="$product" || warn "failed to extract key!"
+          key="${key%$'\r'}"
+          [[ "${#key}" == "29" ]] && KEY="$key"
 
         fi
 
         if [ -z "$KEY" ]; then
 
-          # These are not pirated keys, they come from the official MS documentation.
+          # These are NOT pirated keys, they come from official MS documentation.
 
           case "${driver,,}" in
             "xp" )
@@ -1809,49 +1807,57 @@ detectLegacy() {
   local dir="$1"
   local find
 
-  find=$(find "$dir" -maxdepth 1 -type d -iname win95 -print -quit)
+  find=$(find "$dir" -maxdepth 1 -type d -iname WIN95 -print -quit)
   [ -n "$find" ] && DETECTED="win95" && return 0
 
-  find=$(find "$dir" -maxdepth 1 -type d -iname win98 -print -quit)
+  find=$(find "$dir" -maxdepth 1 -type d -iname WIN98 -print -quit)
   [ -n "$find" ] && DETECTED="win98" && return 0
 
-  find=$(find "$dir" -maxdepth 1 -type d -iname win9x -print -quit)
+  find=$(find "$dir" -maxdepth 1 -type d -iname WIN9X -print -quit)
   [ -n "$find" ] && DETECTED="win9x" && return 0
 
-  find=$(find "$dir" -maxdepth 1 -type f -iname cdrom_nt.5 -print -quit)
-  [ -n "$find" ] && DETECTED="win2k" && return 0
+  find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_W.40 -print -quit)
+  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_S.40 -print -quit)
+  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_TS.40 -print -quit)
+  [ -n "$find" ] && DETECTED="winnt4" && return 0
 
- # find=$(find "$dir" -maxdepth 1 -iname win51 -print -quit)
-
-WIN51IC - Windows XP Home
-WIN51IP - Windows XP Professional
-WIN51IB - Windows Server 2003 Web Edition
-WIN51IS - Windows Server 2003 Standard／R2 Standard
-WIN51IA - Windows Server 2003 Enterprise／R2 Enterprise
-WIN51ID - Windows Server 2003 DataCenter Edition
-WIN51IL - Windows Small Business Server 2003
-WIN51AP - Windows XP Professional x64
-WIN51AS - Windows Server 2003 Standard／R2 Standard x64
-WIN51AA - Windows Server 2003 Enterprise／R2 Enterprise x64
-WIN51MA - Windows Server 2003 Enterprise ia64
-
-  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -iname win51 -print -quit)
-  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -iname WIN51AP -print -quit)
-  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -iname WIN51IC -print -quit)
-  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -iname WIN51IP -print -quit)
-  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname setupxp.htm -print -quit)
+  find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_NT.5 -print -quit)
 
   if [ -n "$find" ]; then
-    [ -d "$dir/AMD64" ] && DETECTED="winxpx64" && return 0
-    DETECTED="winxpx86" && return 0
+
+    find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IA.5 -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_ID.5 -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IP.5 -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IS.5 -print -quit)
+    [ -n "$find" ] && DETECTED="win2k" && return 0
+
   fi
 
-  if [ -f "$dir/WIN51IA" ] || [ -f "$dir/WIN51IB" ] || [ -f "$dir/WIN51ID" ] || [ -f "$dir/WIN51IL" ] || [ -f "$dir/WIN51IS" ]; then
-    DETECTED="win2003r2" && return 0
-  fi
+  find=$(find "$dir" -maxdepth 1 -iname WIN51 -print -quit)
 
-  if [ -f "$dir/WIN51AA" ] || [ -f "$dir/WIN51AD" ] || [ -f "$dir/WIN51AS" ] || [ -f "$dir/WIN51MA" ] || [ -f "$dir/WIN51MD" ]; then
-    DETECTED="win2003r2" && return 0
+  if [ -n "$find" ]; then
+  
+    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AP -print -quit)
+    [ -n "$find" ] && DETECTED="winxpx64" && return 0
+
+    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IC -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IP -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname setupxp.htm -print -quit)
+    [ -n "$find" ] && DETECTED="winxpx86" && return 0
+
+    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IS -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IA -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IB -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51ID -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IL -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IS -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AA -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AD -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AS -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51MA -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51MD -print -quit)
+    [ -n "$find" ] && DETECTED="win2003r2" && return 0
+
   fi
 
   return 1
