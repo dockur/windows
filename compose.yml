@@ -1,12 +1,16 @@
+version: "3.3"
 services:
   windows:
     image: dockurr/windows
     container_name: windows
+    privileged: true
     environment:
       VERSION: "11"
+      ARGUMENTS: "-usb -device usb-host,vendorid=0x10c4,productid=0x81d7"
     devices:
       - /dev/kvm
       - /dev/net/tun
+      - /dev/bus/usb
     cap_add:
       - NET_ADMIN
     ports:
@@ -15,5 +19,6 @@ services:
       - 3389:3389/udp
     volumes:
       - ./windows:/storage
+      - /home/oem/Documents/windows:/data
     restart: always
     stop_grace_period: 2m
