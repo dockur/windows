@@ -1836,7 +1836,7 @@ detectLegacy() {
   find=$(find "$dir" -maxdepth 1 -iname WIN51 -print -quit)
 
   if [ -n "$find" ]; then
-  
+
     find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AP -print -quit)
     [ -n "$find" ] && DETECTED="winxpx64" && return 0
 
