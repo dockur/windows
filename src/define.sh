@@ -1807,7 +1807,7 @@ prepareLegacy() {
 detectLegacy() {
 
   local dir="$1"
-  local find find2
+  local find
 
   find=$(find "$dir" -maxdepth 1 -type d -iname win95 -print -quit)
   [ -n "$find" ] && DETECTED="win95" && return 0
@@ -1821,10 +1821,27 @@ detectLegacy() {
   find=$(find "$dir" -maxdepth 1 -type f -iname cdrom_nt.5 -print -quit)
   [ -n "$find" ] && DETECTED="win2k" && return 0
 
-  find=$(find "$dir" -maxdepth 1 -type d -iname win51 -print -quit)
-  find2=$(find "$dir" -maxdepth 1 -type f -iname setupxp.htm -print -quit)
+ # find=$(find "$dir" -maxdepth 1 -iname win51 -print -quit)
 
-  if [ -n "$find" ] || [ -n "$find2" ] || [ -f "$dir/WIN51AP" ] || [ -f "$dir/WIN51IC" ]; then
+WIN51IC - Windows XP Home
+WIN51IP - Windows XP Professional
+WIN51IB - Windows Server 2003 Web Edition
+WIN51IS - Windows Server 2003 Standard／R2 Standard
+WIN51IA - Windows Server 2003 Enterprise／R2 Enterprise
+WIN51ID - Windows Server 2003 DataCenter Edition
+WIN51IL - Windows Small Business Server 2003
+WIN51AP - Windows XP Professional x64
+WIN51AS - Windows Server 2003 Standard／R2 Standard x64
+WIN51AA - Windows Server 2003 Enterprise／R2 Enterprise x64
+WIN51MA - Windows Server 2003 Enterprise ia64
+
+  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -iname win51 -print -quit)
+  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -iname WIN51AP -print -quit)
+  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -iname WIN51IC -print -quit)
+  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -iname WIN51IP -print -quit)
+  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname setupxp.htm -print -quit)
+
+  if [ -n "$find" ]; then
     [ -d "$dir/AMD64" ] && DETECTED="winxpx64" && return 0
     DETECTED="winxpx86" && return 0
   fi
