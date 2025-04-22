@@ -1493,7 +1493,7 @@ prepareInstall() {
         warn "this version of $desc requires a volume license key (VLK), it will ask for one during installation."
 
       else
-    
+
         file=$(find "$target" -maxdepth 1 -type f -iname PID.INF -print -quit)
 
         if [ -n "$file" ]; then
