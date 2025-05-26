@@ -514,7 +514,7 @@ verifyFile() {
   fi
 
   if [[ "$hash" == "$check" ]]; then
-    info "Succesfully verified ISO!" && return 0
+    info "Successfully verified ISO!" && return 0
   fi
 
   error "The downloaded file has an unknown $algo checksum: $hash , as the expected value was: $check. Please report this at $SUPPORT/issues"
