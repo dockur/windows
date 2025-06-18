@@ -104,8 +104,7 @@ finish() {
   pid="/var/run/tpm.pid"
   [ -s "$pid" ] && pKill "$(<"$pid")"
 
-  pid="/var/run/wsdd.pid"
-  [ -s "$pid" ] && pKill "$(<"$pid")"
+  fKill "wsdd2"
 
   fKill "smbd"
 
