@@ -4,6 +4,7 @@ services:
     container_name: windows
     environment:
       VERSION: "11"
+      LANGUAGE: "Russian" 
     devices:
       - /dev/kvm
       - /dev/net/tun
