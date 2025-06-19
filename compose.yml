@@ -16,4 +16,4 @@ services:
     volumes:
       - ./windows:/storage
     restart: always
-    stop_grace_period: 2m
+    stop_grace_period: 60m
