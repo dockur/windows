@@ -11,6 +11,7 @@ RUN set -eu && \
     apt-get update && \
     apt-get --no-install-recommends -y install \
         samba \
+        python3 \
         wimtools \
         dos2unix \
         cabextract \
