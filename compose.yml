@@ -3,7 +3,7 @@ services:
     image: dockurr/windows
     container_name: windows
     environment:
-      VERSION: "2022"
+      VERSION: "2025"
     devices:
       - /dev/kvm
       - /dev/net/tun
