@@ -3,8 +3,7 @@ FROM scratch AS build-amd64
 
 COPY --from=qemux/qemu:7.12 / /
 
-FROM dockur/windows:latest
-RUN mkdir -p /storage
+
 
 ARG DEBCONF_NOWARNINGS="yes"
 ARG DEBIAN_FRONTEND="noninteractive"
@@ -35,7 +34,7 @@ FROM build-${TARGETARCH}
 ARG VERSION_ARG="0.00"
 RUN echo "$VERSION_ARG" > /run/version
 
-
+VOLUME /storage
 EXPOSE 3389 8006
 
 ENV VERSION="11"
