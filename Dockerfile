@@ -41,5 +41,15 @@ ENV VERSION="11"
 ENV RAM_SIZE="4G"
 ENV CPU_CORES="2"
 ENV DISK_SIZE="64G"
+# Create non-root user for security
+RUN useradd -r -u 1000 -g 0 -s /sbin/nologin appuser
 
+
+# Switch to non-root user
+USER appuser
+
+
+# Run as non-root user for security
+RUN net user winuser /add || echo "User already exists"
+USER winuser
 ENTRYPOINT ["/usr/bin/tini", "-s", "/run/entry.sh"]
