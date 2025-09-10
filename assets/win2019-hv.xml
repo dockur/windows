@@ -159,6 +159,11 @@
           <Path>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\CurrentVersion\NetworkList\Signatures\FirstNetwork" /v Category /t REG_DWORD /d 1 /f</Path>
           <Description>Set Network Location to Home</Description>
         </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>2</Order>
+          <Path>dism.exe /online /Disable-Feature /FeatureName:Microsoft-Hyper-V /NoRestart</Path>
+          <Description>Disable Hyper-V role</Description>
+        </RunSynchronousCommand>
       </RunSynchronous>
     </component>
     <component name="Microsoft-Windows-ServerManager-SvrMgrNc" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
@@ -239,11 +244,6 @@
           <Order>1</Order>
           <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" /v "AllowInsecureGuestAuth" /t REG_DWORD /d 1 /f</CommandLine>
           <Description>Allow guest access to network shares</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>2</Order>
-          <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v LimitBlankPasswordUse /t REG_DWORD /d 0 /f</CommandLine>
-          <Description>Allow RDP login with blank password</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>3</Order>

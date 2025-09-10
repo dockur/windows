@@ -10,21 +10,31 @@ EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 skipInstall() {
 
   local iso="$1"
+  local method=""
   local magic byte
   local boot="$STORAGE/windows.boot"
   local previous="$STORAGE/windows.base"
 
   if [ -f "$previous" ]; then
     previous=$(<"$previous")
+    previous="${previous//[![:print:]]/}"
     if [ -n "$previous" ]; then
-      previous="$STORAGE/$previous"
-      if [[ "${previous,,}" != "${iso,,}" ]]; then
+      if [[ "${STORAGE,,}/${previous,,}" != "${iso,,}" ]]; then
         if [ -f "$boot" ] && hasDisk; then
-          info "Detected that the version was changed, but ignoring this because Windows is already installed."
-          info "Please start with an empty /storage folder, if you want to install a different version of Windows."
+          if [[ "${iso,,}" == "${STORAGE,,}/windows."* ]]; then
+            method="your custom .iso file"
+          else
+            if [[ "${previous,,}" != "windows."* ]]; then
+              method="the VERSION variable"
+            fi
+          fi
+          if [ -n "$method" ]; then
+            info "Detected that $method was changed, but ignoring this because Windows is already installed."
+            info "Please start with an empty /storage folder, if you want to install a different version of Windows."
+          fi
           return 0
         fi
-        [ -f "$previous" ] && rm -f "$previous"
+        rm -f "$STORAGE/$previous"
         return 1
       fi
     fi
@@ -118,6 +128,8 @@ finishInstall() {
 
   rm -f "$STORAGE/windows.old"
   rm -f "$STORAGE/windows.vga"
+  rm -f "$STORAGE/windows.net"
+  rm -f "$STORAGE/windows.usb"
   rm -f "$STORAGE/windows.args"
   rm -f "$STORAGE/windows.base"
   rm -f "$STORAGE/windows.boot"
@@ -160,8 +172,20 @@ finishInstall() {
     echo "$ARGS" > "$STORAGE/windows.args"
   fi
 
+  if [ -n "${VGA:-}" ] && [[ "${VGA:-}" != "virtio"* ]]; then
+    echo "$VGA" > "$STORAGE/windows.vga"
+  fi
+
+  if [ -n "${USB:-}" ] && [[ "${USB:-}" != "qemu-xhci"* ]]; then
+    echo "$USB" > "$STORAGE/windows.usb"
+  fi
+
   if [ -n "${DISK_TYPE:-}" ] && [[ "${DISK_TYPE:-}" != "scsi" ]]; then
     echo "$DISK_TYPE" > "$STORAGE/windows.type"
+  fi
+
+  if [ -n "${ADAPTER:-}" ] && [[ "${ADAPTER:-}" != "virtio-net-pci" ]]; then
+    echo "$ADAPTER" > "$STORAGE/windows.net"
   fi
 
   rm -rf "$TMP"
@@ -175,8 +199,9 @@ abortInstall() {
   local efi
 
   [[ "${iso,,}" == *".esd" ]] && exit 60
+  [[ "${UNPACK:-}" == [Yy1]* ]] && exit 60
 
-  efi=$(find "$dir" -maxdepth 1 -type d -iname efi | head -n 1)
+  efi=$(find "$dir" -maxdepth 1 -type d -iname efi -print -quit)
 
   if [ -z "$efi" ]; then
     [[ "${PLATFORM,,}" == "x64" ]] && BOOT_MODE="windows_legacy"
@@ -197,19 +222,23 @@ abortInstall() {
   return 1
 }
 
-detectCustom() {
+findFile() {
 
-  local file base
-  local fname="custom.iso"
+  local dir file base
+  local fname="$1"
+  local boot="$STORAGE/windows.boot"
 
-  CUSTOM=""
+  dir=$(find / -maxdepth 1 -type d -iname "$fname" -print -quit)
+  [ ! -d "$dir" ] && dir=$(find "$STORAGE" -maxdepth 1 -type d -iname "$fname" -print -quit)
 
-  if [ -d "/$fname" ]; then
-    error "The file /$fname has an invalid path!" && return 1
+  if [ -d "$dir" ]; then
+    if ! hasDisk || [ ! -f "$boot" ]; then
+      error "The bind $dir maps to a file that does not exist!" && return 1
+    fi
   fi
 
-  file=$(find / -maxdepth 1 -type f -iname "$fname" | head -n 1)
-  [ ! -s "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$fname" | head -n 1)
+  file=$(find / -maxdepth 1 -type f -iname "$fname" -print -quit)
+  [ ! -s "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$fname" -print -quit)
 
   if [ ! -s "$file" ] && [[ "${VERSION,,}" != "http"* ]]; then
     base=$(basename "$VERSION")
@@ -225,8 +254,21 @@ detectCustom() {
   [ -z "$size" ] || [[ "$size" == "0" ]] && return 0
 
   ISO="$file"
-  CUSTOM="$ISO"
+  CUSTOM="$file"
   BOOT="$STORAGE/windows.$size.iso"
+
+  return 0
+}
+
+detectCustom() {
+
+  CUSTOM=""
+
+  ! findFile "custom.iso" && return 1
+  [ -n "$CUSTOM" ] && return 0
+
+  ! findFile "boot.iso" && return 1
+  [ -n "$CUSTOM" ] && return 0
 
   return 0
 }
@@ -320,7 +362,7 @@ extractImage() {
   local dir="$2"
   local version="$3"
   local desc="local ISO"
-  local size size_gb space space_gb
+  local file size size_gb space space_gb
 
   if [ -z "$CUSTOM" ]; then
     desc="downloaded ISO"
@@ -359,7 +401,26 @@ extractImage() {
     error "Failed to extract ISO file: $iso" && return 1
   fi
 
-  LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p')
+  if [[ "${UNPACK:-}" != [Yy1]* ]]; then
+
+    LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p')
+
+  else
+
+    file=$(find "$dir" -maxdepth 1 -type f -iname "*.iso" -print -quit)
+
+    if [ -z "$file" ]; then
+      error "Failed to find any .iso file in archive!" && return 1
+    fi
+
+    if ! 7z x "$file" -o"$dir" > /dev/null; then
+      error "Failed to extract archive!" && return 1
+    fi
+
+    LABEL=$(isoinfo -d -i "$file" | sed -n 's/Volume id: //p')
+    rm -f "$file"
+
+  fi
 
   return 0
 }
@@ -494,7 +555,7 @@ setXML() {
   local file="/custom.xml"
 
   if [ -d "$file" ]; then
-    warn "The file $file has an invalid path!"
+    error "The bind $file maps to a file that does not exist!" && exit 67
   fi
 
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="$STORAGE/custom.xml"
@@ -541,14 +602,14 @@ detectImage() {
   fi
 
   local src wim info
-  src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
+  src=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
 
   if [ ! -d "$src" ]; then
     warn "failed to locate 'sources' folder in ISO image, $FB" && return 1
   fi
 
-  wim=$(find "$src" -maxdepth 1 -type f -iname install.wim | head -n 1)
-  [ ! -f "$wim" ] && wim=$(find "$src" -maxdepth 1 -type f -iname install.esd | head -n 1)
+  wim=$(find "$src" -maxdepth 1 -type f -iname install.wim -print -quit)
+  [ ! -f "$wim" ] && wim=$(find "$src" -maxdepth 1 -type f -iname install.esd -print -quit)
 
   if [ ! -f "$wim" ]; then
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB" && return 1
@@ -580,6 +641,10 @@ detectImage() {
 
   info "Detected: $desc"
   setXML "" && return 0
+
+  if [[ "$DETECTED" == "win81x86"* ]] || [[ "$DETECTED" == "win10x86"* ]]; then
+    error "The 32-bit version of $desc is not supported!" && return 1
+  fi
 
   msg="the answer file for $desc was not found ($DETECTED.xml)"
   local fallback="/run/assets/${DETECTED%%-*}.xml"
@@ -669,16 +734,17 @@ updateXML() {
     sed -i "s/<Username>Docker<\/Username>/<Username>$user<\/Username>/g" "$asset"
   fi
 
-  if [ -n "$PASSWORD" ]; then
-    pass=$(printf '%s' "${PASSWORD}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0)
-    admin=$(printf '%s' "${PASSWORD}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0)
-    sed -i "s/<Value>password<\/Value>/<Value>$admin<\/Value>/g" "$asset"
-    sed -i "s/<PlainText>true<\/PlainText>/<PlainText>false<\/PlainText>/g" "$asset"
-    sed -z "s/<Password>...........<Value \/>/<Password>\n          <Value>$pass<\/Value>/g" -i "$asset"
-    sed -z "s/<Password>...............<Value \/>/<Password>\n              <Value>$pass<\/Value>/g" -i "$asset"
-    sed -z "s/<AdministratorPassword>...........<Value \/>/<AdministratorPassword>\n          <Value>$admin<\/Value>/g" -i "$asset"
-    sed -z "s/<AdministratorPassword>...............<Value \/>/<AdministratorPassword>\n              <Value>$admin<\/Value>/g" -i "$asset"
-  fi
+  [ -n "$PASSWORD" ] && pass="$PASSWORD" || pass="admin"
+
+  pw=$(printf '%s' "${pass}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0)
+  admin=$(printf '%s' "${pass}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0)
+
+  sed -i "s/<Value>password<\/Value>/<Value>$admin<\/Value>/g" "$asset"
+  sed -i "s/<PlainText>true<\/PlainText>/<PlainText>false<\/PlainText>/g" "$asset"
+  sed -z "s/<Password>...........<Value \/>/<Password>\n          <Value>$pw<\/Value>/g" -i "$asset"
+  sed -z "s/<Password>...............<Value \/>/<Password>\n              <Value>$pw<\/Value>/g" -i "$asset"
+  sed -z "s/<AdministratorPassword>...........<Value \/>/<AdministratorPassword>\n          <Value>$admin<\/Value>/g" -i "$asset"
+  sed -z "s/<AdministratorPassword>...............<Value \/>/<AdministratorPassword>\n              <Value>$admin<\/Value>/g" -i "$asset"
 
   if [ -n "$EDITION" ]; then
     [[ "${EDITION^^}" == "CORE" ]] && EDITION="STANDARDCORE"
@@ -726,7 +792,11 @@ addDriver() {
 
   if [ -z "$folder" ]; then
     desc=$(printVersion "$id" "$id")
-    warn "no \"$driver\" driver available for \"$desc\" !" && return 0
+    if [[ "${id,,}" != *"x86"* ]]; then
+      warn "no \"$driver\" driver available for \"$desc\" !" && return 0
+    else
+      warn "no \"$driver\" driver available for the 32-bit version of \"$desc\" !" && return 0
+    fi
   fi
 
   [ ! -d "$path/$driver/$folder" ] && return 0
@@ -764,7 +834,7 @@ addDrivers() {
     warn "Windows version unknown, falling back to Windows 11 drivers..."
   fi
 
-  if ! bsdtar -xf /drivers.txz -C "$drivers"; then
+  if ! bsdtar -xf /var/drivers.txz -C "$drivers"; then
     error "Failed to extract drivers from archive!" && return 1
   fi
 
@@ -833,14 +903,14 @@ updateImage() {
   rm -rf "$tmp"
   mkdir -p "$tmp"
 
-  src=$(find "$dir" -maxdepth 1 -type d -iname sources | head -n 1)
+  src=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
 
   if [ ! -d "$src" ]; then
     error "failed to locate 'sources' folder in ISO image, $FB" && return 1
   fi
 
-  wim=$(find "$src" -maxdepth 1 -type f -iname boot.wim | head -n 1)
-  [ ! -f "$wim" ] && wim=$(find "$src" -maxdepth 1 -type f -iname boot.esd | head -n 1)
+  wim=$(find "$src" -maxdepth 1 -type f -iname boot.wim -print -quit)
+  [ ! -f "$wim" ] && wim=$(find "$src" -maxdepth 1 -type f -iname boot.esd -print -quit)
 
   if [ ! -f "$wim" ]; then
     error "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB" && return 1
@@ -903,7 +973,7 @@ updateImage() {
 
   local find="$file"
   [[ "$MANUAL" == [Yy1]* ]] && find="$org"
-  path=$(find "$dir" -maxdepth 1 -type f -iname "$find" | head -n 1)
+  path=$(find "$dir" -maxdepth 1 -type f -iname "$find" -print -quit)
 
   if [ -f "$path" ]; then
     if [[ "$MANUAL" != [Yy1]* ]]; then
@@ -1006,19 +1076,48 @@ bootWindows() {
 
   if [ -f "$STORAGE/windows.args" ]; then
     ARGS=$(<"$STORAGE/windows.args")
+    ARGS="${ARGS//[![:print:]]/}"
     ARGUMENTS="$ARGS ${ARGUMENTS:-}"
   fi
 
+  if [ -s "$STORAGE/windows.vga" ] && [ -f "$STORAGE/windows.vga" ]; then
+    if [ -z "${VGA:-}" ]; then
+      VGA=$(<"$STORAGE/windows.vga")
+      VGA="${VGA//[![:print:]]/}"
+    fi
+  fi
+
+  if [ -s "$STORAGE/windows.usb" ] && [ -f "$STORAGE/windows.usb" ]; then
+    if [ -z "${USB:-}" ]; then
+      USB=$(<"$STORAGE/windows.usb")
+      USB="${USB//[![:print:]]/}"
+    fi
+  fi
+
+  if [ -s "$STORAGE/windows.net" ] && [ -f "$STORAGE/windows.net" ]; then
+    if [ -z "${ADAPTER:-}" ]; then
+      ADAPTER=$(<"$STORAGE/windows.net")
+      ADAPTER="${ADAPTER//[![:print:]]/}"
+    fi
+  fi
+
   if [ -s "$STORAGE/windows.type" ] && [ -f "$STORAGE/windows.type" ]; then
-    [ -z "${DISK_TYPE:-}" ] && DISK_TYPE=$(<"$STORAGE/windows.type")
+    if [ -z "${DISK_TYPE:-}" ]; then
+      DISK_TYPE=$(<"$STORAGE/windows.type")
+      DISK_TYPE="${DISK_TYPE//[![:print:]]/}"
+    fi
   fi
 
   if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then
     BOOT_MODE=$(<"$STORAGE/windows.mode")
+    BOOT_MODE="${BOOT_MODE//[![:print:]]/}"
   fi
 
   if [ -s "$STORAGE/windows.old" ] && [ -f "$STORAGE/windows.old" ]; then
-    [[ "${PLATFORM,,}" == "x64" ]] && MACHINE=$(<"$STORAGE/windows.old")
+    if [[ "${PLATFORM,,}" == "x64" ]]; then
+      MACHINE=$(<"$STORAGE/windows.old")
+      MACHINE="${MACHINE//[![:print:]]/}"
+    fi
   fi
 
   return 0

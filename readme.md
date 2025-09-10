@@ -53,7 +53,7 @@ services:
 ##### Via Docker CLI:
 
 ```bash
-docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -v ${PWD:-.}/windows:/storage --stop-timeout 120 dockurr/windows
+docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -v "${PWD:-.}/windows:/storage" --stop-timeout 120 dockurr/windows
 ```
 
 ##### Via Kubernetes:
@@ -64,18 +64,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ##### Via Github Codespaces:
 
-[`Click here to launch this container in the cloud!`](https://github.com/codespaces/new?skip_quickstart=true&machine=basicLinux32gb&repo=743140652&ref=master&devcontainer_path=.devcontainer.json)
-
-## Compatibility ⚙️
-
-| **Product**  | **Platform**   | |
-|---|---|---|
-| Docker Engine     | Linux| ✅ |
-| Docker Desktop    | Linux | ❌ |
-| Docker Desktop    | macOS | ❌ |
-| Docker Desktop    | Windows 11 | ✅ |
-| Docker Desktop    | Windows 10 | ❌ |
-| Github Codespaces | Cloud      | ✅ |
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/dockur/windows)
 
 ## FAQ 💬
 
@@ -102,28 +91,29 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   Select from the values below:
   
-  | **Value** | **Version**           | **Size** |
+  | **Value** | **Version**            | **Size** |
   |---|---|---|
-  | `11`   | Windows 11 Pro           | 5.4 GB   |
-  | `11l`  | Windows 11 LTSC          | 4.7 GB   |
-  | `11e`  | Windows 11 Enterprise    | 4.0 GB   |
+  | `11`   | Windows 11 Pro            | 5.4 GB   |
+  | `11l`  | Windows 11 LTSC           | 4.7 GB   |
+  | `11e`  | Windows 11 Enterprise     | 4.0 GB   |
   ||||
-  | `10`   | Windows 10 Pro           | 5.7 GB   |
-  | `10l`  | Windows 10 LTSC          | 4.6 GB   |
-  | `10e`  | Windows 10 Enterprise    | 5.2 GB   |
+  | `10`   | Windows 10 Pro            | 5.7 GB   |
+  | `10l`  | Windows 10 LTSC           | 4.6 GB   |
+  | `10e`  | Windows 10 Enterprise     | 5.2 GB   |
   ||||
-  | `8e`   | Windows 8.1 Enterprise   | 3.7 GB   |
-  | `7e`   | Windows 7 Enterprise     | 3.0 GB   |
-  | `ve`   | Windows Vista Enterprise | 3.0 GB   |
-  | `xp`   | Windows XP Professional  | 0.6 GB   |
-  ||||
-  | `2025` | Windows Server 2025      | 5.6 GB   |
-  | `2022` | Windows Server 2022      | 4.7 GB   |
-  | `2019` | Windows Server 2019      | 5.3 GB   |
-  | `2016` | Windows Server 2016      | 6.5 GB   |
-  | `2012` | Windows Server 2012      | 4.3 GB   |
-  | `2008` | Windows Server 2008      | 3.0 GB   |
-  | `2003` | Windows Server 2003      | 0.6 GB   |
+  | `8e`   | Windows 8.1 Enterprise    | 3.7 GB   |
+  | `7u`   | Windows 7 Ultimate        | 3.1 GB   |
+  | `vu`   | Windows Vista Ultimate    | 3.0 GB   |
+  | `xp`   | Windows XP Professional   | 0.6 GB   |
+  | `2k`   | Windows 2000 Professional | 0.4 GB   | 
+  ||||  
+  | `2025` | Windows Server 2025       | 5.6 GB   |
+  | `2022` | Windows Server 2022       | 4.7 GB   |
+  | `2019` | Windows Server 2019       | 5.3 GB   |
+  | `2016` | Windows Server 2016       | 6.5 GB   |
+  | `2012` | Windows Server 2012       | 4.3 GB   |
+  | `2008` | Windows Server 2008       | 3.0 GB   |
+  | `2003` | Windows Server 2003       | 0.6 GB   |
 
 > [!TIP]
 > To install ARM64 versions of Windows use [dockur/windows-arm](https://github.com/dockur/windows-arm/).
@@ -181,7 +171,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I configure the username and password?
 
-  By default, a user called `Docker` (with an empty password) is created during installation.
+  By default, a user called `Docker` is created during installation and its password is `admin`.
 
   If you want to use different credentials, you can configure them in your compose file (only before installation):
 
@@ -214,15 +204,6 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
     KEYBOARD: "en-US"
   ```
 
-### How do I set the product key?
-
-  By default, an evaluation version of Windows will be installed, but if you have a product key you can add a `KEY` variable like this (before installation):
-
-  ```yaml
-  environment:
-    KEY: "xxxxx-xxxxx-xxxxx-xxxxx-xxxxx"
-  ```
-
 ### How do I select the edition?
 
   Windows Server offers a minimalistic Core edition without a GUI. To select those non-standard editions, you can add a `EDITION` variable like this (before installation):
@@ -245,7 +226,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   
   ```yaml
   volumes:
-    - ./example.iso:/custom.iso
+    - ./example.iso:/boot.iso
   ```
 
   Replace the example path `./example.iso` with the filename of your desired ISO file. The value of `VERSION` will be ignored in this case.
@@ -267,7 +248,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   It's recommended to stick to the automatic installation, as it adjusts various settings to prevent common issues when running Windows inside a virtual environment.
 
-  However, if you insist on performing the installation manually on your own risk, add the following environment variable to your compose file:
+  However, if you insist on performing the installation manually at your own risk, add the following environment variable to your compose file:
 
   ```yaml
   environment:
@@ -278,7 +259,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   The web-viewer is mainly meant to be used during installation, as its picture quality is low, and it has no audio or clipboard for example.
 
-  So for a better experience you can connect using any Microsoft Remote Desktop client to the IP of the container, using the username `Docker` and by leaving the password empty.
+  So for a better experience you can connect using any Microsoft Remote Desktop client to the IP of the container, using the username `Docker` and password `admin`.
 
   There is a RDP client for [Android](https://play.google.com/store/apps/details?id=com.microsoft.rdc.androidx) available from the Play Store and one for [iOS](https://apps.apple.com/nl/app/microsoft-remote-desktop/id714464092?l=en-GB) in the Apple Store. For Linux you can use [FreeRDP](https://www.freerdp.com/) and on Windows just type `mstsc` in the search box.
 
@@ -349,12 +330,12 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I pass-through a disk?
 
-  It is possible to pass-through disk devices directly by adding them to your compose file in this way:
+  It is possible to pass-through disk devices or partitions directly by adding them to your compose file in this way:
 
   ```yaml
   devices:
     - /dev/sdb:/disk1
-    - /dev/sdc:/disk2
+    - /dev/sdc1:/disk2
   ```
 
   Use `/disk1` if you want it to become your main drive (which will be formatted during installation), and use `/disk2` and higher to add them as secondary drives (which will stay untouched).
@@ -374,9 +355,16 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I verify if my system supports KVM?
 
-  Only Linux and Windows 11 support KVM virtualization, macOS and Windows 10 do not unfortunately.
-  
-  You can run the following commands in Linux to check your system:
+  First check if your software is compatible using this chart:
+
+  | **Product**  | **Linux** | **Win11** | **Win10** | **macOS** |
+  |---|---|---|---|---|
+  | Docker CLI        | ✅   | ✅       | ❌        | ❌ |
+  | Docker Desktop    | ❌   | ✅       | ❌        | ❌ | 
+  | Podman CLI        | ✅   | ✅       | ❌        | ❌ | 
+  | Podman Desktop    | ✅   | ✅       | ❌        | ❌ | 
+
+  After that you can run the following commands in Linux to check your system:
 
   ```bash
   sudo apt install cpu-checker
@@ -391,11 +379,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   - you are not using a cloud provider, as most of them do not allow nested virtualization for their VPS's.
 
-  If you do not receive any error from `kvm-ok` but the container still complains about KVM, please check whether:
-
-  - you are not using "Docker Desktop for Linux" as it does not support KVM, instead make use of Docker Engine directly.
- 
-  - it could help to add `privileged: true` to your compose file (or `sudo` to your `docker run` command), to rule out any permission issue.
+  If you did not receive any error from `kvm-ok` but the container still complains about a missing KVM device, it could help to add `privileged: true` to your compose file (or `sudo` to your `docker` command) to rule out any permission issue.
 
 ### How do I run macOS in a container?
 
@@ -408,9 +392,6 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 ### Is this project legal?
 
   Yes, this project contains only open-source code and does not distribute any copyrighted material. Any product keys found in the code are just generic placeholders provided by Microsoft for trial purposes. So under all applicable laws, this project will be considered legal.
-
-## Stars 🌟
-[![Stars](https://starchart.cc/dockur/windows.svg?variant=adaptive)](https://starchart.cc/dockur/windows)
 
 ## Disclaimer ⚖️
 

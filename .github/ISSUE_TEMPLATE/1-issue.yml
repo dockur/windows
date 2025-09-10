@@ -21,6 +21,7 @@ body:
     attributes:
       label: Docker compose
       description: The compose file (or otherwise the `docker run` command used).
+      render: yaml
     validations:
       required: true
   - type: textarea
@@ -28,6 +29,7 @@ body:
     attributes:
       label: Docker log
       description: The logfile of the container (as shown by `docker logs windows`).
+      render: shell
     validations:
       required: true
   - type: textarea

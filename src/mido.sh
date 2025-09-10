@@ -93,6 +93,7 @@ download_windows() {
 
   # uuidgen: For MacOS (installed by default) and other systems (e.g. with no /proc) that don't have a kernel interface for generating random UUIDs
   session_id=$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random)
+  session_id="${session_id//[![:print:]]/}"
 
   # Get product edition ID for latest release of given Windows version
   # Product edition ID: This specifies both the Windows release (e.g. 22H2) and edition ("multi-edition" is default, either Home/Pro/Edu/etc., we select "Pro" in the answer files) in one number
@@ -313,7 +314,7 @@ getWindows() {
   info "$msg" && html "$msg"
 
   case "${version,,}" in
-    "win2008r2" | "win7${PLATFORM,,}"* | "win81${PLATFORM,,}"* | "win11${PLATFORM,,}-enterprise-iot"* | "win11${PLATFORM,,}-enterprise-ltsc"* )
+    "win2008r2" | "win81${PLATFORM,,}"* | "win11${PLATFORM,,}-enterprise-iot"* | "win11${PLATFORM,,}-enterprise-ltsc"* )
       if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
         error "No download in the $language language available for $edition!"
         MIDO_URL="" && return 1
@@ -341,7 +342,7 @@ getWindows() {
     "win2025-eval" | "win2022-eval" | "win2019-eval" | "win2019-hv" | "win2016-eval" | "win2012r2-eval" )
       download_windows_eval "$version" "$lang" "$edition" && return 0
       ;;
-    "win7${PLATFORM,,}"* | "win81${PLATFORM,,}-enterprise"* | "win2008r2" )
+    "win81${PLATFORM,,}-enterprise"* | "win2008r2" )
       ;;
     * ) error "Invalid VERSION specified, value \"$version\" is not recognized!" ;;
   esac
@@ -471,6 +472,18 @@ getESD() {
   return 0
 }
 
+isCompressed() {
+
+  local file="$1"
+
+  case "${file,,}" in
+    *".7z" | *".zip" | *".rar" | *".lzma" | *".bz" | *".bz2" )
+      return 0 ;;
+  esac
+
+  return 1
+}
+
 verifyFile() {
 
   local iso="$1"
@@ -501,7 +514,7 @@ verifyFile() {
   fi
 
   if [[ "$hash" == "$check" ]]; then
-    info "Succesfully verified ISO!" && return 0
+    info "Successfully verified ISO!" && return 0
   fi
 
   error "The downloaded file has an unknown $algo checksum: $hash , as the expected value was: $check. Please report this at $SUPPORT/issues"
@@ -516,9 +529,11 @@ downloadFile() {
   local size="$4"
   local lang="$5"
   local desc="$6"
-  local rc total total_gb progress domain dots space folder
+  local msg="Downloading $desc"
+  local rc total total_gb progress domain dots agent space folder
 
   rm -f "$iso"
+  agent=$(get_agent)
 
   if [ -n "$size" ] && [[ "$size" != "0" ]]; then
     folder=$(dirname -- "$iso")
@@ -534,8 +549,8 @@ downloadFile() {
     progress="--progress=dot:giga"
   fi
 
-  local msg="Downloading $desc"
   html "$msg..."
+  /run/progress.sh "$iso" "$size" "$msg ([P])..." &
 
   domain=$(echo "$url" | awk -F/ '{print $3}')
   dots=$(echo "$domain" | tr -cd '.' | wc -c)
@@ -546,9 +561,8 @@ downloadFile() {
   fi
 
   info "$msg..."
-  /run/progress.sh "$iso" "$size" "$msg ([P])..." &
 
-  { wget "$url" -O "$iso" -q --timeout=30 --no-http-keep-alive --show-progress "$progress"; rc=$?; } || :
+  { wget "$url" -O "$iso" -q --timeout=30 --no-http-keep-alive --user-agent "$agent" --show-progress "$progress"; rc=$?; } || :
 
   fKill "progress.sh"
 
@@ -556,16 +570,17 @@ downloadFile() {
     total=$(stat -c%s "$iso")
     total_gb=$(formatBytes "$total")
     if [ "$total" -lt 100000000 ]; then
-      error "Invalid download link: $url (is only $total_gb ?). Please report this at $SUPPORT/issues." && return 1
+      error "Invalid download link: $url (is only $total_gb ?). Please report this at $SUPPORT/issues" && return 1
     fi
     verifyFile "$iso" "$size" "$total" "$sum" || return 1
+    isCompressed "$url" && UNPACK="Y"
     html "Download finished successfully..." && return 0
   fi
 
   msg="Failed to download $url"
   (( rc == 3 )) && error "$msg , cannot write file (disk full?)" && return 1
   (( rc == 4 )) && error "$msg , network failure!" && return 1
-  (( rc == 8 )) && error "$msg , server issued an error response! Please report this at $SUPPORT/issues." && return 1
+  (( rc == 8 )) && error "$msg , server issued an error response! Please report this at $SUPPORT/issues" && return 1
 
   error "$msg , reason: $rc"
   return 1
@@ -583,12 +598,14 @@ downloadImage() {
   local msg="Will retry after $delay seconds..."
 
   if [[ "${version,,}" == "http"* ]]; then
+
     base=$(basename "$iso")
     desc=$(fromFile "$base")
     downloadFile "$iso" "$version" "" "" "" "$desc" && return 0
     info "$msg" && html "$msg" && sleep "$delay"
     downloadFile "$iso" "$version" "" "" "" "$desc" && return 0
     rm -f "$iso"
+
     return 1
   fi
 
