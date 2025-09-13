@@ -129,8 +129,7 @@ if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
   fi
 else
   # Enable Web Service Discovery on Vista and up
-  wsdd -i "$interface" -p -n "$hostname" &
-  echo "$!" > /var/run/wsdd.pid
+  wsddn -i "$interface" -H "$hostname" --pid-file=/var/run/wsdd.pid >/dev/null &
 fi
 
 return 0
