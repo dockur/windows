@@ -693,7 +693,9 @@ switchEdition() {
 
   local id="$1"
 
-  [[ "${id,,}" == *"-eval" ]] && DETECTED="${id::-5}"
+  if [[ "${id,,}" == *"-eval" ]]; then
+    [ -z "$DETECTED" ] && DETECTED="${id::-5}"
+  fi
 
   return 0
 }
@@ -714,12 +716,12 @@ getMido() {
       size=5819484160
       sum="b56b911bf18a2ceaeb3904d87e7c770bdf92d3099599d61ac2497b91bf190b11"
       ;;
-    "win11x64-enterprise" | "win11x64-enterprise-eval" )
+    "win11x64-enterprise-eval" )
       size=5387960320
       sum="755a90d43e826a74b9e1932a34788b898e028272439b777e5593dee8d53622ae"
       url="https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.1.240331-1435.ge_release_CLIENTENTERPRISEEVAL_OEMRET_A64FRE_en-us.iso"
       ;;
-    "win11x64-enterprise-iot" | "win11x64-enterprise-iot-eval" | "win11x64-enterprise-ltsc" | "win11x64-enterprise-ltsc-eval" )
+    "win11x64-enterprise-iot-eval" | "win11x64-enterprise-ltsc-eval" )
       size=5060020224
       sum="2cee70bd183df42b92a2e0da08cc2bb7a2a9ce3a3841955a012c0f77aeb3cb29"
       url="https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.1.240331-1435.ge_release_CLIENT_IOT_LTSC_EVAL_x64FRE_en-us.iso"
@@ -728,32 +730,32 @@ getMido() {
       size=6140975104
       sum="a6f470ca6d331eb353b815c043e327a347f594f37ff525f17764738fe812852e"
       ;;
-    "win10x64-enterprise" | "win10x64-enterprise-eval" )
+    "win10x64-enterprise-eval" )
       size=5550497792
       sum="ef7312733a9f5d7d51cfa04ac497671995674ca5e1058d5164d6028f0938d668"
       url="https://software-static.download.prss.microsoft.com/dbazure/988969d5-f34g-4e03-ac9d-1f9786c66750/19045.2006.220908-0225.22h2_release_svc_refresh_CLIENTENTERPRISEEVAL_OEMRET_x64FRE_en-us.iso"
       ;;
-    "win10x64-enterprise-ltsc" | "win10x64-enterprise-ltsc-eval" )
+    "win10x64-enterprise-ltsc-eval" )
       size=4898582528
       sum="e4ab2e3535be5748252a8d5d57539a6e59be8d6726345ee10e7afd2cb89fefb5"
       url="https://software-download.microsoft.com/download/pr/19044.1288.211006-0501.21h2_release_svc_refresh_CLIENT_LTSC_EVAL_x64FRE_en-us.iso"
       ;;
-    "win81x64-enterprise" | "win81x64-enterprise-eval" )
+    "win81x64-enterprise-eval" )
       size=3961473024
       sum="2dedd44c45646c74efc5a028f65336027e14a56f76686a4631cf94ffe37c72f2"
       url="https://download.microsoft.com/download/B/9/9/B999286E-0A47-406D-8B3D-5B5AD7373A4A/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_ENTERPRISE_EVAL_EN-US-IR3_CENA_X64FREE_EN-US_DV9.ISO"
       ;;
-    "win2025" | "win2025-eval" )
+    "win2025-eval" )
       size=6014152704
       sum="d0ef4502e350e3c6c53c15b1b3020d38a5ded011bf04998e950720ac8579b23d"
       url="https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.1742.240906-0331.ge_release_svc_refresh_SERVER_EVAL_x64FRE_en-us.iso"
       ;;
-    "win2022" | "win2022-eval" )
+    "win2022-eval" )
       size=5044094976
       sum="3e4fa6d8507b554856fc9ca6079cc402df11a8b79344871669f0251535255325"
       url="https://software-static.download.prss.microsoft.com/sg/download/888969d5-f34g-4e03-ac9d-1f9786c66749/SERVER_EVAL_x64FRE_en-us.iso"
       ;;
-    "win2019" | "win2019-eval" )
+    "win2019-eval" )
       size=5652088832
       sum="6dae072e7f78f4ccab74a45341de0d6e2d45c39be25f1f5920a2ab4f51d7bcbb"
       url="https://software-download.microsoft.com/download/pr/17763.737.190906-2324.rs5_release_svc_refresh_SERVER_EVAL_x64FRE_en-us_1.iso"
@@ -763,12 +765,12 @@ getMido() {
       sum="48e9b944518e5bbc80876a9a7ff99716f386f404f4be48dca47e16a66ae7872c"
       url="https://software-download.microsoft.com/download/pr/17763.557.190612-0019.rs5_release_svc_refresh_SERVERHYPERCORE_OEM_x64FRE_en-us.ISO"
      ;;
-    "win2016" | "win2016-eval" )
+    "win2016-eval" )
       size=6972221440
       sum="1ce702a578a3cb1ac3d14873980838590f06d5b7101c5daaccbac9d73f1fb50f"
       url="https://software-download.microsoft.com/download/pr/Windows_Server_2016_Datacenter_EVAL_en-us_14393_refresh.ISO"
       ;;
-    "win2012r2" | "win2012r2-eval" )
+    "win2012r2-eval" )
       size=4542291968
       sum="6612b5b1f53e845aacdf96e974bb119a3d9b4dcb5b82e65804ab7e534dc7b4d5"
       url="https://download.microsoft.com/download/6/2/A/62A76ABB-9990-4EFC-A4FE-C7D698DAEB96/9600.17050.WINBLUE_REFRESH.140317-1640_X64FRE_SERVER_EVAL_EN-US-IR3_SSS_X64FREE_EN-US_DV9.ISO"
