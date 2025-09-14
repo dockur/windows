@@ -18,8 +18,7 @@ RUN set -eu && \
         dos2unix \
         cabextract \
         libxml2-utils \
-        libarchive-tools \
-        netcat-openbsd && \
+        libarchive-tools && \
     wget "https://github.com/gershnik/wsdd-native/releases/download/v1.21/wsddn_1.21_${TARGETARCH}.deb" -O /tmp/wsddn.deb -q && \
     dpkg -i /tmp/wsddn.deb && \
     apt-get clean && \
