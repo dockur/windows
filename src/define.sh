@@ -1313,6 +1313,8 @@ isMido() {
   local lang="$2"
   local sum
 
+  [[ "${MIDO:-}" != [Yy1]* ]] && return 1
+
   sum=$(getMido "$id" "en" "sum")
   [ -n "$sum" ] && return 0
 
@@ -1323,6 +1325,8 @@ isESD() {
 
   local id="$1"
   local lang="$2"
+
+  [[ "${ESD:-}" != [Yy1]* ]] && return 1
 
   case "${id,,}" in
     "win11${PLATFORM,,}" | "win10${PLATFORM,,}" )
