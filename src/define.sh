@@ -734,8 +734,8 @@ getMido() {
       sum="b56b911bf18a2ceaeb3904d87e7c770bdf92d3099599d61ac2497b91bf190b11"
       ;;
     "win11x64-enterprise-eval" )
-      size=4295096320
-      sum="dad633276073f14f3e0373ef7e787569e216d54942ce522b39451c8f2d38ad43"
+      size=5387960320
+      sum="755a90d43e826a74b9e1932a34788b898e028272439b777e5593dee8d53622ae"
       url="https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.1.240331-1435.ge_release_CLIENTENTERPRISEEVAL_OEMRET_A64FRE_en-us.iso"
       ;;
     "win11x64-enterprise-iot-eval" | "win11x64-enterprise-ltsc-eval" )
@@ -1313,6 +1313,8 @@ isMido() {
   local lang="$2"
   local sum
 
+  [[ "${MIDO:-}" == [Nn]* ]] && return 1
+
   sum=$(getMido "$id" "en" "sum")
   [ -n "$sum" ] && return 0
 
@@ -1323,6 +1325,8 @@ isESD() {
 
   local id="$1"
   local lang="$2"
+
+  [[ "${ESD:-}" == [Nn]* ]] && return 1
 
   case "${id,,}" in
     "win11${PLATFORM,,}" | "win10${PLATFORM,,}" )
