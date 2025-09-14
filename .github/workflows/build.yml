@@ -2,16 +2,6 @@ name: Build
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-    paths-ignore:
-      - '**/*.md'
-      - '**/*.yml'
-      - '.gitignore'
-      - '.dockerignore'
-      - '.github/**'
-      - '.github/workflows/**'
 
 concurrency:
   group: build
