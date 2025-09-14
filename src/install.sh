@@ -615,7 +615,7 @@ detectImage() {
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB" && return 1
   fi
 
-  info=$(wimlib-imagex info -xml "$wim" | tr -d '\000')
+  info=$(wimlib-imagex info -xml "$wim" | iconv -f UTF-16LE -t UTF-8)
   checkPlatform "$info" || exit 67
 
   DETECTED=$(detectVersion "$info")
