@@ -297,6 +297,7 @@ download_windows_eval() {
   esac
 
   [[ "$DEBUG" == [Yy1]* ]] && echo "Found download link: $iso_download_link"
+  [ -z "$iso_download_link" ] && error "Could not parse download link from page!" && return 1
 
   # Follow redirect so proceeding log message is useful
   # This is a request we make that Fido doesn't
