@@ -406,6 +406,7 @@ getESD() {
   local version="$2"
   local lang="$3"
   local desc="$4"
+  local result
   local culture
   local language
   local editionName
@@ -452,7 +453,7 @@ getESD() {
   fi
 
   local edQuery='//File[Architecture="'${PLATFORM,,}'"][Edition="'${editionName}'"]'
-  local result=$(xmllint --nonet --xpath "${edQuery}" "$dir/$xFile" 2>/dev/null)
+  result=$(xmllint --nonet --xpath "${edQuery}" "$dir/$xFile" 2>/dev/null)
 
   if [ -z "$result" ]; then
 
