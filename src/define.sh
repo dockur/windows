@@ -847,13 +847,13 @@ getLink1() {
       url="8.x/8.1/en_windows_8.1_enterprise_with_update_x64_dvd_6054382.iso"
       ;;
     "win2025" | "win2025-eval" )
-      size=5307176960
-      sum="2293897341febdcea599f5412300b470b5288c6fd2b89666a7b27d283e8d3cf3"
+      size=6786627584
+      sum="bf3ef0849c7cb5e818e1035b7466d206af5aa227ace1a3f4b0de2bf00d2e2144"
       url="server/2025/en-us_windows_server_2025_updated_april_2025_x64_dvd_ea86301d.iso"
       ;;
     "win2022" | "win2022-eval" )
-      size=5365624832
-      sum="c3c57bb2cf723973a7dcfb1a21e97dfa035753a7f111e348ad918bb64b3114db"
+      size=6005706752
+      sum="cea2cb2c09de9910c236e64eae3a801c55e9c77ec25e8d81585e3a4581d24bfb"
       url="server/2022/en-us_windows_server_2022_updated_april_2025_x64_dvd_3f755ec1.iso"
       ;;
     "win2019" | "win2019-eval" )
