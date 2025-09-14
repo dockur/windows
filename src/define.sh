@@ -849,7 +849,7 @@ getLink1() {
     "win2025" | "win2025-eval" )
       size=5307176960
       sum="2293897341febdcea599f5412300b470b5288c6fd2b89666a7b27d283e8d3cf3"
-      url="server/2025/en-us_windows_server_2025_preview_x64_dvd_ce9eb1a5.iso"
+      url="server/2025/en-us_windows_server_2025_updated_april_2025_x64_dvd_ea86301d.iso"
       ;;
     "win2022" | "win2022-eval" )
       size=5365624832
