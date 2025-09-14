@@ -854,7 +854,7 @@ getLink1() {
     "win2022" | "win2022-eval" )
       size=5365624832
       sum="c3c57bb2cf723973a7dcfb1a21e97dfa035753a7f111e348ad918bb64b3114db"
-      url="server/2022/en-us_windows_server_2022_updated_jan_2024_x64_dvd_2b7a0c9f.iso"
+      url="server/2022/en-us_windows_server_2022_updated_april_2025_x64_dvd_3f755ec1.iso"
       ;;
     "win2019" | "win2019-eval" )
       size=5575774208
