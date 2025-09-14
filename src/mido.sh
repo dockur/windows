@@ -264,10 +264,27 @@ download_windows_eval() {
   }
 
   case "$enterprise_type" in
-    "iot" | "ltsc" | "enterprise" )
+    "iot" | "ltsc" )
       case "${PLATFORM,,}" in
         "x64" )
-          iso_download_link=$(echo "$iso_download_links" | head -n 1) ;;
+          if [[ "$windows_version" != "windows-10"* ]]; then
+            iso_download_link=$(echo "$iso_download_links" | head -n 1)
+          else
+            iso_download_link=$(echo "$iso_download_links" | head -n 4 | tail -n 1)
+          fi ;;
+        "arm64" )
+          iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1) ;;
+        * )
+          error "Invalid platform specified, value \"$PLATFORM\" is not recognized!" && return 1 ;;
+      esac ;;
+    "enterprise" )
+      case "${PLATFORM,,}" in
+        "x64" )
+          if [[ "$windows_version" != "windows-10"* ]]; then
+            iso_download_link=$(echo "$iso_download_links" | head -n 1)
+          else
+            iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1)
+          fi ;;
         "arm64" )
           iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1) ;;
         * )
