@@ -264,19 +264,15 @@ download_windows_eval() {
   }
 
   case "$enterprise_type" in
-    "enterprise" )
-      iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1)
-      ;;
     "iot" )
+    "ltsc" )    
+    "enterprise" )
       if [[ "${PLATFORM,,}" == "x64" ]]; then
         iso_download_link=$(echo "$iso_download_links" | head -n 1)
       fi
       if [[ "${PLATFORM,,}" == "arm64" ]]; then
         iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1)
       fi
-      ;;
-    "ltsc" )
-      iso_download_link=$(echo "$iso_download_links" | head -n 4 | tail -n 1)
       ;;
     "server" )
       iso_download_link=$(echo "$iso_download_links" | head -n 1)
@@ -323,8 +319,7 @@ getWindows() {
 
   case "${version,,}" in
     "win11${PLATFORM,,}" ) ;;
-    "win11${PLATFORM,,}-enterprise-iot"* ) ;;
-    "win11${PLATFORM,,}-enterprise-ltsc"* ) ;;
+    "win11${PLATFORM,,}-enterprise"* ) ;;
     * )
       if [[ "${PLATFORM,,}" != "x64" ]]; then
         error "No download for the ${PLATFORM^^} platform available for $edition!"
@@ -399,7 +394,7 @@ getESD() {
   local culture
   local language
   local editionName
-  local winCatalog size
+  local winCatalog
 
   culture=$(getLanguage "$lang" "culture")
   winCatalog=$(getCatalog "$version" "url")
@@ -441,32 +436,57 @@ getESD() {
     error "Failed to find $xFile in $wFile!" && return 1
   fi
 
-  local edQuery='//File[Architecture="'${PLATFORM}'"][Edition="'${editionName}'"]'
+  local edQuery='//File[Architecture="'${PLATFORM,,}'"][Edition="'${editionName}'"]'
+  local result=$(xmllint --nonet --xpath "${edQuery}" "$dir/$xFile" 2>/dev/null)
+
+  if [ -z "$result" ]; then
+
+    edQuery='//File[Architecture="'${PLATFORM^^}'"][Edition="'${editionName}'"]'
+    result=$(xmllint --nonet --xpath "${edQuery}" "$dir/$xFile" 2>/dev/null)
+
+    if [ -z "$result" ]; then
+
+      desc=$(printEdition "$version" "$desc")
+      language=$(getLanguage "$lang" "desc")
+      error "No download link available for $desc!" && return 1
+    fi
+
+  fi
 
   echo -e '<Catalog>' > "$dir/$fFile"
-  xmllint --nonet --xpath "${edQuery}" "$dir/$xFile" >> "$dir/$fFile" 2>/dev/null
+  echo "$result" >> "$dir/$fFile"
   echo -e '</Catalog>'>> "$dir/$fFile"
 
-  xmllint --nonet --xpath "//File[LanguageCode=\"${culture,,}\"]" "$dir/$fFile" >"$dir/$eFile"
+  result=$(xmllint --nonet --xpath "//File[LanguageCode=\"${culture,,}\"]" "$dir/$fFile" 2>/dev/null)
 
-  size=$(stat -c%s "$dir/$eFile")
-  if ((size<20)); then
+  if [ -z "$result" ]; then
     desc=$(printEdition "$version" "$desc")
     language=$(getLanguage "$lang" "desc")
     error "No download in the $language language available for $desc!" && return 1
   fi
 
+  echo "$result" > "$dir/$eFile"
+
   local tag="FilePath"
-  ESD=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
+  ESD=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g" 2>/dev/null)
 
   if [ -z "$ESD" ]; then
     error "Failed to find ESD URL in $eFile!" && return 1
   fi
 
   tag="Sha1"
-  ESD_SUM=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
+  ESD_SUM=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g" 2>/dev/null)
+
+  if [ -z "$ESD_SUM" ]; then
+    error "Failed to find ESD checksum in $eFile!" && return 1
+  fi
+
   tag="Size"
-  ESD_SIZE=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g")
+  ESD_SIZE=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g" 2>/dev/null)
+
+  if [ -z "$ESD_SIZE" ]; then
+    error "Failed to find ESD filesize in $eFile!" && return 1
+  fi
 
   rm -rf "$dir"
   return 0
@@ -561,7 +581,6 @@ downloadFile() {
   fi
 
   info "$msg..."
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Downloading $url"
 
   { wget "$url" -O "$iso" -q --timeout=30 --no-http-keep-alive --user-agent "$agent" --show-progress "$progress"; rc=$?; } || :
 
