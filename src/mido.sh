@@ -561,6 +561,7 @@ downloadFile() {
   fi
 
   info "$msg..."
+  [[ "$DEBUG" == [Yy1]* ]] && echo "Downloading $url"
 
   { wget "$url" -O "$iso" -q --timeout=30 --no-http-keep-alive --user-agent "$agent" --show-progress "$progress"; rc=$?; } || :
 
