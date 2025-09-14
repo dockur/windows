@@ -297,6 +297,7 @@ download_windows_eval() {
   esac
 
   [[ "$DEBUG" == [Yy1]* ]] && echo "Found download link: $iso_download_link"
+  [ -z "$iso_download_link" ] && error "Could not parse download link from page!" && return 1
 
   # Follow redirect so proceeding log message is useful
   # This is a request we make that Fido doesn't
@@ -597,7 +598,7 @@ downloadFile() {
   fi
 
   info "$msg..."
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Downloading $url"
+  [[ "$DEBUG" == [Yy1]* ]] && echo "Downloading: $url"
 
   { wget "$url" -O "$iso" -q --timeout=30 --no-http-keep-alive --user-agent "$agent" --show-progress "$progress"; rc=$?; } || :
 

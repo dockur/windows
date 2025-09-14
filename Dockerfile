@@ -5,6 +5,7 @@ FROM scratch AS build-amd64
 
 COPY --from=qemux/qemu:7.12 / /
 
+ARG TARGETARCH
 ARG DEBCONF_NOWARNINGS="yes"
 ARG DEBIAN_FRONTEND="noninteractive"
 ARG DEBCONF_NONINTERACTIVE_SEEN="true"
@@ -19,7 +20,7 @@ RUN set -eu && \
         libxml2-utils \
         libarchive-tools \
         netcat-openbsd && \
-    wget "https://github.com/gershnik/wsdd-native/releases/download/v1.21/wsddn_1.21_amd64.deb" -O /tmp/wsddn.deb -q && \
+    wget "https://github.com/gershnik/wsdd-native/releases/download/v1.21/wsddn_1.21_${TARGETARCH}.deb" -O /tmp/wsddn.deb -q && \
     dpkg -i /tmp/wsddn.deb && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
