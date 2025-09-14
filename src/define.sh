@@ -693,26 +693,7 @@ switchEdition() {
 
   local id="$1"
 
-  case "${id,,}" in
-    "win11${PLATFORM,,}-enterprise-eval" )
-      DETECTED="win11${PLATFORM,,}-enterprise"
-      ;;
-    "win10${PLATFORM,,}-enterprise-eval" )
-      DETECTED="win10${PLATFORM,,}-enterprise"
-      ;;
-    "win81${PLATFORM,,}-enterprise-eval" )
-      DETECTED="win81${PLATFORM,,}-enterprise"
-      ;;
-    "win7${PLATFORM,,}" | "win7${PLATFORM,,}-enterprise-eval" )
-      DETECTED="win7${PLATFORM,,}-enterprise"
-      ;;
-    "win2025-eval" ) DETECTED="win2025" ;;
-    "win2022-eval" ) DETECTED="win2022" ;;
-    "win2019-eval" ) DETECTED="win2019" ;;
-    "win2016-eval" ) DETECTED="win2016" ;;
-    "win2012r2-eval" ) DETECTED="win2012r2" ;;
-    "win2008r2-eval" ) DETECTED="win2008r2" ;;
-  esac
+  [[ "${id,,}" == *"-eval" ]] && DETECTED="${id::-5}"
 
   return 0
 }
