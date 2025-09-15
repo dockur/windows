@@ -23,7 +23,8 @@ parseVersion() {
   if [[ "${VERSION}" == \"*\" || "${VERSION}" == \'*\' ]]; then
     VERSION="${VERSION:1:-1}"
   fi
-
+  
+  VERSION=`expr "$VERSION" : "^\ *\(.*[^ ]\)\ *$"`
   [ -z "$VERSION" ] && VERSION="win11"
 
   case "${VERSION,,}" in
