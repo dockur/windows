@@ -301,7 +301,11 @@ extractESD() {
   fi
 
   local esdImageCount
-  esdImageCount=$(wimlib-imagex info "$iso" | awk '/Image Count:/ {print $3}')
+  esdImageCount=$(wimlib-imagex info "$iso" | iconv -f UTF-16LE -t UTF-8 | awk '/Image Count:/ {print $3}')
+
+  if [ -z "$esdImageCount" ]; then
+    error "Cannot read the image count in ESD file!" && return 1
+  fi
 
   wimlib-imagex apply "$iso" 1 "$dir" --quiet 2>/dev/null || {
     retVal=$?
@@ -344,7 +348,7 @@ extractESD() {
   fi
 
   for (( imageIndex=4; imageIndex<=esdImageCount; imageIndex++ )); do
-    imageEdition=$(wimlib-imagex info "$iso" ${imageIndex} | grep '^Description:' | sed 's/Description:[ \t]*//')
+    imageEdition=$(wimlib-imagex info "$iso" ${imageIndex} | iconv -f UTF-16LE -t UTF-8 | grep '^Description:' | sed 's/Description:[ \t]*//')
     [[ "${imageEdition,,}" != "${edition,,}" ]] && continue
     wimlib-imagex export "$iso" ${imageIndex} "$installWimFile" --compress=LZMS --chunk-size 128K --quiet || {
       retVal=$?
@@ -917,7 +921,7 @@ updateImage() {
   fi
 
   index="1"
-  result=$(wimlib-imagex info -xml "$wim" | tr -d '\000')
+  result=$(wimlib-imagex info -xml "$wim" | iconv -f UTF-16LE -t UTF-8)
 
   if [[ "${result^^}" == *"<IMAGE INDEX=\"2\">"* ]]; then
     index="2"
