@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-TMP="$STORAGE/tmp"
-DIR="$TMP/unpack"
-FB="falling back to manual installation!"
 ETFS="boot/etfsboot.com"
+FB="falling back to manual installation!"
 EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 
 skipInstall() {
 
   local iso="$1"
   local method=""
-  local magic byte
+  local dir magic byte
   local boot="$STORAGE/windows.boot"
   local previous="$STORAGE/windows.base"
 
   if [ -f "$previous" ]; then
+  
     previous=$(<"$previous")
     previous="${previous//[![:print:]]/}"
+    
     if [ -n "$previous" ]; then
       if [[ "${STORAGE,,}/${previous,,}" != "${iso,,}" ]]; then
         if [ -f "$boot" ] && hasDisk; then
@@ -29,15 +29,24 @@ skipInstall() {
             fi
           fi
           if [ -n "$method" ]; then
-            info "Detected that $method was changed, but ignoring this because Windows is already installed."
-            info "Please start with an empty /storage folder, if you want to install a different version of Windows."
+            info "Detected that $method was changed, will create a backup of your previous installation."
           fi
+          local i=2
+          dir="${previous%.*}"
+          while [[ $i -le 99 ]] && [ -d "$STORAGE/$dir" ]
+          do
+              dir="${previous%.*}-$i"
+              i=$(expr $i + 1)
+          done
+          mkdir -p "$STORAGE/$dir"
+          find "$STORAGE" -maxdepth 1 -type f -name '*' -exec mv -n {} $STORAGE/$dir/ \;
           return 0
         fi
         rm -f "$STORAGE/$previous"
         return 1
       fi
     fi
+
   fi
 
   [ -f "$boot" ] && hasDisk && return 0
@@ -88,9 +97,11 @@ startInstall() {
 
   fi
 
-  skipInstall "$BOOT" && return 1
-
+  TMP="$STORAGE/tmp"
   rm -rf "$TMP"
+
+  skipInstall "$BOOT" && return 1
+ 
   mkdir -p "$TMP"
 
   if [ -z "$CUSTOM" ]; then
@@ -1076,8 +1087,6 @@ buildImage() {
 
 bootWindows() {
 
-  rm -rf "$TMP"
-
   if [ -f "$STORAGE/windows.args" ]; then
     ARGS=$(<"$STORAGE/windows.args")
     ARGS="${ARGS//[![:print:]]/}"
@@ -1144,6 +1153,8 @@ if [ ! -s "$ISO" ] || [ ! -f "$ISO" ]; then
     exit 61
   fi
 fi
+
+DIR="$TMP/unpack"
 
 if ! extractImage "$ISO" "$DIR" "$VERSION"; then
   rm -f "$ISO" 2> /dev/null || true
