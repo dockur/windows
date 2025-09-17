@@ -1102,10 +1102,10 @@ getLink4() {
 
   case "${id,,}" in
     "nano11" )
-      size=2159738880
-      sum="78f0f44444ff95b97125b43e560a72e0d6ce0a665cf9f5573bf268191e5510c1"
+      size=2463565824
+      sum="a1e0614372768cbe2d24de74b78a4a97bc1017ea5080dfed1d2125e4a527eb1a"
       url="nano11_25h2/nano11%2025h2.iso"
-      ;;  
+      ;;
     "core11" )
       size=2159738880
       sum="78f0f44444ff95b97125b43e560a72e0d6ce0a665cf9f5573bf268191e5510c1"
