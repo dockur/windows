@@ -44,7 +44,7 @@ skipInstall() {
           fi
         fi
 
-        info "Detected that $method, creating a backup of your previous installation..."
+        info "Detected that $method, a backup of your previous installation has been saved..."
 
         local dir="$STORAGE/${previous%.*}.old"
 
