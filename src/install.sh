@@ -9,7 +9,7 @@ backup () {
 
   local count=1
   local iso="$1"
-  local folder="unknown"
+  local name="unknown"
   local root="$STORAGE/backups"
   local previous="$STORAGE/windows.base"
 
@@ -18,17 +18,18 @@ backup () {
     previous=$(<"$previous")
     previous="${previous//[![:print:]]/}"
 
-    [ -n "$previous" ] && folder="${previous%.*}"
+    [ -n "$previous" ] && name="${previous%.*}"
 
   fi
 
   mkdir -p "$root"
+  local folder="$name"
   local dir="$root/$folder"
 
   while [ -d "$dir" ]
   do
     count=$[$count +1]
-    folder="${folder%.*}.${count}"
+    folder="${name}.${count}"
     dir="$root/$folder"
   done
 
