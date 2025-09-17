@@ -9,7 +9,7 @@ skipInstall() {
 
   local iso="$1"
   local method=""
-  local dir magic byte
+  local magic byte
   local boot="$STORAGE/windows.boot"
   local previous="$STORAGE/windows.base"
 
@@ -46,7 +46,7 @@ skipInstall() {
 
         info "Detected that $method, creating a backup of your previous installation..."
 
-        dir="$STORAGE/${previous%.*}.old"
+        local dir="$STORAGE/${previous%.*}.old"
 
         rm -rf "$dir"
         mkdir -p "$dir"
