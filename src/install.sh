@@ -44,7 +44,7 @@ skipInstall() {
           fi
         fi
 
-        info "Detected that $method, a backup of your previous installation has been saved..."
+        info "Detected that $method, a backup of your previous installation will be saved..."
 
         local dir="$STORAGE/${previous%.*}.old"
 
@@ -52,8 +52,8 @@ skipInstall() {
         mkdir -p "$dir"
 
         [ -f "$STORAGE/$previous" ] && mv -f "$STORAGE/$previous" "$dir/"
-        find "$STORAGE" -maxdepth 1 -type f -iname 'windows.*' -exec mv -n {} "$dir/" \;
         find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -exec mv -n {} "$dir/" \;
+        find "$STORAGE" -maxdepth 1 -type f \( -iname 'data.*' -or -iname 'windows.*' \) -exec mv -n {} "$dir/" \;
 
         return 1
 
@@ -132,6 +132,7 @@ startInstall() {
 
   rm -f "$BOOT"
 
+  find "$STORAGE" -maxdepth 1 -type f -iname 'data.*' -delete
   find "$STORAGE" -maxdepth 1 -type f -iname 'windows.*' -not -iname '*.iso' -delete
   find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete
 
