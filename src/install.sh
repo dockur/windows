@@ -21,7 +21,7 @@ skipInstall() {
     if [ -n "$previous" ]; then
       if [[ "${STORAGE,,}/${previous,,}" != "${iso,,}" ]]; then
 
-        if !hasDisk; then
+        if ! hasDisk; then
 
           rm -f "$STORAGE/$previous"
           return 1
@@ -53,7 +53,7 @@ skipInstall() {
 
         [ -f "$STORAGE/$previous" ] && mv -f "$STORAGE/$previous" "$dir/"
         find "$STORAGE" -maxdepth 1 -type f -iname 'windows.*' -exec mv -n {} "$dir/" \;
-        find "$STORAGE" -maxdepth 1 -type f -iname '*.rom' -or -iname '*.vars' -exec mv -n {} "$dir/" \;
+        find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -exec mv -n {} "$dir/" \;
 
         return 1
 
@@ -132,8 +132,8 @@ startInstall() {
 
   rm -f "$BOOT"
 
-  find "$STORAGE" -maxdepth 1 -type f -iname '*.rom' -or -iname '*.vars' -delete
   find "$STORAGE" -maxdepth 1 -type f -iname 'windows.*' -not -iname '*.iso' -delete
+  find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete
 
   return 0
 }
@@ -632,8 +632,8 @@ detectImage() {
     warn "failed to locate 'sources' folder in ISO image, $FB" && return 1
   fi
 
-  wim=$(find "$src" -maxdepth 1 -type f -iname install.wim -or -iname install.esd -print -quit)
-  
+  wim=$(find "$src" -maxdepth 1 -type f \( -iname install.wim -or -iname install.esd \) -print -quit)
+
   if [ ! -f "$wim" ]; then
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB" && return 1
   fi
@@ -932,7 +932,7 @@ updateImage() {
     error "failed to locate 'sources' folder in ISO image, $FB" && return 1
   fi
 
-  wim=$(find "$src" -maxdepth 1 -type f -iname boot.wim -or -iname boot.esd -print -quit)
+  wim=$(find "$src" -maxdepth 1 -type f \( -iname boot.wim -or -iname boot.esd \) -print -quit)
 
   if [ ! -f "$wim" ]; then
     error "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB" && return 1
