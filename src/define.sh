@@ -135,8 +135,12 @@ parseVersion() {
     "2003" | "2003r2" | "win2003" | "win2003r2" | "windows2003" | "windows 2003" )
       VERSION="win2003r2"
       ;;
-    "core11" | "core 11" )
-      VERSION="core11"
+    "nano11" | "nano 11" )
+      VERSION="nano11"
+      [ -z "$DETECTED" ] && DETECTED="win11x64"
+      ;;      
+    "" | "core 11" )
+      VERSION=""
       [ -z "$DETECTED" ] && DETECTED="win11x64"
       ;;
     "tiny11" | "tiny 11" )
@@ -432,6 +436,7 @@ printVersion() {
     "tiny11"* ) desc="Tiny 11" ;;
     "tiny10"* ) desc="Tiny 10" ;;
     "core11"* ) desc="Core 11" ;;
+    "nano11"* ) desc="Nano 11" ;;    
     "win7"* ) desc="Windows 7" ;;
     "win8"* ) desc="Windows 8" ;;
     "win10"* ) desc="Windows 10" ;;
@@ -570,6 +575,9 @@ fromFile() {
     *"winvista"* | *"win_vista"* | *"windowsvista"* | *"windows_vista"* )
       id="winvista${arch}"
       ;;
+    "nano11"* | "nano_11"* )
+      id="nano11"
+      ;;     
     "tiny11core"* | "tiny11_core"* | "tiny_11_core"* )
       id="core11"
       ;;
@@ -1093,6 +1101,11 @@ getLink4() {
   [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
 
   case "${id,,}" in
+    "nano11" )
+      size=2159738880
+      sum="78f0f44444ff95b97125b43e560a72e0d6ce0a665cf9f5573bf268191e5510c1"
+      url="nano11_25h2/nano11%2025h2.iso"
+      ;;  
     "core11" )
       size=2159738880
       sum="78f0f44444ff95b97125b43e560a72e0d6ce0a665cf9f5573bf268191e5510c1"
