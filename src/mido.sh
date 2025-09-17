@@ -689,7 +689,7 @@ downloadImage() {
   if isESD "$version" "$lang"; then
 
     if [[ "$tried" != "n" ]]; then
-      info "Failed to download $desc, will try a diferent method now..."
+      info "Failed to download $desc, will try a different method now..."
     fi
 
     tried="y"
