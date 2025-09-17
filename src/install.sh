@@ -15,7 +15,7 @@ backup () {
 
   mkdir -p "$dir"
 
-  while [ -d "$STORAGE/$folder" ]
+  while [ -d "$dir/$folder" ]
   do
     count=$[$count +1]
     folder="${name}.${count}"
@@ -27,13 +27,11 @@ backup () {
   mkdir -p "$dir"
 
   [ -f "$iso" ] && mv -f "$iso" "$dir/"
+  find "$STORAGE" -maxdepth 1 -type f -iname 'data.*' -not -iname '*.iso' -exec mv -n {} "$dir/" \;
+  find "$STORAGE" -maxdepth 1 -type f -iname 'windows.*' -not -iname '*.iso' -exec mv -n {} "$dir/" \;
   find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -exec mv -n {} "$dir/" \;
-  find "$STORAGE" -maxdepth 1 -type f \( -iname 'data.*' -or -iname 'windows.*' \) -exec mv -n {} "$dir/" \;
 
-  if [ -z "$(ls -A "$dir")" ]; then
-    rm -rf "$dir"
-  fi
-
+  [ -z "$(ls -A "$dir")" ] && rm -rf "$dir"
   return 0
 }
 
@@ -51,7 +49,6 @@ skipInstall() {
     previous="${previous//[![:print:]]/}"
 
     if [ -n "$previous" ]; then
-
       if [[ "${STORAGE,,}/${previous,,}" != "${iso,,}" ]]; then
 
         if ! hasDisk; then
@@ -78,10 +75,7 @@ skipInstall() {
         fi
 
         info "Detected that $method, a backup of your previous installation will be saved..."
-
-        if ! backup "$STORAGE/$previous" "${previous%.*}"; then
-          error "Backup failed!"
-        fi
+        ! backup "$STORAGE/$previous" "${previous%.*}" && error "Backup failed!"
 
         return 1
 
@@ -146,11 +140,7 @@ startInstall() {
   skipInstall "$BOOT" && return 1
 
   if hasDisk; then
-
-    if ! backup "" "backup"; then
-      error "Backup failed!"
-    fi
-
+    ! backup "" "backup" && error "Backup failed!"
   fi
 
   mkdir -p "$TMP"
@@ -168,8 +158,9 @@ startInstall() {
 
   rm -f "$BOOT"
 
+  find "$STORAGE" -maxdepth 1 -type f -iname 'data.*' -not -iname '*.iso' -delete
+  find "$STORAGE" -maxdepth 1 -type f -iname 'windows.*' -not -iname '*.iso' -delete
   find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete
-  find "$STORAGE" -maxdepth 1 -type f \( -iname 'data.*' -or -iname 'windows.*' \) -delete
 
   return 0
 }
