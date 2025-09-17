@@ -9,19 +9,28 @@ backup () {
 
   local count=1
   local iso="$1"
-  local name="$2"
-  local folder="$name"
-  local dir="$STORAGE/backups"
+  local folder="unknown"
+  local root="$STORAGE/backups"
+  local previous="$STORAGE/windows.base"
 
-  mkdir -p "$dir"
+  if [ -f "$previous" ]; then
 
-  while [ -d "$dir/$folder" ]
+    previous=$(<"$previous")
+    previous="${previous//[![:print:]]/}"
+
+    [ -n "$previous" ] && folder="${previous%.*}"
+
+  fi
+
+  mkdir -p "$root"
+  local dir="$root/$folder"
+
+  while [ -d "$dir" ]
   do
     count=$[$count +1]
-    folder="${name}.${count}"
+    folder="${folder%.*}.${count}"
+    dir="$root/$folder"
   done
-
-  dir+="/$folder"
 
   rm -rf "$dir"
   mkdir -p "$dir"
@@ -32,6 +41,8 @@ backup () {
   find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -exec mv -n {} "$dir/" \;
 
   [ -z "$(ls -A "$dir")" ] && rm -rf "$dir"
+  [ -z "$(ls -A "$root")" ] && rm -rf "$root"
+
   return 0
 }
 
@@ -75,7 +86,7 @@ skipInstall() {
         fi
 
         info "Detected that $method, a backup of your previous installation will be saved..."
-        ! backup "$STORAGE/$previous" "${previous%.*}" && error "Backup failed!"
+        ! backup "$STORAGE/$previous" && error "Backup failed!"
 
         return 1
 
@@ -140,7 +151,7 @@ startInstall() {
   skipInstall "$BOOT" && return 1
 
   if hasDisk; then
-    ! backup "" "backup" && error "Backup failed!"
+    ! backup "" && error "Backup failed!"
   fi
 
   mkdir -p "$TMP"
