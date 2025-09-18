@@ -140,7 +140,7 @@ parseVersion() {
       [ -z "$DETECTED" ] && DETECTED="win11x64"
       ;;      
     "core11" | "core 11" )
-      VERSION=""
+      VERSION="core11"
       [ -z "$DETECTED" ] && DETECTED="win11x64"
       ;;
     "tiny11" | "tiny 11" )
