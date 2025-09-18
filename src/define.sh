@@ -139,7 +139,7 @@ parseVersion() {
       VERSION="nano11"
       [ -z "$DETECTED" ] && DETECTED="win11x64"
       ;;      
-    "" | "core 11" )
+    "core11" | "core 11" )
       VERSION=""
       [ -z "$DETECTED" ] && DETECTED="win11x64"
       ;;
