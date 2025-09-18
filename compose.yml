@@ -1,19 +1,83 @@
+# services:
+#   windows:
+#     image: dockurr/windows
+#     container_name: windows_11
+#     privileged: true
+#     environment:
+#       VERSION: "11"
+#     devices:
+#       - /dev/kvm
+#       - /dev/net/tun
+#     cap_add:
+#       - NET_ADMIN
+#     ports:
+#       - 192.168.10.10:8006:8006
+#       - 192.168.10.10:3389:3389/tcp
+#       - 192.168.10.10:3389:3389/udp
+#     volumes:
+#       - ./win11x64.iso:/boot.iso
+#       - ./windows:/storage
+#       # - ./src/entry.sh:/run/entry.sh
+#     restart: always
+#     stop_grace_period: 2m
+#     networks:
+#       - ad_network
+
+# networks:
+#   ad_network:
+#     external: true
+
 services:
-  windows:
+  windows_2025:
     image: dockurr/windows
-    container_name: windows
+    container_name: windows_2025
+    privileged: true
     environment:
-      VERSION: "11"
+      VERSION: "2025"
+      DHCP: "Y"
     devices:
       - /dev/kvm
       - /dev/net/tun
+      - /dev/vhost-net
+    device_cgroup_rules:
+      - 'c *:* rwm'
     cap_add:
       - NET_ADMIN
-    ports:
-      - 8006:8006
-      - 3389:3389/tcp
-      - 3389:3389/udp
     volumes:
-      - ./windows:/storage
+      - ./win2025-eval.iso:/boot.iso
+      - ./windows_2025:/storage
+      - ./src/entry.sh:/run/entry.sh
     restart: always
     stop_grace_period: 2m
+    networks:
+      ad_vlan:
+        ipv4_address: 192.168.10.201 # container IP (Linux side). Windows guest will DHCP a *different* IP.
+
+  windows_11:
+    image: dockurr/windows
+    container_name: windows_11
+    privileged: true
+    environment:
+      VERSION: "11"
+      DHCP: "Y"
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+      - /dev/vhost-net
+    device_cgroup_rules:
+      - 'c *:* rwm'
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./win11x64.iso:/boot.iso
+      - ./windows:/storage
+      - ./src/entry.sh:/run/entry.sh
+    restart: always
+    stop_grace_period: 2m
+    networks:
+      ad_vlan:
+        ipv4_address: 192.168.10.202 # container IP (Linux side)
+
+networks:
+  ad_vlan:
+    external: true

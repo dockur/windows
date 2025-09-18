@@ -22,6 +22,7 @@ cd /run
 . power.sh      # Configure shutdown
 . config.sh     # Configure arguments
 
+
 trap - ERR
 
 version=$(qemu-system-x86_64 --version | head -n 1 | cut -d '(' -f 1 | awk '{ print $NF }')
