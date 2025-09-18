@@ -5,6 +5,48 @@ ETFS="boot/etfsboot.com"
 FB="falling back to manual installation!"
 EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 
+backup () {
+
+  local count=1
+  local iso="$1"
+  local name="unknown"
+  local root="$STORAGE/backups"
+  local previous="$STORAGE/windows.base"
+
+  if [ -f "$previous" ]; then
+
+    previous=$(<"$previous")
+    previous="${previous//[![:print:]]/}"
+
+    [ -n "$previous" ] && name="${previous%.*}"
+
+  fi
+
+  mkdir -p "$root"
+  local folder="$name"
+  local dir="$root/$folder"
+
+  while [ -d "$dir" ]
+  do
+    count=$((count+1))
+    folder="${name}.${count}"
+    dir="$root/$folder"
+  done
+
+  rm -rf "$dir"
+  mkdir -p "$dir"
+
+  [ -f "$iso" ] && mv -f "$iso" "$dir/"
+  find "$STORAGE" -maxdepth 1 -type f -iname 'data.*' -not -iname '*.iso' -exec mv -n {} "$dir/" \;
+  find "$STORAGE" -maxdepth 1 -type f -iname 'windows.*' -not -iname '*.iso' -exec mv -n {} "$dir/" \;
+  find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -exec mv -n {} "$dir/" \;
+
+  [ -z "$(ls -A "$dir")" ] && rm -rf "$dir"
+  [ -z "$(ls -A "$root")" ] && rm -rf "$root"
+
+  return 0
+}
+
 skipInstall() {
 
   local iso="$1"
@@ -45,15 +87,7 @@ skipInstall() {
         fi
 
         info "Detected that $method, a backup of your previous installation will be saved..."
-
-        local dir="$STORAGE/${previous%.*}.old"
-
-        rm -rf "$dir"
-        mkdir -p "$dir"
-
-        [ -f "$STORAGE/$previous" ] && mv -f "$STORAGE/$previous" "$dir/"
-        find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -exec mv -n {} "$dir/" \;
-        find "$STORAGE" -maxdepth 1 -type f \( -iname 'data.*' -or -iname 'windows.*' \) -exec mv -n {} "$dir/" \;
+        ! backup "$STORAGE/$previous" && error "Backup failed!"
 
         return 1
 
@@ -117,6 +151,10 @@ startInstall() {
 
   skipInstall "$BOOT" && return 1
 
+  if hasDisk; then
+    ! backup "" && error "Backup failed!"
+  fi
+
   mkdir -p "$TMP"
 
   if [ -z "$CUSTOM" ]; then
@@ -132,7 +170,7 @@ startInstall() {
 
   rm -f "$BOOT"
 
-  find "$STORAGE" -maxdepth 1 -type f -iname 'data.*' -delete
+  find "$STORAGE" -maxdepth 1 -type f -iname 'data.*' -not -iname '*.iso' -delete
   find "$STORAGE" -maxdepth 1 -type f -iname 'windows.*' -not -iname '*.iso' -delete
   find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete
 
@@ -322,7 +360,7 @@ extractESD() {
   fi
 
   local esdImageCount
-  esdImageCount=$(wimlib-imagex info "$iso" | iconv -f UTF-16LE -t UTF-8 | awk '/Image Count:/ {print $3}')
+  esdImageCount=$(wimlib-imagex info "$iso" | awk '/Image Count:/ {print $3}')
 
   if [ -z "$esdImageCount" ]; then
     error "Cannot read the image count in ESD file!" && return 1
@@ -369,7 +407,7 @@ extractESD() {
   fi
 
   for (( imageIndex=4; imageIndex<=esdImageCount; imageIndex++ )); do
-    imageEdition=$(wimlib-imagex info "$iso" ${imageIndex} | iconv -f UTF-16LE -t UTF-8 | grep '^Description:' | sed 's/Description:[ \t]*//')
+    imageEdition=$(wimlib-imagex info "$iso" ${imageIndex} | grep '^Description:' | sed 's/Description:[ \t]*//')
     [[ "${imageEdition,,}" != "${edition,,}" ]] && continue
     wimlib-imagex export "$iso" ${imageIndex} "$installWimFile" --compress=LZMS --chunk-size 128K --quiet || {
       retVal=$?
