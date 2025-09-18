@@ -361,7 +361,7 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>5</Order>
-          <CommandLine>cmd /C wmic useraccount where name="Docker" set PasswordExpires=false</CommandLine>
+          <CommandLine>powershell.exe -ExecutionPolicy Unrestricted -NoLogo -NoProfile -NonInteractive set-localuser -name "Docker" -passwordneverexpires 1</CommandLine>
           <Description>Password Never Expires</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
