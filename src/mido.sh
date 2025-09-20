@@ -569,7 +569,6 @@ downloadFile() {
   local msg="Downloading $desc"
   local rc total total_gb progress domain dots agent space folder
 
-  rm -f "$iso"
   agent=$(get_agent)
 
   if [ -n "$size" ] && [[ "$size" != "0" ]]; then
@@ -600,7 +599,7 @@ downloadFile() {
   info "$msg..."
   [[ "$DEBUG" == [Yy1]* ]] && echo "Downloading: $url"
 
-  { wget "$url" -O "$iso" -q --timeout=30 --no-http-keep-alive --user-agent "$agent" --show-progress "$progress"; rc=$?; } || :
+  { wget "$url" -O "$iso" --continue -q --timeout=30 --no-http-keep-alive --user-agent "$agent" --show-progress "$progress"; rc=$?; } || :
 
   fKill "progress.sh"
 
@@ -639,6 +638,8 @@ downloadImage() {
 
     base=$(basename "$iso")
     desc=$(fromFile "$base")
+
+    rm -f "$iso"    
     downloadFile "$iso" "$version" "" "" "" "$desc" && return 0
     info "$msg" && html "$msg" && sleep "$delay"
     downloadFile "$iso" "$version" "" "" "" "$desc" && return 0
@@ -677,6 +678,8 @@ downloadImage() {
     if [[ "$success" == "y" ]]; then
       size=$(getMido "$version" "$lang" "size" )
       sum=$(getMido "$version" "$lang" "sum")
+
+      rm -f "$iso"      
       downloadFile "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$desc" && return 0
       info "$msg" && html "$msg" && sleep "$delay"
       downloadFile "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$desc" && return 0
@@ -704,6 +707,8 @@ downloadImage() {
 
     if [[ "$success" == "y" ]]; then
       ISO="${ISO%.*}.esd"
+
+      rm -f "$ISO"
       downloadFile "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$lang" "$desc" && return 0
       info "$msg" && html "$msg" && sleep "$delay"
       downloadFile "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$lang" "$desc" && return 0
@@ -718,12 +723,16 @@ downloadImage() {
     url=$(getLink "$i" "$version" "$lang")
 
     if [ -n "$url" ]; then
+
       if [[ "$tried" != "n" ]]; then
         info "Failed to download $desc, will try another mirror now..."
       fi
+      
       tried="y"
       size=$(getSize "$i" "$version" "$lang")
       sum=$(getHash "$i" "$version" "$lang")
+
+      rm -f "$iso"      
       downloadFile "$iso" "$url" "$sum" "$size" "$lang" "$desc" && return 0
       info "$msg" && html "$msg" && sleep "$delay"
       downloadFile "$iso" "$url" "$sum" "$size" "$lang" "$desc" && return 0
