@@ -254,7 +254,7 @@ download_windows_eval() {
 
   iso_download_links=$(echo "$iso_download_page_html" | grep -io "$filter") || {
     # This should only happen if there's been some change to the download endpoint web address
-    if [[ "${lang,,}" == "en" ]] || [[ "${lang,,}" == "en-"* ]]; then
+    if [[ "${lang,,}" == "en" || "${lang,,}" == "en-"* ]]; then
       error "Windows server download page gave us no download link!"
     else
       language=$(getLanguage "$lang" "desc")
@@ -327,7 +327,7 @@ getWindows() {
 
   case "${version,,}" in
     "win2008r2" | "win81${PLATFORM,,}"* | "win11${PLATFORM,,}-enterprise-iot"* | "win11${PLATFORM,,}-enterprise-ltsc"* )
-      if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
+      if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
         error "No download in the $language language available for $edition!"
         MIDO_URL="" && return 1
       fi ;;
@@ -528,8 +528,8 @@ verifyFile() {
   local total="$3"
   local check="$4"
 
-  if [ -n "$size" ] && [[ "$total" != "$size" ]] && [[ "$size" != "0" ]]; then
-    if [[ "$VERIFY" == [Yy1]* ]] || [[ "$DEBUG" == [Yy1]* ]]; then
+  if [ -n "$size" ] && [[ "$total" != "$size" && "$size" != "0" ]]; then
+    if [[ "$VERIFY" == [Yy1]* || "$DEBUG" == [Yy1]* ]]; then
       warn "The downloaded file has a different size ( $total bytes) than expected ( $size bytes). Please report this at $SUPPORT/issues"
     fi
   fi
@@ -654,7 +654,7 @@ downloadImage() {
 
   desc=$(printVersion "$version" "")
 
-  if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
+  if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
     language=$(getLanguage "$lang" "desc")
     if ! validVersion "$version" "$lang"; then
       desc=$(printEdition "$version" "$desc")

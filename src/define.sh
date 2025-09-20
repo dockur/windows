@@ -718,7 +718,7 @@ getMido() {
   local sum=""
   local size=""
 
-  [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
+  [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
 
   case "${id,,}" in
     "win11x64" )
@@ -812,7 +812,7 @@ getLink1() {
   local size=""
   local host="https://dl.bobpony.com/windows"
 
-  [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
+  [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
 
   case "${id,,}" in
     "win11x64" | "win11x64-enterprise" | "win11x64-enterprise-eval" )
@@ -956,7 +956,7 @@ getLink2() {
   local size=""
   local host="https://files.dog/MSDN"
 
-  [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
+  [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
 
   case "${id,,}" in
     "win81x64" )
@@ -1055,7 +1055,7 @@ getLink3() {
   local size=""
   local host="https://nixsys.com/drivers"
 
-  [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
+  [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
 
   case "${id,,}" in
     "win7x64" | "win7x64-ultimate" )
@@ -1098,7 +1098,7 @@ getLink4() {
   local size=""
   local host="https://archive.org/download"
 
-  [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
+  [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
 
   case "${id,,}" in
     "nano11" )
@@ -1406,7 +1406,7 @@ prepareInstall() {
     error "Failed to locate directory \"$target\" in $desc ISO image!" && return 1
   fi
 
-  if [[ "${driver,,}" == "xp" ]] || [[ "${driver,,}" == "2k3" ]]; then
+  if [[ "${driver,,}" == "xp" || "${driver,,}" == "2k3" ]]; then
 
     local msg="Adding drivers to image..."
     info "$msg" && html "$msg"
