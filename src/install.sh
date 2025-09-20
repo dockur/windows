@@ -212,7 +212,7 @@ finishInstall() {
       fi
     else
       # Enable secure boot + TPM on manual installs as Win11 requires
-      if [[ "$MANUAL" == [Yy1]* ]] || [[ "$aborted" == [Yy1]* ]]; then
+      if [[ "$MANUAL" == [Yy1]* || "$aborted" == [Yy1]* ]]; then
         if [[ "${DETECTED,,}" == "win11"* ]]; then
           BOOT_MODE="windows_secure"
           echo "$BOOT_MODE" > "$STORAGE/windows.mode"
@@ -696,7 +696,7 @@ detectImage() {
   desc=$(printEdition "$DETECTED" "$DETECTED")
   detectLanguage "$info"
 
-  if [[ "${LANGUAGE,,}" != "en" ]] && [[ "${LANGUAGE,,}" != "en-"* ]]; then
+  if [[ "${LANGUAGE,,}" != "en" && "${LANGUAGE,,}" != "en-"* ]]; then
     language=$(getLanguage "$LANGUAGE" "desc")
     desc+=" ($language)"
   fi
@@ -704,7 +704,7 @@ detectImage() {
   info "Detected: $desc"
   setXML "" && return 0
 
-  if [[ "$DETECTED" == "win81x86"* ]] || [[ "$DETECTED" == "win10x86"* ]]; then
+  if [[ "$DETECTED" == "win81x86"* || "$DETECTED" == "win10x86"* ]]; then
     error "The 32-bit version of $desc is not supported!" && return 1
   fi
 
