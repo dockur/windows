@@ -91,7 +91,7 @@ finish() {
     done
   fi
 
-  if [ ! -f "$STORAGE/windows.boot" ] && [ -f "$BOOT" ]; then
+  if [ ! -f "$STORAGE/windows.boot" && -f "$BOOT" ]; then
     # Remove CD-ROM ISO after install
     if ready; then
       touch "$STORAGE/windows.boot"
