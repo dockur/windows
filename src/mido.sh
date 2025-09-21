@@ -452,7 +452,7 @@ getESD() {
   winCatalog=$(getCatalog "$version" "url")
   editionName=$(getCatalog "$version" "edition")
 
-  if [ -z "$file" || -z "$winCatalog" || -z "$editionName" ]; then
+  if [ -z "$file" ] || [ -z "$winCatalog" ] || [ -z "$editionName" ]; then
     error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
   fi
 
