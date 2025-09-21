@@ -436,7 +436,7 @@ printVersion() {
     "tiny11"* ) desc="Tiny 11" ;;
     "tiny10"* ) desc="Tiny 10" ;;
     "core11"* ) desc="Core 11" ;;
-    "nano11"* ) desc="Nano 11" ;;    
+    "nano11"* ) desc="Nano 11" ;;
     "win7"* ) desc="Windows 7" ;;
     "win8"* ) desc="Windows 8" ;;
     "win10"* ) desc="Windows 10" ;;
@@ -577,7 +577,7 @@ fromFile() {
       ;;
     "nano11"* | "nano_11"* )
       id="nano11"
-      ;;     
+      ;;
     "tiny11core"* | "tiny11_core"* | "tiny_11_core"* )
       id="core11"
       ;;
