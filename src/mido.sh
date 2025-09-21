@@ -371,7 +371,8 @@ getCatalog() {
   local url=""
   local name=""
   local edition=""
-
+  local file="catalog.cab"
+  
   case "${id,,}" in
     "win11${PLATFORM,,}" )
       edition="Professional"
@@ -393,6 +394,38 @@ getCatalog() {
 
   case "${ret,,}" in
     "url" ) echo "$url" ;;
+    "file" ) echo "$file" ;;
+    "name" ) echo "$name" ;;
+    "edition" ) echo "$edition" ;;
+    *) echo "";;
+  esac
+
+  return 0
+}
+
+getOldCatalog() {
+
+  local id="$1"
+  local ret="$2"
+  local url=""
+  local name=""
+  local edition=""
+  local file="catalog.xml"
+  
+  case "${id,,}" in
+    "win11${PLATFORM,,}" )
+      edition="Professional"
+      name="Windows 11 Pro"
+      url="https://worproject.com/dldserv/esd/getcatalog.php?build=22631.2861&arch=ARM64&edition=Professional" ;;
+    "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval")
+      edition="Enterprise"
+      name="Windows 11 Enterprise"
+      url="https://worproject.com/dldserv/esd/getcatalog.php?build=22631.2861&arch=ARM64&edition=Enterprise" ;;
+  esac
+
+  case "${ret,,}" in
+    "url" ) echo "$url" ;;
+    "file" ) echo "$file" ;;
     "name" ) echo "$name" ;;
     "edition" ) echo "$edition" ;;
     *) echo "";;
@@ -407,17 +440,19 @@ getESD() {
   local version="$2"
   local lang="$3"
   local desc="$4"
+  local file
   local result
   local culture
   local language
   local editionName
   local winCatalog
 
+  file=$(getCatalog "$version" "file")
   culture=$(getLanguage "$lang" "culture")
   winCatalog=$(getCatalog "$version" "url")
   editionName=$(getCatalog "$version" "edition")
 
-  if [ -z "$winCatalog" ] || [ -z "$editionName" ]; then
+  if [ -z "$file" || -z "$winCatalog" || -z "$editionName" ]; then
     error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
   fi
 
@@ -427,12 +462,11 @@ getESD() {
   rm -rf "$dir"
   mkdir -p "$dir"
 
-  local wFile="catalog.cab"
   local xFile="products.xml"
   local eFile="esd_edition.xml"
   local fFile="products_filter.xml"
 
-  { wget "$winCatalog" -O "$dir/$wFile" -q --timeout=30 --no-http-keep-alive; rc=$?; } || :
+  { wget "$winCatalog" -O "$dir/$file" -q --timeout=30 --no-http-keep-alive; rc=$?; } || :
 
   msg="Failed to download $winCatalog"
   (( rc == 3 )) && error "$msg , cannot write file (disk full?)" && return 1
@@ -440,17 +474,25 @@ getESD() {
   (( rc == 8 )) && error "$msg , server issued an error response!" && return 1
   (( rc != 0 )) && error "$msg , reason: $rc" && return 1
 
-  cd "$dir"
+  if [[ "$file" == *".xml" ]]; then
 
-  if ! cabextract "$wFile" > /dev/null; then
+    mv -f "$dir/$file" "$dir/$xFile"
+
+  else
+
+    cd "$dir"
+
+    if ! cabextract "$file" > /dev/null; then
+      cd /run
+      error "Failed to extract $file!" && return 1
+    fi
+
     cd /run
-    error "Failed to extract $wFile!" && return 1
+
   fi
 
-  cd /run
-
   if [ ! -s "$dir/$xFile" ]; then
-    error "Failed to find $xFile in $wFile!" && return 1
+    error "Failed to find $xFile in $file!" && return 1
   fi
 
   local edQuery='//File[Architecture="'${PLATFORM,,}'"][Edition="'${editionName}'"]'
@@ -462,7 +504,6 @@ getESD() {
     result=$(xmllint --nonet --xpath "${edQuery}" "$dir/$xFile" 2>/dev/null)
 
     if [ -z "$result" ]; then
-
       desc=$(printEdition "$version" "$desc")
       language=$(getLanguage "$lang" "desc")
       error "No download link available for $desc!" && return 1
