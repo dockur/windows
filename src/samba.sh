@@ -88,9 +88,9 @@ addShare() {
 } > "/etc/samba/smb.conf"
 
 share="/data"
-[ ! -d "$share" ] && [ -d "$STORAGE/data" ] && share="$STORAGE/data"
-[ ! -d "$share" ] && [ -d "/shared" ] && share="/shared"
-[ ! -d "$share" ] && [ -d "$STORAGE/shared" ] && share="$STORAGE/shared"
+[ ! -d "$share" && -d "$STORAGE/data" ] && share="$STORAGE/data"
+[ ! -d "$share" && -d "/shared" ] && share="/shared"
+[ ! -d "$share" && -d "$STORAGE/shared" ] && share="$STORAGE/shared"
 
 if ! addShare "$share" "Data" "Shared"; then
   error "Failed to add shared folder '$share'. Please check its permissions." && return 0
