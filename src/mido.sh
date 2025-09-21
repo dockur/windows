@@ -372,7 +372,7 @@ getCatalog() {
   local name=""
   local edition=""
   local file="catalog.cab"
-  
+
   case "${id,,}" in
     "win11${PLATFORM,,}" )
       edition="Professional"
@@ -411,7 +411,7 @@ getOldCatalog() {
   local name=""
   local edition=""
   local file="catalog.xml"
-  
+
   case "${id,,}" in
     "win11${PLATFORM,,}" )
       edition="Professional"
@@ -456,7 +456,7 @@ getESD() {
     error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
   fi
 
-  local msg="Downloading product information from Microsoft server..."
+  local msg="Downloading product information..."
   info "$msg" && html "$msg"
 
   rm -rf "$dir"
@@ -680,7 +680,7 @@ downloadImage() {
     base=$(basename "$iso")
     desc=$(fromFile "$base")
 
-    rm -f "$iso"    
+    rm -f "$iso"
     downloadFile "$iso" "$version" "" "" "" "$desc" && return 0
     info "$msg" && html "$msg" && sleep "$delay"
     downloadFile "$iso" "$version" "" "" "" "$desc" && return 0
@@ -720,7 +720,7 @@ downloadImage() {
       size=$(getMido "$version" "$lang" "size" )
       sum=$(getMido "$version" "$lang" "sum")
 
-      rm -f "$iso"      
+      rm -f "$iso"
       downloadFile "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$desc" && return 0
       info "$msg" && html "$msg" && sleep "$delay"
       downloadFile "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$desc" && return 0
@@ -768,12 +768,12 @@ downloadImage() {
       if [[ "$tried" != "n" ]]; then
         info "Failed to download $desc, will try another mirror now..."
       fi
-      
+
       tried="y"
       size=$(getSize "$i" "$version" "$lang")
       sum=$(getHash "$i" "$version" "$lang")
 
-      rm -f "$iso"      
+      rm -f "$iso"
       downloadFile "$iso" "$url" "$sum" "$size" "$lang" "$desc" && return 0
       info "$msg" && html "$msg" && sleep "$delay"
       downloadFile "$iso" "$url" "$sum" "$size" "$lang" "$desc" && return 0
