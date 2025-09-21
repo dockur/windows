@@ -1269,7 +1269,7 @@ getValue() {
   local type="$4"
   local func="getLink$1"
 
-  if [ "$1" -gt 0 ] && [ "$1" -le "$MIRRORS" ]; then
+  if [ "$1" -gt 0 && "$1" -le "$MIRRORS" ]; then
     val=$($func "$id" "$lang" "$type")
   fi
 
@@ -1394,7 +1394,7 @@ prepareInstall() {
 
   ETFS="[BOOT]/Boot-NoEmul.img"
 
-  if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
+  if [ ! -f "$dir/$ETFS" || ! -s "$dir/$ETFS" ]; then
     error "Failed to locate file \"$ETFS\" in $desc ISO image!" && return 1
   fi
 
@@ -1478,7 +1478,7 @@ prepareInstall() {
   local key setup
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini -print -quit)
 
-  if [ -n "$setup" ] && [ -z "$KEY" ]; then
+  if [ -n "$setup" & -z "$KEY" ]; then
 
     pid=$(<"$setup")
     pid="${pid%$'\r'}"
@@ -1795,7 +1795,7 @@ prepareLegacy() {
 
   ETFS="boot.img"
 
-  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
+  [ -f "$dir/$ETFS" && -s "$dir/$ETFS" ] && return 0
   rm -f "$dir/$ETFS"
 
   local len offset
@@ -1806,7 +1806,7 @@ prepareLegacy() {
     error "Failed to extract boot image from $desc ISO!" && return 1
   fi
 
-  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
+  [ -f "$dir/$ETFS" && -s "$dir/$ETFS" ] && return 0
 
   error "Failed to locate file \"$ETFS\" in $desc ISO image!"
   return 1
