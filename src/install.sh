@@ -162,7 +162,7 @@ startInstall() {
     ISO=$(basename "$BOOT")
     ISO="$TMP/$ISO"
 
-    if [ -f "$BOOT" ] && [ -s "$BOOT" ]; then
+    if [ -f "$BOOT" && -s "$BOOT" ]; then
       mv -f "$BOOT" "$ISO"
     fi
 
@@ -183,7 +183,7 @@ finishInstall() {
   local aborted="$2"
   local base byte
 
-  if [ ! -s "$iso" ] || [ ! -f "$iso" ]; then
+  if [ ! -s "$iso" || ! -f "$iso" ]; then
     error "Failed to find ISO file: $iso" && return 1
   fi
 
@@ -304,7 +304,7 @@ findFile() {
     file="$STORAGE/$base"
   fi
 
-  if [ ! -f "$file" ] || [ ! -s "$file" ]; then
+  if [ ! -f "$file" || ! -s "$file" ]; then
     return 0
   fi
 
@@ -621,11 +621,11 @@ setXML() {
     error "The bind $file maps to a file that does not exist!" && exit 67
   fi
 
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$STORAGE/custom.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/custom.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$1"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/$DETECTED.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && return 1
+  [ ! -f "$file" || ! -s "$file" ] && file="$STORAGE/custom.xml"
+  [ ! -f "$file" || ! -s "$file" ] && file="/run/assets/custom.xml"
+  [ ! -f "$file" || ! -s "$file" ] && file="$1"
+  [ ! -f "$file" || ! -s "$file" ] && file="/run/assets/$DETECTED.xml"
+  [ ! -f "$file" || ! -s "$file" ] && return 1
 
   XML="$file"
   return 0
@@ -639,7 +639,7 @@ detectImage() {
 
   XML=""
 
-  if [ -z "$DETECTED" ] && [ -z "$CUSTOM" ]; then
+  if [ -z "$DETECTED" && -z "$CUSTOM" ]; then
     [[ "${version,,}" != "http"* ]] && DETECTED="$version"
   fi
 
@@ -734,7 +734,7 @@ prepareImage() {
 
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
 
-    [ -f "$dir/$ETFS" ] && [ -f "$dir/$EFISYS" ] && return 0
+    [ -f "$dir/$ETFS" && -f "$dir/$EFISYS" ] && return 0
 
     missing=$(basename "$dir/$EFISYS")
     [ ! -f "$dir/$ETFS" ] && missing=$(basename "$dir/$ETFS")
@@ -955,7 +955,7 @@ updateImage() {
 
   skipVersion "${DETECTED,,}" && return 0
 
-  if [ ! -s "$asset" ] || [ ! -f "$asset" ]; then
+  if [ ! -s "$asset" || ! -f "$asset" ]; then
     asset=""
     if [[ "$MANUAL" != [Yy1]* ]]; then
       MANUAL="Y"
@@ -1140,40 +1140,40 @@ bootWindows() {
     ARGUMENTS="$ARGS ${ARGUMENTS:-}"
   fi
 
-  if [ -s "$STORAGE/windows.vga" ] && [ -f "$STORAGE/windows.vga" ]; then
+  if [ -s "$STORAGE/windows.vga" && -f "$STORAGE/windows.vga" ]; then
     if [ -z "${VGA:-}" ]; then
       VGA=$(<"$STORAGE/windows.vga")
       VGA="${VGA//[![:print:]]/}"
     fi
   fi
 
-  if [ -s "$STORAGE/windows.usb" ] && [ -f "$STORAGE/windows.usb" ]; then
+  if [ -s "$STORAGE/windows.usb" && -f "$STORAGE/windows.usb" ]; then
     if [ -z "${USB:-}" ]; then
       USB=$(<"$STORAGE/windows.usb")
       USB="${USB//[![:print:]]/}"
     fi
   fi
 
-  if [ -s "$STORAGE/windows.net" ] && [ -f "$STORAGE/windows.net" ]; then
+  if [ -s "$STORAGE/windows.net" && -f "$STORAGE/windows.net" ]; then
     if [ -z "${ADAPTER:-}" ]; then
       ADAPTER=$(<"$STORAGE/windows.net")
       ADAPTER="${ADAPTER//[![:print:]]/}"
     fi
   fi
 
-  if [ -s "$STORAGE/windows.type" ] && [ -f "$STORAGE/windows.type" ]; then
+  if [ -s "$STORAGE/windows.type" && -f "$STORAGE/windows.type" ]; then
     if [ -z "${DISK_TYPE:-}" ]; then
       DISK_TYPE=$(<"$STORAGE/windows.type")
       DISK_TYPE="${DISK_TYPE//[![:print:]]/}"
     fi
   fi
 
-  if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then
+  if [ -s "$STORAGE/windows.mode" && -f "$STORAGE/windows.mode" ]; then
     BOOT_MODE=$(<"$STORAGE/windows.mode")
     BOOT_MODE="${BOOT_MODE//[![:print:]]/}"
   fi
 
-  if [ -s "$STORAGE/windows.old" ] && [ -f "$STORAGE/windows.old" ]; then
+  if [ -s "$STORAGE/windows.old" && -f "$STORAGE/windows.old" ]; then
     if [[ "${PLATFORM,,}" == "x64" ]]; then
       MACHINE=$(<"$STORAGE/windows.old")
       MACHINE="${MACHINE//[![:print:]]/}"
@@ -1194,7 +1194,7 @@ if ! startInstall; then
   exit 68
 fi
 
-if [ ! -s "$ISO" ] || [ ! -f "$ISO" ]; then
+if [ ! -s "$ISO" || ! -f "$ISO" ]; then
   if ! downloadImage "$ISO" "$VERSION" "$LANGUAGE"; then
     rm -f "$ISO" 2> /dev/null || true
     exit 61
