@@ -403,13 +403,11 @@ getCatalog() {
   local edition=""
   local file="catalog.cab"
 
-  if [[ "${PLATFORM,,}" == "arm64" && "${ARCH,,}" == "arm64" ]];
-
-    # ARMv8.0 and lower cannot run Windows 11 builds higher than 22631
+  if [[ "${id,,}" == "win11"* && "${PLATFORM,,}" != "x64" && "${ARCH,,}" == "arm64" ]];
+    # ARMv8.0 cannot run Windows 11 builds higher than 22631
     if ! grep -qw 'Features.*atomics' /proc/cpuinfo; then
       echo $(getBuild "$1" "$2" "22631.2861") && return 0
     fi
-  
   fi
 
   case "${id,,}" in
