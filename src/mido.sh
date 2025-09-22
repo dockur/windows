@@ -406,7 +406,7 @@ getCatalog() {
   if [[ "${id,,}" == "win11"* && "${PLATFORM,,}" != "x64" && "${ARCH,,}" == "arm64" ]]; then
     # ARMv8.0 cannot run Windows 11 builds higher than 22631
     if ! grep -qw 'Features.*atomics' /proc/cpuinfo; then
-      "$(getBuild "$1" "$2" "22631.2861")" && return 0
+      echo "$(getBuild "$1" "$2" "22631.2861")" && return 0
     fi
   fi
 
