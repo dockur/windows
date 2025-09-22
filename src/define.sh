@@ -1885,6 +1885,10 @@ skipVersion() {
   return 1
 }
 
+isCompatible() {
+  return 0
+}
+
 setMachine() {
 
   local id="$1"
