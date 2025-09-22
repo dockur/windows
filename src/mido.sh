@@ -405,7 +405,7 @@ getCatalog() {
 
   if [[ "${id,,}" == "win11"* ]] && ! isCompatible; then
     # ARMv8.0 cannot run Windows 11 builds higher than 22631
-    echo "$(getBuild "$1" "$2" "22631.2861")" && return 0
+    getBuild "$1" "$2" "22631.2861" && return 0
   fi
 
   case "${id,,}" in
