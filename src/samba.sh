@@ -112,9 +112,9 @@ for dir in "${dirs[@]}"; do
 done
 
 # Try to fix  Samba permissions
-[ -d /run/samba/msg.lock ] && { chmod -R 0755 /run/samba/msg.lock } 2>/dev/null || :
-[ -d /var/log/samba/cores ] && { chmod -R 0700 /var/log/samba/cores } 2>/dev/null || :
-[ -d /var/cache/samba/msg.lock ] && { chmod -R 0755 /var/cache/samba/msg.lock } 2>/dev/null || :
+[ -d /run/samba/msg.lock ] && chmod -R 0755 /run/samba/msg.lock 2>/dev/null || :
+[ -d /var/log/samba/cores ] && chmod -R 0700 /var/log/samba/cores 2>/dev/null || :
+[ -d /var/cache/samba/msg.lock ] && chmod -R 0755 /var/cache/samba/msg.lock 2>/dev/null || :
 
 if ! smbd; then
   error "Samba daemon failed to start!"
