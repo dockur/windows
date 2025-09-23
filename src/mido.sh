@@ -460,7 +460,7 @@ getESD() {
     error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
   fi
 
-  local msg="Downloading product information..."
+  local msg="Downloading catalog..."
   info "$msg" && html "$msg"
 
   rm -rf "$dir"
