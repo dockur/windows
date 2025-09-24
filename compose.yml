@@ -1,32 +1,3 @@
-# services:
-#   windows:
-#     image: dockurr/windows
-#     container_name: windows_11
-#     privileged: true
-#     environment:
-#       VERSION: "11"
-#     devices:
-#       - /dev/kvm
-#       - /dev/net/tun
-#     cap_add:
-#       - NET_ADMIN
-#     ports:
-#       - 192.168.10.10:8006:8006
-#       - 192.168.10.10:3389:3389/tcp
-#       - 192.168.10.10:3389:3389/udp
-#     volumes:
-#       - ./win11x64.iso:/boot.iso
-#       - ./windows:/storage
-#       # - ./src/entry.sh:/run/entry.sh
-#     restart: always
-#     stop_grace_period: 2m
-#     networks:
-#       - ad_network
-
-# networks:
-#   ad_network:
-#     external: true
-
 services:
   windows_2025:
     image: dockurr/windows
@@ -34,7 +5,8 @@ services:
     privileged: true
     environment:
       VERSION: "2025"
-      DHCP: "Y"
+      DHCP: "Y" 
+      # IP: "192.168.10.20"
     devices:
       - /dev/kvm
       - /dev/net/tun
@@ -45,13 +17,13 @@ services:
       - NET_ADMIN
     volumes:
       - ./win2025-eval.iso:/boot.iso
-      - ./windows_2025:/storage
-      - ./src/entry.sh:/run/entry.sh
+      - ./windows_2025_storage_task1:/storage
+      - ./data_folder_2025_server:/data
     restart: always
     stop_grace_period: 2m
     networks:
       ad_vlan:
-        ipv4_address: 192.168.10.201 # container IP (Linux side). Windows guest will DHCP a *different* IP.
+        ipv4_address: 192.168.10.201 # Fix AD(Server_2025) server IP for Docker network
 
   windows_11:
     image: dockurr/windows
@@ -60,6 +32,7 @@ services:
     environment:
       VERSION: "11"
       DHCP: "Y"
+      # IP: "192.168.10.21"
     devices:
       - /dev/kvm
       - /dev/net/tun
@@ -70,13 +43,14 @@ services:
       - NET_ADMIN
     volumes:
       - ./win11x64.iso:/boot.iso
-      - ./windows:/storage
-      - ./src/entry.sh:/run/entry.sh
-    restart: always
+      - ./windows_11_storage_task1:/storage
+      - ./data_folder_win11:/data
     stop_grace_period: 2m
     networks:
       ad_vlan:
-        ipv4_address: 192.168.10.202 # container IP (Linux side)
+        ipv4_address: 192.168.10.202 # Fix Windows 11 IP for Docker network
+    depends_on:
+      - windows_2025
 
 networks:
   ad_vlan:
