@@ -277,7 +277,7 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>9</Order>
-          <CommandLine>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" /v "TurnOffWindowsCopilot" /t REG_DWORD /d 1 /f</CommandLine>
+          <CommandLine>reg.exe add "HKCU\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" /v "TurnOffWindowsCopilot" /t REG_DWORD /d 1 /f</CommandLine>
           <Description>Disable Windows Copilot by default</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
