@@ -381,8 +381,8 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>9</Order>
-          <CommandLine>reg.exe add "HKCU\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" /v "TurnOffWindowsCopilot" /t REG_DWORD /d 1 /f</CommandLine>
-          <Description>Disable Windows Copilot by default</Description>
+          <CommandLine>reg.exe add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "ShowCopilotButton" /t REG_DWORD /d 0 /f</CommandLine>
+          <Description>Hide Copilot button</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>10</Order>
