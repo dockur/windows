@@ -318,7 +318,7 @@ download_windows_eval() {
         [[ "$DEBUG" == [Yy1]* ]] && echo "Link for ARM platform currently not available!"
         return 1
       fi ;;
-  esac ;;
+  esac
 
   MIDO_URL="$iso_download_link"
   return 0
