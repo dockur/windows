@@ -184,6 +184,7 @@ download_windows_eval() {
   local desc="$3"
   local filter=""
   local culture=""
+  local compare=""
   local language=""
   local user_agent=""
   local enterprise_type=""
@@ -322,6 +323,13 @@ download_windows_eval() {
         return 1
       fi ;;
   esac
+
+  if [[ "$DEBUG" == [Yy1]* && "$VERIFY" == [Yy1]* && "${lang,,}" == "en"* ]]; then
+    compare=$(getMido "$id" "$lang" "")
+    if [[ "${iso_download_link,,}" != "${compare,,}" ]]; then
+      echo "Retrieved link does not match the fixed link: $compare"
+    fi
+  fi
 
   MIDO_URL="$iso_download_link"
   return 0
