@@ -317,7 +317,7 @@ download_windows_eval() {
         return 1
       fi ;;
     "arm64" )
-      if [[ "${iso_download_link,,}" != *"a64"* ]]; then
+      if [[ "${iso_download_link,,}" != *"a64"* && "${iso_download_link,,}" != *"arm64"* ]]; then
         [[ "$DEBUG" == [Yy1]* ]] && echo "Link for ARM platform currently not available!"
         return 1
       fi ;;
