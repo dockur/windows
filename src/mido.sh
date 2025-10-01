@@ -171,6 +171,8 @@ download_windows() {
     return 1
   fi
 
+  [[ "$DEBUG" == [Yy1]* ]] && echo "Found download link: $iso_download_link"
+
   MIDO_URL="$iso_download_link"
   return 0
 }
@@ -295,7 +297,6 @@ download_windows_eval() {
       error "Invalid type specified, value \"$enterprise_type\" is not recognized!" && return 1 ;;
   esac
 
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Found download link: $iso_download_link"
   [ -z "$iso_download_link" ] && error "Could not parse download link from page!" && return 1
 
   # Follow redirect so proceeding log message is useful
@@ -306,6 +307,8 @@ download_windows_eval() {
     handle_curl_error "$?" "Microsoft"
     return $?
   }
+
+  [[ "$DEBUG" == [Yy1]* ]] && echo "Found download link: $iso_download_link"
 
   case "${PLATFORM,,}" in
     "x64" )
