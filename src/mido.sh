@@ -271,16 +271,9 @@ download_windows_eval() {
             iso_download_link=$(echo "$iso_download_links" | head -n 1)
           else
             iso_download_link=$(echo "$iso_download_links" | head -n 4 | tail -n 1)
-          fi
-          [[ "${iso_download_link,,}" != *"x64"* ]] && iso_download_link="" ;;
-        "arm64" )
-          iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1)
-          if [[ "${iso_download_link,,}" != *"a64"* ]]; then
-            [[ "$DEBUG" == [Yy1]* ]] && echo "Link for ARM platform currently not available!"
-            return 1
           fi ;;
-        * )
-          error "Invalid platform specified, value \"$PLATFORM\" is not recognized!" && return 1 ;;
+        "arm64" )
+          iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1) ;;
       esac ;;
     "enterprise" )
       case "${PLATFORM,,}" in
@@ -289,23 +282,14 @@ download_windows_eval() {
             iso_download_link=$(echo "$iso_download_links" | head -n 1)
           else
             iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1)
-          fi
-          [[ "${iso_download_link,,}" != *"x64"* ]] && iso_download_link="" ;;
-        "arm64" )
-          iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1)
-          if [[ "${iso_download_link,,}" != *"a64"* ]]; then
-            [[ "$DEBUG" == [Yy1]* ]] && echo "Link for ARM platform currently not available!"
-            return 1
           fi ;;
-        * )
-          error "Invalid platform specified, value \"$PLATFORM\" is not recognized!" && return 1 ;;
+        "arm64" )
+          iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1) ;;
       esac ;;
     "server" )
       case "${PLATFORM,,}" in
         "x64" )
           iso_download_link=$(echo "$iso_download_links" | head -n 1) ;;
-        * )
-          error "Invalid platform specified, value \"$PLATFORM\" is not recognized!" && return 1 ;;
       esac ;;
     * )
       error "Invalid type specified, value \"$enterprise_type\" is not recognized!" && return 1 ;;
@@ -322,6 +306,19 @@ download_windows_eval() {
     handle_curl_error "$?" "Microsoft"
     return $?
   }
+
+  case "${PLATFORM,,}" in
+    "x64" )
+      if [[ "${iso_download_link,,}" != *"x64"* ]]; then
+        error "Download link is for the wrong platform? Please report this at $SUPPORT/issues" 
+        return 1
+      fi ;;
+    "arm64" )
+      if [[ "${iso_download_link,,}" != *"a64"* ]]; then
+        [[ "$DEBUG" == [Yy1]* ]] && echo "Link for ARM platform currently not available!"
+        return 1
+      fi ;;
+  esac ;;
 
   MIDO_URL="$iso_download_link"
   return 0
