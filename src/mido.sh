@@ -271,9 +271,14 @@ download_windows_eval() {
             iso_download_link=$(echo "$iso_download_links" | head -n 1)
           else
             iso_download_link=$(echo "$iso_download_links" | head -n 4 | tail -n 1)
-          fi ;;
+          fi
+          [[ "${iso_download_link,,}" != *"x64"* ]] && iso_download_link="" ;;
         "arm64" )
-          iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1) ;;
+          iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1)
+          if [[ "${iso_download_link,,}" != *"a64"* ]]; then
+            [[ "$DEBUG" == [Yy1]* ]] && echo "Link for ARM platform currently not available!"
+            return 1
+          fi ;;
         * )
           error "Invalid platform specified, value \"$PLATFORM\" is not recognized!" && return 1 ;;
       esac ;;
@@ -284,14 +289,24 @@ download_windows_eval() {
             iso_download_link=$(echo "$iso_download_links" | head -n 1)
           else
             iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1)
-          fi ;;
+          fi
+          [[ "${iso_download_link,,}" != *"x64"* ]] && iso_download_link="" ;;
         "arm64" )
-          iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1) ;;
+          iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1)
+          if [[ "${iso_download_link,,}" != *"a64"* ]]; then
+            [[ "$DEBUG" == [Yy1]* ]] && echo "Link for ARM platform currently not available!"
+            return 1
+          fi ;;
         * )
           error "Invalid platform specified, value \"$PLATFORM\" is not recognized!" && return 1 ;;
       esac ;;
     "server" )
-      iso_download_link=$(echo "$iso_download_links" | head -n 1) ;;
+      case "${PLATFORM,,}" in
+        "x64" )
+          iso_download_link=$(echo "$iso_download_links" | head -n 1) ;;
+        * )
+          error "Invalid platform specified, value \"$PLATFORM\" is not recognized!" && return 1 ;;
+      esac ;;
     * )
       error "Invalid type specified, value \"$enterprise_type\" is not recognized!" && return 1 ;;
   esac
