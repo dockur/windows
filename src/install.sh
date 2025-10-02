@@ -127,8 +127,9 @@ startInstall() {
     if [[ "${VERSION,,}" == "http"* ]]; then
 
       file=$(basename "${VERSION%%\?*}")
-      : "${file//+/ }"; printf -v file '%b' "${_//%/\\x}"
-      file=$(echo "$file" | sed -e 's/[^A-Za-z0-9._-]/_/g')
+      file="${file//+/ }"
+      printf -v file '%b' "${file//%/\\x}"
+      file="${file//[!A-Za-z0-9._-]/_}"
 
     else
 
