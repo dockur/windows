@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-: "${SAMBA:="Y"}"
+: "${SAMBA:="Y"}"        # Enable Samba
+: "${SAMBA_DEBUG:="N"}"  # Disable debug
+: "${SAMBA_LEVEL:="1"}"  # Debug log level
 
 [[ "$SAMBA" == [Nn]* ]] && return 0
 [[ "$NETWORK" == [Nn]* ]] && return 0
@@ -18,7 +20,7 @@ if [[ "${NETWORK,,}" == "user"* ]]; then
   interface="127.0.0.1"
 fi
 
-html "Starting file sharing services..."
+html "Initializing shared folder..."
 [[ "$DEBUG" == [Yy1]* ]] && echo "Starting Samba daemon..."
 
 addShare() {
@@ -119,22 +121,44 @@ done
 [ -d /var/log/samba/cores ] && chmod -R 0700 /var/log/samba/cores 2>/dev/null || :
 [ -d /var/cache/samba/msg.lock ] && chmod -R 0755 /var/cache/samba/msg.lock 2>/dev/null || :
 
-if ! smbd; then
-  error "Samba daemon failed to start!"
-  smbd -i --debug-stdout || true
+if [[ "$SAMBA_DEBUG" != [Yy1]* ]]; then
+  if ! smbd; then
+    SAMBA_DEBUG="Y"
+    error "Samba daemon failed to start!"
+  fi
+fi
+
+if [[ "$SAMBA_DEBUG" == [Yy1]* ]]; then
+  smbd -i -d "$SAMBA_LEVEL" --debug-stdout &
 fi
 
 if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
+
   # Enable NetBIOS on Windows 7 and lower
   [[ "$DEBUG" == [Yy1]* ]] && echo "Starting NetBIOS daemon..."
-  if ! nmbd; then
-    error "NetBIOS daemon failed to start!"
-    nmbd -i --debug-stdout || true
+
+  if [[ "$SAMBA_DEBUG" != [Yy1]* ]]; then
+    if ! nmbd; then
+      SAMBA_DEBUG="Y"
+      error "NetBIOS daemon failed to start!"
+    fi
   fi
+
+  if [[ "$SAMBA_DEBUG" == [Yy1]* ]]; then
+    nmbd -i -d "$SAMBA_LEVEL" --debug-stdout &
+  fi
+
 else
+
   # Enable Web Service Discovery on Vista and up
   [[ "$DEBUG" == [Yy1]* ]] && echo "Starting Web Service Discovery daemon..."
-  wsddn -i "$interface" -H "$hostname" --pid-file=/var/run/wsdd.pid >/dev/null &
+
+  if [[ "$SAMBA_DEBUG" != [Yy1]* ]]; then
+    wsddn -i "$interface" -H "$hostname" --unixd --pid-file=/var/run/wsdd.pid
+  else
+    wsddn -i "$interface" -H "$hostname" --pid-file=/var/run/wsdd.pid &
+  fi
+
 fi
 
 return 0
