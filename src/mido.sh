@@ -171,8 +171,6 @@ download_windows() {
     return 1
   fi
 
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Found download link: $iso_download_link"
-
   MIDO_URL="$iso_download_link"
   return 0
 }
@@ -309,17 +307,19 @@ download_windows_eval() {
     return $?
   }
 
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Found download link: $iso_download_link"
-
   case "${PLATFORM,,}" in
     "x64" )
       if [[ "${iso_download_link,,}" != *"x64"* ]]; then
-        error "Download link is for the wrong platform? Please report this at $SUPPORT/issues" 
+        echo "Found download link: $iso_download_link"
+        error "Download link is for the wrong platform? Please report this at $SUPPORT/issues"
         return 1
       fi ;;
     "arm64" )
       if [[ "${iso_download_link,,}" != *"a64"* && "${iso_download_link,,}" != *"arm64"* ]]; then
-        [[ "$DEBUG" == [Yy1]* ]] && echo "Link for ARM platform currently not available!"
+        if [[ "$DEBUG" == [Yy1]* ]]; then
+          echo "Found download link: $iso_download_link"
+          echo "Link for ARM platform currently not available!"
+        fi
         return 1
       fi ;;
   esac
