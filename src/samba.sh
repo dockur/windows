@@ -5,6 +5,8 @@ set -Eeuo pipefail
 : "${SAMBA_DEBUG:="N"}"  # Disable debug
 : "${SAMBA_LEVEL:="1"}"  # Debug log level
 
+rm -rf /var/run/wsdd.pid
+
 [[ "$SAMBA" == [Nn]* ]] && return 0
 [[ "$NETWORK" == [Nn]* ]] && return 0
 
@@ -40,18 +42,18 @@ addShare() {
             echo " For support visit $SUPPORT"
             echo "--------------------------------------------------------"
             echo ""
-            echo "Using this folder you can share files with the host machine."
+            echo "Using this folder you can exchange files with the host machine."
             echo ""
             echo "To change its location, include the following bind mount in your compose file:"
             echo ""
             echo "  volumes:"
-            echo "    - \"/home/example:/${name,,}\""
+            echo "    - \"./example:/${name,,}\""
             echo ""
             echo "Or in your run command:"
             echo ""
-            echo "  -v \"/home/example:/${name,,}\""
+            echo "  -v \"\${PWD:-.}/example:/${name,,}\""
             echo ""
-            echo "Replace the example path /home/example with the desired shared folder."
+            echo "Replace the example path ./example with the desired shared folder."
             echo ""
     } | unix2dos > "$dir/readme.txt"
 
@@ -150,15 +152,19 @@ if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
 
 else
 
-  # Enable Web Service Discovery on Vista and up
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Starting Web Service Discovery daemon..."
+  if [[ "${NETWORK,,}" != "user"* ]]; then
+    
+    # Enable Web Service Discovery on Vista and up
+    [[ "$DEBUG" == [Yy1]* ]] && echo "Starting Web Service Discovery daemon..."
 
-  if [[ "$SAMBA_DEBUG" != [Yy1]* ]]; then
-    wsddn -i "$interface" -H "$hostname" --unixd --pid-file=/var/run/wsdd.pid
-  else
-    wsddn -i "$interface" -H "$hostname" --pid-file=/var/run/wsdd.pid &
+    if [[ "$SAMBA_DEBUG" != [Yy1]* ]]; then
+      wsddn -i "$interface" -H "$hostname" --unixd --pid-file=/var/run/wsdd.pid
+    else
+      wsddn -i "$interface" -H "$hostname" --pid-file=/var/run/wsdd.pid &
+    fi
+
   fi
-
+  
 fi
 
 return 0
