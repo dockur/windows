@@ -1777,7 +1777,7 @@ prepareInstall() {
           echo "  Set oFile = Nothing"
           echo "End With"
           echo ""
-          echo "Set oLink = WshShell.CreateShortcut(WshShell.ExpandEnvironmentStrings(\"%userprofile%\\Desktop\\Shared.lnk\")"
+          echo "Set oLink = WshShell.CreateShortcut(WshShell.ExpandEnvironmentStrings(\"%userprofile%\\Desktop\\Shared.lnk\"))"
           echo "With oLink"
           echo "  .TargetPath = \"\\\\host.lan\\Data\""
           echo "  .Save"
