@@ -134,6 +134,8 @@ if [[ "$SAMBA_DEBUG" == [Yy1]* ]]; then
   smbd -i -d "$SAMBA_LEVEL" --debug-stdout &
 fi
 
+[[ "${NETWORK,,}" == "user"* ]] && return 0
+
 if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
 
   # Enable NetBIOS on Windows 7 and lower
@@ -151,18 +153,14 @@ if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
   fi
 
 else
+   
+  # Enable Web Service Discovery on Vista and up
+  [[ "$DEBUG" == [Yy1]* ]] && echo "Starting Web Service Discovery daemon..."
 
-  if [[ "${NETWORK,,}" != "user"* ]]; then
-    
-    # Enable Web Service Discovery on Vista and up
-    [[ "$DEBUG" == [Yy1]* ]] && echo "Starting Web Service Discovery daemon..."
-
-    if [[ "$SAMBA_DEBUG" != [Yy1]* ]]; then
-      wsddn -i "$interface" -H "$hostname" --unixd --pid-file=/var/run/wsdd.pid
-    else
-      wsddn -i "$interface" -H "$hostname" --pid-file=/var/run/wsdd.pid &
-    fi
-
+  if [[ "$SAMBA_DEBUG" != [Yy1]* ]]; then
+    wsddn -i "$interface" -H "$hostname" --unixd --pid-file=/var/run/wsdd.pid
+  else
+    wsddn -i "$interface" -H "$hostname" --pid-file=/var/run/wsdd.pid &
   fi
   
 fi
