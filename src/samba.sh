@@ -18,6 +18,7 @@ if [[ "${NETWORK,,}" == "user"* ]]; then
   interface="127.0.0.1"
 fi
 
+html "Starting file sharing services..."
 [[ "$DEBUG" == [Yy1]* ]] && echo "Starting Samba daemon..."
 
 addShare() {
