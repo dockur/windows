@@ -18,6 +18,9 @@ if [[ "${NETWORK,,}" == "user"* ]]; then
   interface="127.0.0.1"
 fi
 
+html "Starting file sharing services..."
+[[ "$DEBUG" == [Yy1]* ]] && echo "Starting Samba daemon..."
+
 addShare() {
   local dir="$1"
   local name="$2"
@@ -123,12 +126,14 @@ fi
 
 if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
   # Enable NetBIOS on Windows 7 and lower
+  [[ "$DEBUG" == [Yy1]* ]] && echo "Starting NetBIOS daemon..."
   if ! nmbd; then
     error "NetBIOS daemon failed to start!"
     nmbd -i --debug-stdout || true
   fi
 else
   # Enable Web Service Discovery on Vista and up
+  [[ "$DEBUG" == [Yy1]* ]] && echo "Starting Web Service Discovery daemon..."
   wsddn -i "$interface" -H "$hostname" --pid-file=/var/run/wsdd.pid >/dev/null &
 fi
 
