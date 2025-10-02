@@ -462,7 +462,7 @@
         <SynchronousCommand wcm:action="add">
           <Order>25</Order>
           <CommandLine>cmd /C mklink /d %userprofile%\Desktop\Shared \\host.lan\Data</CommandLine>
-          <Description>Create shortcut to shared folder on desktop</Description>
+          <Description>Create desktop shortcut to shared folder</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>26</Order>
