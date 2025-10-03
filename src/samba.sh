@@ -27,8 +27,9 @@ html "Initializing shared folder..."
 
 addShare() {
   local dir="$1"
-  local name="$2"
-  local comment="$3"
+  local ref="$2"
+  local name="$3" 
+  local comment="$4"
 
   mkdir -p "$dir" || return 1
   ls -A "$dir" >/dev/null 2>&1 || return 1
@@ -47,11 +48,11 @@ addShare() {
             echo "To select a folder on the host for this purpose, include the following bind mount in your compose file:"
             echo ""
             echo "  volumes:"
-            echo "    - \"./example:/${name,,}\""
+            echo "    - \"./example:${ref}\""
             echo ""
             echo "Or in your run command:"
             echo ""
-            echo "  -v \"\${PWD:-.}/example:/${name,,}\""
+            echo "  -v \"\${PWD:-.}/example:${ref}\""
             echo ""
             echo "Replace the example path ./example with your desired shared folder, which then will become visible here."
             echo ""
@@ -94,28 +95,28 @@ addShare() {
         echo "    disable spoolss = yes"
 } > "/etc/samba/smb.conf"
 
-share="/shared"
-[ ! -d "$share" ] && [ -d "$STORAGE/shared" ] && share="$STORAGE/shared"
-[ ! -d "$share" ] && [ -d "/data" ] && share="/data"
+share="/data"
 [ ! -d "$share" ] && [ -d "$STORAGE/data" ] && share="$STORAGE/data"
+[ ! -d "$share" ] && [ -d "/shared" ] && share="/shared"
+[ ! -d "$share" ] && [ -d "$STORAGE/shared" ] && share="$STORAGE/shared"
 
-if ! addShare "$share" "Data" "Shared"; then
+if ! addShare "$share" "/shared" "Data" "Shared"; then
   error "Failed to add shared folder '$share'. Please check its permissions." && return 0
 fi
 
 if [ -d "/shared2" ]; then
-  addShare "/shared2" "Data2" "Shared" || error "Failed to add shared folder '/shared2'. Please check its permissions."
+  addShare "/shared2" "/shared2" "Data2" "Shared" || error "Failed to add shared folder '/shared2'. Please check its permissions."
 else
   if [ -d "/data2" ]; then
-    addShare "/data2" "Data2" "Shared" || error "Failed to add shared folder '/data2'. Please check its permissions."
+    addShare "/data2" "/shared2" "Data2" "Shared" || error "Failed to add shared folder '/data2'. Please check its permissions."
   fi
 fi
 
 if [ -d "/shared3" ]; then
-  addShare "/shared3" "Data3" "Shared" || error "Failed to add shared folder '/shared3'. Please check its permissions."
+  addShare "/shared3" "/shared3" "Data3" "Shared" || error "Failed to add shared folder '/shared3'. Please check its permissions."
 else
   if [ -d "/data3" ]; then
-    addShare "/data3" "Data3" "Shared" || error "Failed to add shared folder '/data3'. Please check its permissions."
+    addShare "/data3" "/shared3" "Data3" "Shared" || error "Failed to add shared folder '/data3'. Please check its permissions."
   fi
 fi
 
