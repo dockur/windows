@@ -143,19 +143,16 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I share files with the host?
 
-  Open 'File Explorer' and click on the 'Network' section, you will see a computer called `host.lan`.
+  After installation there will be a folder called `Shared` on your desktop, which can be used to exchange files with the host machine.
   
-  Double-click it and it will show a folder called `Data`, which can be bound to any folder on your host via the compose file:
+  To select a folder on the host for this purpose, include the following bind mount in your compose file:
 
   ```yaml
   volumes:
-    -  ./example:/data
+    -  ./example:/shared
   ```
 
-  The example folder `./example` will be available as ` \\host.lan\Data`.
-  
-> [!TIP]
-> You can map this path to a drive letter in Windows, for easier access.
+  Replace the example path `./example` with your desired shared folder, which then will become visible as `Shared`.
 
 ### How do I change the amount of CPU or RAM?
 
