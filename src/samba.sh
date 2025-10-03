@@ -118,51 +118,54 @@ for dir in "${dirs[@]}"; do
   addShare "$dir" "$dir_name" "Shared $dir_name" || error "Failed to create shared folder for $dir!"
 done
 
-# Try to fix  Samba permissions
+# Try to repair Samba permissions
 [ -d /run/samba/msg.lock ] && chmod -R 0755 /run/samba/msg.lock 2>/dev/null || :
 [ -d /var/log/samba/cores ] && chmod -R 0700 /var/log/samba/cores 2>/dev/null || :
 [ -d /var/cache/samba/msg.lock ] && chmod -R 0755 /var/cache/samba/msg.lock 2>/dev/null || :
 
-if [[ "$SAMBA_DEBUG" != [Yy1]* ]]; then
-  if ! smbd; then
-    SAMBA_DEBUG="Y"
-    error "Samba daemon failed to start!"
-  fi
+rm -f /var/log/samba/log.smbd
+
+if ! smbd -l /var/log/samba; then
+  SAMBA_DEBUG="Y"
+  error "Failed to start Samba daemon!"
 fi
 
 if [[ "$SAMBA_DEBUG" == [Yy1]* ]]; then
-  smbd -i -d "$SAMBA_LEVEL" --debug-stdout &
+  tail -fn +0 /var/log/samba/log.smbd &
 fi
-
-[[ "${NETWORK,,}" == "user"* ]] && return 0
 
 if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
 
   # Enable NetBIOS on Windows 7 and lower
   [[ "$DEBUG" == [Yy1]* ]] && echo "Starting NetBIOS daemon..."
 
-  if [[ "$SAMBA_DEBUG" != [Yy1]* ]]; then
-    if ! nmbd; then
-      SAMBA_DEBUG="Y"
-      error "NetBIOS daemon failed to start!"
-    fi
+  rm -f /var/log/samba/log.nmbd
+
+  if ! nmbd -l /var/log/samba; then
+    SAMBA_DEBUG="Y"
+    error "Failed to start NetBIOS daemon!"
   fi
 
   if [[ "$SAMBA_DEBUG" == [Yy1]* ]]; then
-    nmbd -i -d "$SAMBA_LEVEL" --debug-stdout &
+    tail -fn +0 /var/log/samba/log.nmbd &
   fi
 
 else
-   
+
   # Enable Web Service Discovery on Vista and up
   [[ "$DEBUG" == [Yy1]* ]] && echo "Starting Web Service Discovery daemon..."
 
-  if [[ "$SAMBA_DEBUG" != [Yy1]* ]]; then
-    wsddn -i "$interface" -H "$hostname" --unixd --pid-file=/var/run/wsdd.pid
-  else
-    wsddn -i "$interface" -H "$hostname" --pid-file=/var/run/wsdd.pid &
+  rm -f /var/log/wsddn.log
+
+  if ! wsddn -i "$interface" -H "$hostname" --unixd --log-file=/var/log/wsddn.log --pid-file=/var/run/wsdd.pid; then
+    SAMBA_DEBUG="Y"
+    error "Failed to start WSDDN daemon!"
   fi
-  
+
+  if [[ "$SAMBA_DEBUG" == [Yy1]* ]]; then
+    tail -fn +0 /var/log/wsddn.log &
+  fi
+
 fi
 
 return 0
