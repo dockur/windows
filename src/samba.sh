@@ -44,7 +44,7 @@ addShare() {
             echo ""
             echo "Using this folder you can exchange files with the host machine."
             echo ""
-            echo "To select the folder you want to share, include the following bind mount in your compose file:"
+            echo "To select a folder on the host for this purpose, include the following bind mount in your compose file:"
             echo ""
             echo "  volumes:"
             echo "    - \"./example:/${name,,}\""
@@ -53,7 +53,7 @@ addShare() {
             echo ""
             echo "  -v \"\${PWD:-.}/example:/${name,,}\""
             echo ""
-            echo "Replace the example path ./example with your desired shared folder."
+            echo "Replace the example path ./example with your desired shared folder, which then will become visible here."
             echo ""
     } | unix2dos > "$dir/readme.txt"
 
