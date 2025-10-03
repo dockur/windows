@@ -5,6 +5,8 @@ set -Eeuo pipefail
 : "${SAMBA_DEBUG:="N"}"  # Disable debug
 : "${SAMBA_LEVEL:="1"}"  # Debug log level
 
+tmp="/tmp/smb"
+rm -rf "$tmp"
 rm -rf /var/run/wsdd.pid
 
 [[ "$SAMBA" == [Nn]* ]] && return 0
@@ -35,8 +37,10 @@ addShare() {
   ls -A "$dir" >/dev/null 2>&1 || return 1
 
   if [ -z "$(ls -A "$dir")" ]; then
-
     chmod 777 "$dir" || return 1
+  fi
+
+  if [[ "$dir" == "$tmp" ]]; then
 
     {      echo "--------------------------------------------------------"
             echo " $APP for Docker v$(</run/version)..."
@@ -95,28 +99,32 @@ addShare() {
         echo "    disable spoolss = yes"
 } > "/etc/samba/smb.conf"
 
-share="/data"
-[ ! -d "$share" ] && [ -d "$STORAGE/data" ] && share="$STORAGE/data"
-[ ! -d "$share" ] && [ -d "/shared" ] && share="/shared"
+share="/shared"
 [ ! -d "$share" ] && [ -d "$STORAGE/shared" ] && share="$STORAGE/shared"
+[ ! -d "$share" ] && [ -d "/data" ] && share="/data"
+[ ! -d "$share" ] && [ -d "$STORAGE/data" ] && share="$STORAGE/data"
+[ ! -d "$share" ] && share="$tmp"
+
+m1="Failed to add shared folder"
+m2="Please check its permissions."
 
 if ! addShare "$share" "/shared" "Data" "Shared"; then
-  error "Failed to add shared folder '$share'. Please check its permissions." && return 0
+  error "$m1 '$share'. $m2" && return 0
 fi
 
 if [ -d "/shared2" ]; then
-  addShare "/shared2" "/shared2" "Data2" "Shared" || error "Failed to add shared folder '/shared2'. Please check its permissions."
+  addShare "/shared2" "/shared2" "Data2" "Shared" || error "$m1 '/shared2'. $m2"
 else
   if [ -d "/data2" ]; then
-    addShare "/data2" "/shared2" "Data2" "Shared" || error "Failed to add shared folder '/data2'. Please check its permissions."
+    addShare "/data2" "/shared2" "Data2" "Shared" || error "$m1 '/data2'. $m2."
   fi
 fi
 
 if [ -d "/shared3" ]; then
-  addShare "/shared3" "/shared3" "Data3" "Shared" || error "Failed to add shared folder '/shared3'. Please check its permissions."
+  addShare "/shared3" "/shared3" "Data3" "Shared" || error "$m1 '/shared3'. $m2"
 else
   if [ -d "/data3" ]; then
-    addShare "/data3" "/shared3" "Data3" "Shared" || error "Failed to add shared folder '/data3'. Please check its permissions."
+    addShare "/data3" "/shared3" "Data3" "Shared" || error "$m1 '/data3'. $m2"
   fi
 fi
 
@@ -124,7 +132,7 @@ IFS=',' read -r -a dirs <<< "${SHARES:-}"
 for dir in "${dirs[@]}"; do
   [ ! -d "$dir" ] && continue
   dir_name=$(basename "$dir")
-  addShare "$dir" "$dir_name" "Shared $dir_name" || error "Failed to create shared folder for $dir!"
+  addShare "$dir" "/shared" "$dir_name" "Shared $dir_name" || error "Failed to create shared folder for $dir!"
 done
 
 # Try to repair Samba permissions
