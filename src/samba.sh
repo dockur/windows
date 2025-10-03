@@ -94,21 +94,29 @@ addShare() {
         echo "    disable spoolss = yes"
 } > "/etc/samba/smb.conf"
 
-share="/data"
-[ ! -d "$share" ] && [ -d "$STORAGE/data" ] && share="$STORAGE/data"
-[ ! -d "$share" ] && [ -d "/shared" ] && share="/shared"
+share="/shared"
 [ ! -d "$share" ] && [ -d "$STORAGE/shared" ] && share="$STORAGE/shared"
+[ ! -d "$share" ] && [ -d "/data" ] && share="/data"
+[ ! -d "$share" ] && [ -d "$STORAGE/data" ] && share="$STORAGE/data"
 
 if ! addShare "$share" "Data" "Shared"; then
   error "Failed to add shared folder '$share'. Please check its permissions." && return 0
 fi
 
-if [ -d "/data2" ]; then
-  addShare "/data2" "Data2" "Shared" || error "Failed to add shared folder '/data2'. Please check its permissions."
+if [ -d "/shared2" ]; then
+  addShare "/shared2" "Data2" "Shared" || error "Failed to add shared folder '/shared2'. Please check its permissions."
+else
+  if [ -d "/data2" ]; then
+    addShare "/data2" "Data2" "Shared" || error "Failed to add shared folder '/data2'. Please check its permissions."
+  fi
 fi
 
-if [ -d "/data3" ]; then
-  addShare "/data3" "Data3" "Shared" || error "Failed to add shared folder '/data3'. Please check its permissions."
+if [ -d "/shared3" ]; then
+  addShare "/shared3" "Data3" "Shared" || error "Failed to add shared folder '/shared3'. Please check its permissions."
+else
+  if [ -d "/data3" ]; then
+    addShare "/data3" "Data3" "Shared" || error "Failed to add shared folder '/data3'. Please check its permissions."
+  fi
 fi
 
 IFS=',' read -r -a dirs <<< "${SHARES:-}"
