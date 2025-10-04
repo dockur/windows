@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+: "${QEMU_TIMEOUT:="110"}"  # QEMU Termination timeout
+
 # Configure QEMU for graceful shutdown
 
 QEMU_TERM=""
-QEMU_PORT=7100
-QEMU_TIMEOUT=110
 QEMU_DIR="/run/shm"
 QEMU_PID="$QEMU_DIR/qemu.pid"
 QEMU_PTY="$QEMU_DIR/qemu.pty"
@@ -139,7 +139,7 @@ terminal() {
   fi
 
   if [ ! -c "$dev" ]; then
-    dev=$(echo 'info chardev' | nc -q 1 -w 1 localhost "$QEMU_PORT" | tr -d '\000')
+    dev=$(echo 'info chardev' | nc -q 1 -w 1 localhost "$MON_PORT" | tr -d '\000')
     dev="${dev#*serial0}"
     dev="${dev#*pty:}"
     dev="${dev%%$'\n'*}"
@@ -188,7 +188,7 @@ _graceful_shutdown() {
   fi
 
   # Send ACPI shutdown signal
-  echo 'system_powerdown' | nc -q 1 -w 1 localhost "${QEMU_PORT}" > /dev/null
+  echo 'system_powerdown' | nc -q 1 -w 1 localhost "$MON_PORT" > /dev/null
 
   local cnt=0
   while [ "$cnt" -lt "$QEMU_TIMEOUT" ]; do
@@ -203,7 +203,7 @@ _graceful_shutdown() {
     info "Waiting for Windows to shutdown... ($cnt/$QEMU_TIMEOUT)"
 
     # Send ACPI shutdown signal
-    echo 'system_powerdown' | nc -q 1 -w 1 localhost "${QEMU_PORT}" > /dev/null
+    echo 'system_powerdown' | nc -q 1 -w 1 localhost "$MON_PORT" > /dev/null
 
   done
 
@@ -215,7 +215,7 @@ _graceful_shutdown() {
 }
 
 SERIAL="pty"
-MONITOR="telnet:localhost:$QEMU_PORT,server,nowait,nodelay"
+MONITOR="telnet:localhost:$MON_PORT,server,nowait,nodelay"
 MONITOR+=" -daemonize -D $QEMU_LOG -pidfile $QEMU_PID"
 
 _trap _graceful_shutdown SIGTERM SIGHUP SIGINT SIGABRT SIGQUIT
