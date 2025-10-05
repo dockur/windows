@@ -756,10 +756,6 @@ updateXML() {
   local language="$2"
   local culture region user admin pass keyboard
 
-  if [ -n "${VM_NET_GATEWAY:-}" ]; then
-    sed -i "s/ 20.20.20.1 / $VM_NET_GATEWAY /g" "$asset"
-  fi
-
   [ -z "$HEIGHT" ] && HEIGHT="720"
   [ -z "$WIDTH" ] && WIDTH="1280"
 
