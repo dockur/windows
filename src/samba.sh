@@ -2,8 +2,8 @@
 set -Eeuo pipefail
 
 : "${SAMBA:="Y"}"        # Enable Samba
+: "${SAMBA_LEVEL:="1"}"  # Logging level
 : "${SAMBA_DEBUG:="N"}"  # Disable debug
-: "${SAMBA_LEVEL:="1"}"  # Debug log level
 
 tmp="/tmp/smb"
 rm -rf "$tmp"
@@ -13,15 +13,22 @@ rm -rf /var/run/wsdd.pid
 [[ "$NETWORK" == [Nn]* ]] && return 0
 
 hostname="host.lan"
-interface="dockerbridge"
+interfaces="dockerbridge"
+
+if [ -n "${SAMBA_INTERFACE:-}" ]; then
+  interfaces+=",$SAMBA_INTERFACE"
+fi
 
 if [[ "$DHCP" == [Yy1]* ]]; then
   hostname="$IP"
-  interface="$VM_NET_DEV"
+  interfaces="$VM_NET_DEV"
 fi
 
 if [[ "${NETWORK,,}" == "user"* ]]; then
-  interface="127.0.0.1"
+  interfaces="lo"
+  if ! ip link set "$interfaces" multicast on >/dev/null; then
+    warn "Failed to enable multicast on loopback interface!"
+  fi
 fi
 
 html "Initializing shared folder..."
@@ -82,7 +89,7 @@ addShare() {
         echo "    server string = Dockur"
         echo "    netbios name = $hostname"
         echo "    workgroup = WORKGROUP"
-        echo "    interfaces = $interface"
+        echo "    interfaces = $interfaces"
         echo "    bind interfaces only = yes"
         echo "    security = user"
         echo "    guest account = nobody"
@@ -170,13 +177,13 @@ if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
 else
 
   # Enable Web Service Discovery on Vista and up
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Starting Web Service Discovery daemon..."
+  [[ "$DEBUG" == [Yy1]* ]] && echo "Starting wsddn daemon..."
 
   rm -f /var/log/wsddn.log
 
-  if ! wsddn -i "$interface" -H "$hostname" --unixd --log-file=/var/log/wsddn.log --pid-file=/var/run/wsdd.pid; then
+  if ! wsddn -i "${interfaces%%,*}" -H "$hostname" --unixd --log-file=/var/log/wsddn.log --pid-file=/var/run/wsdd.pid; then
     SAMBA_DEBUG="Y"
-    error "Failed to start WSDDN daemon!"
+    error "Failed to start wsddn daemon!"
   fi
 
   if [[ "$SAMBA_DEBUG" == [Yy1]* ]]; then
