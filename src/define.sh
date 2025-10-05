@@ -1585,7 +1585,7 @@ prepareInstall() {
   [ -z "$password" ] && password="admin"
 
   local ip="20.20.20.1"
-  [ -n "${VM_NET_IP:-}" ] && ip="${VM_NET_IP%.*}.1"
+  [ -n "${VM_NET_GATEWAY:-}" ] && ip="$VM_NET_GATEWAY"
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
