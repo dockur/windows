@@ -12,23 +12,23 @@ rm -rf /var/run/wsdd.pid
 [[ "$SAMBA" == [Nn]* ]] && return 0
 [[ "$NETWORK" == [Nn]* ]] && return 0
 
-hostname="host.lan"
-interfaces="dockerbridge"
-
-if [ -n "${SAMBA_INTERFACE:-}" ]; then
-  interfaces+=",$SAMBA_INTERFACE"
-fi
-
 if [[ "$DHCP" == [Yy1]* ]]; then
   hostname="$IP"
   interfaces="$VM_NET_DEV"
-fi
-
-if [[ "${NETWORK,,}" == "user"* ]]; then
-  interfaces="lo"
-  if ! ip link set "$interfaces" multicast on >/dev/null; then
-    warn "Failed to enable multicast on loopback interface!"
-  fi
+else
+  hostname="host.lan"
+  case "${NETWORK,,}" in
+    "user"* | "passt" | "slirp" )
+      interfaces="lo"
+      if ! ip link set "$interfaces" multicast on >/dev/null; then
+        warn "Failed to enable multicast on loopback interface!"
+      fi ;;
+    *)
+      interfaces="dockerbridge"
+      if [ -n "${SAMBA_INTERFACE:-}" ]; then
+        interfaces+=",$SAMBA_INTERFACE"
+      fi ;;
+  esac
 fi
 
 html "Initializing shared folder..."
