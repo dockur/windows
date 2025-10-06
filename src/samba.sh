@@ -7,7 +7,10 @@ set -Eeuo pipefail
 
 tmp="/tmp/smb"
 rm -rf "$tmp"
-rm -rf /var/run/wsdd.pid
+
+rm -f /var/run/wsdd.pid
+rm -f /var/run/samba/nmbd.pid
+rm -f /var/run/samba/smbd.pid
 
 [[ "$SAMBA" == [Nn]* ]] && return 0
 [[ "$NETWORK" == [Nn]* ]] && return 0
@@ -19,16 +22,15 @@ else
   hostname="host.lan"
   case "${NETWORK,,}" in
     "user"* | "passt" | "slirp" )
-      interfaces="lo"
-      if ! ip link set "$interfaces" multicast on >/dev/null; then
-        warn "Failed to enable multicast on loopback interface!"
-      fi ;;
-    *)
-      interfaces="dockerbridge"
-      if [ -n "${SAMBA_INTERFACE:-}" ]; then
-        interfaces+=",$SAMBA_INTERFACE"
-      fi ;;
+      interfaces="lo" ;;
+      # if ! ip link set "$interfaces" multicast on >/dev/null; then
+      #  warn "Failed to enable multicast on loopback interface!"
+      # fi ;;
+    *) interfaces="dockerbridge" ;;
   esac
+  if [ -n "${SAMBA_INTERFACE:-}" ]; then
+    interfaces+=",$SAMBA_INTERFACE"
+  fi
 fi
 
 html "Initializing shared folder..."
@@ -37,7 +39,7 @@ html "Initializing shared folder..."
 addShare() {
   local dir="$1"
   local ref="$2"
-  local name="$3" 
+  local name="$3"
   local comment="$4"
 
   mkdir -p "$dir" || return 1
