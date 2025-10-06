@@ -1584,9 +1584,6 @@ prepareInstall() {
   [ -n "$PASSWORD" ] && password=$(echo "$PASSWORD" | sed 's/"//g')
   [ -z "$password" ] && password="admin"
 
-  local ip="20.20.20.1"
-  [ -n "${VM_NET_IP:-}" ] && ip="${VM_NET_IP%.*}.1"
-
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
   {       echo "[Data]"
@@ -1768,14 +1765,6 @@ prepareInstall() {
           echo "Next"
           echo ""
           echo "Call Domain.MoveHere(LocalAdminADsPath, \"$username\")"
-          echo ""
-          echo "With (CreateObject(\"Scripting.FileSystemObject\"))"
-          echo "  SysRoot = WshShell.ExpandEnvironmentStrings(\"%SystemRoot%\")"
-          echo "  Set oFile = .OpenTextFile(SysRoot & \"\system32\drivers\etc\hosts\", 8, true)"
-          echo "  oFile.Write(\"$ip      host.lan\")"
-          echo "  oFile.Close()"
-          echo "  Set oFile = Nothing"
-          echo "End With"
           echo ""
           echo "Set oLink = WshShell.CreateShortcut(WshShell.ExpandEnvironmentStrings(\"%userprofile%\\Desktop\\Shared.lnk\"))"
           echo "With oLink"
