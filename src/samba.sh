@@ -16,17 +16,18 @@ rm -f /var/run/samba/smbd.pid
 [[ "$NETWORK" == [Nn]* ]] && return 0
 
 if [[ "$DHCP" == [Yy1]* ]]; then
+  socket="$IP"
   hostname="$IP"
   interfaces="$VM_NET_DEV"
 else
   hostname="host.lan"
   case "${NETWORK,,}" in
-    "user"* | "passt" | "slirp" )
-      interfaces="lo" ;;
-      # if ! ip link set "$interfaces" multicast on >/dev/null; then
-      #  warn "Failed to enable multicast on loopback interface!"
-      # fi ;;
-    *) interfaces="$VM_NET_BRIDGE" ;;
+    "passt" | "slirp" )
+      interfaces="lo"
+      socket="127.0.0.1" ;;
+    *)
+      socket="$VM_NET_IP"
+      interfaces="$VM_NET_BRIDGE" ;;
   esac
   if [ -n "${SAMBA_INTERFACE:-}" ]; then
     interfaces+=",$SAMBA_INTERFACE"
@@ -100,6 +101,7 @@ addShare() {
         echo "    follow symlinks = yes"
         echo "    wide links = yes"
         echo "    unix extensions = no"
+        echo "    socket address = $socket"
         echo ""
         echo "    # disable printing services"
         echo "    load printers = no"
@@ -159,6 +161,11 @@ fi
 if [[ "$SAMBA_DEBUG" == [Yy1]* ]]; then
   tail -fn +0 /var/log/samba/log.smbd &
 fi
+
+case "${NETWORK,,}" in
+  "passt" | "slirp" )
+    return 0 ;;
+esac
 
 if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
 
