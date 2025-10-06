@@ -103,11 +103,19 @@ finish() {
 
   pid="/var/run/tpm.pid"
   [ -s "$pid" ] && pKill "$(<"$pid")"
+  rm -f "$pid"
 
   pid="/var/run/wsdd.pid"
   [ -s "$pid" ] && pKill "$(<"$pid")"
+  rm -f "$pid"
 
-  fKill "smbd"
+  pid="/var/run/samba/nmbd.pid"
+  [ -s "$pid" ] && pKill "$(<"$pid")"
+  rm -f "$pid"
+
+  pid="/var/run/samba/smbd.pid"
+  [ -s "$pid" ] && pKill "$(<"$pid")"
+  rm -f "$pid"
 
   closeNetwork
 
