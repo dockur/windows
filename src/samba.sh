@@ -26,7 +26,7 @@ else
       # if ! ip link set "$interfaces" multicast on >/dev/null; then
       #  warn "Failed to enable multicast on loopback interface!"
       # fi ;;
-    *) interfaces="dockerbridge" ;;
+    *) interfaces="$VM_NET_BRIDGE" ;;
   esac
   if [ -n "${SAMBA_INTERFACE:-}" ]; then
     interfaces+=",$SAMBA_INTERFACE"
