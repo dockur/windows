@@ -22,7 +22,7 @@ if [[ "$DHCP" == [Yy1]* ]]; then
 else
   hostname="host.lan"
   case "${NETWORK,,}" in
-    "user"* | "passt" | "slirp" )
+    "passt" | "slirp" )
       interfaces="lo"
       socket="127.0.0.1" ;;
     *)
@@ -166,7 +166,6 @@ case "${NETWORK,,}" in
   "user"* | "passt" | "slirp" )
     return 0 ;;
 esac
-
 
 if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
 
