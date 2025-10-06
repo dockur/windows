@@ -163,7 +163,7 @@ if [[ "$SAMBA_DEBUG" == [Yy1]* ]]; then
 fi
 
 case "${NETWORK,,}" in
-  "user"* | "passt" | "slirp" )
+  "passt" | "slirp" )
     return 0 ;;
 esac
 
