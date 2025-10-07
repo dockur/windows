@@ -53,7 +53,7 @@ addShare() {
   if [[ "$dir" == "$tmp" ]]; then
 
     {      echo "--------------------------------------------------------"
-            echo " $APP for Docker v$(</run/version)..."
+            echo " $APP for $ENGINE v$(</run/version)..."
             echo " For support visit $SUPPORT"
             echo "--------------------------------------------------------"
             echo ""

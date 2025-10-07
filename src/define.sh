@@ -1620,7 +1620,7 @@ prepareInstall() {
           echo "[UserData]"
           echo "    FullName=\"$username\""
           echo "    ComputerName=\"*\""
-          echo "    OrgName=\"Windows for Docker\""
+          echo "    OrgName=\"$APP for $ENGINE\""
           echo "    $KEY"
           echo ""
           echo "[Identification]"
