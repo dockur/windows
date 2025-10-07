@@ -266,12 +266,12 @@
         <SynchronousCommand wcm:action="add">
           <Order>15</Order>
           <CommandLine>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services" /v "fAllowUnlistedRemotePrograms" /t REG_DWORD /d 1 /f</CommandLine>
-          <Description>Enable RemoteAPP to launch unlisted programs</Description>
+          <Description>Enable RemoteApp to launch unlisted programs</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>16</Order>
-          <CommandLine>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v "NoAutoUpdate" /t REG_DWORD /d 1 /f</CommandLine>
-          <Description>Turn off Windows Update auto download</Description>
+          <CommandLine>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Terminal Server\TSAppAllowList" /v "fDisabledAllowList" /t REG_DWORD /d 1 /f</CommandLine>
+          <Description>Disable RemoteApp allowlist</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>17</Order>
@@ -287,7 +287,7 @@
           <Order>19</Order>
           <CommandLine>cmd /C mklink /d %userprofile%\Desktop\Shared \\host.lan\Data</CommandLine>
           <Description>Create desktop shortcut to shared folder</Description>
-        </SynchronousCommand>        
+        </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>20</Order>
           <CommandLine>cmd /C if exist "C:\OEM\install.bat" start "Install" "cmd /C C:\OEM\install.bat"</CommandLine>
