@@ -3,7 +3,7 @@
 ARG VERSION_ARG="latest"
 FROM scratch AS build-amd64
 
-COPY --from=qemux/qemu:7.21 / /
+COPY --from=qemux/qemu:7.22 / /
 
 ARG TARGETARCH
 ARG DEBCONF_NOWARNINGS="yes"
