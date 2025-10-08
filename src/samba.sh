@@ -159,7 +159,7 @@ if ! smbd -l /var/log/samba; then
 fi
 
 if [[ "$SAMBA_DEBUG" == [Yy1]* ]]; then
-  tail -fn +0 /var/log/samba/log.smbd &
+  tail -fn +0 /var/log/samba/log.smbd --pid=$$ &
 fi
 
 case "${NETWORK,,}" in
@@ -180,7 +180,7 @@ if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
   fi
 
   if [[ "$SAMBA_DEBUG" == [Yy1]* ]]; then
-    tail -fn +0 /var/log/samba/log.nmbd &
+    tail -fn +0 /var/log/samba/log.nmbd --pid=$$ &
   fi
 
 else
@@ -196,7 +196,7 @@ else
   fi
 
   if [[ "$SAMBA_DEBUG" == [Yy1]* ]]; then
-    tail -fn +0 /var/log/wsddn.log &
+    tail -fn +0 /var/log/wsddn.log --pid=$$ &
   fi
 
 fi
