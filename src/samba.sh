@@ -69,37 +69,37 @@ addShare() {
 
   if [[ "$dir" == "$tmp" ]]; then
 
-    {      echo "--------------------------------------------------------"
-            echo " $APP for $ENGINE v$(</run/version)..."
-            echo " For support visit $SUPPORT"
-            echo "--------------------------------------------------------"
-            echo ""
-            echo "Using this folder you can exchange files with the host machine."
-            echo ""
-            echo "To select a folder on the host for this purpose, include the following bind mount in your compose file:"
-            echo ""
-            echo "  volumes:"
-            echo "    - \"./example:${ref}\""
-            echo ""
-            echo "Or in your run command:"
-            echo ""
-            echo "  -v \"\${PWD:-.}/example:${ref}\""
-            echo ""
-            echo "Replace the example path ./example with your desired shared folder, which then will become visible here."
-            echo ""
+    {   echo "--------------------------------------------------------"
+        echo " $APP for $ENGINE v$(</run/version)..."
+        echo " For support visit $SUPPORT"
+        echo "--------------------------------------------------------"
+        echo ""
+        echo "Using this folder you can exchange files with the host machine."
+        echo ""
+        echo "To select a folder on the host for this purpose, include the following bind mount in your compose file:"
+        echo ""
+        echo "  volumes:"
+        echo "    - \"./example:${ref}\""
+        echo ""
+        echo "Or in your run command:"
+        echo ""
+        echo "  -v \"\${PWD:-.}/example:${ref}\""
+        echo ""
+        echo "Replace the example path ./example with your desired shared folder, which then will become visible here."
+        echo ""
     } | unix2dos > "$dir/readme.txt"
 
   fi
 
-  {      echo ""
-          echo "[$name]"
-          echo "    path = $dir"
-          echo "    comment = $comment"
-          echo "    writable = yes"
-          echo "    guest ok = yes"
-          echo "    guest only = yes"
-          echo "    force user = $user"
-          echo "    force group = $group"
+  {     echo ""
+        echo "[$name]"
+        echo "    path = $dir"
+        echo "    comment = $comment"
+        echo "    writable = yes"
+        echo "    guest ok = yes"
+        echo "    guest only = yes"
+        echo "    force user = $user"
+        echo "    force group = $group"
   } >> "$cfg"
 
   return 0
@@ -114,66 +114,72 @@ addUser() {
   local password="$1"
   local cfg="$5"
 
-  # Check if the group exists, if not, create it
-  if ! getent group "$groupname" &>/dev/null; then
-    if ! groupadd -o -g "$gid" "$groupname" > /dev/null; then
-      error "Failed to create group $groupname" && return 1
-    fi
-  else
-    # Check if the gid is right, if not, change it
-    local current_gid
-    current_gid=$(getent group "$groupname" | cut -d: -f3)
-    if [[ "$current_gid" != "$gid" ]]; then
-      if ! groupmod -o -g "$gid" "$groupname" > /dev/null; then
-        error "Failed to update GID for group $groupname" && return 1
+  if [[ "$groupname" != "root" && "$gid" != "0" ]]; then
+
+    # Check if the group exists, if not, create it
+    if ! getent group "$groupname" &>/dev/null; then
+      if ! groupadd -o -g "$gid" "$groupname" > /dev/null; then
+        error "Failed to create group $groupname" && return 1
+      fi
+    else
+      # Check if the gid is right, if not, change it
+      local current_gid
+      current_gid=$(getent group "$groupname" | cut -d: -f3)
+      if [[ "$current_gid" != "$gid" ]]; then
+        if ! groupmod -o -g "$gid" "$groupname" > /dev/null; then
+          error "Failed to update GID for group $groupname" && return 1
+        fi
       fi
     fi
+
   fi
 
-  # Check if the user already exists, if not, create it
-  if ! id "$username" &>/dev/null; then
-    if ! adduser --gid "$gid" --uid "$uid" --comment "$username" --no-create-home --disabled-login "$username"; then
-      error "Failed to create user $username" && return 1
-    fi
-  else
-    # Check if the uid is right, if not, change it
-    local current_uid
-    current_uid=$(id -u "$username")
-    if [[ "$current_uid" != "$uid" ]]; then
-      if ! usermod -o -u "$uid" "$username" > /dev/null; then
-        error "Failed to update UID for user $username" && return 1
+  if [[ "$username" != "root" && "$uid" != "0" ]]; then
+
+    # Check if the user already exists, if not, create it
+    if ! id "$username" &>/dev/null; then
+      if ! adduser --gid "$gid" --uid "$uid" --comment "$username" --no-create-home --disabled-login "$username"; then
+        error "Failed to create user $username" && return 1
+      fi
+    else
+      # Check if the uid is right, if not, change it
+      local current_uid
+      current_uid=$(id -u "$username")
+      if [[ "$current_uid" != "$uid" ]]; then
+        if ! usermod -o -u "$uid" "$username" > /dev/null; then
+          error "Failed to update UID for user $username" && return 1
+        fi
+      fi
+
+      # Update user's group
+      if ! usermod -g "$groupname" "$username" > /dev/null; then
+        echo "Failed to update group for user $username" && return 1
       fi
     fi
 
-    # Update user's group
-    if ! usermod -g "$groupname" "$username" > /dev/null; then
-      echo "Failed to update group for user $username" && return 1
-    fi
-  fi
+    # Check if the user is a samba user
+    pdb_output=$(pdbedit -s "$cfg" -L)
 
-  # Check if the user is a samba user
-  pdb_output=$(pdbedit -s "$cfg" -L)
-
-  if echo "$pdb_output" | grep -q "^$username:"; then
-    # skip samba password update if password is * or !
-    if [[ "$password" != "*" && "$password" != "!" ]]; then
-      # If the user is a samba user, update its password in case it changed
-      if ! echo -e "$password\n$password" | smbpasswd -c "$cfg" -s "$username" > /dev/null; then
-        error "Failed to update Samba password for $username" && return 1
+    if echo "$pdb_output" | grep -q "^$username:"; then
+      # skip samba password update if password is * or !
+      if [[ "$password" != "*" && "$password" != "!" ]]; then
+        # If the user is a samba user, update its password in case it changed
+        if ! echo -e "$password\n$password" | smbpasswd -c "$cfg" -s "$username" > /dev/null; then
+          error "Failed to update Samba password for $username" && return 1
+        fi
+      fi
+    else
+      # If the user is not a samba user, create it and set a password
+      if ! echo -e "$password\n$password" | smbpasswd -a -c "$cfg" -s "$username" > /dev/null; then
+        error "Failed to add Samba user $username" && return 1
       fi
     fi
-  else
-    # If the user is not a samba user, create it and set a password
-    if ! echo -e "$password\n$password" | smbpasswd -a -c "$cfg" -s "$username" > /dev/null; then
-      error "Failed to add Samba user $username" && return 1
-    fi
+
   fi
 
   return 0
 }
 
-SAMBA_USER="root"
-SAMBA_GROUP="root"
 SAMBA_CONFIG="/etc/samba/smb.conf"
 
 {       echo "[global]"
@@ -199,14 +205,10 @@ SAMBA_CONFIG="/etc/samba/smb.conf"
 } > "$SAMBA_CONFIG"
 
 # Setup user and group
-if [[ "$SAMBA_UID" != "1000" || "$SAMBA_GID" != "1000" ]]; then
+[[ "$SAMBA_UID" == "0" ]] && SAMBA_USER="root" || SAMBA_USER="samba"
+[[ "$SAMBA_GID" == "0" ]] && SAMBA_GROUP="root" || SAMBA_GROUP="samba"
 
-  SAMBA_USER="samba"
-  SAMBA_GROUP="samba"
-
-  ! addUser "$SAMBA_USER" "$SAMBA_UID" "$SAMBA_GROUP" "$SAMBA_GID" "$SAMBA_CONFIG" && return 0
-
-fi
+! addUser "$SAMBA_USER" "$SAMBA_UID" "$SAMBA_GROUP" "$SAMBA_GID" "$SAMBA_CONFIG" && return 0
 
 # Add shared folders
 share="/shared"
