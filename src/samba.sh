@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-: "${SAMBA:="Y"}"        # Enable Samba
-: "${SAMBA_LEVEL:="1"}"  # Logging level
-: "${SAMBA_DEBUG:="N"}"  # Disable debug
-: "${SAMBA_UID:="1000"}"  # Samba user id
-: "${SAMBA_GID:="1000"}"  # Samba group id
+: "${SAMBA:="Y"}"         # Enable Samba
+: "${SAMBA_LEVEL:="1"}"   # Logging level
+: "${SAMBA_DEBUG:="N"}"   # Disable debug
+: "${SAMBA_UID:="1000"}"  # Samba user ID
+: "${SAMBA_GID:="1000"}"  # Samba group ID
 
 tmp="/tmp/smb"
 rm -rf "$tmp"
@@ -46,15 +46,16 @@ addShare() {
   local comment="$4"
   local user="$5"
   local group="$6"
-  
+  local cfg="$7"
+
   mkdir -p "$dir" || return 1
-  
+
   if ! ls -A "$dir" >/dev/null 2>&1; then
     error "Failed to access directory $dir" && return 1
   fi
 
   if [ -z "$(ls -A "$dir")" ]; then
-  
+
     if ! chmod 777 "$dir"; then
       error "Failed to set permissions for directory $dir" && return 1
     fi
@@ -99,71 +100,83 @@ addShare() {
           echo "    guest only = yes"
           echo "    force user = $user"
           echo "    force group = $group"
-  } >> "/etc/samba/smb.conf"
+  } >> "$cfg"
 
   return 0
 }
 
 addUser() {
-    local username="$2"
-    local uid="$3"
-    local groupname="$4"
-    local gid="$5"
 
-    # Check if the group exists, if not, create it
-    if ! getent group "$groupname" &>/dev/null; then
-        if ! groupadd -o -g "$gid" "$groupname" > /dev/null; then
-            error "Failed to create group $groupname" && return 1
-        fi
-    else
-        # Check if the gid is right, if not, change it
-        local current_gid
-        current_gid=$(getent group "$groupname" | cut -d: -f3)
-        if [[ "$current_gid" != "$gid" ]]; then
-            if ! groupmod -o -g "$gid" "$groupname" > /dev/null; then
-                error "Failed to update GID for group $groupname" && return 1
-            fi
-        fi
+  local username="$1"
+  local uid="$2"
+  local groupname="$3"
+  local gid="$4"
+  local password="$1"
+  local cfg="$5"
+
+  # Check if the group exists, if not, create it
+  if ! getent group "$groupname" &>/dev/null; then
+    if ! groupadd -o -g "$gid" "$groupname" > /dev/null; then
+      error "Failed to create group $groupname" && return 1
+    fi
+  else
+    # Check if the gid is right, if not, change it
+    local current_gid
+    current_gid=$(getent group "$groupname" | cut -d: -f3)
+    if [[ "$current_gid" != "$gid" ]]; then
+      if ! groupmod -o -g "$gid" "$groupname" > /dev/null; then
+        error "Failed to update GID for group $groupname" && return 1
+      fi
+    fi
+  fi
+
+  # Check if the user already exists, if not, create it
+  if ! id "$username" &>/dev/null; then
+    if ! adduser --gid "$gid" --uid "$uid" --comment "$username" --no-create-home --disabled-login "$username"; then
+      error "Failed to create user $username" && return 1
+    fi
+  else
+    # Check if the uid is right, if not, change it
+    local current_uid
+    current_uid=$(id -u "$username")
+    if [[ "$current_uid" != "$uid" ]]; then
+      if ! usermod -o -u "$uid" "$username" > /dev/null; then
+        error "Failed to update UID for user $username" && return 1
+      fi
     fi
 
-    # Check if the user already exists, if not, create it
-    if ! id "$username" &>/dev/null; then
-        if ! adduser -S -D -s /sbin/nologin -G "$groupname" -u "$uid" -g "Samba User" "$username"; then
-          error "Failed to create user $username" && return 1
-        fi
-    else
-        # Check if the uid is right, if not, change it
-        local current_uid
-        current_uid=$(id -u "$username")
-        if [[ "$current_uid" != "$uid" ]]; then
-            if ! usermod -o -u "$uid" "$username" > /dev/null; then
-                error "Failed to update UID for user $username" && return 1
-            fi
-        fi
-
-        # Update user's group
-        if ! usermod -g "$groupname" "$username" > /dev/null; then
-            echo "Failed to update group for user $username" && return 1
-        fi
+    # Update user's group
+    if ! usermod -g "$groupname" "$username" > /dev/null; then
+      echo "Failed to update group for user $username" && return 1
     fi
+  fi
 
-    return 0
+  # Check if the user is a samba user
+  pdb_output=$(pdbedit -s "$cfg" -L)
+
+  if echo "$pdb_output" | grep -q "^$username:"; then
+    # skip samba password update if password is * or !
+    if [[ "$password" != "*" && "$password" != "!" ]]; then
+      # If the user is a samba user, update its password in case it changed
+      if ! echo -e "$password\n$password" | smbpasswd -c "$cfg" -s "$username" > /dev/null; then
+        error "Failed to update Samba password for $username" && return 1
+      fi
+    fi
+  else
+    # If the user is not a samba user, create it and set a password
+    if ! echo -e "$password\n$password" | smbpasswd -a -c "$cfg" -s "$username" > /dev/null; then
+      error "Failed to add Samba user $username" && return 1
+    fi
+  fi
+
+  return 0
 }
 
 SAMBA_USER="root"
 SAMBA_GROUP="root"
+SAMBA_CONFIG="/etc/samba/smb.conf"
 
-# Setup user and group
-if [[ "$SAMBA_UID" != "1000" || "$SAMBA_GID" != "1000" ]]; then
-
-  SAMBA_USER="samba"
-  SAMBA_GROUP="samba"
-
-  ! addUser "$SAMBA_USER" "$SAMBA_UID" "$SAMBA_GROUP" "$SAMBA_GID" && return 0
-
-fi
-
-{      echo "[global]"
+{       echo "[global]"
         echo "    server string = Dockur"
         echo "    netbios name = $hostname"
         echo "    workgroup = WORKGROUP"
@@ -183,8 +196,19 @@ fi
         echo "    printing = bsd"
         echo "    printcap name = /dev/null"
         echo "    disable spoolss = yes"
-} > "/etc/samba/smb.conf"
+} > "$SAMBA_CONFIG"
 
+# Setup user and group
+if [[ "$SAMBA_UID" != "1000" || "$SAMBA_GID" != "1000" ]]; then
+
+  SAMBA_USER="samba"
+  SAMBA_GROUP="samba"
+
+  ! addUser "$SAMBA_USER" "$SAMBA_UID" "$SAMBA_GROUP" "$SAMBA_GID" "$SAMBA_CONFIG" && return 0
+
+fi
+
+# Add shared folders
 share="/shared"
 [ ! -d "$share" ] && [ -d "$STORAGE/shared" ] && share="$STORAGE/shared"
 [ ! -d "$share" ] && [ -d "/data" ] && share="/data"
@@ -194,23 +218,23 @@ share="/shared"
 m1="Failed to add shared folder"
 m2="Please check its permissions."
 
-if ! addShare "$share" "/shared" "Data" "Shared" "$SAMBA_USER" "$SAMBA_GROUP"; then
+if ! addShare "$share" "/shared" "Data" "Shared" "$SAMBA_USER" "$SAMBA_GROUP" "$SAMBA_CONFIG"; then
   error "$m1 '$share'. $m2" && return 0
 fi
 
 if [ -d "/shared2" ]; then
-  addShare "/shared2" "/shared2" "Data2" "Shared" "$SAMBA_USER" "$SAMBA_GROUP" || error "$m1 '/shared2'. $m2"
+  addShare "/shared2" "/shared2" "Data2" "Shared" "$SAMBA_USER" "$SAMBA_GROUP" "$SAMBA_CONFIG" || error "$m1 '/shared2'. $m2"
 else
   if [ -d "/data2" ]; then
-    addShare "/data2" "/shared2" "Data2" "Shared" "$SAMBA_USER" "$SAMBA_GROUP" || error "$m1 '/data2'. $m2."
+    addShare "/data2" "/shared2" "Data2" "Shared" "$SAMBA_USER" "$SAMBA_GROUP" "$SAMBA_CONFIG" || error "$m1 '/data2'. $m2."
   fi
 fi
 
 if [ -d "/shared3" ]; then
-  addShare "/shared3" "/shared3" "Data3" "Shared" "$SAMBA_USER" "$SAMBA_GROUP" || error "$m1 '/shared3'. $m2"
+  addShare "/shared3" "/shared3" "Data3" "Shared" "$SAMBA_USER" "$SAMBA_GROUP" "$SAMBA_CONFIG" || error "$m1 '/shared3'. $m2"
 else
   if [ -d "/data3" ]; then
-    addShare "/data3" "/shared3" "Data3" "Shared" "$SAMBA_USER" "$SAMBA_GROUP" || error "$m1 '/data3'. $m2"
+    addShare "/data3" "/shared3" "Data3" "Shared" "$SAMBA_USER" "$SAMBA_GROUP" "$SAMBA_CONFIG" || error "$m1 '/data3'. $m2"
   fi
 fi
 
