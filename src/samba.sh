@@ -4,6 +4,8 @@ set -Eeuo pipefail
 : "${SAMBA:="Y"}"        # Enable Samba
 : "${SAMBA_LEVEL:="1"}"  # Logging level
 : "${SAMBA_DEBUG:="N"}"  # Disable debug
+: "${SAMBA_USER:="root"}"  # Samba user
+: "${SAMBA_GROUP:="root"}"  # Samba group
 
 tmp="/tmp/smb"
 rm -rf "$tmp"
@@ -81,8 +83,8 @@ addShare() {
           echo "    writable = yes"
           echo "    guest ok = yes"
           echo "    guest only = yes"
-          echo "    force user = root"
-          echo "    force group = root"
+          echo "    force user = $SAMBA_USER"
+          echo "    force group = $SAMBA_GROUP"
   } >> "/etc/samba/smb.conf"
 
   return 0
