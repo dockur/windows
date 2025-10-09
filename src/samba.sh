@@ -48,15 +48,24 @@ addShare() {
   local group="$6"
   
   mkdir -p "$dir" || return 1
-  ls -A "$dir" >/dev/null 2>&1 || return 1
+  
+  if ! ls -A "$dir" >/dev/null 2>&1; then
+    error "Failed to access directory $dir" && return 1
+  fi
 
   if [ -z "$(ls -A "$dir")" ]; then
-    chmod 777 "$dir" || return 1
+  
+    if ! chmod 777 "$dir"; then
+      error "Failed to set permissions for directory $dir" && return 1
+    fi
+
+    if [[ "$user" != "root" || "$group" != "root" ]]; then
+      if ! chown "$user:$group" "$dir" ; then
+        error "Failed to set ownership for directory $dir" && return 1
+      fi
+    fi
   fi
-        if [ -z "$(ls -A "$share")" ]; then
-            chmod 0770 "$share" || { echo "Failed to set permissions for directory $share"; exit 1; }
-            chown "$USER:$group" "$share" || { echo "Failed to set ownership for directory $share"; exit 1; }
-        fi
+
   if [[ "$dir" == "$tmp" ]]; then
 
     {      echo "--------------------------------------------------------"
