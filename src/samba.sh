@@ -4,8 +4,8 @@ set -Eeuo pipefail
 : "${SAMBA:="Y"}"        # Enable Samba
 : "${SAMBA_LEVEL:="1"}"  # Logging level
 : "${SAMBA_DEBUG:="N"}"  # Disable debug
-: "${SAMBA_USER:="root"}"  # Samba user
-: "${SAMBA_GROUP:="root"}"  # Samba group
+: "${SAMBA_UID:="1000"}"  # Samba user id
+: "${SAMBA_GID:="1000"}"  # Samba group id
 
 tmp="/tmp/smb"
 rm -rf "$tmp"
@@ -44,14 +44,19 @@ addShare() {
   local ref="$2"
   local name="$3"
   local comment="$4"
-
+  local user="$5"
+  local group="$6"
+  
   mkdir -p "$dir" || return 1
   ls -A "$dir" >/dev/null 2>&1 || return 1
 
   if [ -z "$(ls -A "$dir")" ]; then
     chmod 777 "$dir" || return 1
   fi
-
+        if [ -z "$(ls -A "$share")" ]; then
+            chmod 0770 "$share" || { echo "Failed to set permissions for directory $share"; exit 1; }
+            chown "$USER:$group" "$share" || { echo "Failed to set ownership for directory $share"; exit 1; }
+        fi
   if [[ "$dir" == "$tmp" ]]; then
 
     {      echo "--------------------------------------------------------"
@@ -83,12 +88,26 @@ addShare() {
           echo "    writable = yes"
           echo "    guest ok = yes"
           echo "    guest only = yes"
-          echo "    force user = $SAMBA_USER"
-          echo "    force group = $SAMBA_GROUP"
+          echo "    force user = $user"
+          echo "    force group = $group"
   } >> "/etc/samba/smb.conf"
 
   return 0
 }
+
+# Setup user and group
+if [[ "$SAMBA_UID" == "1000" ]]; then
+  SAMBA_USER="root"
+else
+  SAMBA_USER="samba"
+fi
+
+if [[ "$SAMBA_GID" == "1000" ]]; then
+  SAMBA_GROUP="root"
+else
+  SAMBA_GROUP="samba"
+fi
+
 
 {      echo "[global]"
         echo "    server string = Dockur"
@@ -120,8 +139,8 @@ share="/shared"
 
 m1="Failed to add shared folder"
 m2="Please check its permissions."
-
-if ! addShare "$share" "/shared" "Data" "Shared"; then
+HHH
+if ! addShare "$share" "/shared" "Data" "Shared" "$SAMBA_USER" "$SAMBA_GROUP"; then
   error "$m1 '$share'. $m2" && return 0
 fi
 
@@ -147,6 +166,11 @@ for dir in "${dirs[@]}"; do
   dir_name=$(basename "$dir")
   addShare "$dir" "/shared" "$dir_name" "Shared $dir_name" || error "Failed to create shared folder for $dir!"
 done
+
+# Create directories if missing
+mkdir -p /var/lib/samba/sysvol
+mkdir -p /var/lib/samba/private
+mkdir -p /var/lib/samba/bind-dns
 
 # Try to repair Samba permissions
 [ -d /run/samba/msg.lock ] && chmod -R 0755 /run/samba/msg.lock 2>/dev/null || :
