@@ -95,19 +95,53 @@ addShare() {
   return 0
 }
 
-# Setup user and group
-if [[ "$SAMBA_UID" == "1000" ]]; then
-  SAMBA_USER="root"
-else
-  SAMBA_USER="samba"
-fi
+addUser() {
+    local cfg="$1"
+    local username="$2"
+    local uid="$3"
+    local groupname="$4"
+    local gid="$5"
+    local password="$6"
+    local homedir="$7"
 
-if [[ "$SAMBA_GID" == "1000" ]]; then
+    # Check if the group exists, if not, create it
+    if ! getent group "$groupname" &>/dev/null; then
+        groupadd -o -g "$gid" "$groupname" > /dev/null || { echo "Failed to create group $groupname"; return 1; }
+    else
+        # Check if the gid right,if not, change it
+        local current_gid
+        current_gid=$(getent group "$groupname" | cut -d: -f3)
+        if [[ "$current_gid" != "$gid" ]]; then
+l            groupmod -o -g "$gid" "$groupname" > /dev/null || { echo "Failed to update GID for group $groupname"; return 1; }
+        fi
+    fi
+
+    # Check if the user already exists, if not, create it
+    if ! id "$username" &>/dev/null; then
+        adduser -S -D -s /sbin/nologin -G "$groupname" -u "$uid" -g "Samba User" "$username" || { echo "Failed to create user $username"; return 1; }
+    else
+        # Check if the uid right,if not, change it
+        local current_uid
+        current_uid=$(id -u "$username")
+        if [[ "$current_uid" != "$uid" ]]; then
+            usermod -o -u "$uid" "$username" > /dev/null || { echo "Failed to update UID for user $username"; return 1; }
+        fi
+
+        # Update user's group
+        usermod -g "$groupname" "$username" > /dev/null || { echo "Failed to update group for user $username"; return 1; }
+    fi
+
+    return 0
+}
+
+# Setup user and group
+if [[ "$SAMBA_UID" == "1000" && "$SAMBA_GID" == "1000" ]]; then
+  SAMBA_USER="root"
   SAMBA_GROUP="root"
 else
+  SAMBA_USER="samba"
   SAMBA_GROUP="samba"
 fi
-
 
 {      echo "[global]"
         echo "    server string = Dockur"
@@ -139,24 +173,24 @@ share="/shared"
 
 m1="Failed to add shared folder"
 m2="Please check its permissions."
-HHH
+
 if ! addShare "$share" "/shared" "Data" "Shared" "$SAMBA_USER" "$SAMBA_GROUP"; then
   error "$m1 '$share'. $m2" && return 0
 fi
 
 if [ -d "/shared2" ]; then
-  addShare "/shared2" "/shared2" "Data2" "Shared" || error "$m1 '/shared2'. $m2"
+  addShare "/shared2" "/shared2" "Data2" "Shared" "$SAMBA_USER" "$SAMBA_GROUP" || error "$m1 '/shared2'. $m2"
 else
   if [ -d "/data2" ]; then
-    addShare "/data2" "/shared2" "Data2" "Shared" || error "$m1 '/data2'. $m2."
+    addShare "/data2" "/shared2" "Data2" "Shared" "$SAMBA_USER" "$SAMBA_GROUP" || error "$m1 '/data2'. $m2."
   fi
 fi
 
 if [ -d "/shared3" ]; then
-  addShare "/shared3" "/shared3" "Data3" "Shared" || error "$m1 '/shared3'. $m2"
+  addShare "/shared3" "/shared3" "Data3" "Shared" "$SAMBA_USER" "$SAMBA_GROUP" || error "$m1 '/shared3'. $m2"
 else
   if [ -d "/data3" ]; then
-    addShare "/data3" "/shared3" "Data3" "Shared" || error "$m1 '/data3'. $m2"
+    addShare "/data3" "/shared3" "Data3" "Shared" "$SAMBA_USER" "$SAMBA_GROUP" || error "$m1 '/data3'. $m2"
   fi
 fi
 
