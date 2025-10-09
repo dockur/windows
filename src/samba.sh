@@ -96,51 +96,62 @@ addShare() {
 }
 
 addUser() {
-    local cfg="$1"
     local username="$2"
     local uid="$3"
     local groupname="$4"
     local gid="$5"
-    local password="$6"
-    local homedir="$7"
 
     # Check if the group exists, if not, create it
     if ! getent group "$groupname" &>/dev/null; then
-        groupadd -o -g "$gid" "$groupname" > /dev/null || { echo "Failed to create group $groupname"; return 1; }
+        if ! groupadd -o -g "$gid" "$groupname" > /dev/null; then
+            error "Failed to create group $groupname" && return 1
+        fi
     else
-        # Check if the gid right,if not, change it
+        # Check if the gid is right, if not, change it
         local current_gid
         current_gid=$(getent group "$groupname" | cut -d: -f3)
         if [[ "$current_gid" != "$gid" ]]; then
-l            groupmod -o -g "$gid" "$groupname" > /dev/null || { echo "Failed to update GID for group $groupname"; return 1; }
+            if ! groupmod -o -g "$gid" "$groupname" > /dev/null; then
+                error "Failed to update GID for group $groupname" && return 1
+            fi
         fi
     fi
 
     # Check if the user already exists, if not, create it
     if ! id "$username" &>/dev/null; then
-        adduser -S -D -s /sbin/nologin -G "$groupname" -u "$uid" -g "Samba User" "$username" || { echo "Failed to create user $username"; return 1; }
+        if ! adduser -S -D -s /sbin/nologin -G "$groupname" -u "$uid" -g "Samba User" "$username"; then
+          error "Failed to create user $username" && return 1
+        fi
     else
-        # Check if the uid right,if not, change it
+        # Check if the uid is right, if not, change it
         local current_uid
         current_uid=$(id -u "$username")
         if [[ "$current_uid" != "$uid" ]]; then
-            usermod -o -u "$uid" "$username" > /dev/null || { echo "Failed to update UID for user $username"; return 1; }
+            if ! usermod -o -u "$uid" "$username" > /dev/null; then
+                error "Failed to update UID for user $username" && return 1
+            fi
         fi
 
         # Update user's group
-        usermod -g "$groupname" "$username" > /dev/null || { echo "Failed to update group for user $username"; return 1; }
+        if ! usermod -g "$groupname" "$username" > /dev/null; then
+            echo "Failed to update group for user $username" && return 1
+        fi
     fi
 
     return 0
 }
 
+SAMBA_USER="root"
+SAMBA_GROUP="root"
+
 # Setup user and group
-if [[ "$SAMBA_UID" == "1000" && "$SAMBA_GID" == "1000" ]]; then
-  SAMBA_USER="root"
-  SAMBA_GROUP="root"
-else
+if [[ "$SAMBA_UID" != "1000" || "$SAMBA_GID" != "1000" ]]; then
+
   SAMBA_USER="samba"
   SAMBA_GROUP="samba"
+
+  ! addUser "$SAMBA_USER" "$SAMBA_UID" "$SAMBA_GROUP" "$SAMBA_GID" && return 0
+
 fi
 
 {      echo "[global]"
