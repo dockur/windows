@@ -4,8 +4,6 @@ set -Eeuo pipefail
 : "${SAMBA:="Y"}"         # Enable Samba
 : "${SAMBA_LEVEL:="1"}"   # Logging level
 : "${SAMBA_DEBUG:="N"}"   # Disable debug
-: "${SAMBA_UID:="1000"}"  # Samba user ID
-: "${SAMBA_GID:="1000"}"  # Samba group ID
 
 tmp="/tmp/smb"
 rm -rf "$tmp"
@@ -37,6 +35,7 @@ else
 fi
 
 html "Initializing shared folder..."
+SAMBA_CONFIG="/etc/samba/smb.conf"
 [[ "$DEBUG" == [Yy1]* ]] && echo "Starting Samba daemon..."
 
 addShare() {
@@ -44,9 +43,8 @@ addShare() {
   local ref="$2"
   local name="$3"
   local comment="$4"
-  local user="$5"
-  local group="$6"
-  local cfg="$7"
+  local cfg="$5"
+  local owner=""
 
   mkdir -p "$dir" || return 1
 
@@ -55,13 +53,12 @@ addShare() {
   fi
 
   if [ -z "$(ls -A "$dir")" ]; then
-
-    if ! chmod 777 "$dir"; then
+    if ! chmod 2777 "$dir"; then
       error "Failed to set permissions for directory $dir" && return 1
     fi
-
-    if [[ "$user" != "root" || "$group" != "root" ]]; then
-      if ! chown "$user:$group" "$dir" ; then
+    owner=$(stat -c %u "$dir")
+    if [[ "$owner" == "0" ]]; then
+      if ! chown "1000:1000" "$dir"; then
         error "Failed to set ownership for directory $dir" && return 1
       fi
     fi
@@ -69,112 +66,39 @@ addShare() {
 
   if [[ "$dir" == "$tmp" ]]; then
 
-    {      echo "--------------------------------------------------------"
-            echo " $APP for $ENGINE v$(</run/version)..."
-            echo " For support visit $SUPPORT"
-            echo "--------------------------------------------------------"
-            echo ""
-            echo "Using this folder you can exchange files with the host machine."
-            echo ""
-            echo "To select a folder on the host for this purpose, include the following bind mount in your compose file:"
-            echo ""
-            echo "  volumes:"
-            echo "    - \"./example:${ref}\""
-            echo ""
-            echo "Or in your run command:"
-            echo ""
-            echo "  -v \"\${PWD:-.}/example:${ref}\""
-            echo ""
-            echo "Replace the example path ./example with your desired shared folder, which then will become visible here."
-            echo ""
+    {   echo "--------------------------------------------------------"
+        echo " $APP for $ENGINE v$(</run/version)..."
+        echo " For support visit $SUPPORT"
+        echo "--------------------------------------------------------"
+        echo ""
+        echo "Using this folder you can exchange files with the host machine."
+        echo ""
+        echo "To select a folder on the host for this purpose, include the following bind mount in your compose file:"
+        echo ""
+        echo "  volumes:"
+        echo "    - \"./example:${ref}\""
+        echo ""
+        echo "Or in your run command:"
+        echo ""
+        echo "  -v \"\${PWD:-.}/example:${ref}\""
+        echo ""
+        echo "Replace the example path ./example with your desired shared folder, which then will become visible here."
+        echo ""
     } | unix2dos > "$dir/readme.txt"
 
   fi
 
-  {      echo ""
-          echo "[$name]"
-          echo "    path = $dir"
-          echo "    comment = $comment"
-          echo "    writable = yes"
-          echo "    guest ok = yes"
-          echo "    guest only = yes"
-          echo "    force user = $user"
-          echo "    force group = $group"
+  {     echo ""
+        echo "[$name]"
+        echo "    path = $dir"
+        echo "    comment = $comment"
+        echo "    writable = yes"
+        echo "    guest ok = yes"
+        echo "    guest only = yes"
   } >> "$cfg"
 
   return 0
 }
-
-addUser() {
-
-  local username="$1"
-  local uid="$2"
-  local groupname="$3"
-  local gid="$4"
-  local password="$1"
-  local cfg="$5"
-
-  # Check if the group exists, if not, create it
-  if ! getent group "$groupname" &>/dev/null; then
-    if ! groupadd -o -g "$gid" "$groupname" > /dev/null; then
-      error "Failed to create group $groupname" && return 1
-    fi
-  else
-    # Check if the gid is right, if not, change it
-    local current_gid
-    current_gid=$(getent group "$groupname" | cut -d: -f3)
-    if [[ "$current_gid" != "$gid" ]]; then
-      if ! groupmod -o -g "$gid" "$groupname" > /dev/null; then
-        error "Failed to update GID for group $groupname" && return 1
-      fi
-    fi
-  fi
-
-  # Check if the user already exists, if not, create it
-  if ! id "$username" &>/dev/null; then
-    if ! adduser --gid "$gid" --uid "$uid" --comment "$username" --no-create-home --disabled-login "$username"; then
-      error "Failed to create user $username" && return 1
-    fi
-  else
-    # Check if the uid is right, if not, change it
-    local current_uid
-    current_uid=$(id -u "$username")
-    if [[ "$current_uid" != "$uid" ]]; then
-      if ! usermod -o -u "$uid" "$username" > /dev/null; then
-        error "Failed to update UID for user $username" && return 1
-      fi
-    fi
-
-    # Update user's group
-    if ! usermod -g "$groupname" "$username" > /dev/null; then
-      echo "Failed to update group for user $username" && return 1
-    fi
-  fi
-
-  # Check if the user is a samba user
-  pdb_output=$(pdbedit -s "$cfg" -L)
-
-  if echo "$pdb_output" | grep -q "^$username:"; then
-    # skip samba password update if password is * or !
-    if [[ "$password" != "*" && "$password" != "!" ]]; then
-      # If the user is a samba user, update its password in case it changed
-      if ! echo -e "$password\n$password" | smbpasswd -c "$cfg" -s "$username" > /dev/null; then
-        error "Failed to update Samba password for $username" && return 1
-      fi
-    fi
-  else
-    # If the user is not a samba user, create it and set a password
-    if ! echo -e "$password\n$password" | smbpasswd -a -c "$cfg" -s "$username" > /dev/null; then
-      error "Failed to add Samba user $username" && return 1
-    fi
-  fi
-
-  return 0
-}
-
-SAMBA_USER="root"
-SAMBA_GROUP="root"
-SAMBA_CONFIG="/etc/samba/smb.conf"
 
 {       echo "[global]"
         echo "    server string = Dockur"
@@ -182,6 +106,7 @@ SAMBA_CONFIG="/etc/samba/smb.conf"
         echo "    workgroup = WORKGROUP"
         echo "    interfaces = $interfaces"
         echo "    bind interfaces only = yes"
+        echo "    socket address = $socket"
         echo "    security = user"
         echo "    guest account = nobody"
         echo "    map to guest = Bad User"
@@ -189,24 +114,20 @@ SAMBA_CONFIG="/etc/samba/smb.conf"
         echo "    follow symlinks = yes"
         echo "    wide links = yes"
         echo "    unix extensions = no"
-        echo "    socket address = $socket"
+        echo "    inherit owner = yes"
+        echo "    create mask = 0666"
+        echo "    directory mask = 02777"
+        echo "    force user = root"
+        echo "    force group = root"
+        echo "    force create mode = 0666"
+        echo "    force directory mode = 02777"
         echo ""
-        echo "    # disable printing services"
+        echo "    # Disable printing services"
         echo "    load printers = no"
         echo "    printing = bsd"
         echo "    printcap name = /dev/null"
         echo "    disable spoolss = yes"
 } > "$SAMBA_CONFIG"
-
-# Setup user and group
-if [[ "$SAMBA_UID" != "1000" || "$SAMBA_GID" != "1000" ]]; then
-
-  SAMBA_USER="samba"
-  SAMBA_GROUP="samba"
-
-  ! addUser "$SAMBA_USER" "$SAMBA_UID" "$SAMBA_GROUP" "$SAMBA_GID" "$SAMBA_CONFIG" && return 0
-
-fi
 
 # Add shared folders
 share="/shared"
@@ -218,32 +139,25 @@ share="/shared"
 m1="Failed to add shared folder"
 m2="Please check its permissions."
 
-if ! addShare "$share" "/shared" "Data" "Shared" "$SAMBA_USER" "$SAMBA_GROUP" "$SAMBA_CONFIG"; then
+if ! addShare "$share" "/shared" "Data" "Shared" "$SAMBA_CONFIG"; then
   error "$m1 '$share'. $m2" && return 0
 fi
 
 if [ -d "/shared2" ]; then
-  addShare "/shared2" "/shared2" "Data2" "Shared" "$SAMBA_USER" "$SAMBA_GROUP" "$SAMBA_CONFIG" || error "$m1 '/shared2'. $m2"
+  addShare "/shared2" "/shared2" "Data2" "Shared" "$SAMBA_CONFIG" || error "$m1 '/shared2'. $m2"
 else
   if [ -d "/data2" ]; then
-    addShare "/data2" "/shared2" "Data2" "Shared" "$SAMBA_USER" "$SAMBA_GROUP" "$SAMBA_CONFIG" || error "$m1 '/data2'. $m2."
+    addShare "/data2" "/shared2" "Data2" "Shared" "$SAMBA_CONFIG" || error "$m1 '/data2'. $m2."
   fi
 fi
 
 if [ -d "/shared3" ]; then
-  addShare "/shared3" "/shared3" "Data3" "Shared" "$SAMBA_USER" "$SAMBA_GROUP" "$SAMBA_CONFIG" || error "$m1 '/shared3'. $m2"
+  addShare "/shared3" "/shared3" "Data3" "Shared" "$SAMBA_CONFIG" || error "$m1 '/shared3'. $m2"
 else
   if [ -d "/data3" ]; then
-    addShare "/data3" "/shared3" "Data3" "Shared" "$SAMBA_USER" "$SAMBA_GROUP" "$SAMBA_CONFIG" || error "$m1 '/data3'. $m2"
+    addShare "/data3" "/shared3" "Data3" "Shared" "$SAMBA_CONFIG" || error "$m1 '/data3'. $m2"
   fi
 fi
-
-IFS=',' read -r -a dirs <<< "${SHARES:-}"
-for dir in "${dirs[@]}"; do
-  [ ! -d "$dir" ] && continue
-  dir_name=$(basename "$dir")
-  addShare "$dir" "/shared" "$dir_name" "Shared $dir_name" || error "Failed to create shared folder for $dir!"
-done
 
 # Create directories if missing
 mkdir -p /var/lib/samba/sysvol
