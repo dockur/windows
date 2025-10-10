@@ -44,6 +44,7 @@ addShare() {
   local name="$3"
   local comment="$4"
   local cfg="$5"
+  local owner=""
 
   mkdir -p "$dir" || return 1
 
@@ -52,8 +53,14 @@ addShare() {
   fi
 
   if [ -z "$(ls -A "$dir")" ]; then
-    if ! chmod 777 "$dir"; then
+    if ! chmod 2777 "$dir"; then
       error "Failed to set permissions for directory $dir" && return 1
+    fi
+    owner=$(stat -c %u "$dir")
+    if [[ "$owner" == "0" ]]; then
+      if ! chown "1000:1000" "$dir"; then
+        error "Failed to set ownership for directory $dir" && return 1
+      fi
     fi
   fi
 
@@ -107,11 +114,13 @@ addShare() {
         echo "    follow symlinks = yes"
         echo "    wide links = yes"
         echo "    unix extensions = no"
-        echo "    inherit owner = unix only"
-        echo "    create mask = 0664"
-        echo "    directory mask = 2755"
-        echo "    force create mode = 0644"
-        echo "    force directory mode = 2755"
+        echo "    inherit owner = yes"
+        echo "    create mask = 0666"
+        echo "    directory mask = 02777"
+        echo "    force user = root"
+        echo "    force group = root"
+        echo "    force create mode = 0666"
+        echo "    force directory mode = 02777"
         echo ""
         echo "    # Disable printing services"
         echo "    load printers = no"
