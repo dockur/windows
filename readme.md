@@ -68,7 +68,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ##### Via a graphical installer:
 
-[![Download WinBoat](https://github.com/dockur/windows/raw/dev/.github/winboat.png)](https://winboat.app)
+[![Download WinBoat](https://github.com/dockur/windows/raw/master/.github/winboat.png)](https://winboat.app)
 
 ## FAQ 💬
 
