@@ -66,6 +66,10 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/dockur/windows)
 
+##### Via a graphical installer:
+
+[![Download WinBoat](https://github.com/dockur/windows/raw/dev/.github/winboat.png)](https://winboat.app)
+
 ## FAQ 💬
 
 ### How do I use it?
