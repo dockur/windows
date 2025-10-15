@@ -1,6 +1,21 @@
 {
-  "name": "windows",
+  "name": "Windows 11 Pro",
   "service": "windows",
-  "forwardPorts": [8006],
+  "containerEnv": {
+    "VERSION": "11"
+  },  
+  "forwardPorts": [8006],  
+  "portsAttributes": {
+    "8006": {
+      "label": "Web",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "otherPortsAttributes": {
+    "onAutoForward": "silent"
+  }, 
+  "hostRequirements": {
+    "storage": "64gb"
+  },  
   "dockerComposeFile": ".github/codespaces.yml"
 }
