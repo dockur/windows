@@ -2,8 +2,5 @@
   "name": "windows",
   "service": "windows",
   "forwardPorts": [8006],
-  "hostRequirements": {
-     "storage": "64gb"
-  },
   "dockerComposeFile": ".github/codespaces.yml"
 }
