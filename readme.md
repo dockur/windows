@@ -160,7 +160,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I change the amount of CPU or RAM?
 
-  By default, the container will be allowed to use a maximum of 2 CPU cores and 4 GB of RAM.
+  By default, Windows will be allowed to use 2 CPU cores and 4 GB of RAM.
 
   If you want to adjust this, you can specify the desired amount using the following environment variables:
 
@@ -172,9 +172,9 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I configure the username and password?
 
-  By default, a user called `Docker` is created during installation and its password is `admin`.
+  By default, a user called `Docker` is created and its password is `admin`.
 
-  If you want to use different credentials, you can configure them in your compose file (only before installation):
+  If you want to use different credentials during installation, you can configure them in your compose file:
 
   ```yaml
   environment:
@@ -186,7 +186,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   By default, the English version of Windows will be downloaded.
   
-  But before installation you can add the `LANGUAGE` environment variable to your compose file, in order to specify an alternative language:
+  But you can add the `LANGUAGE` environment variable to your compose file, in order to specify an alternative language to be downloaded:
 
   ```yaml
   environment:
@@ -197,21 +197,12 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I select the keyboard layout?
 
-  If you want to use a keyboard layout or locale that is not the default for your selected language, you can add  `KEYBOARD` and `REGION` variables like this (before installation):
+  If you want to use a keyboard layout or locale that is not the default for your selected language, you can add  `KEYBOARD` and `REGION` variables like this:
 
   ```yaml
   environment:
     REGION: "en-US"
     KEYBOARD: "en-US"
-  ```
-
-### How do I select the edition?
-
-  Windows Server offers a minimalistic Core edition without a GUI. To select those non-standard editions, you can add a `EDITION` variable like this (before installation):
-
-  ```yaml
-  environment:
-    EDITION: "core"
   ```
 
 ### How do I install a custom image?
