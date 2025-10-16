@@ -2,10 +2,7 @@
   "name": "Windows Server 2016",
   "service": "windows",
   "containerEnv": {
-    "VERSION": "2016",
-    "RAM_SIZE": "max",
-    "DISK_SIZE": "max",
-    "CPU_CORES": "max"    
+    "VERSION": "2016"
   },  
   "forwardPorts": [8006],  
   "portsAttributes": {
