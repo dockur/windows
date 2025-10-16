@@ -2,10 +2,7 @@
   "name": "Windows Vista Ultimate (32-bit)",
   "service": "windows",
   "containerEnv": {
-    "VERSION": "vux86",
-    "RAM_SIZE": "max",
-    "DISK_SIZE": "max",
-    "CPU_CORES": "max"    
+    "VERSION": "vux86"
   },  
   "forwardPorts": [8006],  
   "portsAttributes": {
