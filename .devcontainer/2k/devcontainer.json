@@ -2,10 +2,7 @@
   "name": "Windows 2000 Professional",
   "service": "windows",
   "containerEnv": {
-    "VERSION": "2k",
-    "RAM_SIZE": "max",
-    "DISK_SIZE": "max",
-    "CPU_CORES": "max"    
+    "VERSION": "2k"
   },  
   "forwardPorts": [8006],  
   "portsAttributes": {
