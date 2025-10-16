@@ -2,10 +2,7 @@
   "name": "Windows XP (64-bit)",
   "service": "windows",
   "containerEnv": {
-    "VERSION": "xp64",
-    "RAM_SIZE": "max",
-    "DISK_SIZE": "max",
-    "CPU_CORES": "max"    
+    "VERSION": "xp64"
   },  
   "forwardPorts": [8006],  
   "portsAttributes": {
