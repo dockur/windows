@@ -2,10 +2,7 @@
   "name": "Windows Server 2008 R2",
   "service": "windows",
   "containerEnv": {
-    "VERSION": "2008",
-    "RAM_SIZE": "max",
-    "DISK_SIZE": "max",
-    "CPU_CORES": "max"    
+    "VERSION": "2008"
   },  
   "forwardPorts": [8006],  
   "portsAttributes": {
