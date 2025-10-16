@@ -2,10 +2,7 @@
   "name": "Windows 8.1 Enterprise",
   "service": "windows",
   "containerEnv": {
-    "VERSION": "8e",
-    "RAM_SIZE": "max",
-    "DISK_SIZE": "max",
-    "CPU_CORES": "max"    
+    "VERSION": "8e"
   },  
   "forwardPorts": [8006],  
   "portsAttributes": {
