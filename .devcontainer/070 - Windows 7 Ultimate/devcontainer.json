@@ -1,5 +1,5 @@
 {
-  "name": "Windows 7 Ultimate (64-bit)",
+  "name": "Windows 7 Ultimate",
   "service": "windows",
   "containerEnv": {
     "VERSION": "7u"
