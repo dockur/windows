@@ -2,10 +2,7 @@
   "name": "Windows Server 2003",
   "service": "windows",
   "containerEnv": {
-    "VERSION": "2003",
-    "RAM_SIZE": "max",
-    "DISK_SIZE": "max",
-    "CPU_CORES": "max"    
+    "VERSION": "2003"
   },  
   "forwardPorts": [8006],  
   "portsAttributes": {
