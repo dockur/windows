@@ -16,9 +16,6 @@
   },
   "otherPortsAttributes": {
     "onAutoForward": "silent"
-  },
-  "hostRequirements": {
-    "storage": "16gb"
   },  
   "dockerComposeFile": "../codespaces.yml"
 }
