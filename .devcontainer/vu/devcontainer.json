@@ -2,10 +2,7 @@
   "name": "Windows Vista Ultimate (64-bit)",
   "service": "windows",
   "containerEnv": {
-    "VERSION": "vu",
-    "RAM_SIZE": "max",
-    "DISK_SIZE": "max",
-    "CPU_CORES": "max"    
+    "VERSION": "vu"
   },  
   "forwardPorts": [8006],  
   "portsAttributes": {
