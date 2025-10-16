@@ -1,0 +1,21 @@
+{
+  "name": "Windows Vista Ultimate (32-bit)",
+  "service": "windows",
+  "containerEnv": {
+    "VERSION": "vux86",
+    "RAM_SIZE": "max",
+    "DISK_SIZE": "max",
+    "CPU_CORES": "max"    
+  },  
+  "forwardPorts": [8006],  
+  "portsAttributes": {
+    "8006": {
+      "label": "Web",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "otherPortsAttributes": {
+    "onAutoForward": "silent"
+  },
+  "dockerComposeFile": "../codespaces.yml"
+}

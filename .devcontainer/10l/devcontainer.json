@@ -1,8 +1,8 @@
 {
-  "name": "Windows 11 Pro",
+  "name": "Windows 10 LTSC",
   "service": "windows",
   "containerEnv": {
-    "VERSION": "11",
+    "VERSION": "10l",
     "RAM_SIZE": "max",
     "DISK_SIZE": "max",
     "CPU_CORES": "max"    
@@ -20,5 +20,5 @@
   "hostRequirements": {
     "storage": "64gb"
   },  
-  "dockerComposeFile": ".github/codespaces.yml"
+  "dockerComposeFile": "../codespaces.yml"
 }

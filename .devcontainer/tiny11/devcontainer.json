@@ -1,0 +1,24 @@
+{
+  "name": "Tiny 11",
+  "service": "windows",
+  "containerEnv": {
+    "VERSION": "tiny11",
+    "RAM_SIZE": "max",
+    "DISK_SIZE": "max",
+    "CPU_CORES": "max"    
+  },  
+  "forwardPorts": [8006],  
+  "portsAttributes": {
+    "8006": {
+      "label": "Web",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "otherPortsAttributes": {
+    "onAutoForward": "silent"
+  }, 
+  "hostRequirements": {
+    "storage": "64gb"
+  },  
+  "dockerComposeFile": "../codespaces.yml"
+}
