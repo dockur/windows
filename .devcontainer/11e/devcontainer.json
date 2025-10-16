@@ -1,0 +1,24 @@
+{
+  "name": "Windows 11 Enterprise",
+  "service": "windows",
+  "containerEnv": {
+    "VERSION": "11e",
+    "RAM_SIZE": "max",
+    "DISK_SIZE": "max",
+    "CPU_CORES": "max"    
+  },  
+  "forwardPorts": [8006],  
+  "portsAttributes": {
+    "8006": {
+      "label": "Web",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "otherPortsAttributes": {
+    "onAutoForward": "silent"
+  }, 
+  "hostRequirements": {
+    "storage": "64gb"
+  },  
+  "dockerComposeFile": "../codespaces.yml"
+}
