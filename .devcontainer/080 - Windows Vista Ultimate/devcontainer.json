@@ -1,5 +1,5 @@
 {
-  "name": "Windows Vista Ultimate (64-bit)",
+  "name": "Windows Vista Ultimate",
   "service": "windows",
   "containerEnv": {
     "VERSION": "vu"
