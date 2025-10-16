@@ -1,5 +1,5 @@
 {
-  "name": "Windows XP (32-bit)",
+  "name": "Windows XP (32-bits)",
   "service": "windows",
   "containerEnv": {
     "VERSION": "xp",
