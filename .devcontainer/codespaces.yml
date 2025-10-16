@@ -4,8 +4,9 @@ services:
     container_name: windows
     environment:
       VERSION: "11"
-      RAM_SIZE: "max"
-      DISK_SIZE: "max"
+      ALLOCATE: "Y"
+      RAM_SIZE: "half"
+      DISK_SIZE: "half"
       CPU_CORES: "max"
     devices:
       - /dev/kvm
