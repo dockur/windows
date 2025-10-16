@@ -2,10 +2,7 @@
   "name": "Windows Server 2025",
   "service": "windows",
   "containerEnv": {
-    "VERSION": "2025",
-    "RAM_SIZE": "max",
-    "DISK_SIZE": "max",
-    "CPU_CORES": "max"    
+    "VERSION": "2025"
   },  
   "forwardPorts": [8006],  
   "portsAttributes": {
