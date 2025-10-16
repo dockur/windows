@@ -23,6 +23,8 @@ cd /run
 . proc.sh       # Initialize processor
 . power.sh      # Configure shutdown
 . config.sh     # Configure arguments
+. memory.sh     # Check available memory
+. finish.sh     # Finish initialization
 
 trap - ERR
 
