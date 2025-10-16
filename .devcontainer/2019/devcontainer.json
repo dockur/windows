@@ -2,10 +2,7 @@
   "name": "Windows Server 2019",
   "service": "windows",
   "containerEnv": {
-    "VERSION": "2019",
-    "RAM_SIZE": "max",
-    "DISK_SIZE": "max",
-    "CPU_CORES": "max"    
+    "VERSION": "2019"
   },  
   "forwardPorts": [8006],  
   "portsAttributes": {
