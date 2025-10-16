@@ -2,10 +2,7 @@
   "name": "Windows 7 Ultimate (64-bit)",
   "service": "windows",
   "containerEnv": {
-    "VERSION": "7u",
-    "RAM_SIZE": "max",
-    "DISK_SIZE": "max",
-    "CPU_CORES": "max"    
+    "VERSION": "7u"
   },  
   "forwardPorts": [8006],  
   "portsAttributes": {
