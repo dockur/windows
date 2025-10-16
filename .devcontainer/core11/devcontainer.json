@@ -2,10 +2,7 @@
   "name": "Tiny 11 Core",
   "service": "windows",
   "containerEnv": {
-    "VERSION": "core11",
-    "RAM_SIZE": "max",
-    "DISK_SIZE": "max",
-    "CPU_CORES": "max"    
+    "VERSION": "core11"
   },  
   "forwardPorts": [8006],  
   "portsAttributes": {
