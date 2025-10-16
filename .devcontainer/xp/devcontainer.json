@@ -2,10 +2,7 @@
   "name": "Windows XP (32-bit)",
   "service": "windows",
   "containerEnv": {
-    "VERSION": "xp",
-    "RAM_SIZE": "max",
-    "DISK_SIZE": "max",
-    "CPU_CORES": "max"    
+    "VERSION": "xp"
   },  
   "forwardPorts": [8006],  
   "portsAttributes": {
