@@ -2,10 +2,7 @@
   "name": "Tiny 10",
   "service": "windows",
   "containerEnv": {
-    "VERSION": "tiny10",
-    "RAM_SIZE": "max",
-    "DISK_SIZE": "max",
-    "CPU_CORES": "max"    
+    "VERSION": "tiny10"
   },  
   "forwardPorts": [8006],  
   "portsAttributes": {
