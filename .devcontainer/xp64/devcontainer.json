@@ -1,0 +1,21 @@
+{
+  "name": "Windows XP (64-bit)",
+  "service": "windows",
+  "containerEnv": {
+    "VERSION": "xp64",
+    "RAM_SIZE": "max",
+    "DISK_SIZE": "max",
+    "CPU_CORES": "max"    
+  },  
+  "forwardPorts": [8006],  
+  "portsAttributes": {
+    "8006": {
+      "label": "Web",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "otherPortsAttributes": {
+    "onAutoForward": "silent"
+  },
+  "dockerComposeFile": "../codespaces.yml"
+}
