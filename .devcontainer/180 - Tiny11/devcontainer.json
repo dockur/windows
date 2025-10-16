@@ -1,5 +1,5 @@
 {
-  "name": "Tiny 11",
+  "name": "Tiny11",
   "service": "windows",
   "containerEnv": {
     "VERSION": "tiny11"
