@@ -7,19 +7,29 @@ jobs:
     name: shellcheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - name: Run ShellCheck
+      -
+        name: Checkout
+        uses: actions/checkout@v5
+      -
+        name: Run ShellCheck
         uses: ludeeus/action-shellcheck@master
         env:
           SHELLCHECK_OPTS: -x --source-path=src -e SC1091 -e SC2001 -e SC2002 -e SC2034 -e SC2064 -e SC2153 -e SC2317 -e SC2028
-      - name: Validate XML
-        uses: action-pack/valid-xml@v1
-        with:
-         path: "assets"
-         file-endings: ".xml"
-      - name: Lint Dockerfile
+      -
+        name: Lint Dockerfile
         uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: Dockerfile
           ignore: DL3006,DL3008
           failure-threshold: warning
+      -
+        name: Validate XML
+        uses: action-pack/valid-xml@v1
+        with:
+         path: "assets"
+         file-endings: ".xml"
+      -
+        name: Validate JSON and YML files
+        uses: GrantBirki/json-yaml-validate@v4
+        with:
+          yaml_exclude_regex: ".*\\kubernetes\\.yml$"
