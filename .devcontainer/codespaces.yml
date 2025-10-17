@@ -3,7 +3,6 @@ services:
     image: dockurr/windows
     container_name: windows
     environment:
-      VERSION: "11"
       ALLOCATE: "Y"
       RAM_SIZE: "half"
       DISK_SIZE: "max"
