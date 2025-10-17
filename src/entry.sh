@@ -22,7 +22,9 @@ cd /run
 . boot.sh       # Configure boot
 . proc.sh       # Initialize processor
 . power.sh      # Configure shutdown
+. memory.sh     # Check available memory
 . config.sh     # Configure arguments
+. finish.sh     # Finish initialization
 
 trap - ERR
 
