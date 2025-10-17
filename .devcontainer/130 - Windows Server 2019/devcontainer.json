@@ -1,10 +1,10 @@
 {
-  "name": "Windows 11 Pro",
+  "name": "Windows Server 2019",
   "service": "windows",
   "containerEnv": {
-    "VERSION": "11"
-  },
-  "forwardPorts": [8006],
+    "VERSION": "2019"
+  },  
+  "forwardPorts": [8006],  
   "portsAttributes": {
     "8006": {
       "label": "Web",
@@ -13,9 +13,9 @@
   },
   "otherPortsAttributes": {
     "onAutoForward": "silent"
-  },
+  }, 
   "hostRequirements": {
     "storage": "64gb"
   },  
-  "dockerComposeFile": "codespaces.yml"
+  "dockerComposeFile": "../codespaces.yml"
 }
