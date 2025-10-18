@@ -12,10 +12,8 @@
     }
   },
   "otherPortsAttributes": {
-    "onAutoForward": "silent"
+    "onAutoForward": "ignore"
   }, 
-  "hostRequirements": {
-    "storage": "64gb"
-  },  
-  "dockerComposeFile": "../codespaces.yml"
+  "dockerComposeFile": "../codespaces.yml",
+  "initializeCommand": "docker system prune --all --force"
 }
