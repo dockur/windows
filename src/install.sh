@@ -341,8 +341,8 @@ extractESD() {
   local desc="$4"
   local size size_gb space space_gb desc
 
-  local msg="Extracting $desc bootdisk..."
-  info "$msg" && html "$msg"
+  local msg="Extracting $desc bootdisk"
+  info "$msg..." && html "$msg..."
 
   if [ "$(stat -c%s "$iso")" -lt 100000000 ]; then
     error "Invalid ESD file: Size is smaller than 100 MB" && return 1
@@ -367,29 +367,42 @@ extractESD() {
     error "Cannot read the image count in ESD file!" && return 1
   fi
 
+  /run/progress.sh "$dir" "0" "$msg ([P])..." &
+
   wimlib-imagex apply "$iso" 1 "$dir" --quiet 2>/dev/null || {
     retVal=$?
-    error "Extracting $desc bootdisk failed" && return $retVal
+    fKill "progress.sh"
+    error "Extracting $desc bootdisk failed ($retVal)" && return 1
   }
+
+  fKill "progress.sh"
 
   local bootWimFile="$dir/sources/boot.wim"
   local installWimFile="$dir/sources/install.wim"
 
-  local msg="Extracting $desc environment..."
-  info "$msg" && html "$msg"
+  local msg="Extracting $desc environment"
+  info "$msg..." && html "$msg..."
+  /run/progress.sh "$bootWimFile" "0" "$msg ([P])..." &
 
   wimlib-imagex export "$iso" 2 "$bootWimFile" --compress=none --quiet || {
     retVal=$?
-    error "Adding WinPE failed" && return ${retVal}
+    fKill "progress.sh"
+    error "Adding WinPE failed ($retVal)" && return 1
   }
 
-  local msg="Extracting $desc setup..."
-  info "$msg" && html "$msg"
+  fKill "progress.sh"
+
+  local msg="Extracting $desc setup"
+  info "$msg..." && html "$msg..."
+  /run/progress.sh "$bootWimFile" "0" "$msg ([P])..." &
 
   wimlib-imagex export "$iso" 3 "$bootWimFile" --compress=none --boot --quiet || {
    retVal=$?
-   error "Adding Windows Setup failed" && return ${retVal}
+   fKill "progress.sh"
+   error "Adding Windows Setup failed ($retVal)" && return 1
   }
+
+  fKill "progress.sh"
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
     LABEL="CCCOMA_X64FRE_EN-US_DV9"
@@ -397,8 +410,8 @@ extractESD() {
     LABEL="CPBA_A64FRE_EN-US_DV9"
   fi
 
-  local msg="Extracting $desc image..."
-  info "$msg" && html "$msg"
+  local msg="Extracting $desc image"
+  info "$msg..." && html "$msg..."
 
   local edition imageIndex imageEdition
   edition=$(getCatalog "$version" "name")
@@ -407,16 +420,21 @@ extractESD() {
     error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
   fi
 
+  /run/progress.sh "$installWimFile" "0" "$msg ([P])..." &
+
   for (( imageIndex=4; imageIndex<=esdImageCount; imageIndex++ )); do
     imageEdition=$(wimlib-imagex info "$iso" ${imageIndex} | grep '^Description:' | sed 's/Description:[ \t]*//')
     [[ "${imageEdition,,}" != "${edition,,}" ]] && continue
     wimlib-imagex export "$iso" ${imageIndex} "$installWimFile" --compress=LZMS --chunk-size 128K --quiet || {
       retVal=$?
-      error "Addition of $imageIndex to the $desc image failed" && return $retVal
+      fKill "progress.sh"
+      error "Addition of $imageIndex to the $desc image failed ($retVal)" && return 1
     }
+    fKill "progress.sh"
     return 0
   done
 
+  fKill "progress.sh"
   error "Failed to find product '$edition' in install.wim!" && return 1
 }
 
@@ -440,8 +458,8 @@ extractImage() {
     return 1
   fi
 
-  local msg="Extracting $desc image..."
-  info "$msg" && html "$msg"
+  local msg="Extracting $desc image"
+  info "$msg..." && html "$msg..."
 
   rm -rf "$dir"
   mkdir -p "$dir"
@@ -1081,8 +1099,8 @@ buildImage() {
 
   desc=$(printVersion "$DETECTED" "ISO")
 
-  local msg="Building $desc image..."
-  info "$msg" && html "$msg"
+  local msg="Building $desc image"
+  info "$msg..." && html "$msg..."
 
   [ -z "$LABEL" ] && LABEL="Windows"
 
