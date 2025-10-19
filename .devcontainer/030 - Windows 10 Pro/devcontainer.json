@@ -4,7 +4,7 @@
   "containerEnv": {
     "VERSION": "10"
   },  
-   "portsAttributes": {
+  "portsAttributes": {
     "8006": {
       "label": "Web",
       "onAutoForward": "notify"
