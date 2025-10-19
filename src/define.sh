@@ -1110,12 +1110,12 @@ getLink4() {
     "core11" )
       size=2159738880
       sum="78f0f44444ff95b97125b43e560a72e0d6ce0a665cf9f5573bf268191e5510c1"
-      url="tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
+      url="tiny11_25H2/tiny11core_25H2_Oct25.iso"
       ;;
     "tiny11" )
       size=3788177408
       sum="a028800a91addc35d8ae22dce7459b67330f7d69d2f11c70f53c0fdffa5b4280"
-      url="tiny11-2311/tiny11%202311%20x64.iso"
+      url="tiny11_25H2/tiny11_25H2_Oct25.iso"
       ;;
     "tiny10" )
       size=3839819776
