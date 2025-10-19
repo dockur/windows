@@ -1108,14 +1108,14 @@ getLink4() {
       url="nano11_25h2/nano11%2025h2.iso"
       ;;
     "core11" )
-      size=2159738880
-      sum="78f0f44444ff95b97125b43e560a72e0d6ce0a665cf9f5573bf268191e5510c1"
-      url="tiny-11-core-x-64-beta-1/tiny11%20core%20x64%20beta%201.iso"
+      size=3176654848
+      sum="29c055fcfb7b089abd9e007e7abe4bb82c70a03aac9d65e56a38b87ab32d04d2"
+      url="tiny11_25H2/tiny11core_25H2_Oct25.iso"
       ;;
     "tiny11" )
-      size=3788177408
-      sum="a028800a91addc35d8ae22dce7459b67330f7d69d2f11c70f53c0fdffa5b4280"
-      url="tiny11-2311/tiny11%202311%20x64.iso"
+      size=5514559488
+      sum="92484f2b7f707e42383294402a9eabbadeaa5ede80ac633390ae7f3537e36275"
+      url="tiny11_25H2/tiny11_25H2_Oct25.iso"
       ;;
     "tiny10" )
       size=3839819776
@@ -1123,9 +1123,9 @@ getLink4() {
       url="tiny-10-23-h2/tiny10%20x64%2023h2.iso"
       ;;
     "win11x64" )
-      size=5819484160
-      sum="b56b911bf18a2ceaeb3904d87e7c770bdf92d3099599d61ac2497b91bf190b11"
-      url="windows-11-24h2-x64/Windows%2011%2024H2%20x64.iso"
+      size=7736125440
+      sum="d141f6030fed50f75e2b03e1eb2e53646c4b21e5386047cb860af5223f102a32"
+      url="W11x64_26200.6584/26200.6584.250915-1905.25h2_ge_release_svc_refresh_CLIENT_CONSUMER_x64FRE_en-us.iso"
       ;;
     "win11x64-enterprise" | "win11x64-enterprise-eval" )
       size=6209064960
