@@ -3,7 +3,8 @@
   "service": "windows",
   "containerEnv": {
     "VERSION": "tiny11"
-  },  
+  },
+  "forwardPorts": [8006],
   "portsAttributes": {
     "8006": {
       "label": "Web",
