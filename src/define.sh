@@ -1113,8 +1113,8 @@ getLink4() {
       url="tiny11_25H2/tiny11core_25H2_Oct25.iso"
       ;;
     "tiny11" )
-      size=3788177408
-      sum="a028800a91addc35d8ae22dce7459b67330f7d69d2f11c70f53c0fdffa5b4280"
+      size=5514559488
+      sum="92484f2b7f707e42383294402a9eabbadeaa5ede80ac633390ae7f3537e36275"
       url="tiny11_25H2/tiny11_25H2_Oct25.iso"
       ;;
     "tiny10" )
