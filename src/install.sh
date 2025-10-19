@@ -460,10 +460,14 @@ extractImage() {
   fi
 
   rm -rf "$dir"
+  /run/progress.sh "$dir" "$size" "$msg ([P])..." &
 
   if ! 7z x "$iso" -o"$dir" > /dev/null; then
+    fKill "progress.sh"
     error "Failed to extract ISO file: $iso" && return 1
   fi
+
+  fKill "progress.sh"
 
   if [[ "${UNPACK:-}" != [Yy1]* ]]; then
 
@@ -1095,6 +1099,8 @@ buildImage() {
     error "Not enough free space in $STORAGE, have $space_gb available but need at least $size_gb." && return 1
   fi
 
+  /run/progress.sh "$out" "$size" "$msg ([P])..." &
+
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
 
     genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -V "${LABEL::30}" \
@@ -1114,6 +1120,8 @@ buildImage() {
     esac
 
   fi
+
+  fKill "progress.sh"
 
   if [ -n "$failed" ]; then
     [ -s "$log" ] && echo "$(<"$log")"
