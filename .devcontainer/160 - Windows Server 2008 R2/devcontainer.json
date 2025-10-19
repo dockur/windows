@@ -3,7 +3,8 @@
   "service": "windows",
   "containerEnv": {
     "VERSION": "2008"
-  },  
+  },
+  "forwardPorts": [8006],
   "portsAttributes": {
     "8006": {
       "label": "Web",
