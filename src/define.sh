@@ -1108,8 +1108,8 @@ getLink4() {
       url="nano11_25h2/nano11%2025h2.iso"
       ;;
     "core11" )
-      size=2159738880
-      sum="78f0f44444ff95b97125b43e560a72e0d6ce0a665cf9f5573bf268191e5510c1"
+      size=3176654848
+      sum="29c055fcfb7b089abd9e007e7abe4bb82c70a03aac9d65e56a38b87ab32d04d2"
       url="tiny11_25H2/tiny11core_25H2_Oct25.iso"
       ;;
     "tiny11" )
