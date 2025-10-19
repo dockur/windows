@@ -89,15 +89,15 @@ finish() {
 
       sleep 1
       cnt=$((cnt+1))
-  
+
       # Workaround for zombie pid
       [ ! -s "$QEMU_PID" ] && break
-  
+
       if [ "$cnt" == "5" ]; then
         error "QEMU did not terminate itself, forcefully killing process..."
         { kill -9 "$pid" || true; } 2>/dev/null
       fi
-  
+
     done
 
   fi
