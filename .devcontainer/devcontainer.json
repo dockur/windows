@@ -7,7 +7,7 @@
   "portsAttributes": {
     "8006": {
       "label": "Web",
-      "onAutoForward": "openBrowser"
+      "onAutoForward": "notify"
     }
   },
   "otherPortsAttributes": {
