@@ -4,11 +4,10 @@
   "containerEnv": {
     "VERSION": "10e"
   },  
-  "forwardPorts": [8006],  
   "portsAttributes": {
     "8006": {
       "label": "Web",
-      "onAutoForward": "openBrowser"
+      "onAutoForward": "notify"
     }
   },
   "otherPortsAttributes": {
