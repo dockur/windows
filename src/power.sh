@@ -94,7 +94,7 @@ finish() {
       [ ! -s "$QEMU_PID" ] && break
 
       if [ "$cnt" == "5" ]; then
-        error "QEMU did not terminate itself, forcefully killing process..."
+        echo && error "QEMU did not terminate itself, forcefully killing process..."
         { kill -9 "$pid" || true; } 2>/dev/null
       fi
 
