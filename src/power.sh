@@ -82,7 +82,7 @@ finish() {
   if [ -s "$QEMU_PID" ]; then
 
     pid=$(<"$QEMU_PID")
-    error "Forcefully terminating Windows, reason: $reason..."
+    echo && error "Forcefully terminating Windows, reason: $reason..."
     { kill -15 "$pid" || true; } 2>/dev/null
 
     while isAlive "$pid"; do
