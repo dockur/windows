@@ -8,11 +8,11 @@
   "portsAttributes": {
     "8006": {
       "label": "Web",
-      "onAutoForward": "notify"
+      "onAutoForward": "openPreview"
     }
   },
   "otherPortsAttributes": {
-    "onAutoForward": "ignore"
+    "onAutoForward": "openPreview"
   },
   "dockerComposeFile": "codespaces.yml",
   "workspaceFolder": "/workspaces/windows",
