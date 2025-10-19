@@ -4,16 +4,16 @@
   "containerEnv": {
     "VERSION": "tiny11"
   },  
-  "forwardPorts": [8006],  
   "portsAttributes": {
     "8006": {
       "label": "Web",
-      "onAutoForward": "openBrowser"
+      "onAutoForward": "notify"
     }
   },
   "otherPortsAttributes": {
     "onAutoForward": "ignore"
   }, 
   "dockerComposeFile": "../codespaces.yml",
+  "workspaceFolder": "/workspaces/windows",
   "initializeCommand": "docker system prune --all --force"
 }
