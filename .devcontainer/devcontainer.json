@@ -4,7 +4,6 @@
   "containerEnv": {
     "VERSION": "11"
   },
-  "appPort": [8006],
   "portsAttributes": {
     "8006": {
       "label": "Web",
