@@ -1,7 +1,7 @@
 services:
   windows:
-    image: dockurr/windows
     container_name: windows
+    image: ghcr.io/dockur/windows
     environment:
       ALLOCATE: "Y"
       RAM_SIZE: "half"
