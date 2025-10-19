@@ -1123,9 +1123,9 @@ getLink4() {
       url="tiny-10-23-h2/tiny10%20x64%2023h2.iso"
       ;;
     "win11x64" )
-      size=5819484160
-      sum="b56b911bf18a2ceaeb3904d87e7c770bdf92d3099599d61ac2497b91bf190b11"
-      url="windows-11-24h2-x64/Windows%2011%2024H2%20x64.iso"
+      size=7736125440
+      sum="d141f6030fed50f75e2b03e1eb2e53646c4b21e5386047cb860af5223f102a32"
+      url="W11x64_26200.6584/26200.6584.250915-1905.25h2_ge_release_svc_refresh_CLIENT_CONSUMER_x64FRE_en-us.iso"
       ;;
     "win11x64-enterprise" | "win11x64-enterprise-eval" )
       size=6209064960
