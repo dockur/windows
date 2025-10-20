@@ -46,10 +46,14 @@ addShare() {
   local cfg="$5"
   local owner=""
 
-  mkdir -p "$dir" || return 1
+  if ! mkdir -p "$dir"; then
+    error "Failed to create directory $dir." && return 1
+  fi
 
   if ! ls -A "$dir" >/dev/null 2>&1; then
-    error "Failed to access directory $dir" && return 1
+    msg="Failed to access directory $dir."
+    msg+=" If SELinux is active, you need to add the \":Z\" flag to the bind mount."
+    error "$msg" && return 1
   fi
 
   if [ -z "$(ls -A "$dir")" ]; then
@@ -136,26 +140,21 @@ share="/shared"
 [ ! -d "$share" ] && [ -d "$STORAGE/data" ] && share="$STORAGE/data"
 [ ! -d "$share" ] && share="$tmp"
 
-m1="Failed to add shared folder"
-m2="Please check its permissions."
-
-if ! addShare "$share" "/shared" "Data" "Shared" "$SAMBA_CONFIG"; then
-  error "$m1 '$share'. $m2" && return 0
-fi
+! addShare "$share" "/shared" "Data" "Shared" "$SAMBA_CONFIG" && return 0
 
 if [ -d "/shared2" ]; then
-  addShare "/shared2" "/shared2" "Data2" "Shared" "$SAMBA_CONFIG" || error "$m1 '/shared2'. $m2"
+  addShare "/shared2" "/shared2" "Data2" "Shared" "$SAMBA_CONFIG" || :
 else
   if [ -d "/data2" ]; then
-    addShare "/data2" "/shared2" "Data2" "Shared" "$SAMBA_CONFIG" || error "$m1 '/data2'. $m2."
+    addShare "/data2" "/shared2" "Data2" "Shared" "$SAMBA_CONFIG" || :
   fi
 fi
 
 if [ -d "/shared3" ]; then
-  addShare "/shared3" "/shared3" "Data3" "Shared" "$SAMBA_CONFIG" || error "$m1 '/shared3'. $m2"
+  addShare "/shared3" "/shared3" "Data3" "Shared" "$SAMBA_CONFIG" || :
 else
   if [ -d "/data3" ]; then
-    addShare "/data3" "/shared3" "Data3" "Shared" "$SAMBA_CONFIG" || error "$m1 '/data3'. $m2"
+    addShare "/data3" "/shared3" "Data3" "Shared" "$SAMBA_CONFIG" || :
   fi
 fi
 
