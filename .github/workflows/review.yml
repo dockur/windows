@@ -1,0 +1,19 @@
+on:
+  pull_request:
+
+name: "Review"
+
+jobs:
+  review:
+    name: review
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v5
+      -
+        name: Review
+        uses: reviewdog/action-shfmt@v1
+        with:
+          shfmt_flags: "-i 2 -ci -bn"
+          github_token: ${{ secrets.REPO_ACCESS_TOKEN }}
