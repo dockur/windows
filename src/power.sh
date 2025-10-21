@@ -105,7 +105,9 @@ finish() {
   if [ ! -f "$STORAGE/windows.boot" ] && [ -f "$BOOT" ]; then
     # Remove CD-ROM ISO after install
     if ready; then
-      touch "$STORAGE/windows.boot"
+      local file="$STORAGE/windows.boot"
+      touch "$file"
+      ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
       if [[ "$REMOVE" != [Nn]* ]]; then
         rm -f "$BOOT" 2>/dev/null || true
       fi
