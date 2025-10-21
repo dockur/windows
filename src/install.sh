@@ -188,6 +188,20 @@ startInstall() {
   return 0
 }
 
+writeFile() {
+
+  local txt="$1"
+  local path="$2"
+  
+  echo "$txt" > "$path"
+  
+  if ! setOwner "$path"; then
+    error "Failed to set the owner for \"$path\" !"
+  fi
+
+  return 0
+}
+
 finishInstall() {
 
   local iso="$1"
@@ -218,20 +232,17 @@ finishInstall() {
     if [[ "$aborted" != [Yy1]* ]] || [ -z "$CUSTOM" ]; then
       base=$(basename "$iso")
       file="$STORAGE/windows.base"
-      echo "$base" > "$file"
-      ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
+      writeFile "$base" "$file"
     fi
   fi
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
     if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
       file="$STORAGE/windows.mode"
-      echo "$BOOT_MODE" > "$file"
-      ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
+      writeFile "$BOOT_MODE" "$file"
       if [[ "${MACHINE,,}" != "q35" ]]; then
         file="$STORAGE/windows.old"
-        echo "$MACHINE" > "$file"
-        ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
+        writeFile "$MACHINE" "$file"
       fi
     else
       # Enable secure boot + TPM on manual installs as Win11 requires
@@ -239,16 +250,14 @@ finishInstall() {
         if [[ "${DETECTED,,}" == "win11"* ]]; then
           BOOT_MODE="windows_secure"
           file="$STORAGE/windows.mode"
-          echo "$BOOT_MODE" > "$file"
-          ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
+          writeFile "$BOOT_MODE" "$file"
         fi
       fi
       # Enable secure boot on multi-socket systems to workaround freeze
       if [ -n "$SOCKETS" ] && [[ "$SOCKETS" != "1" ]]; then
         BOOT_MODE="windows_secure"
         file="$STORAGE/windows.mode"
-        echo "$BOOT_MODE" > "$file"
-        ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
+        writeFile "$BOOT_MODE" "$file"
       fi
     fi
   fi
@@ -256,32 +265,27 @@ finishInstall() {
   if [ -n "${ARGS:-}" ]; then
     ARGUMENTS="$ARGS ${ARGUMENTS:-}"
     file="$STORAGE/windows.args"
-    echo "$ARGS" > "$file"
-    ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
+    writeFile "$ARGS" "$file"
   fi
 
   if [ -n "${VGA:-}" ] && [[ "${VGA:-}" != "virtio"* ]]; then
     file="$STORAGE/windows.vga"
-    echo "$VGA" > "$file"
-    ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
+    writeFile "$VGA" "$file"
   fi
 
   if [ -n "${USB:-}" ] && [[ "${USB:-}" != "qemu-xhci"* ]]; then
     file="$STORAGE/windows.usb"
-    echo "$USB" > "$file"
-    ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
+    writeFile "$USB" "$file"
   fi
 
   if [ -n "${DISK_TYPE:-}" ] && [[ "${DISK_TYPE:-}" != "scsi" ]]; then
     file="$STORAGE/windows.type"
-    echo "$DISK_TYPE" > "$file"
-    ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
+    writeFile "$DISK_TYPE" "$file"
   fi
 
   if [ -n "${ADAPTER:-}" ] && [[ "${ADAPTER:-}" != "virtio-net-pci" ]]; then
     file="$STORAGE/windows.net"
-    echo "$ADAPTER" > "$file"
-    ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
+    writeFile "$ADAPTER" "$file"
   fi
 
   rm -rf "$TMP"
