@@ -46,14 +46,21 @@ addShare() {
   local cfg="$5"
   local owner=""
 
-  if ! mkdir -p "$dir"; then
-    error "Failed to create directory $dir." && return 1
+  if [ ! -d "$dir" ]; then
+    if ! mkdir -p "$dir"; then
+      error "Failed to create shared folder ($dir)." && return 1
+    fi
   fi
 
   if ! ls -A "$dir" >/dev/null 2>&1; then
-    msg="Failed to access directory $dir."
+    msg="No permission to access shared folder ($dir)."
     msg+=" If SELinux is active, you need to add the \":Z\" flag to the bind mount."
     error "$msg" && return 1
+  fi
+
+  if [ ! -w "$dir" ]; then
+    msg="shared folder ($dir) is not writeable!"
+    warn "$msg"
   fi
 
   if [ -z "$(ls -A "$dir")" ]; then
