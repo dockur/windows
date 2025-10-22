@@ -487,8 +487,11 @@ getESD() {
   info "$msg" && html "$msg"
 
   rm -rf "$dir"
-  mkdir -p "$dir"
 
+  if ! makeDir "$dir"; then
+    error "Failed to create directory \"$dir\" !" && return 1
+  fi
+  
   local xFile="products.xml"
   local eFile="esd_edition.xml"
   local fFile="products_filter.xml"

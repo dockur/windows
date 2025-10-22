@@ -22,7 +22,11 @@ backup () {
 
   fi
 
-  mkdir -p "$root"
+  if ! makeDir "$root"; then
+    error "Failed to create directory \"$root\" !"
+    return 1
+  fi
+
   local folder="$name"
   local dir="$root/$folder"
 
@@ -34,7 +38,11 @@ backup () {
   done
 
   rm -rf "$dir"
-  mkdir -p "$dir"
+
+  if ! makeDir "$dir"; then
+    error "Failed to create directory \"$dir\" !"
+    return 1
+  fi
 
   [ -f "$iso" ] && mv -f "$iso" "$dir/"
   find "$STORAGE" -maxdepth 1 -type f -iname 'data.*' -not -iname '*.iso' -exec mv -n {} "$dir/" \;
@@ -156,7 +164,9 @@ startInstall() {
     ! backup "" && error "Backup failed!"
   fi
 
-  mkdir -p "$TMP"
+  if ! makeDir "$TMP"; then
+    error "Failed to create directory \"$TMP\" !"
+  fi
 
   if [ -z "$CUSTOM" ]; then
 
@@ -178,6 +188,20 @@ startInstall() {
   return 0
 }
 
+writeFile() {
+
+  local txt="$1"
+  local path="$2"
+
+  echo "$txt" >"$path"
+
+  if ! setOwner "$path"; then
+    error "Failed to set the owner for \"$path\" !"
+  fi
+
+  return 0
+}
+
 finishInstall() {
 
   local iso="$1"
@@ -188,6 +212,10 @@ finishInstall() {
     error "Failed to find ISO file: $iso" && return 1
   fi
 
+  if [[ "$iso" == "$STORAGE/"* ]]; then
+    ! setOwner "$iso" && error "Failed to set the owner for \"$iso\" !"
+  fi
+
   if [[ "$aborted" != [Yy1]* ]]; then
     # Mark ISO as prepared via magic byte
     byte="16" && [[ "$MANUAL" == [Yy1]* ]] && byte="17"
@@ -196,56 +224,68 @@ finishInstall() {
     fi
   fi
 
-  cp -f /run/version "$STORAGE/windows.ver"
+  local file="$STORAGE/windows.ver"
+  cp -f /run/version "$file"
+  ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
 
   if [[ "$iso" == "$STORAGE/"* ]]; then
     if [[ "$aborted" != [Yy1]* ]] || [ -z "$CUSTOM" ]; then
       base=$(basename "$iso")
-      echo "$base" > "$STORAGE/windows.base"
+      file="$STORAGE/windows.base"
+      writeFile "$base" "$file"
     fi
   fi
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
     if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
-      echo "$BOOT_MODE" > "$STORAGE/windows.mode"
+      file="$STORAGE/windows.mode"
+      writeFile "$BOOT_MODE" "$file"
       if [[ "${MACHINE,,}" != "q35" ]]; then
-        echo "$MACHINE" > "$STORAGE/windows.old"
+        file="$STORAGE/windows.old"
+        writeFile "$MACHINE" "$file"
       fi
     else
       # Enable secure boot + TPM on manual installs as Win11 requires
       if [[ "$MANUAL" == [Yy1]* || "$aborted" == [Yy1]* ]]; then
         if [[ "${DETECTED,,}" == "win11"* ]]; then
           BOOT_MODE="windows_secure"
-          echo "$BOOT_MODE" > "$STORAGE/windows.mode"
+          file="$STORAGE/windows.mode"
+          writeFile "$BOOT_MODE" "$file"
         fi
       fi
       # Enable secure boot on multi-socket systems to workaround freeze
       if [ -n "$SOCKETS" ] && [[ "$SOCKETS" != "1" ]]; then
         BOOT_MODE="windows_secure"
-        echo "$BOOT_MODE" > "$STORAGE/windows.mode"
+        file="$STORAGE/windows.mode"
+        writeFile "$BOOT_MODE" "$file"
       fi
     fi
   fi
 
   if [ -n "${ARGS:-}" ]; then
     ARGUMENTS="$ARGS ${ARGUMENTS:-}"
-    echo "$ARGS" > "$STORAGE/windows.args"
+    file="$STORAGE/windows.args"
+    writeFile "$ARGS" "$file"
   fi
 
   if [ -n "${VGA:-}" ] && [[ "${VGA:-}" != "virtio"* ]]; then
-    echo "$VGA" > "$STORAGE/windows.vga"
+    file="$STORAGE/windows.vga"
+    writeFile "$VGA" "$file"
   fi
 
   if [ -n "${USB:-}" ] && [[ "${USB:-}" != "qemu-xhci"* ]]; then
-    echo "$USB" > "$STORAGE/windows.usb"
+    file="$STORAGE/windows.usb"
+    writeFile "$USB" "$file"
   fi
 
   if [ -n "${DISK_TYPE:-}" ] && [[ "${DISK_TYPE:-}" != "scsi" ]]; then
-    echo "$DISK_TYPE" > "$STORAGE/windows.type"
+    file="$STORAGE/windows.type"
+    writeFile "$DISK_TYPE" "$file"
   fi
 
   if [ -n "${ADAPTER:-}" ] && [[ "${ADAPTER:-}" != "virtio-net-pci" ]]; then
-    echo "$ADAPTER" > "$STORAGE/windows.net"
+    file="$STORAGE/windows.net"
+    writeFile "$ADAPTER" "$file"
   fi
 
   rm -rf "$TMP"
@@ -351,7 +391,10 @@ extractESD() {
   fi
 
   rm -rf "$dir"
-  mkdir -p "$dir"
+
+  if ! makeDir "$dir"; then
+    error "Failed to create directory \"$dir\" !" && return 1
+  fi
 
   size=9606127360
   size_gb=$(formatBytes "$size")
@@ -406,6 +449,8 @@ extractESD() {
     fKill "progress.sh"
     error "Adding WinPE failed ($retVal)" && return 1
   }
+
+  fKill "progress.sh"
 
   local msg="Extracting $desc setup"
   info "$msg..."
@@ -486,14 +531,17 @@ extractImage() {
   info "$msg..." && html "$msg..."
 
   rm -rf "$dir"
-  mkdir -p "$dir"
+
+  if ! makeDir "$dir"; then
+    error "Failed to create directory \"$dir\" !" && return 1
+  fi
 
   size=$(stat -c%s "$iso")
   size_gb=$(formatBytes "$size")
   space=$(df --output=avail -B 1 "$dir" | tail -n 1)
   space_gb=$(formatBytes "$space")
 
-  if ((size<100000000)); then
+  if (( size < 100000000 )); then
     error "Invalid ISO file: Size is smaller than 100 MB" && return 1
   fi
 
@@ -1177,6 +1225,8 @@ buildImage() {
   [[ "$error" != "$hide" ]] && echo "$error"
 
   mv -f "$out" "$BOOT" || return 1
+  ! setOwner "$BOOT" && error "Failed to set the owner for \"$BOOT\" !"
+
   return 0
 }
 
