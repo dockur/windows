@@ -192,9 +192,9 @@ writeFile() {
 
   local txt="$1"
   local path="$2"
-  
-  echo "$txt" > "$path"
-  
+
+  echo "$txt" >"$path"
+
   if ! setOwner "$path"; then
     error "Failed to set the owner for \"$path\" !"
   fi
