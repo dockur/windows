@@ -450,6 +450,8 @@ extractESD() {
     error "Adding WinPE failed ($retVal)" && return 1
   }
 
+  fKill "progress.sh"
+
   local msg="Extracting $desc setup"
   info "$msg..."
 
