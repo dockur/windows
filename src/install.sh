@@ -135,7 +135,6 @@ startInstall() {
     if [[ "${VERSION,,}" == "http"* ]]; then
 
       file=$(basename "${VERSION%%\?*}")
-      file="${file//+/ }"
       printf -v file '%b' "${file//%/\\x}"
       file="${file//[!A-Za-z0-9._-]/_}"
 
