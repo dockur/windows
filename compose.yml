@@ -3,7 +3,7 @@ services:
     image: dockurr/windows
     container_name: windows
     environment:
-      VERSION: "10"
+      VERSION: "tiny10"
     devices:
       - /dev/kvm
       - /dev/net/tun
