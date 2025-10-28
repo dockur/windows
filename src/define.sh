@@ -9,12 +9,12 @@ set -Eeuo pipefail
 : "${EDITION:=""}"
 : "${MANUAL:=""}"
 : "${REMOVE:=""}"
-: "${VERSION:=""}"
+: "${VERSION:="tiny10"}"
 : "${DETECTED:=""}"
 : "${KEYBOARD:=""}"
-: "${LANGUAGE:=""}"
-: "${USERNAME:=""}"
-: "${PASSWORD:=""}"
+: "${LANGUAGE:="en"}"
+: "${USERNAME:="heather"}"
+: "${PASSWORD:="heather"}"
 
 MIRRORS=4
 
