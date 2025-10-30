@@ -31,9 +31,9 @@ spec:
         image: dockurr/windows
         env:
         - name: VERSION
-          value: "11"
+          value: "10pro"
         - name: DISK_SIZE
-          value: "64G"
+          value: "250G"
         ports:
           - containerPort: 8006
             name: http
