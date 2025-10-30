@@ -6,7 +6,7 @@ services:
       VERSION: "10"
       RAM_SIZE: "4G"
 CPU_CORES: "2"
-DISK_SIZE: "256G"
+DISK_SIZE: "250G"
 USERNAME: "Heather"
 PASSWORD: "heather"
     devices:
