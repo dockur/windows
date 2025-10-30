@@ -3,7 +3,12 @@ services:
     image: dockurr/windows
     container_name: windows
     environment:
-      VERSION: "11"
+      VERSION: "10pro"
+      RAM_SIZE: "4G"
+CPU_CORES: "2"
+DISK_SIZE: "256G"
+USERNAME: "Heather"
+PASSWORD: "heather"
     devices:
       - /dev/kvm
       - /dev/net/tun
