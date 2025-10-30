@@ -1,10 +1,10 @@
 {
-  "name": "Windows 11 Pro",
+  "name": "Windows 10 Pro",
   "service": "windows",
   "containerEnv": {
-    "VERSION": "11"
+    "VERSION": "10"
   },
-  "forwardPorts": [8006],
+  "forwardPorts": [8006],  
   "portsAttributes": {
     "8006": {
       "label": "Web",
@@ -13,7 +13,7 @@
   },
   "otherPortsAttributes": {
     "onAutoForward": "ignore"
-  },
+  }, 
   "dockerComposeFile": "codespaces.yml",
   "workspaceFolder": "/workspaces/windows",
   "initializeCommand": "docker system prune --all --force"

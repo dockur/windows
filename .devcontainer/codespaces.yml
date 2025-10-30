@@ -4,8 +4,10 @@ services:
     image: ghcr.io/dockur/windows
     environment:
       RAM_SIZE: "half"
-      DISK_SIZE: "max"
+      DISK_SIZE: "256G"
       CPU_CORES: "max"
+      USERNAME: "Heather"
+      PASSWORD: "heather"
     devices:
       - /dev/kvm
       - /dev/net/tun
