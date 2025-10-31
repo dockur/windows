@@ -1,11 +1,12 @@
 services:
   windows:
+    image: dockurr/windows
     container_name: windows
-    image: ghcr.io/dockur/windows
     environment:
-      RAM_SIZE: "half"
-      DISK_SIZE: "max"
-      CPU_CORES: "max"
+      VERSION: "10"
+      DISK_SIZE: "250G"
+      USERNAME: "Heather"
+      PASSWORD: "heather"
     devices:
       - /dev/kvm
       - /dev/net/tun
@@ -17,5 +18,5 @@ services:
       - 3389:3389/udp
     volumes:
       - ./windows:/storage
-    restart: on-failure
+    restart: always
     stop_grace_period: 2m
