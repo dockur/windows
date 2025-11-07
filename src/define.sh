@@ -1914,8 +1914,8 @@ setMachine() {
     "win9"* )
       USB="no"
       VGA="cirrus"
+      ADAPTER="pcnet"
       DISK_TYPE="auto"
-      ADAPTER="rtl8139"
       MACHINE="pc-i440fx-2.4"
       BOOT_MODE="windows_legacy" ;;
     "win2k"* )
