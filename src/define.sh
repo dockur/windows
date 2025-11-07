@@ -1915,16 +1915,16 @@ setMachine() {
       USB="no"
       VGA="cirrus"
       DISK_TYPE="auto"
-      ADAPTER="rtl8139"
       MACHINE="pc-i440fx-2.4"
-      BOOT_MODE="windows_legacy" ;;
+      BOOT_MODE="windows_legacy"
+      [ -z "${ADAPTER:-}" ] && ADAPTER="pcnet" ;;
     "win2k"* )
       VGA="cirrus"
       MACHINE="pc"
       USB="pci-ohci"
       DISK_TYPE="auto"
-      ADAPTER="rtl8139"
-      BOOT_MODE="windows_legacy" ;;
+      BOOT_MODE="windows_legacy"
+      [ -z "${ADAPTER:-}" ] && ADAPTER="rtl8139" ;;
     "winxp"* | "win2003"* )
       DISK_TYPE="blk"
       BOOT_MODE="windows_legacy" ;;
