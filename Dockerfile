@@ -18,7 +18,8 @@ RUN set -eu && \
         dos2unix \
         cabextract \
         libxml2-utils \
-        libarchive-tools && \
+        libarchive-tools \
+        qemu-system-modules-spice && \
     wget "https://github.com/gershnik/wsdd-native/releases/download/v1.22/wsddn_1.22_${TARGETARCH}.deb" -O /tmp/wsddn.deb -q && \
     dpkg -i /tmp/wsddn.deb && \
     apt-get clean && \
