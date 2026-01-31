@@ -58,7 +58,7 @@ jobs:
         uses: reviewdog/action-shfmt@v1
         with:
           level: warning
-          fail_level: error
+          fail_on_error: "true"
           shfmt_flags: "-i 2 -ci -bn"
           github_token: ${{ secrets.GITHUB_TOKEN }}
       -
