@@ -6,8 +6,8 @@ services:
       VERSION: "11"
       DISK_SIZE: "509G"
       MANUAL: "Y"
-    
-    devices:
+     DISK2_SIZE: "639G
+     devices:
       - /dev/kvm
       - /dev/net/tun
     cap_add:
