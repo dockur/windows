@@ -6,7 +6,7 @@ services:
       VERSION: "11"
       DISK_SIZE: "509G"
       MANUAL: "Y"
-     DISK2_SIZE: "639G
+     DISK2_SIZE: "639G"
      devices:
       - /dev/kvm
       - /dev/net/tun
