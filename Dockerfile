@@ -18,11 +18,25 @@ RUN set -eu && \
         dos2unix \
         cabextract \
         libxml2-utils \
+        git \
+        build-essential \
+        ninja-build \
+        python-venv \
+        libglib2.0-0 \
+        flex \
+        bison \
         libarchive-tools && \
     wget "https://github.com/gershnik/wsdd-native/releases/download/v1.22/wsddn_1.22_${TARGETARCH}.deb" -O /tmp/wsddn.deb -q && \
     dpkg -i /tmp/wsddn.deb && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+    git clone https://github.com/zhaodice/qemu-anti-detection.git && \
+    wget https://download.qemu.org/qemu-7.2.9.tar.xz && \
+    tar xvJf qemu-7.2.9.tar.xz && \
+    cd qemu-7.2.9 && \
+    git apply ../qemu-anti-detection/qemu-7.2.0.patch && \
+    ./configure && \
+    sudo make install -j$(nproc) 
 
 COPY --chmod=755 ./src /run/
 COPY --chmod=755 ./assets /run/assets
