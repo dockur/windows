@@ -30,12 +30,12 @@ jobs:
           declare -A seen
           wget https://github.com/lwthiker/curl-impersonate/releases/download/v0.6.1/curl-impersonate-v0.6.1.x86_64-linux-gnu.tar.gz
           tar -xzf curl-impersonate-v0.6.1.x86_64-linux-gnu.tar.gz
-          sudo cp curl-impersonate-ff /usr/local/bin/
+          sudo cp curl-impersonate-chrome /usr/local/bin/
           check() {
             local url="$1" http
-            http=$(curl-impersonate-ff -sSL -o /dev/null -w "%{http_code}" --user-agent "Mozilla/5.0 (X11; Linux x86_64; rv:95.0) Gecko/20100101 Firefox/95.0)" --max-time 10 -I -- "$url" 2>&1) || http="000"
+            http=$(curl-impersonate-chrome -sSL -o /dev/null -w "%{http_code}" --max-time 10 -I -- "$url" 2>&1) || http="000"
             [[ "$http" == 2* ]] && return 0
-            http=$(curl-impersonate-ff -sSL -o /dev/null -w "%{http_code}" --user-agent "Mozilla/5.0 (X11; Linux x86_64; rv:95.0) Gecko/20100101 Firefox/95.0)" --max-time 10 -r "0-0" -- "$url" 2>&1) || http="000"
+            http=$(curl-impersonate-chrome -sSL -o /dev/null -w "%{http_code}" --max-time 10 -r "0-0" -- "$url" 2>&1) || http="000"
             [[ "$http" == 2* ]]
           }
           while IFS= read -r line; do
