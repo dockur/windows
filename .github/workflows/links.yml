@@ -1,0 +1,64 @@
+name: Links
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: links
+  cancel-in-progress: false
+
+jobs:
+  links:
+    name: Links
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      packages: read
+      contents: read
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0          
+      -
+        name: Validate Links
+        run: |
+          errors=0
+          count=0
+          host=""
+          declare -A seen
+          check() {
+            local url="$1" http
+            http=$(curl -sSL -o /dev/null -w "%{http_code}" --max-time 10 -I -- "$url" 2>&1) || http="000"
+            [[ "$http" == 2* ]] && return 0
+            http=$(curl -sSL -o /dev/null -w "%{http_code}" --max-time 10 -r "0-0" -- "$url" 2>&1) || http="000"
+            [[ "$http" == 2* ]]
+          }
+          while IFS= read -r line; do
+            if [[ "$line" =~ ^[[:space:]]*local[[:space:]]+host=\"(https://[^\"]+)\" ]]; then
+              host="${BASH_REMATCH[1]%/}"
+              continue
+            fi
+            [[ "$line" =~ ^[[:space:]]*url=\"(.+)\" ]] || continue
+            val="${BASH_REMATCH[1]#/}"
+            if [[ "$val" == https://* ]]; then
+              url="$val"
+            elif [[ -n "$host" ]]; then
+              url="$host/$val"
+            else
+              continue
+            fi
+            [[ -v seen[$url] ]] && continue
+            seen[$url]=1
+            count=$((count + 1))
+            if check "$url"; then
+              echo "  OK: $url"
+            else
+              echo "FAIL: $url"
+              errors=$((errors + 1))
+            fi
+          done < "src/define.sh"
+          echo ""
+          printf '%d/%d links valid\n' "$(( count - errors ))" "$count"
+          (( errors == 0 ))
