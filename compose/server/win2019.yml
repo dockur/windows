@@ -1,0 +1,21 @@
+---
+services:
+  win2019:
+    image: ${WINDOWS_IMAGE:-dockurr/windows}
+    container_name: win2019
+    env_file: ../../.env.modern
+    environment:
+      VERSION: "2019"
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8019:8006
+      - 3319:3389/tcp
+      - 3319:3389/udp
+    volumes:
+      - ../../data/win2019:/storage
+    restart: ${RESTART_POLICY:-on-failure}
+    stop_grace_period: 2m

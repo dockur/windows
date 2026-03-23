@@ -1,0 +1,61 @@
+---
+services:
+  win11:
+    image: ${WINDOWS_IMAGE:-dockurr/windows}
+    container_name: win11
+    env_file: ../../.env.modern
+    environment:
+      VERSION: "11"
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8011:8006
+      - 3311:3389/tcp
+      - 3311:3389/udp
+    volumes:
+      - ../../data/win11:/storage
+    restart: ${RESTART_POLICY:-on-failure}
+    stop_grace_period: 2m
+
+  win11e:
+    image: ${WINDOWS_IMAGE:-dockurr/windows}
+    container_name: win11e
+    env_file: ../../.env.modern
+    environment:
+      VERSION: "11e"
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8012:8006
+      - 3312:3389/tcp
+      - 3312:3389/udp
+    volumes:
+      - ../../data/win11e:/storage
+    restart: ${RESTART_POLICY:-on-failure}
+    stop_grace_period: 2m
+
+  win11l:
+    image: ${WINDOWS_IMAGE:-dockurr/windows}
+    container_name: win11l
+    env_file: ../../.env.modern
+    environment:
+      VERSION: "11l"
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8013:8006
+      - 3313:3389/tcp
+      - 3313:3389/udp
+    volumes:
+      - ../../data/win11l:/storage
+    restart: ${RESTART_POLICY:-on-failure}
+    stop_grace_period: 2m

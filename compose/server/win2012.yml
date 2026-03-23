@@ -1,0 +1,21 @@
+---
+services:
+  win2012:
+    image: ${WINDOWS_IMAGE:-dockurr/windows}
+    container_name: win2012
+    env_file: ../../.env.legacy
+    environment:
+      VERSION: "2012"
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8112:8006
+      - 3212:3389/tcp
+      - 3212:3389/udp
+    volumes:
+      - ../../data/win2012:/storage
+    restart: ${RESTART_POLICY:-on-failure}
+    stop_grace_period: 2m

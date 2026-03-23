@@ -70,6 +70,153 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 [![Download WinBoat](https://github.com/dockur/windows/raw/master/.github/winboat.png)](https://winboat.app)
 
+## Multi-Version Setup 🗂️
+
+This repository includes pre-configured compose files for all Windows versions with optimized resource profiles.
+
+### Management Script (winctl.sh)
+
+Use `winctl.sh` for easy container management:
+
+```bash
+# Check prerequisites and detected architecture
+./winctl.sh check
+
+# Start a container (interactive menu if no version specified)
+./winctl.sh start win11
+./winctl.sh start              # Shows interactive menu
+
+# View status of all containers
+./winctl.sh status
+
+# Stop containers (with confirmation)
+./winctl.sh stop win11
+./winctl.sh stop all           # Stop all running
+
+# View logs
+./winctl.sh logs win11 -f
+
+# List all available versions (shows [x86 only] on ARM64)
+./winctl.sh list
+./winctl.sh list desktop       # Filter by category
+
+# Real-time monitoring dashboard
+./winctl.sh monitor
+
+# Rebuild container (preserves data)
+./winctl.sh rebuild win11
+
+# Open web viewer in browser
+./winctl.sh open win11
+
+# Pull latest Docker image
+./winctl.sh pull
+
+# Show disk usage per VM
+./winctl.sh disk
+
+# Snapshot and restore VM data
+./winctl.sh snapshot win11 before-update
+./winctl.sh restore win11 before-update
+
+# Clean up stopped containers
+./winctl.sh clean
+
+# Multi-instance support
+./winctl.sh start winxp --new          # Create winxp-1 with auto ports
+./winctl.sh start winxp --new lab      # Create winxp-lab
+./winctl.sh start winxp --new lab --clone  # Clone data from base
+./winctl.sh instances                  # List all instances
+./winctl.sh destroy winxp-lab          # Remove instance
+
+# ISO cache (skip re-downloads for new instances)
+./winctl.sh cache download winxp       # Download original ISO to cache
+./winctl.sh cache list                 # Show cached ISOs
+./winctl.sh start winxp --new          # New instance uses cached ISO
+./winctl.sh cache rm winxp             # Remove cached winxp ISO
+./winctl.sh cache flush                # Clear all cached ISOs
+
+# Full help (includes ARM64 info)
+./winctl.sh help
+```
+
+### Quick Start (Manual)
+
+```bash
+# Run specific version
+docker compose -f compose/desktop/win11.yml up win11
+docker compose -f compose/legacy/winxp.yml up winxp
+```
+
+### Configuration
+
+Two pre-configured env files with optimized defaults:
+
+| File | RAM | CPU | Disk | Used By |
+|------|-----|-----|------|---------|
+| `.env.modern` | 8G | 4 | 128G | Win 10/11, Server 2016+ |
+| `.env.legacy` | 2G | 2 | 32G | Win 7/8, Vista, XP, 2000, Server 2003-2012, Tiny |
+
+Edit these files to customize:
+
+```bash
+# .env.modern or .env.legacy
+RAM_SIZE=8G
+CPU_CORES=4
+DISK_SIZE=128G
+USERNAME=docker
+PASSWORD=admin
+LANGUAGE=en
+RESTART_POLICY=on-failure  # Options: no, on-failure, always, unless-stopped
+```
+
+> 📖 See [WINCTL_GUIDE.md](WINCTL_GUIDE.md) for complete documentation, usage scenarios, and troubleshooting.
+
+### Folder Structure
+
+```
+.env.modern              # Modern system defaults (8G RAM)
+.env.legacy              # Legacy system defaults (2G RAM)
+compose/
+├── desktop/             # Win 11, 10, 8.1, 7
+├── legacy/              # Vista, XP, 2000
+├── server/              # Server 2003-2025
+└── tiny/                # Tiny10, Tiny11
+
+instances/               # Generated instance files
+├── registry.json        # Instance registry
+└── *.yml                # Instance compose files
+
+data/                    # VM storage (per-version folders)
+├── win11/
+├── winxp/
+├── winxp-1/             # Instance data
+└── ...
+
+snapshots/               # VM data snapshots
+├── win11/
+└── ...
+
+cache/                   # ISO cache (skip re-downloads)
+├── winxp/
+└── ...
+```
+
+### Port Reference
+
+| Version | Web UI | RDP |
+|---------|--------|-----|
+| win11 | 8011 | 3311 |
+| win10 | 8010 | 3310 |
+| win81 | 8008 | 3308 |
+| win7 | 8007 | 3307 |
+| vista | 8006 | 3306 |
+| winxp | 8005 | 3305 |
+| win2k | 8000 | 3300 |
+| win2025 | 8025 | 3325 |
+| win2022 | 8022 | 3322 |
+| tiny11 | 8111 | 3111 |
+
 ## FAQ 💬
 
 ### How do I use it?
@@ -121,6 +268,30 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 > [!TIP]
 > To install ARM64 versions of Windows use [dockur/windows-arm](https://github.com/dockur/windows-arm/).
+
+### How do I run on ARM64?
+
+  The `winctl.sh` script auto-detects your CPU architecture. On ARM64 systems (e.g., Apple Silicon, Ampere), only Windows 10 and 11 variants are supported:
+
+  | **Value** | **Version** |
+  |---|---|
+  | `11` | Windows 11 Pro |
+  | `11l` | Windows 11 LTSC |
+  | `11e` | Windows 11 Enterprise |
+  | `10` | Windows 10 Pro |
+  | `10l` | Windows 10 LTSC |
+  | `10e` | Windows 10 Enterprise |
+
+  To configure, set the ARM64 image in your `.env.modern` or `.env.legacy` file:
+
+  ```bash
+  WINDOWS_IMAGE=dockurr/windows-arm
+  ```
+
+  The script will automatically:
+  - Block unsupported versions with a clear error on `start`
+  - Show `[x86 only]` tags next to unsupported versions on `list`
+  - Display your detected architecture on `check`
 
 ### How do I change the storage location?
 
