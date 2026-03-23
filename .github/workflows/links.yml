@@ -31,8 +31,10 @@ jobs:
           check() {
             local url="$1" http
             http=$(curl -sSL -o /dev/null -w "%{http_code}" --max-time 10 -I -- "$url" 2>&1) || http="000"
+            printf '%s\n' "HTTP: $http" 
             [[ "$http" == 2* ]] && return 0
             http=$(curl -sSL -o /dev/null -w "%{http_code}" --max-time 10 -r "0-0" -- "$url" 2>&1) || http="000"
+            printf '%s\n' "HTTP: $http" 
             [[ "$http" == 2* ]]
           }
           while IFS= read -r line; do
