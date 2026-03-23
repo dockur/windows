@@ -28,7 +28,8 @@ jobs:
           count=0
           host=""
           declare -A seen
-          sudo apt-get install curl-impersonate          
+          sudo apt-get update
+          sudo apt-get install curl-impersonate
           check() {
             local url="$1" http
             http=$(curl_ff -sSL -o /dev/null -w "%{http_code}" --user-agent "Mozilla/5.0 (X11; Linux x86_64; rv:95.0) Gecko/20100101 Firefox/95.0)" --max-time 10 -I -- "$url" 2>&1) || http="000"
