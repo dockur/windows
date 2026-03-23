@@ -33,3 +33,8 @@ jobs:
         uses: GrantBirki/json-yaml-validate@v4
         with:
           yaml_exclude_regex: ".*\\kubernetes\\.yml$"
+      -
+        name: Validate Links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          fail: true
