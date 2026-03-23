@@ -22,6 +22,30 @@ jobs:
         with:
           fetch-depth: 0
       -
+        name: Build curl-impersonate
+        run: |
+          sudo apt install build-essential pkg-config cmake ninja-build curl autoconf automake libtool
+          # For the Firefox version only
+          sudo apt install python3-pip libnss3
+          pip install gyp-next
+          export PATH="$PATH:~/.local/bin" # Add gyp to PATH
+          # For the Chrome version only
+          sudo apt install golang-go unzip
+          git clone https://github.com/lwthiker/curl-impersonate.git
+          cd curl-impersonate
+          mkdir build && cd build
+          ../configure
+          # Build and install the Firefox version
+          make firefox-build
+          sudo make firefox-install
+          # Build and install the Chrome version
+          make chrome-build
+          sudo make chrome-install
+          # You may need to update the linker's cache to find libcurl-impersonate
+          sudo ldconfig
+          # Optionally remove all the build files
+          cd ../ && rm -Rf build
+      -
         name: Validate Links
         run: |
           errors=0
