@@ -20,7 +20,7 @@ jobs:
         name: Checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0          
+          fetch-depth: 0
       -
         name: Validate Links
         run: |
