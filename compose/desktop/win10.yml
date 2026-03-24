@@ -1,0 +1,61 @@
+---
+services:
+  win10:
+    image: ${WINDOWS_IMAGE:-dockurr/windows}
+    container_name: win10
+    env_file: ../../.env.modern
+    environment:
+      VERSION: "10"
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8010:8006
+      - 3310:3389/tcp
+      - 3310:3389/udp
+    volumes:
+      - ../../data/win10:/storage
+    restart: ${RESTART_POLICY:-on-failure}
+    stop_grace_period: 2m
+
+  win10e:
+    image: ${WINDOWS_IMAGE:-dockurr/windows}
+    container_name: win10e
+    env_file: ../../.env.modern
+    environment:
+      VERSION: "10e"
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8014:8006
+      - 3314:3389/tcp
+      - 3314:3389/udp
+    volumes:
+      - ../../data/win10e:/storage
+    restart: ${RESTART_POLICY:-on-failure}
+    stop_grace_period: 2m
+
+  win10l:
+    image: ${WINDOWS_IMAGE:-dockurr/windows}
+    container_name: win10l
+    env_file: ../../.env.modern
+    environment:
+      VERSION: "10l"
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8015:8006
+      - 3315:3389/tcp
+      - 3315:3389/udp
+    volumes:
+      - ../../data/win10l:/storage
+    restart: ${RESTART_POLICY:-on-failure}
+    stop_grace_period: 2m

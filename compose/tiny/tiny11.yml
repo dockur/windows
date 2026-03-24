@@ -1,0 +1,21 @@
+---
+services:
+  tiny11:
+    image: ${WINDOWS_IMAGE:-dockurr/windows}
+    container_name: tiny11
+    env_file: ../../.env.legacy
+    environment:
+      VERSION: "tiny11"
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8111:8006
+      - 3111:3389/tcp
+      - 3111:3389/udp
+    volumes:
+      - ../../data/tiny11:/storage
+    restart: ${RESTART_POLICY:-on-failure}
+    stop_grace_period: 2m

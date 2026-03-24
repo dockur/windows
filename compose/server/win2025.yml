@@ -1,0 +1,21 @@
+---
+services:
+  win2025:
+    image: ${WINDOWS_IMAGE:-dockurr/windows}
+    container_name: win2025
+    env_file: ../../.env.modern
+    environment:
+      VERSION: "2025"
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8025:8006
+      - 3325:3389/tcp
+      - 3325:3389/udp
+    volumes:
+      - ../../data/win2025:/storage
+    restart: ${RESTART_POLICY:-on-failure}
+    stop_grace_period: 2m

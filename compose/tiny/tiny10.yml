@@ -1,0 +1,21 @@
+---
+services:
+  tiny10:
+    image: ${WINDOWS_IMAGE:-dockurr/windows}
+    container_name: tiny10
+    env_file: ../../.env.legacy
+    environment:
+      VERSION: "tiny10"
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8110:8006
+      - 3110:3389/tcp
+      - 3110:3389/udp
+    volumes:
+      - ../../data/tiny10:/storage
+    restart: ${RESTART_POLICY:-on-failure}
+    stop_grace_period: 2m

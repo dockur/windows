@@ -1,0 +1,21 @@
+---
+services:
+  win2022:
+    image: ${WINDOWS_IMAGE:-dockurr/windows}
+    container_name: win2022
+    env_file: ../../.env.modern
+    environment:
+      VERSION: "2022"
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8022:8006
+      - 3322:3389/tcp
+      - 3322:3389/udp
+    volumes:
+      - ../../data/win2022:/storage
+    restart: ${RESTART_POLICY:-on-failure}
+    stop_grace_period: 2m

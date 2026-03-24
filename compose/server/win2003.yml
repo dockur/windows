@@ -1,0 +1,21 @@
+---
+services:
+  win2003:
+    image: ${WINDOWS_IMAGE:-dockurr/windows}
+    container_name: win2003
+    env_file: ../../.env.legacy
+    environment:
+      VERSION: "2003"
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8003:8006
+      - 3303:3389/tcp
+      - 3303:3389/udp
+    volumes:
+      - ../../data/win2003:/storage
+    restart: ${RESTART_POLICY:-on-failure}
+    stop_grace_period: 2m
