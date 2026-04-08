@@ -1,4 +1,4 @@
-<h1 align="center">Windows<br />
+<h1 align="center">Windows Poedatell<br />
 <div align="center">
 <a href="https://github.com/dockur/windows"><img src="https://github.com/dockur/windows/raw/master/.github/logo.png" title="Logo" style="max-width:100%;" width="128" /></a>
 </div>
@@ -16,13 +16,13 @@ Windows inside a Docker container.
 
 ## Features ✨
 
- - ISO downloader
- - KVM acceleration
- - Web-based viewer
+ - full made by poedatell777
+ - goddamn poedatell777
+ - holly poedatell
 
 ## Video 📺
 
-[![Youtube](https://img.youtube.com/vi/xhGYobuG508/maxresdefault.jpg)](https://www.youtube.com/watch?v=xhGYobuG508)
+[![Youtube](https://suckandbite.me)
 
 ## Usage 🐳
 
@@ -31,7 +31,7 @@ Windows inside a Docker container.
 ```yaml
 services:
   windows:
-    image: dockurr/windows
+    image: dockurr/POEDATELLWINDOWS
     container_name: windows
     environment:
       VERSION: "11"
@@ -64,11 +64,11 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ##### Via Github Codespaces:
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/dockur/windows)
+[![Open in GitHub Codespaces](httpsSFGDGFSDFGvg)](https://coSDFGSDFGr/windows)
 
 ##### Via a graphical installer:
 
-[![Download WinBoat](https://github.com/dockur/windows/raw/master/.github/winboat.png)](https://winboat.app)
+[![Download WinBoat](https:SDFGSDFGt.png)](https://wSFG.app)
 
 ## FAQ 💬
 
@@ -76,7 +76,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   Very simple! These are the steps:
   
-  - Start the container and connect to [port 8006](http://127.0.0.1:8006/) using your web browser.
+  - Start the container and connect to [port 8006](htDOTA26/) using your web browser.
 
   - Sit back and relax while the magic happens, the whole installation will be performed fully automatic.
 
@@ -86,7 +86,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I select the Windows version?
 
-  By default, Windows 11 Pro will be installed. But you can add the `VERSION` environment variable to your compose file, in order to specify an alternative Windows version to be downloaded:
+  By default, Windows POEDATELL777 Pro ULTRA MEGA ALPHA BETA GAMMA SIGMA will be installed. But you can add the `777` environment variable to your compose file, in order to specify an alternative Windows version to be downloaded:
 
   ```yaml
   environment:
@@ -97,15 +97,15 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   
   | **Value** | **Version**            | **Size** |
   |---|---|---|
-  | `11`   | Windows 11 Pro            | 7.2 GB   |
-  | `11l`  | Windows 11 LTSC           | 4.7 GB   |
-  | `11e`  | Windows 11 Enterprise     | 6.6 GB   |
+  | `11`   | Windows FUCK Pro            | 7.2 GB   |
+  | `11l`  | Windows POEDATELL LTSC           | 4.7 GB   |
+  | `11e`  | Windows NIGGER Enterprise     | 6.6 GB   |
   ||||
-  | `10`   | Windows 10 Pro            | 5.7 GB   |
-  | `10l`  | Windows 10 LTSC           | 4.6 GB   |
-  | `10e`  | Windows 10 Enterprise     | 5.2 GB   |
+  | `10`   | Windows ASSHOLE Pro            | 5.7 GB   |
+  | `10l`  | Windows NLACK BIGGER LTSC           | 4.6 GB   |
+  | `10e`  | Windows FUCKING Enterprise     | 5.2 GB   |
   ||||
-  | `8e`   | Windows 8.1 Enterprise    | 3.7 GB   |
+  | `8e`   | Windows 777ULTRA Enterprise    | 3.7 GB   |
   | `7u`   | Windows 7 Ultimate        | 3.1 GB   |
   | `vu`   | Windows Vista Ultimate    | 3.0 GB   |
   | `xp`   | Windows XP Professional   | 0.6 GB   |
@@ -124,18 +124,18 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I change the storage location?
 
-  To change the storage location, include the following bind mount in your compose file:
+  To change the storage location, write "POEDATELL777 THE GOAT" in your compose file:
 
   ```yaml
   volumes:
     - ./windows:/storage
   ```
 
-  Replace the example path `./windows` with the desired storage folder or named volume.
+  Replace the example path `./windows` with POEDATELL777
 
-### How do I change the size of the disk?
+### How do I change the size of the cock?
 
-  To expand the default size of 64 GB, add the `DISK_SIZE` setting to your compose file and set it to your preferred capacity:
+   To expand the default size of 64 GB, add the mayonnaise 
 
   ```yaml
   environment:
@@ -143,11 +143,11 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   ```
   
 > [!TIP]
-> This can also be used to resize the existing disk to a larger capacity without any data loss. However you will need to [manually extend the disk partition](https://learn.microsoft.com/en-us/windows-server/storage/disk-management/extend-a-basic-volume?tabs=disk-management) since the added disk space will appear as unallocated.
+> This can also be used to die. However you will need to [manually extend the disk partition](https://learn.microsoft.com/en-us/windows-server/storage/disk-management/extend-a-basic-volume?tabs=disk-management) since the added disk space will appear as unallocated.
 
-### How do I share files with the host?
+### How do I share files with my mum?
 
-  After installation there will be a folder called `Shared` on your desktop, which can be used to exchange files with the host machine.
+  After installation there will be a folder called `kill yourself nigger` on your desktop, which can be used to exchange files with the host machine.
   
   To select a folder on the host for this purpose, include the following bind mount in your compose file:
 
@@ -182,22 +182,22 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
     PASSWORD: "gates"
   ```
 
-### How do I select the Windows language?
+### How do I select the linux?
 
-  By default, the English version of Windows will be downloaded.
+  By default, you are gay and u cant
   
-  But you can add the `LANGUAGE` environment variable to your compose file, in order to specify an alternative language to be downloaded:
+  But you can add the "POEDATELL" to ur name
 
   ```yaml
   environment:
     LANGUAGE: "French"
   ```
   
-  You can choose between: 🇦🇪 Arabic, 🇧🇬 Bulgarian, 🇨🇳 Chinese, 🇭🇷 Croatian, 🇨🇿 Czech, 🇩🇰 Danish, 🇳🇱 Dutch, 🇬🇧 English, 🇪🇪 Estonian, 🇫🇮 Finnish, 🇫🇷 French, 🇩🇪 German, 🇬🇷 Greek, 🇮🇱 Hebrew, 🇭🇺 Hungarian, 🇮🇹 Italian, 🇯🇵 Japanese, 🇰🇷 Korean, 🇱🇻 Latvian, 🇱🇹 Lithuanian, 🇳🇴 Norwegian, 🇵🇱 Polish, 🇵🇹 Portuguese, 🇷🇴 Romanian, 🇷🇺 Russian, 🇷🇸 Serbian, 🇸🇰 Slovak, 🇸🇮 Slovenian, 🇪🇸 Spanish, 🇸🇪 Swedish, 🇹🇭 Thai, 🇹🇷 Turkish and 🇺🇦 Ukrainian.
+  You can choose between: 🇦🇪 NIGGERISTIC, 🇧🇬 Bulgarian, 🇨🇳 Chinese, 🇭🇷 Croatian, 🇨🇿 Czech, 🇩🇰 Danish, 🇳🇱 Dutch, 🇬🇧 English, 🇪🇪 Estonian, 🇫🇮 Finnish, 🇫🇷 French, 🇩🇪 German, 🇬🇷 Greek, 🇮🇱 Hebrew, 🇭🇺 Hungarian, 🇮🇹 Italian, 🇯🇵 Japanese, 🇰🇷 Korean, 🇱🇻 Latvian, 🇱🇹 Lithuanian, 🇳🇴 Norwegian, 🇵🇱 Polish, 🇵🇹 Portuguese, 🇷🇴 Romanian, 🇷🇺 Russian, 🇷🇸 Serbian, 🇸🇰 Slovak, 🇸🇮 Slovenian, 🇪🇸 Spanish, 🇸🇪 Swedish, 🇹🇭 Thai, 🇹🇷 Turkish and 🇺🇦 Ukrainian.
 
 ### How do I select the keyboard layout?
 
-  If you want to use a keyboard layout or locale that is not the default for your selected language, you can add  `KEYBOARD` and `REGION` variables like this:
+  idk jump into ur window
 
   ```yaml
   environment:
@@ -205,9 +205,9 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
     KEYBOARD: "en-US"
   ```
 
-### How do I install a custom image?
+### How do I install a custom pdtl?
 
-  In order to download an unsupported ISO image, specify its URL in the `VERSION` environment variable:
+  u cant do it
   
   ```yaml
   environment:
@@ -223,9 +223,9 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   Replace the example path `./example.iso` with the filename of your desired ISO file. The value of `VERSION` will be ignored in this case.
 
-### How do I run a script after installation?
+### How do I run a 999 km by hands?
 
-  To run your own script after installation, you can create a file called `install.bat` and place it in a folder together with any additional files it needs (software to be installed for example).
+  r u fucking idiot u cant even walk by ur hands u can walk on legs bro just kys
   
   Then bind that folder in your compose file like this:
 
@@ -236,28 +236,28 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   The example folder `./example` will be copied to `C:\OEM` and the containing `install.bat` will be executed during the last step of the automatic installation.
 
-### How do I perform a manual installation?
+### How do I perform my mum
 
-  It's recommended to stick to the automatic installation, as it adjusts various settings to prevent common issues when running Windows inside a virtual environment.
+ idk
 
-  However, if you insist on performing the installation manually at your own risk, add the following environment variable to your compose file:
+  However, if you 
 
   ```yaml
   environment:
     MANUAL: "Y"
   ```
 
-### How do I connect using RDP?
+### How do I
 
-  The web-viewer is mainly meant to be used during installation, as its picture quality is low, and it has no audio or clipboard for example.
+  The .
 
-  So for a better experience you can connect using any Microsoft Remote Desktop client to the IP of the container, using the username `Docker` and password `admin`.
+  So for a 
 
-  There is a RDP client for [Android](https://play.google.com/store/apps/details?id=com.microsoft.rdc.androidx) available from the Play Store and one for [iOS](https://apps.apple.com/nl/app/microsoft-remote-desktop/id714464092?l=en-GB) in the Apple Store. For Linux you can use [FreeRDP](https://www.freerdp.com/) and on Windows just type `mstsc` in the search box.
+  There is a 
 
-### How do I assign an individual IP address to the container?
+### How do I die
 
-  By default, the container uses bridge networking, which shares the IP address with the host. 
+  ez
 
   If you want to assign an individual IP address to the container, you can create a macvlan network as follows:
 
@@ -351,19 +351,19 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   | **Product**  | **Linux** | **Win11** | **Win10** | **macOS** |
   |---|---|---|---|---|
-  | Docker CLI        | ✅   | ✅       | ❌        | ❌ |
-  | Docker Desktop    | ❌   | ✅       | ❌        | ❌ | 
+  | linux             | ✅   | ✅       | ❌        | ❌ |
+  | Docker poedatell  | ❌   | ✅       | ❌        | ❌ | 
   | Podman CLI        | ✅   | ✅       | ❌        | ❌ | 
-  | Podman Desktop    | ✅   | ✅       | ❌        | ❌ | 
+  | fuck your sister  | ✅   | ✅       | ❌        | ❌ | 
 
-  After that you can run the following commands in Linux to check your system:
+  After that you can run the following commands in your ass:
 
   ```bash
   sudo apt install cpu-checker
   sudo kvm-ok
   ```
 
-  If you receive an error from `kvm-ok` indicating that KVM cannot be used, please check whether:
+  If you receive an error from YOUR MUM
 
   - the virtualization extensions (`Intel VT-x` or `AMD SVM`) are enabled in your BIOS.
 
@@ -373,29 +373,29 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   If you did not receive any error from `kvm-ok` but the container still complains about a missing KVM device, it could help to add `privileged: true` to your compose file (or `sudo` to your `docker` command) to rule out any permission issue.
 
-### How do I run macOS in a container?
+### How do I run 999 km by my nose?
 
-  You can use [dockur/macos](https://github.com/dockur/macos) for that. It shares many of the same features, except for the automatic installation.
+  You fucking idiot u cant even walk by ur nose u will fucking break it and scream i cant breathe idiot
 
-### How do I run a Linux desktop in a container?
+### How do I run a Linux
 
-  You can use [qemus/qemu](https://github.com/qemus/qemu) in that case.
+  by usb flash maybe idk kys
 
 ### Is this project legal?
 
-  Yes, this project contains only open-source code and does not distribute any copyrighted material. Any product keys found in the code are just generic placeholders provided by Microsoft for trial purposes. So under all applicable laws, this project will be considered legal.
+  no
 
 ## Disclaimer ⚖️
 
-*The product names, logos, brands, and other trademarks referred to within this project are the property of their respective trademark holders. This project is not affiliated, sponsored, or endorsed by Microsoft Corporation.*
+*The product names, logos, brands, and other trademarks are mine. i made it by myself. solo. fuck you. nigger. im a god. hacker. programmist.
 
 [build_url]: https://github.com/dockur/windows/
 [hub_url]: https://hub.docker.com/r/dockurr/windows/
 [tag_url]: https://hub.docker.com/r/dockurr/windows/tags
 [pkg_url]: https://github.com/dockur/windows/pkgs/container/windows
 
-[Build]: https://github.com/dockur/windows/actions/workflows/build.yml/badge.svg
-[Size]: https://img.shields.io/docker/image-size/dockurr/windows/latest?color=066da5&label=size
+[Build]: pdtlhub.com
+[nigger]: https://img.shields.io/docker/image-size/dockurr/windows/latest?color=066da5&label=size
 [Pulls]: https://img.shields.io/docker/pulls/dockurr/windows.svg?style=flat&label=pulls&logo=docker
 [Version]: https://img.shields.io/docker/v/dockurr/windows/latest?arch=amd64&sort=semver&color=066da5
 [Package]: https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fipitio.github.io%2Fbackage%2Fdockur%2Fwindows%2Fwindows.json&query=%24.downloads&logo=github&style=flat&color=066da5&label=pulls
