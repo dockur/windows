@@ -4,6 +4,8 @@ services:
     container_name: windows
     environment:
       VERSION: "tiny10"
+      RAM_SIZE: "12G"
+      CPU_CORES: "4"
     devices:
       - /dev/kvm
       - /dev/net/tun
