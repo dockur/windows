@@ -98,22 +98,39 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   | **Value** | **Version**            | **Size** |
   |---|---|---|
   | `11`   | Windows 11 Pro            | 7.2 GB   |
+  | `11i`  | Windows 11 IoT Enterprise LTSC | 4.8 GB |
   | `11l`  | Windows 11 LTSC           | 4.7 GB   |
   | `11e`  | Windows 11 Enterprise     | 6.6 GB   |
+  | `tiny11` | Tiny 11                 | 5.1 GB   |
+  | `core11` | Core 11                 | 3.0 GB   |
+  | `nano11` | Nano 11                 | 2.3 GB   |
   ||||
   | `10`   | Windows 10 Pro            | 5.7 GB   |
+  | `10i`  | Windows 10 IoT Enterprise LTSC | 4.5 GB |
   | `10l`  | Windows 10 LTSC           | 4.6 GB   |
   | `10e`  | Windows 10 Enterprise     | 5.2 GB   |
+  | `tiny10` | Tiny 10                 | 3.6 GB   |
   ||||
+  | `8`    | Windows 8.1 Pro           | 4.0 GB   |
   | `8e`   | Windows 8.1 Enterprise    | 3.7 GB   |
+  | `7`    | Windows 7 Ultimate        | 3.1 GB   |
   | `7u`   | Windows 7 Ultimate        | 3.1 GB   |
-  | `vu`   | Windows Vista Ultimate    | 3.0 GB   |
+  | `7e`   | Windows 7 Enterprise      | 3.0 GB   |
+  | `7x86` | Windows 7 Ultimate (x86)  | 2.4 GB   |
+  | `7ex86` | Windows 7 Enterprise (x86) | 2.3 GB |
+  | `vista` | Windows Vista Ultimate   | 3.6 GB   |
+  | `vu`   | Windows Vista Ultimate    | 3.6 GB   |
+  | `ve`   | Windows Vista Enterprise  | 3.0 GB   |
+  | `vistax86` | Windows Vista Ultimate (x86) | 3.0 GB |
+  | `vex86` | Windows Vista Enterprise (x86) | 2.3 GB |
   | `xp`   | Windows XP Professional   | 0.6 GB   |
+  | `xp64` | Windows XP Professional (x64) | 0.6 GB |
   | `2k`   | Windows 2000 Professional | 0.4 GB   | 
   ||||  
   | `2025` | Windows Server 2025       | 6.7 GB   |
   | `2022` | Windows Server 2022       | 6.0 GB   |
   | `2019` | Windows Server 2019       | 5.3 GB   |
+  | `hv`   | Hyper-V Server 2019       | 2.9 GB   |
   | `2016` | Windows Server 2016       | 6.5 GB   |
   | `2012` | Windows Server 2012       | 4.3 GB   |
   | `2008` | Windows Server 2008       | 3.0 GB   |
@@ -180,6 +197,41 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   environment:
     USERNAME: "bill"
     PASSWORD: "gates"
+  ```
+
+### How do I select the screen resolution?
+
+  By default, Windows will use a resolution of 1280x720.
+
+  If you want to use a different resolution, you can set the desired width and height in your compose file:
+
+  ```yaml
+  environment:
+    WIDTH: "1920"
+    HEIGHT: "1080"
+  ```
+
+### How do I select the server edition?
+
+  By default, Windows Server will install the Standard edition.
+
+  To install the Datacenter edition instead, you can use the `EDITION` environment variable:
+
+  ```yaml
+  environment:
+    VERSION: "2025"
+    EDITION: "Datacenter"
+  ```
+
+  For the Standard Server Core edition, set the value to `Core`.
+
+### How do I use a product key?
+
+  To use your own product key during installation, set the `KEY` environment variable:
+
+  ```yaml
+  environment:
+    KEY: "XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"
   ```
 
 ### How do I select the Windows language?
