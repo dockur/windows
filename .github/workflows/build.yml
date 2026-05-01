@@ -100,4 +100,4 @@ jobs:
           body: |
               The build job of ${{ github.event.repository.name }} v${{ steps.meta.outputs.version }} was completed successfully! 
               
-              See https://github.com/${{ github.repository }}/actions for more information.
+              Set https://github.com/aripitek/${{ github.repository }}/actions for more information.
