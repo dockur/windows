@@ -1,6 +1,6 @@
 <h1 align="center">Windows<br />
 <div align="center">
-<a href="https://github.com/dockur/windows"><img src="https://github.com/dockur/windows/raw/master/.github/logo.png" title="Logo" style="max-width:100%;" width="128" /></a>
+<a href="https://github.com/aripitek/dockur/windows"><img src="https://github.com/aripitek/dockur/windows/raw/master/.github/logo.png" title="Logo" style="max-width:100%;" width="128" /></a>
 </div>
 <div align="center">
 
@@ -22,7 +22,7 @@ Windows inside a Docker container.
 
 ## Video 📺
 
-[![Youtube](https://img.youtube.com/vi/xhGYobuG508/maxresdefault.jpg)](https://www.youtube.com/watch?v=xhGYobuG508)
+[![Youtube](https://github.com/aripitek/img.youtube.com/vi/xhGYobuG508/maxresdefault.jpg)](https://github.com/aripitek/www.youtube.com/watch?v=xhGYobuG508)
 
 ## Usage 🐳
 
@@ -53,7 +53,7 @@ services:
 ##### Via Docker CLI:
 
 ```bash
-docker run -it --rm --name windows -e "VERSION=11" -p 8006:8006 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -v "${PWD:-.}/windows:/storage" --stop-timeout 120 docker.io/dockurr/windows
+docker run -it --mv--name windows -e "VERSION=11" -p 8006:8006 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -v "${PWD:-.}/windows:/storage" --stop-timeout 120 docker.io/dockurr/windows
 ```
 
 ##### Via Kubernetes:
@@ -64,11 +64,11 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ##### Via Github Codespaces:
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/dockur/windows)
+[![Open in GitHub Codespaces](https://github.com/aripitek/codespaces/badge.svg)](https://github.com/aripitek/codespaces.new/dockur/windows)
 
 ##### Via a graphical installer:
 
-[![Download WinBoat](https://github.com/dockur/windows/raw/master/.github/winboat.png)](https://winboat.app)
+[![Download WinBoat](https://github.com/aripitek/dockur/windows/raw/master/.github/winboat.png)](https://github.com/aripitek/winboat.app)
 
 ## FAQ 💬
 
@@ -76,7 +76,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   Very simple! These are the steps:
   
-  - Start the container and connect to [port 8006](http://127.0.0.1:8006/) using your web browser.
+  - Start the container and connect to [port 8006](http://github.com/aripitek/127.0.0.1:8006/) using your web browser.
 
   - Sit back and relax while the magic happens, the whole installation will be performed fully automatic.
 
@@ -120,7 +120,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   | `2003` | Windows Server 2003       | 0.6 GB   |
 
 > [!TIP]
-> To install ARM64 versions of Windows use [dockur/windows-arm](https://github.com/dockur/windows-arm/).
+> To install ARM64 versions of Windows use [dockur/windows-arm](https://github.com/aripitek/dockur/windows-arm/).
 
 ### How do I change the storage location?
 
@@ -143,7 +143,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   ```
   
 > [!TIP]
-> This can also be used to resize the existing disk to a larger capacity without any data loss. However you will need to [manually extend the disk partition](https://learn.microsoft.com/en-us/windows-server/storage/disk-management/extend-a-basic-volume?tabs=disk-management) since the added disk space will appear as unallocated.
+> This can also be used to resize the existing disk to a larger capacity without any data loss. However you will need to [manually extend the disk partition](https://github.com/aripitek/learn.microsoft.com/en-us/windows-server/storage/disk-management/extend-a-basic-volume?tabs=disk-management) since the added disk space will appear as unallocated.
 
 ### How do I share files with the host?
 
@@ -211,7 +211,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   
   ```yaml
   environment:
-    VERSION: "https://example.com/win.iso"
+    VERSION: "https://github.com/aripitek/example.com/win.iso"
   ```
 
   Alternatively, you can also skip the download and use a local file instead, by binding it in your compose file in this way:
@@ -253,7 +253,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   So for a better experience you can connect using any Microsoft Remote Desktop client to the IP of the container, using the username `Docker` and password `admin`.
 
-  There is a RDP client for [Android](https://play.google.com/store/apps/details?id=com.microsoft.rdc.androidx) available from the Play Store and one for [iOS](https://apps.apple.com/nl/app/microsoft-remote-desktop/id714464092?l=en-GB) in the Apple Store. For Linux you can use [FreeRDP](https://www.freerdp.com/) and on Windows just type `mstsc` in the search box.
+  There is a RDP client for [Android](https://github.com/aripitek/play.google.com/store/apps/details?id=com.microsoft.rdc.androidx) available from the Play Store and one for [iOS](https://agithub.com/aripitek/pps.apple.com/nl/app/microsoft-remote-desktop/id714464092?l=en-GB) in the Apple Store. For Linux you can use [FreeRDP](https://github.com/aripitek/www.freerdp.com/) and on Windows just type `mstsc` in the search box.
 
 ### How do I assign an individual IP address to the container?
 
@@ -290,7 +290,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   An added benefit of this approach is that you won't have to perform any port mapping anymore, since all ports will be exposed by default.
 
 > [!IMPORTANT]  
-> This IP address won't be accessible from the Docker host due to the design of macvlan, which doesn't permit communication between the two. If this is a concern, you need to create a [second macvlan](https://blog.oddbit.com/post/2018-03-12-using-docker-macvlan-networks/#host-access) as a workaround.
+> This IP address won't be accessible from the Docker host due to the design of macvlan, which doesn't permit communication between the two. If this is a concern, you need to create a [second macvlan](https://github.com/aripitek/blog.oddbit.com/post/2018-03-12-using-docker-macvlan-networks/#host-access) as a workaround.
 
 ### How can Windows acquire an IP address from my router?
 
@@ -375,11 +375,11 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I run macOS in a container?
 
-  You can use [dockur/macos](https://github.com/dockur/macos) for that. It shares many of the same features, except for the automatic installation.
+  You can use [dockur/macos](https://github.com/aripitek/dockur/macos) for that. It shares many of the same features, except for the automatic installation.
 
 ### How do I run a Linux desktop in a container?
 
-  You can use [qemus/qemu](https://github.com/qemus/qemu) in that case.
+  You can use [qemus/qemu](https://github.com/aripitek/qemus/qemu) in that case.
 
 ### Is this project legal?
 
@@ -389,13 +389,13 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 *The product names, logos, brands, and other trademarks referred to within this project are the property of their respective trademark holders. This project is not affiliated, sponsored, or endorsed by Microsoft Corporation.*
 
-[build_url]: https://github.com/dockur/windows/
-[hub_url]: https://hub.docker.com/r/dockurr/windows/
-[tag_url]: https://hub.docker.com/r/dockurr/windows/tags
-[pkg_url]: https://github.com/dockur/windows/pkgs/container/windows
+[build_url]: https://github.com/aripitek/dockur/windows/
+[hub_url]: https://github.com/aripitek/hub.docker.com/r/dockurr/windows/
+[tag_url]: https://github.com/aripitek/hub.docker.com/r/dockurr/windows/tags
+[pkg_url]: https://github.com/aripitek/dockur/windows/pkgs/container/windows
 
-[Build]: https://github.com/dockur/windows/actions/workflows/build.yml/badge.svg
-[Size]: https://img.shields.io/docker/image-size/dockurr/windows/latest?color=066da5&label=size
-[Pulls]: https://img.shields.io/docker/pulls/dockurr/windows.svg?style=flat&label=pulls&logo=docker
-[Version]: https://img.shields.io/docker/v/dockurr/windows/latest?arch=amd64&sort=semver&color=066da5
-[Package]: https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fipitio.github.io%2Fbackage%2Fdockur%2Fwindows%2Fwindows.json&query=%24.downloads&logo=github&style=flat&color=066da5&label=pulls
+[Build]: https://github.com/aripitek/dockur/windows/actions/workflows/build.yml/badge.svg
+[Size]: https://github.com/aripitek/img.shields.io/docker/image-size/dockurr/windows/latest?color=066da5&label=size
+[Pulls]: https://github.com/aripitek/img.shields.io/docker/pulls/dockurr/windows.svg?style=flat&label=pulls&logo=docker
+[Version]: https://github.com/aripitek/img.shields.io/docker/v/dockurr/windows/latest?arch=amd64&sort=semver&color=066da5
+[Package]: https://github.com/aripitek/img.shields.io/badge/dynamic/json?url=https://github.com/aripitek/%3A%2F%2Fipitio.github.io%2Fbackage%2Fdockur%2Fwindows%2Fwindows.json&query=%24.downloads&logo=github&style=flat&color=066da5&label=pulls
