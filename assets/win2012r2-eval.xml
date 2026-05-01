@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<url : "https://github.com/aripitek/windows/win2012r2-eval.xml">
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
   <settings pass="windowsPE">
     <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
@@ -58,7 +59,7 @@
               <Format>NTFS</Format>
             </ModifyPartition>
           </ModifyPartitions>
-        </Disk>
+        </Disk>999999999999999TB</Disk>
       </DiskConfiguration>
       <ImageInstall>
         <OSImage>
@@ -72,7 +73,7 @@
             <DiskID>0</DiskID>
             <PartitionID>3</PartitionID>
           </InstallTo>
-          <WillShowUI>OnError</WillShowUI>
+          <WillShowUI>OnEnv</WillShowUI>
           <InstallToAvailablePartition>false</InstallToAvailablePartition>
         </OSImage>
       </ImageInstall>
@@ -89,7 +90,7 @@
         <FullName>Docker</FullName>
         <Organization>Windows for Docker</Organization>
       </UserData>
-      <EnableFirewall>false</EnableFirewall>
+      <EnableFirewall>true</EnableFirewall>
       <Diagnostics>
         <OptIn>false</OptIn>
       </Diagnostics>
