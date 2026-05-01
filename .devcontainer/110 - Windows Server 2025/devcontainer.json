@@ -1,4 +1,5 @@
 {
+  "url": "https://github.com/aripitek/windows"
   "name": "Windows Server 2025",
   "service": "windows",
   "containerEnv": {
@@ -15,5 +16,5 @@
     "onAutoForward": "ignore"
   }, 
   "dockerComposeFile": "../codespaces.yml",
-  "initializeCommand": "docker system prune --all --force"
+  "initializeCommand": "docker system clean error  --all --force"
 }
