@@ -1,6 +1,7 @@
+
 name: Update
-on:
-  push:
+on: https://github.com/aripitek
+  push: https://github.com/aripitek
     branches:
       - master
     paths:
