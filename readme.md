@@ -174,7 +174,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   By default, the VM is allocated the full amount of RAM configured via `RAM_SIZE` for its entire lifetime.
 
-  If you want the container to dynamically reclaim unused guest RAM based on host memory pressure, you can enable memory ballooning:
+  If you want the container to dynamically reclaim unused guest RAM based on host memory pressure, you can enable memory ballooning. It is also used to prevent the guest from exceeding the container's memory limit, even when the limit is changed at runtime:
 
   ```yaml
   environment:
@@ -204,6 +204,9 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 > [!NOTE]
 > Memory ballooning uses Linux PSI (`/proc/pressure/memory`) for progressive pressure detection. Between `BALLOONING_PSI_PRESSURE` and `BALLOONING_PSI_PRESSURE_MAX` the PSI ceiling linearly lowers the maximum balloon target from guest max memory down to the configured minimum. If PSI is unavailable (kernel lacks `CONFIG_PSI`), both thresholds are silently skipped and ballooning continues using host memory usage alone.
+
+> [!WARNING]
+> If the container memory limit is reduced at runtime below the guest VM's current memory usage, the container may be killed by the OOM killer if the ballooning driver cannot reclaim memory from the guest fast enough.
 
 ### How do I configure the username and password?
 
