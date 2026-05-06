@@ -27,7 +27,7 @@ RUN set -eu && \
 COPY --chmod=755 ./src /run/
 COPY --chmod=755 ./assets /run/assets
 
-ADD --chmod=664 https://github.com/qemus/virtiso-whql/releases/download/v1.9.53-0/virtio-win-1.9.53.tar.xz /var/drivers.txz
+ADD --chmod=664 https://github.com/qemus/virtiso-whql/releases/download/v1.9.57-0/virtio-win-1.9.57.tar.xz /var/drivers.txz
 
 FROM dockurr/windows-arm:${VERSION_ARG} AS build-arm64
 FROM build-${TARGETARCH}
