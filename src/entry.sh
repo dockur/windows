@@ -24,7 +24,6 @@ cd /run
 . power.sh      # Configure shutdown
 . memory.sh     # Check available memory
 . config.sh     # Configure arguments
-. ballooning.sh # Initialize ballooning
 . finish.sh     # Finish initialization
 
 trap - ERR
