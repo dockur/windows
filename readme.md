@@ -170,44 +170,6 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
     CPU_CORES: "4"
   ```
 
-### How do I enable dynamic memory allocation?
-
-  By default, the VM is allocated the full amount of RAM configured via `RAM_SIZE` for its entire lifetime.
-
-  If you want the container to dynamically reclaim unused guest RAM based on host memory pressure, you can enable memory ballooning. It is also used to prevent the guest from exceeding the container's memory limit, even when the limit is changed at runtime:
-
-  ```yaml
-  environment:
-    BALLOONING: "Y"
-  ```
-
-  This requires the VirtIO Balloon service to be installed in the guest. For all supported Windows versions, this happens automatically during unattended installation. If you are using a manual installation or an existing guest that was installed before this feature was added, you need to install it manually by running the following command inside the VM:
-
-  ```bat
-  C:\Windows\Drivers\Balloon\blnsvr.exe -i
-  ```
-
-  The following optional variables allow you to tune the ballooning behaviour:
-
-  | **Variable**              | **Default** | **Description**                                                    |
-  |---|---|---|
-  | `BALLOONING`              | _(off)_     | Set to `Y` to enable dynamic memory ballooning                     |
-  | `BALLOONING_MIN_MEM`      | `33%`       | Minimum balloon target, as a percentage of guest max memory (e.g. `33%`) or absolute size (e.g. `2G`) |
-  | `BALLOONING_RAM_THRESHOLD`| `80.0`      | Target host RAM usage percentage; the PI controller aims to keep host usage at or below this value |
-  | `BALLOONING_RAM_THRESHOLD_HARD`| `90.0` | Host RAM usage percentage above which the balloon target may drop below guest RAM usage, inducing guest memory pressure |
-  | `BALLOONING_PSI_PRESSURE` | `10.0`      | Host PSI `avg10` stall percentage at which the PSI ceiling begins to lower the balloon target |
-  | `BALLOONING_PSI_PRESSURE_MAX` | `50.0`  | Host PSI `avg10` stall percentage at which the PSI ceiling reaches the configured minimum balloon target |
-  | `BALLOONING_HYSTERESIS`   | `128M`      | Minimum balloon target change required before a resize is applied, as a percentage (e.g. `2%`) or absolute size (e.g. `256M`) |
-  | `BALLOONING_KP`           | `0.5`       | PI controller proportional gain; higher values react faster but may oscillate |
-  | `BALLOONING_KI`           | `0.05`      | PI controller integral gain; higher values correct steady-state error faster but risk overshoot |
-  | `BALLOONING_INTERVAL`     | `5`         | Polling interval in seconds                                        |
-
-> [!NOTE]
-> Memory ballooning uses Linux PSI (`/proc/pressure/memory`) for progressive pressure detection. Between `BALLOONING_PSI_PRESSURE` and `BALLOONING_PSI_PRESSURE_MAX` the PSI ceiling linearly lowers the maximum balloon target from guest max memory down to the configured minimum. If PSI is unavailable (kernel lacks `CONFIG_PSI`), both thresholds are silently skipped and ballooning continues using host memory usage alone.
-
-> [!WARNING]
-> If the container memory limit is reduced at runtime below the guest VM's current memory usage, the container may be killed by the OOM killer if the ballooning driver cannot reclaim memory from the guest fast enough.
-
 ### How do I configure the username and password?
 
   By default, a user called `Docker` is created and its password is `admin`.
