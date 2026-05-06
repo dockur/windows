@@ -164,6 +164,11 @@
           <Path>pnputil -i -a C:\Windows\Drivers\viogpudo\viogpudo.inf</Path>
           <Description>Install VirtIO display driver</Description>
         </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>4</Order>
+          <Path>C:\Windows\Drivers\Balloon\blnsvr.exe -i</Path>
+          <Description>Install VirtIO Balloon service</Description>
+        </RunSynchronousCommand>
       </RunSynchronous>
     </component>
     <component name="Microsoft-Windows-ServerManager-SvrMgrNc" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
