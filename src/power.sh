@@ -6,8 +6,6 @@ set -Eeuo pipefail
 # Configure QEMU for graceful shutdown
 
 QEMU_TERM=""
-QEMU_DIR="/run/shm"
-QEMU_PID="$QEMU_DIR/qemu.pid"
 QEMU_PTY="$QEMU_DIR/qemu.pty"
 QEMU_LOG="$QEMU_DIR/qemu.log"
 QEMU_OUT="$QEMU_DIR/qemu.out"
@@ -233,8 +231,7 @@ _graceful_shutdown() {
 }
 
 SERIAL="pty"
-MONITOR="telnet:localhost:$MON_PORT,server,nowait,nodelay"
-MONITOR+=" -daemonize -D $QEMU_LOG -pidfile $QEMU_PID"
+MONITOR="telnet:localhost:$MON_PORT,server,nowait,nodelay -daemonize -D $QEMU_LOG"
 
 _trap _graceful_shutdown SIGTERM SIGHUP SIGINT SIGABRT SIGQUIT
 
