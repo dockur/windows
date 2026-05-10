@@ -23,6 +23,7 @@ cd /run
 . proc.sh       # Initialize processor
 . power.sh      # Configure shutdown
 . memory.sh     # Check available memory
+. balloon.sh    # Initialize ballooning
 . config.sh     # Configure arguments
 . finish.sh     # Finish initialization
 
