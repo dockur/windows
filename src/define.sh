@@ -819,7 +819,7 @@ getLink1() {
     "win11x64" | "win11x64-enterprise" | "win11x64-enterprise-eval" )
       size=5332989952
       sum="aa1ad990f930d907b7a34ea897abbb0dfbe47552ca8acc146f92e40381839e05"
-      url="11/en-us_windows_11_24h2_x64.iso"
+      url="11/en-us_windows_11_25h2_x64.iso"
       ;;
     "win11x64-iot" | "win11x64-enterprise-iot" | "win11x64-enterprise-iot-eval" )
       size=5144817664
