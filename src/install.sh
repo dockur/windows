@@ -1015,12 +1015,13 @@ addDrivers() {
   addDriver "$version" "$drivers" "$target" "vioserial" || return 1
   addDriver "$version" "$drivers" "$target" "qemupciserial" || return 1
 
+  local dst="$src/\$OEM\$/\$\$/Drivers"
+  mkdir -p "$dst" || return 1
+  cp -Lr "$dest/." "$dst" || return 1
+
   case "${version,,}" in
     "win11x64"* | "win2025"* )
       # Workaround Virtio GPU driver bug
-      local dst="$src/\$OEM\$/\$\$/Drivers"
-      mkdir -p "$dst" || return 1
-      cp -Lr "$dest/." "$dst" || return 1
       rm -rf "$dest/viogpudo"
       ;;
   esac
