@@ -344,7 +344,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   ```
 
 > [!WARNING]  
-> Adding USB mass storage devices before Windows Setup has finished may cause it to fail. Or worse: they can get formatted during installation as the system disk, and all your data will be lost! So always keep them disconnected when launching the container for the first time.
+> Adding a USB mass storage device before Windows Setup has finished may cause it to fail. Or worse: the drive can get formatted  as the system disk, and all your data will be lost! So always keep them disconnected when launching the container for the first time.
 
 ### How do I verify if my system supports KVM?
 
