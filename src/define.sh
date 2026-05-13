@@ -734,11 +734,7 @@ getMido() {
     "win11x64-enterprise-iot-eval" | "win11x64-enterprise-ltsc-eval" )
       size=5060020224
       sum="2cee70bd183df42b92a2e0da08cc2bb7a2a9ce3a3841955a012c0f77aeb3cb29"
-      url="https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.1.240331-1435.ge_release_CLIENT_IOT_LTSC_EVAL_x64FRE_en-us.iso"
-      ;;
-    "win10x64" )
-      size=6140975104
-      sum="a6f470ca6d331eb353b815c043e327a347f594f37ff525f17764738fe812852e"
+      url="https://software-static.download.prss.microsoft.com/dbazure/998969d5-f34g-4e03-ac9d-1f9786c66749/26100.1742.240906-0331.ge_release_svc_refresh_CLIENT_IOT_LTSC_EVAL_x64FRE_en-us.iso"
       ;;
     "win10x64-enterprise-eval" )
       size=5550497792
