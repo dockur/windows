@@ -83,7 +83,6 @@ download_windows() {
 
   case "${id,,}" in
     "win11x64" ) windows_version="11" && download_type="1" ;;
-    "win10x64" ) windows_version="10" && download_type="1" ;;
     "win11arm64" ) windows_version="11arm64" && download_type="2" ;;
     * ) error "Invalid VERSION specified, value \"$id\" is not recognized!" && return 1 ;;
   esac
@@ -115,15 +114,59 @@ download_windows() {
     return 1
   fi
 
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Permit Session ID: $session_id"
+  # Microsoft download "protection" requires the sessionId to be whitelisted through vlscppe.microsoft.com/tags
+
+  org_id="y6jn8c31"
+  vls_url="https://vlscppe.microsoft.com/tags?org_id=$org_id&session_id=$session_id"
+
+  [[ "$DEBUG" == [Yy1]* ]] && echo "Session ID: $session_id"
+
   # Permit Session ID
-  curl --silent --max-time 30 --output /dev/null --user-agent "$user_agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "https://vlscppe.microsoft.com/tags?org_id=y6jn8c31&session_id=$session_id" || {
+  curl --silent --max-time 30 --output /dev/null --user-agent "$user_agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$vls_url" || {
+    # This should only happen if there's been some change to how this API works
+    handle_curl_error "$?" "Microsoft"
+    return $?
+  }
+
+  # Microsoft download "protection" also requires an ov-df.microsoft.com request/reply
+  # 1) Request mdt.js to get w and rticks. InstanceId is (currently) constant.
+
+  instance_id="560dc9f3-1aa5-4a2f-b63c-9e18f8d0e175"
+  ov_url="https://ov-df.microsoft.com/mdt.js?instanceId=$instance_id&PageId=si&session_id=$session_id"
+
+  ov_data=$(curl --silent --max-time 30 --user-agent "$user_agent" --header "Accept:" --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$ov_url") || {
+    handle_curl_error "$?" "Microsoft"
+    return $?
+  }
+
+  if [[ $ov_data =~ [\?\&]w=([A-Fa-f0-9]+) ]]; then
+    ovw="${BASH_REMATCH[1]}"
+  fi
+
+  if [[ $ov_data =~ rticks=\"\+?([0-9]+) ]]; then
+    rticks="${BASH_REMATCH[1]}"
+  fi
+
+  if [[ -z $ovw || -z $rticks ]]; then
+    error "Could not extract ov-df data from Microsoft server!"
+    return 1
+  fi
+
+  sleep 0.2
+
+  # 2) Send a reply with session ID, current epoch and previously retrieved w and rticks
+
+  mdt=$(date +%s%3N)
+  ov_url="https://ov-df.microsoft.com/?session_id=$session_id&CustomerId=$instance_id&PageId=si&w=$ovw&mdt=$mdt&rticks=$rticks"
+
+  curl --silent --max-time 30 --output /dev/null --user-agent "$user_agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$ov_url" || {
     # This should only happen if there's been some change to how this API works
     handle_curl_error "$?" "Microsoft"
     return $?
   }
 
   [[ "$DEBUG" == [Yy1]* ]] && echo -n "Getting language SKU ID: "
+
   sku_url="https://www.microsoft.com/software-download-connector/api/getskuinformationbyproductedition?profile=$profile&ProductEditionId=$product_edition_id&SKU=undefined&friendlyFileName=undefined&Locale=en-US&sessionID=$session_id"
   language_skuid_json=$(curl --silent --max-time 30 --request GET --user-agent "$user_agent" --referer "$url" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$sku_url") || {
     handle_curl_error "$?" "Microsoft"
@@ -198,12 +241,6 @@ download_windows_eval() {
     "win11${PLATFORM,,}-enterprise-ltsc-eval" )
       enterprise_type="iot"
       windows_version="windows-11-iot-enterprise-ltsc-eval" ;;
-    "win10${PLATFORM,,}-enterprise-eval" )
-      enterprise_type="enterprise"
-      windows_version="windows-10-enterprise" ;;
-    "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-      enterprise_type="ltsc"
-      windows_version="windows-10-enterprise" ;;
     "win2025-eval" )
       enterprise_type="server"
       windows_version="windows-server-2025" ;;
@@ -349,7 +386,8 @@ getWindows() {
   info "$msg" && html "$msg"
 
   case "${version,,}" in
-    "win2008r2" | "win81${PLATFORM,,}"* | "win11${PLATFORM,,}-enterprise-iot"* | "win11${PLATFORM,,}-enterprise-ltsc"* )
+    "win2008r2" | "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* )
+    "win11${PLATFORM,,}-enterprise-iot"* | "win11${PLATFORM,,}-enterprise-ltsc"* )
       if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
         error "No download in the $language language available for $edition!"
         MIDO_URL="" && return 1
@@ -367,16 +405,16 @@ getWindows() {
   esac
 
   case "${version,,}" in
-    "win10${PLATFORM,,}" | "win11${PLATFORM,,}" )
+    "win11${PLATFORM,,}" )
       download_windows "$version" "$lang" "$edition" && return 0
       ;;
-    "win11${PLATFORM,,}-enterprise"* | "win10${PLATFORM,,}-enterprise"* )
+    "win11${PLATFORM,,}-enterprise"* )
       download_windows_eval "$version" "$lang" "$edition" && return 0
       ;;
     "win2025-eval" | "win2022-eval" | "win2019-eval" | "win2019-hv" | "win2016-eval" | "win2012r2-eval" )
       download_windows_eval "$version" "$lang" "$edition" && return 0
       ;;
-    "win81${PLATFORM,,}-enterprise"* | "win2008r2" )
+    "win2008r2" | "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* )
       ;;
     * ) error "Invalid VERSION specified, value \"$version\" is not recognized!" ;;
   esac
@@ -491,7 +529,7 @@ getESD() {
   if ! makeDir "$dir"; then
     error "Failed to create directory \"$dir\" !" && return 1
   fi
-  
+
   local xFile="products.xml"
   local eFile="esd_edition.xml"
   local fFile="products_filter.xml"
