@@ -817,8 +817,8 @@ getLink1() {
 
   case "${id,,}" in
     "win11x64" | "win11x64-enterprise" | "win11x64-enterprise-eval" )
-      size=5332989952
-      sum="aa1ad990f930d907b7a34ea897abbb0dfbe47552ca8acc146f92e40381839e05"
+      size=6723362816
+      sum="d6f5e10db6a6654190ab575fc72c392b7663e31a0156bcc9ce719496a6dde37d"
       url="11/en-us_windows_11_25h2_x64.iso"
       ;;
     "win11x64-iot" | "win11x64-enterprise-iot" | "win11x64-enterprise-iot-eval" )
@@ -1167,10 +1167,15 @@ getLink4() {
       sum="c3c604c03677504e8905090a8ce5bb1dde76b6fd58e10f32e3a25bef21b2abe1"
       url="en_windows_8.1_enterprise_with_update_x64_dvd/en_windows_8.1_enterprise_with_update_x64_dvd_6054382.iso"
       ;;
+    "win2025" | "win2025-eval" )
+      size=6014152704
+      sum="d0ef4502e350e3c6c53c15b1b3020d38a5ded011bf04998e950720ac8579b23d"
+      url="26100.1742.240906-0331.ge-release-svc-refresh-server-eval-x-64-fre-en-us/26100.1742.240906-0331.ge_release_svc_refresh_SERVER_EVAL_x64FRE_en-us.iso"
+      ;;
     "win2022" | "win2022-eval" )
-      size=5365624832
-      sum="c3c57bb2cf723973a7dcfb1a21e97dfa035753a7f111e348ad918bb64b3114db"
-      url="win-server-2022/2227-January_2024/en-us_windows_server_2022_updated_jan_2024_x64_dvd_2b7a0c9f.iso"
+      size=5550684160
+      sum="5a077ee2a95976ef9f3623eb4040e25cdf7f8f01dee3b8165a32a7626f39f025"
+      url="en-us_windows_server_2022_x64_dvd_620d7eac_202405/en-us_windows_server_2022_x64_dvd_620d7eac.iso"
       ;;
     "win2019" | "win2019-eval" )
       size=5575774208
@@ -1215,7 +1220,7 @@ getLink4() {
     "winvistax64" | "winvistax64-ultimate" )
       size=3861460992
       sum="edf9f947c5791469fd7d2d40a5dcce663efa754f91847aa1d28ed7f585675b78"
-      url="en_windows_vista_sp2_x64_dvd_342267_202010/en_windows_vista_sp2_x64_dvd_342267.iso"
+      url="ms_windows_vista_sp2/en_windows_vista_sp2_x64_dvd_342267.iso"
       ;;
     "winvistax64-enterprise" )
       size=3205953536
