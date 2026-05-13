@@ -386,7 +386,7 @@ getWindows() {
   info "$msg" && html "$msg"
 
   case "${version,,}" in
-    "win2008r2" | "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* )
+    "win2008r2" | "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* | \
     "win11${PLATFORM,,}-enterprise-iot"* | "win11${PLATFORM,,}-enterprise-ltsc"* )
       if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
         error "No download in the $language language available for $edition!"
