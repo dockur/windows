@@ -343,8 +343,8 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
     - /dev/bus/usb
   ```
 
-> [!IMPORTANT]  
-> If the device is a USB disk drive, always wait until the Windows installation has finished before connecting it. Otherwise setup can fail with an error, or worse: the drive can get formatted as the system disk, and all your data will be lost!
+> [!WARNING]  
+> Adding USB mass storage devices before Windows Setup has finished may cause it to fail. Or worse: they can get formatted during installation as the system disk, and all your data will be lost! So always keep them disconnected when launching the container for the first time.
 
 ### How do I verify if my system supports KVM?
 
