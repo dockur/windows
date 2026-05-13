@@ -343,7 +343,8 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
     - /dev/bus/usb
   ```
 
-  If the device is a USB disk drive, please wait until after the installation is fully completed before connecting it. Otherwise the installation may fail, as the order of the disks can get rearranged.
+> [!IMPORTANT]  
+> If the device is a USB disk drive, always wait until the Windows installation has finished before connecting it. Otherwise setup can fail with an error, or the drive can get formatted as the system disk, and all your data will be lost!
 
 ### How do I verify if my system supports KVM?
 
