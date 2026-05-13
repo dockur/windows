@@ -90,15 +90,6 @@
     <component name="Microsoft-Windows-TerminalServices-LocalSessionManager" processorArchitecture="x86" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <fDenyTSConnections>false</fDenyTSConnections>
     </component>
-    <component name="Microsoft-Windows-Deployment" processorArchitecture="x86" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <RunSynchronous>
-        <RunSynchronousCommand wcm:action="add">
-          <Order>1</Order>
-          <Path>C:\Windows\Drivers\Balloon\blnsvr.exe -i</Path>
-          <Description>Install VirtIO Balloon service</Description>
-        </RunSynchronousCommand>
-      </RunSynchronous>
-    </component>
   </settings>
   <settings pass="oobeSystem">
     <component name="Microsoft-Windows-International-Core" processorArchitecture="x86" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
