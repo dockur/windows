@@ -143,7 +143,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   ```
   
 > [!TIP]
-> This can also be used to resize the existing disk to a larger capacity without any data loss. However you will need to [manually extend the disk partition](https://learn.microsoft.com/en-us/windows-server/storage/disk-management/extend-a-basic-volume?tabs=disk-management) since the added disk space will appear as unallocated.
+> This can also be used to resize the existing disk to a larger capacity without any data loss. However you will need to [manually extend the disk partition](https://learn.microsoft.com/en-us/windows-server/storage/disk-management/extend-a-basic-volume?tabs=disk-management) afterwards, since the added disk space will appear as unallocated.
 
 ### How do I share files with the host?
 
@@ -344,7 +344,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   ```
 
 > [!IMPORTANT]  
-> If the device is a USB disk drive, always wait until the Windows installation has finished before connecting it. Otherwise setup can fail with an error, or the drive can get formatted as the system disk, and all your data will be lost!
+> If the device is a USB disk drive, always wait until the Windows installation has finished before connecting it. Otherwise setup can fail with an error, or worse: the drive can get formatted as the system disk, and all your data will be lost!
 
 ### How do I verify if my system supports KVM?
 
