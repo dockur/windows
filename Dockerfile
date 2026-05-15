@@ -6,6 +6,9 @@ FROM scratch AS build-amd64
 COPY --from=qemux/qemu:7.30 / /
 
 ARG TARGETARCH
+ARG VERSION_WSDD="1.24"
+ARG VERSION_VIRTIO="1.9.57"
+
 ARG DEBCONF_NOWARNINGS="yes"
 ARG DEBIAN_FRONTEND="noninteractive"
 ARG DEBCONF_NONINTERACTIVE_SEEN="true"
@@ -19,7 +22,7 @@ RUN set -eu && \
         cabextract \
         libxml2-utils \
         libarchive-tools && \
-    wget "https://github.com/gershnik/wsdd-native/releases/download/v1.23/wsddn_1.23_${TARGETARCH}.deb" -O /tmp/wsddn.deb -q && \
+    wget "https://github.com/gershnik/wsdd-native/releases/download/v${VERSION_WSDD}/wsddn_${VERSION_WSDD}_${TARGETARCH}.deb" -O /tmp/wsddn.deb -q && \
     dpkg -i /tmp/wsddn.deb && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -27,7 +30,7 @@ RUN set -eu && \
 COPY --chmod=755 ./src /run/
 COPY --chmod=755 ./assets /run/assets
 
-ADD --chmod=664 https://github.com/qemus/virtiso-whql/releases/download/v1.9.57-0/virtio-win-1.9.57.tar.xz /var/drivers.txz
+ADD --chmod=664 https://github.com/qemus/virtiso-whql/releases/download/v${VERSION_VIRTIO}-0/virtio-win-${VERSION_VIRTIO}.tar.xz /var/drivers.txz
 
 FROM dockurr/windows-arm:${VERSION_ARG} AS build-arm64
 FROM build-${TARGETARCH}
