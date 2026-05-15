@@ -828,8 +828,8 @@ getLink1() {
       url="11/X23-81951_26100.1742.240906-0331.ge_release_svc_refresh_CLIENT_ENTERPRISES_OEM_x64FRE_en-us.iso"
       ;;
     "win10x64" | "win10x64-enterprise" | "win10x64-enterprise-eval" )
-      size=5535252480
-      sum="557871965263d0fd0a1ea50b5d0d0d7cb04a279148ca905c1c675c9bc0d5486c"
+      size=5767888896
+      sum="9dce12d73168debc697919a6bc4d8c6624b2175bbed01a2ca97edb7d93627319"
       url="10/en-us_windows_10_22h2_x64.iso"
       ;;
     "win10x64-iot" | "win10x64-enterprise-iot" | "win10x64-enterprise-iot-eval" )
