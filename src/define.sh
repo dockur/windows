@@ -1608,7 +1608,7 @@ prepareInstall() {
           echo "    OemPnPDriversPath=\"Drivers\viostor;Drivers\NetKVM;Drivers\sata\""
           echo "    NoWaitAfterTextMode=1"
           echo "    NoWaitAfterGUIMode=1"
-          echo "    FileSystem-ConvertNTFS"
+          echo "    FileSystem=ConvertNTFS"
           echo "    ExtendOemPartition=0"
           echo "    Hibernation=\"No\""
           echo ""
