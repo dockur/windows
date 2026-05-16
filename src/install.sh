@@ -594,7 +594,7 @@ getPlatform() {
   case "${arch,,}" in
     "0" ) platform="x86" ;;
     "9" ) platform="x64" ;;
-    "12" )platform="arm64" ;;
+    "12" ) platform="arm64" ;;
   esac
 
   echo "$platform"
