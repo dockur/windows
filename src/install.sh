@@ -893,12 +893,12 @@ updateXML() {
   pw=$(printf '%s' "${pass}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0)
   admin=$(printf '%s' "${pass}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0)
 
-  sed -i "s/<Value>password<\/Value>/<Value>$admin<\/Value>/g" "$asset"
-  sed -i "s/<PlainText>true<\/PlainText>/<PlainText>false<\/PlainText>/g" "$asset"
-  sed -i -z "s/<Password>...........<Value \/>/<Password>\n          <Value>$pw<\/Value>/g" "$asset"
-  sed -i -z "s/<Password>...............<Value \/>/<Password>\n              <Value>$pw<\/Value>/g" "$asset"
-  sed -i -z "s/<AdministratorPassword>...........<Value \/>/<AdministratorPassword>\n          <Value>$admin<\/Value>/g" "$asset"
-  sed -i -z "s/<AdministratorPassword>...............<Value \/>/<AdministratorPassword>\n              <Value>$admin<\/Value>/g" "$asset"
+  sed -i "s|<Value>password<\/Value>|<Value>$admin<\/Value>|g" "$asset"
+  sed -i "s|<PlainText>true<\/PlainText>|<PlainText>false<\/PlainText>|g" "$asset"
+  sed -i -z "s|<Password>...........<Value \/>|<Password>\n          <Value>$pw<\/Value>|g" "$asset"
+  sed -i -z "s|<Password>...............<Value \/>|<Password>\n              <Value>$pw<\/Value>|g" "$asset"
+  sed -i -z "s|<AdministratorPassword>...........<Value \/>|<AdministratorPassword>\n          <Value>$admin<\/Value>|g" "$asset"
+  sed -i -z "s|<AdministratorPassword>...............<Value \/>|<AdministratorPassword>\n              <Value>$admin<\/Value>|g" "$asset"
 
   if [ -n "$EDITION" ]; then
     [[ "${EDITION^^}" == "CORE" ]] && EDITION="STANDARDCORE"
