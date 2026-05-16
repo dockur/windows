@@ -276,7 +276,7 @@ getLanguage() {
       lang="Latvian"
       desc="$lang"
       culture="lv-LV" ;;
-    "nb" | "nb-"* |"nn" | "nn-"* | "no" | "no-"* )
+    "nb" | "nb-"* | "nn" | "nn-"* | "no" | "no-"* )
       short="no"
       lang="Norwegian"
       desc="$lang"
