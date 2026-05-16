@@ -458,9 +458,9 @@ extractESD() {
   /run/progress.sh "$bootWimFile" "$total3" "$msg ([P])..." &
 
   wimlib-imagex export "$iso" "$imageIndex" "$bootWimFile" --compress=none --boot --quiet || {
-   retVal=$?
-   fKill "progress.sh"
-   error "Adding Windows Setup failed ($retVal)" && return 1
+    retVal=$?
+    fKill "progress.sh"
+    error "Adding Windows Setup failed ($retVal)" && return 1
   }
 
   fKill "progress.sh"
@@ -594,7 +594,7 @@ getPlatform() {
   case "${arch,,}" in
     "0" ) platform="x86" ;;
     "9" ) platform="x64" ;;
-    "12" )platform="arm64" ;;
+    "12" ) platform="arm64" ;;
   esac
 
   echo "$platform"
