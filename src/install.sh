@@ -458,9 +458,9 @@ extractESD() {
   /run/progress.sh "$bootWimFile" "$total3" "$msg ([P])..." &
 
   wimlib-imagex export "$iso" "$imageIndex" "$bootWimFile" --compress=none --boot --quiet || {
-   retVal=$?
-   fKill "progress.sh"
-   error "Adding Windows Setup failed ($retVal)" && return 1
+    retVal=$?
+    fKill "progress.sh"
+    error "Adding Windows Setup failed ($retVal)" && return 1
   }
 
   fKill "progress.sh"
