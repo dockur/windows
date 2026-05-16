@@ -119,7 +119,7 @@ download_windows() {
   org_id="y6jn8c31"
   vls_url="https://vlscppe.microsoft.com/tags?org_id=$org_id&session_id=$session_id"
 
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Session ID: $session_id"
+  [[ "$DEBUG" == [Yy1]* ]] && echo "Getting Session ID: $session_id"
 
   # Permit Session ID
   curl --silent --max-time 30 --output /dev/null --user-agent "$user_agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$vls_url" || {
@@ -133,6 +133,8 @@ download_windows() {
 
   instance_id="560dc9f3-1aa5-4a2f-b63c-9e18f8d0e175"
   ov_url="https://ov-df.microsoft.com/mdt.js?instanceId=$instance_id&PageId=si&session_id=$session_id"
+
+  [[ "$DEBUG" == [Yy1]* ]] && echo -n "Getting OV data: "
 
   ov_data=$(curl --silent --max-time 30 --user-agent "$user_agent" --header "Accept:" --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$ov_url") || {
     handle_curl_error "$?" "Microsoft"
@@ -152,12 +154,16 @@ download_windows() {
     return 1
   fi
 
+  [[ "$DEBUG" == [Yy1]* ]] && echo "$ovw"
+
   sleep 0.2
 
   # 2) Send a reply with session ID, current epoch and previously retrieved w and rticks
 
   mdt=$(date +%s%3N)
   ov_url="https://ov-df.microsoft.com/?session_id=$session_id&CustomerId=$instance_id&PageId=si&w=$ovw&mdt=$mdt&rticks=$rticks"
+
+  [[ "$DEBUG" == [Yy1]* ]] && echo "Sending OV reply: $instance_id"
 
   curl --silent --max-time 30 --output /dev/null --user-agent "$user_agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$ov_url" || {
     # This should only happen if there's been some change to how this API works
@@ -209,7 +215,7 @@ download_windows() {
   { iso_download_link=$(echo "$iso_json" | jq --argjson TYPE "$download_type" -r '.ProductDownloadOptions[] | select(.DownloadType==$TYPE).Uri') 2>/dev/null; rc=$?; } || :
 
   if [ -z "$iso_download_link" ] || [[ "${iso_download_link,,}" == "null" ]] || (( rc != 0 )); then
-    error "Microsoft servers gave us no download link to our request for an automated download!"
+    error "Microsoft server gave us no download link to our request for an automated download!"
     info "Response: $iso_json"
     return 1
   fi
@@ -521,7 +527,7 @@ getESD() {
     error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
   fi
 
-  local msg="Downloading catalog..."
+  local msg="Downloading catalog from the Microsoft servers..."
   info "$msg" && html "$msg"
 
   rm -rf "$dir"
