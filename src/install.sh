@@ -379,7 +379,7 @@ extractESD() {
   local version="$3"
   local desc="$4"
   local size size_gb sizes space space_gb
-  local desc total total1 total2 total3 total4
+  local retVal total total1 total2 total3 total4
   local imageIndex links links1 links2 links3 links4
 
   local msg="Extracting $desc bootdisk"
@@ -1218,11 +1218,11 @@ buildImage() {
     error "Failed to build image!" && return 1
   fi
 
-  local error=""
+  local err=""
   local hide="Warning: creating filesystem that does not conform to ISO-9660."
 
-  [ -s "$log" ] && error="$(<"$log")"
-  [[ "$error" != "$hide" ]] && echo "$error"
+  [ -s "$log" ] && err="$(<"$log")"
+  [[ "$err" != "$hide" ]] && echo "$err"
 
   mv -f "$out" "$BOOT" || return 1
   ! setOwner "$BOOT" && error "Failed to set the owner for \"$BOOT\" !"
