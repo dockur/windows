@@ -1391,6 +1391,7 @@ prepareInstall() {
 
   local pid=""
   local file=""
+  local iso="$1"
   local dir="$2"
   local desc="$3"
   local driver="$4"
@@ -1575,8 +1576,8 @@ prepareInstall() {
   [ -z "$WIDTH" ] && WIDTH="1280"
   [ -z "$HEIGHT" ] && HEIGHT="720"
 
-  XHEX=$(printf '%x\n' "$WIDTH")
-  YHEX=$(printf '%x\n' "$HEIGHT")
+  XHEX=$(printf '%08x' "$WIDTH")
+  YHEX=$(printf '%08x' "$HEIGHT")
 
   local username=""
   local password=""
@@ -1695,13 +1696,13 @@ prepareInstall() {
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]"
           echo "\"DefaultSettings.BitsPerPel\"=dword:00000020"
-          echo "\"DefaultSettings.XResolution\"=dword:00000$XHEX"
-          echo "\"DefaultSettings.YResolution\"=dword:00000$YHEX"
+          echo "\"DefaultSettings.XResolution\"=dword:$XHEX"
+          echo "\"DefaultSettings.YResolution\"=dword:$YHEX"
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Hardware Profiles\Current\System\CurrentControlSet\Control\VIDEO\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]"
           echo "\"DefaultSettings.BitsPerPel\"=dword:00000020"
-          echo "\"DefaultSettings.XResolution\"=dword:00000$XHEX"
-          echo "\"DefaultSettings.YResolution\"=dword:00000$YHEX"
+          echo "\"DefaultSettings.XResolution\"=dword:$XHEX"
+          echo "\"DefaultSettings.YResolution\"=dword:$YHEX"
           echo ""
           echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce]"
           echo "\"ScreenSaver\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"SCRNSAVE.EXE\\\" /t REG_SZ /d \\\"off\\\"\""
@@ -1722,7 +1723,7 @@ prepareInstall() {
             echo "@=dword:00000000"
             echo ""
             echo "[HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\ServerOOBE\SecurityOOBE]"
-            echo "\"DontLaunchSecurityOOBE\"=dword:00000000"
+            echo "\"DontLaunchSecurityOOBE\"=dword:00000001"
             echo ""
     } | unix2dos >> "$dir/\$OEM\$/install.reg"
   fi
@@ -1860,8 +1861,7 @@ detectLegacy() {
     [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IB -print -quit)
     [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51ID -print -quit)
     [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IL -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IS -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AA -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IE -print -quit)
     [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AD -print -quit)
     [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AS -print -quit)
     [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51MA -print -quit)
