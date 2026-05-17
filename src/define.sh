@@ -24,7 +24,9 @@ parseVersion() {
     VERSION="${VERSION:1:-1}"
   fi
 
-  [ -n "$VERSION" ] && VERSION=$(expr "$VERSION" : "^\ *\(.*[^ ]\)\ *$")
+  VERSION="${VERSION#"${VERSION%%[! ]*}"}"
+  VERSION="${VERSION%"${VERSION##*[! ]}"}"
+
   [ -z "$VERSION" ] && VERSION="win11"
 
   case "${VERSION,,}" in
