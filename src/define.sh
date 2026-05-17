@@ -376,9 +376,9 @@ getLanguage() {
 
 parseLanguage() {
 
-  REGION="${REGION//_/-/}"
-  KEYBOARD="${KEYBOARD//_/-/}"
-  LANGUAGE="${LANGUAGE//_/-/}"
+  REGION="${REGION//_/-}"
+  KEYBOARD="${KEYBOARD//_/-}"
+  LANGUAGE="${LANGUAGE//_/-}"
 
   [ -z "$LANGUAGE" ] && LANGUAGE="en"
 
