@@ -813,8 +813,8 @@ getLink1() {
 
   case "${id,,}" in
     "win11x64" | "win11x64-enterprise" | "win11x64-enterprise-eval" )
-      size=6723362816
-      sum="d6f5e10db6a6654190ab575fc72c392b7663e31a0156bcc9ce719496a6dde37d"
+      size=6898546688
+      sum="2618a56931b645a6f097082431994bd85ae80862518de389e382f35ebfd455be"
       url="11/en-us_windows_11_25h2_x64.iso"
       ;;
     "win11x64-iot" | "win11x64-enterprise-iot" | "win11x64-enterprise-iot-eval" )
