@@ -49,7 +49,7 @@ handle_curl_error() {
 
 get_agent() {
 
-  local user_agent
+  local browser_version
 
   # Determine approximate latest Firefox release
   browser_version="$((124 + ($(date +%s) - 1710892800) / 2419200))"
