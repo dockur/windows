@@ -273,6 +273,7 @@ download_windows_eval() {
   culture=$(getLanguage "$lang" "culture")
 
   local country="${culture#*-}"
+  local iso_download_links=""
   local iso_download_page_html=""
   local url="https://www.microsoft.com/en-us/evalcenter/download-$windows_version"
 
