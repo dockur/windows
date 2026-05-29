@@ -63,7 +63,7 @@ download_windows() {
   local id="$1"
   local lang="$2"
   local desc="$3"
-  local ovw="" rtick="" sku_id="" sku_url=""
+  local ovw="" rtick="" mdt="" sku_id="" sku_url=""
   local iso_url="" iso_json="" language="" org_id=""
   local instance_id="" vls_url="" ov_url="" ov_data=""
   local session_id="" user_agent="" download_type=""
@@ -82,7 +82,6 @@ download_windows() {
   esac
 
   local url="https://www.microsoft.com/en-us/software-download/windows$windows_version"
-  [[ "${id,,}" == "win10"* ]] && url+="ISO"
 
   # uuidgen: For MacOS (installed by default) and other systems (e.g. with no /proc) that don't have a kernel interface for generating random UUIDs
   session_id=$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random)
@@ -188,7 +187,10 @@ download_windows() {
   # If any request is going to be blocked by Microsoft it's always this last one (the previous requests always seem to succeed)
 
   iso_url="https://www.microsoft.com/software-download-connector/api/GetProductDownloadLinksBySku?profile=$profile&ProductEditionId=undefined&SKU=$sku_id&friendlyFileName=undefined&Locale=en-US&sessionID=$session_id"
-  iso_json=$(curl --silent --max-time 30 --request GET --user-agent "$user_agent" --referer "$url" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$iso_url")
+  iso_json=$(curl --silent --max-time 30 --request GET --user-agent "$user_agent" --referer "$url" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$iso_url") || {
+    handle_curl_error "$?" "Microsoft"
+    return $?
+  }
 
   if ! [ "$iso_json" ]; then
     # This should only happen if there's been some change to how this API works
