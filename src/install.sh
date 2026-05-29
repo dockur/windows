@@ -222,7 +222,7 @@ finishInstall() {
   fi
 
   local file="$STORAGE/windows.ver"
-  cp -f /run/version "$file"
+  cp -f /etc/version "$file"
   ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
 
   if [[ "$iso" == "$STORAGE/"* ]]; then
