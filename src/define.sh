@@ -1577,8 +1577,8 @@ prepareInstall() {
   [ -z "$WIDTH" ] && WIDTH="1280"
   [ -z "$HEIGHT" ] && HEIGHT="720"
 
-  XHEX=$(printf '%x\n' "$WIDTH")
-  YHEX=$(printf '%x\n' "$HEIGHT")
+  XHEX=$(printf '%08x\n' "$WIDTH")
+  YHEX=$(printf '%08x\n' "$HEIGHT")
 
   local username=""
   local password=""
@@ -1697,13 +1697,13 @@ prepareInstall() {
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]"
           echo "\"DefaultSettings.BitsPerPel\"=dword:00000020"
-          echo "\"DefaultSettings.XResolution\"=dword:00000$XHEX"
-          echo "\"DefaultSettings.YResolution\"=dword:00000$YHEX"
+          echo "\"DefaultSettings.XResolution\"=dword:$XHEX"
+          echo "\"DefaultSettings.YResolution\"=dword:$YHEX"
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Hardware Profiles\Current\System\CurrentControlSet\Control\VIDEO\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]"
           echo "\"DefaultSettings.BitsPerPel\"=dword:00000020"
-          echo "\"DefaultSettings.XResolution\"=dword:00000$XHEX"
-          echo "\"DefaultSettings.YResolution\"=dword:00000$YHEX"
+          echo "\"DefaultSettings.XResolution\"=dword:$XHEX"
+          echo "\"DefaultSettings.YResolution\"=dword:$YHEX"
           echo ""
           echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce]"
           echo "\"ScreenSaver\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"SCRNSAVE.EXE\\\" /t REG_SZ /d \\\"off\\\"\""
