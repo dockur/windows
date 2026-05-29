@@ -63,18 +63,12 @@ download_windows() {
   local id="$1"
   local lang="$2"
   local desc="$3"
-  local sku_id=""
-  local sku_url=""
-  local iso_url=""
-  local iso_json=""
-  local language=""
-  local session_id=""
-  local user_agent=""
-  local download_type=""
-  local windows_version=""
-  local iso_download_link=""
-  local download_page_html=""
-  local product_edition_id=""
+  local ovw="" rtick="" sku_id="" sku_url=""
+  local iso_url="" iso_json="" language="" org_id=""
+  local instance_id="" vls_url="" ov_url="" ov_data=""
+  local session_id="" user_agent="" download_type=""
+  local windows_version="" iso_download_link=""
+  local download_page_html="" product_edition_id=""
   local language_skuid_json=""
   local profile="606624d44113"
 
@@ -229,13 +223,8 @@ download_windows_eval() {
   local id="$1"
   local lang="$2"
   local desc="$3"
-  local filter=""
-  local culture=""
-  local compare=""
-  local language=""
-  local user_agent=""
-  local enterprise_type=""
-  local windows_version=""
+  local filter="" culture="" compare="" language=""
+  local user_agent="" enterprise_type="" windows_version=""
 
   case "${id,,}" in
     "win11${PLATFORM,,}-enterprise-eval" )
@@ -273,6 +262,7 @@ download_windows_eval() {
   culture=$(getLanguage "$lang" "culture")
 
   local country="${culture#*-}"
+  local iso_download_link=""
   local iso_download_links=""
   local iso_download_page_html=""
   local url="https://www.microsoft.com/en-us/evalcenter/download-$windows_version"
@@ -512,12 +502,8 @@ getESD() {
   local version="$2"
   local lang="$3"
   local desc="$4"
-  local file
-  local result
-  local culture
-  local language
-  local edition
-  local catalog
+  local file result culture
+  local language edition catalog
 
   file=$(getCatalog "$version" "file")
   catalog=$(getCatalog "$version" "url")

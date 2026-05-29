@@ -37,8 +37,6 @@ backup () {
     dir="$root/$folder"
   done
 
-  rm -rf "$dir"
-
   if ! makeDir "$dir"; then
     error "Failed to create directory \"$dir\" !"
     return 1
@@ -110,7 +108,7 @@ skipInstall() {
   [ ! -s "$iso" ] && return 1
 
   # Check if the ISO was already processed by our script
-  magic=$(dd if="$iso" seek=0 bs=1 count=1 status=none | tr -d '\000')
+  magic=$(dd if="$iso" bs=1 count=1 status=none | tr -d '\000')
   magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
   byte="16" && [[ "$MANUAL" == [Yy1]* ]] && byte="17"
 
@@ -164,7 +162,7 @@ startInstall() {
   fi
 
   if ! makeDir "$TMP"; then
-    error "Failed to create directory \"$TMP\" !"
+    error "Failed to create directory \"$TMP\" !" && exit 50
   fi
 
   if [ -z "$CUSTOM" ]; then
@@ -1180,7 +1178,7 @@ buildImage() {
     error "Failed to locate file \"$ETFS\" in ISO image!" && return 1
   fi
 
-  size=$(du -h -b --max-depth=0 "$dir" | cut -f1)
+  size=$(du -b --max-depth=0 "$dir" | cut -f1)
   size_gb=$(formatBytes "$size")
   space=$(df --output=avail -B 1 "$TMP" | tail -n 1)
   space_gb=$(formatBytes "$space")
