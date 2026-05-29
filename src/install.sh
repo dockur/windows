@@ -110,7 +110,7 @@ skipInstall() {
   [ ! -s "$iso" ] && return 1
 
   # Check if the ISO was already processed by our script
-  magic=$(dd if="$iso" seek=0 bs=1 count=1 status=none | tr -d '\000')
+  magic=$(dd if="$iso" bs=1 count=1 status=none | tr -d '\000')
   magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
   byte="16" && [[ "$MANUAL" == [Yy1]* ]] && byte="17"
 
