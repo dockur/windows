@@ -1180,7 +1180,7 @@ buildImage() {
     error "Failed to locate file \"$ETFS\" in ISO image!" && return 1
   fi
 
-  size=$(du -h -b --max-depth=0 "$dir" | cut -f1)
+  size=$(du -b --max-depth=0 "$dir" | cut -f1)
   size_gb=$(formatBytes "$size")
   space=$(df --output=avail -B 1 "$TMP" | tail -n 1)
   space_gb=$(formatBytes "$space")
