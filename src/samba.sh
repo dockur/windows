@@ -77,7 +77,7 @@ addShare() {
   if [[ "$dir" == "$tmp" ]]; then
 
     {   echo "--------------------------------------------------------"
-        echo " $APP for $ENGINE v$(</run/version)..."
+        echo " $APP for $ENGINE v$(</etc/version)..."
         echo " For support visit $SUPPORT"
         echo "--------------------------------------------------------"
         echo ""
