@@ -164,7 +164,7 @@ startInstall() {
   fi
 
   if ! makeDir "$TMP"; then
-    error "Failed to create directory \"$TMP\" !"
+    error "Failed to create directory \"$TMP\" !" && exit 50
   fi
 
   if [ -z "$CUSTOM" ]; then
