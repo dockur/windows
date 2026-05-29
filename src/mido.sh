@@ -82,7 +82,6 @@ download_windows() {
   esac
 
   local url="https://www.microsoft.com/en-us/software-download/windows$windows_version"
-  [[ "${id,,}" == "win10"* ]] && url+="ISO"
 
   # uuidgen: For MacOS (installed by default) and other systems (e.g. with no /proc) that don't have a kernel interface for generating random UUIDs
   session_id=$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random)
