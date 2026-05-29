@@ -2,7 +2,6 @@
 set -Eeuo pipefail
 
 : "${SAMBA:="Y"}"         # Enable Samba
-: "${SAMBA_LEVEL:="1"}"   # Logging level
 : "${SAMBA_DEBUG:="N"}"   # Disable debug
 
 tmp="/tmp/smb"
@@ -151,18 +150,14 @@ share="/shared"
 
 if [ -d "/shared2" ]; then
   addShare "/shared2" "/shared2" "Data2" "Shared" "$SAMBA_CONFIG" || :
-else
-  if [ -d "/data2" ]; then
-    addShare "/data2" "/shared2" "Data2" "Shared" "$SAMBA_CONFIG" || :
-  fi
+elif [ -d "/data2" ]; then
+  addShare "/data2" "/shared2" "Data2" "Shared" "$SAMBA_CONFIG" || :
 fi
 
 if [ -d "/shared3" ]; then
   addShare "/shared3" "/shared3" "Data3" "Shared" "$SAMBA_CONFIG" || :
-else
-  if [ -d "/data3" ]; then
-    addShare "/data3" "/shared3" "Data3" "Shared" "$SAMBA_CONFIG" || :
-  fi
+elif [ -d "/data3" ]; then
+  addShare "/data3" "/shared3" "Data3" "Shared" "$SAMBA_CONFIG" || :
 fi
 
 # Create directories if missing
