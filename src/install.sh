@@ -37,8 +37,6 @@ backup () {
     dir="$root/$folder"
   done
 
-  rm -rf "$dir"
-
   if ! makeDir "$dir"; then
     error "Failed to create directory \"$dir\" !"
     return 1
