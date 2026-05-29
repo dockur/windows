@@ -92,7 +92,7 @@ finish() {
     while isAlive "$pid"; do
 
       sleep 1
-      cnt=$((cnt+1))
+      (( cnt++ ))
 
       # Workaround for zombie pid
       [ ! -s "$QEMU_PID" ] && break
@@ -120,7 +120,7 @@ finish() {
 
   for pid in "${pids[@]}"; do
       if [[ -s "$pid" ]]; then 
-          pKill "$(cat "$pid")"
+          pKill "$(<"$pid")"
       fi
       rm -f "$pid"
   done 
@@ -210,7 +210,7 @@ _graceful_shutdown() {
   while [ "$cnt" -lt "$QEMU_TIMEOUT" ]; do
 
     sleep 1
-    cnt=$((cnt+1))
+    (( cnt++ ))
 
     ! isAlive "$pid" && break
     # Workaround for zombie pid

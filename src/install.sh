@@ -32,7 +32,7 @@ backup () {
 
   while [ -d "$dir" ]
   do
-    count=$((count+1))
+    (( count++ ))
     folder="${name}.${count}"
     dir="$root/$folder"
   done

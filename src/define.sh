@@ -171,32 +171,26 @@ getLanguage() {
     "ar" | "ar-"* )
       short="ar"
       lang="Arabic"
-      desc="$lang"
       culture="ar-SA" ;;
     "bg" | "bg-"* )
       short="bg"
       lang="Bulgarian"
-      desc="$lang"
       culture="bg-BG" ;;
     "cs" | "cs-"* | "cz" | "cz-"* )
       short="cs"
       lang="Czech"
-      desc="$lang"
       culture="cs-CZ" ;;
     "da" | "da-"* | "dk" | "dk-"* )
       short="da"
       lang="Danish"
-      desc="$lang"
       culture="da-DK" ;;
     "de" | "de-"* )
       short="de"
       lang="German"
-      desc="$lang"
       culture="de-DE" ;;
     "el" | "el-"* | "gr" | "gr-"* )
       short="el"
       lang="Greek"
-      desc="$lang"
       culture="el-GR" ;;
     "gb" | "en-gb" )
       short="en-gb"
@@ -206,7 +200,6 @@ getLanguage() {
     "en" | "en-"* )
       short="en"
       lang="English"
-      desc="English"
       culture="en-US" ;;
     "mx" | "es-mx" )
       short="mx"
@@ -216,17 +209,14 @@ getLanguage() {
     "es" | "es-"* )
       short="es"
       lang="Spanish"
-      desc="$lang"
       culture="es-ES" ;;
     "et" | "et-"* )
       short="et"
       lang="Estonian"
-      desc="$lang"
       culture="et-EE" ;;
     "fi" | "fi-"* )
       short="fi"
       lang="Finnish"
-      desc="$lang"
       culture="fi-FI" ;;
     "ca" | "fr-ca" )
       short="ca"
@@ -236,62 +226,50 @@ getLanguage() {
     "fr" | "fr-"* )
       short="fr"
       lang="French"
-      desc="$lang"
       culture="fr-FR" ;;
     "he" | "he-"* | "il" | "il-"* )
       short="he"
       lang="Hebrew"
-      desc="$lang"
       culture="he-IL" ;;
     "hr" | "hr-"* | "cr" | "cr-"* )
       short="hr"
       lang="Croatian"
-      desc="$lang"
       culture="hr-HR" ;;
     "hu" | "hu-"* )
       short="hu"
       lang="Hungarian"
-      desc="$lang"
       culture="hu-HU" ;;
     "it" | "it-"* )
       short="it"
       lang="Italian"
-      desc="$lang"
       culture="it-IT" ;;
     "ja" | "ja-"* | "jp" | "jp-"* )
       short="ja"
       lang="Japanese"
-      desc="$lang"
       culture="ja-JP" ;;
     "ko" | "ko-"* | "kr" | "kr-"* )
       short="ko"
       lang="Korean"
-      desc="$lang"
       culture="ko-KR" ;;
     "lt" | "lt-"* )
       short="lt"
       lang="Lithuanian"
-      desc="$lang"
       culture="lt-LT" ;;
     "lv" | "lv-"* )
       short="lv"
       lang="Latvian"
-      desc="$lang"
       culture="lv-LV" ;;
     "nb" | "nb-"* | "nn" | "nn-"* | "no" | "no-"* )
       short="no"
       lang="Norwegian"
-      desc="$lang"
       culture="nb-NO" ;;
     "nl" | "nl-"* )
       short="nl"
       lang="Dutch"
-      desc="$lang"
       culture="nl-NL" ;;
     "pl" | "pl-"* )
       short="pl"
       lang="Polish"
-      desc="$lang"
       culture="pl-PL" ;;
     "br" | "pt-br" )
       short="pt"
@@ -301,27 +279,22 @@ getLanguage() {
     "pt" | "pt-"* )
       short="pp"
       lang="Portuguese"
-      desc="$lang"
       culture="pt-BR" ;;
     "ro" | "ro-"* )
       short="ro"
       lang="Romanian"
-      desc="$lang"
       culture="ro-RO" ;;
     "ru" | "ru-"* )
       short="ru"
       lang="Russian"
-      desc="$lang"
       culture="ru-RU" ;;
     "sk" | "sk-"* )
       short="sk"
       lang="Slovak"
-      desc="$lang"
       culture="sk-SK" ;;
     "sl" | "sl-"* | "si" | "si-"* )
       short="sl"
       lang="Slovenian"
-      desc="$lang"
       culture="sl-SI" ;;
     "sr" | "sr-"* )
       short="sr"
@@ -331,22 +304,18 @@ getLanguage() {
     "sv" | "sv-"* | "se" | "se-"* )
       short="sv"
       lang="Swedish"
-      desc="$lang"
       culture="sv-SE" ;;
     "th" | "th-"* )
       short="th"
       lang="Thai"
-      desc="$lang"
       culture="th-TH" ;;
     "tr" | "tr-"* )
       short="tr"
       lang="Turkish"
-      desc="$lang"
       culture="tr-TR" ;;
     "ua" | "ua-"* | "uk" | "uk-"* )
       short="uk"
       lang="Ukrainian"
-      desc="$lang"
       culture="uk-UA" ;;
     "hk" | "zh-hk" | "cn-hk" )
       short="hk"
@@ -364,6 +333,8 @@ getLanguage() {
       desc="Chinese"
       culture="zh-CN" ;;
   esac
+
+  [ -z "$desc" ] && desc="$lang"
 
   case "${ret,,}" in
     "desc" ) echo "$desc" ;;
