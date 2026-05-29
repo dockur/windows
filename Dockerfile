@@ -36,7 +36,7 @@ FROM dockurr/windows-arm:${VERSION_ARG} AS build-arm64
 FROM build-${TARGETARCH}
 
 ARG VERSION_ARG="0.00"
-RUN echo "$VERSION_ARG" > /run/version
+RUN echo "$VERSION_ARG" > /etc/version
 
 VOLUME /storage
 EXPOSE 3389 8006
