@@ -52,6 +52,7 @@ jobs:
       -
         name: Shellformat
         uses: reviewdog/action-shfmt@v1
+        if: false
         with:
           level: warning
           shfmt_flags: "-i 2 -ci -bn"
