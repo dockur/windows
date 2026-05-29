@@ -154,6 +154,7 @@ download_windows() {
 
   # 2) Send a reply with session ID, current epoch and previously retrieved w and rticks
 
+  local mdt
   mdt=$(date +%s%3N)
   ov_url="https://ov-df.microsoft.com/?session_id=$session_id&CustomerId=$instance_id&PageId=si&w=$ovw&mdt=$mdt&rticks=$rticks"
 
