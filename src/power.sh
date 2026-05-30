@@ -227,7 +227,7 @@ _graceful_shutdown() {
   finish "$code" && return "$code"
 }
 
-rm -f "$QEMU_DIR"/qemu.*
+[[ -n "${QEMU_DIR:-}" && "$QEMU_DIR" != "/" ]] && rm -f "$QEMU_DIR"/qemu.*
 touch "$QEMU_LOG"
 
 SERIAL="pty"
