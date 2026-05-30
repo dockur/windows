@@ -11,9 +11,6 @@ QEMU_LOG="$QEMU_DIR/qemu.log"
 QEMU_OUT="$QEMU_DIR/qemu.out"
 QEMU_END="$QEMU_DIR/qemu.end"
 
-rm -f "$QEMU_DIR"/qemu.*
-touch "$QEMU_LOG"
-
 _trap() {
   local func="$1" ; shift
   for sig ; do
@@ -229,6 +226,9 @@ _graceful_shutdown() {
 
   finish "$code" && return "$code"
 }
+
+rm -f "$QEMU_DIR"/qemu.*
+touch "$QEMU_LOG"
 
 SERIAL="pty"
 MONITOR="telnet:localhost:$MON_PORT,server,nowait,nodelay -daemonize -D $QEMU_LOG"
