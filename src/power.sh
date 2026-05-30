@@ -173,6 +173,8 @@ _graceful_shutdown() {
   local sig="$1"
   local code=0
 
+  set +e
+
   case "$sig" in
     SIGTERM) code=143 ;;
     SIGINT)  code=130 ;;
@@ -180,8 +182,6 @@ _graceful_shutdown() {
     SIGABRT) code=134 ;;
     SIGQUIT) code=131 ;;
   esac
-
-  set +e
 
   if [ -f "$QEMU_END" ]; then
     info "Received $1 while already shutting down..."
