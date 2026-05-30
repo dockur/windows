@@ -11,11 +11,11 @@ QEMU_LOG="$QEMU_DIR/qemu.log"
 QEMU_OUT="$QEMU_DIR/qemu.out"
 QEMU_END="$QEMU_DIR/qemu.end"
 
-rm -f "$QEMU_DIR/qemu.*"
+rm -f "$QEMU_DIR"/qemu.*
 touch "$QEMU_LOG"
 
 _trap() {
-  func="$1" ; shift
+  local func="$1" ; shift
   for sig ; do
     trap "$func $sig" "$sig"
   done
