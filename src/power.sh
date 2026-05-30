@@ -173,8 +173,6 @@ _graceful_shutdown() {
   local sig="$1"
   local code=0
 
-  set +e
-
   case "$sig" in
     SIGTERM) code=143 ;;
     SIGINT)  code=130 ;;
@@ -188,6 +186,7 @@ _graceful_shutdown() {
     return
   fi
 
+  set +e
   touch "$QEMU_END"
   info "Received $1, sending ACPI shutdown signal..."
 
