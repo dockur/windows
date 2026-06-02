@@ -84,7 +84,7 @@ finish() {
   if [ -s "$QEMU_PID" ]; then
     if read -r pid <"$QEMU_PID"; then
       if [ -n "$pid" ] && isAlive "$pid"; then
-        echo && error "Forcefully terminating $app, reason..."
+        echo && error "Forcefully terminating $app, reason: $reason..."
         { kill -9 -- "$pid" || :; } 2>/dev/null
       fi
     fi
@@ -151,7 +151,7 @@ _graceful_shutdown() {
   fi
 
   if ! ready; then
-    info "Cannot send ACPI signal during Windows setup, aborting..."
+    info "Cannot send ACPI signal during $app setup, aborting..."
     finish "$code"
   fi
 
