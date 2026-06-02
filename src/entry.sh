@@ -39,7 +39,7 @@ if [ ! -t 1 ] || [ ! -c /dev/tty ]; then
 else
   qemu-system-x86_64 ${ARGS:+ $ARGS} </dev/tty >/dev/tty &
 fi
- 
+
 rc=0
 wait $! || rc=$?
 [ -f "$QEMU_END" ] && exit "$rc"
