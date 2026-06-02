@@ -7,9 +7,11 @@ set -Eeuo pipefail
 tmp="/tmp/smb"
 rm -rf "$tmp"
 
-rm -f /var/run/wsdd.pid
-rm -f /var/run/samba/nmbd.pid
-rm -f /var/run/samba/smbd.pid
+DDN_PID="/var/run/wsdd.pid"
+NMB_PID="/var/run/samba/nmbd.pid"
+SMB_PID="/var/run/samba/smbd.pid"
+
+rm -f "$SMB_PID" "$NMB_PID" "$DDN_PID" 
 
 [[ "$SAMBA" == [Nn]* ]] && return 0
 [[ "$NETWORK" == [Nn]* ]] && return 0
@@ -205,11 +207,10 @@ if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
 else
 
   # Enable Web Service Discovery on Vista and up
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Starting wsddn daemon..."
-
+  [[ "$DEBUG" == [Yy1]* ]] && echo "Starting wsddn daemon...". 
   rm -f /var/log/wsddn.log
 
-  if ! wsddn -i "${interfaces%%,*}" -H "$hostname" --unixd --log-file=/var/log/wsddn.log --pid-file=/var/run/wsdd.pid; then
+  if ! wsddn -i "${interfaces%%,*}" -H "$hostname" --unixd --log-file=/var/log/wsddn.log --pid-file="$DDN_PID"; then
     SAMBA_DEBUG="Y"
     error "Failed to start wsddn daemon!"
   fi
