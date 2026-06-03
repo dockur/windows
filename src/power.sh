@@ -155,7 +155,7 @@ _graceful_shutdown() {
     finish "$code"
   fi
 
-  local cnt=0 abort=0 factor=3 offset=3 min max
+  local cnt=0 abort=0 factor=3 offset=3 min max name
 
   [[ "$TIMEOUT" =~ ^[0-9]+$ ]] || TIMEOUT=110
   [ "$TIMEOUT" -ge 15 ] && factor=4 && offset=4
@@ -164,6 +164,7 @@ _graceful_shutdown() {
   [ "$TIMEOUT" -lt "$min" ] && TIMEOUT="$min"
   max=$(( TIMEOUT - offset ))
   abort=$(( max - factor ))
+  name="$(app)"
 
   while [ "$cnt" -le "$max" ]; do
 
@@ -176,10 +177,9 @@ _graceful_shutdown() {
 
     if [ "$cnt" -ne "$abort" ]; then
       if [ "$cnt" -gt 0 ]; then
-        info "Waiting for $(app) to shut down... ($cnt/$max)"
+        info "Waiting for $name to shut down... ($cnt/$max)"
       fi
     else
-      local name="$(app)"
       info "${name^} is still running, sending SIGTERM... ($cnt/$max)"
       { kill -15 -- "$pid" && wait $! || :; } 2>/dev/null
     fi
