@@ -179,7 +179,8 @@ _graceful_shutdown() {
         info "Waiting for $(app) to shut down... ($cnt/$max)"
       fi
     else
-      info "${$(app)^} is still running, sending SIGTERM... ($cnt/$max)"
+      local name="$(app)"
+      info "${name^} is still running, sending SIGTERM... ($cnt/$max)"
       { kill -15 -- "$pid" && wait $! || :; } 2>/dev/null
     fi
 
