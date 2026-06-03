@@ -131,7 +131,6 @@ _graceful_shutdown() {
   local sig="$1"
   local pid=""
   local code=0
-  local app="$(app)"
 
   case "$sig" in
     SIGHUP)  code=129 ;;
