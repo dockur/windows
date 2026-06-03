@@ -41,13 +41,7 @@ else
 fi
 
 rc=0
-
-if [[ "$DEBUG" == [Yy1]* ]]; then
-  wait $! || rc=$?
-else
-  { wait $! 2>/dev/null; rc=$?; } || rc=$?
-fi
-
+wait $! || rc=$?
 [ -f "$QEMU_END" ] && exit "$rc"
 
 sleep 1 & wait $!
