@@ -116,7 +116,7 @@ finish() {
 
   mKill "${pids[@]}"
   closeNetwork
-  
+
   if [ -n "$pid" ] && ! waitPid "$pid" 100; then
     warn "Timed out while waiting for $(app) to exit!"
   fi
@@ -153,7 +153,7 @@ _graceful_shutdown() {
     warn "QEMU PID file ($QEMU_PID) does not exist?"
     finish "$code"
   fi
-  
+
   if [ -z "$pid" ] || ! isAlive "$pid"; then
     warn "QEMU process with PID $pid does not exist?"
     finish "$code"
