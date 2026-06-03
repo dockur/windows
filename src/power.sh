@@ -88,7 +88,15 @@ finish() {
   if [ -s "$QEMU_PID" ]; then
     if read -r pid <"$QEMU_PID"; then
       if [ -n "$pid" ] && isAlive "$pid"; then
-        echo && error "Forcefully terminating $(app), reason: $reason..."
+        local display="$reason"
+        case "$reason" in
+          129 ) display="SIGHUP" ;;
+          130 ) display="SIGINT" ;;
+          131 ) display="SIGQUIT" ;;
+          134 ) display="SIGABRT" ;;
+          143 ) display="SIGTERM" ;;
+        esac
+        echo && error "Forcefully terminating $(app), reason: $display..."
         { kill -9 -- "$pid" && wait $! || :; } 2>/dev/null
       fi
     fi
