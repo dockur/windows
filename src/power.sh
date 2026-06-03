@@ -40,15 +40,7 @@ boot() {
   fi
 
   error "Timeout while waiting for QEMU to boot the machine!"
-
-  local pid=""
-  if [ -s "$QEMU_PID" ]; then
-    if read -r pid <"$QEMU_PID"; then
-      if [ -n "$pid" ] && isAlive "$pid"; then
-        { kill -15 -- "$pid" && wait $! || :; } 2>/dev/null
-      fi
-    fi
-  fi
+  sKill "$QEMU_PID"
 
   return 0
 }
@@ -122,7 +114,6 @@ finish() {
   fi
 
   echo && echo "❯ Shutdown completed!"
-
   exit "$reason"
 }
 
