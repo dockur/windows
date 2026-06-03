@@ -75,7 +75,7 @@ finish() {
                "$WEB_PID" "$PASST_PID" "$DNSMASQ_PID" "${BALLOONING_PID:-}" )
 
   touch "$QEMU_END"
-  (( reason != 0 )) && (( reason != 143 )) && echo "QEMU exitcode: $reason"
+  (( reason != 0 )) && (( reason < 129 )) && echo "QEMU exitcode: $reason"
 
   if [ -s "$QEMU_PID" ]; then
     if read -r pid <"$QEMU_PID"; then
