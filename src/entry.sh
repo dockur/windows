@@ -37,7 +37,11 @@ info "Booting ${APP}${BOOT_DESC} using QEMU v$version..."
 if [ ! -t 1 ] || [ ! -c /dev/tty ]; then
   qemu-system-x86_64 ${ARGS:+ $ARGS} &
 else
-  setsid qemu-system-x86_64 ${ARGS:+ $ARGS} >/dev/tty &
+  if [[ "$DEBUG" != [Yy1]* ]]; then
+    qemu-system-x86_64 ${ARGS:+ $ARGS} </dev/tty >/dev/tty &
+  else
+    setsid qemu-system-x86_64 ${ARGS:+ $ARGS} >/dev/tty &
+  fi
 fi
 
 rc=0
