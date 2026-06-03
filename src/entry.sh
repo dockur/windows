@@ -37,7 +37,7 @@ info "Booting ${APP}${BOOT_DESC} using QEMU v$version..."
 if [ ! -t 1 ] || [ ! -c /dev/tty ]; then
   qemu-system-x86_64 ${ARGS:+ $ARGS} &
 else
-  qemu-system-x86_64 ${ARGS:+ $ARGS} </dev/tty >/dev/tty &
+  setsid qemu-system-x86_64 ${ARGS:+ $ARGS} >/dev/tty &
 fi
 
 rc=0
