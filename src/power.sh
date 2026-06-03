@@ -109,7 +109,7 @@ finish() {
   mKill "${pids[@]}"
   closeNetwork
 
-  if [ -n "$pid" ] && ! waitPid "$pid" 10; then
+  if ! waitPidFile "$QEMU_PID" 10; then
     warn "Timed out while waiting for $(app) to exit!"
   fi
 
@@ -152,6 +152,10 @@ _graceful_shutdown() {
 
   if ! ready; then
     info "Cannot send ACPI signal during $(app) setup, aborting..."
+    sKill "$QEMU_PID"
+    if ! waitPidFile "$QEMU_PID" 5; then
+      warn "Timed out while waiting for $(app) to exit!"
+    fi
     finish "$code"
   fi
 
