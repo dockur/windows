@@ -41,9 +41,14 @@ boot() {
 
   error "Timeout while waiting for QEMU to boot the machine!"
 
-  local pid
-  pid=$(<"$QEMU_PID")
-  { kill -15 "$pid" || true; } 2>/dev/null
+  local pid=""
+  if [ -s "$QEMU_PID" ]; then
+    if read -r pid <"$QEMU_PID"; then
+      if [ -n "$pid" ] && isAlive "$pid"; then
+        { kill -15 -- "$pid" && wait $! || :; } 2>/dev/null
+      fi
+    fi
+  fi
 
   return 0
 }
@@ -84,7 +89,7 @@ finish() {
     if read -r pid <"$QEMU_PID"; then
       if [ -n "$pid" ] && isAlive "$pid"; then
         echo && error "Forcefully terminating $(app), reason: $reason..."
-        { kill -9 -- "$pid" || :; } 2>/dev/null
+        { kill -9 -- "$pid" && wait $! || :; } 2>/dev/null
       fi
     fi
   fi
@@ -177,7 +182,7 @@ _graceful_shutdown() {
       fi
     else
       info "$(app) is still running, sending SIGTERM... ($cnt/$max)"
-      { kill -15 -- "$pid" || true; } 2>/dev/null
+      { kill -15 -- "$pid" && wait $! || :; } 2>/dev/null
     fi
 
     # Send ACPI shutdown signal
