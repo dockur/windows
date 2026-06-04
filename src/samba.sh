@@ -11,7 +11,7 @@ DDN_PID="/var/run/wsdd.pid"
 NMB_PID="/var/run/samba/nmbd.pid"
 SMB_PID="/var/run/samba/smbd.pid"
 
-rm -f "$SMB_PID" "$NMB_PID" "$DDN_PID" 
+rm -f "$SMB_PID" "$NMB_PID" "$DDN_PID"
 
 [[ "$SAMBA" == [Nn]* ]] && return 0
 [[ "$NETWORK" == [Nn]* ]] && return 0
