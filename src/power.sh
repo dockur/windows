@@ -207,6 +207,6 @@ graceful_shutdown() {
 [[ "$SHUTDOWN" != [Yy1]* ]] && return 0
 [ -n "${QEMU_TIMEOUT:-}" ] && TIMEOUT="$QEMU_TIMEOUT"
 
-_trap graceful_shutdown SIGTERM SIGHUP SIGINT SIGABRT SIGQUIT
+_trap graceful_shutdown SIGTERM SIGHUP SIGABRT SIGQUIT
 
 return 0
