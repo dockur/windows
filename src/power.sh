@@ -73,8 +73,8 @@ finish() {
   local i=0
   local pid=""
   local reason=$1
-  local pids=( "$SMB_PID" "$NMB_PID" "$DDN_PID" "$TPM_PID" "$WSD_PID" \
-               "$WEB_PID" "$PASST_PID" "$DNSMASQ_PID" "${BALLOONING_PID:-}" )
+  local pids=( "${SMB_PID:-}" "${NMB_PID:-}" "${DDN_PID:-}" "${TPM_PID:-}" "${WSD_PID:-}" \
+               "${WEB_PID:-}" "${PASST_PID:-}" "${DNSMASQ_PID:-}" "${BALLOONING_PID:-}" )
 
   touch "$QEMU_END"
 
