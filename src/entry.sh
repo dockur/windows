@@ -44,6 +44,13 @@ coproc FILTER {
     -e 's/0): Not Found/0)/g'
 }
 
+if ! kill -0 "$FILTER_PID" 2>/dev/null; then
+  echo "FILTER died early" >&2
+  exit 1
+fi
+
+ls -l /proc/$FILTER_PID/fd
+
 qemu-system-x86_64 ${ARGS:+ $ARGS} >&"${FILTER[1]}" &
 
 pid=$!
