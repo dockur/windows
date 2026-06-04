@@ -41,8 +41,7 @@ qemu-system-x86_64 ${ARGS:+ $ARGS} > >(
     -e '/^$/d' \
     -e 's/\x44\x53\x73//g' \
     -e 's/failed to load Boot/skipped Boot/g' \
-    -e 's/0): Not Found/0)/g' \    
-) &
+    -e 's/0): Not Found/0)/g' ) &
 
 pid=$!
 ( sleep 30; boot ) &
