@@ -37,11 +37,10 @@ if [[ "$SHUTDOWN" != [Yy1]* ]]; then
   exec "${cmd[@]}" ${ARGS:+ $ARGS}
 fi
 
-PIPE="$QEMU_DIR/qemu.pipe"
-rm -f "$PIPE"
-mkfifo "$PIPE"
+pipe="$QEMU_DIR/qemu.pipe"
+rm -f "$pipe" && mkfifo "$pipe"
 
-tee "$QEMU_PTY" <"$PIPE" |
+tee "$QEMU_PTY" <"$pipe" |
 sed -u \
   -e 's/\x1B\[[=0-9;]*[a-z]//gi' \
   -e 's/\x1B\x63//g' \
@@ -51,7 +50,7 @@ sed -u \
   -e 's/failed to load Boot/skipped Boot/g' \
   -e 's/0): Not Found/0)/g' &
 
-"${cmd[@]}" ${ARGS:+ $ARGS} >"$PIPE" &
+"${cmd[@]}" ${ARGS:+ $ARGS} >"$pipe" &
 
 pid=$!
 ( sleep 30; boot ) &
