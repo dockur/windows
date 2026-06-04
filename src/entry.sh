@@ -47,7 +47,7 @@ pid=$!
 ( sleep 30; boot ) &
 
 rc=0
-wait $pid || rc=$?
+wait "$pid" || rc=$?
 [ -f "$QEMU_END" ] && exit "$rc"
 
 sleep 1 & wait $!
