@@ -41,7 +41,7 @@ boot() {
     fi
   fi
 
-  error "Timeout while waiting for QEMU to boot the machine!"
+  error "Timeout while waiting for QEMU to boot the machine, aborting..."
   sKill "$QEMU_PID"
 
   return 0
