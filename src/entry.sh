@@ -33,8 +33,8 @@ version=$(qemu-system-x86_64 --version | head -n 1 | cut -d '(' -f 1 | awk '{ pr
 info "Booting ${APP}${BOOT_DESC} using QEMU v$version..."
 
 coproc FILTER {
-  stdbuf -oL tee "$QEMU_PTY" |
-  stdbuf -oL sed -u \
+  tee "$QEMU_PTY" |
+  sed -u \
     -e 's/\x1B\[[=0-9;]*[a-z]//gi' \
     -e 's/\x1B\x63//g' \
     -e 's/\x1B\[[=?]7l//g' \
@@ -44,12 +44,9 @@ coproc FILTER {
     -e 's/0): Not Found/0)/g'
 }
 
-if ! kill -0 "$FILTER_PID" 2>/dev/null; then
-  echo "FILTER died early" >&2
-  exit 1
-fi
-
-ls -l /proc/$FILTER_PID/fd
+while [[ -z "${FILTER[1]:-}" ]] || ! kill -0 "$FILTER_PID"; do
+  sleep 0.1
+done
 
 qemu-system-x86_64 ${ARGS:+ $ARGS} >&"${FILTER[1]}" &
 
