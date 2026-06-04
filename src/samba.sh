@@ -207,7 +207,7 @@ if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
 else
 
   # Enable Web Service Discovery on Vista and up
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Starting wsddn daemon...". 
+  [[ "$DEBUG" == [Yy1]* ]] && echo "Starting wsddn daemon..."
   rm -f /var/log/wsddn.log
 
   if ! wsddn -i "${interfaces%%,*}" -H "$hostname" --unixd --log-file=/var/log/wsddn.log --pid-file="$DDN_PID"; then
