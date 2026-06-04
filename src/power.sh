@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 : "${SHUTDOWN:="Y"}"        # Graceful ACPI shutdown
-: "${TIMEOUT:="110"}"       # QEMU termination timeout
+: "${TIMEOUT:="115"}"       # QEMU termination timeout
 
 # Configure QEMU for graceful shutdown
 
@@ -164,7 +164,7 @@ graceful_shutdown() {
 
   local cnt=0 abort=0 factor=3 offset=3 min max name
 
-  [[ "$TIMEOUT" =~ ^[0-9]+$ ]] || TIMEOUT=110
+  [[ "$TIMEOUT" =~ ^[0-9]+$ ]] || TIMEOUT=115
   [ "$TIMEOUT" -ge 15 ] && factor=4 && offset=4
   [ "$TIMEOUT" -ge 30 ] && factor=5 && offset=5
   min=$((factor + offset + 1))
