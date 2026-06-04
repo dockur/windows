@@ -1,0 +1,41 @@
+---
+services:
+  win7:
+    image: ${WINDOWS_IMAGE:-dockurr/windows}
+    container_name: win7
+    env_file: ../../.env.legacy
+    environment:
+      VERSION: "7u"
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8007:8006
+      - 3307:3389/tcp
+      - 3307:3389/udp
+    volumes:
+      - ../../data/win7:/storage
+    restart: ${RESTART_POLICY:-on-failure}
+    stop_grace_period: 2m
+
+  win7e:
+    image: ${WINDOWS_IMAGE:-dockurr/windows}
+    container_name: win7e
+    env_file: ../../.env.legacy
+    environment:
+      VERSION: "7e"
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8071:8006
+      - 3371:3389/tcp
+      - 3371:3389/udp
+    volumes:
+      - ../../data/win7e:/storage
+    restart: ${RESTART_POLICY:-on-failure}
+    stop_grace_period: 2m

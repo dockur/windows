@@ -1,0 +1,21 @@
+---
+services:
+  winxp:
+    image: ${WINDOWS_IMAGE:-dockurr/windows}
+    container_name: winxp
+    env_file: ../../.env.legacy
+    environment:
+      VERSION: "xp"
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8005:8006
+      - 3305:3389/tcp
+      - 3305:3389/udp
+    volumes:
+      - ../../data/winxp:/storage
+    restart: ${RESTART_POLICY:-on-failure}
+    stop_grace_period: 2m

@@ -1,0 +1,9 @@
+---
+include:
+  - server/win2025.yml
+  - server/win2022.yml
+  - server/win2019.yml
+  - server/win2016.yml
+  - server/win2012.yml
+  - server/win2008.yml
+  - server/win2003.yml

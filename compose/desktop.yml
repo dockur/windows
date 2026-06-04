@@ -1,0 +1,6 @@
+---
+include:
+  - desktop/win11.yml
+  - desktop/win10.yml
+  - desktop/win8.yml
+  - desktop/win7.yml

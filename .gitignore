@@ -1,1 +1,18 @@
+# Environment file (contains local settings)
+.env
 
+# Ignore data folder contents but keep structure
+data/*
+!data/*/
+data/*/**
+!data/*/.gitkeep
+
+# Snapshot contents (generated at runtime)
+snapshots/*
+!snapshots/.gitkeep
+
+# Instance compose files and registry (generated at runtime)
+instances/
+
+# ISO cache (cached ISOs for faster instance creation)
+cache/
