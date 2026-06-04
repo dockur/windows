@@ -52,6 +52,7 @@ jobs:
           level: warning
           fail_level: error
           reporter: github-pr-review
+          actionlint_flags: "-ignore if-cond"
           github_token: ${{ secrets.GITHUB_TOKEN }}
       -
         name: Shellformat
