@@ -32,8 +32,6 @@ trap - ERR
 version=$(qemu-system-x86_64 --version | head -n 1 | cut -d '(' -f 1 | awk '{ print $NF }')
 info "Booting ${APP}${BOOT_DESC} using QEMU v$version..."
 
-[[ "$SHUTDOWN" != [Yy1]* ]] && exec qemu-system-x86_64 ${ARGS:+ $ARGS}
-
 if [ ! -t 1 ] || [ ! -c /dev/tty ]; then
   qemu-system-x86_64 ${ARGS:+ $ARGS} &
 else
@@ -44,6 +42,8 @@ else
   fi
 fi
 
+( sleep 30; boot ) &
+
 rc=0
 wait $! || rc=$?
 [ -f "$QEMU_END" ] && exit "$rc"
@@ -51,7 +51,7 @@ wait $! || rc=$?
 sleep 1 & wait $!
 finish "$rc"
 
-#( sleep 30; boot ) &
+#
 #tail -fn +0 "$QEMU_LOG" --pid=$$ 2>/dev/null &
 #cat "$QEMU_TERM" 2> /dev/null | tee "$QEMU_PTY" | \
 #sed -u -e 's/\x1B\[[=0-9;]*[a-z]//gi' \
