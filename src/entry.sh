@@ -29,8 +29,13 @@ cd /run
 
 trap - ERR
 
-version=$(qemu-system-x86_64 --version | head -n 1 | cut -d '(' -f 1 | awk '{ print $NF }')
+cmd=(qemu-system-x86_64)
+version=$("${cmd[@]}" --version | awk 'NR==1 { print $4 }')
 info "Booting ${APP}${BOOT_DESC} using QEMU v$version..."
+
+if [[ "$SHUTDOWN" != [Yy1]* ]]; then
+  exec "${cmd[@]}" ${ARGS:+ $ARGS}
+fi
 
 PIPE="$QEMU_DIR/qemu.pipe"
 rm -f "$PIPE"
@@ -46,7 +51,7 @@ sed -u \
   -e 's/failed to load Boot/skipped Boot/g' \
   -e 's/0): Not Found/0)/g' &
 
-qemu-system-x86_64 ${ARGS:+ $ARGS} >"$PIPE" &
+"${cmd[@]}" ${ARGS:+ $ARGS} >"$PIPE" &
 
 pid=$!
 ( sleep 30; boot ) &
