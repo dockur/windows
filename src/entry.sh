@@ -32,23 +32,21 @@ trap - ERR
 version=$(qemu-system-x86_64 --version | head -n 1 | cut -d '(' -f 1 | awk '{ print $NF }')
 info "Booting ${APP}${BOOT_DESC} using QEMU v$version..."
 
-coproc FILTER {
-  tee "$QEMU_PTY" |
-  sed -u \
-    -e 's/\x1B\[[=0-9;]*[a-z]//gi' \
-    -e 's/\x1B\x63//g' \
-    -e 's/\x1B\[[=?]7l//g' \
-    -e '/^$/d' \
-    -e 's/\x44\x53\x73//g' \
-    -e 's/failed to load Boot/skipped Boot/g' \
-    -e 's/0): Not Found/0)/g'
-}
+PIPE="$QEMU_DIR/qemu.pipe"
+rm -f "$PIPE"
+mkfifo "$PIPE"
 
-while [[ -z "${FILTER[1]:-}" ]] || ! kill -0 "$FILTER_PID"; do
-  sleep 0.1
-done
+tee "$QEMU_PTY" <"$PIPE" |
+sed -u \
+  -e 's/\x1B\[[=0-9;]*[a-z]//gi' \
+  -e 's/\x1B\x63//g' \
+  -e 's/\x1B\[[=?]7l//g' \
+  -e '/^$/d' \
+  -e 's/\x44\x53\x73//g' \
+  -e 's/failed to load Boot/skipped Boot/g' \
+  -e 's/0): Not Found/0)/g' &
 
-qemu-system-x86_64 ${ARGS:+ $ARGS} >&"${FILTER[1]}" &
+qemu-system-x86_64 ${ARGS:+ $ARGS} >"$PIPE" &
 
 pid=$!
 ( sleep 30; boot ) &
