@@ -3,7 +3,7 @@
 ARG VERSION_ARG="latest"
 FROM scratch AS build-amd64
 
-COPY --from=qemux/qemu:7.31 / /
+COPY --from=qemux/qemu:7.32 / /
 
 ARG TARGETARCH
 ARG VERSION_WSDD="1.24"
