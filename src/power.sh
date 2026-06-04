@@ -88,7 +88,7 @@ finish() {
           134 ) display="SIGABRT" ;;
           143 ) display="SIGTERM" ;;
         esac
-        echo && error "Forcefully terminating $(app), reason: $display..."
+        error "Forcefully terminating $(app), reason: $display..."
         { disown "$pid" || :; kill -9 -- "$pid" || :; } 2>/dev/null
       fi
     fi
