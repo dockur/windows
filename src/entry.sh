@@ -35,17 +35,14 @@ info "Booting ${APP}${BOOT_DESC} using QEMU v$version..."
 if [ ! -t 1 ] || [ ! -c /dev/tty ]; then
   qemu-system-x86_64 ${ARGS:+ $ARGS} &
 else
-  if [[ "$DEBUG" != [Yy1]* ]]; then
-    qemu-system-x86_64 ${ARGS:+ $ARGS} </dev/tty >/dev/tty &
-  else
-    setsid qemu-system-x86_64 ${ARGS:+ $ARGS} >/dev/tty &
-  fi
+  qemu-system-x86_64 ${ARGS:+ $ARGS} </dev/tty >/dev/tty &
 fi
 
+pid=$!
 ( sleep 30; boot ) &
 
 rc=0
-wait $! || rc=$?
+wait $pid || rc=$?
 [ -f "$QEMU_END" ] && exit "$rc"
 
 sleep 1 & wait $!
