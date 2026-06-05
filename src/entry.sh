@@ -33,10 +33,6 @@ cmd=(qemu-system-x86_64)
 version=$("${cmd[@]}" --version | awk 'NR==1 { print $4 }')
 info "Booting ${APP}${BOOT_DESC} using QEMU v$version..."
 
-if [[ "$SHUTDOWN" != [Yy1]* ]]; then
-  exec "${cmd[@]}" ${ARGS:+ $ARGS}
-fi
-
 pipe="$QEMU_DIR/qemu.pipe"
 rm -f "$pipe" && mkfifo "$pipe"
 
@@ -49,6 +45,10 @@ sed -u \
   -e 's/\x44\x53\x73//g' \
   -e 's/failed to load Boot/skipped Boot/g' \
   -e 's/0): Not Found/0)/g' &
+
+if [[ "$SHUTDOWN" != [Yy1]* ]]; then
+  exec "${cmd[@]}" ${ARGS:+ $ARGS} >"$pipe"
+fi
 
 "${cmd[@]}" ${ARGS:+ $ARGS} >"$pipe" &
 

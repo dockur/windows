@@ -135,13 +135,13 @@ graceful_shutdown() {
   esac
 
   if [ -f "$QEMU_END" ]; then
-    echo && info "Received $1 while already shutting down..."
+    echo && info "Received $1 signal while already shutting down..."
     return
   fi
 
   set +e
   touch "$QEMU_END"
-  echo && info "Received $1, sending ACPI shutdown signal..."
+  echo && info "Received $1 signal, sending ACPI shutdown signal..."
 
   if [ ! -s "$QEMU_PID" ] || ! read -r pid <"$QEMU_PID"; then
     warn "QEMU PID file ($QEMU_PID) does not exist?"
