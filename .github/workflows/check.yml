@@ -9,7 +9,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       -
         name: Run ShellCheck
         uses: ludeeus/action-shellcheck@master
