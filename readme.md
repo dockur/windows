@@ -386,6 +386,9 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   Yes, this project contains only open-source code and does not distribute any copyrighted material. Any product keys found in the code are just generic placeholders provided by Microsoft for trial purposes. So under all applicable laws, this project will be considered legal.
 
+## Stars 🌟
+[![Stargazers](https://raw.githubusercontent.com/star-stats/stars/refs/heads/data/charts/dockur-windows.svg)](https://github.com/dockur/windows/stargazers)
+
 ## Disclaimer ⚖️
 
 *The product names, logos, brands, and other trademarks referred to within this project are the property of their respective trademark holders. This project is not affiliated, sponsored, or endorsed by Microsoft Corporation.*
