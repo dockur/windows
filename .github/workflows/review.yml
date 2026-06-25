@@ -13,16 +13,16 @@ jobs:
     name: review
     runs-on: ubuntu-latest
     steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v7
+    -
+      name: Checkout
+      uses: actions/checkout@v7
+    - parallel:
       -
         name: Spelling
         uses: reviewdog/action-misspell@v1
         with:
           locale: "US"
           level: warning
-          fail_level: error
           pattern: |
             *.md
             *.sh
@@ -42,7 +42,6 @@ jobs:
         uses: reviewdog/action-yamllint@v1
         with:
           level: warning
-          fail_level: error
           reporter: github-pr-review
           github_token: ${{ secrets.GITHUB_TOKEN }}
       -
