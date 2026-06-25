@@ -7,9 +7,10 @@ jobs:
     name: shellcheck
     runs-on: ubuntu-latest
     steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v7
+    -
+      name: Checkout
+      uses: actions/checkout@v7
+    - parallel:
       -
         name: Run ShellCheck
         uses: ludeeus/action-shellcheck@master
