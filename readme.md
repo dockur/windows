@@ -90,7 +90,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   ```yaml
   environment:
-    VERSION: "11"
+    VERSION: "10"
   ```
 
   Select from the values below:
@@ -143,7 +143,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   ```
   
 > [!TIP]
-> This can also be used to resize the existing disk to a larger capacity without any data loss. However you will need to [manually extend the disk partition](https://learn.microsoft.com/en-us/windows-server/storage/disk-management/extend-a-basic-volume?tabs=disk-management) afterwards, since the added disk space will appear as unallocated.
+> This can also be used to resize an existing disk to a larger capacity without any data loss. However you will need to [manually extend the disk partition](https://learn.microsoft.com/en-us/windows-server/storage/disk-management/extend-a-basic-volume?tabs=disk-management) afterwards, since the added disk space will appear as unallocated.
 
 ### How do I share files with the host?
 
@@ -174,7 +174,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   By default, a user called `Docker` is created and its password is `admin`.
 
-  If you want to use different credentials during installation, you can configure them in your compose file:
+  If you want to set up different credentials during installation, you can configure them in your compose file:
 
   ```yaml
   environment:
@@ -197,7 +197,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I select the keyboard layout?
 
-  If you want to use a keyboard layout or locale that is not the default for your selected language, you can add  `KEYBOARD` and `REGION` variables like this:
+  If you want to set up a keyboard layout or locale that is not the default for your selected language, you can add  `KEYBOARD` and `REGION` variables like this:
 
   ```yaml
   environment:
@@ -240,7 +240,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   It's recommended to stick to the automatic installation, as it adjusts various settings to prevent common issues when running Windows inside a virtual environment.
 
-  However, if you insist on performing the installation manually at your own risk, add the following environment variable to your compose file:
+  However, if you insist on performing the installation manually (at your own risk), add the following environment variable to your compose file:
 
   ```yaml
   environment:
