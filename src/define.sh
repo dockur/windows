@@ -786,8 +786,8 @@ getLink1() {
 
   case "${id,,}" in
     "win11x64" | "win11x64-enterprise" | "win11x64-enterprise-eval" )
-      size=6898546688
-      sum="2618a56931b645a6f097082431994bd85ae80862518de389e382f35ebfd455be"
+      size=6927149056
+      sum="f5ffe9313eebc6299fba9e6eeb2971007264e6c6be013073a89b5ae9bd85bfb3"
       url="11/en-us_windows_11_25h2_x64.iso"
       ;;
     "win11x64-iot" | "win11x64-enterprise-iot" | "win11x64-enterprise-iot-eval" )
@@ -801,8 +801,8 @@ getLink1() {
       url="11/X23-81951_26100.1742.240906-0331.ge_release_svc_refresh_CLIENT_ENTERPRISES_OEM_x64FRE_en-us.iso"
       ;;
     "win10x64" | "win10x64-enterprise" | "win10x64-enterprise-eval" )
-      size=5767888896
-      sum="9dce12d73168debc697919a6bc4d8c6624b2175bbed01a2ca97edb7d93627319"
+      size=5723299840
+      sum="316f718f21fc9b386d81dadd62dc60268a1cfd65b184ac6a052875a454c3431b"
       url="10/en-us_windows_10_22h2_x64.iso"
       ;;
     "win10x64-iot" | "win10x64-enterprise-iot" | "win10x64-enterprise-iot-eval" )
