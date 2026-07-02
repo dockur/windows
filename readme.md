@@ -334,7 +334,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I pass-through a USB device?
 
-  To pass-through a USB device, first lookup its vendor and product id via the `lsusb` command, then add them to your compose file like this:
+  To pass-through a USB device, first look up its vendor and product id via the `lsusb` command, then add them to your compose file like this:
 
   ```yaml
   environment:
