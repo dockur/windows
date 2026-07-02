@@ -21,7 +21,7 @@ Windows inside a Docker container.
  - Web-based viewer
  - Automatic install
  - Shared host folder
- - USB passthrough
+  - USB pass through
 
 ## Video 📺
 
