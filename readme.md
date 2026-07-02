@@ -234,7 +234,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
     -  ./example:/oem
   ```
 
-  The example folder `./example` will be copied to `C:\OEM` and the containing `install.bat` will be executed during the last step of the automatic installation.
+  The example folder `./example` will be copied to `C:\OEM` and the `install.bat` file inside that folder will be executed during the last step of the automatic installation.
 
 ### How do I perform a manual installation?
 
