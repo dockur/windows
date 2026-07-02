@@ -60,7 +60,7 @@ download_windows() {
   local id="$1"
   local lang="$2"
   local desc="$3"
-  local ovw="" rtick="" mdt="" sku_id="" sku_url=""
+  local ovw="" rticks="" mdt="" sku_id="" sku_url=""
   local iso_url="" iso_json="" language="" org_id=""
   local instance_id="" vls_url="" ov_url="" ov_data=""
   local session_id="" user_agent="" download_type=""
