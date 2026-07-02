@@ -24,7 +24,8 @@ handle_curl_error() {
     36) error "Failed to continue earlier download!" ;;
     52) error "Received no data from the $server_name server!" ;;
     63) error "$server_name servers returned an unexpectedly large response!" ;;
-    126 | 127) error "Curl command not found!" ;;
+    126) error "Curl command cannot be executed!" ;;
+    127) error "Curl command not found!" ;;
     *)
       if (( error_code <= 125 )); then
         # Must be some other server or network error (possibly with this specific request/file)
