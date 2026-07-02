@@ -845,7 +845,7 @@ updateXML() {
 
   local asset="$1"
   local language="$2"
-  local culture region user admin pass keyboard
+  local culture region user admin pass pw keyboard
 
   [ -z "$HEIGHT" ] && HEIGHT="720"
   [ -z "$WIDTH" ] && WIDTH="1280"
