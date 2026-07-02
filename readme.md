@@ -29,7 +29,7 @@ Windows inside a Docker container.
 
 ## Usage 🐳
 
-##### Via Docker Compose:
+##### Docker Compose:
 
 ```yaml
 services:
@@ -53,25 +53,34 @@ services:
     stop_grace_period: 2m
 ```
 
-##### Via Docker CLI:
+##### Docker CLI:
 
 ```bash
 docker run -it --rm --name windows -e "VERSION=11" -p 8006:8006 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -v "${PWD:-.}/windows:/storage" --stop-timeout 120 docker.io/dockurr/windows
 ```
 
-##### Via Kubernetes:
+##### Kubernetes:
 
 ```shell
 kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/master/kubernetes.yml
 ```
 
-##### Via GitHub Codespaces:
+##### GitHub Codespaces:
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/dockur/windows)
 
-##### Via a graphical installer:
+##### Graphical installer:
 
 [![Download WinBoat](https://github.com/dockur/windows/raw/master/.github/winboat.png)](https://winboat.app)
+
+## Requirements ⚙️
+
+- A Linux host with KVM support, or Docker Desktop / Podman on Windows 11 with nested virtualization enabled.
+- At least 4 GB of RAM available.
+- At least 64 GB of free disk space.
+
+> [!NOTE]
+> Docker Desktop on macOS and Windows 10 do not currently provide the required KVM support for this image.
 
 ## FAQ 💬
 
