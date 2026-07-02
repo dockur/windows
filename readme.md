@@ -21,7 +21,7 @@ Windows inside a Docker container.
  - Web-based viewer
  - Automatic install
  - Shared host folder
-  - USB pass through
+ - USB pass through
 
 ## Video 📺
 
@@ -75,9 +75,9 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ## Requirements ⚙️
 
-- A Linux host with KVM support, or Docker Desktop / Podman on Windows 11 with nested virtualization enabled.
-- At least 4 GB of RAM available.
-- At least 64 GB of free disk space.
+ - A Linux host with KVM support, or Docker Desktop / Podman on Windows 11 with nested virtualization enabled.
+ - At least 4 GB of RAM available.
+ - At least 64 GB of free disk space.
 
 > [!NOTE]
 > Docker Desktop on macOS and Windows 10 do not currently provide the required KVM support for this image.
