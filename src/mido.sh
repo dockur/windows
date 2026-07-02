@@ -24,24 +24,21 @@ handle_curl_error() {
     36) error "Failed to continue earlier download!" ;;
     52) error "Received no data from the $server_name server!" ;;
     63) error "$server_name servers returned an unexpectedly large response!" ;;
-    # POSIX defines exit statuses 1-125 as usable by us
-    # https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_08_02
-    $((error_code <= 125)))
-      # Must be some other server or network error (possibly with this specific request/file)
-      # This is when accounting for all possible errors in the curl manual assuming a correctly formed curl command and an HTTP(S) request, using only the curl features we're using, and a sane build
-      error "Miscellaneous server or network error, reason: $error_code"
-      ;;
-    126 | 127 ) error "Curl command not found!" ;;
-    # Exit statuses are undefined by POSIX beyond this point
+    126 | 127) error "Curl command not found!" ;;
     *)
-      case "$(kill -l "$error_code")" in
-        # Signals defined to exist by POSIX:
-        # https://pubs.opengroup.org/onlinepubs/009695399/basedefs/signal.h.html
-        INT) error "Curl was interrupted!" ;;
-        # There could be other signals but these are most common
-        SEGV | ABRT ) error "Curl crashed! Please report any core dumps to curl developers." ;;
-        *) error "Curl terminated due to fatal signal $error_code !" ;;
-      esac
+      if (( error_code <= 125 )); then
+        # Must be some other server or network error (possibly with this specific request/file)
+        # This is when accounting for all possible errors in the curl manual assuming a correctly formed
+        # curl command and an HTTP(S) request, using only the curl features we're using, and a sane build.
+        error "Miscellaneous server or network error, reason: $error_code"
+      else
+        case "$(kill -l "$error_code" 2>/dev/null || true)" in
+          INT) error "Curl was interrupted!" ;;
+          SEGV | ABRT) error "Curl crashed! Please report any core dumps to curl developers." ;;
+          *) error "Curl terminated due to fatal signal $error_code !" ;;
+        esac
+      fi
+      ;;
   esac
 
   return 1
