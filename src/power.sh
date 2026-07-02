@@ -194,14 +194,10 @@ graceful_shutdown() {
     local slp=$!
 
     # Stop waiting if the process has exited
-    if ! isAlive "$pid"; then
-      break
-    fi
+    ! isAlive "$pid" && break
 
     # Workaround for stale/zombie QEMU pid file
-    if [ ! -s "$QEMU_PID" ]; then
-      break
-    fi
+    [ ! -s "$QEMU_PID" ] && break
 
     if (( cnt == sigterm_at )); then
       info "${name^} is still running, sending SIGTERM... ($cnt/$wait_until)"
