@@ -20,7 +20,7 @@ Windows inside a Docker container.
  - KVM acceleration
  - Web-based viewer
  - Automatic install
- - Host folder sharing
+ - Shared host folder
  - USB passthrough
 
 ## Video 📺
