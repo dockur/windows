@@ -209,7 +209,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I select the keyboard layout?
 
-  If you want to set up a keyboard layout or locale that is not the default for your selected language, you can add  `KEYBOARD` and `REGION` variables like this:
+  If you want to set up a keyboard layout or locale that is not the default for your selected language, you can add `KEYBOARD` and `REGION` variables like this:
 
   ```yaml
   environment:
