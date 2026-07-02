@@ -24,7 +24,8 @@ handle_curl_error() {
     36) error "Failed to continue earlier download!" ;;
     52) error "Received no data from the $server_name server!" ;;
     63) error "$server_name servers returned an unexpectedly large response!" ;;
-    126 | 127) error "Curl command not found!" ;;
+    126) error "Curl command cannot be executed!" ;;
+    127) error "Curl command not found!" ;;
     *)
       if (( error_code <= 125 )); then
         # Must be some other server or network error (possibly with this specific request/file)
@@ -60,7 +61,7 @@ download_windows() {
   local id="$1"
   local lang="$2"
   local desc="$3"
-  local ovw="" rtick="" mdt="" sku_id="" sku_url=""
+  local ovw="" rticks="" mdt="" sku_id="" sku_url=""
   local iso_url="" iso_json="" language="" org_id=""
   local instance_id="" vls_url="" ov_url="" ov_data=""
   local session_id="" user_agent="" download_type=""
