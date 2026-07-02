@@ -162,33 +162,48 @@ graceful_shutdown() {
     finish "$code"
   fi
 
-  local cnt=0 abort=0 factor=3 offset=3 min max name
-
-  [[ "$TIMEOUT" =~ ^[0-9]+$ ]] || TIMEOUT=115
-  [ "$TIMEOUT" -ge 15 ] && factor=4 && offset=4
-  [ "$TIMEOUT" -ge 30 ] && factor=5 && offset=5
-  min=$((factor + offset + 1))
-  [ "$TIMEOUT" -lt "$min" ] && TIMEOUT="$min"
-  max=$(( TIMEOUT - offset ))
-  abort=$(( max - factor ))
+  local name
   name="$(app)"
 
-  while [ "$cnt" -le "$max" ]; do
+  local term_grace=3      # seconds before loop ends to send SIGTERM
+  local cleanup_grace=3   # seconds reserved after the loop for cleanup
+
+  if [[ ! "$TIMEOUT" =~ ^[0-9]+$ ]]; then
+    TIMEOUT=115
+  fi
+
+  if (( TIMEOUT >= 30 )); then
+    term_grace=5
+    cleanup_grace=5
+  elif (( TIMEOUT >= 15 )); then
+    term_grace=4
+    cleanup_grace=4
+  fi
+
+  local cnt=0 sigterm_at=0 min wait_until
+
+  min=$((term_grace + cleanup_grace + 1))
+  (( TIMEOUT < min )) && (( TIMEOUT = min ))
+
+  wait_until=$((TIMEOUT - cleanup_grace))
+  sigterm_at=$((wait_until - term_grace))
+
+  while (( cnt <= wait_until )); do
 
     sleep 1 &
     local slp=$!
 
+    # Stop waiting if the process has exited
     ! isAlive "$pid" && break
-    # Workaround for zombie pid
+
+    # Workaround for stale/zombie QEMU pid file
     [ ! -s "$QEMU_PID" ] && break
 
-    if [ "$cnt" -ne "$abort" ]; then
-      if [ "$cnt" -gt 0 ]; then
-        info "Waiting for $name to shut down... ($cnt/$max)"
-      fi
-    else
-      info "${name^} is still running, sending SIGTERM... ($cnt/$max)"
-      { kill -15 -- "$pid" || :; } 2>/dev/null
+    if (( cnt == sigterm_at )); then
+      info "${name^} is still running, sending SIGTERM... ($cnt/$wait_until)"
+      kill -15 -- "$pid" 2>/dev/null || :
+    elif (( cnt > 0 )); then
+      info "Waiting for $name to shut down... ($cnt/$wait_until)"
     fi
 
     # Send ACPI shutdown signal
@@ -196,7 +211,7 @@ graceful_shutdown() {
       nc -q 1 -w 1 -U "$QEMU_DIR/monitor.sock" &> /dev/null <<<'system_powerdown' || :
     fi
 
-    wait $slp
+    wait "$slp"
     (( cnt++ ))
 
   done
