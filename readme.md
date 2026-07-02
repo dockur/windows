@@ -19,6 +19,7 @@ Windows inside a Docker container.
  - ISO downloader
  - KVM acceleration
  - Web-based viewer
+ - Automatic install
 
 ## Video 📺
 
