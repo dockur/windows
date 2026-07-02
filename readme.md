@@ -22,7 +22,7 @@ Windows inside a Docker container.
 
 ## Video 📺
 
-[![Youtube](https://img.youtube.com/vi/xhGYobuG508/maxresdefault.jpg)](https://www.youtube.com/watch?v=xhGYobuG508)
+[![YouTube](https://img.youtube.com/vi/xhGYobuG508/maxresdefault.jpg)](https://www.youtube.com/watch?v=xhGYobuG508)
 
 ## Usage 🐳
 
@@ -62,7 +62,7 @@ docker run -it --rm --name windows -e "VERSION=11" -p 8006:8006 --device=/dev/kv
 kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/master/kubernetes.yml
 ```
 
-##### Via Github Codespaces:
+##### Via GitHub Codespaces:
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/dockur/windows)
 
