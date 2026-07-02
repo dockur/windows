@@ -218,7 +218,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   
   ```yaml
   volumes:
-    - ./example.iso:/boot.iso
+    - ./example.iso:/custom.iso
   ```
 
   Replace the example path `./example.iso` with the filename of your desired ISO file. The value of `VERSION` will be ignored in this case.
