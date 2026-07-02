@@ -78,7 +78,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   
   - Start the container and connect to [port 8006](http://127.0.0.1:8006/) using your web browser.
 
-  - Sit back and relax while the magic happens, the whole installation will be performed fully automatic.
+  - Sit back and relax while the magic happens, the whole installation will be performed fully automatically.
 
   - Once you see the desktop, your Windows installation is ready for use.
   
