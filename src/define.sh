@@ -1287,7 +1287,7 @@ isMido() {
   local lang="$2"
   local sum
 
-  [[ "${MIDO:-}" == [Nn]* ]] && return 1
+  disabled "${MIDO:-}" && return 1
 
   sum=$(getMido "$id" "en" "sum")
   [ -n "$sum" ] && return 0
@@ -1300,7 +1300,7 @@ isESD() {
   local id="$1"
   local lang="$2"
 
-  [[ "${ESD:-}" == [Nn]* ]] && return 1
+  disabled "${ESD:-}" && return 1
 
   case "${id,,}" in
     "win11${PLATFORM,,}" | "win10${PLATFORM,,}" )

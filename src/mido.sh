@@ -90,15 +90,15 @@ download_windows() {
   # This is the *only* request we make that Fido doesn't. Fido manually maintains a list of all the Windows release/edition product edition IDs in its script (see: $WindowsVersions array). This is helpful for downloading older releases (e.g. Windows 10 1909, 21H1, etc.) but we always want to get the newest release which is why we get this value dynamically
   # Also, keeping a "$WindowsVersions" array like Fido does would be way too much of a maintenance burden
   # Remove "Accept" header that curl sends by default
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Parsing download page: ${url}"
+  enabled "$DEBUG" && echo "Parsing download page: ${url}"
   download_page_html=$(curl --silent --max-time 30 --user-agent "$user_agent" --header "Accept:" --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url") || {
     handle_curl_error "$?" "Microsoft"
     return $?
   }
 
-  [[ "$DEBUG" == [Yy1]* ]] && echo -n "Getting Product edition ID: "
+  enabled "$DEBUG" && echo -n "Getting Product edition ID: "
   product_edition_id=$(echo "$download_page_html" | grep -Eo '<option value="[0-9]+">Windows' | cut -d '"' -f 2 | head -n 1 | tr -cd '0-9' | head -c 16)
-  [[ "$DEBUG" == [Yy1]* ]] && echo "$product_edition_id"
+  enabled "$DEBUG" && echo "$product_edition_id"
 
   if [ -z "$product_edition_id" ]; then
     error "Product edition ID not found!"
@@ -110,7 +110,7 @@ download_windows() {
   org_id="y6jn8c31"
   vls_url="https://vlscppe.microsoft.com/tags?org_id=$org_id&session_id=$session_id"
 
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Getting Session ID: $session_id"
+  enabled "$DEBUG" && echo "Getting Session ID: $session_id"
 
   # Permit Session ID
   curl --silent --max-time 30 --output /dev/null --user-agent "$user_agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$vls_url" || {
@@ -125,7 +125,7 @@ download_windows() {
   instance_id="560dc9f3-1aa5-4a2f-b63c-9e18f8d0e175"
   ov_url="https://ov-df.microsoft.com/mdt.js?instanceId=$instance_id&PageId=si&session_id=$session_id"
 
-  [[ "$DEBUG" == [Yy1]* ]] && echo -n "Getting OV data: "
+  enabled "$DEBUG" && echo -n "Getting OV data: "
 
   ov_data=$(curl --silent --max-time 30 --user-agent "$user_agent" --header "Accept:" --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$ov_url") || {
     handle_curl_error "$?" "Microsoft"
@@ -145,7 +145,7 @@ download_windows() {
     return 1
   fi
 
-  [[ "$DEBUG" == [Yy1]* ]] && echo "$ovw"
+  enabled "$DEBUG" && echo "$ovw"
 
   sleep 0.2
 
@@ -154,7 +154,7 @@ download_windows() {
   mdt=$(date +%s%3N)
   ov_url="https://ov-df.microsoft.com/?session_id=$session_id&CustomerId=$instance_id&PageId=si&w=$ovw&mdt=$mdt&rticks=$rticks"
 
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Sending OV reply: $instance_id"
+  enabled "$DEBUG" && echo "Sending OV reply: $instance_id"
 
   curl --silent --max-time 30 --output /dev/null --user-agent "$user_agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$ov_url" || {
     # This should only happen if there's been some change to how this API works
@@ -162,7 +162,7 @@ download_windows() {
     return $?
   }
 
-  [[ "$DEBUG" == [Yy1]* ]] && echo -n "Getting language SKU ID: "
+  enabled "$DEBUG" && echo -n "Getting language SKU ID: "
 
   sku_url="https://www.microsoft.com/software-download-connector/api/getskuinformationbyproductedition?profile=$profile&ProductEditionId=$product_edition_id&SKU=undefined&friendlyFileName=undefined&Locale=en-US&sessionID=$session_id"
   language_skuid_json=$(curl --silent --max-time 30 --request GET --user-agent "$user_agent" --referer "$url" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$sku_url") || {
@@ -178,8 +178,8 @@ download_windows() {
     return 1
   fi
 
-  [[ "$DEBUG" == [Yy1]* ]] && echo "$sku_id"
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Getting ISO download link..."
+  enabled "$DEBUG" && echo "$sku_id"
+  enabled "$DEBUG" && echo "Getting ISO download link..."
 
   # Get ISO download link
   # If any request is going to be blocked by Microsoft it's always this last one (the previous requests always seem to succeed)
@@ -267,7 +267,7 @@ download_windows_eval() {
   local iso_download_page_html=""
   local url="https://www.microsoft.com/en-us/evalcenter/download-$windows_version"
 
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Parsing download page: ${url}"
+  enabled "$DEBUG" && echo "Parsing download page: ${url}"
   iso_download_page_html=$(curl --silent --max-time 30 --user-agent "$user_agent" --location --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url") || {
     handle_curl_error "$?" "Microsoft"
     return $?
@@ -279,7 +279,7 @@ download_windows_eval() {
     return 1
   fi
 
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Getting download link.."
+  enabled "$DEBUG" && echo "Getting download link.."
 
   filter="https://go.microsoft.com/fwlink/?linkid=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country,,}"
 
@@ -350,7 +350,7 @@ download_windows_eval() {
       fi ;;
     "arm64" )
       if [[ "${iso_download_link,,}" != *"a64"* && "${iso_download_link,,}" != *"arm64"* ]]; then
-        if [[ "$DEBUG" == [Yy1]* ]]; then
+        if enabled "$DEBUG"; then
           echo "Found download link: $iso_download_link"
           echo "Link for ARM platform currently not available!"
         fi
@@ -358,7 +358,7 @@ download_windows_eval() {
       fi ;;
   esac
 
-  if [[ "$DEBUG" == [Yy1]* && "$VERIFY" == [Yy1]* && "${lang,,}" == "en"* ]]; then
+  if enabled "$DEBUG" && enabled "$VERIFY" && [[ "${lang,,}" == "en"* ]]; then
     compare=$(getMido "$id" "$lang" "")
     if [[ "${iso_download_link,,}" != "${compare,,}" ]]; then
       echo "Retrieved link does not match the fixed link: $compare"
@@ -632,7 +632,7 @@ verifyFile() {
   local check="$4"
 
   if [ -n "$size" ] && [[ "$total" != "$size" && "$size" != "0" ]]; then
-    if [[ "$VERIFY" == [Yy1]* || "$DEBUG" == [Yy1]* ]]; then
+    if enabled "$VERIFY" || enabled "$DEBUG"; then
       warn "The downloaded file has a different size ( $total bytes) than expected ( $size bytes). Please report this at $SUPPORT/issues"
     fi
   fi
@@ -641,7 +641,7 @@ verifyFile() {
   local algo="SHA256"
 
   [ -z "$check" ] && return 0
-  [[ "$VERIFY" != [Yy1]* ]] && return 0
+  ! enabled "$VERIFY" && return 0
   [[ "${#check}" == "40" ]] && algo="SHA1"
 
   local msg="Verifying downloaded ISO..."
@@ -700,7 +700,7 @@ downloadFile() {
   fi
 
   info "$msg..."
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Downloading: $url"
+  enabled "$DEBUG" && echo "Downloading: $url"
 
   { wget "$url" -O "$iso" --continue -q --timeout=30 --no-http-keep-alive --user-agent "$agent" --show-progress "$progress"; rc=$?; } || :
 
