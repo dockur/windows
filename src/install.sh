@@ -226,7 +226,7 @@ finishInstall() {
   ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
 
   if [[ "$iso" == "$STORAGE/"* ]]; then
-    if ! enabled "$aborted" || [ -z "$CUSTOM" ]; then
+    if [[ "$aborted" != [Yy1]* ]] || [ -z "$CUSTOM" ]; then
       base=$(basename "$iso")
       file="$STORAGE/windows.base"
       writeFile "$base" "$file"
@@ -243,7 +243,7 @@ finishInstall() {
       fi
     else
       # Enable secure boot + TPM on manual installs as Win11 requires
-      if enabled "$MANUAL" || enabled "$aborted"; then
+      if enabled "$MANUAL" || [[ "$aborted" == [Yy1]* ]]; then
         if [[ "${DETECTED,,}" == "win11"* ]]; then
           BOOT_MODE="windows_secure"
           file="$STORAGE/windows.mode"
