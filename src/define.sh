@@ -25,7 +25,6 @@ EDITION=$(strip "$EDITION")
 KEYBOARD=$(strip "$KEYBOARD")
 LANGUAGE=$(strip "$LANGUAGE")
 USERNAME=$(strip "$USERNAME")
-PASSWORD=$(strip "$PASSWORD")
 
 MIRRORS=4
 
