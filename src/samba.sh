@@ -13,10 +13,10 @@ SMB_PID="/var/run/samba/smbd.pid"
 
 rm -f "$SMB_PID" "$NMB_PID" "$DDN_PID"
 
-[[ "$SAMBA" == [Nn]* ]] && return 0
-[[ "$NETWORK" == [Nn]* ]] && return 0
+disabled "$SAMBA" && return 0
+disabled "$NETWORK" && return 0
 
-if [[ "$DHCP" == [Yy1]* ]]; then
+if enabled "$DHCP"; then
   socket="$IP"
   hostname="$IP"
   interfaces="$VM_NET_DEV"
@@ -37,7 +37,7 @@ fi
 
 html "Initializing shared folder..."
 SAMBA_CONFIG="/etc/samba/smb.conf"
-[[ "$DEBUG" == [Yy1]* ]] && echo "Starting Samba daemon..."
+enabled "$DEBUG" && echo "Starting Samba daemon..."
 
 addShare() {
   local dir="$1"
@@ -179,7 +179,7 @@ if ! smbd -l /var/log/samba; then
   error "Failed to start Samba daemon!"
 fi
 
-if [[ "$SAMBA_DEBUG" == [Yy1]* ]]; then
+if enabled "$SAMBA_DEBUG"; then
   tail -fn +0 /var/log/samba/log.smbd --pid=$$ &
 fi
 
@@ -191,7 +191,7 @@ esac
 if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
 
   # Enable NetBIOS on Windows 7 and lower
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Starting NetBIOS daemon..."
+  enabled "$DEBUG" && echo "Starting NetBIOS daemon..."
 
   rm -f /var/log/samba/log.nmbd
 
@@ -200,14 +200,14 @@ if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
     error "Failed to start NetBIOS daemon!"
   fi
 
-  if [[ "$SAMBA_DEBUG" == [Yy1]* ]]; then
+  if enabled "$SAMBA_DEBUG"; then
     tail -fn +0 /var/log/samba/log.nmbd --pid=$$ &
   fi
 
 else
 
   # Enable Web Service Discovery on Vista and up
-  [[ "$DEBUG" == [Yy1]* ]] && echo "Starting wsddn daemon..."
+  enabled "$DEBUG" && echo "Starting wsddn daemon..."
   rm -f /var/log/wsddn.log
 
   if ! wsddn -i "${interfaces%%,*}" -H "$hostname" --unixd --log-file=/var/log/wsddn.log --pid-file="$DDN_PID"; then
@@ -215,7 +215,7 @@ else
     error "Failed to start wsddn daemon!"
   fi
 
-  if [[ "$SAMBA_DEBUG" == [Yy1]* ]]; then
+  if enabled "$SAMBA_DEBUG"; then
     tail -fn +0 /var/log/wsddn.log --pid=$$ &
   fi
 

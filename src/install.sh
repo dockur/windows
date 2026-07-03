@@ -110,7 +110,7 @@ skipInstall() {
   # Check if the ISO was already processed by our script
   magic=$(dd if="$iso" bs=1 count=1 status=none | tr -d '\000')
   magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
-  byte="16" && [[ "$MANUAL" == [Yy1]* ]] && byte="17"
+  byte="16" && enabled "$MANUAL" && byte="17"
 
   if [[ "$magic" != "$byte" ]]; then
 
@@ -213,9 +213,9 @@ finishInstall() {
     ! setOwner "$iso" && error "Failed to set the owner for \"$iso\" !"
   fi
 
-  if [[ "$aborted" != [Yy1]* ]]; then
+  if ! enabled "$aborted"; then
     # Mark ISO as prepared via magic byte
-    byte="16" && [[ "$MANUAL" == [Yy1]* ]] && byte="17"
+    byte="16" && enabled "$MANUAL" && byte="17"
     if ! printf '%b' "\x$byte" | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none; then
       warn "failed to set magic byte in ISO file: $iso"
     fi
@@ -226,7 +226,7 @@ finishInstall() {
   ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
 
   if [[ "$iso" == "$STORAGE/"* ]]; then
-    if [[ "$aborted" != [Yy1]* ]] || [ -z "$CUSTOM" ]; then
+    if ! enabled "$aborted" || [ -z "$CUSTOM" ]; then
       base=$(basename "$iso")
       file="$STORAGE/windows.base"
       writeFile "$base" "$file"
@@ -243,7 +243,7 @@ finishInstall() {
       fi
     else
       # Enable secure boot + TPM on manual installs as Win11 requires
-      if [[ "$MANUAL" == [Yy1]* || "$aborted" == [Yy1]* ]]; then
+      if enabled "$MANUAL" || enabled "$aborted"; then
         if [[ "${DETECTED,,}" == "win11"* ]]; then
           BOOT_MODE="windows_secure"
           file="$STORAGE/windows.mode"
@@ -296,7 +296,7 @@ abortInstall() {
   local efi
 
   [[ "${iso,,}" == *".esd" ]] && exit 60
-  [[ "${UNPACK:-}" == [Yy1]* ]] && exit 60
+  enabled "${UNPACK:-}" && exit 60
 
   efi=$(find "$dir" -maxdepth 1 -type d -iname efi -print -quit)
 
@@ -556,7 +556,7 @@ extractImage() {
 
   fKill "progress.sh"
 
-  if [[ "${UNPACK:-}" != [Yy1]* ]]; then
+  if ! enabled "${UNPACK:-}"; then
 
     LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p')
 
@@ -739,7 +739,7 @@ detectImage() {
 
     skipVersion "${DETECTED,,}" && return 0
 
-    if ! setXML "" && [[ "$MANUAL" != [Yy1]* ]]; then
+    if ! setXML "" && ! enabled "$MANUAL"; then
       MANUAL="Y"
       desc=$(printEdition "$DETECTED" "this version")
       warn "the answer file for $desc was not found ($DETECTED.xml), $FB."
@@ -776,7 +776,7 @@ detectImage() {
 
   if [ -z "$DETECTED" ]; then
     msg="Failed to determine Windows version from image"
-    if setXML "" || [[ "$MANUAL" == [Yy1]* ]]; then
+    if setXML "" || enabled "$MANUAL"; then
       info "${msg}!"
     else
       MANUAL="Y"
@@ -803,8 +803,8 @@ detectImage() {
   msg="the answer file for $desc was not found ($DETECTED.xml)"
   local fallback="/run/assets/${DETECTED%%-*}.xml"
 
-  if setXML "$fallback" || [[ "$MANUAL" == [Yy1]* ]]; then
-    [[ "$MANUAL" != [Yy1]* ]] && warn "${msg}."
+  if setXML "$fallback" || enabled "$MANUAL"; then
+    ! enabled "$MANUAL" && warn "${msg}."
   else
     MANUAL="Y"
     warn "${msg}, $FB."
@@ -1047,7 +1047,7 @@ updateImage() {
 
   if [ ! -s "$asset" ] || [ ! -f "$asset" ]; then
     asset=""
-    if [[ "$MANUAL" != [Yy1]* ]]; then
+    if ! enabled "$MANUAL"; then
       MANUAL="Y"
       warn "no answer file provided, $FB."
     fi
@@ -1093,7 +1093,7 @@ updateImage() {
     fi
   fi
 
-  if [[ "$MANUAL" != [Yy1]* ]]; then
+  if ! enabled "$MANUAL"; then
 
     xml=$(basename "$asset")
     info "Adding $xml for automatic installation..."
@@ -1111,7 +1111,7 @@ updateImage() {
 
   fi
 
-  if [[ "$MANUAL" == [Yy1]* ]]; then
+  if enabled "$MANUAL"; then
 
     wimlib-imagex update "$wim" "$index" --command "delete --force /$file" > /dev/null || true
 
@@ -1124,11 +1124,11 @@ updateImage() {
   fi
 
   local find="$file"
-  [[ "$MANUAL" == [Yy1]* ]] && find="$org"
+  enabled "$MANUAL" && find="$org"
   path=$(find "$dir" -maxdepth 1 -type f -iname "$find" -print -quit)
 
   if [ -f "$path" ]; then
-    if [[ "$MANUAL" != [Yy1]* ]]; then
+    if ! enabled "$MANUAL"; then
       mv -f "$path" "${path%.*}.org"
     else
       mv -f "$path" "${path%.*}.xml"

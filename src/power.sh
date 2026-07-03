@@ -101,7 +101,7 @@ finish() {
       local file="$STORAGE/windows.boot"
       touch "$file"
       ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
-      if [[ "$REMOVE" != [Nn]* ]]; then
+      if ! disabled "$REMOVE"; then
         rm -f "$BOOT" 2>/dev/null || true
       fi
     fi
@@ -219,7 +219,7 @@ graceful_shutdown() {
   finish "$code"
 }
 
-[[ "$SHUTDOWN" != [Yy1]* ]] && return 0
+! enabled "$SHUTDOWN" && return 0
 [ -n "${QEMU_TIMEOUT:-}" ] && TIMEOUT="$QEMU_TIMEOUT"
 
 _trap graceful_shutdown SIGTERM SIGHUP SIGABRT SIGQUIT

@@ -46,7 +46,7 @@ sed -u \
   -e 's/failed to load Boot/skipped Boot/g' \
   -e 's/0): Not Found/0)/g' &
 
-if [[ "$SHUTDOWN" != [Yy1]* ]]; then
+if ! enabled "$SHUTDOWN"; then
   exec "${cmd[@]}" ${ARGS:+ $ARGS} >"$pipe"
 fi
 
