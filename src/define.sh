@@ -16,12 +16,12 @@ set -Eeuo pipefail
 : "${USERNAME:=""}"
 : "${PASSWORD:=""}"
 
+# Sanitize variables
 KEY=$(strip "$KEY")
 WIDTH=$(strip "$WIDTH")
 HEIGHT=$(strip "$HEIGHT")
 REGION=$(strip "$REGION")
 EDITION=$(strip "$EDITION")
-VERSION=$(strip "$VERSION")
 KEYBOARD=$(strip "$KEYBOARD")
 LANGUAGE=$(strip "$LANGUAGE")
 USERNAME=$(strip "$USERNAME")
@@ -31,6 +31,7 @@ MIRRORS=4
 
 parseVersion() {
 
+  VERSION=$(strip "$VERSION")
   [ -z "$VERSION" ] && VERSION="win11"
 
   case "${VERSION,,}" in
