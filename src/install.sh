@@ -213,7 +213,7 @@ finishInstall() {
     ! setOwner "$iso" && error "Failed to set the owner for \"$iso\" !"
   fi
 
-  if ! enabled "$aborted"; then
+  if [[ "$aborted" != [Yy1]* ]]; then
     # Mark ISO as prepared via magic byte
     byte="16" && enabled "$MANUAL" && byte="17"
     if ! printf '%b' "\x$byte" | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none; then
