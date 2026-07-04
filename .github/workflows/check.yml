@@ -25,7 +25,7 @@ jobs:
           failure-threshold: warning
       -
         name: Validate XML
-        uses: action-pack/valid-xml@v1
+        uses: action-pack/valid-xml@v1.12
         with:
          path: "assets"
          file-endings: ".xml"
