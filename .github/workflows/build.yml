@@ -28,7 +28,7 @@ jobs:
       -
         name: Docker metadata
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@v6.1.0
         with:
           context: git
           images: |
