@@ -199,6 +199,67 @@ writeFile() {
   return 0
 }
 
+writeState() {
+
+  local name="$1"
+  local value="$2"
+  local file="$STORAGE/windows.$name"
+
+  [ -z "$value" ] && return 0
+  writeFile "$value" "$file"
+
+  return 0
+}
+
+readState() {
+
+  local file="$1"
+  local value
+
+  [ -s "$file" ] && [ -f "$file" ] || return 1
+
+  value=$(<"$file")
+  value="${value//[![:print:]]/}"
+
+  echo "$value"
+  return 0
+}
+
+restoreState() {
+
+  local var="$1"
+  local file="$2"
+  local force="${3:-N}"
+  local value
+
+  if ! enabled "$force"; then
+    [ -z "${!var:-}" ] || return 0
+  fi
+
+  value=$(readState "$file") || return 0
+  printf -v "$var" '%s' "$value"
+
+  return 0
+}
+
+checkFreeSpace() {
+
+  local dir="$1"
+  local size="$2"
+  local size_gb space space_gb
+
+  size_gb=$(formatBytes "$size")
+  space=$(df --output=avail -B 1 "$dir" | tail -n 1)
+  space_gb=$(formatBytes "$space")
+
+  if (( size > space )); then
+    error "Not enough free space in $STORAGE, have $space_gb available but need at least $size_gb."
+    return 1
+  fi
+
+  return 0
+}
+
 finishInstall() {
 
   local iso="$1"
@@ -228,61 +289,51 @@ finishInstall() {
   if [[ "$iso" == "$STORAGE/"* ]]; then
     if [[ "$aborted" != [Yy1]* ]] || [ -z "$CUSTOM" ]; then
       base=$(basename "$iso")
-      file="$STORAGE/windows.base"
-      writeFile "$base" "$file"
+      writeState "base" "$base"
     fi
   fi
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
     if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
-      file="$STORAGE/windows.mode"
-      writeFile "$BOOT_MODE" "$file"
+      writeState "mode" "$BOOT_MODE"
       if [[ "${MACHINE,,}" != "q35" ]]; then
-        file="$STORAGE/windows.old"
-        writeFile "$MACHINE" "$file"
+        writeState "old" "$MACHINE"
       fi
     else
       # Enable secure boot + TPM on manual installs as Win11 requires
       if enabled "$MANUAL" || [[ "$aborted" == [Yy1]* ]]; then
         if [[ "${DETECTED,,}" == "win11"* ]]; then
           BOOT_MODE="windows_secure"
-          file="$STORAGE/windows.mode"
-          writeFile "$BOOT_MODE" "$file"
+          writeState "mode" "$BOOT_MODE"
         fi
       fi
       # Enable secure boot on multi-socket systems to workaround freeze
       if [ -n "$SOCKETS" ] && [[ "$SOCKETS" != "1" ]]; then
         BOOT_MODE="windows_secure"
-        file="$STORAGE/windows.mode"
-        writeFile "$BOOT_MODE" "$file"
+        writeState "mode" "$BOOT_MODE"
       fi
     fi
   fi
 
   if [ -n "${ARGS:-}" ]; then
     ARGUMENTS="$ARGS ${ARGUMENTS:-}"
-    file="$STORAGE/windows.args"
-    writeFile "$ARGS" "$file"
+    writeState "args" "$ARGS"
   fi
 
   if [ -n "${VGA:-}" ] && [[ "${VGA:-}" != "virtio"* ]]; then
-    file="$STORAGE/windows.vga"
-    writeFile "$VGA" "$file"
+    writeState "vga" "$VGA"
   fi
 
   if [ -n "${USB:-}" ] && [[ "${USB:-}" != "qemu-xhci"* ]]; then
-    file="$STORAGE/windows.usb"
-    writeFile "$USB" "$file"
+    writeState "usb" "$USB"
   fi
 
   if [ -n "${DISK_TYPE:-}" ] && [[ "${DISK_TYPE:-}" != "scsi" ]]; then
-    file="$STORAGE/windows.type"
-    writeFile "$DISK_TYPE" "$file"
+    writeState "type" "$DISK_TYPE"
   fi
 
   if [ -n "${ADAPTER:-}" ] && [[ "${ADAPTER:-}" != "virtio-net-pci" ]]; then
-    file="$STORAGE/windows.net"
-    writeFile "$ADAPTER" "$file"
+    writeState "net" "$ADAPTER"
   fi
 
   rm -rf "$TMP"
@@ -376,7 +427,7 @@ extractESD() {
   local dir="$2"
   local version="$3"
   local desc="$4"
-  local size size_gb sizes space space_gb
+  local size sizes
   local retVal total total1 total2 total3 total4
   local imageIndex links links1 links2 links3 links4
 
@@ -394,13 +445,7 @@ extractESD() {
   fi
 
   size=9606127360
-  size_gb=$(formatBytes "$size")
-  space=$(df --output=avail -B 1 "$dir" | tail -n 1)
-  space_gb=$(formatBytes "$space")
-
-  if (( size > space )); then
-    error "Not enough free space in $STORAGE, have $space_gb available but need at least $size_gb." && return 1
-  fi
+  checkFreeSpace "$dir" "$size" || return 1
 
   local esdImageCount
   esdImageCount=$(wimlib-imagex info "$iso" | awk '/Image Count:/ {print $3}')
@@ -510,7 +555,7 @@ extractImage() {
   local dir="$2"
   local version="$3"
   local desc="local ISO"
-  local file size size_gb space space_gb
+  local file size
 
   if [ -z "$CUSTOM" ]; then
     desc="downloaded ISO"
@@ -534,17 +579,12 @@ extractImage() {
   fi
 
   size=$(stat -c%s "$iso")
-  size_gb=$(formatBytes "$size")
-  space=$(df --output=avail -B 1 "$dir" | tail -n 1)
-  space_gb=$(formatBytes "$space")
 
   if (( size < 100000000 )); then
     error "Invalid ISO file: Size is smaller than 100 MB" && return 1
   fi
 
-  if (( size > space )); then
-    error "Not enough free space in $STORAGE, have $space_gb available but need at least $size_gb." && return 1
-  fi
+  checkFreeSpace "$dir" "$size" || return 1
 
   rm -rf "$dir"
   /run/progress.sh "$dir" "$size" "$msg ([P])..." &
@@ -996,22 +1036,12 @@ addDrivers() {
 
   wimlib-imagex update "$file" "$index" --command "delete --force --recursive /$target" >/dev/null || true
 
-  addDriver "$version" "$drivers" "$target" "qxl" || return 1
-  addDriver "$version" "$drivers" "$target" "viofs" || return 1
-  addDriver "$version" "$drivers" "$target" "sriov" || return 1
-  addDriver "$version" "$drivers" "$target" "smbus" || return 1
-  addDriver "$version" "$drivers" "$target" "qxldod" || return 1
-  addDriver "$version" "$drivers" "$target" "viorng" || return 1
-  addDriver "$version" "$drivers" "$target" "viostor" || return 1
-  addDriver "$version" "$drivers" "$target" "viomem" || return 1
-  addDriver "$version" "$drivers" "$target" "NetKVM" || return 1
-  addDriver "$version" "$drivers" "$target" "Balloon" || return 1
-  addDriver "$version" "$drivers" "$target" "vioscsi" || return 1
-  addDriver "$version" "$drivers" "$target" "pvpanic" || return 1
-  addDriver "$version" "$drivers" "$target" "vioinput" || return 1
-  addDriver "$version" "$drivers" "$target" "viogpudo" || return 1
-  addDriver "$version" "$drivers" "$target" "vioserial" || return 1
-  addDriver "$version" "$drivers" "$target" "qemupciserial" || return 1
+  local driver
+  local driver_list=( qxl viofs sriov smbus qxldod viorng viostor viomem NetKVM Balloon vioscsi pvpanic vioinput viogpudo vioserial qemupciserial )
+
+  for driver in "${driver_list[@]}"; do
+    addDriver "$version" "$drivers" "$target" "$driver" || return 1
+  done
 
   local dst="$src/\$OEM\$/\$\$/Drivers"
   mkdir -p "$dst" || return 1
@@ -1157,7 +1187,7 @@ buildImage() {
   local failed=""
   local cat="BOOT.CAT"
   local log="/run/shm/iso.log"
-  local base size size_gb space space_gb desc
+  local base size desc
 
   if [ -f "$BOOT" ]; then
     error "File $BOOT does already exist?!" && return 1
@@ -1179,13 +1209,7 @@ buildImage() {
   fi
 
   size=$(du -b --max-depth=0 "$dir" | cut -f1)
-  size_gb=$(formatBytes "$size")
-  space=$(df --output=avail -B 1 "$TMP" | tail -n 1)
-  space_gb=$(formatBytes "$space")
-
-  if (( size > space )); then
-    error "Not enough free space in $STORAGE, have $space_gb available but need at least $size_gb." && return 1
-  fi
+  checkFreeSpace "$TMP" "$size" || return 1
 
   /run/progress.sh "$out" "$size" "$msg ([P])..." &
 
@@ -1230,50 +1254,18 @@ buildImage() {
 
 bootWindows() {
 
-  if [ -f "$STORAGE/windows.args" ]; then
-    ARGS=$(<"$STORAGE/windows.args")
-    ARGS="${ARGS//[![:print:]]/}"
+  if ARGS=$(readState "$STORAGE/windows.args"); then
     ARGUMENTS="$ARGS ${ARGUMENTS:-}"
   fi
 
-  if [ -s "$STORAGE/windows.vga" ] && [ -f "$STORAGE/windows.vga" ]; then
-    if [ -z "${VGA:-}" ]; then
-      VGA=$(<"$STORAGE/windows.vga")
-      VGA="${VGA//[![:print:]]/}"
-    fi
-  fi
+  restoreState "VGA" "$STORAGE/windows.vga"
+  restoreState "USB" "$STORAGE/windows.usb"
+  restoreState "ADAPTER" "$STORAGE/windows.net"
+  restoreState "DISK_TYPE" "$STORAGE/windows.type"
+  restoreState "BOOT_MODE" "$STORAGE/windows.mode" "Y"
 
-  if [ -s "$STORAGE/windows.usb" ] && [ -f "$STORAGE/windows.usb" ]; then
-    if [ -z "${USB:-}" ]; then
-      USB=$(<"$STORAGE/windows.usb")
-      USB="${USB//[![:print:]]/}"
-    fi
-  fi
-
-  if [ -s "$STORAGE/windows.net" ] && [ -f "$STORAGE/windows.net" ]; then
-    if [ -z "${ADAPTER:-}" ]; then
-      ADAPTER=$(<"$STORAGE/windows.net")
-      ADAPTER="${ADAPTER//[![:print:]]/}"
-    fi
-  fi
-
-  if [ -s "$STORAGE/windows.type" ] && [ -f "$STORAGE/windows.type" ]; then
-    if [ -z "${DISK_TYPE:-}" ]; then
-      DISK_TYPE=$(<"$STORAGE/windows.type")
-      DISK_TYPE="${DISK_TYPE//[![:print:]]/}"
-    fi
-  fi
-
-  if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then
-    BOOT_MODE=$(<"$STORAGE/windows.mode")
-    BOOT_MODE="${BOOT_MODE//[![:print:]]/}"
-  fi
-
-  if [ -s "$STORAGE/windows.old" ] && [ -f "$STORAGE/windows.old" ]; then
-    if [[ "${PLATFORM,,}" == "x64" ]]; then
-      MACHINE=$(<"$STORAGE/windows.old")
-      MACHINE="${MACHINE//[![:print:]]/}"
-    fi
+  if [[ "${PLATFORM,,}" == "x64" ]]; then
+    restoreState "MACHINE" "$STORAGE/windows.old" "Y"
   fi
 
   return 0
