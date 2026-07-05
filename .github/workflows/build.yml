@@ -72,7 +72,7 @@ jobs:
             VERSION_ARG=${{ steps.meta.outputs.version }}
       -
         name: Create a release
-        uses: action-pack/github-release@v2
+        uses: action-pack/github-release@v2.06
         with:
           tag: "v${{ steps.meta.outputs.version }}"
           title: "v${{ steps.meta.outputs.version }}"
