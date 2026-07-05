@@ -84,7 +84,7 @@ jobs:
           token: ${{ secrets.REPO_ACCESS_TOKEN }}
       -
         name: Push to Gitlab mirror
-        uses: action-pack/gitlab-sync@v3
+        uses: action-pack/gitlab-sync@v3.03
         with:
           url: ${{ secrets.GITLAB_URL }}
           token: ${{ secrets.GITLAB_TOKEN }}
