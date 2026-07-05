@@ -23,18 +23,67 @@ app() {
   echo "$APP" && return 0
 }
 
+signalCode() {
+  local sig="$1"
+
+  case "$sig" in
+    SIGHUP)  echo 129 ;;
+    SIGINT)  echo 130 ;;
+    SIGQUIT) echo 131 ;;
+    SIGABRT) echo 134 ;;
+    SIGTERM) echo 143 ;;
+    *)       echo 0 ;;
+  esac
+
+  return 0
+}
+
+displayReason() {
+  local reason="$1"
+
+  case "$reason" in
+    129 ) echo "SIGHUP" ;;
+    130 ) echo "SIGINT" ;;
+    131 ) echo "SIGQUIT" ;;
+    134 ) echo "SIGABRT" ;;
+    143 ) echo "SIGTERM" ;;
+    * )   echo "$reason" ;;
+  esac
+
+  return 0
+}
+
+readQemuPid() {
+  local file="$1"
+  local __var="$2"
+  local pid=""
+
+  [ -s "$file" ] || return 1
+  read -r pid <"$file" || return 1
+  [ -n "$pid" ] || return 1
+
+  printf -v "$__var" '%s' "$pid"
+  return 0
+}
+
+bootFailed() {
+  local fail=""
+
+  if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+    grep -Fq "No bootable device." "$QEMU_PTY" && fail="y"
+    grep -Fq "BOOTMGR is missing" "$QEMU_PTY" && fail="y"
+  fi
+
+  [ -n "$fail" ]
+}
+
 boot() {
 
   [ -f "$QEMU_END" ] && return 0
 
   if [ -s "$QEMU_PTY" ]; then
     if [ "$(stat -c%s "$QEMU_PTY")" -gt 7 ]; then
-      local fail=""
-      if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
-        grep -Fq "No bootable device." "$QEMU_PTY" && fail="y"
-        grep -Fq "BOOTMGR is missing" "$QEMU_PTY" && fail="y"
-      fi
-      if [ -z "$fail" ]; then
+      if ! bootFailed; then
         info "$(app) started successfully, visit http://127.0.0.1:8006/ to view the screen..."
         return 0
       fi
@@ -47,19 +96,26 @@ boot() {
   return 0
 }
 
+legacyBootReady() {
+  local last
+  local bios="Booting from Hard"
+
+  last=$(grep "^Booting.*" "$QEMU_PTY" | tail -1)
+  [[ "${last,,}" != "${bios,,}"* ]] && return 1
+  grep -Fq "No bootable device." "$QEMU_PTY" && return 1
+  grep -Fq "BOOTMGR is missing" "$QEMU_PTY" && return 1
+
+  return 0
+}
+
 ready() {
 
   [ -f "$STORAGE/windows.boot" ] && return 0
   [ ! -s "$QEMU_PTY" ] && return 1
 
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
-    local last
-    local bios="Booting from Hard"
-    last=$(grep "^Booting.*" "$QEMU_PTY" | tail -1)
-    [[ "${last,,}" != "${bios,,}"* ]] && return 1
-    grep -Fq "No bootable device." "$QEMU_PTY" && return 1
-    grep -Fq "BOOTMGR is missing" "$QEMU_PTY" && return 1
-    return 0
+    legacyBootReady && return 0
+    return 1
   fi
 
   local line="\"Windows Boot Manager\""
@@ -68,47 +124,64 @@ ready() {
   return 1
 }
 
-finish() {
-
-  local i=0
+forceKillQemu() {
+  local reason="$1"
   local pid=""
-  local reason=$1
+  local display
+
+  if readQemuPid "$QEMU_PID" pid; then
+    if isAlive "$pid"; then
+      display=$(displayReason "$reason")
+      error "Forcefully terminating $(app), reason: $display..."
+      { disown "$pid" || :; kill -9 -- "$pid" || :; } 2>/dev/null
+    fi
+  fi
+
+  return 0
+}
+
+markWindowsBooted() {
+  local file="$STORAGE/windows.boot"
+
+  if [ -f "$file" ] || [ ! -f "$BOOT" ]; then
+    return 0
+  fi
+
+  # Remove CD-ROM ISO after install
+  if ready; then
+    touch "$file"
+    ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
+    if ! disabled "$REMOVE"; then
+      rm -f "$BOOT" 2>/dev/null || true
+    fi
+  fi
+
+  return 0
+}
+
+cleanupHelpers() {
   local pids=( "${SMB_PID:-}" "${NMB_PID:-}" "${DDN_PID:-}" "${TPM_PID:-}" "${WSD_PID:-}" \
                "${WEB_PID:-}" "${PASST_PID:-}" "${DNSMASQ_PID:-}" "${BALLOONING_PID:-}" )
 
-  touch "$QEMU_END"
-
-  if [ -s "$QEMU_PID" ]; then
-    if read -r pid <"$QEMU_PID"; then
-      if [ -n "$pid" ] && isAlive "$pid"; then
-        local display="$reason"
-        case "$reason" in
-          129 ) display="SIGHUP" ;;
-          130 ) display="SIGINT" ;;
-          131 ) display="SIGQUIT" ;;
-          134 ) display="SIGABRT" ;;
-          143 ) display="SIGTERM" ;;
-        esac
-        error "Forcefully terminating $(app), reason: $display..."
-        { disown "$pid" || :; kill -9 -- "$pid" || :; } 2>/dev/null
-      fi
-    fi
-  fi
-
-  if [ ! -f "$STORAGE/windows.boot" ] && [ -f "$BOOT" ]; then
-    # Remove CD-ROM ISO after install
-    if ready; then
-      local file="$STORAGE/windows.boot"
-      touch "$file"
-      ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
-      if ! disabled "$REMOVE"; then
-        rm -f "$BOOT" 2>/dev/null || true
-      fi
-    fi
-  fi
-
   mKill "${pids[@]}"
   closeNetwork
+
+  return 0
+}
+
+finish() {
+
+  local reason=$1
+
+  touch "$QEMU_END"
+
+  forceKillQemu "$reason"
+
+  if [ ! -f "$STORAGE/windows.boot" ]; then
+    markWindowsBooted
+  fi
+
+  cleanupHelpers
 
   if ! waitPidFile "$QEMU_PID" 10; then
     warn "Timed out while waiting for $(app) to exit!"
@@ -118,55 +191,11 @@ finish() {
   exit "$reason"
 }
 
-graceful_shutdown() {
+normalizeTimeout() {
+  local min
 
-  local sig="$1"
-  local pid=""
-  local code=0
-
-  [[ $BASHPID != "$TRAP_PID" ]] && return
-
-  case "$sig" in
-    SIGHUP)  code=129 ;;
-    SIGINT)  code=130 ;;
-    SIGQUIT) code=131 ;;
-    SIGABRT) code=134 ;;
-    SIGTERM) code=143 ;;
-  esac
-
-  if [ -f "$QEMU_END" ]; then
-    echo && info "Received $1 signal while already shutting down..."
-    return
-  fi
-
-  set +e
-  touch "$QEMU_END"
-  echo && info "Received $1 signal, sending ACPI shutdown signal..."
-
-  if [ ! -s "$QEMU_PID" ] || ! read -r pid <"$QEMU_PID"; then
-    warn "QEMU PID file ($QEMU_PID) does not exist?"
-    finish "$code"
-  fi
-
-  if [ -z "$pid" ] || ! isAlive "$pid"; then
-    warn "QEMU process with PID $pid does not exist?"
-    finish "$code"
-  fi
-
-  if ! ready; then
-    info "Cannot send ACPI signal during $(app) setup, aborting..."
-    sKill "$QEMU_PID"
-    if ! waitPidFile "$QEMU_PID" 5; then
-      warn "Timed out while waiting for $(app) to exit!"
-    fi
-    finish "$code"
-  fi
-
-  local name
-  name="$(app)"
-
-  local term_grace=3      # seconds before loop ends to send SIGTERM
-  local cleanup_grace=3   # seconds reserved after the loop for cleanup
+  term_grace=3      # seconds before loop ends to send SIGTERM
+  cleanup_grace=3   # seconds reserved after the loop for cleanup
 
   TIMEOUT=$(strip "$TIMEOUT")
   if [[ ! "$TIMEOUT" =~ ^[0-9]+$ ]]; then
@@ -181,18 +210,45 @@ graceful_shutdown() {
     cleanup_grace=4
   fi
 
-  local cnt=0 sigterm_at=0 min wait_until
-
   min=$((term_grace + cleanup_grace + 1))
   (( TIMEOUT < min )) && (( TIMEOUT = min ))
 
   wait_until=$((TIMEOUT - cleanup_grace))
   sigterm_at=$((wait_until - term_grace))
 
+  return 0
+}
+
+sendAcpiShutdown() {
+  # Send ACPI shutdown signal
+  if [ -S "$QEMU_DIR/monitor.sock" ]; then
+    nc -q 1 -w 1 -U "$QEMU_DIR/monitor.sock" &> /dev/null <<<'system_powerdown' || :
+  fi
+
+  return 0
+}
+
+abortDuringSetup() {
+  local code="$1"
+
+  info "Cannot send ACPI signal during $(app) setup, aborting..."
+  sKill "$QEMU_PID"
+  if ! waitPidFile "$QEMU_PID" 5; then
+    warn "Timed out while waiting for $(app) to exit!"
+  fi
+  finish "$code"
+}
+
+waitForShutdown() {
+  local cnt=0
+  local name="$1"
+  local pid="$2"
+  local slp
+
   while (( cnt <= wait_until )); do
 
     sleep 1 &
-    local slp=$!
+    slp=$!
 
     # Stop waiting if the process has exited
     ! isAlive "$pid" && break
@@ -207,15 +263,55 @@ graceful_shutdown() {
       info "Waiting for $name to shut down... ($cnt/$wait_until)"
     fi
 
-    # Send ACPI shutdown signal
-    if [ -S "$QEMU_DIR/monitor.sock" ]; then
-      nc -q 1 -w 1 -U "$QEMU_DIR/monitor.sock" &> /dev/null <<<'system_powerdown' || :
-    fi
+    sendAcpiShutdown
 
     wait "$slp"
     (( cnt++ ))
 
   done
+
+  return 0
+}
+
+graceful_shutdown() {
+
+  local sig="$1"
+  local pid=""
+  local code=0
+  local name
+  local term_grace cleanup_grace
+  local sigterm_at=0 wait_until=0
+
+  [[ $BASHPID != "$TRAP_PID" ]] && return
+
+  code=$(signalCode "$sig")
+
+  if [ -f "$QEMU_END" ]; then
+    echo && info "Received $1 signal while already shutting down..."
+    return
+  fi
+
+  set +e
+  touch "$QEMU_END"
+  echo && info "Received $1 signal, sending ACPI shutdown signal..."
+
+  if ! readQemuPid "$QEMU_PID" pid; then
+    warn "QEMU PID file ($QEMU_PID) does not exist?"
+    finish "$code"
+  fi
+
+  if ! isAlive "$pid"; then
+    warn "QEMU process with PID $pid does not exist?"
+    finish "$code"
+  fi
+
+  if ! ready; then
+    abortDuringSetup "$code"
+  fi
+
+  name="$(app)"
+  normalizeTimeout
+  waitForShutdown "$name" "$pid"
 
   finish "$code"
 }
