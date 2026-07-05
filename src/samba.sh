@@ -16,28 +16,55 @@ rm -f "$SMB_PID" "$NMB_PID" "$DDN_PID"
 disabled "$SAMBA" && return 0
 disabled "$NETWORK" && return 0
 
-if enabled "$DHCP"; then
-  socket="$IP"
-  hostname="$IP"
-  interfaces="$VM_NET_DEV"
-else
-  hostname="host.lan"
-  case "${NETWORK,,}" in
-    "passt" | "slirp" )
-      interfaces="lo"
-      socket="127.0.0.1" ;;
-    *)
-      socket="$VM_NET_IP"
-      interfaces="$VM_NET_BRIDGE" ;;
-  esac
-  if [ -n "${SAMBA_INTERFACE:-}" ]; then
-    interfaces+=",$SAMBA_INTERFACE"
+configureNetwork() {
+  if enabled "$DHCP"; then
+    socket="$IP"
+    hostname="$IP"
+    interfaces="$VM_NET_DEV"
+  else
+    hostname="host.lan"
+    case "${NETWORK,,}" in
+      "passt" | "slirp" )
+        interfaces="lo"
+        socket="127.0.0.1" ;;
+      *)
+        socket="$VM_NET_IP"
+        interfaces="$VM_NET_BRIDGE" ;;
+    esac
+    if [ -n "${SAMBA_INTERFACE:-}" ]; then
+      interfaces+=",$SAMBA_INTERFACE"
+    fi
   fi
-fi
 
-html "Initializing shared folder..."
-SAMBA_CONFIG="/etc/samba/smb.conf"
-enabled "$DEBUG" && echo "Starting Samba daemon..."
+  return 0
+}
+
+writeTmpReadme() {
+  local dir="$1"
+  local ref="$2"
+
+  {   echo "--------------------------------------------------------"
+      echo " $APP for $ENGINE v$(</etc/version)..."
+      echo " For support visit $SUPPORT"
+      echo "--------------------------------------------------------"
+      echo ""
+      echo "Using this folder you can exchange files with the host machine."
+      echo ""
+      echo "To select a folder on the host for this purpose, include the following bind mount in your compose file:"
+      echo ""
+      echo "  volumes:"
+      echo "    - \"./example:${ref}\""
+      echo ""
+      echo "Or in your run command:"
+      echo ""
+      echo "  -v \"\${PWD:-.}/example:${ref}\""
+      echo ""
+      echo "Replace the example path ./example with your desired shared folder, which then will become visible here."
+      echo ""
+  } | unix2dos > "$dir/readme.txt"
+
+  return 0
+}
 
 addShare() {
   local dir="$1"
@@ -77,119 +104,115 @@ addShare() {
   fi
 
   if [[ "$dir" == "$tmp" ]]; then
-
-    {   echo "--------------------------------------------------------"
-        echo " $APP for $ENGINE v$(</etc/version)..."
-        echo " For support visit $SUPPORT"
-        echo "--------------------------------------------------------"
-        echo ""
-        echo "Using this folder you can exchange files with the host machine."
-        echo ""
-        echo "To select a folder on the host for this purpose, include the following bind mount in your compose file:"
-        echo ""
-        echo "  volumes:"
-        echo "    - \"./example:${ref}\""
-        echo ""
-        echo "Or in your run command:"
-        echo ""
-        echo "  -v \"\${PWD:-.}/example:${ref}\""
-        echo ""
-        echo "Replace the example path ./example with your desired shared folder, which then will become visible here."
-        echo ""
-    } | unix2dos > "$dir/readme.txt"
-
+    writeTmpReadme "$dir" "$ref"
   fi
 
-  {     echo ""
-        echo "[$name]"
-        echo "    path = $dir"
-        echo "    comment = $comment"
-        echo "    writable = yes"
-        echo "    guest ok = yes"
-        echo "    guest only = yes"
+  {   echo ""
+      echo "[$name]"
+      echo "    path = $dir"
+      echo "    comment = $comment"
+      echo "    writable = yes"
+      echo "    guest ok = yes"
+      echo "    guest only = yes"
   } >> "$cfg"
 
   return 0
 }
 
-{       echo "[global]"
-        echo "    server string = Dockur"
-        echo "    netbios name = $hostname"
-        echo "    workgroup = WORKGROUP"
-        echo "    interfaces = $interfaces"
-        echo "    bind interfaces only = yes"
-        echo "    socket address = $socket"
-        echo "    security = user"
-        echo "    guest account = nobody"
-        echo "    map to guest = Bad User"
-        echo "    server min protocol = NT1"
-        echo "    follow symlinks = yes"
-        echo "    wide links = yes"
-        echo "    unix extensions = no"
-        echo "    inherit owner = yes"
-        echo "    create mask = 0666"
-        echo "    directory mask = 02777"
-        echo "    force user = root"
-        echo "    force group = root"
-        echo "    force create mode = 0666"
-        echo "    force directory mode = 02777"
-        echo ""
-        echo "    # Disable printing services"
-        echo "    load printers = no"
-        echo "    printing = bsd"
-        echo "    printcap name = /dev/null"
-        echo "    disable spoolss = yes"
-} > "$SAMBA_CONFIG"
+writeSambaConfig() {
+  {   echo "[global]"
+      echo "    server string = Dockur"
+      echo "    netbios name = $hostname"
+      echo "    workgroup = WORKGROUP"
+      echo "    interfaces = $interfaces"
+      echo "    bind interfaces only = yes"
+      echo "    socket address = $socket"
+      echo "    security = user"
+      echo "    guest account = nobody"
+      echo "    map to guest = Bad User"
+      echo "    server min protocol = NT1"
+      echo "    follow symlinks = yes"
+      echo "    wide links = yes"
+      echo "    unix extensions = no"
+      echo "    inherit owner = yes"
+      echo "    create mask = 0666"
+      echo "    directory mask = 02777"
+      echo "    force user = root"
+      echo "    force group = root"
+      echo "    force create mode = 0666"
+      echo "    force directory mode = 02777"
+      echo ""
+      echo "    # Disable printing services"
+      echo "    load printers = no"
+      echo "    printing = bsd"
+      echo "    printcap name = /dev/null"
+      echo "    disable spoolss = yes"
+  } > "$SAMBA_CONFIG"
 
-# Add shared folders
-share="/shared"
-[ ! -d "$share" ] && [ -d "$STORAGE/shared" ] && share="$STORAGE/shared"
-[ ! -d "$share" ] && [ -d "/data" ] && share="/data"
-[ ! -d "$share" ] && [ -d "$STORAGE/data" ] && share="$STORAGE/data"
-[ ! -d "$share" ] && share="$tmp"
+  return 0
+}
 
-! addShare "$share" "/shared" "Data" "Shared" "$SAMBA_CONFIG" && return 0
+selectPrimaryShare() {
+  share="/shared"
+  [ ! -d "$share" ] && [ -d "$STORAGE/shared" ] && share="$STORAGE/shared"
+  [ ! -d "$share" ] && [ -d "/data" ] && share="/data"
+  [ ! -d "$share" ] && [ -d "$STORAGE/data" ] && share="$STORAGE/data"
+  [ ! -d "$share" ] && share="$tmp"
 
-if [ -d "/shared2" ]; then
-  addShare "/shared2" "/shared2" "Data2" "Shared" "$SAMBA_CONFIG" || :
-elif [ -d "/data2" ]; then
-  addShare "/data2" "/shared2" "Data2" "Shared" "$SAMBA_CONFIG" || :
-fi
+  return 0
+}
 
-if [ -d "/shared3" ]; then
-  addShare "/shared3" "/shared3" "Data3" "Shared" "$SAMBA_CONFIG" || :
-elif [ -d "/data3" ]; then
-  addShare "/data3" "/shared3" "Data3" "Shared" "$SAMBA_CONFIG" || :
-fi
+addOptionalShare() {
+  local index="$1"
+  local ref="/shared$index"
+  local name="Data$index"
 
-# Create directories if missing
-mkdir -p /var/lib/samba/sysvol
-mkdir -p /var/lib/samba/private
-mkdir -p /var/lib/samba/bind-dns
+  if [ -d "$ref" ]; then
+    addShare "$ref" "$ref" "$name" "Shared" "$SAMBA_CONFIG" || :
+  elif [ -d "/data$index" ]; then
+    addShare "/data$index" "$ref" "$name" "Shared" "$SAMBA_CONFIG" || :
+  fi
 
-# Try to repair Samba permissions
-[ -d /run/samba/msg.lock ] && chmod -R 0755 /run/samba/msg.lock 2>/dev/null || :
-[ -d /var/log/samba/cores ] && chmod -R 0700 /var/log/samba/cores 2>/dev/null || :
-[ -d /var/cache/samba/msg.lock ] && chmod -R 0755 /var/cache/samba/msg.lock 2>/dev/null || :
+  return 0
+}
 
-rm -f /var/log/samba/log.smbd
+prepareSambaDirs() {
+  # Create directories if missing
+  mkdir -p /var/lib/samba/sysvol
+  mkdir -p /var/lib/samba/private
+  mkdir -p /var/lib/samba/bind-dns
 
-if ! smbd -l /var/log/samba; then
-  SAMBA_DEBUG="Y"
-  error "Failed to start Samba daemon!"
-fi
+  # Try to repair Samba permissions
+  [ -d /run/samba/msg.lock ] && chmod -R 0755 /run/samba/msg.lock 2>/dev/null || :
+  [ -d /var/log/samba/cores ] && chmod -R 0700 /var/log/samba/cores 2>/dev/null || :
+  [ -d /var/cache/samba/msg.lock ] && chmod -R 0755 /var/cache/samba/msg.lock 2>/dev/null || :
 
-if enabled "$SAMBA_DEBUG"; then
-  tail -fn +0 /var/log/samba/log.smbd --pid=$$ &
-fi
+  return 0
+}
 
-case "${NETWORK,,}" in
-  "passt" | "slirp" )
-    return 0 ;;
-esac
+tailLogIfDebug() {
+  local file="$1"
 
-if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
+  if enabled "$SAMBA_DEBUG"; then
+    tail -fn +0 "$file" --pid=$$ &
+  fi
 
+  return 0
+}
+
+startSamba() {
+  rm -f /var/log/samba/log.smbd
+
+  if ! smbd -l /var/log/samba; then
+    SAMBA_DEBUG="Y"
+    error "Failed to start Samba daemon!"
+  fi
+
+  tailLogIfDebug /var/log/samba/log.smbd
+  return 0
+}
+
+startNetbios() {
   # Enable NetBIOS on Windows 7 and lower
   enabled "$DEBUG" && echo "Starting NetBIOS daemon..."
 
@@ -200,12 +223,11 @@ if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
     error "Failed to start NetBIOS daemon!"
   fi
 
-  if enabled "$SAMBA_DEBUG"; then
-    tail -fn +0 /var/log/samba/log.nmbd --pid=$$ &
-  fi
+  tailLogIfDebug /var/log/samba/log.nmbd
+  return 0
+}
 
-else
-
+startWsddn() {
   # Enable Web Service Discovery on Vista and up
   enabled "$DEBUG" && echo "Starting wsddn daemon..."
   rm -f /var/log/wsddn.log
@@ -215,10 +237,37 @@ else
     error "Failed to start wsddn daemon!"
   fi
 
-  if enabled "$SAMBA_DEBUG"; then
-    tail -fn +0 /var/log/wsddn.log --pid=$$ &
-  fi
+  tailLogIfDebug /var/log/wsddn.log
+  return 0
+}
 
+configureNetwork
+
+html "Initializing shared folder..."
+SAMBA_CONFIG="/etc/samba/smb.conf"
+enabled "$DEBUG" && echo "Starting Samba daemon..."
+
+writeSambaConfig
+
+# Add shared folders
+selectPrimaryShare
+! addShare "$share" "/shared" "Data" "Shared" "$SAMBA_CONFIG" && return 0
+
+addOptionalShare "2"
+addOptionalShare "3"
+
+prepareSambaDirs
+startSamba
+
+case "${NETWORK,,}" in
+  "passt" | "slirp" )
+    return 0 ;;
+esac
+
+if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
+  startNetbios
+else
+  startWsddn
 fi
 
 return 0
