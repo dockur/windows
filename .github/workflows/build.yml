@@ -91,7 +91,7 @@ jobs:
           username: ${{ secrets.GITLAB_USERNAME }}
       -
         name: Send mail
-        uses: action-pack/send-mail@v1
+        uses: action-pack/send-mail@v1.16
         with:
           to: ${{secrets.MAILTO}}
           from: Github Actions <${{secrets.MAILTO}}>
