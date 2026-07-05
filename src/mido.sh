@@ -61,6 +61,7 @@ download_windows() {
   local id="$1"
   local lang="$2"
   local desc="$3"
+  local rc=0
   local ovw="" rticks="" mdt="" sku_id="" sku_url=""
   local iso_url="" iso_json="" language="" org_id=""
   local instance_id="" vls_url="" ov_url="" ov_data=""
@@ -502,6 +503,7 @@ getESD() {
   local version="$2"
   local lang="$3"
   local desc="$4"
+  local rc=0
   local file result culture
   local language edition catalog
 
@@ -742,6 +744,25 @@ delay() {
   return 0
 }
 
+tryDownload() {
+
+  local iso="$1"
+  local url="$2"
+  local sum="$3"
+  local size="$4"
+  local lang="$5"
+  local desc="$6"
+  local seconds="$7"
+
+  rm -f "$iso"
+  downloadFile "$iso" "$url" "$sum" "$size" "$lang" "$desc" && return 0
+  delay "$seconds"
+  downloadFile "$iso" "$url" "$sum" "$size" "$lang" "$desc" && return 0
+  rm -f "$iso"
+
+  return 1
+}
+
 downloadImage() {
 
   local iso="$1"
@@ -757,12 +778,7 @@ downloadImage() {
     base=$(basename "$iso")
     desc=$(fromFile "$base")
 
-    rm -f "$iso"
-    downloadFile "$iso" "$version" "" "" "" "$desc" && return 0
-    delay "$seconds"
-    downloadFile "$iso" "$version" "" "" "" "$desc" && return 0
-    rm -f "$iso"
-
+    tryDownload "$iso" "$version" "" "" "" "$desc" "$seconds" && return 0
     return 1
   fi
 
@@ -797,11 +813,7 @@ downloadImage() {
       size=$(getMido "$version" "$lang" "size" )
       sum=$(getMido "$version" "$lang" "sum")
 
-      rm -f "$iso"
-      downloadFile "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$desc" && return 0
-      delay "$seconds"
-      downloadFile "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$desc" && return 0
-      rm -f "$iso"
+      tryDownload "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$desc" "$seconds" && return 0
     fi
   fi
 
@@ -826,11 +838,10 @@ downloadImage() {
     if [[ "$success" == "y" ]]; then
       ISO="${ISO%.*}.esd"
 
-      rm -f "$ISO"
-      downloadFile "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$lang" "$desc" && return 0
-      delay "$seconds"
-      downloadFile "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$lang" "$desc" && return 0
-      rm -f "$ISO"
+      if tryDownload "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$lang" "$desc" "$seconds"; then
+        return 0
+      fi
+
       ISO="$iso"
     fi
 
@@ -850,11 +861,7 @@ downloadImage() {
       size=$(getSize "$i" "$version" "$lang")
       sum=$(getHash "$i" "$version" "$lang")
 
-      rm -f "$iso"
-      downloadFile "$iso" "$url" "$sum" "$size" "$lang" "$desc" && return 0
-      delay "$seconds"
-      downloadFile "$iso" "$url" "$sum" "$size" "$lang" "$desc" && return 0
-      rm -f "$iso"
+      tryDownload "$iso" "$url" "$sum" "$size" "$lang" "$desc" "$seconds" && return 0
     fi
 
   done
