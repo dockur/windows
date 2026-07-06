@@ -559,14 +559,13 @@ getESD() {
     error "Failed to find $xFile in $file!" && return 1
   fi
 
-  local edQuery='//File[Architecture="'${PLATFORM,,}'"]'"${edition}"''
-  result=$(xmllint --nonet --xpath "${edQuery}" "$dir/$xFile" 2>/dev/null)
+  result=$(xmllint --nonet --xpath "${edQuery}" "$dir/$xFile" 2>/dev/null || true)
 
   if [ -z "$result" ]; then
 
     edQuery='//File[Architecture="'${PLATFORM^^}'"]'"${edition}"''
 
-    result=$(xmllint --nonet --xpath "${edQuery}" "$dir/$xFile" 2>/dev/null)
+    result=$(xmllint --nonet --xpath "${edQuery}" "$dir/$xFile" 2>/dev/null || true)
 
     if [ -z "$result" ]; then
       desc=$(printEdition "$version" "$desc")
@@ -580,7 +579,7 @@ getESD() {
   echo "$result" >> "$dir/$fFile"
   echo -e '</Catalog>'>> "$dir/$fFile"
 
-  result=$(xmllint --nonet --xpath "//File[LanguageCode=\"${culture,,}\"]" "$dir/$fFile" 2>/dev/null)
+  result=$(xmllint --nonet --xpath "//File[LanguageCode=\"${culture,,}\"]" "$dir/$fFile" 2>/dev/null || true)
 
   if [ -z "$result" ]; then
     desc=$(printEdition "$version" "$desc")
