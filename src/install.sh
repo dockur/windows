@@ -1126,11 +1126,19 @@ updateImage() {
   if ! enabled "$MANUAL"; then
 
     xml=$(basename "$asset")
+    local answer="$tmp/$xml"
+
     info "Adding $xml for automatic installation..."
 
-    local answer="$tmp/$xml"
-    cp "$asset" "$answer"
-    updateXML "$answer" "$language"
+    if ! cp "$asset" "$answer"; then
+      error "Failed to copy answer file to $answer."
+      return 1
+    fi
+
+    if ! updateXML "$answer" "$language"; then
+      error "Failed to update answer file: $answer"
+      return 1
+    fi
 
     if ! wimlib-imagex update "$wim" "$index" --command "add $answer /$file" > /dev/null; then
       MANUAL="Y"
