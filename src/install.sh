@@ -447,22 +447,45 @@ extractESD() {
   size=9606127360
   checkFreeSpace "$dir" "$size" || return 1
 
+  local esdInfo
+  esdInfo=$(wimlib-imagex info "$iso") || {
+    error "Cannot read ESD file information!"
+    return 1
+  }
+
   local esdImageCount
-  esdImageCount=$(wimlib-imagex info "$iso" | awk '/Image Count:/ {print $3}')
+  esdImageCount=$(awk '/Image Count:/ {print $3}' <<< "$esdInfo")
 
   if [ -z "$esdImageCount" ]; then
     error "Cannot read the image count in ESD file!" && return 1
   fi
 
-  sizes=$(wimlib-imagex info "$iso" | grep "Total Bytes:")
-  links=$(wimlib-imagex info "$iso" | grep "Hard Link Bytes:")
+  if (( esdImageCount < 3 )); then
+    error "Invalid ESD file: expected at least 3 images, found $esdImageCount."
+    return 1
+  fi
+
+  sizes=$(grep "Total Bytes:" <<< "$esdInfo" || true)
+  links=$(grep "Hard Link Bytes:" <<< "$esdInfo" || true)
 
   total1=$(awk "NR==1{ print; }" <<< "$sizes" | cut -d':' -f2 | sed 's/^ *//')
   links1=$(awk "NR==1{ print; }" <<< "$links" | cut -d':' -f2 | sed 's/^ *//')
+
+  if [[ ! "$total1" =~ ^[0-9]+$ ]] || [[ ! "$links1" =~ ^[0-9]+$ ]]; then
+    error "Cannot read bootdisk size from ESD file!"
+    return 1
+  fi
+
   total=$(( total1 - links1 ))
 
   total3=$(awk "NR==3{ print; }" <<< "$sizes" | cut -d':' -f2 | sed 's/^ *//')
   links3=$(awk "NR==3{ print; }" <<< "$links" | cut -d':' -f2 | sed 's/^ *//')
+
+  if [[ ! "$total3" =~ ^[0-9]+$ ]] || [[ ! "$links3" =~ ^[0-9]+$ ]]; then
+    error "Cannot read bootdisk size from ESD file!"
+    return 1
+  fi
+  
   total3=$(( total3 - links3 ))
   total3=$(( total3 + 60000000 ))
 

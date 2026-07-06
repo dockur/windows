@@ -589,22 +589,22 @@ getESD() {
 
   echo "$result" > "$dir/$eFile"
 
-  local tag="FilePath"
-  ESD=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g" 2>/dev/null)
+  tag="FilePath"
+  ESD=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" 2>/dev/null | sed -E -e "s/<[\/]?$tag>//g" || true)
 
   if [ -z "$ESD" ]; then
     error "Failed to find ESD URL in $eFile!" && return 1
   fi
 
   tag="Sha1"
-  ESD_SUM=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g" 2>/dev/null)
+  ESD_SUM=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" 2>/dev/null | sed -E -e "s/<[\/]?$tag>//g" || true)
 
   if [ -z "$ESD_SUM" ]; then
     error "Failed to find ESD checksum in $eFile!" && return 1
   fi
 
   tag="Size"
-  ESD_SIZE=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" | sed -E -e "s/<[\/]?$tag>//g" 2>/dev/null)
+  ESD_SIZE=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" 2>/dev/null | sed -E -e "s/<[\/]?$tag>//g" || true)
 
   if [ -z "$ESD_SIZE" ]; then
     error "Failed to find ESD filesize in $eFile!" && return 1
