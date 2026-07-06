@@ -460,6 +460,11 @@ extractESD() {
     error "Cannot read the image count in ESD file!" && return 1
   fi
 
+  if (( esdImageCount < 3 )); then
+    error "Invalid ESD file: expected at least 3 images, found $esdImageCount."
+    return 1
+  fi
+
   sizes=$(grep "Total Bytes:" <<< "$esdInfo" || true)
   links=$(grep "Hard Link Bytes:" <<< "$esdInfo" || true)
 
