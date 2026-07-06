@@ -613,7 +613,7 @@ extractImage() {
     fi
 
     LABEL=$(isoinfo -d -i "$file" | sed -n 's/Volume id: //p') || LABEL=""
-    rm -f "$file"
+    rm -f "$file" || warn "Failed to remove temporary ISO file: $file"
 
   fi
 
