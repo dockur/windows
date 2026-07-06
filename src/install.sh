@@ -470,10 +470,22 @@ extractESD() {
 
   total1=$(awk "NR==1{ print; }" <<< "$sizes" | cut -d':' -f2 | sed 's/^ *//')
   links1=$(awk "NR==1{ print; }" <<< "$links" | cut -d':' -f2 | sed 's/^ *//')
+
+  if [[ ! "$total1" =~ ^[0-9]+$ ]] || [[ ! "$links1" =~ ^[0-9]+$ ]]; then
+    error "Cannot read bootdisk size from ESD file!"
+    return 1
+  fi
+
   total=$(( total1 - links1 ))
 
   total3=$(awk "NR==3{ print; }" <<< "$sizes" | cut -d':' -f2 | sed 's/^ *//')
   links3=$(awk "NR==3{ print; }" <<< "$links" | cut -d':' -f2 | sed 's/^ *//')
+
+  if [[ ! "$total3" =~ ^[0-9]+$ ]] || [[ ! "$links3" =~ ^[0-9]+$ ]]; then
+    error "Cannot read bootdisk size from ESD file!"
+    return 1
+  fi
+  
   total3=$(( total3 - links3 ))
   total3=$(( total3 + 60000000 ))
 
