@@ -17,6 +17,8 @@ _trap() {
   for sig; do
     trap "$func $sig" "$sig"
   done
+
+  return 0
 }
 
 app() {
