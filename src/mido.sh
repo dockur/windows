@@ -559,6 +559,7 @@ getESD() {
     error "Failed to find $xFile in $file!" && return 1
   fi
 
+  local edQuery='//File[Architecture="'${PLATFORM,,}'"]'"${edition}"''
   result=$(xmllint --nonet --xpath "${edQuery}" "$dir/$xFile" 2>/dev/null || true)
 
   if [ -z "$result" ]; then
