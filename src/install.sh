@@ -1167,9 +1167,15 @@ updateImage() {
 
   if [ -f "$path" ]; then
     if ! enabled "$MANUAL"; then
-      mv -f "$path" "${path%.*}.org"
+      if ! mv -f "$path" "${path%.*}.org"; then
+        error "Failed to rename answer file: $path"
+        return 1
+      fi
     else
-      mv -f "$path" "${path%.*}.xml"
+      if ! mv -f "$path" "${path%.*}.xml"; then
+        error "Failed to rename answer file: $path"
+        return 1
+      fi
     fi
   fi
 
