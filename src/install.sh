@@ -447,15 +447,21 @@ extractESD() {
   size=9606127360
   checkFreeSpace "$dir" "$size" || return 1
 
+  local esdInfo
+  esdInfo=$(wimlib-imagex info "$iso") || {
+    error "Cannot read ESD file information!"
+    return 1
+  }
+
   local esdImageCount
-  esdImageCount=$(wimlib-imagex info "$iso" | awk '/Image Count:/ {print $3}')
+  esdImageCount=$(awk '/Image Count:/ {print $3}' <<< "$esdInfo")
 
   if [ -z "$esdImageCount" ]; then
     error "Cannot read the image count in ESD file!" && return 1
   fi
 
-  sizes=$(wimlib-imagex info "$iso" | grep "Total Bytes:")
-  links=$(wimlib-imagex info "$iso" | grep "Hard Link Bytes:")
+  sizes=$(grep "Total Bytes:" <<< "$esdInfo" || true)
+  links=$(grep "Hard Link Bytes:" <<< "$esdInfo" || true)
 
   total1=$(awk "NR==1{ print; }" <<< "$sizes" | cut -d':' -f2 | sed 's/^ *//')
   links1=$(awk "NR==1{ print; }" <<< "$links" | cut -d':' -f2 | sed 's/^ *//')
