@@ -20,7 +20,7 @@ configureNetwork() {
   if enabled "$DHCP"; then
     socket="$IP"
     hostname="$IP"
-    interfaces="$VM_NET_DEV"
+    interfaces="$DEV"
   else
     hostname="host.lan"
     case "${NETWORK,,}" in
@@ -29,7 +29,7 @@ configureNetwork() {
         socket="127.0.0.1" ;;
       *)
         socket="$VM_NET_IP"
-        interfaces="$VM_NET_BRIDGE" ;;
+        interfaces="$BRIDGE" ;;
     esac
     if [ -n "${SAMBA_INTERFACE:-}" ]; then
       interfaces+=",$SAMBA_INTERFACE"
