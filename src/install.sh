@@ -598,7 +598,7 @@ extractImage() {
 
   if ! enabled "${UNPACK:-}"; then
 
-    LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p')
+    LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p') || LABEL=""
 
   else
 
@@ -612,7 +612,7 @@ extractImage() {
       error "Failed to extract archive!" && return 1
     fi
 
-    LABEL=$(isoinfo -d -i "$file" | sed -n 's/Volume id: //p')
+    LABEL=$(isoinfo -d -i "$file" | sed -n 's/Volume id: //p') || LABEL=""
     rm -f "$file"
 
   fi
