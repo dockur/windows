@@ -546,14 +546,12 @@ getESD() {
 
   else
 
-    cd "$dir"
-
-    if ! cabextract "$file" > /dev/null; then
-      cd /run
+    if ! (
+      cd "$dir" || exit 1
+      cabextract "$file" > /dev/null
+    ); then
       error "Failed to extract $file!" && return 1
     fi
-
-    cd /run
 
   fi
 
