@@ -539,7 +539,10 @@ getESD() {
 
   if [[ "$file" == *".xml" ]]; then
 
-    mv -f "$dir/$file" "$dir/$xFile"
+    if ! mv -f "$dir/$file" "$dir/$xFile"; then
+      error "Failed to rename $file to $xFile."
+      return 1
+    fi
 
   else
 

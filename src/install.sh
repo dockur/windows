@@ -598,7 +598,7 @@ extractImage() {
 
   if ! enabled "${UNPACK:-}"; then
 
-    LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p')
+    LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p') || LABEL=""
 
   else
 
@@ -612,8 +612,8 @@ extractImage() {
       error "Failed to extract archive!" && return 1
     fi
 
-    LABEL=$(isoinfo -d -i "$file" | sed -n 's/Volume id: //p')
-    rm -f "$file"
+    LABEL=$(isoinfo -d -i "$file" | sed -n 's/Volume id: //p') || LABEL=""
+    rm -f "$file" || warn "Failed to remove temporary ISO file: $file"
 
   fi
 
@@ -1126,11 +1126,19 @@ updateImage() {
   if ! enabled "$MANUAL"; then
 
     xml=$(basename "$asset")
+    local answer="$tmp/$xml"
+
     info "Adding $xml for automatic installation..."
 
-    local answer="$tmp/$xml"
-    cp "$asset" "$answer"
-    updateXML "$answer" "$language"
+    if ! cp "$asset" "$answer"; then
+      error "Failed to copy answer file to $answer."
+      return 1
+    fi
+
+    if ! updateXML "$answer" "$language"; then
+      error "Failed to update answer file: $answer"
+      return 1
+    fi
 
     if ! wimlib-imagex update "$wim" "$index" --command "add $answer /$file" > /dev/null; then
       MANUAL="Y"
@@ -1159,9 +1167,15 @@ updateImage() {
 
   if [ -f "$path" ]; then
     if ! enabled "$MANUAL"; then
-      mv -f "$path" "${path%.*}.org"
+      if ! mv -f "$path" "${path%.*}.org"; then
+        error "Failed to rename answer file: $path"
+        return 1
+      fi
     else
-      mv -f "$path" "${path%.*}.xml"
+      if ! mv -f "$path" "${path%.*}.xml"; then
+        error "Failed to rename answer file: $path"
+        return 1
+      fi
     fi
   fi
 
