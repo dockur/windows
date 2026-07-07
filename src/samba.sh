@@ -19,8 +19,8 @@ disabled "$NETWORK" && return 0
 configureNetwork() {
 
   if enabled "$DHCP"; then
-    socket="$IP" # Todo
-    hostname="$IP" # Todo
+    socket="$UPLINK"
+    hostname="$UPLINK"
     interfaces="$DEV"
   else
     hostname="host.lan"
@@ -29,7 +29,7 @@ configureNetwork() {
         interfaces="lo"
         socket="127.0.0.1" ;;
       *)
-        socket="$VM_NET_IP" # Todo
+        socket="$IP"
         interfaces="$BRIDGE" ;;
     esac
     if [ -n "${SAMBA_INTERFACE:-}" ]; then
