@@ -1,42 +1,42 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-handle_curl_error() {
+handleCurlError() {
 
-  local error_code="$1"
-  local server_name="$2"
+  local code="$1"
+  local server="$2"
 
-  case "$error_code" in
+  case "$code" in
     1) error "Unsupported protocol!" ;;
     2) error "Failed to initialize curl!" ;;
     3) error "The URL format is malformed!" ;;
     5) error "Failed to resolve address of proxy host!" ;;
-    6) error "Failed to resolve $server_name servers! Is there an Internet connection?" ;;
-    7) error "Failed to contact $server_name servers! Is there an Internet connection or is the server down?" ;;
-    8) error "$server_name servers returned a malformed HTTP response!" ;;
+    6) error "Failed to resolve $server servers! Is there an Internet connection?" ;;
+    7) error "Failed to contact $server servers! Is there an Internet connection or is the server down?" ;;
+    8) error "$server servers returned a malformed HTTP response!" ;;
     16) error "A problem was detected in the HTTP2 framing layer!" ;;
-    22) error "$server_name servers returned a failing HTTP status code!" ;;
+    22) error "$server servers returned a failing HTTP status code!" ;;
     23) error "Failed at writing Windows media to disk! Out of disk space or permission error?" ;;
     26) error "Failed to read Windows media from disk!" ;;
     27) error "Ran out of memory during download!" ;;
-    28) error "Connection timed out to $server_name server!" ;;
-    35) error "SSL connection error from $server_name server!" ;;
+    28) error "Connection timed out to $server server!" ;;
+    35) error "SSL connection error from $server server!" ;;
     36) error "Failed to continue earlier download!" ;;
-    52) error "Received no data from the $server_name server!" ;;
-    63) error "$server_name servers returned an unexpectedly large response!" ;;
+    52) error "Received no data from the $server server!" ;;
+    63) error "$server servers returned an unexpectedly large response!" ;;
     126) error "Curl command cannot be executed!" ;;
     127) error "Curl command not found!" ;;
     *)
-      if (( error_code <= 125 )); then
+      if (( code <= 125 )); then
         # Must be some other server or network error (possibly with this specific request/file)
         # This is when accounting for all possible errors in the curl manual assuming a correctly formed
         # curl command and an HTTP(S) request, using only the curl features we're using, and a sane build.
-        error "Miscellaneous server or network error, reason: $error_code"
+        error "Miscellaneous server or network error, reason: $code"
       else
-        case "$(kill -l "$error_code" 2>/dev/null || true)" in
+        case "$(kill -l "$code" 2>/dev/null || true)" in
           INT) error "Curl was interrupted!" ;;
           SEGV | ABRT) error "Curl crashed! Please report any core dumps to curl developers." ;;
-          *) error "Curl terminated due to fatal signal $error_code !" ;;
+          *) error "Curl terminated due to fatal signal $code !" ;;
         esac
       fi
       ;;
@@ -45,7 +45,7 @@ handle_curl_error() {
   return 1
 }
 
-get_agent() {
+getAgent() {
 
   local browser_version
 
@@ -56,41 +56,42 @@ get_agent() {
   return 0
 }
 
-download_windows() {
+downloadWindows() {
 
   local id="$1"
   local lang="$2"
   local desc="$3"
+
   local rc=0
-  local ovw="" rticks="" mdt="" sku_id="" sku_url=""
-  local iso_url="" iso_json="" language="" org_id=""
-  local instance_id="" vls_url="" ov_url="" ov_data=""
-  local session_id="" user_agent="" download_type=""
-  local windows_version="" iso_download_link=""
-  local download_page_html="" product_edition_id=""
-  local language_skuid_json=""
+  local ovToken="" ovTicks="" ovTime=""
+  local skuId="" skuUrl="" skuJson=""
+  local linkUrl="" linkJson="" link=""
+  local language="" orgId=""
+  local instance="" vlsUrl="" ovUrl="" ovData=""
+  local session="" agent="" type=""
+  local winVer="" page="" productId=""
   local profile="606624d44113"
 
-  user_agent=$(get_agent)
+  agent=$(getAgent)
   language=$(getLanguage "$lang" "name")
 
   case "${id,,}" in
-    "win11x64" ) windows_version="11" && download_type="1" ;;
-    "win11arm64" ) windows_version="11arm64" && download_type="2" ;;
+    "win11x64" ) winVer="11" && type="1" ;;
+    "win11arm64" ) winVer="11arm64" && type="2" ;;
     * ) error "Invalid VERSION specified, value \"$id\" is not recognized!" && return 1 ;;
   esac
 
-  local url="https://www.microsoft.com/en-us/software-download/windows$windows_version"
+  local url="https://www.microsoft.com/en-us/software-download/windows$winVer"
 
   # uuidgen: For MacOS (installed by default) and other systems (e.g. with no /proc) that don't have a kernel interface for generating random UUIDs
-  if ! session_id=$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random); then
+  if ! session=$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random); then
     error "Failed to generate session ID!"
     return 1
   fi
 
-  session_id="${session_id//[![:print:]]/}"
+  session="${session//[![:print:]]/}"
 
-  if [ -z "$session_id" ]; then
+  if [ -z "$session" ]; then
     error "Failed to generate session ID!"
     return 1
   fi
@@ -101,189 +102,189 @@ download_windows() {
   # Also, keeping a "$WindowsVersions" array like Fido does would be way too much of a maintenance burden
   # Remove "Accept" header that curl sends by default
   enabled "$DEBUG" && echo "Parsing download page: ${url}"
-  download_page_html=$(curl --silent --max-time 30 --user-agent "$user_agent" --header "Accept:" --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url") || {
-    handle_curl_error "$?" "Microsoft"
+  page=$(curl --silent --max-time 30 --user-agent "$agent" --header "Accept:" --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url") || {
+    handleCurlError "$?" "Microsoft"
     return $?
   }
 
   enabled "$DEBUG" && echo -n "Getting Product edition ID: "
-  product_edition_id=$(echo "$download_page_html" | grep -Eo '<option value="[0-9]+">Windows' | cut -d '"' -f 2 | head -n 1 | tr -cd '0-9' | head -c 16)
-  enabled "$DEBUG" && echo "$product_edition_id"
+  productId=$(echo "$page" | grep -Eo '<option value="[0-9]+">Windows' | cut -d '"' -f 2 | head -n 1 | tr -cd '0-9' | head -c 16)
+  enabled "$DEBUG" && echo "$productId"
 
-  if [ -z "$product_edition_id" ]; then
+  if [ -z "$productId" ]; then
     error "Product edition ID not found!"
     return 1
   fi
 
   # Microsoft download "protection" requires the sessionId to be whitelisted through vlscppe.microsoft.com/tags
 
-  org_id="y6jn8c31"
-  vls_url="https://vlscppe.microsoft.com/tags?org_id=$org_id&session_id=$session_id"
+  orgId="y6jn8c31"
+  vlsUrl="https://vlscppe.microsoft.com/tags?org_id=$orgId&session_id=$session"
 
-  enabled "$DEBUG" && echo "Getting Session ID: $session_id"
+  enabled "$DEBUG" && echo "Getting Session ID: $session"
 
   # Permit Session ID
-  curl --silent --max-time 30 --output /dev/null --user-agent "$user_agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$vls_url" || {
+  curl --silent --max-time 30 --output /dev/null --user-agent "$agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$vlsUrl" || {
     # This should only happen if there's been some change to how this API works
-    handle_curl_error "$?" "Microsoft"
+    handleCurlError "$?" "Microsoft"
     return $?
   }
 
   # Microsoft download "protection" also requires an ov-df.microsoft.com request/reply
   # 1) Request mdt.js to get w and rticks. InstanceId is (currently) constant.
 
-  instance_id="560dc9f3-1aa5-4a2f-b63c-9e18f8d0e175"
-  ov_url="https://ov-df.microsoft.com/mdt.js?instanceId=$instance_id&PageId=si&session_id=$session_id"
+  instance="560dc9f3-1aa5-4a2f-b63c-9e18f8d0e175"
+  ovUrl="https://ov-df.microsoft.com/mdt.js?instanceId=$instance&PageId=si&session_id=$session"
 
   enabled "$DEBUG" && echo -n "Getting OV data: "
 
-  ov_data=$(curl --silent --max-time 30 --user-agent "$user_agent" --header "Accept:" --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$ov_url") || {
-    handle_curl_error "$?" "Microsoft"
+  ovData=$(curl --silent --max-time 30 --user-agent "$agent" --header "Accept:" --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$ovUrl") || {
+    handleCurlError "$?" "Microsoft"
     return $?
   }
 
-  if [[ $ov_data =~ [\?\&]w=([A-Fa-f0-9]+) ]]; then
-    ovw="${BASH_REMATCH[1]}"
+  if [[ $ovData =~ [\?\&]w=([A-Fa-f0-9]+) ]]; then
+    ovToken="${BASH_REMATCH[1]}"
   fi
 
-  if [[ $ov_data =~ rticks=\"\+?([0-9]+) ]]; then
-    rticks="${BASH_REMATCH[1]}"
+  if [[ $ovData =~ rticks=\"\+?([0-9]+) ]]; then
+    ovTicks="${BASH_REMATCH[1]}"
   fi
 
-  if [[ -z $ovw || -z $rticks ]]; then
+  if [[ -z $ovToken || -z $ovTicks ]]; then
     error "Could not extract ov-df data from Microsoft server!"
     return 1
   fi
 
-  enabled "$DEBUG" && echo "$ovw"
+  enabled "$DEBUG" && echo "$ovToken"
 
   sleep 0.2
 
   # 2) Send a reply with session ID, current epoch and previously retrieved w and rticks
 
-  mdt=$(date +%s%3N)
-  ov_url="https://ov-df.microsoft.com/?session_id=$session_id&CustomerId=$instance_id&PageId=si&w=$ovw&mdt=$mdt&rticks=$rticks"
+  ovTime=$(date +%s%3N)
+  ovUrl="https://ov-df.microsoft.com/?session_id=$session&CustomerId=$instance&PageId=si&w=$ovToken&mdt=$ovTime&rticks=$ovTicks"
 
-  enabled "$DEBUG" && echo "Sending OV reply: $instance_id"
+  enabled "$DEBUG" && echo "Sending OV reply: $instance"
 
-  curl --silent --max-time 30 --output /dev/null --user-agent "$user_agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$ov_url" || {
+  curl --silent --max-time 30 --output /dev/null --user-agent "$agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$ovUrl" || {
     # This should only happen if there's been some change to how this API works
-    handle_curl_error "$?" "Microsoft"
+    handleCurlError "$?" "Microsoft"
     return $?
   }
 
   enabled "$DEBUG" && echo -n "Getting language SKU ID: "
 
-  sku_url="https://www.microsoft.com/software-download-connector/api/getskuinformationbyproductedition?profile=$profile&ProductEditionId=$product_edition_id&SKU=undefined&friendlyFileName=undefined&Locale=en-US&sessionID=$session_id"
-  language_skuid_json=$(curl --silent --max-time 30 --request GET --user-agent "$user_agent" --referer "$url" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$sku_url") || {
-    handle_curl_error "$?" "Microsoft"
+  skuUrl="https://www.microsoft.com/software-download-connector/api/getskuinformationbyproductedition?profile=$profile&ProductEditionId=$productId&SKU=undefined&friendlyFileName=undefined&Locale=en-US&sessionID=$session"
+  skuJson=$(curl --silent --max-time 30 --request GET --user-agent "$agent" --referer "$url" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$skuUrl") || {
+    handleCurlError "$?" "Microsoft"
     return $?
   }
 
-  { sku_id=$(echo "$language_skuid_json" | jq --arg LANG "$language" -r '.Skus[] | select(.Language==$LANG).Id') 2>/dev/null; rc=$?; } || :
+  { skuId=$(echo "$skuJson" | jq --arg LANG "$language" -r '.Skus[] | select(.Language==$LANG).Id') 2>/dev/null; rc=$?; } || :
 
-  if [ -z "$sku_id" ] || [[ "${sku_id,,}" == "null" ]] || (( rc != 0 )); then
+  if [ -z "$skuId" ] || [[ "${skuId,,}" == "null" ]] || (( rc != 0 )); then
     language=$(getLanguage "$lang" "desc")
     error "No download in the $language language available for $desc!"
     return 1
   fi
 
-  enabled "$DEBUG" && echo "$sku_id"
+  enabled "$DEBUG" && echo "$skuId"
   enabled "$DEBUG" && echo "Getting ISO download link..."
 
   # Get ISO download link
   # If any request is going to be blocked by Microsoft it's always this last one (the previous requests always seem to succeed)
 
-  iso_url="https://www.microsoft.com/software-download-connector/api/GetProductDownloadLinksBySku?profile=$profile&ProductEditionId=undefined&SKU=$sku_id&friendlyFileName=undefined&Locale=en-US&sessionID=$session_id"
-  iso_json=$(curl --silent --max-time 30 --request GET --user-agent "$user_agent" --referer "$url" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$iso_url") || {
-    handle_curl_error "$?" "Microsoft"
+  linkUrl="https://www.microsoft.com/software-download-connector/api/GetProductDownloadLinksBySku?profile=$profile&ProductEditionId=undefined&SKU=$skuId&friendlyFileName=undefined&Locale=en-US&sessionID=$session"
+  linkJson=$(curl --silent --max-time 30 --request GET --user-agent "$agent" --referer "$url" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$linkUrl") || {
+    handleCurlError "$?" "Microsoft"
     return $?
   }
 
-  if ! [ "$iso_json" ]; then
+  if ! [ "$linkJson" ]; then
     # This should only happen if there's been some change to how this API works
     error "Microsoft servers gave us an empty response to our request for an automated download."
     return 1
   fi
 
-  if echo "$iso_json" | grep -q "Sentinel marked this request as rejected."; then
+  if echo "$linkJson" | grep -q "Sentinel marked this request as rejected."; then
     error "Microsoft blocked the automated download request based on your IP address."
     return 1
   fi
 
-  if echo "$iso_json" | grep -q "We are unable to complete your request at this time."; then
+  if echo "$linkJson" | grep -q "We are unable to complete your request at this time."; then
     error "Microsoft blocked the automated download request based on your IP address."
     return 1
   fi
 
-  { iso_download_link=$(echo "$iso_json" | jq --argjson TYPE "$download_type" -r '.ProductDownloadOptions[] | select(.DownloadType==$TYPE).Uri') 2>/dev/null; rc=$?; } || :
+  { link=$(echo "$linkJson" | jq --argjson TYPE "$type" -r '.ProductDownloadOptions[] | select(.DownloadType==$TYPE).Uri') 2>/dev/null; rc=$?; } || :
 
-  if [ -z "$iso_download_link" ] || [[ "${iso_download_link,,}" == "null" ]] || (( rc != 0 )); then
+  if [ -z "$link" ] || [[ "${link,,}" == "null" ]] || (( rc != 0 )); then
     error "Microsoft server gave us no download link to our request for an automated download!"
-    info "Response: $iso_json"
+    info "Response: $linkJson"
     return 1
   fi
 
-  MIDO_URL="$iso_download_link"
+  MIDO_URL="$link"
   return 0
 }
 
-download_windows_eval() {
+downloadWindowsEval() {
 
   local id="$1"
   local lang="$2"
   local desc="$3"
   local filter="" culture="" compare="" language=""
-  local user_agent="" enterprise_type="" windows_version=""
+  local agent="" type="" winVer=""
 
   case "${id,,}" in
     "win11${PLATFORM,,}-enterprise-eval" )
-      enterprise_type="enterprise"
-      windows_version="windows-11-enterprise" ;;
+      type="enterprise"
+      winVer="windows-11-enterprise" ;;
     "win11${PLATFORM,,}-enterprise-iot-eval" )
-      enterprise_type="iot"
-      windows_version="windows-11-iot-enterprise-ltsc-eval" ;;
+      type="iot"
+      winVer="windows-11-iot-enterprise-ltsc-eval" ;;
     "win11${PLATFORM,,}-enterprise-ltsc-eval" )
-      enterprise_type="iot"
-      windows_version="windows-11-iot-enterprise-ltsc-eval" ;;
+      type="iot"
+      winVer="windows-11-iot-enterprise-ltsc-eval" ;;
     "win2025-eval" )
-      enterprise_type="server"
-      windows_version="windows-server-2025" ;;
+      type="server"
+      winVer="windows-server-2025" ;;
     "win2022-eval" )
-      enterprise_type="server"
-      windows_version="windows-server-2022" ;;
+      type="server"
+      winVer="windows-server-2022" ;;
     "win2019-hv" )
-      enterprise_type="server"
-      windows_version="hyper-v-server-2019" ;;
+      type="server"
+      winVer="hyper-v-server-2019" ;;
     "win2019-eval" )
-      enterprise_type="server"
-      windows_version="windows-server-2019" ;;
+      type="server"
+      winVer="windows-server-2019" ;;
     "win2016-eval" )
-      enterprise_type="server"
-      windows_version="windows-server-2016" ;;
+      type="server"
+      winVer="windows-server-2016" ;;
     "win2012r2-eval" )
-      enterprise_type="server"
-      windows_version="windows-server-2012-r2" ;;
+      type="server"
+      winVer="windows-server-2012-r2" ;;
     * )
       error "Invalid VERSION specified, value \"$id\" is not recognized!" && return 1 ;;
   esac
 
-  user_agent=$(get_agent)
+  agent=$(getAgent)
   culture=$(getLanguage "$lang" "culture")
 
   local country="${culture#*-}"
-  local iso_download_link=""
-  local iso_download_links=""
-  local iso_download_page_html=""
-  local url="https://www.microsoft.com/en-us/evalcenter/download-$windows_version"
+  local link=""
+  local links=""
+  local page=""
+  local url="https://www.microsoft.com/en-us/evalcenter/download-$winVer"
 
   enabled "$DEBUG" && echo "Parsing download page: ${url}"
-  iso_download_page_html=$(curl --silent --max-time 30 --user-agent "$user_agent" --location --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url") || {
-    handle_curl_error "$?" "Microsoft"
+  page=$(curl --silent --max-time 30 --user-agent "$agent" --location --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url") || {
+    handleCurlError "$?" "Microsoft"
     return $?
   }
 
-  if ! [ "$iso_download_page_html" ]; then
+  if ! [ "$page" ]; then
     # This should only happen if there's been some change to where this download page is located
     error "Windows server download page gave us an empty response"
     return 1
@@ -293,11 +294,11 @@ download_windows_eval() {
 
   filter="https://go.microsoft.com/fwlink/?linkid=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country,,}"
 
-  if ! echo "$iso_download_page_html" | grep -io "$filter" > /dev/null; then
+  if ! echo "$page" | grep -io "$filter" > /dev/null; then
     filter="https://go.microsoft.com/fwlink/p/?linkid=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country,,}"
   fi
 
-  iso_download_links=$(echo "$iso_download_page_html" | grep -io "$filter") || {
+  links=$(echo "$page" | grep -io "$filter") || {
     # This should only happen if there's been some change to the download endpoint web address
     if [[ "${lang,,}" == "en" || "${lang,,}" == "en-"* ]]; then
       error "Windows server download page gave us no download link!"
@@ -308,60 +309,60 @@ download_windows_eval() {
     return 1
   }
 
-  case "$enterprise_type" in
+  case "$type" in
     "iot" | "ltsc" )
       case "${PLATFORM,,}" in
         "x64" )
-          if [[ "$windows_version" != "windows-10"* ]]; then
-            iso_download_link=$(echo "$iso_download_links" | head -n 1)
+          if [[ "$winVer" != "windows-10"* ]]; then
+            link=$(echo "$links" | head -n 1)
           else
-            iso_download_link=$(echo "$iso_download_links" | head -n 4 | tail -n 1)
+            link=$(echo "$links" | head -n 4 | tail -n 1)
           fi ;;
         "arm64" )
-          iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1) ;;
+          link=$(echo "$links" | head -n 2 | tail -n 1) ;;
       esac ;;
     "enterprise" )
       case "${PLATFORM,,}" in
         "x64" )
-          if [[ "$windows_version" != "windows-10"* ]]; then
-            iso_download_link=$(echo "$iso_download_links" | head -n 1)
+          if [[ "$winVer" != "windows-10"* ]]; then
+            link=$(echo "$links" | head -n 1)
           else
-            iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1)
+            link=$(echo "$links" | head -n 2 | tail -n 1)
           fi ;;
         "arm64" )
-          iso_download_link=$(echo "$iso_download_links" | head -n 2 | tail -n 1) ;;
+          link=$(echo "$links" | head -n 2 | tail -n 1) ;;
       esac ;;
     "server" )
       case "${PLATFORM,,}" in
         "x64" )
-          iso_download_link=$(echo "$iso_download_links" | head -n 1) ;;
+          link=$(echo "$links" | head -n 1) ;;
       esac ;;
     * )
-      error "Invalid type specified, value \"$enterprise_type\" is not recognized!" && return 1 ;;
+      error "Invalid type specified, value \"$type\" is not recognized!" && return 1 ;;
   esac
 
-  [ -z "$iso_download_link" ] && error "Could not parse download link from page!" && return 1
+  [ -z "$link" ] && error "Could not parse download link from page!" && return 1
 
   # Follow redirect so proceeding log message is useful
   # This is a request we make that Fido doesn't
 
-  iso_download_link=$(curl --silent --max-time 30 --user-agent "$user_agent" --location --output /dev/null --silent --write-out "%{url_effective}" --head --fail --proto =https --tlsv1.2 --http1.1 -- "$iso_download_link") || {
+  link=$(curl --silent --max-time 30 --user-agent "$agent" --location --output /dev/null --silent --write-out "%{url_effective}" --head --fail --proto =https --tlsv1.2 --http1.1 -- "$link") || {
     # This should only happen if the Microsoft servers are down
-    handle_curl_error "$?" "Microsoft"
+    handleCurlError "$?" "Microsoft"
     return $?
   }
 
   case "${PLATFORM,,}" in
     "x64" )
-      if [[ "${iso_download_link,,}" != *"x64"* ]]; then
-        echo "Found download link: $iso_download_link"
+      if [[ "${link,,}" != *"x64"* ]]; then
+        echo "Found download link: $link"
         error "Download link is for the wrong platform? Please report this at $SUPPORT/issues"
         return 1
       fi ;;
     "arm64" )
-      if [[ "${iso_download_link,,}" != *"a64"* && "${iso_download_link,,}" != *"arm64"* ]]; then
+      if [[ "${link,,}" != *"a64"* && "${link,,}" != *"arm64"* ]]; then
         if enabled "$DEBUG"; then
-          echo "Found download link: $iso_download_link"
+          echo "Found download link: $link"
           echo "Link for ARM platform currently not available!"
         fi
         return 1
@@ -370,12 +371,12 @@ download_windows_eval() {
 
   if enabled "$DEBUG" && enabled "$VERIFY" && [[ "${lang,,}" == "en"* ]]; then
     compare=$(getMido "$id" "$lang" "")
-    if [[ "${iso_download_link,,}" != "${compare,,}" ]]; then
+    if [[ "${link,,}" != "${compare,,}" ]]; then
       echo "Retrieved link does not match the fixed link: $compare"
     fi
   fi
 
-  MIDO_URL="$iso_download_link"
+  MIDO_URL="$link"
   return 0
 }
 
@@ -413,13 +414,13 @@ getWindows() {
 
   case "${version,,}" in
     "win11${PLATFORM,,}" )
-      download_windows "$version" "$lang" "$edition" && return 0
+      downloadWindows "$version" "$lang" "$edition" && return 0
       ;;
     "win11${PLATFORM,,}-enterprise"* )
-      download_windows_eval "$version" "$lang" "$edition" && return 0
+      downloadWindowsEval "$version" "$lang" "$edition" && return 0
       ;;
     "win2025-eval" | "win2022-eval" | "win2019-eval" | "win2019-hv" | "win2016-eval" | "win2012r2-eval" )
-      download_windows_eval "$version" "$lang" "$edition" && return 0
+      downloadWindowsEval "$version" "$lang" "$edition" && return 0
       ;;
     "win2008r2" | "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* )
       ;;
@@ -506,6 +507,16 @@ getCatalog() {
   return 0
 }
 
+getXmlTag() {
+
+  local tag="$1"
+  local file="$2"
+
+  xmllint --nonet --xpath "//$tag" "$file" 2>/dev/null | sed -E -e "s/<[\/]?$tag>//g" || true
+
+  return 0
+}
+
 getESD() {
 
   local dir="$1"
@@ -515,6 +526,10 @@ getESD() {
   local rc=0
   local file result culture
   local language edition catalog
+  local xmlFile="products.xml"
+  local esdFile="esd_edition.xml"
+  local filterFile="products_filter.xml"
+  local query
 
   file=$(getCatalog "$version" "file")
   catalog=$(getCatalog "$version" "url")
@@ -522,7 +537,8 @@ getESD() {
   edition=$(getCatalog "$version" "edition")
 
   if [ -z "$file" ] || [ -z "$catalog" ]; then
-    error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
+    error "Invalid VERSION specified, value \"$version\" is not recognized!"
+    return 1
   fi
 
   local msg="Downloading catalog from the Microsoft servers..."
@@ -531,12 +547,9 @@ getESD() {
   rm -rf "$dir"
 
   if ! makeDir "$dir"; then
-    error "Failed to create directory \"$dir\" !" && return 1
+    error "Failed to create directory \"$dir\" !"
+    return 1
   fi
-
-  local xFile="products.xml"
-  local eFile="esd_edition.xml"
-  local fFile="products_filter.xml"
 
   { wget "$catalog" -O "$dir/$file" -q --timeout=30 --no-http-keep-alive; rc=$?; } || :
 
@@ -548,8 +561,8 @@ getESD() {
 
   if [[ "$file" == *".xml" ]]; then
 
-    if ! mv -f "$dir/$file" "$dir/$xFile"; then
-      error "Failed to rename $file to $xFile."
+    if ! mv -f "$dir/$file" "$dir/$xmlFile"; then
+      error "Failed to rename $file to $xmlFile."
       return 1
     fi
 
@@ -559,65 +572,68 @@ getESD() {
       cd "$dir" || exit 1
       cabextract "$file" > /dev/null
     ); then
-      error "Failed to extract $file!" && return 1
+      error "Failed to extract $file!"
+      return 1
     fi
 
   fi
 
-  if [ ! -s "$dir/$xFile" ]; then
-    error "Failed to find $xFile in $file!" && return 1
+  if [ ! -s "$dir/$xmlFile" ]; then
+    error "Failed to find $xmlFile in $file!"
+    return 1
   fi
 
-  local edQuery='//File[Architecture="'${PLATFORM,,}'"]'"${edition}"''
-  result=$(xmllint --nonet --xpath "${edQuery}" "$dir/$xFile" 2>/dev/null || true)
+  query='//File[Architecture="'${PLATFORM,,}'"]'"${edition}"''
+  result=$(xmllint --nonet --xpath "${query}" "$dir/$xmlFile" 2>/dev/null || true)
 
   if [ -z "$result" ]; then
 
-    edQuery='//File[Architecture="'${PLATFORM^^}'"]'"${edition}"''
-
-    result=$(xmllint --nonet --xpath "${edQuery}" "$dir/$xFile" 2>/dev/null || true)
+    query='//File[Architecture="'${PLATFORM^^}'"]'"${edition}"''
+    result=$(xmllint --nonet --xpath "${query}" "$dir/$xmlFile" 2>/dev/null || true)
 
     if [ -z "$result" ]; then
       desc=$(printEdition "$version" "$desc")
       language=$(getLanguage "$lang" "desc")
-      error "No download link available for $desc!" && return 1
+      error "No download link available for $desc!"
+      return 1
     fi
 
   fi
 
-  echo -e '<Catalog>' > "$dir/$fFile"
-  echo "$result" >> "$dir/$fFile"
-  echo -e '</Catalog>'>> "$dir/$fFile"
+  echo -e '<Catalog>' > "$dir/$filterFile"
+  echo "$result" >> "$dir/$filterFile"
+  echo -e '</Catalog>'>> "$dir/$filterFile"
 
-  result=$(xmllint --nonet --xpath "//File[LanguageCode=\"${culture,,}\"]" "$dir/$fFile" 2>/dev/null || true)
+  result=$(xmllint --nonet --xpath "//File[LanguageCode=\"${culture,,}\"]" "$dir/$filterFile" 2>/dev/null || true)
 
   if [ -z "$result" ]; then
     desc=$(printEdition "$version" "$desc")
     language=$(getLanguage "$lang" "desc")
-    error "No download in the $language language available for $desc!" && return 1
+    error "No download in the $language language available for $desc!"
+    return 1
   fi
 
-  echo "$result" > "$dir/$eFile"
+  echo "$result" > "$dir/$esdFile"
 
-  tag="FilePath"
-  ESD=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" 2>/dev/null | sed -E -e "s/<[\/]?$tag>//g" || true)
+  ESD=$(getXmlTag "FilePath" "$dir/$esdFile")
 
   if [ -z "$ESD" ]; then
-    error "Failed to find ESD URL in $eFile!" && return 1
+    error "Failed to find ESD URL in $esdFile!"
+    return 1
   fi
 
-  tag="Sha1"
-  ESD_SUM=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" 2>/dev/null | sed -E -e "s/<[\/]?$tag>//g" || true)
+  ESD_SUM=$(getXmlTag "Sha1" "$dir/$esdFile")
 
   if [ -z "$ESD_SUM" ]; then
-    error "Failed to find ESD checksum in $eFile!" && return 1
+    error "Failed to find ESD checksum in $esdFile!"
+    return 1
   fi
 
-  tag="Size"
-  ESD_SIZE=$(xmllint --nonet --xpath "//$tag" "$dir/$eFile" 2>/dev/null | sed -E -e "s/<[\/]?$tag>//g" || true)
+  ESD_SIZE=$(getXmlTag "Size" "$dir/$esdFile")
 
   if [ -z "$ESD_SIZE" ]; then
-    error "Failed to find ESD filesize in $eFile!" && return 1
+    error "Failed to find ESD filesize in $esdFile!"
+    return 1
   fi
 
   rm -rf "$dir"
@@ -690,7 +706,7 @@ downloadFile() {
   local msg="Downloading $desc"
   local rc total total_gb progress domain dots agent space folder
 
-  agent=$(get_agent)
+  agent=$(getAgent)
 
   if [ -n "$size" ] && [[ "$size" != "0" ]]; then
 
@@ -740,14 +756,16 @@ downloadFile() {
     total_gb=$(formatBytes "$total")
   
     if [ "$total" -lt 100000000 ]; then
-      error "Invalid download link: $url (is only $total_gb ?). Please report this at $SUPPORT/issues" && return 1
+      error "Invalid download link: $url (is only $total_gb ?). Please report this at $SUPPORT/issues"
+      return 1
     fi
   
     verifyFile "$iso" "$size" "$total" "$sum" || return 1
   
     isCompressed "$url" && UNPACK="Y"
   
-    html "Download finished successfully..." && return 0
+    html "Download finished successfully..."
+    return 0
   fi
 
   msg="Failed to download $url"
@@ -802,7 +820,7 @@ downloadImage() {
   local tried="n"
   local success="n"
   local seconds="5"
-  local url sum size base desc language
+  local url sum size base desc language i
 
   if [[ "${version,,}" == "http"* ]]; then
 
@@ -814,7 +832,8 @@ downloadImage() {
   fi
 
   if ! validVersion "$version" "en"; then
-    error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
+    error "Invalid VERSION specified, value \"$version\" is not recognized!"
+    return 1
   fi
 
   desc=$(printVersion "$version" "")
@@ -823,7 +842,8 @@ downloadImage() {
     language=$(getLanguage "$lang" "desc")
     if ! validVersion "$version" "$lang"; then
       desc=$(printEdition "$version" "$desc")
-      error "The $language language version of $desc is not available, please switch to English." && return 1
+      error "The $language language version of $desc is not available, please switch to English."
+      return 1
     fi
     desc+=" in $language"
   fi
