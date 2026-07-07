@@ -433,43 +433,71 @@ detectCustom() {
   return 0
 }
 
+getEsdFieldValue() {
+
+  local values="$1"
+  local index="$2"
+
+  awk -F: -v index="$index" '
+    NR == index {
+      gsub(/^[ \t]+|[ \t]+$/, "", $2)
+      print $2
+    }
+  ' <<< "$values"
+
+  return 0
+}
+
 extractESD() {
 
   local iso="$1"
   local dir="$2"
   local version="$3"
   local desc="$4"
-  local size sizes
-  local retVal total total1 total2 total3 total4
-  local imageIndex links links1 links2 links3 links4
 
-  local msg="Extracting $desc bootdisk"
+  local msg retVal imageIndex
+  local minEsdBytes requiredFreeBytes
+  local bootWimProgressPadding installWimProgressPadding
+  local esdInfo esdImageCount
+  local totalBytesList hardLinkBytesList
+  local bootDiskTotalBytes bootDiskHardLinkBytes bootDiskExtractBytes
+  local bootWimTotalBytes bootWimHardLinkBytes bootWimExportBytes
+  local installWimExportBytes
+  local bootWimFile installWimFile
+  local edition imageEdition
+
+  minEsdBytes=100000000
+  requiredFreeBytes=9606127360
+  bootWimProgressPadding=60000000
+  installWimProgressPadding=3000000
+
+  msg="Extracting $desc bootdisk"
   info "$msg..." && html "$msg..."
 
-  if [ "$(stat -c%s "$iso")" -lt 100000000 ]; then
-    error "Invalid ESD file: Size is smaller than 100 MB" && return 1
+  if [ "$(stat -c%s "$iso")" -lt "$minEsdBytes" ]; then
+    error "Invalid ESD file: Size is smaller than 100 MB"
+    return 1
   fi
 
   rm -rf "$dir"
 
   if ! makeDir "$dir"; then
-    error "Failed to create directory \"$dir\" !" && return 1
+    error "Failed to create directory \"$dir\" !"
+    return 1
   fi
 
-  size=9606127360
-  checkFreeSpace "$dir" "$size" || return 1
+  checkFreeSpace "$dir" "$requiredFreeBytes" || return 1
 
-  local esdInfo
   esdInfo=$(wimlib-imagex info "$iso") || {
     error "Cannot read ESD file information!"
     return 1
   }
 
-  local esdImageCount
   esdImageCount=$(awk '/Image Count:/ {print $3}' <<< "$esdInfo")
 
-  if [ -z "$esdImageCount" ]; then
-    error "Cannot read the image count in ESD file!" && return 1
+  if [[ ! "$esdImageCount" =~ ^[0-9]+$ ]]; then
+    error "Cannot read the image count in ESD file!"
+    return 1
   fi
 
   if (( esdImageCount < 3 )); then
@@ -477,68 +505,70 @@ extractESD() {
     return 1
   fi
 
-  sizes=$(grep "Total Bytes:" <<< "$esdInfo" || true)
-  links=$(grep "Hard Link Bytes:" <<< "$esdInfo" || true)
+  totalBytesList=$(grep "Total Bytes:" <<< "$esdInfo" || true)
+  hardLinkBytesList=$(grep "Hard Link Bytes:" <<< "$esdInfo" || true)
 
-  total1=$(awk "NR==1{ print; }" <<< "$sizes" | cut -d':' -f2 | sed 's/^ *//')
-  links1=$(awk "NR==1{ print; }" <<< "$links" | cut -d':' -f2 | sed 's/^ *//')
+  bootDiskTotalBytes=$(getEsdFieldValue "$totalBytesList" 1)
+  bootDiskHardLinkBytes=$(getEsdFieldValue "$hardLinkBytesList" 1)
 
-  if [[ ! "$total1" =~ ^[0-9]+$ ]] || [[ ! "$links1" =~ ^[0-9]+$ ]]; then
+  if [[ ! "$bootDiskTotalBytes" =~ ^[0-9]+$ ]] || [[ ! "$bootDiskHardLinkBytes" =~ ^[0-9]+$ ]]; then
     error "Cannot read bootdisk size from ESD file!"
     return 1
   fi
 
-  total=$(( total1 - links1 ))
+  bootDiskExtractBytes=$(( bootDiskTotalBytes - bootDiskHardLinkBytes ))
 
-  total3=$(awk "NR==3{ print; }" <<< "$sizes" | cut -d':' -f2 | sed 's/^ *//')
-  links3=$(awk "NR==3{ print; }" <<< "$links" | cut -d':' -f2 | sed 's/^ *//')
+  bootWimTotalBytes=$(getEsdFieldValue "$totalBytesList" 3)
+  bootWimHardLinkBytes=$(getEsdFieldValue "$hardLinkBytesList" 3)
 
-  if [[ ! "$total3" =~ ^[0-9]+$ ]] || [[ ! "$links3" =~ ^[0-9]+$ ]]; then
-    error "Cannot read bootdisk size from ESD file!"
+  if [[ ! "$bootWimTotalBytes" =~ ^[0-9]+$ ]] || [[ ! "$bootWimHardLinkBytes" =~ ^[0-9]+$ ]]; then
+    error "Cannot read boot.wim size from ESD file!"
     return 1
   fi
-  
-  total3=$(( total3 - links3 ))
-  total3=$(( total3 + 60000000 ))
 
-  /run/progress.sh "$dir" "$total" "$msg ([P])..." &
+  bootWimExportBytes=$(( bootWimTotalBytes - bootWimHardLinkBytes + bootWimProgressPadding ))
+
+  /run/progress.sh "$dir" "$bootDiskExtractBytes" "$msg ([P])..." &
 
   imageIndex="1"
   wimlib-imagex apply "$iso" "$imageIndex" "$dir" --quiet 2>/dev/null || {
     retVal=$?
     fKill "progress.sh"
-    error "Extracting $desc bootdisk failed ($retVal)" && return 1
+    error "Extracting $desc bootdisk failed ($retVal)"
+    return 1
   }
 
   fKill "progress.sh"
 
-  local bootWimFile="$dir/sources/boot.wim"
-  local installWimFile="$dir/sources/install.wim"
+  bootWimFile="$dir/sources/boot.wim"
+  installWimFile="$dir/sources/install.wim"
 
-  local msg="Extracting $desc environment"
+  msg="Extracting $desc environment"
   info "$msg..." && html "$msg..."
 
   imageIndex="2"
-  /run/progress.sh "$bootWimFile" "$total3" "$msg ([P])..." &
+  /run/progress.sh "$bootWimFile" "$bootWimExportBytes" "$msg ([P])..." &
 
   wimlib-imagex export "$iso" "$imageIndex" "$bootWimFile" --compress=none --quiet || {
     retVal=$?
     fKill "progress.sh"
-    error "Adding WinPE failed ($retVal)" && return 1
+    error "Adding WinPE failed ($retVal)"
+    return 1
   }
 
   fKill "progress.sh"
 
-  local msg="Extracting $desc setup"
+  msg="Extracting $desc setup"
   info "$msg..."
 
   imageIndex="3"
-  /run/progress.sh "$bootWimFile" "$total3" "$msg ([P])..." &
+  /run/progress.sh "$bootWimFile" "$bootWimExportBytes" "$msg ([P])..." &
 
   wimlib-imagex export "$iso" "$imageIndex" "$bootWimFile" --compress=none --boot --quiet || {
     retVal=$?
     fKill "progress.sh"
-    error "Adding Windows Setup failed ($retVal)" && return 1
+    error "Adding Windows Setup failed ($retVal)"
+    return 1
   }
 
   fKill "progress.sh"
@@ -549,14 +579,14 @@ extractESD() {
     LABEL="CPBA_A64FRE_EN-US_DV9"
   fi
 
-  local msg="Extracting $desc image"
+  msg="Extracting $desc image"
   info "$msg..." && html "$msg..."
 
-  local edition imageEdition
   edition=$(getCatalog "$version" "name")
 
   if [ -z "$edition" ]; then
-    error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
+    error "Invalid VERSION specified, value \"$version\" is not recognized!"
+    return 1
   fi
 
   for (( imageIndex=4; imageIndex<=esdImageCount; imageIndex++ )); do
@@ -564,15 +594,16 @@ extractESD() {
     imageEdition=$(wimlib-imagex info "$iso" "$imageIndex" | grep '^Description:' | sed 's/Description:[ \t]*//')
     [[ "${imageEdition,,}" != "${edition,,}" ]] && continue
 
-    total4=$(du -sb "$iso" | cut -f1)
-    total4=$(( total4 + 3000000 ))
+    installWimExportBytes=$(stat -c%s "$iso")
+    installWimExportBytes=$(( installWimExportBytes + installWimProgressPadding ))
 
-    /run/progress.sh "$installWimFile" "$total4" "$msg ([P])..." &
+    /run/progress.sh "$installWimFile" "$installWimExportBytes" "$msg ([P])..." &
 
     wimlib-imagex export "$iso" "$imageIndex" "$installWimFile" --compress=LZMS --chunk-size 128K --quiet || {
       retVal=$?
       fKill "progress.sh"
-      error "Addition of $imageIndex to the $desc image failed ($retVal)" && return 1
+      error "Addition of $imageIndex to the $desc image failed ($retVal)"
+      return 1
     }
 
     fKill "progress.sh"
@@ -581,8 +612,9 @@ extractESD() {
   done
 
   fKill "progress.sh"
-  error "Failed to find product '$edition' in install.wim!" && return 1
-}
+  error "Failed to find product '$edition' in install.wim!"
+  return 1
+}  
 
 extractImage() {
 
