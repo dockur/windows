@@ -22,10 +22,6 @@ _trap() {
   return 0
 }
 
-app() {
-  echo "$APP" && return 0
-}
-
 signalCode() {
 
   local sig="$1"
@@ -138,13 +134,12 @@ forceKillQemu() {
   local pid=""
   local display
 
-  if readQemuPid "$QEMU_PID" pid; then
-    if isAlive "$pid"; then
-      display=$(displayReason "$reason")
-      error "Forcefully terminating $(app), reason: $display..."
-      { disown "$pid" || :; kill -9 -- "$pid" || :; } 2>/dev/null
-    fi
-  fi
+  ! readQemuPid "$QEMU_PID" pid && return 0
+  ! isAlive "$pid" && return 0
+  
+  display=$(displayReason "$reason")
+  error "Forcefully terminating $(app), reason: $display..."
+  { disown "$pid" || :; kill -9 -- "$pid" || :; } 2>/dev/null
 
   return 0
 }
@@ -158,12 +153,13 @@ markWindowsBooted() {
   fi
 
   # Remove CD-ROM ISO after install
-  if ready; then
-    touch "$file"
-    ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
-    if ! disabled "$REMOVE"; then
-      rm -f "$BOOT" 2>/dev/null || true
-    fi
+  ! ready && return 0
+  
+  touch "$file"
+  ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
+    
+  if ! disabled "$REMOVE"; then
+    rm -f "$BOOT" 2>/dev/null || true
   fi
 
   return 0
@@ -203,7 +199,6 @@ finish() {
 }
 
 normalizeTimeout() {
-  local min
 
   term_grace=3      # seconds before loop ends to send SIGTERM
   cleanup_grace=3   # seconds reserved after the loop for cleanup
@@ -221,6 +216,7 @@ normalizeTimeout() {
     cleanup_grace=4
   fi
 
+  local min
   min=$((term_grace + cleanup_grace + 1))
   (( TIMEOUT < min )) && (( TIMEOUT = min ))
 
@@ -232,10 +228,10 @@ normalizeTimeout() {
 
 sendAcpiShutdown() {
 
+  [ ! -S "$QEMU_DIR/monitor.sock" ] && return 0
+
   # Send ACPI shutdown signal
-  if [ -S "$QEMU_DIR/monitor.sock" ]; then
-    nc -q 1 -w 1 -U "$QEMU_DIR/monitor.sock" &> /dev/null <<<'system_powerdown' || :
-  fi
+  nc -q 1 -w 1 -U "$QEMU_DIR/monitor.sock" &> /dev/null <<<'system_powerdown' || :
 
   return 0
 }
@@ -257,8 +253,8 @@ abortDuringSetup() {
 waitForShutdown() {
 
   local cnt=0
-  local name="$1"
-  local pid="$2"
+  local pid="$1"
+  local name="$APP"
   local slp
 
   while (( cnt <= wait_until )); do
@@ -294,9 +290,6 @@ graceful_shutdown() {
   local sig="$1"
   local pid=""
   local code=0
-  local name
-  local term_grace cleanup_grace
-  local sigterm_at=0 wait_until=0
 
   [[ $BASHPID != "$TRAP_PID" ]] && return
 
@@ -325,9 +318,8 @@ graceful_shutdown() {
     abortDuringSetup "$code"
   fi
 
-  name="$(app)"
   normalizeTimeout
-  waitForShutdown "$name" "$pid"
+  waitForShutdown "$pid"
 
   finish "$code"
 }
