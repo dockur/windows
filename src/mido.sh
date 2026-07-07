@@ -693,8 +693,14 @@ downloadFile() {
   agent=$(get_agent)
 
   if [ -n "$size" ] && [[ "$size" != "0" ]]; then
+
     folder=$(dirname -- "$iso")
-    space=$(df --output=avail -B 1 "$folder" | tail -n 1)
+  
+    if ! space=$(df --output=avail -B 1 "$folder" | tail -n 1); then
+      error "Failed to check free space in $folder!"
+      return 1
+    fi
+  
     total_gb=$(formatBytes "$space")
     (( size > space )) && error "Not enough free space to download file, only $total_gb left!" && return 1
   fi
@@ -725,13 +731,22 @@ downloadFile() {
   fKill "progress.sh"
 
   if (( rc == 0 )) && [ -f "$iso" ]; then
-    total=$(stat -c%s "$iso")
+
+    if ! total=$(stat -c%s "$iso"); then
+      error "Failed to determine downloaded file size: $iso"
+      return 1
+    fi
+
     total_gb=$(formatBytes "$total")
+  
     if [ "$total" -lt 100000000 ]; then
       error "Invalid download link: $url (is only $total_gb ?). Please report this at $SUPPORT/issues" && return 1
     fi
+  
     verifyFile "$iso" "$size" "$total" "$sum" || return 1
+  
     isCompressed "$url" && UNPACK="Y"
+  
     html "Download finished successfully..." && return 0
   fi
 
