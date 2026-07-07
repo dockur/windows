@@ -40,7 +40,7 @@ configureNetwork() {
   return 0
 }
 
-writeTmpReadme() {
+writeReadme() {
 
   local dir="$1"
   local ref="$2"
@@ -107,17 +107,21 @@ addShare() {
   fi
 
   if [[ "$dir" == "$tmp" ]]; then
-    writeTmpReadme "$dir" "$ref"
+    writeReadme "$dir" "$ref"
   fi
 
-  {   echo ""
-      echo "[$name]"
-      echo "    path = $dir"
-      echo "    comment = $comment"
-      echo "    writable = yes"
-      echo "    guest ok = yes"
-      echo "    guest only = yes"
-  } >> "$cfg"
+  if ! {
+    echo ""
+    echo "[$name]"
+    echo "    path = $dir"
+    echo "    comment = $comment"
+    echo "    writable = yes"
+    echo "    guest ok = yes"
+    echo "    guest only = yes"
+  } >> "$cfg"; then
+    error "Failed to update Samba config \"$cfg\" !"
+    return 1
+  fi
 
   return 0
 }
