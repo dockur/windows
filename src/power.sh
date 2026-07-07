@@ -56,15 +56,12 @@ displayReason() {
 
 readQemuPid() {
 
-  local file="$1"
-  local __var="$2"
-  local pid=""
+  local -n _pid="$1"
 
-  [ -s "$file" ] || return 1
-  read -r pid <"$file" || return 1
-  [ -n "$pid" ] || return 1
+  if [ ! -s "$QEMU_PID" ] || ! read -r _pid <"$QEMU_PID"; then
+    return 1
+  fi
 
-  printf -v "$__var" '%s' "$pid"
   return 0
 }
 
@@ -134,7 +131,7 @@ forceKillQemu() {
   local pid=""
   local display
 
-  ! readQemuPid "$QEMU_PID" pid && return 0
+  ! readQemuPid pid && return 0
   ! isAlive "$pid" && return 0
   
   display=$(displayReason "$reason")
@@ -200,8 +197,9 @@ finish() {
 
 normalizeTimeout() {
 
-  term_grace=3      # seconds before loop ends to send SIGTERM
-  cleanup_grace=3   # seconds reserved after the loop for cleanup
+  local term_grace=3      # seconds before loop ends to send SIGTERM
+  local cleanup_grace=3   # seconds reserved after the loop for cleanup
+  local min
 
   TIMEOUT=$(strip "$TIMEOUT")
   if [[ ! "$TIMEOUT" =~ ^[0-9]+$ ]]; then
@@ -216,7 +214,6 @@ normalizeTimeout() {
     cleanup_grace=4
   fi
 
-  local min
   min=$((term_grace + cleanup_grace + 1))
   (( TIMEOUT < min )) && (( TIMEOUT = min ))
 
@@ -304,7 +301,7 @@ graceful_shutdown() {
   touch "$QEMU_END"
   echo && info "Received $1 signal, sending ACPI shutdown signal..."
 
-  if ! readQemuPid "$QEMU_PID" pid; then
+  if ! readQemuPid pid; then
     warn "QEMU PID file ($QEMU_PID) does not exist?"
     finish "$code"
   fi
