@@ -190,10 +190,14 @@ writeFile() {
   local txt="$1"
   local path="$2"
 
-  echo "$txt" >"$path"
+  if ! printf '%s\n' "$txt" >"$path"; then
+    error "Failed to write file \"$path\" !"
+    return 1
+  fi
 
   if ! setOwner "$path"; then
     error "Failed to set the owner for \"$path\" !"
+    return 1
   fi
 
   return 0
@@ -208,7 +212,7 @@ writeState() {
   [ -z "$value" ] && return 0
   writeFile "$value" "$file"
 
-  return 0
+  return $?
 }
 
 readState() {
@@ -216,12 +220,12 @@ readState() {
   local file="$1"
   local value
 
-  [ -s "$file" ] && [ -f "$file" ] || return 1
+  [ -s "$file" ] || return 0
 
-  value=$(<"$file")
+  value=$(<"$file") || return 1
   value="${value//[![:print:]]/}"
 
-  echo "$value"
+  printf '%s\n' "$value"
   return 0
 }
 
@@ -236,9 +240,10 @@ restoreState() {
     [ -z "${!var:-}" ] || return 0
   fi
 
-  value=$(readState "$file") || return 0
-  printf -v "$var" '%s' "$value"
+  value=$(readState "$file") || return 1
+  [ -n "$value" ] || return 0
 
+  printf -v "$var" '%s' "$value" || return 1
   return 0
 }
 
@@ -271,7 +276,10 @@ finishInstall() {
   fi
 
   if [[ "$iso" == "$STORAGE/"* ]]; then
-    ! setOwner "$iso" && error "Failed to set the owner for \"$iso\" !"
+    if ! setOwner "$iso"; then
+      error "Failed to set the owner for \"$iso\" !"
+      return 1
+    fi
   fi
 
   if [[ "$aborted" != [Yy1]* ]]; then
@@ -283,57 +291,61 @@ finishInstall() {
   fi
 
   local file="$STORAGE/windows.ver"
-  cp -f /etc/version "$file"
-  ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
+  cp -f /etc/version "$file" || return 1
+
+  if ! setOwner "$file"; then
+    error "Failed to set the owner for \"$file\" !"
+    return 1
+  fi
 
   if [[ "$iso" == "$STORAGE/"* ]]; then
     if [[ "$aborted" != [Yy1]* ]] || [ -z "$CUSTOM" ]; then
       base=$(basename "$iso")
-      writeState "base" "$base"
+      writeState "base" "$base" || return 1
     fi
   fi
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
     if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
-      writeState "mode" "$BOOT_MODE"
+      writeState "mode" "$BOOT_MODE" || return 1
       if [[ "${MACHINE,,}" != "q35" ]]; then
-        writeState "old" "$MACHINE"
+        writeState "old" "$MACHINE" || return 1
       fi
     else
       # Enable secure boot + TPM on manual installs as Win11 requires
       if enabled "$MANUAL" || [[ "$aborted" == [Yy1]* ]]; then
         if [[ "${DETECTED,,}" == "win11"* ]]; then
           BOOT_MODE="windows_secure"
-          writeState "mode" "$BOOT_MODE"
+          writeState "mode" "$BOOT_MODE" || return 1
         fi
       fi
       # Enable secure boot on multi-socket systems to workaround freeze
       if [ -n "$SOCKETS" ] && [[ "$SOCKETS" != "1" ]]; then
         BOOT_MODE="windows_secure"
-        writeState "mode" "$BOOT_MODE"
+        writeState "mode" "$BOOT_MODE" || return 1
       fi
     fi
   fi
 
   if [ -n "${ARGS:-}" ]; then
     ARGUMENTS="$ARGS ${ARGUMENTS:-}"
-    writeState "args" "$ARGS"
+    writeState "args" "$ARGS" || return 1
   fi
 
   if [ -n "${VGA:-}" ] && [[ "${VGA:-}" != "virtio"* ]]; then
-    writeState "vga" "$VGA"
+    writeState "vga" "$VGA" || return 1
   fi
 
   if [ -n "${USB:-}" ] && [[ "${USB:-}" != "qemu-xhci"* ]]; then
-    writeState "usb" "$USB"
+    writeState "usb" "$USB" || return 1
   fi
 
   if [ -n "${DISK_TYPE:-}" ] && [[ "${DISK_TYPE:-}" != "scsi" ]]; then
-    writeState "type" "$DISK_TYPE"
+    writeState "type" "$DISK_TYPE" || return 1
   fi
 
   if [ -n "${ADAPTER:-}" ] && [[ "${ADAPTER:-}" != "virtio-net-pci" ]]; then
-    writeState "net" "$ADAPTER"
+    writeState "net" "$ADAPTER" || return 1
   fi
 
   rm -rf "$TMP"
@@ -1293,25 +1305,31 @@ buildImage() {
   [[ "$err" != "$hide" ]] && echo "$err"
 
   mv -f "$out" "$BOOT" || return 1
-  ! setOwner "$BOOT" && error "Failed to set the owner for \"$BOOT\" !"
+
+  if ! setOwner "$BOOT"; then
+    error "Failed to set the owner for \"$BOOT\" !"
+    return 1
+  fi
 
   return 0
 }
 
 bootWindows() {
 
-  if ARGS=$(readState "$STORAGE/windows.args"); then
+  ARGS=$(readState "$STORAGE/windows.args") || return 1
+
+  if [ -n "$ARGS" ]; then
     ARGUMENTS="$ARGS ${ARGUMENTS:-}"
   fi
 
-  restoreState "VGA" "$STORAGE/windows.vga"
-  restoreState "USB" "$STORAGE/windows.usb"
-  restoreState "ADAPTER" "$STORAGE/windows.net"
-  restoreState "DISK_TYPE" "$STORAGE/windows.type"
-  restoreState "BOOT_MODE" "$STORAGE/windows.mode" "Y"
+  restoreState "VGA" "$STORAGE/windows.vga" || return 1
+  restoreState "USB" "$STORAGE/windows.usb" || return 1
+  restoreState "ADAPTER" "$STORAGE/windows.net" || return 1
+  restoreState "DISK_TYPE" "$STORAGE/windows.type" || return 1
+  restoreState "BOOT_MODE" "$STORAGE/windows.mode" "Y" || return 1
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
-    restoreState "MACHINE" "$STORAGE/windows.old" "Y"
+    restoreState "MACHINE" "$STORAGE/windows.old" "Y" || return 1
   fi
 
   return 0
