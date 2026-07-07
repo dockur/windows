@@ -433,112 +433,140 @@ detectCustom() {
   return 0
 }
 
+getEsdFieldValue() {
+
+  local values="$1"
+  local index="$2"
+
+  awk -F: -v index="$index" '
+    NR == index {
+      gsub(/^[ \t]+|[ \t]+$/, "", $2)
+      print $2
+    }
+  ' <<< "$values"
+
+  return 0
+}
+
 extractESD() {
 
   local iso="$1"
   local dir="$2"
   local version="$3"
   local desc="$4"
-  local size sizes
-  local retVal total total1 total2 total3 total4
-  local imageIndex links links1 links2 links3 links4
 
-  local msg="Extracting $desc bootdisk"
+  local msg ret index
+  local minSize freeSpace bootPad installPad
+  local info count totals links
+  local bootTotal bootLinks bootSize
+  local wimTotal wimLinks wimSize
+  local installSize
+  local bootWim installWim
+  local edition imgEdition
+
+  minSize=100000000
+  freeSpace=9606127360
+  bootPad=60000000
+  installPad=3000000
+
+  msg="Extracting $desc bootdisk"
   info "$msg..." && html "$msg..."
 
-  if [ "$(stat -c%s "$iso")" -lt 100000000 ]; then
-    error "Invalid ESD file: Size is smaller than 100 MB" && return 1
+  if [ "$(stat -c%s "$iso")" -lt "$minSize" ]; then
+    error "Invalid ESD file: Size is smaller than 100 MB"
+    return 1
   fi
 
   rm -rf "$dir"
 
   if ! makeDir "$dir"; then
-    error "Failed to create directory \"$dir\" !" && return 1
+    error "Failed to create directory \"$dir\" !"
+    return 1
   fi
 
-  size=9606127360
-  checkFreeSpace "$dir" "$size" || return 1
+  checkFreeSpace "$dir" "$freeSpace" || return 1
 
-  local esdInfo
-  esdInfo=$(wimlib-imagex info "$iso") || {
+  info=$(wimlib-imagex info "$iso") || {
     error "Cannot read ESD file information!"
     return 1
   }
 
-  local esdImageCount
-  esdImageCount=$(awk '/Image Count:/ {print $3}' <<< "$esdInfo")
+  count=$(awk '/Image Count:/ {print $3}' <<< "$info")
 
-  if [ -z "$esdImageCount" ]; then
-    error "Cannot read the image count in ESD file!" && return 1
-  fi
-
-  if (( esdImageCount < 3 )); then
-    error "Invalid ESD file: expected at least 3 images, found $esdImageCount."
+  if [[ ! "$count" =~ ^[0-9]+$ ]]; then
+    error "Cannot read the image count in ESD file!"
     return 1
   fi
 
-  sizes=$(grep "Total Bytes:" <<< "$esdInfo" || true)
-  links=$(grep "Hard Link Bytes:" <<< "$esdInfo" || true)
+  if (( count < 3 )); then
+    error "Invalid ESD file: expected at least 3 images, found $count."
+    return 1
+  fi
 
-  total1=$(awk "NR==1{ print; }" <<< "$sizes" | cut -d':' -f2 | sed 's/^ *//')
-  links1=$(awk "NR==1{ print; }" <<< "$links" | cut -d':' -f2 | sed 's/^ *//')
+  totals=$(grep "Total Bytes:" <<< "$info" || true)
+  links=$(grep "Hard Link Bytes:" <<< "$info" || true)
 
-  if [[ ! "$total1" =~ ^[0-9]+$ ]] || [[ ! "$links1" =~ ^[0-9]+$ ]]; then
+  bootTotal=$(getEsdFieldValue "$totals" 1)
+  bootLinks=$(getEsdFieldValue "$links" 1)
+
+  if [[ ! "$bootTotal" =~ ^[0-9]+$ ]] || [[ ! "$bootLinks" =~ ^[0-9]+$ ]]; then
     error "Cannot read bootdisk size from ESD file!"
     return 1
   fi
 
-  total=$(( total1 - links1 ))
+  bootSize=$(( bootTotal - bootLinks ))
 
-  total3=$(awk "NR==3{ print; }" <<< "$sizes" | cut -d':' -f2 | sed 's/^ *//')
-  links3=$(awk "NR==3{ print; }" <<< "$links" | cut -d':' -f2 | sed 's/^ *//')
+  wimTotal=$(getEsdFieldValue "$totals" 3)
+  wimLinks=$(getEsdFieldValue "$links" 3)
 
-  if [[ ! "$total3" =~ ^[0-9]+$ ]] || [[ ! "$links3" =~ ^[0-9]+$ ]]; then
-    error "Cannot read bootdisk size from ESD file!"
+  if [[ ! "$wimTotal" =~ ^[0-9]+$ ]] || [[ ! "$wimLinks" =~ ^[0-9]+$ ]]; then
+    error "Cannot read boot.wim size from ESD file!"
     return 1
   fi
-  
-  total3=$(( total3 - links3 ))
-  total3=$(( total3 + 60000000 ))
 
-  /run/progress.sh "$dir" "$total" "$msg ([P])..." &
+  wimSize=$(( wimTotal - wimLinks + bootPad ))
 
-  imageIndex="1"
-  wimlib-imagex apply "$iso" "$imageIndex" "$dir" --quiet 2>/dev/null || {
-    retVal=$?
+  /run/progress.sh "$dir" "$bootSize" "$msg ([P])..." &
+
+  index="1"
+  wimlib-imagex apply "$iso" "$index" "$dir" --quiet 2>/dev/null || {
+    ret=$?
     fKill "progress.sh"
-    error "Extracting $desc bootdisk failed ($retVal)" && return 1
+    error "Extracting $desc bootdisk failed ($ret)"
+    return 1
   }
 
   fKill "progress.sh"
 
-  local bootWimFile="$dir/sources/boot.wim"
-  local installWimFile="$dir/sources/install.wim"
+  bootWim="$dir/sources/boot.wim"
+  installWim="$dir/sources/install.wim"
 
-  local msg="Extracting $desc environment"
+  msg="Extracting $desc environment"
   info "$msg..." && html "$msg..."
 
-  imageIndex="2"
-  /run/progress.sh "$bootWimFile" "$total3" "$msg ([P])..." &
+  index="2"
+  /run/progress.sh "$bootWim" "$wimSize" "$msg ([P])..." &
 
-  wimlib-imagex export "$iso" "$imageIndex" "$bootWimFile" --compress=none --quiet || {
-    retVal=$?
+  wimlib-imagex export "$iso" "$index" "$bootWim" --compress=none --quiet || {
+    ret=$?
     fKill "progress.sh"
-    error "Adding WinPE failed ($retVal)" && return 1
+    error "Adding WinPE failed ($ret)"
+    return 1
   }
 
   fKill "progress.sh"
 
-  local msg="Extracting $desc setup"
+  msg="Extracting $desc setup"
   info "$msg..."
 
-  imageIndex="3"
-  /run/progress.sh "$bootWimFile" "$total3" "$msg ([P])..." &
+  index="3"
+  /run/progress.sh "$bootWim" "$wimSize" "$msg ([P])..." &
 
-  wimlib-imagex export "$iso" "$imageIndex" "$bootWimFile" --compress=none --boot --quiet || {
-    retVal=$?
+  wimlib-imagex export "$iso" "$index" "$bootWim" --compress=none --boot --quiet || {
+    ret=$?
     fKill "progress.sh"
-    error "Adding Windows Setup failed ($retVal)" && return 1
+    error "Adding Windows Setup failed ($ret)"
+    return 1
   }
 
   fKill "progress.sh"
@@ -549,30 +577,31 @@ extractESD() {
     LABEL="CPBA_A64FRE_EN-US_DV9"
   fi
 
-  local msg="Extracting $desc image"
+  msg="Extracting $desc image"
   info "$msg..." && html "$msg..."
 
-  local edition imageEdition
   edition=$(getCatalog "$version" "name")
 
   if [ -z "$edition" ]; then
-    error "Invalid VERSION specified, value \"$version\" is not recognized!" && return 1
+    error "Invalid VERSION specified, value \"$version\" is not recognized!"
+    return 1
   fi
 
-  for (( imageIndex=4; imageIndex<=esdImageCount; imageIndex++ )); do
+  for (( index=4; index<=count; index++ )); do
 
-    imageEdition=$(wimlib-imagex info "$iso" "$imageIndex" | grep '^Description:' | sed 's/Description:[ \t]*//')
-    [[ "${imageEdition,,}" != "${edition,,}" ]] && continue
+    imgEdition=$(wimlib-imagex info "$iso" "$index" | grep '^Description:' | sed 's/Description:[ \t]*//')
+    [[ "${imgEdition,,}" != "${edition,,}" ]] && continue
 
-    total4=$(du -sb "$iso" | cut -f1)
-    total4=$(( total4 + 3000000 ))
+    installSize=$(stat -c%s "$iso")
+    installSize=$(( installSize + installPad ))
 
-    /run/progress.sh "$installWimFile" "$total4" "$msg ([P])..." &
+    /run/progress.sh "$installWim" "$installSize" "$msg ([P])..." &
 
-    wimlib-imagex export "$iso" "$imageIndex" "$installWimFile" --compress=LZMS --chunk-size 128K --quiet || {
-      retVal=$?
+    wimlib-imagex export "$iso" "$index" "$installWim" --compress=LZMS --chunk-size 128K --quiet || {
+      ret=$?
       fKill "progress.sh"
-      error "Addition of $imageIndex to the $desc image failed ($retVal)" && return 1
+      error "Addition of $index to the $desc image failed ($ret)"
+      return 1
     }
 
     fKill "progress.sh"
@@ -581,7 +610,8 @@ extractESD() {
   done
 
   fKill "progress.sh"
-  error "Failed to find product '$edition' in install.wim!" && return 1
+  error "Failed to find product '$edition' in install.wim!"
+  return 1
 }
 
 extractImage() {
@@ -802,7 +832,7 @@ detectImage() {
 
   local dir="$1"
   local version="$2"
-  local desc msg find language
+  local desc msg language
 
   XML=""
 
@@ -1107,10 +1137,10 @@ updateImage() {
   local asset="$2"
   local language="$3"
   local tmp="/tmp/install"
-  local file="autounattend.xml"
-  local org="${file//.xml/.org}"
-  local dat="${file//.xml/.dat}"
-  local desc path src wim xml index result
+  local xml="autounattend.xml"
+  local bak="${xml//.xml/.org}"
+  local dat="${xml//.xml/.dat}"
+  local desc path src wim name info idx
 
   skipVersion "${DETECTED,,}" && return 0
 
@@ -1128,28 +1158,30 @@ updateImage() {
   src=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
 
   if [ ! -d "$src" ]; then
-    error "failed to locate 'sources' folder in ISO image, $FB" && return 1
+    error "failed to locate 'sources' folder in ISO image, $FB"
+    return 1
   fi
 
   wim=$(find "$src" -maxdepth 1 -type f \( -iname boot.wim -or -iname boot.esd \) -print -quit)
 
   if [ ! -f "$wim" ]; then
-    error "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB" && return 1
+    error "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB"
+    return 1
   fi
 
-  index="1"
+  idx="1"
 
-  if ! result=$(wimlib-imagex info -xml "$wim" | iconv -f UTF-16LE -t UTF-8); then
+  if ! info=$(wimlib-imagex info -xml "$wim" | iconv -f UTF-16LE -t UTF-8); then
     warn "failed to read boot image information, $FB"
     MANUAL="Y"
-    result=""
+    info=""
   fi
 
-  if [[ "${result^^}" == *"<IMAGE INDEX=\"2\">"* ]]; then
-    index="2"
+  if [[ "${info^^}" == *"<IMAGE INDEX=\"2\">"* ]]; then
+    idx="2"
   fi
 
-  if ! addDrivers "$src" "$tmp" "$wim" "$index" "$DETECTED"; then
+  if ! addDrivers "$src" "$tmp" "$wim" "$idx" "$DETECTED"; then
     error "Failed to add drivers to image!"
   fi
 
@@ -1157,11 +1189,11 @@ updateImage() {
     error "Failed to add OEM folder to image!"
   fi
 
-  if wimlib-imagex extract "$wim" "$index" "/$file" "--dest-dir=$tmp" >/dev/null 2>&1; then
-    if ! wimlib-imagex extract "$wim" "$index" "/$dat" "--dest-dir=$tmp" >/dev/null 2>&1; then
-      if ! wimlib-imagex extract "$wim" "$index" "/$org" "--dest-dir=$tmp" >/dev/null 2>&1; then
-        if ! wimlib-imagex update "$wim" "$index" --command "rename /$file /$org" > /dev/null; then
-          warn "failed to backup original answer file ($file)."
+  if wimlib-imagex extract "$wim" "$idx" "/$xml" "--dest-dir=$tmp" >/dev/null 2>&1; then
+    if ! wimlib-imagex extract "$wim" "$idx" "/$dat" "--dest-dir=$tmp" >/dev/null 2>&1; then
+      if ! wimlib-imagex extract "$wim" "$idx" "/$bak" "--dest-dir=$tmp" >/dev/null 2>&1; then
+        if ! wimlib-imagex update "$wim" "$idx" --command "rename /$xml /$bak" > /dev/null; then
+          warn "failed to backup original answer file ($xml)."
         fi
       fi
     fi
@@ -1169,10 +1201,10 @@ updateImage() {
 
   if ! enabled "$MANUAL"; then
 
-    xml=$(basename "$asset")
-    local answer="$tmp/$xml"
+    name=$(basename "$asset")
+    local answer="$tmp/$name"
 
-    info "Adding $xml for automatic installation..."
+    info "Adding $name for automatic installation..."
 
     if ! cp "$asset" "$answer"; then
       error "Failed to copy answer file to $answer."
@@ -1184,30 +1216,30 @@ updateImage() {
       return 1
     fi
 
-    if ! wimlib-imagex update "$wim" "$index" --command "add $answer /$file" > /dev/null; then
+    if ! wimlib-imagex update "$wim" "$idx" --command "add $answer /$xml" > /dev/null; then
       MANUAL="Y"
-      warn "failed to add answer file ($xml) to ISO image, $FB"
+      warn "failed to add answer file ($name) to ISO image, $FB"
     else
-      wimlib-imagex update "$wim" "$index" --command "add $answer /$dat" > /dev/null || true
+      wimlib-imagex update "$wim" "$idx" --command "add $answer /$dat" > /dev/null || true
     fi
 
   fi
 
   if enabled "$MANUAL"; then
 
-    wimlib-imagex update "$wim" "$index" --command "delete --force /$file" > /dev/null || true
+    wimlib-imagex update "$wim" "$idx" --command "delete --force /$xml" > /dev/null || true
 
-    if wimlib-imagex extract "$wim" "$index" "/$org" "--dest-dir=$tmp" >/dev/null 2>&1; then
-      if ! wimlib-imagex update "$wim" "$index" --command "add $tmp/$org /$file" > /dev/null; then
-        warn "failed to restore original answer file ($org)."
+    if wimlib-imagex extract "$wim" "$idx" "/$bak" "--dest-dir=$tmp" >/dev/null 2>&1; then
+      if ! wimlib-imagex update "$wim" "$idx" --command "add $tmp/$bak /$xml" > /dev/null; then
+        warn "failed to restore original answer file ($bak)."
       fi
     fi
 
   fi
 
-  local find="$file"
-  enabled "$MANUAL" && find="$org"
-  path=$(find "$dir" -maxdepth 1 -type f -iname "$find" -print -quit)
+  name="$xml"
+  enabled "$MANUAL" && name="$bak"
+  path=$(find "$dir" -maxdepth 1 -type f -iname "$name" -print -quit)
 
   if [ -f "$path" ]; then
     if ! enabled "$MANUAL"; then
