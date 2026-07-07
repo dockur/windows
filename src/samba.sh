@@ -17,10 +17,11 @@ disabled "$SAMBA" && return 0
 disabled "$NETWORK" && return 0
 
 configureNetwork() {
+
   if enabled "$DHCP"; then
-    socket="$IP"
-    hostname="$IP"
-    interfaces="$VM_NET_DEV"
+    socket="$UPLINK"
+    hostname="$UPLINK"
+    interfaces="$DEV"
   else
     hostname="host.lan"
     case "${NETWORK,,}" in
@@ -28,8 +29,8 @@ configureNetwork() {
         interfaces="lo"
         socket="127.0.0.1" ;;
       *)
-        socket="$VM_NET_IP"
-        interfaces="$VM_NET_BRIDGE" ;;
+        socket="$IP"
+        interfaces="$BRIDGE" ;;
     esac
     if [ -n "${SAMBA_INTERFACE:-}" ]; then
       interfaces+=",$SAMBA_INTERFACE"
@@ -40,6 +41,7 @@ configureNetwork() {
 }
 
 writeTmpReadme() {
+
   local dir="$1"
   local ref="$2"
 
@@ -67,6 +69,7 @@ writeTmpReadme() {
 }
 
 addShare() {
+
   local dir="$1"
   local ref="$2"
   local name="$3"
@@ -120,6 +123,7 @@ addShare() {
 }
 
 writeSambaConfig() {
+
   {   echo "[global]"
       echo "    server string = Dockur"
       echo "    netbios name = $hostname"
@@ -153,6 +157,7 @@ writeSambaConfig() {
 }
 
 selectPrimaryShare() {
+
   share="/shared"
   [ ! -d "$share" ] && [ -d "$STORAGE/shared" ] && share="$STORAGE/shared"
   [ ! -d "$share" ] && [ -d "/data" ] && share="/data"
@@ -163,6 +168,7 @@ selectPrimaryShare() {
 }
 
 addOptionalShare() {
+
   local index="$1"
   local ref="/shared$index"
   local name="Data$index"
@@ -177,6 +183,7 @@ addOptionalShare() {
 }
 
 prepareSambaDirs() {
+
   # Create directories if missing
   mkdir -p /var/lib/samba/sysvol
   mkdir -p /var/lib/samba/private
@@ -190,7 +197,8 @@ prepareSambaDirs() {
   return 0
 }
 
-tailLogIfDebug() {
+debugLog() {
+
   local file="$1"
 
   if enabled "$SAMBA_DEBUG"; then
@@ -201,6 +209,7 @@ tailLogIfDebug() {
 }
 
 startSamba() {
+
   rm -f /var/log/samba/log.smbd
 
   if ! smbd -l /var/log/samba; then
@@ -208,11 +217,12 @@ startSamba() {
     error "Failed to start Samba daemon!"
   fi
 
-  tailLogIfDebug /var/log/samba/log.smbd
+  debugLog /var/log/samba/log.smbd
   return 0
 }
 
 startNetbios() {
+
   # Enable NetBIOS on Windows 7 and lower
   enabled "$DEBUG" && echo "Starting NetBIOS daemon..."
 
@@ -223,11 +233,12 @@ startNetbios() {
     error "Failed to start NetBIOS daemon!"
   fi
 
-  tailLogIfDebug /var/log/samba/log.nmbd
+  debugLog /var/log/samba/log.nmbd
   return 0
 }
 
 startWsddn() {
+
   # Enable Web Service Discovery on Vista and up
   enabled "$DEBUG" && echo "Starting wsddn daemon..."
   rm -f /var/log/wsddn.log
@@ -237,7 +248,7 @@ startWsddn() {
     error "Failed to start wsddn daemon!"
   fi
 
-  tailLogIfDebug /var/log/wsddn.log
+  debugLog /var/log/wsddn.log
   return 0
 }
 
