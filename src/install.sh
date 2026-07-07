@@ -435,15 +435,10 @@ detectCustom() {
 
 getEsdFieldValue() {
 
-  local values="$1"
+  local list="$1"
   local index="$2"
 
-  awk -F: -v index="$index" '
-    NR == index {
-      gsub(/^[ \t]+|[ \t]+$/, "", $2)
-      print $2
-    }
-  ' <<< "$values"
+  awk -v idx="$index" 'NR == idx { gsub(/[^0-9]/, "", $0); print }' <<< "$list"
 
   return 0
 }
