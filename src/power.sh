@@ -10,6 +10,7 @@ QEMU_PTY="$QEMU_DIR/qemu.pty"
 QEMU_END="$QEMU_DIR/qemu.end"
 
 _trap() {
+
   local func="$1"; shift
   local sig
   TRAP_PID=$BASHPID
@@ -26,6 +27,7 @@ app() {
 }
 
 signalCode() {
+
   local sig="$1"
 
   case "$sig" in
@@ -41,6 +43,7 @@ signalCode() {
 }
 
 displayReason() {
+
   local reason="$1"
 
   case "$reason" in
@@ -56,6 +59,7 @@ displayReason() {
 }
 
 readQemuPid() {
+
   local file="$1"
   local __var="$2"
   local pid=""
@@ -69,6 +73,7 @@ readQemuPid() {
 }
 
 bootFailed() {
+
   local fail=""
 
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
@@ -99,6 +104,7 @@ boot() {
 }
 
 legacyBootReady() {
+
   local last
   local bios="Booting from Hard"
 
@@ -127,6 +133,7 @@ ready() {
 }
 
 forceKillQemu() {
+
   local reason="$1"
   local pid=""
   local display
@@ -143,6 +150,7 @@ forceKillQemu() {
 }
 
 markWindowsBooted() {
+
   local file="$STORAGE/windows.boot"
 
   if [ -f "$file" ] || [ ! -f "$BOOT" ]; then
@@ -162,19 +170,19 @@ markWindowsBooted() {
 }
 
 cleanupHelpers() {
+
   local pids=( "${SMB_PID:-}" "${NMB_PID:-}" "${DDN_PID:-}" "${TPM_PID:-}" "${WSD_PID:-}" \
                "${WEB_PID:-}" "${PASST_PID:-}" "${DNSMASQ_PID:-}" "${BALLOONING_PID:-}" )
 
   mKill "${pids[@]}"
-  closeNetwork
 
+  closeNetwork
   return 0
 }
 
 finish() {
 
   local reason=$1
-
   touch "$QEMU_END"
 
   forceKillQemu "$reason"
@@ -190,6 +198,7 @@ finish() {
   fi
 
   (( reason != 1 )) && echo && echo "❯ Shutdown completed!"
+
   exit "$reason"
 }
 
@@ -222,6 +231,7 @@ normalizeTimeout() {
 }
 
 sendAcpiShutdown() {
+
   # Send ACPI shutdown signal
   if [ -S "$QEMU_DIR/monitor.sock" ]; then
     nc -q 1 -w 1 -U "$QEMU_DIR/monitor.sock" &> /dev/null <<<'system_powerdown' || :
@@ -231,17 +241,21 @@ sendAcpiShutdown() {
 }
 
 abortDuringSetup() {
-  local code="$1"
 
+  local code="$1"
   info "Cannot send ACPI signal during $(app) setup, aborting..."
+
   sKill "$QEMU_PID"
+
   if ! waitPidFile "$QEMU_PID" 5; then
     warn "Timed out while waiting for $(app) to exit!"
   fi
+
   finish "$code"
 }
 
 waitForShutdown() {
+
   local cnt=0
   local name="$1"
   local pid="$2"
