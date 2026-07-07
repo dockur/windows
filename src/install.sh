@@ -834,7 +834,7 @@ detectImage() {
 
   local dir="$1"
   local version="$2"
-  local desc msg find language
+  local desc msg language
 
   XML=""
 
