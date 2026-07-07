@@ -1359,7 +1359,13 @@ addFolder() {
 
   local file
   file=$(find "$dest" -maxdepth 1 -type f -iname install.bat  -print -quit)
-  [ -f "$file" ] && unix2dos -q "$file"
+
+  if [ -f "$file" ]; then
+    if ! unix2dos -q "$file"; then
+      error "Failed to convert $file to DOS format!"
+      return 1
+    fi
+  fi
 
   return 0
 }
@@ -1776,8 +1782,21 @@ prepareLegacy() {
   rm -f "$dir/$ETFS"
 
   local len offset
-  len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$")
-  offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$")
+
+  if ! len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$"); then
+    error "Failed to determine boot image size from $desc ISO!"
+    return 1
+  fi
+
+  if ! offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$"); then
+    error "Failed to determine boot image offset from $desc ISO!"
+    return 1
+  fi
+
+  if [[ ! "$len" =~ ^[0-9]+$ ]] || [[ ! "$offset" =~ ^[0-9]+$ ]]; then
+    error "Invalid boot image location found in $desc ISO!"
+    return 1
+  fi
 
   if ! dd "if=$iso" "of=$dir/$ETFS" bs=2048 "count=$len" "skip=$offset" status=none; then
     error "Failed to extract boot image from $desc ISO!" && return 1
