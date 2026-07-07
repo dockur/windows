@@ -31,7 +31,7 @@ trap - ERR
 
 cmd=(qemu-system-x86_64)
 version=$("${cmd[@]}" --version | awk 'NR==1 { print $4 }')
-info "Booting ${APP}${BOOT_DESC} using QEMU v$version..."
+info "Booting ${APP}${BOOT_DESC} using QEMU v$version..." && echo
 
 pipe="$QEMU_DIR/qemu.pipe"
 rm -f "$pipe" && mkfifo "$pipe"
