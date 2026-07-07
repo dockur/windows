@@ -126,7 +126,7 @@ addShare() {
   return 0
 }
 
-writeSambaConfig() {
+writeConfig() {
 
   {   echo "[global]"
       echo "    server string = Dockur"
@@ -262,7 +262,7 @@ html "Initializing shared folder..."
 SAMBA_CONFIG="/etc/samba/smb.conf"
 enabled "$DEBUG" && echo "Starting Samba daemon..."
 
-writeSambaConfig
+writeConfig
 
 # Add shared folders
 selectPrimaryShare
