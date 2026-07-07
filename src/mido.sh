@@ -660,9 +660,15 @@ verifyFile() {
   info "$msg" && html "$msg"
 
   if [[ "${algo,,}" != "sha256" ]]; then
-    hash=$(sha1sum "$iso" | cut -f1 -d' ')
+    if ! hash=$(sha1sum "$iso" | cut -f1 -d' '); then
+      error "Failed to calculate SHA1 checksum for $iso!"
+      return 1
+    fi
   else
-    hash=$(sha256sum "$iso" | cut -f1 -d' ')
+    if ! hash=$(sha256sum "$iso" | cut -f1 -d' '); then
+      error "Failed to calculate SHA256 checksum for $iso!"
+      return 1
+    fi
   fi
 
   if [[ "$hash" == "$check" ]]; then
