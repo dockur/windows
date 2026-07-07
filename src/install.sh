@@ -433,17 +433,12 @@ detectCustom() {
   return 0
 }
 
-getEsdFieldValue() {
+getEsdField() {
 
-  local values="$1"
+  local list="$1"
   local index="$2"
 
-  awk -F: -v index="$index" '
-    NR == index {
-      gsub(/^[ \t]+|[ \t]+$/, "", $2)
-      print $2
-    }
-  ' <<< "$values"
+  sed -n "${index}p" <<< "$list" | tr -cd '0-9'
 
   return 0
 }
@@ -506,8 +501,8 @@ extractESD() {
   totals=$(grep "Total Bytes:" <<< "$info" || true)
   links=$(grep "Hard Link Bytes:" <<< "$info" || true)
 
-  bootTotal=$(getEsdFieldValue "$totals" 1)
-  bootLinks=$(getEsdFieldValue "$links" 1)
+  bootTotal=$(getEsdField "$totals" 1)
+  bootLinks=$(getEsdField "$links" 1)
 
   if [[ ! "$bootTotal" =~ ^[0-9]+$ ]] || [[ ! "$bootLinks" =~ ^[0-9]+$ ]]; then
     error "Cannot read bootdisk size from ESD file!"
@@ -516,8 +511,8 @@ extractESD() {
 
   bootSize=$(( bootTotal - bootLinks ))
 
-  wimTotal=$(getEsdFieldValue "$totals" 3)
-  wimLinks=$(getEsdFieldValue "$links" 3)
+  wimTotal=$(getEsdField "$totals" 3)
+  wimLinks=$(getEsdField "$links" 3)
 
   if [[ ! "$wimTotal" =~ ^[0-9]+$ ]] || [[ ! "$wimLinks" =~ ^[0-9]+$ ]]; then
     error "Cannot read boot.wim size from ESD file!"
