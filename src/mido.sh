@@ -83,8 +83,17 @@ download_windows() {
   local url="https://www.microsoft.com/en-us/software-download/windows$windows_version"
 
   # uuidgen: For MacOS (installed by default) and other systems (e.g. with no /proc) that don't have a kernel interface for generating random UUIDs
-  session_id=$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random)
+  if ! session_id=$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random); then
+    error "Failed to generate session ID!"
+    return 1
+  fi
+
   session_id="${session_id//[![:print:]]/}"
+
+  if [ -z "$session_id" ]; then
+    error "Failed to generate session ID!"
+    return 1
+  fi
 
   # Get product edition ID for latest release of given Windows version
   # Product edition ID: This specifies both the Windows release (e.g. 22H2) and edition ("multi-edition" is default, either Home/Pro/Edu/etc., we select "Pro" in the answer files) in one number
@@ -651,9 +660,15 @@ verifyFile() {
   info "$msg" && html "$msg"
 
   if [[ "${algo,,}" != "sha256" ]]; then
-    hash=$(sha1sum "$iso" | cut -f1 -d' ')
+    if ! hash=$(sha1sum "$iso" | cut -f1 -d' '); then
+      error "Failed to calculate SHA1 checksum for $iso!"
+      return 1
+    fi
   else
-    hash=$(sha256sum "$iso" | cut -f1 -d' ')
+    if ! hash=$(sha256sum "$iso" | cut -f1 -d' '); then
+      error "Failed to calculate SHA256 checksum for $iso!"
+      return 1
+    fi
   fi
 
   if [[ "$hash" == "$check" ]]; then
@@ -678,8 +693,14 @@ downloadFile() {
   agent=$(get_agent)
 
   if [ -n "$size" ] && [[ "$size" != "0" ]]; then
+
     folder=$(dirname -- "$iso")
-    space=$(df --output=avail -B 1 "$folder" | tail -n 1)
+  
+    if ! space=$(df --output=avail -B 1 "$folder" | tail -n 1); then
+      error "Failed to check free space in $folder!"
+      return 1
+    fi
+  
     total_gb=$(formatBytes "$space")
     (( size > space )) && error "Not enough free space to download file, only $total_gb left!" && return 1
   fi
@@ -710,13 +731,22 @@ downloadFile() {
   fKill "progress.sh"
 
   if (( rc == 0 )) && [ -f "$iso" ]; then
-    total=$(stat -c%s "$iso")
+
+    if ! total=$(stat -c%s "$iso"); then
+      error "Failed to determine downloaded file size: $iso"
+      return 1
+    fi
+
     total_gb=$(formatBytes "$total")
+  
     if [ "$total" -lt 100000000 ]; then
       error "Invalid download link: $url (is only $total_gb ?). Please report this at $SUPPORT/issues" && return 1
     fi
+  
     verifyFile "$iso" "$size" "$total" "$sum" || return 1
+  
     isCompressed "$url" && UNPACK="Y"
+  
     html "Download finished successfully..." && return 0
   fi
 
