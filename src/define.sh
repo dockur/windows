@@ -153,7 +153,7 @@ parseVersion() {
       VERSION="tiny11"
       [ -z "$DETECTED" ] && DETECTED="win11x64"
       ;;
-   "tiny10" | "tiny 10" )
+    "tiny10" | "tiny 10" )
       VERSION="tiny10"
       [ -z "$DETECTED" ] && DETECTED="win10x64-ltsc"
       ;;
