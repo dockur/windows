@@ -40,7 +40,7 @@ configureNetwork() {
   return 0
 }
 
-writeTmpReadme() {
+writeReadme() {
 
   local dir="$1"
   local ref="$2"
@@ -95,34 +95,45 @@ addShare() {
   fi
 
   if [ -z "$(ls -A "$dir")" ]; then
+  
     if ! chmod 2777 "$dir"; then
       error "Failed to set permissions for directory $dir" && return 1
     fi
-    owner=$(stat -c %u "$dir")
+  
+    if ! owner=$(stat -c %u "$dir"); then
+      error "Failed to determine ownership for directory $dir"
+      return 1
+    fi
+
     if [[ "$owner" == "0" ]]; then
       if ! chown "1000:1000" "$dir"; then
         error "Failed to set ownership for directory $dir" && return 1
       fi
     fi
+  
   fi
 
   if [[ "$dir" == "$tmp" ]]; then
-    writeTmpReadme "$dir" "$ref"
+    writeReadme "$dir" "$ref"
   fi
 
-  {   echo ""
-      echo "[$name]"
-      echo "    path = $dir"
-      echo "    comment = $comment"
-      echo "    writable = yes"
-      echo "    guest ok = yes"
-      echo "    guest only = yes"
-  } >> "$cfg"
+  if ! {
+    echo ""
+    echo "[$name]"
+    echo "    path = $dir"
+    echo "    comment = $comment"
+    echo "    writable = yes"
+    echo "    guest ok = yes"
+    echo "    guest only = yes"
+  } >> "$cfg"; then
+    error "Failed to update Samba config \"$cfg\" !"
+    return 1
+  fi
 
   return 0
 }
 
-writeSambaConfig() {
+writeConfig() {
 
   {   echo "[global]"
       echo "    server string = Dockur"
@@ -258,7 +269,7 @@ html "Initializing shared folder..."
 SAMBA_CONFIG="/etc/samba/smb.conf"
 enabled "$DEBUG" && echo "Starting Samba daemon..."
 
-writeSambaConfig
+writeConfig
 
 # Add shared folders
 selectPrimaryShare
