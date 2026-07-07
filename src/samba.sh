@@ -95,15 +95,22 @@ addShare() {
   fi
 
   if [ -z "$(ls -A "$dir")" ]; then
+  
     if ! chmod 2777 "$dir"; then
       error "Failed to set permissions for directory $dir" && return 1
     fi
-    owner=$(stat -c %u "$dir")
+  
+    if ! owner=$(stat -c %u "$dir"); then
+      error "Failed to determine ownership for directory $dir"
+      return 1
+    fi
+
     if [[ "$owner" == "0" ]]; then
       if ! chown "1000:1000" "$dir"; then
         error "Failed to set ownership for directory $dir" && return 1
       fi
     fi
+  
   fi
 
   if [[ "$dir" == "$tmp" ]]; then
