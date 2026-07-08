@@ -6,7 +6,7 @@ This page lists all the environment variables that can be used to configure the 
 
 | Variable | Default | Description |
 |---|---|---|
-| `VERSION` | `11` | Windows version to install, for example `11`, `10`, `ltsc11`, or `2022`. |
+| `VERSION` | `11` | Windows version to install, for example `10` or `11`. |
 | `EDITION` |  | Windows edition to install, for example `core` for Windows Server Core. |
 | `LANGUAGE` | `en-US` | Windows display language, for example `en`, `fr`, `nl`, etc. |
 | `REGION` | `en-US` | Windows regional format, for example `en-US`. |
