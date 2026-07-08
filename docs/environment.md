@@ -124,6 +124,8 @@ This page lists all the environment variables that can be used to configure the 
 
 ## 🎈 Memory Ballooning
 
+Also see [Dynamic memory allocation](https://github.com/qemus/qemu/blob/master/docs/ballooning.md) for usage notes and important caveats.
+
 | Variable | Default | Description |
 |---|---|---|
 | `BALLOONING` | `N` | Enables dynamic memory ballooning. |
