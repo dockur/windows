@@ -2,7 +2,7 @@
 
 This page lists all the environment variables that can be used to configure the container.
 
-## Windows
+## 🪟 Windows
 
 | Variable | Default | Description |
 |---|---|---|
@@ -14,13 +14,11 @@ This page lists all the environment variables that can be used to configure the 
 | `USERNAME` | `Dockur` | Username for the Windows account. |
 | `PASSWORD` | `admin` | Password for the Windows account. |
 | `KEY` |  | Windows product key used during installation. |
-| `WIDTH` | `1920` | Display width configured for Windows. |
-| `HEIGHT` | `1080` | Display height configured for Windows. |
 | `MANUAL` | `N` | Enables manual installation instead of unattended installation. |
-| `VERIFY` | `N` | Enables checksum verification of downloaded images. |
+| `VERIFY` | `N` | Verifies checksums of downloaded images. |
 | `REMOVE` | `Y` | Removes the Windows ISO after installation. Set to `N` to keep it. |
 
-## CPU and Memory
+## 🧠 CPU and Memory
 
 | Variable | Default | Description |
 |---|---|---|
@@ -33,7 +31,7 @@ This page lists all the environment variables that can be used to configure the 
 | `RAM_SIZE` | `4G` | Amount of RAM assigned to the VM, for example `4G`, `8G`, `max`, or `half`. |
 | `RAM_CHECK` | `Y` | Checks whether enough host memory is available before starting the VM. |
 
-## System
+## ⚙️ System
 
 | Variable | Default | Description |
 |---|---|---|
@@ -41,10 +39,10 @@ This page lists all the environment variables that can be used to configure the 
 | `UUID` |  | QEMU VM UUID. |
 | `HPET` | `off` | Enables or disables the QEMU HPET timer. |
 | `VMPORT` | `off` | Enables or disables the QEMU VMware port. |
-| `SM_BIOS` |  | Extra SMBIOS arguments passed to QEMU. |
-| `ARGUMENTS` |  | Extra raw QEMU arguments appended to the generated command line. |
+| `SM_BIOS` |  | Additional SMBIOS arguments passed to QEMU. |
+| `ARGUMENTS` |  | Additional raw QEMU arguments appended to the generated command line. |
 
-## Boot
+## 🚀 Boot
 
 | Variable | Default | Description |
 |---|---|---|
@@ -57,7 +55,7 @@ This page lists all the environment variables that can be used to configure the 
 | `CLEAR` | `N` | Clears the firmware/NVRAM variables on the next boot. |
 | `USB` | `qemu-xhci,id=xhci,p2=7,p3=7` | QEMU USB controller setting. Set to a `no*` value to disable. |
 
-## Storage
+## 💾 Storage
 
 | Variable | Default | Description |
 |---|---|---|
@@ -66,13 +64,13 @@ This page lists all the environment variables that can be used to configure the 
 | `DISK_TYPE` | `scsi` | Disk controller/device type, such as `sata`, `scsi`, `nvme`, or `blk`. |
 | `DISK_CACHE` | `none` | QEMU disk cache mode, for example `none` or `writeback`. |
 | `DISK_IO` | `native` | QEMU disk I/O mode, for example `native`, `threads`, or `io_uring`. |
-| `DISK_DISCARD` | `unmap` | Controls TRIM/unmap support. |
-| `DISK_ROTATION` | `1` | Rotation rate exposed to the guest. Use `1` for SSD-like storage. |
-| `DISK_FLAGS` |  | Extra options used when creating qcow2 disks. |
+| `DISK_DISCARD` | `unmap` | Enables TRIM/unmap support for the data disk. |
+| `DISK_ROTATION` | `1` | Rotation rate reported to the guest. Use `1` for SSD-like storage. |
+| `DISK_FLAGS` |  | Additional options used when creating qcow2 disks. |
 | `ALLOCATE` | `N` | Preallocates disk space when creating the data disk. |
 | `STORAGE` | `/storage` | Storage directory used for disks, firmware variables, and generated files. |
 
-## Networking
+## 🌐 Networking
 
 | Variable | Default | Description |
 |---|---|---|
@@ -82,42 +80,49 @@ This page lists all the environment variables that can be used to configure the 
 | `MAC` |  | Guest network adapter MAC address. |
 | `HOST` | `Windows` | Hostname assigned to the VM. |
 | `DEV` | `eth0` | Host/container network interface to use. |
-| `MTU` |  | Network MTU override. |
+| `MTU` |  | Network MTU to use for the guest interface. |
 | `MASK` | `255.255.255.0` | IPv4 netmask. |
 | `TAP` | `qemu` | TAP/macvtap interface name. |
 | `BRIDGE` | `docker` | Bridge name used for NAT networking. |
 | `ADAPTER` | `virtio-net-pci` | QEMU network adapter model. |
 | `HOST_PORTS` |  | Ports reserved for services running on the host/container side. |
 | `USER_PORTS` |  | Additional ports to forward to the VM when using user-mode networking. |
-| `WEB` | `Y` | Enables or disables the web interface. |
-| `WEB_PORT` | `8006` | Port for the web interface. |
-| `VNC_PORT` | `5900` | Port for the VNC server. |
-| `WSS_PORT` | `5700` | WebSocket port used by QEMU/noVNC. |
-| `WSD_PORT` | `8004` | Internal websocketd port. |
-| `PROTECT` | `N` | Enables password protection for the web interface. |
-| `DNSMASQ_OPTS` |  | Extra dnsmasq options. |
+| `DNSMASQ_OPTS` |  | Additional dnsmasq options. |
 | `DNSMASQ_DEBUG` | `N` | Enables dnsmasq log tailing. |
 | `DNSMASQ_DISABLE` | `N` | Disables the internal dnsmasq resolver. |
-| `PASST_OPTS` |  | Extra passt options. |
+| `PASST_OPTS` |  | Additional passt options. |
 | `PASST_DEBUG` | `N` | Enables passt debug output. |
 
-## Samba
+## 📁 File Sharing
 
 | Variable | Default | Description |
 |---|---|---|
 | `SAMBA` | `Y` | Enables or disables the Samba shared folder. |
 | `SAMBA_DEBUG` | `N` | Enables Samba debug output. |
 
-## Display
+## 🖥️ Display
 
 | Variable | Default | Description |
 |---|---|---|
+| `WIDTH` | `1920` | Display width configured for Windows. |
+| `HEIGHT` | `1080` | Display height configured for Windows. |
 | `DISPLAY` | `web` | Display backend. Common values are `web`, `vnc`, `disabled`, or `none`. |
 | `VGA` | `virtio` | QEMU video adapter model. |
 | `GPU` | `N` | Enables Intel iGPU acceleration. Experimental. |
 | `RENDERNODE` | `/dev/dri/renderD128` | Render node used for GPU acceleration. |
 
-## Memory Ballooning
+## 🌍 Web UI
+
+| Variable | Default | Description |
+|---|---|---|
+| `WEB` | `Y` | Enables or disables the web interface. |
+| `WEB_PORT` | `8006` | Port for the web interface. |
+| `VNC_PORT` | `5900` | Port for the VNC server. |
+| `WSS_PORT` | `5700` | WebSocket port used by QEMU/noVNC. |
+| `WSD_PORT` | `8004` | Internal websocketd port. |
+| `PROTECT` | `N` | Enables password protection for the web interface. |
+
+## 🎈 Memory Ballooning
 
 | Variable | Default | Description |
 |---|---|---|
@@ -133,14 +138,14 @@ This page lists all the environment variables that can be used to configure the 
 | `BALLOONING_KI` | `0.05` | Integral gain for the ballooning controller. |
 | `BALLOONING_INTERVAL` | `5` | Polling interval in seconds. |
 
-## Shutdown
+## 🔌 Shutdown
 
 | Variable | Default | Description |
 |---|---|---|
-| `SHUTDOWN` | `Y` | Enables graceful ACPI shutdown handling. |
+| `SHUTDOWN` | `Y` | Enables graceful ACPI shutdown. |
 | `TIMEOUT` | `115` | Timeout used while waiting for the VM to shut down. |
 
-## Debugging
+## 🐞 Debugging
 
 | Variable | Default | Description |
 |---|---|---|
