@@ -137,6 +137,8 @@ This page lists all the environment variables that can be used to configure the 
 | `BALLOONING_INTERVAL` | `5` | Polling interval for the ballooning monitor. |
 
 ## Debugging
+
+| Variable | Default | Description |
 |---|---|---|
 | `DEBUG` | `N` | Enables verbose debug output. |
 | `TRACE` | `N` | Enables shell command tracing. |
