@@ -213,7 +213,7 @@ downloadWindows() {
   fi
 
   if echo "$linkJson" | grep -q "We are unable to complete your request at this time."; then
-    error "Microsoft blocked the automated download request based on your IP address."
+    error "Microsoft blocked the automated download request."
     return 1
   fi
 
