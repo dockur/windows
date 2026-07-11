@@ -185,68 +185,6 @@ startInstall() {
   return 0
 }
 
-writeFile() {
-
-  local txt="$1"
-  local path="$2"
-
-  if ! printf '%s\n' "$txt" >"$path"; then
-    error "Failed to write file \"$path\" !"
-    return 1
-  fi
-
-  if ! setOwner "$path"; then
-    error "Failed to set the owner for \"$path\" !"
-    return 1
-  fi
-
-  return 0
-}
-
-writeState() {
-
-  local name="$1"
-  local value="$2"
-  local file="$STORAGE/windows.$name"
-
-  [ -z "$value" ] && return 0
-  writeFile "$value" "$file"
-
-  return $?
-}
-
-readState() {
-
-  local file="$1"
-  local value
-
-  [ -s "$file" ] || return 0
-
-  value=$(<"$file") || return 1
-  value="${value//[![:print:]]/}"
-
-  printf '%s\n' "$value"
-  return 0
-}
-
-restoreState() {
-
-  local var="$1"
-  local file="$2"
-  local force="${3:-N}"
-  local value
-
-  if ! enabled "$force"; then
-    [ -z "${!var:-}" ] || return 0
-  fi
-
-  value=$(readState "$file") || return 1
-  [ -n "$value" ] || return 0
-
-  printf -v "$var" '%s' "$value" || return 1
-  return 0
-}
-
 checkFreeSpace() {
 
   local dir="$1"
