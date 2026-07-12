@@ -390,9 +390,9 @@ No. For a complete overview of all supported settings, see the [environment vari
 
   If KVM is unavailable, check whether:
 
-    - Hardware virtualization (`Intel VT-x` or `AMD-V`) is enabled in your BIOS or UEFI.
-    - Nested virtualization is enabled when the host itself is a virtual machine.
-    - Your VPS or cloud provider supports nested virtualization.
+  - Hardware virtualization (`Intel VT-x` or `AMD-V`) is enabled in your BIOS or UEFI.
+  - Nested virtualization is enabled when the host itself is a virtual machine.
+  - Your VPS or cloud provider supports nested virtualization.
 
   If `kvm-ok` succeeds but the container still reports that KVM is unavailable, you can temporarily add `privileged: true` to your Compose file to rule out a permission or device-access issue.
 
