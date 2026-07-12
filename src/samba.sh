@@ -24,14 +24,15 @@ configureNetwork() {
     interfaces="$DEV"
   else
     hostname="host.lan"
-    case "${NETWORK,,}" in
-      "passt" | "slirp" )
-        interfaces="lo"
-        socket="127.0.0.1" ;;
-      *)
-        socket="$IP"
-        interfaces="$BRIDGE" ;;
-    esac
+
+    if isUserMode; then
+      interfaces="lo"
+      socket="127.0.0.1"
+    else
+      socket="$IP"
+      interfaces="$BRIDGE"
+    fi
+
     if [ -n "${SAMBA_INTERFACE:-}" ]; then
       interfaces+=",$SAMBA_INTERFACE"
     fi
@@ -95,11 +96,11 @@ addShare() {
   fi
 
   if [ -z "$(ls -A "$dir")" ]; then
-  
+
     if ! chmod 2777 "$dir"; then
       error "Failed to set permissions for directory $dir" && return 1
     fi
-  
+
     if ! owner=$(stat -c %u "$dir"); then
       error "Failed to determine ownership for directory $dir"
       return 1
@@ -110,11 +111,11 @@ addShare() {
         error "Failed to set ownership for directory $dir" && return 1
       fi
     fi
-  
+
   fi
 
   if [[ "$dir" == "$tmp" ]]; then
-    writeReadme "$dir" "$ref"
+    writeReadme "$dir" "$ref" || return 1
   fi
 
   if ! {
@@ -196,9 +197,10 @@ addOptionalShare() {
 prepareSambaDirs() {
 
   # Create directories if missing
-  mkdir -p /var/lib/samba/sysvol
-  mkdir -p /var/lib/samba/private
-  mkdir -p /var/lib/samba/bind-dns
+  mkdir -p \
+    /var/lib/samba/sysvol \
+    /var/lib/samba/private \
+    /var/lib/samba/bind-dns || return 1
 
   # Try to repair Samba permissions
   [ -d /run/samba/msg.lock ] && chmod -R 0755 /run/samba/msg.lock 2>/dev/null || :
@@ -219,16 +221,28 @@ debugLog() {
   return 0
 }
 
-startSamba() {
+startDaemon() {
 
-  rm -f /var/log/samba/log.smbd
+  local name="$1"
+  local log="$2"
+  shift 2
 
-  if ! smbd -l /var/log/samba; then
+  rm -f "$log"
+
+  if ! "$@"; then
     SAMBA_DEBUG="Y"
-    error "Failed to start Samba daemon!"
+    error "Failed to start $name daemon!"
   fi
 
-  debugLog /var/log/samba/log.smbd
+  debugLog "$log"
+  return 0
+}
+
+startSamba() {
+
+  startDaemon "Samba" "/var/log/samba/log.smbd" \
+    smbd -l /var/log/samba
+
   return 0
 }
 
@@ -237,14 +251,9 @@ startNetbios() {
   # Enable NetBIOS on Windows 7 and lower
   enabled "$DEBUG" && echo "Starting NetBIOS daemon..."
 
-  rm -f /var/log/samba/log.nmbd
+  startDaemon "NetBIOS" "/var/log/samba/log.nmbd" \
+    nmbd -l /var/log/samba
 
-  if ! nmbd -l /var/log/samba; then
-    SAMBA_DEBUG="Y"
-    error "Failed to start NetBIOS daemon!"
-  fi
-
-  debugLog /var/log/samba/log.nmbd
   return 0
 }
 
@@ -252,14 +261,11 @@ startWsddn() {
 
   # Enable Web Service Discovery on Vista and up
   enabled "$DEBUG" && echo "Starting wsddn daemon..."
-  rm -f /var/log/wsddn.log
 
-  if ! wsddn -i "${interfaces%%,*}" -H "$hostname" --unixd --log-file=/var/log/wsddn.log --pid-file="$DDN_PID"; then
-    SAMBA_DEBUG="Y"
-    error "Failed to start wsddn daemon!"
-  fi
+  startDaemon "wsddn" "/var/log/wsddn.log" \
+    wsddn -i "${interfaces%%,*}" -H "$hostname" \
+      --unixd --log-file=/var/log/wsddn.log --pid-file="$DDN_PID"
 
-  debugLog /var/log/wsddn.log
   return 0
 }
 
@@ -269,7 +275,7 @@ html "Initializing shared folder..."
 SAMBA_CONFIG="/etc/samba/smb.conf"
 enabled "$DEBUG" && echo "Starting Samba daemon..."
 
-writeConfig
+writeConfig || return 1
 
 # Add shared folders
 selectPrimaryShare
@@ -278,13 +284,10 @@ selectPrimaryShare
 addOptionalShare "2"
 addOptionalShare "3"
 
-prepareSambaDirs
+prepareSambaDirs || return 1
 startSamba
 
-case "${NETWORK,,}" in
-  "passt" | "slirp" )
-    return 0 ;;
-esac
+isUserMode && return 0
 
 if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
   startNetbios
