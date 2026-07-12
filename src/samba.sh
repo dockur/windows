@@ -24,14 +24,15 @@ configureNetwork() {
     interfaces="$DEV"
   else
     hostname="host.lan"
-    case "${NETWORK,,}" in
-      "passt" | "slirp" )
-        interfaces="lo"
-        socket="127.0.0.1" ;;
-      *)
-        socket="$IP"
-        interfaces="$BRIDGE" ;;
-    esac
+
+    if isUserMode; then
+      interfaces="lo"
+      socket="127.0.0.1"
+    else
+      socket="$IP"
+      interfaces="$BRIDGE"
+    fi
+
     if [ -n "${SAMBA_INTERFACE:-}" ]; then
       interfaces+=",$SAMBA_INTERFACE"
     fi
@@ -114,7 +115,7 @@ addShare() {
   fi
 
   if [[ "$dir" == "$tmp" ]]; then
-    writeReadme "$dir" "$ref"
+    writeReadme "$dir" "$ref" || return 1
   fi
 
   if ! {
@@ -196,9 +197,10 @@ addOptionalShare() {
 prepareSambaDirs() {
 
   # Create directories if missing
-  mkdir -p /var/lib/samba/sysvol
-  mkdir -p /var/lib/samba/private
-  mkdir -p /var/lib/samba/bind-dns
+  mkdir -p \
+    /var/lib/samba/sysvol \
+    /var/lib/samba/private \
+    /var/lib/samba/bind-dns || return 1
 
   # Try to repair Samba permissions
   [ -d /run/samba/msg.lock ] && chmod -R 0755 /run/samba/msg.lock 2>/dev/null || :
@@ -273,7 +275,7 @@ html "Initializing shared folder..."
 SAMBA_CONFIG="/etc/samba/smb.conf"
 enabled "$DEBUG" && echo "Starting Samba daemon..."
 
-writeConfig
+writeConfig || return 1
 
 # Add shared folders
 selectPrimaryShare
@@ -282,7 +284,7 @@ selectPrimaryShare
 addOptionalShare "2"
 addOptionalShare "3"
 
-prepareSambaDirs
+prepareSambaDirs || return 1
 startSamba
 
 isUserMode && return 0
