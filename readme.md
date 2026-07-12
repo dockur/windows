@@ -367,34 +367,34 @@ No. For a complete overview of all supported settings, see the [environment vari
 
 ### How do I verify that KVM is available?
 
-First, make sure your platform and container runtime meet the [requirements](#requirements-️) listed above.
+  First, make sure your platform and container runtime meet the [requirements](#requirements-️) listed above.
 
-On a Linux host, install `cpu-checker` and run:
+  On a Linux host, install `cpu-checker` and run:
 
-```bash
-sudo apt install cpu-checker
-sudo kvm-ok
-```
+  ```bash
+  sudo apt install cpu-checker
+  sudo kvm-ok
+  ```
 
-A working configuration should report:
+  A working configuration should report:
 
-```text
-KVM acceleration can be used
-```
+  ```text
+  KVM acceleration can be used
+  ```
 
-You can also verify that the KVM device exists:
+  You can also verify that the KVM device exists:
 
-```bash
-ls -l /dev/kvm
-```
+  ```bash
+  ls -l /dev/kvm
+  ```
 
-If KVM is unavailable, check whether:
+  If KVM is unavailable, check whether:
 
-- Hardware virtualization (`Intel VT-x` or `AMD-V`) is enabled in your BIOS or UEFI.
-- Nested virtualization is enabled when the host itself is a virtual machine.
-- Your VPS or cloud provider supports nested virtualization.
+    - Hardware virtualization (`Intel VT-x` or `AMD-V`) is enabled in your BIOS or UEFI.
+    - Nested virtualization is enabled when the host itself is a virtual machine.
+    - Your VPS or cloud provider supports nested virtualization.
 
-If `kvm-ok` succeeds but the container still reports that KVM is unavailable, you can temporarily add `privileged: true` to your Compose file to rule out a permission or device-access issue.
+  If `kvm-ok` succeeds but the container still reports that KVM is unavailable, you can temporarily add `privileged: true` to your Compose file to rule out a permission or device-access issue.
 
 ### How do I run macOS in a container?
 
