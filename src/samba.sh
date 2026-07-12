@@ -285,10 +285,7 @@ addOptionalShare "3"
 prepareSambaDirs
 startSamba
 
-case "${NETWORK,,}" in
-  "passt" | "slirp" )
-    return 0 ;;
-esac
+isUserMode && return 0
 
 if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
   startNetbios
