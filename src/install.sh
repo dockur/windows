@@ -11,16 +11,10 @@ backup () {
   local iso="$1"
   local name="unknown"
   local root="$STORAGE/backups"
-  local previous="$STORAGE/windows.base"
+  local previous
 
-  if [ -f "$previous" ]; then
-
-    previous=$(<"$previous")
-    previous="${previous//[![:print:]]/}"
-
-    [ -n "$previous" ] && name="${previous%.*}"
-
-  fi
+  previous=$(readState "base") || return 1
+  [ -n "$previous" ] && name="${previous%.*}"
 
   if ! makeDir "$root"; then
     error "Failed to create directory \"$root\" !"
@@ -59,47 +53,42 @@ skipInstall() {
   local method=""
   local magic byte
   local boot="$STORAGE/windows.boot"
-  local previous="$STORAGE/windows.base"
+  local previous
 
-  if [ -f "$previous" ]; then
+  previous=$(readState "base") || return 1
 
-    previous=$(<"$previous")
-    previous="${previous//[![:print:]]/}"
+  if [ -n "$previous" ]; then
+    if [[ "${STORAGE,,}/${previous,,}" != "${iso,,}" ]]; then
 
-    if [ -n "$previous" ]; then
-      if [[ "${STORAGE,,}/${previous,,}" != "${iso,,}" ]]; then
+      if ! hasDisk; then
 
-        if ! hasDisk; then
-
-          rm -f "$STORAGE/$previous"
-          return 1
-
-        fi
-
-        if [[ "${iso,,}" == "${STORAGE,,}/windows."* ]]; then
-          method="your custom .iso file was changed"
-        else
-          if [[ "${previous,,}" != "windows."* ]]; then
-            method="the VERSION variable was changed"
-          else
-            method="your custom .iso file was removed"
-
-            if [ -f "$boot" ]; then
-              info "Detected that $method, will be ignored."
-              return 0
-            fi
-
-          fi
-        fi
-
-        info "Detected that $method, a backup of your previous installation will be saved..."
-        ! backup "$STORAGE/$previous" && error "Backup failed!"
-
+        rm -f "$STORAGE/$previous"
         return 1
 
       fi
-    fi
 
+      if [[ "${iso,,}" == "${STORAGE,,}/windows."* ]]; then
+        method="your custom .iso file was changed"
+      else
+        if [[ "${previous,,}" != "windows."* ]]; then
+          method="the VERSION variable was changed"
+        else
+          method="your custom .iso file was removed"
+
+          if [ -f "$boot" ]; then
+            info "Detected that $method, will be ignored."
+            return 0
+          fi
+
+        fi
+      fi
+
+      info "Detected that $method, a backup of your previous installation will be saved..."
+      ! backup "$STORAGE/$previous" && error "Backup failed!"
+
+      return 1
+
+    fi
   fi
 
   [ -f "$boot" ] && hasDisk && return 0
