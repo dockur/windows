@@ -95,11 +95,11 @@ addShare() {
   fi
 
   if [ -z "$(ls -A "$dir")" ]; then
-  
+
     if ! chmod 2777 "$dir"; then
       error "Failed to set permissions for directory $dir" && return 1
     fi
-  
+
     if ! owner=$(stat -c %u "$dir"); then
       error "Failed to determine ownership for directory $dir"
       return 1
@@ -110,7 +110,7 @@ addShare() {
         error "Failed to set ownership for directory $dir" && return 1
       fi
     fi
-  
+
   fi
 
   if [[ "$dir" == "$tmp" ]]; then
@@ -219,16 +219,28 @@ debugLog() {
   return 0
 }
 
-startSamba() {
+startDaemon() {
 
-  rm -f /var/log/samba/log.smbd
+  local name="$1"
+  local log="$2"
+  shift 2
 
-  if ! smbd -l /var/log/samba; then
+  rm -f "$log"
+
+  if ! "$@"; then
     SAMBA_DEBUG="Y"
-    error "Failed to start Samba daemon!"
+    error "Failed to start $name daemon!"
   fi
 
-  debugLog /var/log/samba/log.smbd
+  debugLog "$log"
+  return 0
+}
+
+startSamba() {
+
+  startDaemon "Samba" "/var/log/samba/log.smbd" \
+    smbd -l /var/log/samba
+
   return 0
 }
 
@@ -237,14 +249,9 @@ startNetbios() {
   # Enable NetBIOS on Windows 7 and lower
   enabled "$DEBUG" && echo "Starting NetBIOS daemon..."
 
-  rm -f /var/log/samba/log.nmbd
+  startDaemon "NetBIOS" "/var/log/samba/log.nmbd" \
+    nmbd -l /var/log/samba
 
-  if ! nmbd -l /var/log/samba; then
-    SAMBA_DEBUG="Y"
-    error "Failed to start NetBIOS daemon!"
-  fi
-
-  debugLog /var/log/samba/log.nmbd
   return 0
 }
 
@@ -252,14 +259,11 @@ startWsddn() {
 
   # Enable Web Service Discovery on Vista and up
   enabled "$DEBUG" && echo "Starting wsddn daemon..."
-  rm -f /var/log/wsddn.log
 
-  if ! wsddn -i "${interfaces%%,*}" -H "$hostname" --unixd --log-file=/var/log/wsddn.log --pid-file="$DDN_PID"; then
-    SAMBA_DEBUG="Y"
-    error "Failed to start wsddn daemon!"
-  fi
+  startDaemon "wsddn" "/var/log/wsddn.log" \
+    wsddn -i "${interfaces%%,*}" -H "$hostname" \
+      --unixd --log-file=/var/log/wsddn.log --pid-file="$DDN_PID"
 
-  debugLog /var/log/wsddn.log
   return 0
 }
 
