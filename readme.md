@@ -363,7 +363,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### Are these all available options?
 
-No. For a complete overview of all supported settings, see the [environment variables](docs/environment.md) page.
+  No. For a complete overview of all supported settings, see the [environment variables](docs/environment.md) page.
 
 ### How do I verify that KVM is available?
 
