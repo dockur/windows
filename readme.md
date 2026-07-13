@@ -272,14 +272,14 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I enable audio?
 
-  Audio is disabled by default unless you are using RDP. To also stream the audio to the browser, add the following environment variable:
+    Audio is disabled by default unless you are using RDP. To stream it to the browser, add the following environment variable:
 
   ```yaml
   environment:
     AUDIO: "Y"
   ```
 
-  Then enable **Audio** under **Settings → Advanced** in the web viewer. Audio is only sent while enabled, so it uses no extra bandwidth otherwise.
+  Then enable **Audio** under **Settings → Advanced** in the web viewer. The stream is only active while this option is enabled, so it uses no extra bandwidth otherwise.
 
 ### How do I assign an individual IP address to the container?
 
