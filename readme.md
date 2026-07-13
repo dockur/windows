@@ -264,7 +264,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I connect using RDP?
 
-  The web viewer is mainly meant to be used during installation, as its picture quality is low, and it has no clipboard for example.
+  The web viewer is mainly intended for use during installation, since it is less responsive than RDP and does not support features such as clipboard sharing.
 
   So for a better experience you can connect using any Microsoft Remote Desktop client to the IP of the container, using the username `Docker` and password `admin`.
 
