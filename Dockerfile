@@ -36,6 +36,11 @@ EOF
 COPY --chmod=755 ./src /run/
 COPY --chmod=755 ./assets /run/assets
 
+# Enable audio streaming (AUDIO=Y): run the audio helper and attach the QEMU
+# audio devices before the arguments are assembled in config.sh (from qemux/qemu).
+RUN sed -i '/^buildArguments$/i if [[ "${AUDIO:-N}" =~ ^[Yy] ]] && [ -x /run/audio.sh ]; then bash /run/audio.sh || true; ARGUMENTS="${ARGUMENTS:-} -audiodev wav,id=snd,path=/run/audio.fifo,out.frequency=48000,out.channels=2,out.format=s16 -device intel-hda -device hda-output,audiodev=snd"; fi' /run/config.sh \
+ && grep -q 'audiodev wav' /run/config.sh
+
 ADD --chmod=664 https://github.com/qemus/virtiso-whql/releases/download/v${VERSION_VIRTIO}-0/virtio-win-${VERSION_VIRTIO}.tar.xz /var/drivers.txz
 
 FROM dockurr/windows-arm:${VERSION_ARG} AS build-arm64

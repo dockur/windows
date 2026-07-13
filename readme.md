@@ -24,6 +24,7 @@ Windows inside a Docker container.
 - Dynamic memory allocation with memory ballooning
 - USB passthrough and host folder sharing
 - Supports NAT, user-mode, macvlan, and macvtap networking
+- Optional audio streaming from the guest to the browser
 
 ## Video 📺
 
@@ -395,6 +396,17 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   - Your VPS or cloud provider supports nested virtualization.
 
   If `kvm-ok` succeeds but the container still reports that KVM is unavailable, you can temporarily add `privileged: true` to your Compose file to rule out a permission or device-access issue.
+
+### How do I enable audio?
+
+  Audio is off by default. To stream the guest's audio to the browser, add the following environment variable:
+
+  ```yaml
+  environment:
+    AUDIO: "Y"
+  ```
+
+  Then tick the **Audio** box under Settings → Advanced in the web viewer's toolbar. Audio only streams while that box is checked, so it adds no bandwidth when unused.
 
 ### How do I run macOS in a container?
 
