@@ -33,7 +33,7 @@ This page lists all the environment variables that can be used to configure the 
 
 ## ⚙️ System
 
-| Variable | Defult | Description |
+| Variable | Default | Description |
 |---|---|---|
 | `MACHINE` | `q35` | QEMU machine type. |
 | `UUID` |  | QEMU machine UUID. |
@@ -49,11 +49,11 @@ This page lists all the environment variables that can be used to configure the 
 | `BOOT_MODE` | `windows` | Boot mode, for example `windows`, `windows_secure`, or `windows_legacy`. |
 | `BOOT_INDEX` | `9` | Boot priority index for the installation media. |
 | `BIOS` |  | Custom BIOS/firmware file. |
-| `TPM` | `N` | Enables the TPM emulator. |
-| `SMM` | `N` | Enables SMM/secure-machine support. |
+| `TPM` | `N` | Enables the TPM emulator, usually set by `BOOT_MODE`. |
+| `SMM` | `N` | Enables SMM/secure-machine support, usually set by `BOOT_MODE`. |
 | `LOGO` | `Y` | Enables the custom boot logo. |
 | `CLEAR` | `N` | Clears the firmware/NVRAM variables on the next boot. |
-| `USB` | `qemu-xhci,id=xhci,p2=7,p3=7` | QEMU USB controller setting. |
+| `USB` | `qemu-xhci,id=xhci` | QEMU USB controller setting. |
 
 ## 💾 Storage
 
