@@ -264,11 +264,22 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I connect using RDP?
 
-  The web viewer is mainly meant to be used during installation, as its picture quality is low, and it has no audio or clipboard for example.
+  The web viewer is mainly intended for use during installation, since it is less responsive than RDP and does not support features such as clipboard sharing.
 
   So for a better experience you can connect using any Microsoft Remote Desktop client to the IP of the container, using the username `Docker` and password `admin`.
 
   There is an RDP client for [Android](https://play.google.com/store/apps/details?id=com.microsoft.rdc.androidx) available from the Play Store and one for [iOS](https://apps.apple.com/nl/app/microsoft-remote-desktop/id714464092?l=en-GB) in the Apple Store. For Linux you can use [FreeRDP](https://www.freerdp.com/) and on Windows just type `mstsc` in the search box.
+
+### How do I enable audio?
+
+    Audio is disabled by default unless you are using RDP. To stream it to the browser, add the following environment variable:
+
+  ```yaml
+  environment:
+    AUDIO: "Y"
+  ```
+
+  Then enable **Audio** under **Settings → Advanced** in the web viewer. The stream is only active while this option is enabled, so it uses no extra bandwidth otherwise.
 
 ### How do I assign an individual IP address to the container?
 
