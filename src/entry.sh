@@ -17,6 +17,7 @@ cd /run
 . install.sh    # Run installation
 . disk.sh       # Initialize disks
 . display.sh    # Initialize graphics
+. audio.sh      # Initialize audio
 . network.sh    # Initialize network
 . samba.sh      # Configure samba
 . boot.sh       # Configure boot
