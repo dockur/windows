@@ -30,14 +30,14 @@ An empty default means the variable is unset and its value is determined automat
 | `KVM` | `Y` | Enables KVM hardware acceleration. |
 | `VMX` | `N` | Exposes Intel VMX virtualization extensions to the guest. |
 | `HV` | `Y` | Enables Hyper-V enlightenments for Windows guests. |
-| `RAM_SIZE` | `4G` | Amount of RAM assigned to the VM, such as `8G`, `half`, or `max`. |
+| `RAM_SIZE` | `4G` | Amount of RAM assigned to Windows, such as `8G`, `half`, or `max`. |
 | `RAM_CHECK` | `Y` | Checks whether enough host memory is available before starting the VM. |
 
 ## 💾 Storage
 
 | Variable | Default | Description |
 |---|---|---|
-| `DISK_SIZE` | `64G` | Size of the primary VM disk. |
+| `DISK_SIZE` | `64G` | Size of the primary disk. |
 | `DISK_FMT` | `raw` | Disk image format: `raw` or `qcow2`. |
 | `DISK_TYPE` | `scsi` | Disk device type, such as `sata`, `scsi`, `nvme`, or `blk`. |
 | `DISK_CACHE` | `none` | Disk cache mode, such as `none` or `writeback`. |
@@ -54,7 +54,7 @@ An empty default means the variable is unset and its value is determined automat
 |---|---|---|
 | `NETWORK` |  | Network mode, such as `nat`, `passt`, `slirp`, or `N` to disable networking. |
 | `DHCP` | `N` | Enables macvtap networking so the VM receives an address from the external LAN through DHCP. |
-| `HOST` | `Windows` | Hostname assigned to the guest. |
+| `HOST` | `Windows` | Hostname assigned to Windows. |
 | `IP` |  | Overrides the automatically selected guest IPv4 address. |
 | `MAC` |  | Guest network adapter MAC address. |
 | `ADAPTER` | `virtio-net-pci` | QEMU network adapter model. |
@@ -64,7 +64,7 @@ An empty default means the variable is unset and its value is determined automat
 | `TAP` | `qemu` | TAP or macvtap interface name. |
 | `BRIDGE` | `docker` | Bridge name used for NAT networking. |
 | `HOST_PORTS` |  | Ports excluded from guest forwarding. |
-| `USER_PORTS` |  | Additional ports to forward to the VM when using user-mode networking. |
+| `USER_PORTS` |  | Additional ports to forward to Windows when using user-mode networking. |
 | `DNSMASQ_OPTS` |  | Additional options passed to dnsmasq. |
 | `DNSMASQ_DEBUG` | `N` | Enables dnsmasq debug output. |
 | `DNSMASQ_DISABLE` | `N` | Disables the internal dnsmasq resolver. |
@@ -108,7 +108,7 @@ An empty default means the variable is unset and its value is determined automat
 | Variable | Default | Description |
 |---|---|---|
 | `MACHINE` | `q35` | QEMU machine type. |
-| `UUID` |  | UUID assigned to the VM. |
+| `UUID` |  | UUID assigned to Windows. |
 | `HPET` | `off` | QEMU HPET timer setting. |
 | `VMPORT` | `off` | QEMU VMware port setting. |
 | `SM_BIOS` |  | Additional arguments passed to QEMU’s `-smbios` option. |
@@ -150,7 +150,7 @@ Also see [Dynamic memory allocation](https://github.com/qemus/qemu/blob/master/d
 | Variable | Default | Description |
 |---|---|---|
 | `SHUTDOWN` | `Y` | Enables graceful ACPI shutdown. |
-| `TIMEOUT` | `115` | Maximum time, in seconds, to wait before forcing the VM to stop. |
+| `TIMEOUT` | `115` | Maximum time, in seconds, to wait before forcing Windows to stop. |
 
 ## 🐞 Debugging
 
