@@ -151,10 +151,18 @@ markWindowsBooted() {
 
   # Remove CD-ROM ISO after install
   ! ready && return 0
-  
-  touch "$file"
-  ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
-    
+
+  if ! touch "$file"; then
+    error "Failed to create Windows installation marker!"
+    return 0
+  fi
+
+  if ! setOwner "$file"; then
+    rm -f "$file"
+    error "Failed to set the owner for \"$file\" !"
+    return 0
+  fi
+
   if ! disabled "$REMOVE"; then
     rm -f "$BOOT" 2>/dev/null || true
   fi
