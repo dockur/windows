@@ -845,10 +845,8 @@ downloadFile() {
     fi
 
     verifyFile "$iso" "$size" "$total" "$sum" || return 1
-
     isCompressed "$url" && UNPACK="Y"
 
-    html "Download finished successfully..."
     return 0
   fi
 
