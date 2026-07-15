@@ -47,25 +47,29 @@ writeReadme() {
   local dir="$1"
   local ref="$2"
 
-  {   echo "--------------------------------------------------------"
-      echo " $APP for $ENGINE v$(</etc/version)..."
-      echo " For support visit $SUPPORT"
-      echo "--------------------------------------------------------"
-      echo ""
-      echo "Using this folder you can exchange files with the host machine."
-      echo ""
-      echo "To select a folder on the host for this purpose, include the following bind mount in your compose file:"
-      echo ""
-      echo "  volumes:"
-      echo "    - \"./example:${ref}\""
-      echo ""
-      echo "Or in your run command:"
-      echo ""
-      echo "  -v \"\${PWD:-.}/example:${ref}\""
-      echo ""
-      echo "Replace the example path ./example with your desired shared folder, which then will become visible here."
-      echo ""
-  } | unix2dos > "$dir/readme.txt"
+  if ! {
+    echo "--------------------------------------------------------"
+    echo " $APP for $ENGINE v$(</etc/version)..."
+    echo " For support visit $SUPPORT"
+    echo "--------------------------------------------------------"
+    echo ""
+    echo "Using this folder you can exchange files with the host machine."
+    echo ""
+    echo "To select a folder on the host for this purpose, include the following bind mount in your compose file:"
+    echo ""
+    echo "  volumes:"
+    echo "    - \"./example:${ref}\""
+    echo ""
+    echo "Or in your run command:"
+    echo ""
+    echo "  -v \"\${PWD:-.}/example:${ref}\""
+    echo ""
+    echo "Replace the example path ./example with your desired shared folder, which then will become visible here."
+    echo ""
+  } | unix2dos > "$dir/readme.txt"; then
+    error "Failed to write shared folder readme!"
+    return 1
+  fi
 
   return 0
 }
@@ -78,6 +82,7 @@ addShare() {
   local comment="$4"
   local cfg="$5"
   local owner=""
+  local tmp="/tmp/smb"
 
   if [ ! -d "$dir" ]; then
     if ! mkdir -p "$dir"; then
