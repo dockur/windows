@@ -523,13 +523,12 @@ getESD() {
   local version="$2"
   local lang="$3"
   local desc="$4"
-  local rc=0
   local file result culture
   local language edition catalog
   local xmlFile="products.xml"
   local esdFile="esd_edition.xml"
   local filterFile="products_filter.xml"
-  local query
+  local log query rc=0 reason=""
 
   file=$(getCatalog "$version" "file")
   catalog=$(getCatalog "$version" "url")
@@ -551,13 +550,36 @@ getESD() {
     return 1
   fi
 
-  { wget "$catalog" -O "$dir/$file" -q --timeout=30 --no-http-keep-alive; rc=$?; } || :
+  log=$(mktemp)
 
-  msg="Failed to download $catalog"
-  (( rc == 3 )) && error "$msg , cannot write file (disk full?)" && return 1
-  (( rc == 4 )) && error "$msg , network failure!" && return 1
-  (( rc == 8 )) && error "$msg , server issued an error response!" && return 1
-  (( rc != 0 )) && error "$msg , reason: $rc" && return 1
+  {
+    LC_ALL=C wget "$catalog" -O "$dir/$file" --no-verbose --timeout=30 \
+      --no-http-keep-alive --output-file="$log"
+    rc=$?
+  } || :
+
+  if (( rc != 0 )); then
+
+    reason=$(sed -n \
+      -e 's/^wget: //p' \
+      -e 's/^[0-9-]\{10\} [0-9:]\{8\} ERROR //p' \
+      "$log" | tail -n 1)
+
+    msg="Failed to download $catalog"
+
+    if (( rc == 3 )); then
+      error "$msg because the file could not be written (disk full?)."
+    elif [ -n "$reason" ]; then
+      error "$msg: ${reason%.}."
+    else
+      error "$msg with exit status $rc."
+    fi
+
+    rm -f "$log"
+    return 1
+  fi
+
+  rm -f "$log"
 
   if [[ "$file" == *".xml" ]]; then
 
@@ -703,8 +725,10 @@ downloadFile() {
   local size="$4"
   local lang="$5"
   local desc="$6"
+  local reason=""
   local msg="Downloading $desc"
-  local rc total total_gb progress domain dots agent space folder
+  local rc total total_gb progress log
+  local domain dots agent space folder
 
   agent=$(getAgent)
 
@@ -740,11 +764,26 @@ downloadFile() {
   fi
 
   info "$msg..."
+  log=$(mktemp)
   enabled "$DEBUG" && echo "Downloading: $url"
 
-  { wget "$url" -O "$iso" --continue -q --timeout=30 --no-http-keep-alive --user-agent "$agent" --show-progress "$progress"; rc=$?; } || :
+  {
+    LC_ALL=C wget "$url" -O "$iso" --continue --no-verbose --timeout=30 \
+      --no-http-keep-alive --user-agent "$agent" --show-progress "$progress" \
+      --output-file="$log"
+    rc=$?
+  } || :
 
   fKill "progress.sh"
+
+  if (( rc != 0 )); then
+    reason=$(sed -n \
+      -e 's/^wget: //p' \
+      -e 's/^[0-9-]\{10\} [0-9:]\{8\} ERROR //p' \
+      "$log" | tail -n 1)
+  fi
+
+  rm -f "$log"
 
   if (( rc == 0 )) && [ -f "$iso" ]; then
 
@@ -769,11 +808,15 @@ downloadFile() {
   fi
 
   msg="Failed to download $url"
-  (( rc == 3 )) && error "$msg , cannot write file (disk full?)" && return 1
-  (( rc == 4 )) && error "$msg , network failure!" && return 1
-  (( rc == 8 )) && error "$msg , server issued an error response! Please report this at $SUPPORT/issues" && return 1
 
-  error "$msg , reason: $rc"
+  if (( rc == 3 )); then
+    error "$msg because the file could not be written (disk full?)."
+  elif [ -n "$reason" ]; then
+    error "$msg: ${reason%.}."
+  else
+    error "$msg with exit status $rc."
+  fi
+
   return 1
 }
 
