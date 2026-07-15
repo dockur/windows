@@ -19,23 +19,23 @@ disabled "$NETWORK" && return 0
 configureNetwork() {
 
   if enabled "$DHCP"; then
-    socket="$UPLINK"
+
     hostname="$UPLINK"
     interfaces="$DEV"
+
+    return 0
+  fi
+
+  hostname="host.lan"
+
+  if isUserMode; then
+    interfaces="lo"
   else
-    hostname="host.lan"
+    interfaces="$BRIDGE"
+  fi
 
-    if isUserMode; then
-      interfaces="lo"
-      socket="127.0.0.1"
-    else
-      socket="$IP"
-      interfaces="$BRIDGE"
-    fi
-
-    if [ -n "${SAMBA_INTERFACE:-}" ]; then
-      interfaces+=",$SAMBA_INTERFACE"
-    fi
+  if [ -n "${SAMBA_INTERFACE:-}" ]; then
+    interfaces+=",$SAMBA_INTERFACE"
   fi
 
   return 0
