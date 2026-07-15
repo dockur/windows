@@ -243,7 +243,7 @@ startDaemon() {
   local log="$2"
   shift 2
 
-  rm -f "$log"
+  rm -f "$log" || :
 
   if ! "$@"; then
     SAMBA_DEBUG="Y"
@@ -295,8 +295,7 @@ writeConfig || return 0
 # Add shared folders
 selectPrimaryShare || return 0
 
-! addShare "$share" "/shared" "Data" "Shared" "$SAMBA_CONFIG" && return 0
-
+addShare "$share" "/shared" "Data" "Shared" "$SAMBA_CONFIG" || return 0
 addOptionalShare "2" || :
 addOptionalShare "3" || :
 
