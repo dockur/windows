@@ -3,15 +3,16 @@ set -Eeuo pipefail
 
 : "${SAMBA:="Y"}"         # Enable Samba
 : "${SAMBA_DEBUG:="N"}"   # Disable debug
-
-tmp="/tmp/smb"
-rm -rf "$tmp"
+: "${SAMBA_CONFIG:="/etc/samba/smb.conf"}"
 
 DDN_PID="/var/run/wsdd.pid"
 NMB_PID="/var/run/samba/nmbd.pid"
 SMB_PID="/var/run/samba/smbd.pid"
 
-rm -f "$SMB_PID" "$NMB_PID" "$DDN_PID"
+if ! rm -f "$SMB_PID" "$NMB_PID" "$DDN_PID"; then
+  error "Failed to clean Samba PID files!"
+  return 0
+fi
 
 disabled "$SAMBA" && return 0
 disabled "$NETWORK" && return 0
@@ -19,23 +20,23 @@ disabled "$NETWORK" && return 0
 configureNetwork() {
 
   if enabled "$DHCP"; then
-    socket="$UPLINK"
+
     hostname="$UPLINK"
     interfaces="$DEV"
+
+    return 0
+  fi
+
+  hostname="host.lan"
+
+  if isUserMode; then
+    interfaces="lo"
   else
-    hostname="host.lan"
+    interfaces="$BRIDGE"
+  fi
 
-    if isUserMode; then
-      interfaces="lo"
-      socket="127.0.0.1"
-    else
-      socket="$IP"
-      interfaces="$BRIDGE"
-    fi
-
-    if [ -n "${SAMBA_INTERFACE:-}" ]; then
-      interfaces+=",$SAMBA_INTERFACE"
-    fi
+  if [ -n "${SAMBA_INTERFACE:-}" ]; then
+    interfaces+=",$SAMBA_INTERFACE"
   fi
 
   return 0
@@ -46,25 +47,29 @@ writeReadme() {
   local dir="$1"
   local ref="$2"
 
-  {   echo "--------------------------------------------------------"
-      echo " $APP for $ENGINE v$(</etc/version)..."
-      echo " For support visit $SUPPORT"
-      echo "--------------------------------------------------------"
-      echo ""
-      echo "Using this folder you can exchange files with the host machine."
-      echo ""
-      echo "To select a folder on the host for this purpose, include the following bind mount in your compose file:"
-      echo ""
-      echo "  volumes:"
-      echo "    - \"./example:${ref}\""
-      echo ""
-      echo "Or in your run command:"
-      echo ""
-      echo "  -v \"\${PWD:-.}/example:${ref}\""
-      echo ""
-      echo "Replace the example path ./example with your desired shared folder, which then will become visible here."
-      echo ""
-  } | unix2dos > "$dir/readme.txt"
+  if ! {
+    echo "--------------------------------------------------------"
+    echo " $APP for $ENGINE v$(</etc/version)..."
+    echo " For support visit $SUPPORT"
+    echo "--------------------------------------------------------"
+    echo ""
+    echo "Using this folder you can exchange files with the host machine."
+    echo ""
+    echo "To select a folder on the host for this purpose, include the following bind mount in your compose file:"
+    echo ""
+    echo "  volumes:"
+    echo "    - \"./example:${ref}\""
+    echo ""
+    echo "Or in your run command:"
+    echo ""
+    echo "  -v \"\${PWD:-.}/example:${ref}\""
+    echo ""
+    echo "Replace the example path ./example with your desired shared folder, which then will become visible here."
+    echo ""
+  } | unix2dos > "$dir/readme.txt"; then
+    error "Failed to write shared folder readme!"
+    return 1
+  fi
 
   return 0
 }
@@ -77,6 +82,7 @@ addShare() {
   local comment="$4"
   local cfg="$5"
   local owner=""
+  local tmp="/tmp/smb"
 
   if [ ! -d "$dir" ]; then
     if ! mkdir -p "$dir"; then
@@ -85,13 +91,13 @@ addShare() {
   fi
 
   if ! ls -A "$dir" >/dev/null 2>&1; then
-    msg="No permission to access shared folder ($dir)."
+    local msg="No permission to access shared folder ($dir)."
     msg+=" If SELinux is active, you need to add the \":Z\" flag to the bind mount."
     error "$msg" && return 1
   fi
 
   if [ ! -w "$dir" ]; then
-    msg="shared folder ($dir) is not writeable!"
+    local msg="shared folder ($dir) is not writeable!"
     warn "$msg"
   fi
 
@@ -136,39 +142,49 @@ addShare() {
 
 writeConfig() {
 
-  {   echo "[global]"
-      echo "    server string = Dockur"
-      echo "    netbios name = $hostname"
-      echo "    workgroup = WORKGROUP"
-      echo "    interfaces = $interfaces"
-      echo "    bind interfaces only = yes"
-      echo "    socket address = $socket"
-      echo "    security = user"
-      echo "    guest account = nobody"
-      echo "    map to guest = Bad User"
-      echo "    server min protocol = NT1"
-      echo "    follow symlinks = yes"
-      echo "    wide links = yes"
-      echo "    unix extensions = no"
-      echo "    inherit owner = yes"
-      echo "    create mask = 0666"
-      echo "    directory mask = 02777"
-      echo "    force user = root"
-      echo "    force group = root"
-      echo "    force create mode = 0666"
-      echo "    force directory mode = 02777"
-      echo ""
-      echo "    # Disable printing services"
-      echo "    load printers = no"
-      echo "    printing = bsd"
-      echo "    printcap name = /dev/null"
-      echo "    disable spoolss = yes"
-  } > "$SAMBA_CONFIG"
+  if ! {
+    echo "[global]"
+    echo "    server string = Dockur"
+    echo "    netbios name = $hostname"
+    echo "    workgroup = WORKGROUP"
+    echo "    interfaces = $interfaces"
+    echo "    bind interfaces only = yes"
+    echo "    security = user"
+    echo "    guest account = nobody"
+    echo "    map to guest = Bad User"
+    echo "    server min protocol = NT1"
+    echo "    follow symlinks = yes"
+    echo "    wide links = yes"
+    echo "    unix extensions = no"
+    echo "    inherit owner = yes"
+    echo "    create mask = 0666"
+    echo "    directory mask = 02777"
+    echo "    force user = root"
+    echo "    force group = root"
+    echo "    force create mode = 0666"
+    echo "    force directory mode = 02777"
+    echo ""
+    echo "    # Disable printing services"
+    echo "    load printers = no"
+    echo "    printing = bsd"
+    echo "    printcap name = /dev/null"
+    echo "    disable spoolss = yes"
+  } > "$SAMBA_CONFIG"; then
+    error "Failed to write Samba config \"$SAMBA_CONFIG\" !"
+    return 1
+  fi
 
   return 0
 }
 
 selectPrimaryShare() {
+
+  local tmp="/tmp/smb"
+
+  if ! rm -rf "$tmp"; then
+    error "Failed to clean temporary Samba folder!"
+    return 1
+  fi
 
   share="/shared"
   [ ! -d "$share" ] && [ -d "$STORAGE/shared" ] && share="$STORAGE/shared"
@@ -227,7 +243,7 @@ startDaemon() {
   local log="$2"
   shift 2
 
-  rm -f "$log"
+  rm -f "$log" || :
 
   if ! "$@"; then
     SAMBA_DEBUG="Y"
@@ -269,30 +285,29 @@ startWsddn() {
   return 0
 }
 
-configureNetwork
+configureNetwork || return 0
 
 html "Initializing shared folder..."
-SAMBA_CONFIG="/etc/samba/smb.conf"
 enabled "$DEBUG" && echo "Starting Samba daemon..."
 
-writeConfig || return 1
+writeConfig || return 0
 
 # Add shared folders
-selectPrimaryShare
-! addShare "$share" "/shared" "Data" "Shared" "$SAMBA_CONFIG" && return 0
+selectPrimaryShare || return 0
 
-addOptionalShare "2"
-addOptionalShare "3"
+addShare "$share" "/shared" "Data" "Shared" "$SAMBA_CONFIG" || return 0
+addOptionalShare "2" || :
+addOptionalShare "3" || :
 
-prepareSambaDirs || return 1
-startSamba
+prepareSambaDirs || return 0
 
+startSamba || return 0
 isUserMode && return 0
 
 if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
-  startNetbios
+  startNetbios || :
 else
-  startWsddn
+  startWsddn || :
 fi
 
 return 0
