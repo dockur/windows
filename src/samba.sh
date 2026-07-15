@@ -142,7 +142,6 @@ writeConfig() {
       echo "    workgroup = WORKGROUP"
       echo "    interfaces = $interfaces"
       echo "    bind interfaces only = yes"
-      echo "    socket address = $socket"
       echo "    security = user"
       echo "    guest account = nobody"
       echo "    map to guest = Bad User"
