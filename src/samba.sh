@@ -272,30 +272,31 @@ startWsddn() {
   return 0
 }
 
-configureNetwork
+configureNetwork || return 0
 
 html "Initializing shared folder..."
 SAMBA_CONFIG="/etc/samba/smb.conf"
 enabled "$DEBUG" && echo "Starting Samba daemon..."
 
-writeConfig || return 1
+writeConfig || return 0
 
 # Add shared folders
-selectPrimaryShare
+selectPrimaryShare || return 0
+
 ! addShare "$share" "/shared" "Data" "Shared" "$SAMBA_CONFIG" && return 0
 
-addOptionalShare "2"
-addOptionalShare "3"
+addOptionalShare "2" || :
+addOptionalShare "3" || :
 
-prepareSambaDirs || return 1
-startSamba
+prepareSambaDirs || return 0
 
+startSamba || return 0
 isUserMode && return 0
 
 if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
-  startNetbios
+  startNetbios || :
 else
-  startWsddn
+  startWsddn || :
 fi
 
 return 0
