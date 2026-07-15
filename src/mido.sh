@@ -955,11 +955,10 @@ downloadImage() {
       sum=""
       size=""
 
+      # Skip verification if the retrieved URL differs from the static URL.
       if [[ "${MIDO_URL%%\?*}" == "${url%%\?*}" ]]; then
         size=$(getMido "$version" "$lang" "size")
         sum=$(getMido "$version" "$lang" "sum")
-      else
-        enabled "$DEBUG" && echo "Skipping verification because the retrieved URL differs from the static URL."
       fi
 
       tryDownload "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$desc" "$seconds" && return 0
