@@ -5,44 +5,83 @@ handleCurlError() {
 
   local code="$1"
   local server="$2"
+  local reason="${3:-}"
+  local signal=""
+
+  if [ -n "$reason" ] && (( code <= 125 )); then
+    error "Request to $server servers failed: ${reason%.}."
+    return 1
+  fi
 
   case "$code" in
-    1) error "Unsupported protocol!" ;;
-    2) error "Failed to initialize curl!" ;;
-    3) error "The URL format is malformed!" ;;
-    5) error "Failed to resolve address of proxy host!" ;;
-    6) error "Failed to resolve $server servers! Is there an Internet connection?" ;;
-    7) error "Failed to contact $server servers! Is there an Internet connection or is the server down?" ;;
-    8) error "$server servers returned a malformed HTTP response!" ;;
-    16) error "A problem was detected in the HTTP2 framing layer!" ;;
-    22) error "$server servers returned a failing HTTP status code!" ;;
-    23) error "Failed at writing Windows media to disk! Out of disk space or permission error?" ;;
-    26) error "Failed to read Windows media from disk!" ;;
-    27) error "Ran out of memory during download!" ;;
-    28) error "Connection timed out to $server server!" ;;
-    35) error "SSL connection error from $server server!" ;;
-    36) error "Failed to continue earlier download!" ;;
-    52) error "Received no data from the $server server!" ;;
-    63) error "$server servers returned an unexpectedly large response!" ;;
-    126) error "Curl command cannot be executed!" ;;
-    127) error "Curl command not found!" ;;
+    126) error "The curl command could not be executed." ;;
+    127) error "The curl command was not found." ;;
     *)
-      if (( code <= 125 )); then
-        # Must be some other server or network error (possibly with this specific request/file)
-        # This is when accounting for all possible errors in the curl manual assuming a correctly formed
-        # curl command and an HTTP(S) request, using only the curl features we're using, and a sane build.
-        error "Miscellaneous server or network error, reason: $code"
-      else
-        case "$(kill -l "$code" 2>/dev/null || true)" in
-          INT) error "Curl was interrupted!" ;;
-          SEGV | ABRT) error "Curl crashed! Please report any core dumps to curl developers." ;;
-          *) error "Curl terminated due to fatal signal $code !" ;;
-        esac
+      if (( code < 129 )); then
+        error "Request to $server servers failed with curl exit status $code."
+        return 1
       fi
+
+      signal=$(kill -l "$((code - 128))" 2>/dev/null || true)
+
+      case "$signal" in
+        INT) error "Curl was interrupted." ;;
+        SEGV | ABRT) error "Curl crashed with signal $signal." ;;
+        "") error "Curl terminated with exit status $code." ;;
+        *) error "Curl terminated due to signal $signal." ;;
+      esac
       ;;
   esac
 
   return 1
+}
+
+curlRequest() {
+
+  local output="$1"
+  local server="$2"
+  local agent="$3"
+  shift 3
+
+  local log reason 
+  local rc=0 response=""
+
+  if ! log=$(mktemp); then
+    error "Failed to create a temporary curl log."
+    return 1
+  fi
+
+  {
+    response=$(LC_ALL=C curl \
+      --silent \
+      --show-error \
+      --max-time 30 \
+      --user-agent "$agent" \
+      --fail \
+      --proto =https \
+      --tlsv1.2 \
+      --http1.1 \
+      "$@" 2>"$log")
+    rc=$?
+  } || :
+
+  if (( rc != 0 )); then
+
+    reason=$(sed -nE 's/^curl: \([0-9]+\) //p' "$log" | tail -n 1)
+    
+    rm -f "$log"
+    handleCurlError "$rc" "$server" "$reason"
+
+    return 1
+  fi
+
+  rm -f "$log"
+
+  if [ -n "$output" ]; then
+    printf -v "$output" '%s' "$response"
+  fi
+
+  return 0
 }
 
 getAgent() {
@@ -62,15 +101,14 @@ downloadWindows() {
   local lang="$2"
   local desc="$3"
 
-  local rc=0
   local ovToken="" ovTicks="" ovTime=""
   local skuId="" skuUrl="" skuJson=""
   local linkUrl="" linkJson="" link=""
-  local language="" orgId=""
-  local instance="" vlsUrl="" ovUrl="" ovData=""
+  local language="" orgId="" ovData=""
+  local instance="" vlsUrl="" ovUrl=""
   local session="" agent="" type=""
   local winVer="" page="" productId=""
-  local profile="606624d44113"
+  local rc=0 profile="606624d44113"
 
   agent=$(getAgent)
   language=$(getLanguage "$lang" "name")
@@ -102,10 +140,11 @@ downloadWindows() {
   # Also, keeping a "$WindowsVersions" array like Fido does would be way too much of a maintenance burden
   # Remove "Accept" header that curl sends by default
   enabled "$DEBUG" && echo "Parsing download page: ${url}"
-  page=$(curl --silent --max-time 30 --user-agent "$agent" --header "Accept:" --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url") || {
-    handleCurlError "$?" "Microsoft"
-    return $?
-  }
+
+  curlRequest page "Microsoft" "$agent" \
+    --header "Accept:" \
+    --max-filesize 1M \
+    -- "$url" || return 1
 
   enabled "$DEBUG" && echo -n "Getting Product edition ID: "
   productId=$(echo "$page" | grep -Eo '<option value="[0-9]+">Windows' | cut -d '"' -f 2 | head -n 1 | tr -cd '0-9' | head -c 16)
@@ -124,11 +163,11 @@ downloadWindows() {
   enabled "$DEBUG" && echo "Getting Session ID: $session"
 
   # Permit Session ID
-  curl --silent --max-time 30 --output /dev/null --user-agent "$agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$vlsUrl" || {
-    # This should only happen if there's been some change to how this API works
-    handleCurlError "$?" "Microsoft"
-    return $?
-  }
+  curlRequest "" "Microsoft" "$agent" \
+    --output /dev/null \
+    --header "Accept:" \
+    --max-filesize 100K \
+    -- "$vlsUrl" || return 1
 
   # Microsoft download "protection" also requires an ov-df.microsoft.com request/reply
   # 1) Request mdt.js to get w and rticks. InstanceId is (currently) constant.
@@ -138,10 +177,10 @@ downloadWindows() {
 
   enabled "$DEBUG" && echo -n "Getting OV data: "
 
-  ovData=$(curl --silent --max-time 30 --user-agent "$agent" --header "Accept:" --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$ovUrl") || {
-    handleCurlError "$?" "Microsoft"
-    return $?
-  }
+  curlRequest ovData "Microsoft" "$agent" \
+    --header "Accept:" \
+    --max-filesize 1M \
+    -- "$ovUrl" || return 1
 
   if [[ $ovData =~ [\?\&]w=([A-Fa-f0-9]+) ]]; then
     ovToken="${BASH_REMATCH[1]}"
@@ -167,19 +206,21 @@ downloadWindows() {
 
   enabled "$DEBUG" && echo "Sending OV reply: $instance"
 
-  curl --silent --max-time 30 --output /dev/null --user-agent "$agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$ovUrl" || {
-    # This should only happen if there's been some change to how this API works
-    handleCurlError "$?" "Microsoft"
-    return $?
-  }
+  curlRequest "" "Microsoft" "$agent" \
+    --output /dev/null \
+    --header "Accept:" \
+    --max-filesize 100K \
+    -- "$ovUrl" || return 1
 
   enabled "$DEBUG" && echo -n "Getting language SKU ID: "
 
   skuUrl="https://www.microsoft.com/software-download-connector/api/getskuinformationbyproductedition?profile=$profile&ProductEditionId=$productId&SKU=undefined&friendlyFileName=undefined&Locale=en-US&sessionID=$session"
-  skuJson=$(curl --silent --max-time 30 --request GET --user-agent "$agent" --referer "$url" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$skuUrl") || {
-    handleCurlError "$?" "Microsoft"
-    return $?
-  }
+
+  curlRequest skuJson "Microsoft" "$agent" \
+    --referer "$url" \
+    --header "Accept:" \
+    --max-filesize 100K \
+    -- "$skuUrl" || return 1
 
   { skuId=$(echo "$skuJson" | jq --arg LANG "$language" -r '.Skus[] | select(.Language==$LANG).Id') 2>/dev/null; rc=$?; } || :
 
@@ -196,10 +237,12 @@ downloadWindows() {
   # If any request is going to be blocked by Microsoft it's always this last one (the previous requests always seem to succeed)
 
   linkUrl="https://www.microsoft.com/software-download-connector/api/GetProductDownloadLinksBySku?profile=$profile&ProductEditionId=undefined&SKU=$skuId&friendlyFileName=undefined&Locale=en-US&sessionID=$session"
-  linkJson=$(curl --silent --max-time 30 --request GET --user-agent "$agent" --referer "$url" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "$linkUrl") || {
-    handleCurlError "$?" "Microsoft"
-    return $?
-  }
+
+  curlRequest linkJson "Microsoft" "$agent" \
+    --referer "$url" \
+    --header "Accept:" \
+    --max-filesize 100K \
+    -- "$linkUrl" || return 1
 
   if ! [ "$linkJson" ]; then
     # This should only happen if there's been some change to how this API works
@@ -279,10 +322,11 @@ downloadWindowsEval() {
   local url="https://www.microsoft.com/en-us/evalcenter/download-$winVer"
 
   enabled "$DEBUG" && echo "Parsing download page: ${url}"
-  page=$(curl --silent --max-time 30 --user-agent "$agent" --location --max-filesize 1M --fail --proto =https --tlsv1.2 --http1.1 -- "$url") || {
-    handleCurlError "$?" "Microsoft"
-    return $?
-  }
+
+  curlRequest page "Microsoft" "$agent" \
+    --location \
+    --max-filesize 1M \
+    -- "$url" || return 1
 
   if ! [ "$page" ]; then
     # This should only happen if there's been some change to where this download page is located
@@ -346,11 +390,12 @@ downloadWindowsEval() {
   # Follow redirect so proceeding log message is useful
   # This is a request we make that Fido doesn't
 
-  link=$(curl --silent --max-time 30 --user-agent "$agent" --location --output /dev/null --silent --write-out "%{url_effective}" --head --fail --proto =https --tlsv1.2 --http1.1 -- "$link") || {
-    # This should only happen if the Microsoft servers are down
-    handleCurlError "$?" "Microsoft"
-    return $?
-  }
+  curlRequest link "Microsoft" "$agent" \
+    --location \
+    --output /dev/null \
+    --write-out "%{url_effective}" \
+    --head \
+    -- "$link" || return 1
 
   case "${PLATFORM,,}" in
     "x64" )
@@ -735,12 +780,12 @@ downloadFile() {
   if [ -n "$size" ] && [[ "$size" != "0" ]]; then
 
     folder=$(dirname -- "$iso")
-  
+
     if ! space=$(df --output=avail -B 1 "$folder" | tail -n 1); then
       error "Failed to check free space in $folder!"
       return 1
     fi
-  
+
     total_gb=$(formatBytes "$space")
     (( size > space )) && error "Not enough free space to download file, only $total_gb left!" && return 1
   fi
@@ -793,16 +838,16 @@ downloadFile() {
     fi
 
     total_gb=$(formatBytes "$total")
-  
+
     if [ "$total" -lt 100000000 ]; then
       error "Invalid download link: $url (is only $total_gb ?). Please report this at $SUPPORT/issues"
       return 1
     fi
-  
+
     verifyFile "$iso" "$size" "$total" "$sum" || return 1
-  
+
     isCompressed "$url" && UNPACK="Y"
-  
+
     html "Download finished successfully..."
     return 0
   fi
@@ -918,7 +963,7 @@ downloadImage() {
       fi
 
       tryDownload "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$desc" "$seconds" && return 0
-  
+
     fi
   fi
 
