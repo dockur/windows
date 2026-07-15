@@ -85,13 +85,13 @@ addShare() {
   fi
 
   if ! ls -A "$dir" >/dev/null 2>&1; then
-    msg="No permission to access shared folder ($dir)."
+    local msg="No permission to access shared folder ($dir)."
     msg+=" If SELinux is active, you need to add the \":Z\" flag to the bind mount."
     error "$msg" && return 1
   fi
 
   if [ ! -w "$dir" ]; then
-    msg="shared folder ($dir) is not writeable!"
+    local msg="shared folder ($dir) is not writeable!"
     warn "$msg"
   fi
 
