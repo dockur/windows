@@ -4,14 +4,21 @@ set -Eeuo pipefail
 : "${SAMBA:="Y"}"         # Enable Samba
 : "${SAMBA_DEBUG:="N"}"   # Disable debug
 
-tmp="/tmp/smb"
-rm -rf "$tmp"
-
 DDN_PID="/var/run/wsdd.pid"
 NMB_PID="/var/run/samba/nmbd.pid"
 SMB_PID="/var/run/samba/smbd.pid"
 
-rm -f "$SMB_PID" "$NMB_PID" "$DDN_PID"
+tmp="/tmp/smb"
+
+if ! rm -rf "$tmp"; then
+  error "Failed to clean temporary Samba folder!"
+  return 0
+fi
+
+if ! rm -f "$SMB_PID" "$NMB_PID" "$DDN_PID"; then
+  error "Failed to clean Samba PID files!"
+  return 0
+fi
 
 disabled "$SAMBA" && return 0
 disabled "$NETWORK" && return 0
