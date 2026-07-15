@@ -153,13 +153,13 @@ markWindowsBooted() {
   ! ready && return 0
 
   if ! touch "$file"; then
-    error "Failed to create Windows installation marker!"
+    warn "failed to create Windows installation marker!"
     return 0
   fi
 
   if ! setOwner "$file"; then
     rm -f "$file"
-    error "Failed to set the owner for \"$file\" !"
+    warn "failed to set the owner for \"$file\" !"
     return 0
   fi
 

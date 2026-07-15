@@ -204,8 +204,7 @@ finishInstall() {
 
   if [[ "$iso" == "$STORAGE/"* ]]; then
     if ! setOwner "$iso"; then
-      error "Failed to set the owner for \"$iso\" !"
-      return 1
+      warn "failed to set the owner for \"$iso\" !"
     fi
   fi
 
@@ -221,8 +220,7 @@ finishInstall() {
   cp -f /etc/version "$file" || return 1
 
   if ! setOwner "$file"; then
-    error "Failed to set the owner for \"$file\" !"
-    return 1
+    warn "Failed to set the owner for \"$file\" !"
   fi
 
   if [[ "$iso" == "$STORAGE/"* ]]; then
@@ -1261,8 +1259,7 @@ buildImage() {
   mv -f "$out" "$BOOT" || return 1
 
   if ! setOwner "$BOOT"; then
-    error "Failed to set the owner for \"$BOOT\" !"
-    return 1
+    warn "Failed to set the owner for \"$BOOT\" !"
   fi
 
   return 0
