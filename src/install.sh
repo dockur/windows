@@ -1261,8 +1261,7 @@ buildImage() {
   mv -f "$out" "$BOOT" || return 1
 
   if ! setOwner "$BOOT"; then
-    error "Failed to set the owner for \"$BOOT\" !"
-    return 1
+    warn "Failed to set the owner for \"$BOOT\" !"
   fi
 
   return 0
