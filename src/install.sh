@@ -1275,7 +1275,7 @@ bootWindows() {
 
   restoreState "VGA" "$STORAGE/windows.vga" || return 1
   restoreState "USB" "$STORAGE/windows.usb" || return 1
-  [[ "${USB,,}" == "none" ]] && USB="no"
+  [[ "${USB:-}" == "none" ]] && USB="no"
 
   restoreState "ADAPTER" "$STORAGE/windows.net" || return 1
   restoreState "DISK_TYPE" "$STORAGE/windows.type" || return 1
