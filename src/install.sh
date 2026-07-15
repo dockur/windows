@@ -1338,5 +1338,4 @@ if ! finishInstall "$BOOT" "N"; then
   exit 69
 fi
 
-html "Successfully prepared image for installation..."
 return 0
