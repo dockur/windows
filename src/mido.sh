@@ -772,8 +772,10 @@ downloadFile() {
   local desc="$6"
   local reason=""
   local msg="Downloading $desc"
-  local rc total total_gb progress log
+  local rc total total_gb log
   local domain dots agent space folder
+  local progress=()
+  local dotbytes=33554432
 
   agent=$(getAgent)
 
@@ -792,13 +794,16 @@ downloadFile() {
 
   # Check if running with interactive TTY or redirected to docker log
   if [ -t 1 ]; then
-    progress="--progress=bar:noscroll"
+    progress=( --progress=bar:noscroll )
   else
-    progress="--progress=dot:giga"
+    if [[ "$size" =~ ^[0-9]+$ ]] && (( size > 0 )); then
+      dotbytes=$(( (size + 199) / 200 ))
+    fi
+    progress=( --progress=dot --execute "dotbytes=$dotbytes" )
   fi
 
   html "$msg..."
-  /run/progress.sh "$iso" "$size" "$msg ([P])..." &
+  /run/progress.sh "$iso" "${size:-0}" "$msg ([P])..." &
 
   domain=$(echo "$url" | awk -F/ '{print $3}')
   dots=$(echo "$domain" | tr -cd '.' | wc -c)
@@ -814,8 +819,8 @@ downloadFile() {
 
   {
     LC_ALL=C wget "$url" -O "$iso" --continue --no-verbose --timeout=30 \
-      --no-http-keep-alive --user-agent "$agent" --show-progress "$progress" \
-      --output-file="$log"
+      --no-http-keep-alive --user-agent "$agent" --show-progress \
+      "${progress[@]}" --output-file="$log"
     rc=$?
   } || :
 
