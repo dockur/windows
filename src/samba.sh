@@ -3,17 +3,11 @@ set -Eeuo pipefail
 
 : "${SAMBA:="Y"}"         # Enable Samba
 : "${SAMBA_DEBUG:="N"}"   # Disable debug
+: "${SAMBA_CONFIG:="/etc/samba/smb.conf"}"
 
 DDN_PID="/var/run/wsdd.pid"
 NMB_PID="/var/run/samba/nmbd.pid"
 SMB_PID="/var/run/samba/smbd.pid"
-
-tmp="/tmp/smb"
-
-if ! rm -rf "$tmp"; then
-  error "Failed to clean temporary Samba folder!"
-  return 0
-fi
 
 if ! rm -f "$SMB_PID" "$NMB_PID" "$DDN_PID"; then
   error "Failed to clean Samba PID files!"
@@ -180,6 +174,13 @@ writeConfig() {
 
 selectPrimaryShare() {
 
+  local tmp="/tmp/smb"
+
+  if ! rm -rf "$tmp"; then
+    error "Failed to clean temporary Samba folder!"
+    return 1
+  fi
+
   share="/shared"
   [ ! -d "$share" ] && [ -d "$STORAGE/shared" ] && share="$STORAGE/shared"
   [ ! -d "$share" ] && [ -d "/data" ] && share="/data"
@@ -282,7 +283,6 @@ startWsddn() {
 configureNetwork || return 0
 
 html "Initializing shared folder..."
-SAMBA_CONFIG="/etc/samba/smb.conf"
 enabled "$DEBUG" && echo "Starting Samba daemon..."
 
 writeConfig || return 0
