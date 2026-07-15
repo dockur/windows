@@ -703,8 +703,10 @@ downloadFile() {
   local size="$4"
   local lang="$5"
   local desc="$6"
+  local reason=""
   local msg="Downloading $desc"
-  local rc total total_gb progress domain dots agent space folder
+  local rc total total_gb progress log
+  local domain dots agent space folder
 
   agent=$(getAgent)
 
@@ -740,11 +742,26 @@ downloadFile() {
   fi
 
   info "$msg..."
+  log=$(mktemp)
   enabled "$DEBUG" && echo "Downloading: $url"
 
-  { wget "$url" -O "$iso" --continue -q --timeout=30 --no-http-keep-alive --user-agent "$agent" --show-progress "$progress"; rc=$?; } || :
+  {
+    LC_ALL=C wget "$url" -O "$iso" --continue --no-verbose --timeout=30 \
+      --no-http-keep-alive --user-agent "$agent" --show-progress "$progress" \
+      --output-file="$log"
+    rc=$?
+  } || :
 
   fKill "progress.sh"
+
+  if (( rc != 0 )); then
+    reason=$(sed -n \
+      -e 's/^wget: //p' \
+      -e 's/^[0-9-]\{10\} [0-9:]\{8\} ERROR //p' \
+      "$log" | tail -n 1)
+  fi
+
+  rm -f "$log"
 
   if (( rc == 0 )) && [ -f "$iso" ]; then
 
@@ -769,11 +786,15 @@ downloadFile() {
   fi
 
   msg="Failed to download $url"
-  (( rc == 3 )) && error "$msg , cannot write file (disk full?)" && return 1
-  (( rc == 4 )) && error "$msg , network failure!" && return 1
-  (( rc == 8 )) && error "$msg , server issued an error response! Please report this at $SUPPORT/issues" && return 1
 
-  error "$msg , reason: $rc"
+  if (( rc == 3 )); then
+    error "$msg because the file could not be written (disk full?)."
+  elif [ -n "$reason" ]; then
+    error "$msg: ${reason%.}."
+  else
+    error "$msg with exit status $rc."
+  fi
+
   return 1
 }
 
