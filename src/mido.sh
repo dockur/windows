@@ -88,8 +88,8 @@ getAgent() {
 
   local browser_version
 
-  # Determine approximate latest Firefox release
-  browser_version="$((124 + ($(date +%s) - 1710892800) / 2419200))"
+  # Approximate Firefox version, increasing every two weeks
+  browser_version="$((152 + ($(date +%s) - 1781568000) / 1209600))"
   echo "Mozilla/5.0 (X11; Linux x86_64; rv:${browser_version}.0) Gecko/20100101 Firefox/${browser_version}.0"
 
   return 0
