@@ -7,11 +7,11 @@ EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 
 backup () {
 
-  local count=1
   local iso="$1"
+  local count=1
   local name="unknown"
   local root="$STORAGE/backups"
-  local previous
+  local file previous failed=""
 
   previous=$(readState "base") || return 1
   [ -n "$previous" ] && name="${previous%.*}"
@@ -24,8 +24,7 @@ backup () {
   local folder="$name"
   local dir="$root/$folder"
 
-  while [ -d "$dir" ]
-  do
+  while [ -d "$dir" ]; do
     (( count++ ))
     folder="${name}.${count}"
     dir="$root/$folder"
@@ -36,13 +35,28 @@ backup () {
     return 1
   fi
 
-  [ -f "$iso" ] && mv -f "$iso" "$dir/"
-  find "$STORAGE" -maxdepth 1 -type f -iname 'data.*' -not -iname '*.iso' -exec mv -n {} "$dir/" \;
-  find "$STORAGE" -maxdepth 1 -type f -iname 'windows.*' -not -iname '*.iso' -exec mv -n {} "$dir/" \;
-  find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -exec mv -n {} "$dir/" \;
+  if [ -f "$iso" ]; then
+    if ! mv -f -- "$iso" "$dir/"; then
+      error "Failed to move \"$iso\" to \"$dir\"."
+      failed="Y"
+    fi
+  fi
+
+  while IFS= read -r -d '' file; do
+    if ! mv -n -- "$file" "$dir/"; then
+      error "Failed to move \"$file\" to \"$dir\"."
+      failed="Y"
+    fi
+  done < <(
+    find "$STORAGE" -maxdepth 1 -type f \
+      \( -iname 'data.*' -or -iname 'windows.*' -or -iname '*.rom' -or -iname '*.vars' \) \
+      -not -iname '*.iso' -print0
+  )
 
   [ -z "$(ls -A "$dir")" ] && rm -rf "$dir"
   [ -z "$(ls -A "$root")" ] && rm -rf "$root"
+
+  [ -n "$failed" ] && return 1
 
   return 0
 }
@@ -75,7 +89,7 @@ skipInstall() {
         else
           method="your custom .iso file was removed"
 
-          if [ -f "$boot" ]; then
+          if [ -f "$boot" ] && hasData; then
             info "Detected that $method, will be ignored."
             return 0
           fi
@@ -84,14 +98,17 @@ skipInstall() {
       fi
 
       info "Detected that $method, a backup of your previous installation will be saved..."
-      ! backup "$STORAGE/$previous" && error "Backup failed!"
+
+      if ! backup "$STORAGE/$previous"; then
+        warn "the backup was incomplete, continuing with installation..."
+      fi
 
       return 1
 
     fi
   fi
 
-  [ -f "$boot" ] && hasDisk && return 0
+  [ -f "$boot" ] && hasData && return 0
 
   [ ! -f "$iso" ] && return 1
   [ ! -s "$iso" ] && return 1
@@ -147,7 +164,9 @@ startInstall() {
   skipInstall "$BOOT" && return 1
 
   if hasDisk; then
-    ! backup "" && error "Backup failed!"
+    if ! backup ""; then
+      warn "the backup was incomplete, continuing with installation..."
+    fi
   fi
 
   if ! makeDir "$TMP"; then
@@ -317,7 +336,7 @@ findFile() {
   [ ! -d "$dir" ] && dir=$(find "$STORAGE" -maxdepth 1 -type d -iname "$fname" -print -quit)
 
   if [ -d "$dir" ]; then
-    if ! hasDisk || [ ! -f "$boot" ]; then
+    if ! hasData || [ ! -f "$boot" ]; then
       error "The bind $dir maps to a file that does not exist!" && return 1
     fi
   fi
