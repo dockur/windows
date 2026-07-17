@@ -186,6 +186,12 @@ cleanupHelpers() {
 finish() {
 
   local reason=$1
+  local failed=0
+
+  if [ ! -f "$QEMU_END" ] && (( reason != 0 )); then
+    failed=1
+  fi
+
   touch "$QEMU_END"
 
   forceKillQemu "$reason"
@@ -202,17 +208,15 @@ finish() {
 
   echo
 
-  if (( reason == 1 )); then
-
-    if [ -s "$QEMU_PTY" ]; then
-      error "QEMU failed to start:"
-      cat "$QEMU_PTY" >&2
-    else
-      error "QEMU exited !"
-    fi
-
-  else
+  if (( failed == 0 )); then
     echo "❯ Shutdown completed!"
+    exit "$reason"
+  fi
+
+  if [ ! -s "$QEMU_PTY" ]; then
+    error "QEMU exited unexpectedly!"
+  else
+    error "QEMU exited unexpectedly:"$'\n'"$(<"$QEMU_PTY")"
   fi
 
   exit "$reason"
