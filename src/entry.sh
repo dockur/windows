@@ -53,13 +53,19 @@ if ! enabled "$SHUTDOWN"; then
   exec "${cmd[@]}" ${ARGS:+ $ARGS} >"$pipe" 2>&1
 fi
 
-"${cmd[@]}" ${ARGS:+ $ARGS} >"$pipe" 2>&1 &
+if ! interactive; then
+  "${cmd[@]}" ${ARGS:+ $ARGS} >"$pipe" 2>&1 &
+else
+  startConsole "$pipe"
+  setsid -w "${cmd[@]}" ${ARGS:+ $ARGS} </dev/null >"$pipe" 2>&1 &
+fi
 
 pid=$!
 ( sleep 30; boot ) &
 
 rc=0
 wait "$pid" || rc=$?
+interactive && stopConsole
 wait "$output" || :
 
 [ -f "$QEMU_END" ] && exit "$rc"
