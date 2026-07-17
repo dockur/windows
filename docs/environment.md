@@ -19,6 +19,8 @@ An empty default means the variable is unset and its value is determined automat
 | `MANUAL` | `N` | Enables manual installation instead of unattended installation. |
 | `VERIFY` | `N` | Verifies downloaded images against a predefined list of checksums. |
 | `REMOVE` | `Y` | Deletes the downloaded Windows ISO after installation to save space. |
+| `MIDO` | `Y` | Try downloading from Microsoft server. |
+| `ESD` | `Y` | Try download via ESD method. |
 
 ## 🧠 CPU and Memory
 
