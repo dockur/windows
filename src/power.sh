@@ -18,6 +18,7 @@ _trap() {
 
   local func="$1"; shift
   local sig
+
   TRAP_PID=$BASHPID
 
   for sig; do
@@ -138,7 +139,7 @@ forceKillQemu() {
 
   ! readQemuPid pid && return 0
   ! isAlive "$pid" && return 0
-  
+
   display=$(displayReason "$reason")
   error "Forcefully terminating $(app), reason: $display..."
   { disown "$pid" || :; kill -9 -- "$pid" || :; } 2>/dev/null
@@ -391,7 +392,7 @@ graceful_shutdown() {
     finish "$code"
   fi
 
-  if ! isAlive "$pid"; then
+  if [ -z "$pid" ] || ! isAlive "$pid"; then
     warn "QEMU process with PID $pid does not exist?"
     finish "$code"
   fi
