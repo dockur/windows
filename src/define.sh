@@ -1925,7 +1925,8 @@ setMachine() {
       [ -z "${ADAPTER:-}" ] && ADAPTER="rtl8139" ;;
     "winxp"* | "win2003"* )
       DISK_TYPE="blk"
-      BOOT_MODE="windows_legacy" ;;
+      BOOT_MODE="windows_legacy"
+      [ -z "${SOUND:-}" ] && SOUND="usb-audio" ;;
     "winvista"* | "win7"* | "win2008"* )
       BOOT_MODE="windows_legacy" ;;
   esac

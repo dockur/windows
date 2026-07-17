@@ -292,6 +292,10 @@ finishInstall() {
     writeState "net" "$ADAPTER" || return 1
   fi
 
+  if [ -n "${SOUND:-}" ] && [[ "${SOUND:-}" != "intel-hda" ]]; then
+    writeState "sound" "$SOUND" || return 1
+  fi
+
   rm -rf "$TMP"
   return 0
 }
@@ -1294,6 +1298,7 @@ bootWindows() {
 
   restoreState "VGA" "$STORAGE/windows.vga" || return 1
   restoreState "USB" "$STORAGE/windows.usb" || return 1
+  restoreState "SOUND" "$STORAGE/windows.sound" || return 1
   restoreState "ADAPTER" "$STORAGE/windows.net" || return 1
   restoreState "DISK_TYPE" "$STORAGE/windows.type" || return 1
   restoreState "BOOT_MODE" "$STORAGE/windows.mode" "Y" || return 1
