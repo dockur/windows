@@ -25,6 +25,7 @@ An empty default means the variable is unset and its value is determined automat
 | `CPU_CORES` | `2` | Number of virtual CPU cores, such as `4`, `half`, or `max`. |
 | `CPU_MODEL` | `host` | QEMU CPU model. |
 | `CPU_FLAGS` |  | Additional QEMU CPU flags. |
+| `SMP` |  | Custom CPU topology. Determined from `CPU_CORES` when unset. |
 | `KVM` | `Y` | Enables KVM hardware acceleration. |
 | `VMX` | `N` | Exposes Intel VMX virtualization extensions to the guest. |
 | `HV` | `Y` | Enables Hyper-V enlightenments for Windows guests. |
@@ -118,6 +119,7 @@ An empty default means the variable is unset and its value is determined automat
 |---|---|---|
 | `BOOT_MODE` | `windows` | Boot configuration, such as `windows`, `windows_secure`, or `windows_legacy`. |
 | `BOOT_INDEX` | `9` | Boot priority index for the installation media. |
+| `MEDIA_TYPE` |  | Device type used for installation media. |
 | `BIOS` |  | Custom firmware file. |
 | `TPM` | `N` | Enables the TPM emulator, usually set by `BOOT_MODE`. |
 | `SMM` | `N` | Enables System Management Mode, usually set by `BOOT_MODE`. |
