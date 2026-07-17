@@ -147,8 +147,8 @@ Also see [Dynamic memory allocation](https://github.com/qemus/qemu/blob/master/d
 
 | Variable | Default | Description |
 |---|---|---|
-| `MIDO` | `Y` | Enables downloading Windows installation media directly from Microsoft. |
-| `ESD` | `Y` | Enables downloading and converting Microsoft ESD files into Windows installation media. |
+| `MIDO` | `Y` | Enables downloading Windows ISO files directly from Microsoft. |
+| `ESD` | `Y` | Enables downloading Windows through the ESD-based installation method. |
 | `VERIFY` | `N` | Verifies downloaded installation media against predefined checksums. |
 | `REMOVE` | `Y` | Deletes the downloaded Windows ISO after installation to save space. |
 
