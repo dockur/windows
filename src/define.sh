@@ -699,8 +699,8 @@ getMido() {
 
   case "${id,,}" in
     "win11x64" )
-      size=8471603200
-      sum="768984706b909479417b2368438909440f2967ff05c6a9195ed2667254e465e3"
+      size=7736125440
+      sum="d141f6030fed50f75e2b03e1eb2e53646c4b21e5386047cb860af5223f102a32"
       url="https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26200.6584.250915-1905.25h2_ge_release_svc_refresh_CLIENT_CONSUMER_x64FRE_en-us.iso"
       ;;
     "win11x64-enterprise-eval" )
@@ -739,15 +739,15 @@ getMido() {
       url="https://software-static.download.prss.microsoft.com/sg/download/888969d5-f34g-4e03-ac9d-1f9786c66749/SERVER_EVAL_x64FRE_en-us.iso"
       ;;
     "win2019-eval" )
-      size=5652088832
-      sum="6dae072e7f78f4ccab74a45341de0d6e2d45c39be25f1f5920a2ab4f51d7bcbb"
+      size=5296713728
+      sum="549bca46c055157291be6c22a3aaaed8330e78ef4382c99ee82c896426a1cee1"
       url="https://software-download.microsoft.com/download/pr/17763.737.190906-2324.rs5_release_svc_refresh_SERVER_EVAL_x64FRE_en-us_1.iso"
-     ;;
+      ;;
     "win2019-hv" )
-      size=3072712704
-      sum="48e9b944518e5bbc80876a9a7ff99716f386f404f4be48dca47e16a66ae7872c"
+      size=3022784512
+      sum="cb28984af65ba1085cd6ade5fdd3d9c75efe7618846513f9ad44f1397a409f85"
       url="https://software-download.microsoft.com/download/pr/17763.557.190612-0019.rs5_release_svc_refresh_SERVERHYPERCORE_OEM_x64FRE_en-us.ISO"
-     ;;
+      ;;
     "win2016-eval" )
       size=6972221440
       sum="1ce702a578a3cb1ac3d14873980838590f06d5b7101c5daaccbac9d73f1fb50f"
