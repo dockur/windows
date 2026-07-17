@@ -200,7 +200,20 @@ finish() {
     warn "Timed out while waiting for $(app) to exit!"
   fi
 
-  (( reason != 1 )) && echo && echo "❯ Shutdown completed!"
+  echo
+
+  if (( reason == 1 )); then
+
+    if [ -s "$QEMU_PTY" ]; then
+      error "QEMU failed to start:"
+      cat "$QEMU_PTY" >&2
+    else
+      error "QEMU exited !"
+    fi
+
+  else
+    echo "❯ Shutdown completed!"
+  fi
 
   exit "$reason"
 }
