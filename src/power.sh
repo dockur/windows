@@ -210,13 +210,8 @@ finish() {
 
   if (( failed == 0 )); then
     echo "❯ Shutdown completed!"
-    exit "$reason"
-  fi
-
-  if [ ! -s "$QEMU_PTY" ]; then
-    error "QEMU exited unexpectedly!"
   else
-    error "QEMU exited unexpectedly:"$'\n'"$(<"$QEMU_PTY")"
+    error "QEMU exited unexpectedly!"
   fi
 
   exit "$reason"
