@@ -17,8 +17,6 @@ An empty default means the variable is unset and its value is determined automat
 | `PASSWORD` | `admin` | Password for the Windows account. |
 | `KEY` |  | Windows product key used to install and activate Windows. |
 | `MANUAL` | `N` | Enables manual installation instead of unattended installation. |
-| `VERIFY` | `N` | Verifies downloaded images against a predefined list of checksums. |
-| `REMOVE` | `Y` | Deletes the downloaded Windows ISO after installation to save space. |
 
 ## 🧠 CPU and Memory
 
@@ -27,6 +25,7 @@ An empty default means the variable is unset and its value is determined automat
 | `CPU_CORES` | `2` | Number of virtual CPU cores, such as `4`, `half`, or `max`. |
 | `CPU_MODEL` | `host` | QEMU CPU model. |
 | `CPU_FLAGS` |  | Additional QEMU CPU flags. |
+| `SMP` |  | Custom CPU topology. Determined from `CPU_CORES` when unset. |
 | `KVM` | `Y` | Enables KVM hardware acceleration. |
 | `VMX` | `N` | Exposes Intel VMX virtualization extensions to the guest. |
 | `HV` | `Y` | Enables Hyper-V enlightenments for Windows guests. |
@@ -120,6 +119,7 @@ An empty default means the variable is unset and its value is determined automat
 |---|---|---|
 | `BOOT_MODE` | `windows` | Boot configuration, such as `windows`, `windows_secure`, or `windows_legacy`. |
 | `BOOT_INDEX` | `9` | Boot priority index for the installation media. |
+| `MEDIA_TYPE` |  | Device type used for installation media. |
 | `BIOS` |  | Custom firmware file. |
 | `TPM` | `N` | Enables the TPM emulator, usually set by `BOOT_MODE`. |
 | `SMM` | `N` | Enables System Management Mode, usually set by `BOOT_MODE`. |
@@ -144,6 +144,15 @@ Also see [Dynamic memory allocation](https://github.com/qemus/qemu/blob/master/d
 | `BALLOONING_KI` | `0.05` | Integral gain used by the ballooning controller. |
 | `BALLOONING_INTERVAL` | `5` | Polling interval in seconds. |
 | `BALLOONING_DEBUG` | `N` | Enables debug output for the ballooning monitor. |
+
+## 💿 Installation Media
+
+| Variable | Default | Description |
+|---|---|---|
+| `MIDO` | `Y` | Enables downloading Windows ISO files directly from Microsoft. |
+| `ESD` | `Y` | Enables downloading Windows through the ESD-based installation method. |
+| `VERIFY` | `N` | Verifies downloaded installation media against predefined checksums. |
+| `REMOVE` | `Y` | Deletes the downloaded Windows ISO after installation to save space. |
 
 ## 🔌 Shutdown
 
