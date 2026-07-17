@@ -186,6 +186,12 @@ cleanupHelpers() {
 finish() {
 
   local reason=$1
+  local failed=0
+
+  if [ ! -f "$QEMU_END" ] && (( reason != 0 )); then
+    failed=1
+  fi
+
   touch "$QEMU_END"
 
   forceKillQemu "$reason"
@@ -200,7 +206,13 @@ finish() {
     warn "Timed out while waiting for $(app) to exit!"
   fi
 
-  (( reason != 1 )) && echo && echo "❯ Shutdown completed!"
+  echo
+
+  if (( failed == 0 )); then
+    echo "❯ Shutdown completed!"
+  else
+    error "QEMU exited unexpectedly!"
+  fi
 
   exit "$reason"
 }
