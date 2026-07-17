@@ -47,17 +47,21 @@ sed -u \
   -e 's/failed to load Boot/skipped Boot/g' \
   -e 's/0): Not Found/0)/g' &
 
+output=$!
+
 if ! enabled "$SHUTDOWN"; then
-  exec "${cmd[@]}" ${ARGS:+ $ARGS} >"$pipe"
+  exec "${cmd[@]}" ${ARGS:+ $ARGS} >"$pipe" 2>&1
 fi
 
-"${cmd[@]}" ${ARGS:+ $ARGS} >"$pipe" &
+"${cmd[@]}" ${ARGS:+ $ARGS} >"$pipe" 2>&1 &
 
 pid=$!
 ( sleep 30; boot ) &
 
 rc=0
 wait "$pid" || rc=$?
+wait "$output" || :
+
 [ -f "$QEMU_END" ] && exit "$rc"
 
 sleep 1 & wait $!
