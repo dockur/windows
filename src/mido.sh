@@ -775,7 +775,7 @@ downloadFile() {
   local rc total total_gb log
   local domain dots agent space folder
   local progress=()
-  local dotbytes=33554432
+  local output=""
 
   agent=$(getAgent)
 
@@ -792,18 +792,15 @@ downloadFile() {
     (( size > space )) && error "Not enough free space to download file, only $total_gb left!" && return 1
   fi
 
-  # Check if running with interactive TTY or redirected to docker log
+  # Use Wget's progress bar in a terminal and progress.sh in container logs.
   if [ -t 1 ]; then
-    progress=( --progress=bar:noscroll )
+    progress=( --show-progress --progress=bar:noscroll )
   else
-    if [[ "$size" =~ ^[0-9]+$ ]] && (( size > 0 )); then
-      dotbytes=$(( (size + 199) / 200 ))
-    fi
-    progress=( --progress=dot --execute "dotbytes=$dotbytes" )
+    output="log"
   fi
 
   html "$msg..."
-  /run/progress.sh "$iso" "${size:-0}" "$msg ([P])..." &
+  /run/progress.sh "$iso" "${size:-0}" "$msg ([P])..." "$output" &
 
   domain=$(echo "$url" | awk -F/ '{print $3}')
   dots=$(echo "$domain" | tr -cd '.' | wc -c)
@@ -819,7 +816,7 @@ downloadFile() {
 
   {
     LC_ALL=C wget "$url" -O "$iso" --continue --no-verbose --timeout=30 \
-      --no-http-keep-alive --user-agent "$agent" --show-progress \
+      --no-http-keep-alive --user-agent "$agent" \
       "${progress[@]}" --output-file="$log"
     rc=$?
   } || :
