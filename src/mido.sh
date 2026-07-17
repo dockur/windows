@@ -849,7 +849,10 @@ downloadFile() {
       return 1
     fi
 
-    verifyFile "$iso" "$size" "$total" "$sum" || return 1
+    # Status 2 means the download completed but failed validation.
+    verifyFile "$iso" "$size" "$total" "$sum" || return 2
+
+    # Extract the .iso from the compressed archive if needed.
     isCompressed "$url" && UNPACK="Y"
 
     return 0
@@ -893,13 +896,29 @@ tryDownload() {
   local lang="$5"
   local desc="$6"
   local seconds="$7"
+  local rc=0
 
   rm -f "$iso"
-  downloadFile "$iso" "$url" "$sum" "$size" "$lang" "$desc" && return 0
+
+  if downloadFile "$iso" "$url" "$sum" "$size" "$lang" "$desc"; then
+    return 0
+  else
+    rc=$?
+  fi
+
+  # Do not download the same file again when its contents failed validation.
+  if (( rc == 2 )); then
+    rm -f "$iso"
+    return 1
+  fi
+
   delay "$seconds"
-  downloadFile "$iso" "$url" "$sum" "$size" "$lang" "$desc" && return 0
-  rm -f "$iso"
 
+  if downloadFile "$iso" "$url" "$sum" "$size" "$lang" "$desc"; then
+    return 0
+  fi
+
+  rm -f "$iso"
   return 1
 }
 
