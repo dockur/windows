@@ -1012,36 +1012,47 @@ updateXML() {
 
   local asset="$1"
   local language="$2"
-  local culture region keyboard admin pw
-  local user raw_user allowed pass domain
+  local app value culture region keyboard edition key
+  local user raw_user user_xml auth_user safe_user
+  local admin pass pw domain
 
   [ -z "$WIDTH" ] && WIDTH="1280"
   [ -z "$HEIGHT" ] && HEIGHT="720"
 
-  sed -i "s/>Windows for Docker</>$APP for $ENGINE</g" "$asset" || return 1
-  sed -i "s/<VerticalResolution>1080<\/VerticalResolution>/<VerticalResolution>$HEIGHT<\/VerticalResolution>/g" "$asset" || return 1
-  sed -i "s/<HorizontalResolution>1920<\/HorizontalResolution>/<HorizontalResolution>$WIDTH<\/HorizontalResolution>/g" "$asset" || return 1
+  if [[ ! "$WIDTH" =~ ^[0-9]+$ || ! "$HEIGHT" =~ ^[0-9]+$ ]]; then
+    error "The WIDTH and HEIGHT variables must contain numeric values!"
+    return 1
+  fi
+
+  app=$(escapeXMLSed "$APP for $ENGINE") || return 1
+
+  sed -i "s|>Windows for Docker<|>$app<|g" "$asset" || return 1
+  sed -i "s|<VerticalResolution>1080</VerticalResolution>|<VerticalResolution>$HEIGHT</VerticalResolution>|g" "$asset" || return 1
+  sed -i "s|<HorizontalResolution>1920</HorizontalResolution>|<HorizontalResolution>$WIDTH</HorizontalResolution>|g" "$asset" || return 1
 
   culture=$(getLanguage "$language" "culture") || return 1
 
   if [ -n "$culture" ] && [[ "${culture,,}" != "en-us" ]]; then
-    sed -i "s/<UILanguage>en-US<\/UILanguage>/<UILanguage>$culture<\/UILanguage>/g" "$asset" || return 1
+    value=$(escapeXMLSed "$culture") || return 1
+    sed -i "s|<UILanguage>en-US</UILanguage>|<UILanguage>$value</UILanguage>|g" "$asset" || return 1
   fi
 
   region="$REGION"
   [ -z "$region" ] && region="$culture"
 
   if [ -n "$region" ] && [[ "${region,,}" != "en-us" ]]; then
-    sed -i "s/<UserLocale>en-US<\/UserLocale>/<UserLocale>$region<\/UserLocale>/g" "$asset" || return 1
-    sed -i "s/<SystemLocale>en-US<\/SystemLocale>/<SystemLocale>$region<\/SystemLocale>/g" "$asset" || return 1
+    value=$(escapeXMLSed "$region") || return 1
+    sed -i "s|<UserLocale>en-US</UserLocale>|<UserLocale>$value</UserLocale>|g" "$asset" || return 1
+    sed -i "s|<SystemLocale>en-US</SystemLocale>|<SystemLocale>$value</SystemLocale>|g" "$asset" || return 1
   fi
 
   keyboard="$KEYBOARD"
   [ -z "$keyboard" ] && keyboard="$culture"
 
   if [ -n "$keyboard" ] && [[ "${keyboard,,}" != "en-us" ]]; then
-    sed -i "s/<InputLocale>en-US<\/InputLocale>/<InputLocale>$keyboard<\/InputLocale>/g" "$asset" || return 1
-    sed -i "s/<InputLocale>0409:00000409<\/InputLocale>/<InputLocale>$keyboard<\/InputLocale>/g" "$asset" || return 1
+    value=$(escapeXMLSed "$keyboard") || return 1
+    sed -i "s|<InputLocale>en-US</InputLocale>|<InputLocale>$value</InputLocale>|g" "$asset" || return 1
+    sed -i "s|<InputLocale>0409:00000409</InputLocale>|<InputLocale>$value</InputLocale>|g" "$asset" || return 1
   fi
 
   domain="$DOMAIN"
@@ -1049,9 +1060,6 @@ updateXML() {
     "win10x64"* | "win11x64"* ) ;;
     * ) domain="" ;;
   esac
-
-  raw_user="$USERNAME"
-  allowed="@!._-"
 
   if [ -n "$domain" ]; then
 
@@ -1070,19 +1078,13 @@ updateXML() {
       return 1
     fi
 
-    raw_user="${raw_user##*\\}"
-    raw_user="${raw_user%%@*}"
-    allowed="!._-"
+    auth_user="$USERNAME"
+    user="$auth_user"
 
-  fi
-
-  user=$(printf '%s' "$raw_user" | sed "s/[^[:alnum:]$allowed]//g") || return 1
-
-  if [[ "$user" != "$raw_user" ]]; then
-    warn "Unsupported characters were removed from the USERNAME value: \"$raw_user\" became \"$user\"."
-  fi
-
-  if [ -n "$domain" ]; then
+    case "$auth_user" in
+      *\\* ) user="${auth_user##*\\}" ;;
+      *@* ) user="${auth_user%%@*}" ;;
+    esac
 
     if [ -z "$user" ]; then
       error "The USERNAME variable does not contain a valid domain account name!"
@@ -1099,14 +1101,45 @@ updateXML() {
       return 1
     fi
 
+    safe_user=$(printf '%s' "$user" | tr -d '"/\\[]:;|=,+*?<>@') || return 1
+
+    if [[ "$safe_user" != "$user" ]]; then
+      error "The domain account name contains characters that are not supported by Windows unattended setup!"
+      return 1
+    fi
+
   else
 
+    raw_user="$USERNAME"
+    user=$(printf '%s' "$raw_user" | tr -d '"/\\[]:;|=,+*?<>@') || return 1
+
+    if [[ "$user" != "$raw_user" ]]; then
+      warn "Unsupported characters were removed from the USERNAME value: \"$raw_user\" became \"$user\"."
+    fi
+
+    if [ -n "$raw_user" ] && [ -z "$user" ]; then
+      error "The USERNAME variable does not contain a valid local account name!"
+      return 1
+    fi
+
+    if [[ "${user^^}" == "NONE" ]]; then
+      error "The USERNAME value \"NONE\" is reserved by Windows!"
+      return 1
+    fi
+
+    if [[ "$user" =~ ^[.[:space:]]+$ ]]; then
+      error "The USERNAME variable cannot consist only of spaces or periods!"
+      return 1
+    fi
+
     if [ -n "$user" ]; then
-      sed -i "s/-name \"Docker\"/-name \"$user\"/g" "$asset" || return 1
-      sed -i "s/<Name>Docker<\/Name>/<Name>$user<\/Name>/g" "$asset" || return 1
-      sed -i "s/where name=\"Docker\"/where name=\"$user\"/g" "$asset" || return 1
-      sed -i "s/<FullName>Docker<\/FullName>/<FullName>$user<\/FullName>/g" "$asset" || return 1
-      sed -i "s/<Username>Docker<\/Username>/<Username>$user<\/Username>/g" "$asset" || return 1
+      user_xml=$(escapeXMLSed "$user") || return 1
+
+      sed -i 's|-name "Docker"|-name "$env:USERNAME"|g' "$asset" || return 1
+      sed -i 's|where name="Docker"|where name="%USERNAME%"|g' "$asset" || return 1
+      sed -i "s|<Name>Docker</Name>|<Name>$user_xml</Name>|g" "$asset" || return 1
+      sed -i "s|<FullName>Docker</FullName>|<FullName>$user_xml</FullName>|g" "$asset" || return 1
+      sed -i "s|<Username>Docker</Username>|<Username>$user_xml</Username>|g" "$asset" || return 1
     fi
 
   fi
@@ -1120,18 +1153,18 @@ updateXML() {
   pw=$(printf '%s' "${pass}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
   admin=$(printf '%s' "${pass}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
 
-  sed -i "s|<Value>password<\/Value>|<Value>$admin<\/Value>|g" "$asset" || return 1
-  sed -i "s|<PlainText>true<\/PlainText>|<PlainText>false<\/PlainText>|g" "$asset" || return 1
-  sed -i -z "s|<Password>...........<Value \/>|<Password>\n          <Value>$pw<\/Value>|g" "$asset" || return 1
-  sed -i -z "s|<Password>...............<Value \/>|<Password>\n              <Value>$pw<\/Value>|g" "$asset" || return 1
-  sed -i -z "s|<AdministratorPassword>...........<Value \/>|<AdministratorPassword>\n          <Value>$admin<\/Value>|g" "$asset" || return 1
-  sed -i -z "s|<AdministratorPassword>...............<Value \/>|<AdministratorPassword>\n              <Value>$admin<\/Value>|g" "$asset" || return 1
+  sed -i "s|<Value>password</Value>|<Value>$admin</Value>|g" "$asset" || return 1
+  sed -i "s|<PlainText>true</PlainText>|<PlainText>false</PlainText>|g" "$asset" || return 1
+  sed -i -z "s|<Password>...........<Value />|<Password>\n          <Value>$pw</Value>|g" "$asset" || return 1
+  sed -i -z "s|<Password>...............<Value />|<Password>\n              <Value>$pw</Value>|g" "$asset" || return 1
+  sed -i -z "s|<AdministratorPassword>...........<Value />|<AdministratorPassword>\n          <Value>$admin</Value>|g" "$asset" || return 1
+  sed -i -z "s|<AdministratorPassword>...............<Value />|<AdministratorPassword>\n              <Value>$admin</Value>|g" "$asset" || return 1
 
   if [ -n "$domain" ]; then
 
     pw=$(printf '%s' "${PASSWORD}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
 
-    if ! updateDomain "$asset" "$domain" "$user" "$PASSWORD" "$pw"; then
+    if ! updateDomain "$asset" "$domain" "$user" "$auth_user" "$PASSWORD" "$pw"; then
       error "Failed to add domain configuration to answer file!"
       return 1
     fi
@@ -1140,12 +1173,14 @@ updateXML() {
 
   if [ -n "$EDITION" ]; then
     [[ "${EDITION^^}" == "CORE" ]] && EDITION="STANDARDCORE"
-    sed -i "s/SERVERSTANDARD<\/Value>/SERVER${EDITION^^}<\/Value>/g" "$asset" || return 1
+    edition=$(escapeXMLSed "${EDITION^^}") || return 1
+    sed -i "s|SERVERSTANDARD</Value>|SERVER$edition</Value>|g" "$asset" || return 1
   fi
 
   if [ -n "$KEY" ]; then
+    key=$(escapeXMLSed "$KEY") || return 1
     sed -i '/<ProductKey>/,/<\/ProductKey>/d' "$asset" || return 1
-    sed -i "s/<\/UserData>/  <ProductKey>\n          <Key>${KEY}<\/Key>\n          <WillShowUI>OnError<\/WillShowUI>\n        <\/ProductKey>\n      <\/UserData>/g" "$asset" || return 1
+    sed -i "s|</UserData>|  <ProductKey>\n          <Key>$key</Key>\n          <WillShowUI>OnError</WillShowUI>\n        </ProductKey>\n      </UserData>|g" "$asset" || return 1
   fi
 
   return 0
