@@ -896,110 +896,84 @@ prepareImage() {
 updateDomain() {
 
   local asset="$1"
-  local domain="$2"
-  local user="$3"
-  local pass="$4"
-  local pw="$5"
-  local tmp result
-  local domain_xml user_xml pass_xml
-
-  user_xml=$(escapeXML "$user") || return 1
-  pass_xml=$(escapeXML "$pass") || return 1
-  domain_xml=$(escapeXML "$domain") || return 1
+  local domain user pass pw tmp result
+  domain=$(escapeXML "$2") || return 1
+  user=$(escapeXML "$3") || return 1
+  pass=$(escapeXML "$4") || return 1
+  pw="$5"
 
   tmp=$(mktemp -d) || return 1
   result="$tmp/answer.xml"
 
-  if ! DOMAIN_XML="$domain_xml" USER_XML="$user_xml" PASS_XML="$pass_xml" PW="$pw" \
+  if ! DOMAIN_XML="$domain" USER_XML="$user" PASS_XML="$pass" PW="$pw" \
     awk '
-      {
-        line = $0
+      /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
+      /<settings[^>]*pass="oobeSystem"[^>]*>/  { section = "oobeSystem" }
 
-        if (line ~ /<settings[^>]*pass="specialize"[^>]*>/) {
-          pass = "specialize"
-        } else if (line ~ /<settings[^>]*pass="oobeSystem"[^>]*>/) {
-          pass = "oobeSystem"
-        }
-
-        if (pass == "oobeSystem" && line ~ /<UserAccounts([[:space:]>])/) {
-          in_accounts = 1
-        }
-
-        if (pass == "oobeSystem" && in_accounts && !accounts_added && line ~ /<AdministratorPassword([[:space:]>])/) {
-          print "        <DomainAccounts>"
-          print "          <DomainAccountList wcm:action=\"add\">"
-          print "            <DomainAccount wcm:action=\"add\">"
-          print "              <Name>" ENVIRON["USER_XML"] "</Name>"
-          print "              <Group>Administrators</Group>"
-          print "            </DomainAccount>"
-          print "            <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>"
-          print "          </DomainAccountList>"
-          print "        </DomainAccounts>"
-          accounts_added = 1
-        }
-
-        if (pass == "oobeSystem" && line ~ /<AutoLogon([[:space:]>])/) {
-          in_autologon = 1
-        }
-
-        if (pass == "oobeSystem" && in_autologon && line ~ /^[[:space:]]*<Username>.*<\/Username>[[:space:]]*$/) {
-          print "        <Username>" ENVIRON["USER_XML"] "</Username>"
-          print "        <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>"
-          autologon_added = 1
-          next
-        }
-
-        if (pass == "oobeSystem" && in_autologon && line ~ /^[[:space:]]*<Value>.*<\/Value>[[:space:]]*$/) {
-          print "          <Value>" ENVIRON["PW"] "</Value>"
-          password_added = 1
-          next
-        }
-
-        if (pass == "specialize" && !join_added && line ~ /^[[:space:]]*<\/settings>[[:space:]]*$/) {
-          print "    <component name=\"Microsoft-Windows-UnattendedJoin\" processorArchitecture=\"amd64\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">"
-          print "      <Identification>"
-          print "        <Credentials>"
-          print "          <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>"
-          print "          <Username>" ENVIRON["USER_XML"] "</Username>"
-          print "          <Password>" ENVIRON["PASS_XML"] "</Password>"
-          print "        </Credentials>"
-          print "        <JoinDomain>" ENVIRON["DOMAIN_XML"] "</JoinDomain>"
-          print "      </Identification>"
-          print "    </component>"
-          join_added = 1
-        }
-
-        print line
-
-        if (pass == "oobeSystem" && line ~ /<\/AutoLogon>/) {
-          in_autologon = 0
-        }
-
-        if (pass == "oobeSystem" && line ~ /<\/UserAccounts>/) {
-          in_accounts = 0
-        }
-
-        if (line ~ /^[[:space:]]*<\/settings>[[:space:]]*$/) {
-          pass = ""
-        }
+      section == "oobeSystem" && /<UserAccounts([[:space:]>])/ {
+        in_accounts = 1
       }
+
+      section == "oobeSystem" && /<AutoLogon([[:space:]>])/ {
+        in_autologon = 1
+      }
+
+      section == "oobeSystem" && in_accounts && !accounts_added &&
+        /<AdministratorPassword([[:space:]>])/ {
+        print "        <DomainAccounts>\n" \
+              "          <DomainAccountList wcm:action=\"add\">\n" \
+              "            <DomainAccount wcm:action=\"add\">\n" \
+              "              <Name>" ENVIRON["USER_XML"] "</Name>\n" \
+              "              <Group>Administrators</Group>\n" \
+              "            </DomainAccount>\n" \
+              "            <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>\n" \
+              "          </DomainAccountList>\n" \
+              "        </DomainAccounts>"
+        accounts_added = 1
+      }
+
+      section == "oobeSystem" && in_autologon &&
+        /^[[:space:]]*<Username>.*<\/Username>[[:space:]]*$/ {
+        print "        <Username>" ENVIRON["USER_XML"] "</Username>\n" \
+              "        <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>"
+        autologon_added = 1
+        next
+      }
+
+      section == "oobeSystem" && in_autologon &&
+        /^[[:space:]]*<Value>.*<\/Value>[[:space:]]*$/ {
+        print "          <Value>" ENVIRON["PW"] "</Value>"
+        password_added = 1
+        next
+      }
+
+      section == "specialize" && !join_added &&
+        /^[[:space:]]*<\/settings>[[:space:]]*$/ {
+        print "    <component name=\"Microsoft-Windows-UnattendedJoin\" processorArchitecture=\"amd64\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">\n" \
+              "      <Identification>\n" \
+              "        <Credentials>\n" \
+              "          <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>\n" \
+              "          <Username>" ENVIRON["USER_XML"] "</Username>\n" \
+              "          <Password>" ENVIRON["PASS_XML"] "</Password>\n" \
+              "        </Credentials>\n" \
+              "        <JoinDomain>" ENVIRON["DOMAIN_XML"] "</JoinDomain>\n" \
+              "      </Identification>\n" \
+              "    </component>"
+        join_added = 1
+      }
+
+      { print }
+
+      section == "oobeSystem" && /<\/AutoLogon>/ { in_autologon = 0 }
+      section == "oobeSystem" && /<\/UserAccounts>/ { in_accounts = 0 }
+      /^[[:space:]]*<\/settings>[[:space:]]*$/ { section = "" }
 
       END {
-        if (!join_added || !accounts_added || !autologon_added || !password_added) {
-          exit 1
-        }
+        exit !(join_added && accounts_added && autologon_added && password_added)
       }
-    ' "$asset" > "$result"; then
-    rm -rf "$tmp"
-    return 1
-  fi
-
-  if ! xmllint --nonet --noout "$result"; then
-    rm -rf "$tmp"
-    return 1
-  fi
-
-  if ! mv -f "$result" "$asset"; then
+    ' "$asset" > "$result" ||
+    ! xmllint --nonet --noout "$result" ||
+    ! mv -f "$result" "$asset"; then
     rm -rf "$tmp"
     return 1
   fi
@@ -1013,7 +987,7 @@ updateXML() {
   local asset="$1"
   local language="$2"
   local culture region keyboard
-  local admin user pass pw domain
+  local admin user raw_user pass pw domain
 
   [ -z "$WIDTH" ] && WIDTH="1280"
   [ -z "$HEIGHT" ] && HEIGHT="720"
@@ -1067,18 +1041,37 @@ updateXML() {
       return 1
     fi
 
-    user="${USERNAME##*\\}"
-    user="${user%%@*}"
-    user=$(echo "$user" | sed 's/[^[:alnum:]!._-]//g') || return 1
+    raw_user="${USERNAME##*\\}"
+    raw_user="${raw_user%%@*}"
+    user=$(printf '%s' "$raw_user" | sed 's/[^[:alnum:]!._-]//g') || return 1
+
+    if [[ "$user" != "$raw_user" ]]; then
+      warn "Unsupported characters were removed from the USERNAME value: \"$raw_user\" became \"$user\"."
+    fi
 
     if [ -z "$user" ]; then
       error "The USERNAME variable does not contain a valid domain account name!"
       return 1
     fi
-  
+
+    if [[ "${user,,}" == "docker" ]]; then
+      error "The USERNAME variable must be changed from its default value when joining a domain!"
+      return 1
+    fi
+
+    if [[ "$PASSWORD" == "admin" ]]; then
+      error "The PASSWORD variable must be changed from its default value when joining a domain!"
+      return 1
+    fi
+
   else
 
-    user=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g') || return 1
+    raw_user="$USERNAME"
+    user=$(printf '%s' "$raw_user" | sed 's/[^[:alnum:]@!._-]//g') || return 1
+
+    if [[ "$user" != "$raw_user" ]]; then
+      warn "Unsupported characters were removed from the USERNAME value: \"$raw_user\" became \"$user\"."
+    fi
 
     if [ -n "$user" ]; then
       sed -i "s/-name \"Docker\"/-name \"$user\"/g" "$asset" || return 1
