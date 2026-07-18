@@ -902,62 +902,62 @@ updateXML() {
   [ -z "$HEIGHT" ] && HEIGHT="720"
   [ -z "$WIDTH" ] && WIDTH="1280"
 
-  sed -i "s/>Windows for Docker</>$APP for $ENGINE</g" "$asset"
-  sed -i "s/<VerticalResolution>1080<\/VerticalResolution>/<VerticalResolution>$HEIGHT<\/VerticalResolution>/g" "$asset"
-  sed -i "s/<HorizontalResolution>1920<\/HorizontalResolution>/<HorizontalResolution>$WIDTH<\/HorizontalResolution>/g" "$asset"
+  sed -i "s/>Windows for Docker</>$APP for $ENGINE</g" "$asset" || return 1
+  sed -i "s/<VerticalResolution>1080<\/VerticalResolution>/<VerticalResolution>$HEIGHT<\/VerticalResolution>/g" "$asset" || return 1
+  sed -i "s/<HorizontalResolution>1920<\/HorizontalResolution>/<HorizontalResolution>$WIDTH<\/HorizontalResolution>/g" "$asset" || return 1
 
-  culture=$(getLanguage "$language" "culture")
+  culture=$(getLanguage "$language" "culture") || return 1
 
   if [ -n "$culture" ] && [[ "${culture,,}" != "en-us" ]]; then
-    sed -i "s/<UILanguage>en-US<\/UILanguage>/<UILanguage>$culture<\/UILanguage>/g" "$asset"
+    sed -i "s/<UILanguage>en-US<\/UILanguage>/<UILanguage>$culture<\/UILanguage>/g" "$asset" || return 1
   fi
 
   region="$REGION"
   [ -z "$region" ] && region="$culture"
 
   if [ -n "$region" ] && [[ "${region,,}" != "en-us" ]]; then
-    sed -i "s/<UserLocale>en-US<\/UserLocale>/<UserLocale>$region<\/UserLocale>/g" "$asset"
-    sed -i "s/<SystemLocale>en-US<\/SystemLocale>/<SystemLocale>$region<\/SystemLocale>/g" "$asset"
+    sed -i "s/<UserLocale>en-US<\/UserLocale>/<UserLocale>$region<\/UserLocale>/g" "$asset" || return 1
+    sed -i "s/<SystemLocale>en-US<\/SystemLocale>/<SystemLocale>$region<\/SystemLocale>/g" "$asset" || return 1
   fi
 
   keyboard="$KEYBOARD"
   [ -z "$keyboard" ] && keyboard="$culture"
 
   if [ -n "$keyboard" ] && [[ "${keyboard,,}" != "en-us" ]]; then
-    sed -i "s/<InputLocale>en-US<\/InputLocale>/<InputLocale>$keyboard<\/InputLocale>/g" "$asset"
-    sed -i "s/<InputLocale>0409:00000409<\/InputLocale>/<InputLocale>$keyboard<\/InputLocale>/g" "$asset"
+    sed -i "s/<InputLocale>en-US<\/InputLocale>/<InputLocale>$keyboard<\/InputLocale>/g" "$asset" || return 1
+    sed -i "s/<InputLocale>0409:00000409<\/InputLocale>/<InputLocale>$keyboard<\/InputLocale>/g" "$asset" || return 1
   fi
 
-  user=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g')
+  user=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g') || return 1
 
   if [ -n "$user" ]; then
-    sed -i "s/-name \"Docker\"/-name \"$user\"/g" "$asset"
-    sed -i "s/<Name>Docker<\/Name>/<Name>$user<\/Name>/g" "$asset"
-    sed -i "s/where name=\"Docker\"/where name=\"$user\"/g" "$asset"
-    sed -i "s/<FullName>Docker<\/FullName>/<FullName>$user<\/FullName>/g" "$asset"
-    sed -i "s/<Username>Docker<\/Username>/<Username>$user<\/Username>/g" "$asset"
+    sed -i "s/-name \"Docker\"/-name \"$user\"/g" "$asset" || return 1
+    sed -i "s/<Name>Docker<\/Name>/<Name>$user<\/Name>/g" "$asset" || return 1
+    sed -i "s/where name=\"Docker\"/where name=\"$user\"/g" "$asset" || return 1
+    sed -i "s/<FullName>Docker<\/FullName>/<FullName>$user<\/FullName>/g" "$asset" || return 1
+    sed -i "s/<Username>Docker<\/Username>/<Username>$user<\/Username>/g" "$asset" || return 1
   fi
 
   [ -n "$PASSWORD" ] && pass="$PASSWORD" || pass="admin"
 
-  pw=$(printf '%s' "${pass}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0)
-  admin=$(printf '%s' "${pass}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0)
+  pw=$(printf '%s' "${pass}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
+  admin=$(printf '%s' "${pass}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
 
-  sed -i "s|<Value>password<\/Value>|<Value>$admin<\/Value>|g" "$asset"
-  sed -i "s|<PlainText>true<\/PlainText>|<PlainText>false<\/PlainText>|g" "$asset"
-  sed -i -z "s|<Password>...........<Value \/>|<Password>\n          <Value>$pw<\/Value>|g" "$asset"
-  sed -i -z "s|<Password>...............<Value \/>|<Password>\n              <Value>$pw<\/Value>|g" "$asset"
-  sed -i -z "s|<AdministratorPassword>...........<Value \/>|<AdministratorPassword>\n          <Value>$admin<\/Value>|g" "$asset"
-  sed -i -z "s|<AdministratorPassword>...............<Value \/>|<AdministratorPassword>\n              <Value>$admin<\/Value>|g" "$asset"
+  sed -i "s|<Value>password<\/Value>|<Value>$admin<\/Value>|g" "$asset" || return 1
+  sed -i "s|<PlainText>true<\/PlainText>|<PlainText>false<\/PlainText>|g" "$asset" || return 1
+  sed -i -z "s|<Password>...........<Value \/>|<Password>\n          <Value>$pw<\/Value>|g" "$asset" || return 1
+  sed -i -z "s|<Password>...............<Value \/>|<Password>\n              <Value>$pw<\/Value>|g" "$asset" || return 1
+  sed -i -z "s|<AdministratorPassword>...........<Value \/>|<AdministratorPassword>\n          <Value>$admin<\/Value>|g" "$asset" || return 1
+  sed -i -z "s|<AdministratorPassword>...............<Value \/>|<AdministratorPassword>\n              <Value>$admin<\/Value>|g" "$asset" || return 1
 
   if [ -n "$EDITION" ]; then
     [[ "${EDITION^^}" == "CORE" ]] && EDITION="STANDARDCORE"
-    sed -i "s/SERVERSTANDARD<\/Value>/SERVER${EDITION^^}<\/Value>/g" "$asset"
+    sed -i "s/SERVERSTANDARD<\/Value>/SERVER${EDITION^^}<\/Value>/g" "$asset" || return 1
   fi
 
   if [ -n "$KEY" ]; then
-    sed -i '/<ProductKey>/,/<\/ProductKey>/d' "$asset"
-    sed -i "s/<\/UserData>/  <ProductKey>\n          <Key>${KEY}<\/Key>\n          <WillShowUI>OnError<\/WillShowUI>\n        <\/ProductKey>\n      <\/UserData>/g" "$asset"
+    sed -i '/<ProductKey>/,/<\/ProductKey>/d' "$asset" || return 1
+    sed -i "s/<\/UserData>/  <ProductKey>\n          <Key>${KEY}<\/Key>\n          <WillShowUI>OnError<\/WillShowUI>\n        <\/ProductKey>\n      <\/UserData>/g" "$asset" || return 1
   fi
 
   return 0
@@ -1095,17 +1095,17 @@ updateImage() {
     fi
   fi
 
-  rm -rf "$tmp"
-  mkdir -p "$tmp"
+  rm -rf "$tmp" || return 1
+  mkdir -p "$tmp" || return 1
 
-  src=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
+  src=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit) || return 1
 
   if [ ! -d "$src" ]; then
     error "failed to locate 'sources' folder in ISO image, $FB"
     return 1
   fi
 
-  wim=$(find "$src" -maxdepth 1 -type f \( -iname boot.wim -or -iname boot.esd \) -print -quit)
+  wim=$(find "$src" -maxdepth 1 -type f \( -iname boot.wim -or -iname boot.esd \) -print -quit) || return 1
 
   if [ ! -f "$wim" ]; then
     error "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB"
@@ -1144,7 +1144,7 @@ updateImage() {
 
   if ! enabled "$MANUAL"; then
 
-    name=$(basename "$asset")
+    name=$(basename "$asset") || return 1
     local answer="$tmp/$name"
 
     info "Adding $name for automatic installation..."
@@ -1182,7 +1182,7 @@ updateImage() {
 
   name="$xml"
   enabled "$MANUAL" && name="$bak"
-  path=$(find "$dir" -maxdepth 1 -type f -iname "$name" -print -quit)
+  path=$(find "$dir" -maxdepth 1 -type f -iname "$name" -print -quit) || return 1
 
   if [ -f "$path" ]; then
     if ! enabled "$MANUAL"; then
@@ -1198,7 +1198,7 @@ updateImage() {
     fi
   fi
 
-  rm -rf "$tmp"
+  rm -rf "$tmp" || return 1
   return 0
 }
 
