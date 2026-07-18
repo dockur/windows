@@ -924,7 +924,7 @@ updateDomain() {
     *\\* | *@* ) cred_domain="" ;;
   esac
 
-  grep -Eq 'name="Microsoft-Windows-UnattendedJoin"|<DomainAccounts([[:space:]>])' "$asset" && return 1
+  grep -Eq 'Microsoft-Windows-UnattendedJoin|<DomainAccounts([[:space:]/>])' "$asset" && return 1
 
   tmp=$(mktemp -d) || return 1
   result="$tmp/answer.xml"
@@ -1014,7 +1014,7 @@ updateXML() {
   local language="$2"
   local app value culture region keyboard edition key
   local user raw_user user_xml auth_user safe_user
-  local admin pass pw domain
+  local admin pass pw domain qualifier
 
   [ -z "$WIDTH" ] && WIDTH="1280"
   [ -z "$HEIGHT" ] && HEIGHT="720"
@@ -1079,15 +1079,44 @@ updateXML() {
     fi
 
     auth_user="$USERNAME"
-    user="$auth_user"
+    qualifier=""
+
+    if [[ "$auth_user" == *\\* && "$auth_user" == *@* ]]; then
+      error "The USERNAME variable must use only one domain account format!"
+      return 1
+    fi
 
     case "$auth_user" in
-      *\\* ) user="${auth_user##*\\}" ;;
-      *@* ) user="${auth_user%%@*}" ;;
+      *\\* )
+        qualifier="${auth_user%%\\*}"
+        user="${auth_user#*\\}"
+
+        if [ -z "$qualifier" ] || [ -z "$user" ] || [[ "$user" == *\\* ]]; then
+          error "The USERNAME variable does not contain a valid domain account name!"
+          return 1
+        fi
+        ;;
+      *@* )
+        user="${auth_user%%@*}"
+        qualifier="${auth_user#*@}"
+
+        if [ -z "$user" ] || [ -z "$qualifier" ] || [[ "$qualifier" == *@* ]]; then
+          error "The USERNAME variable does not contain a valid domain account name!"
+          return 1
+        fi
+        ;;
+      * )
+        user="$auth_user"
+        ;;
     esac
 
-    if [ -z "$user" ]; then
-      error "The USERNAME variable does not contain a valid domain account name!"
+    if [[ "${user^^}" == "NONE" ]]; then
+      error "The USERNAME value \"NONE\" is reserved by Windows!"
+      return 1
+    fi
+
+    if [[ "$user" =~ ^[.[:space:]]+$ ]]; then
+      error "The USERNAME variable cannot consist only of spaces or periods!"
       return 1
     fi
 
@@ -1101,7 +1130,7 @@ updateXML() {
       return 1
     fi
 
-    safe_user=$(printf '%s' "$user" | tr -d '"/\\[]:;|=,+*?<>@') || return 1
+    safe_user=$(printf '%s' "$user" | tr -d '"/\\[]:;|=,+*?<>%@') || return 1
 
     if [[ "$safe_user" != "$user" ]]; then
       error "The domain account name contains characters that are not supported by Windows unattended setup!"
@@ -1111,7 +1140,7 @@ updateXML() {
   else
 
     raw_user="$USERNAME"
-    user=$(printf '%s' "$raw_user" | tr -d '"/\\[]:;|=,+*?<>@') || return 1
+    user=$(printf '%s' "$raw_user" | tr -d '"/\\[]:;|=,+*?<>%@') || return 1
 
     if [[ "$user" != "$raw_user" ]]; then
       warn "Unsupported characters were removed from the USERNAME value: \"$raw_user\" became \"$user\"."
@@ -1135,7 +1164,7 @@ updateXML() {
     if [ -n "$user" ]; then
       user_xml=$(escapeXMLSed "$user") || return 1
 
-      sed -i 's|-name "Docker"|-name "$env:USERNAME"|g' "$asset" || return 1
+      sed -i "s|-name \"Docker\"|-name \"\$env:USERNAME\"|g" "$asset" || return 1
       sed -i 's|where name="Docker"|where name="%USERNAME%"|g' "$asset" || return 1
       sed -i "s|<Name>Docker</Name>|<Name>$user_xml</Name>|g" "$asset" || return 1
       sed -i "s|<FullName>Docker</FullName>|<FullName>$user_xml</FullName>|g" "$asset" || return 1
