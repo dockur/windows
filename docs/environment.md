@@ -17,7 +17,6 @@ An empty default means the variable is unset and its value is determined automat
 | `PASSWORD` | `admin` | Password for the Windows account. |
 | `DOMAIN` |  | Active Directory domain to join during installation. |
 | `KEY` |  | Windows product key used to install and activate Windows. |
-| `MANUAL` | `N` | Enables manual installation instead of unattended installation. |
 
 ## 🧠 CPU and Memory
 
@@ -146,7 +145,7 @@ Also see [Dynamic memory allocation](https://github.com/qemus/qemu/blob/master/d
 | `BALLOONING_INTERVAL` | `5` | Polling interval in seconds. |
 | `BALLOONING_DEBUG` | `N` | Enables debug output for the ballooning monitor. |
 
-## 💿 Installation Media
+## 💿 Installation
 
 | Variable | Default | Description |
 |---|---|---|
@@ -154,6 +153,8 @@ Also see [Dynamic memory allocation](https://github.com/qemus/qemu/blob/master/d
 | `ESD` | `Y` | Enables downloading Windows through the ESD-based installation method. |
 | `VERIFY` | `N` | Verifies downloaded installation media against predefined checksums. |
 | `REMOVE` | `Y` | Deletes the downloaded Windows ISO after installation to save space. |
+| `MANUAL` | `N` | Enables manual installation instead of unattended installation. |
+| `COMMAND` |  | Command to be executed during the final step of automatic installation. |
 
 ## 🔌 Shutdown
 
