@@ -697,6 +697,20 @@ selectVersion() {
   id=$(fromName "$name" "$platform")
   [ -z "$id" ] && warn "Unknown ${tag,,}: '$name'" && return 0
 
+  if [ -n "$EDITION" ] && [[ "$id" != win20* ]]; then
+    case "${EDITION,,}" in
+      "pro" | "professional" | "business" ) prefer="$id" ;;
+      * ) prefer="$id-${EDITION,,}" ;;
+    esac
+
+    if hasVersion "$prefer" "$tag" "$xml"; then
+      echo "$prefer"
+      return 0
+    fi
+
+    warn "Edition '$EDITION' is not supported by this image, using automatic selection instead."
+  fi
+
   prefer="$id-enterprise"
   hasVersion "$prefer" "$tag" "$xml" && echo "$prefer" && return 0
 
