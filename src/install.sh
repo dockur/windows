@@ -893,7 +893,7 @@ prepareImage() {
   return 1
 }
 
-updateDomainXML() {
+updateDomain() {
 
   local asset="$1"
   local domain="$2"
@@ -903,9 +903,9 @@ updateDomainXML() {
   local tmp result
   local domain_xml user_xml pass_xml
 
-  domain_xml=$(escapeXML "$domain") || return 1
   user_xml=$(escapeXML "$user") || return 1
   pass_xml=$(escapeXML "$pass") || return 1
+  domain_xml=$(escapeXML "$domain") || return 1
 
   tmp=$(mktemp -d) || return 1
   result="$tmp/answer.xml"
@@ -1012,11 +1012,11 @@ updateXML() {
 
   local asset="$1"
   local language="$2"
-  local culture region user admin pass pw keyboard
-  local domain domain_join=""
+  local culture region keyboard
+  local admin user pass pw domain
 
-  [ -z "$HEIGHT" ] && HEIGHT="720"
   [ -z "$WIDTH" ] && WIDTH="1280"
+  [ -z "$HEIGHT" ] && HEIGHT="720"
 
   sed -i "s/>Windows for Docker</>$APP for $ENGINE</g" "$asset" || return 1
   sed -i "s/<VerticalResolution>1080<\/VerticalResolution>/<VerticalResolution>$HEIGHT<\/VerticalResolution>/g" "$asset" || return 1
@@ -1044,15 +1044,14 @@ updateXML() {
     sed -i "s/<InputLocale>0409:00000409<\/InputLocale>/<InputLocale>$keyboard<\/InputLocale>/g" "$asset" || return 1
   fi
 
-  domain=$(strip "${DOMAIN:-}")
+  domain="$DOMAIN"
+  case "${DETECTED,,}" in
+    "win10x64"* | "win11x64"* ) ;;
+    * ) domain="" ;;
+  esac
 
-  if [ -n "$domain" ] && [[ "$domain" != "0" ]]; then
-    case "${DETECTED,,}" in
-      "win10x64"* | "win11x64"* ) domain_join="Y" ;;
-    esac
-  fi
+  if [ -n "$domain" ]; then
 
-  if [ -n "$domain_join" ]; then
     if [ -z "$USERNAME" ]; then
       error "The USERNAME variable must be specified when joining a domain!"
       return 1
@@ -1076,7 +1075,9 @@ updateXML() {
       error "The USERNAME variable does not contain a valid domain account name!"
       return 1
     fi
+  
   else
+
     user=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g') || return 1
 
     if [ -n "$user" ]; then
@@ -1086,9 +1087,10 @@ updateXML() {
       sed -i "s/<FullName>Docker<\/FullName>/<FullName>$user<\/FullName>/g" "$asset" || return 1
       sed -i "s/<Username>Docker<\/Username>/<Username>$user<\/Username>/g" "$asset" || return 1
     fi
+
   fi
 
-  if [ -n "$domain_join" ]; then
+  if [ -n "$domain" ]; then
     pass="admin"
   else
     [ -n "$PASSWORD" ] && pass="$PASSWORD" || pass="admin"
@@ -1104,13 +1106,15 @@ updateXML() {
   sed -i -z "s|<AdministratorPassword>...........<Value \/>|<AdministratorPassword>\n          <Value>$admin<\/Value>|g" "$asset" || return 1
   sed -i -z "s|<AdministratorPassword>...............<Value \/>|<AdministratorPassword>\n              <Value>$admin<\/Value>|g" "$asset" || return 1
 
-  if [ -n "$domain_join" ]; then
+  if [ -n "$domain" ]; then
+
     pw=$(printf '%s' "${PASSWORD}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
 
-    if ! updateDomainXML "$asset" "$domain" "$user" "$PASSWORD" "$pw"; then
+    if ! updateDomain "$asset" "$domain" "$user" "$PASSWORD" "$pw"; then
       error "Failed to add domain configuration to answer file!"
       return 1
     fi
+
   fi
 
   if [ -n "$EDITION" ]; then
