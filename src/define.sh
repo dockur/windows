@@ -1347,22 +1347,38 @@ validVersion() {
 addFolder() {
 
   local src="$1"
-  local folder="/oem"
+  local folder="/oem" file=""
+  local dest="$src/\$OEM\$/\$1/OEM"
 
   [ ! -d "$folder" ] && folder="/OEM"
   [ ! -d "$folder" ] && folder="$STORAGE/oem"
   [ ! -d "$folder" ] && folder="$STORAGE/OEM"
-  [ ! -d "$folder" ] && return 0
+  [ ! -d "$folder" ] && folder=""
 
-  local msg="Adding OEM folder to image..."
+  [ -z "$folder" ] && [ -z "$COMMAND" ] && return 0
+
+  local msg="Adding OEM files to image..."
   info "$msg" && html "$msg"
 
-  local dest="$src/\$OEM\$/\$1/OEM"
   mkdir -p "$dest" || return 1
-  cp -Lr "$folder/." "$dest" || return 1
 
-  local file
+  if [ -n "$folder" ]; then
+    cp -Lr "$folder/." "$dest" || return 1
+  fi
+
   file=$(find "$dest" -maxdepth 1 -type f -iname install.bat -print -quit) || return 1
+
+  if [ -n "$COMMAND" ]; then
+
+    [ -z "$file" ] && file="$dest/install.bat"
+
+    if [ -s "$file" ]; then
+      printf '\n' >> "$file" || return 1
+    fi
+
+    printf '%s\n' "$COMMAND" >> "$file" || return 1
+
+  fi
 
   if [ -f "$file" ]; then
     if ! unix2dos -q "$file"; then
