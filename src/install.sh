@@ -997,7 +997,6 @@ updateDomain() {
 
       END { exit !(join_added && accounts_added && autologon_added && password_added) }
     ' "$asset" > "$result" ||
-    ! xmllint --nonet --noout "$result" ||
     ! mv -f "$result" "$asset"; then
 
     rm -rf "$tmp"
@@ -1210,6 +1209,11 @@ updateXML() {
     key=$(escapeXMLSed "$KEY") || return 1
     sed -i '/<ProductKey>/,/<\/ProductKey>/d' "$asset" || return 1
     sed -i "s|</UserData>|  <ProductKey>\n          <Key>$key</Key>\n          <WillShowUI>OnError</WillShowUI>\n        </ProductKey>\n      </UserData>|g" "$asset" || return 1
+  fi
+
+  if ! xmllint --nonet --noout "$asset"; then
+    error "The generated answer file is not valid XML!"
+    return 1
   fi
 
   return 0
