@@ -13,8 +13,8 @@ An empty default means the variable is unset and its value is determined automat
 | `LANGUAGE` | `en-US` | Windows display language, such as `English`, `en-US`, or `en`. |
 | `REGION` |  | Windows regional format. Uses `LANGUAGE` when unset. |
 | `KEYBOARD` |  | Keyboard layout. Uses `LANGUAGE` when unset. |
-| `USERNAME` | `Docker` | Name of the  Windows account. |
-| `PASSWORD` | `admin` | Password for the  Windows account. |
+| `USERNAME` | `Docker` | Name of the Windows account. |
+| `PASSWORD` | `admin` | Password for the Windows account. |
 | `DOMAIN` |  | Active Directory domain to join during installation. |
 | `KEY` |  | Windows product key used to install and activate Windows. |
 | `MANUAL` | `N` | Enables manual installation instead of unattended installation. |
