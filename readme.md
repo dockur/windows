@@ -272,18 +272,25 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   Replace the example path `./example.iso` with the filename of your desired ISO file. The value of `VERSION` will be ignored in this case.
 
-### How do I run a script after installation?
+### How do I run a command after installation?
 
-  To run your own script after installation, you can create a file called `install.bat` and place it in a folder together with any additional files it needs (software to be installed for example).
-  
+  To execute a single command during the final step of the automatic installation, add the `COMMAND` environment variable:
+
+  ```yaml
+  environment:
+    COMMAND: 'reg add "HKLM\Software\Example" /v Enabled /t REG_DWORD /d 1 /f'
+  ```
+
+  To run a script or include additional files, create a file called `install.bat` and place it in a folder together with any files it needs, such as software to be installed.
+
   Then bind that folder in your compose file like this:
 
   ```yaml
   volumes:
-    -  ./example:/oem
+    - ./example:/oem
   ```
 
-  The example folder `./example` will be copied to `C:\OEM` and the `install.bat` file inside that folder will be executed during the last step of the automatic installation.
+  The example folder `./example` will be copied to `C:\OEM` and the `install.bat` file inside it will be executed during the final step of the automatic installation.
 
 ### How do I perform a manual installation?
 
