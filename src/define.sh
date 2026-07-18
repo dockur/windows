@@ -1776,36 +1776,39 @@ prepareLegacy() {
   local dir="$2"
   local desc="$3"
 
+  local tmp="$TMP/boot-images"
+  local image="$tmp/eltorito_img1_bios.img"
+
   ETFS="boot.img"
 
-  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
+  [ -s "$dir/$ETFS" ] && return 0
   rm -f "$dir/$ETFS"
+  rm -rf "$tmp"
 
-  local len offset
-
-  if ! len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$"); then
-    error "Failed to determine boot image size from $desc ISO!"
+  if ! LC_ALL=C xorriso \
+      -no_rc \
+      -osirrox on \
+      -indev "$iso" \
+      -extract_boot_images "$tmp" >/dev/null 2>&1; then
+    rm -rf "$tmp"
+    error "Failed to extract boot image from $desc ISO!"
     return 1
   fi
 
-  if ! offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$"); then
-    error "Failed to determine boot image offset from $desc ISO!"
+  if [ ! -s "$image" ]; then
+    rm -rf "$tmp"
+    error "Failed to locate BIOS boot image in $desc ISO!"
     return 1
   fi
 
-  if [[ ! "$len" =~ ^[0-9]+$ ]] || [[ ! "$offset" =~ ^[0-9]+$ ]]; then
-    error "Invalid boot image location found in $desc ISO!"
+  if ! mv -f "$image" "$dir/$ETFS"; then
+    rm -rf "$tmp"
+    error "Failed to save boot image from $desc ISO!"
     return 1
   fi
 
-  if ! dd "if=$iso" "of=$dir/$ETFS" bs=2048 "count=$len" "skip=$offset" status=none; then
-    error "Failed to extract boot image from $desc ISO!" && return 1
-  fi
-
-  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
-
-  error "Failed to locate file \"$ETFS\" in $desc ISO image!"
-  return 1
+  rm -rf "$tmp"
+  return 0
 }
 
 detectLegacy() {
