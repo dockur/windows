@@ -893,71 +893,327 @@ prepareImage() {
   return 1
 }
 
+escapeXMLSed() {
+
+  local s
+
+  s=$(escapeXML "$1") || return 1
+  s=${s//\\/\\\\}
+  s=${s//&/\\&}
+  s=${s//|/\\|}
+
+  printf '%s' "$s"
+  return 0
+}
+
+updateDomain() {
+
+  local asset="$1"
+  local domain account auth pass
+  local pw cred_domain tmp result
+
+  domain=$(escapeXML "$2") || return 1
+  account=$(escapeXML "$3") || return 1
+  auth=$(escapeXML "$4") || return 1
+  pass=$(escapeXML "$5") || return 1
+  pw="$6"
+
+  cred_domain="$domain"
+
+  case "$4" in
+    *\\* | *@* ) cred_domain="" ;;
+  esac
+
+  grep -Eq 'Microsoft-Windows-UnattendedJoin|<DomainAccounts([[:space:]/>])' "$asset" && return 1
+
+  tmp=$(mktemp -d) || return 1
+  result="$tmp/answer.xml"
+
+  if ! DOMAIN_XML="$domain" ACCOUNT_XML="$account" AUTH_XML="$auth" \
+    PASS_XML="$pass" CRED_DOMAIN="$cred_domain" PW="$pw" \
+    awk '
+      /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
+      /<settings[^>]*pass="oobeSystem"[^>]*>/ { section = "oobeSystem" }
+      section == "oobeSystem" && /<UserAccounts([[:space:]>])/ { in_accounts = 1 }
+      section == "oobeSystem" && /<AutoLogon([[:space:]>])/ { in_autologon = 1 }
+
+      section == "oobeSystem" && in_accounts && !accounts_added &&
+        /<AdministratorPassword([[:space:]>])/ {
+        print "        <DomainAccounts>\n" \
+              "          <DomainAccountList wcm:action=\"add\">\n" \
+              "            <DomainAccount wcm:action=\"add\">\n" \
+              "              <Name>" ENVIRON["ACCOUNT_XML"] "</Name>\n" \
+              "              <Group>Administrators</Group>\n" \
+              "            </DomainAccount>\n" \
+              "            <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>\n" \
+              "          </DomainAccountList>\n" \
+              "        </DomainAccounts>"
+        accounts_added = 1
+      }
+
+      section == "oobeSystem" && in_autologon &&
+        /^[[:space:]]*<Username>.*<\/Username>[[:space:]]*$/ {
+        print "        <Username>" ENVIRON["ACCOUNT_XML"] "</Username>\n" \
+              "        <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>"
+        autologon_added = 1
+        next
+      }
+
+      section == "oobeSystem" && in_autologon &&
+        /^[[:space:]]*<Domain([[:space:]/>])/ { next }
+
+      section == "oobeSystem" && in_autologon &&
+        /^[[:space:]]*<Value>.*<\/Value>[[:space:]]*$/ {
+        print "          <Value>" ENVIRON["PW"] "</Value>"
+        password_added = 1
+        next
+      }
+
+      section == "specialize" && !join_added &&
+        /^[[:space:]]*<\/settings>[[:space:]]*$/ {
+        print "    <component name=\"Microsoft-Windows-UnattendedJoin\" processorArchitecture=\"amd64\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">\n" \
+              "      <Identification>\n" \
+              "        <Credentials>"
+
+        if (ENVIRON["CRED_DOMAIN"] != "") {
+          print "          <Domain>" ENVIRON["CRED_DOMAIN"] "</Domain>"
+        }
+
+        print "          <Username>" ENVIRON["AUTH_XML"] "</Username>\n" \
+              "          <Password>" ENVIRON["PASS_XML"] "</Password>\n" \
+              "        </Credentials>\n" \
+              "        <JoinDomain>" ENVIRON["DOMAIN_XML"] "</JoinDomain>\n" \
+              "      </Identification>\n" \
+              "    </component>"
+
+        join_added = 1
+      }
+
+      { print }
+
+      section == "oobeSystem" && /<\/AutoLogon>/ { in_autologon = 0 }
+      section == "oobeSystem" && /<\/UserAccounts>/ { in_accounts = 0 }
+      /^[[:space:]]*<\/settings>[[:space:]]*$/ { section = "" }
+
+      END { exit !(join_added && accounts_added && autologon_added && password_added) }
+    ' "$asset" > "$result" ||
+    ! mv -f "$result" "$asset"; then
+
+    rm -rf "$tmp"
+    return 1
+  fi
+
+  rm -rf "$tmp"
+  return 0
+}
+
 updateXML() {
 
   local asset="$1"
   local language="$2"
-  local culture region user admin pass pw keyboard
+  local app value culture region keyboard edition key
+  local user raw_user user_xml auth_user safe_user
+  local admin pass pw domain qualifier
 
-  [ -z "$HEIGHT" ] && HEIGHT="720"
   [ -z "$WIDTH" ] && WIDTH="1280"
+  [ -z "$HEIGHT" ] && HEIGHT="720"
 
-  sed -i "s/>Windows for Docker</>$APP for $ENGINE</g" "$asset" || return 1
-  sed -i "s/<VerticalResolution>1080<\/VerticalResolution>/<VerticalResolution>$HEIGHT<\/VerticalResolution>/g" "$asset" || return 1
-  sed -i "s/<HorizontalResolution>1920<\/HorizontalResolution>/<HorizontalResolution>$WIDTH<\/HorizontalResolution>/g" "$asset" || return 1
+  if [[ ! "$WIDTH" =~ ^[0-9]+$ || ! "$HEIGHT" =~ ^[0-9]+$ ]]; then
+    error "The WIDTH and HEIGHT variables must contain numeric values!"
+    return 1
+  fi
+
+  app=$(escapeXMLSed "$APP for $ENGINE") || return 1
+
+  sed -i "s|>Windows for Docker<|>$app<|g" "$asset" || return 1
+  sed -i "s|<VerticalResolution>1080</VerticalResolution>|<VerticalResolution>$HEIGHT</VerticalResolution>|g" "$asset" || return 1
+  sed -i "s|<HorizontalResolution>1920</HorizontalResolution>|<HorizontalResolution>$WIDTH</HorizontalResolution>|g" "$asset" || return 1
 
   culture=$(getLanguage "$language" "culture") || return 1
 
   if [ -n "$culture" ] && [[ "${culture,,}" != "en-us" ]]; then
-    sed -i "s/<UILanguage>en-US<\/UILanguage>/<UILanguage>$culture<\/UILanguage>/g" "$asset" || return 1
+    value=$(escapeXMLSed "$culture") || return 1
+    sed -i "s|<UILanguage>en-US</UILanguage>|<UILanguage>$value</UILanguage>|g" "$asset" || return 1
   fi
 
   region="$REGION"
   [ -z "$region" ] && region="$culture"
 
   if [ -n "$region" ] && [[ "${region,,}" != "en-us" ]]; then
-    sed -i "s/<UserLocale>en-US<\/UserLocale>/<UserLocale>$region<\/UserLocale>/g" "$asset" || return 1
-    sed -i "s/<SystemLocale>en-US<\/SystemLocale>/<SystemLocale>$region<\/SystemLocale>/g" "$asset" || return 1
+    value=$(escapeXMLSed "$region") || return 1
+    sed -i "s|<UserLocale>en-US</UserLocale>|<UserLocale>$value</UserLocale>|g" "$asset" || return 1
+    sed -i "s|<SystemLocale>en-US</SystemLocale>|<SystemLocale>$value</SystemLocale>|g" "$asset" || return 1
   fi
 
   keyboard="$KEYBOARD"
   [ -z "$keyboard" ] && keyboard="$culture"
 
   if [ -n "$keyboard" ] && [[ "${keyboard,,}" != "en-us" ]]; then
-    sed -i "s/<InputLocale>en-US<\/InputLocale>/<InputLocale>$keyboard<\/InputLocale>/g" "$asset" || return 1
-    sed -i "s/<InputLocale>0409:00000409<\/InputLocale>/<InputLocale>$keyboard<\/InputLocale>/g" "$asset" || return 1
+    value=$(escapeXMLSed "$keyboard") || return 1
+    sed -i "s|<InputLocale>en-US</InputLocale>|<InputLocale>$value</InputLocale>|g" "$asset" || return 1
+    sed -i "s|<InputLocale>0409:00000409</InputLocale>|<InputLocale>$value</InputLocale>|g" "$asset" || return 1
   fi
 
-  user=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g') || return 1
+  domain="$DOMAIN"
+  case "${DETECTED,,}" in
+    "win10x64"* | "win11x64"* ) ;;
+    * ) domain="" ;;
+  esac
 
-  if [ -n "$user" ]; then
-    sed -i "s/-name \"Docker\"/-name \"$user\"/g" "$asset" || return 1
-    sed -i "s/<Name>Docker<\/Name>/<Name>$user<\/Name>/g" "$asset" || return 1
-    sed -i "s/where name=\"Docker\"/where name=\"$user\"/g" "$asset" || return 1
-    sed -i "s/<FullName>Docker<\/FullName>/<FullName>$user<\/FullName>/g" "$asset" || return 1
-    sed -i "s/<Username>Docker<\/Username>/<Username>$user<\/Username>/g" "$asset" || return 1
+  if [ -n "$domain" ]; then
+
+    if [ -z "$USERNAME" ]; then
+      error "The USERNAME variable must be specified when joining a domain!"
+      return 1
+    fi
+
+    if [ -z "$PASSWORD" ]; then
+      error "The PASSWORD variable must be specified when joining a domain!"
+      return 1
+    fi
+
+    if [[ "$domain" == *"://"* ]]; then
+      error "The DOMAIN variable must contain a domain name, not a URL!"
+      return 1
+    fi
+
+    auth_user="$USERNAME"
+    qualifier=""
+
+    if [[ "$auth_user" == *\\* && "$auth_user" == *@* ]]; then
+      error "The USERNAME variable must use only one domain account format!"
+      return 1
+    fi
+
+    case "$auth_user" in
+      *\\* )
+        qualifier="${auth_user%%\\*}"
+        user="${auth_user#*\\}"
+
+        if [ -z "$qualifier" ] || [ -z "$user" ] || [[ "$user" == *\\* ]]; then
+          error "The USERNAME variable does not contain a valid domain account name!"
+          return 1
+        fi
+        ;;
+      *@* )
+        user="${auth_user%%@*}"
+        qualifier="${auth_user#*@}"
+
+        if [ -z "$user" ] || [ -z "$qualifier" ] || [[ "$qualifier" == *@* ]]; then
+          error "The USERNAME variable does not contain a valid domain account name!"
+          return 1
+        fi
+        ;;
+      * )
+        user="$auth_user"
+        ;;
+    esac
+
+    if [[ "${user^^}" == "NONE" ]]; then
+      error "The USERNAME value \"NONE\" is reserved by Windows!"
+      return 1
+    fi
+
+    if [[ "$user" =~ ^[.[:space:]]+$ ]]; then
+      error "The USERNAME variable cannot consist only of spaces or periods!"
+      return 1
+    fi
+
+    if [[ "${user,,}" == "docker" ]]; then
+      error "The USERNAME variable must be changed from its default value when joining a domain!"
+      return 1
+    fi
+
+    if [[ "$PASSWORD" == "admin" ]]; then
+      error "The PASSWORD variable must be changed from its default value when joining a domain!"
+      return 1
+    fi
+
+    safe_user=$(printf '%s' "$user" | tr -d '"/\\[]:;|=,+*?<>%@') || return 1
+
+    if [[ "$safe_user" != "$user" ]]; then
+      error "The domain account name contains characters that are not supported by Windows unattended setup!"
+      return 1
+    fi
+
+  else
+
+    raw_user="$USERNAME"
+    user=$(printf '%s' "$raw_user" | tr -d '"/\\[]:;|=,+*?<>%@') || return 1
+
+    if [[ "$user" != "$raw_user" ]]; then
+      warn "Unsupported characters were removed from the USERNAME value: \"$raw_user\" became \"$user\"."
+    fi
+
+    if [ -n "$raw_user" ] && [ -z "$user" ]; then
+      error "The USERNAME variable does not contain a valid local account name!"
+      return 1
+    fi
+
+    if [[ "${user^^}" == "NONE" ]]; then
+      error "The USERNAME value \"NONE\" is reserved by Windows!"
+      return 1
+    fi
+
+    if [[ "$user" =~ ^[.[:space:]]+$ ]]; then
+      error "The USERNAME variable cannot consist only of spaces or periods!"
+      return 1
+    fi
+
+    if [ -n "$user" ]; then
+      user_xml=$(escapeXMLSed "$user") || return 1
+
+      sed -i "s|-name \"Docker\"|-name \"\$env:USERNAME\"|g" "$asset" || return 1
+      sed -i 's|where name="Docker"|where name="%USERNAME%"|g' "$asset" || return 1
+      sed -i "s|<Name>Docker</Name>|<Name>$user_xml</Name>|g" "$asset" || return 1
+      sed -i "s|<FullName>Docker</FullName>|<FullName>$user_xml</FullName>|g" "$asset" || return 1
+      sed -i "s|<Username>Docker</Username>|<Username>$user_xml</Username>|g" "$asset" || return 1
+    fi
+
   fi
 
-  [ -n "$PASSWORD" ] && pass="$PASSWORD" || pass="admin"
+  if [ -n "$domain" ]; then
+    pass="admin"
+  else
+    [ -n "$PASSWORD" ] && pass="$PASSWORD" || pass="admin"
+  fi
 
   pw=$(printf '%s' "${pass}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
   admin=$(printf '%s' "${pass}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
 
-  sed -i "s|<Value>password<\/Value>|<Value>$admin<\/Value>|g" "$asset" || return 1
-  sed -i "s|<PlainText>true<\/PlainText>|<PlainText>false<\/PlainText>|g" "$asset" || return 1
-  sed -i -z "s|<Password>...........<Value \/>|<Password>\n          <Value>$pw<\/Value>|g" "$asset" || return 1
-  sed -i -z "s|<Password>...............<Value \/>|<Password>\n              <Value>$pw<\/Value>|g" "$asset" || return 1
-  sed -i -z "s|<AdministratorPassword>...........<Value \/>|<AdministratorPassword>\n          <Value>$admin<\/Value>|g" "$asset" || return 1
-  sed -i -z "s|<AdministratorPassword>...............<Value \/>|<AdministratorPassword>\n              <Value>$admin<\/Value>|g" "$asset" || return 1
+  sed -i "s|<Value>password</Value>|<Value>$admin</Value>|g" "$asset" || return 1
+  sed -i "s|<PlainText>true</PlainText>|<PlainText>false</PlainText>|g" "$asset" || return 1
+  sed -i -z "s|<Password>...........<Value />|<Password>\n          <Value>$pw</Value>|g" "$asset" || return 1
+  sed -i -z "s|<Password>...............<Value />|<Password>\n              <Value>$pw</Value>|g" "$asset" || return 1
+  sed -i -z "s|<AdministratorPassword>...........<Value />|<AdministratorPassword>\n          <Value>$admin</Value>|g" "$asset" || return 1
+  sed -i -z "s|<AdministratorPassword>...............<Value />|<AdministratorPassword>\n              <Value>$admin</Value>|g" "$asset" || return 1
+
+  if [ -n "$domain" ]; then
+
+    pw=$(printf '%s' "${PASSWORD}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
+
+    if ! updateDomain "$asset" "$domain" "$user" "$auth_user" "$PASSWORD" "$pw"; then
+      error "Failed to add domain configuration to answer file!"
+      return 1
+    fi
+
+  fi
 
   if [ -n "$EDITION" ]; then
     [[ "${EDITION^^}" == "CORE" ]] && EDITION="STANDARDCORE"
-    sed -i "s/SERVERSTANDARD<\/Value>/SERVER${EDITION^^}<\/Value>/g" "$asset" || return 1
+    edition=$(escapeXMLSed "${EDITION^^}") || return 1
+    sed -i "s|SERVERSTANDARD</Value>|SERVER$edition</Value>|g" "$asset" || return 1
   fi
 
   if [ -n "$KEY" ]; then
+    key=$(escapeXMLSed "$KEY") || return 1
     sed -i '/<ProductKey>/,/<\/ProductKey>/d' "$asset" || return 1
-    sed -i "s/<\/UserData>/  <ProductKey>\n          <Key>${KEY}<\/Key>\n          <WillShowUI>OnError<\/WillShowUI>\n        <\/ProductKey>\n      <\/UserData>/g" "$asset" || return 1
+    sed -i "s|</UserData>|  <ProductKey>\n          <Key>$key</Key>\n          <WillShowUI>OnError</WillShowUI>\n        </ProductKey>\n      </UserData>|g" "$asset" || return 1
+  fi
+
+  if ! xmllint --nonet --noout "$asset"; then
+    error "The generated answer file is not valid XML!"
+    return 1
   fi
 
   return 0

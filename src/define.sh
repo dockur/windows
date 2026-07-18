@@ -5,11 +5,13 @@ set -Eeuo pipefail
 : "${WIDTH:=""}"
 : "${HEIGHT:=""}"
 : "${VERIFY:=""}"
+: "${DOMAIN:=""}"
 : "${REGION:=""}"
 : "${EDITION:=""}"
 : "${MANUAL:=""}"
 : "${REMOVE:=""}"
 : "${VERSION:=""}"
+: "${COMMAND:=""}"
 : "${DETECTED:=""}"
 : "${KEYBOARD:=""}"
 : "${LANGUAGE:=""}"
@@ -20,7 +22,9 @@ set -Eeuo pipefail
 KEY=$(strip "$KEY")
 WIDTH=$(strip "$WIDTH")
 HEIGHT=$(strip "$HEIGHT")
+DOMAIN=$(strip "$DOMAIN")
 REGION=$(strip "$REGION")
+COMMAND=$(strip "$COMMAND")
 EDITION=$(strip "$EDITION")
 KEYBOARD=$(strip "$KEYBOARD")
 LANGUAGE=$(strip "$LANGUAGE")
