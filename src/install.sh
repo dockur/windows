@@ -896,16 +896,30 @@ prepareImage() {
 updateDomain() {
 
   local asset="$1"
-  local domain user pass pw tmp result
+  local domain account auth pass
+  local pw cred_domain tmp result
+
   domain=$(escapeXML "$2") || return 1
-  user=$(escapeXML "$3") || return 1
-  pass=$(escapeXML "$4") || return 1
-  pw="$5"
+  account=$(escapeXML "$3") || return 1
+  auth=$(escapeXML "$4") || return 1
+  pass=$(escapeXML "$5") || return 1
+  pw="$6"
+
+  cred_domain="$domain"
+
+  case "$4" in
+    *\\* | *@* ) cred_domain="" ;;
+  esac
+
+  if grep -Eq 'name="Microsoft-Windows-UnattendedJoin"|<DomainAccounts([[:space:]>])' "$asset"; then
+    return 1
+  fi
 
   tmp=$(mktemp -d) || return 1
   result="$tmp/answer.xml"
 
-  if ! DOMAIN_XML="$domain" USER_XML="$user" PASS_XML="$pass" PW="$pw" \
+  if ! DOMAIN_XML="$domain" ACCOUNT_XML="$account" AUTH_XML="$auth" \
+    PASS_XML="$pass" CRED_DOMAIN="$cred_domain" PW="$pw" \
     awk '
       /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
       /<settings[^>]*pass="oobeSystem"[^>]*>/  { section = "oobeSystem" }
@@ -918,12 +932,16 @@ updateDomain() {
         in_autologon = 1
       }
 
+      section == "oobeSystem" && in_autologon && /<Password([[:space:]>])/ {
+        in_password = 1
+      }
+
       section == "oobeSystem" && in_accounts && !accounts_added &&
-        /<AdministratorPassword([[:space:]>])/ {
+        /<\/UserAccounts>/ {
         print "        <DomainAccounts>\n" \
               "          <DomainAccountList wcm:action=\"add\">\n" \
               "            <DomainAccount wcm:action=\"add\">\n" \
-              "              <Name>" ENVIRON["USER_XML"] "</Name>\n" \
+              "              <Name>" ENVIRON["ACCOUNT_XML"] "</Name>\n" \
               "              <Group>Administrators</Group>\n" \
               "            </DomainAccount>\n" \
               "            <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>\n" \
@@ -934,42 +952,69 @@ updateDomain() {
 
       section == "oobeSystem" && in_autologon &&
         /^[[:space:]]*<Username>.*<\/Username>[[:space:]]*$/ {
-        print "        <Username>" ENVIRON["USER_XML"] "</Username>\n" \
-              "        <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>"
+        print "        <Username>" ENVIRON["ACCOUNT_XML"] "</Username>"
         autologon_added = 1
         next
       }
 
       section == "oobeSystem" && in_autologon &&
+        /^[[:space:]]*<Domain>.*<\/Domain>[[:space:]]*$/ {
+        next
+      }
+
+      section == "oobeSystem" && in_autologon && in_password &&
         /^[[:space:]]*<Value>.*<\/Value>[[:space:]]*$/ {
         print "          <Value>" ENVIRON["PW"] "</Value>"
         password_added = 1
         next
       }
 
+      section == "oobeSystem" && in_autologon && /<\/AutoLogon>/ {
+        print "        <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>"
+        domain_added = 1
+      }
+
       section == "specialize" && !join_added &&
         /^[[:space:]]*<\/settings>[[:space:]]*$/ {
         print "    <component name=\"Microsoft-Windows-UnattendedJoin\" processorArchitecture=\"amd64\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">\n" \
               "      <Identification>\n" \
-              "        <Credentials>\n" \
-              "          <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>\n" \
-              "          <Username>" ENVIRON["USER_XML"] "</Username>\n" \
+              "        <Credentials>"
+
+        if (ENVIRON["CRED_DOMAIN"] != "") {
+          print "          <Domain>" ENVIRON["CRED_DOMAIN"] "</Domain>"
+        }
+
+        print "          <Username>" ENVIRON["AUTH_XML"] "</Username>\n" \
               "          <Password>" ENVIRON["PASS_XML"] "</Password>\n" \
               "        </Credentials>\n" \
               "        <JoinDomain>" ENVIRON["DOMAIN_XML"] "</JoinDomain>\n" \
               "      </Identification>\n" \
               "    </component>"
+
         join_added = 1
       }
 
       { print }
 
-      section == "oobeSystem" && /<\/AutoLogon>/ { in_autologon = 0 }
-      section == "oobeSystem" && /<\/UserAccounts>/ { in_accounts = 0 }
-      /^[[:space:]]*<\/settings>[[:space:]]*$/ { section = "" }
+      section == "oobeSystem" && in_password && /<\/Password>/ {
+        in_password = 0
+      }
+
+      section == "oobeSystem" && /<\/AutoLogon>/ {
+        in_autologon = 0
+      }
+
+      section == "oobeSystem" && /<\/UserAccounts>/ {
+        in_accounts = 0
+      }
+
+      /^[[:space:]]*<\/settings>[[:space:]]*$/ {
+        section = ""
+      }
 
       END {
-        exit !(join_added && accounts_added && autologon_added && password_added)
+        exit !(join_added && accounts_added && autologon_added &&
+               password_added && domain_added)
       }
     ' "$asset" > "$result" ||
     ! xmllint --nonet --noout "$result" ||
