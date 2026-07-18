@@ -893,11 +893,127 @@ prepareImage() {
   return 1
 }
 
+updateDomainXML() {
+
+  local asset="$1"
+  local domain="$2"
+  local user="$3"
+  local pass="$4"
+  local pw="$5"
+  local tmp result
+  local domain_xml user_xml pass_xml
+
+  domain_xml=$(escapeXML "$domain") || return 1
+  user_xml=$(escapeXML "$user") || return 1
+  pass_xml=$(escapeXML "$pass") || return 1
+
+  tmp=$(mktemp -d) || return 1
+  result="$tmp/answer.xml"
+
+  if ! DOMAIN_XML="$domain_xml" USER_XML="$user_xml" PASS_XML="$pass_xml" PW="$pw" \
+    awk '
+      {
+        line = $0
+
+        if (line ~ /<settings[^>]*pass="specialize"[^>]*>/) {
+          pass = "specialize"
+        } else if (line ~ /<settings[^>]*pass="oobeSystem"[^>]*>/) {
+          pass = "oobeSystem"
+        }
+
+        if (pass == "oobeSystem" && line ~ /<UserAccounts([[:space:]>])/) {
+          in_accounts = 1
+        }
+
+        if (pass == "oobeSystem" && in_accounts && !accounts_added && line ~ /<AdministratorPassword([[:space:]>])/) {
+          print "        <DomainAccounts>"
+          print "          <DomainAccountList wcm:action=\"add\">"
+          print "            <DomainAccount wcm:action=\"add\">"
+          print "              <Name>" ENVIRON["USER_XML"] "</Name>"
+          print "              <Group>Administrators</Group>"
+          print "            </DomainAccount>"
+          print "            <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>"
+          print "          </DomainAccountList>"
+          print "        </DomainAccounts>"
+          accounts_added = 1
+        }
+
+        if (pass == "oobeSystem" && line ~ /<AutoLogon([[:space:]>])/) {
+          in_autologon = 1
+        }
+
+        if (pass == "oobeSystem" && in_autologon && line ~ /^[[:space:]]*<Username>.*<\/Username>[[:space:]]*$/) {
+          print "        <Username>" ENVIRON["USER_XML"] "</Username>"
+          print "        <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>"
+          autologon_added = 1
+          next
+        }
+
+        if (pass == "oobeSystem" && in_autologon && line ~ /^[[:space:]]*<Value>.*<\/Value>[[:space:]]*$/) {
+          print "          <Value>" ENVIRON["PW"] "</Value>"
+          password_added = 1
+          next
+        }
+
+        if (pass == "specialize" && !join_added && line ~ /^[[:space:]]*<\/settings>[[:space:]]*$/) {
+          print "    <component name=\"Microsoft-Windows-UnattendedJoin\" processorArchitecture=\"amd64\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">"
+          print "      <Identification>"
+          print "        <Credentials>"
+          print "          <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>"
+          print "          <Username>" ENVIRON["USER_XML"] "</Username>"
+          print "          <Password>" ENVIRON["PASS_XML"] "</Password>"
+          print "        </Credentials>"
+          print "        <JoinDomain>" ENVIRON["DOMAIN_XML"] "</JoinDomain>"
+          print "      </Identification>"
+          print "    </component>"
+          join_added = 1
+        }
+
+        print line
+
+        if (pass == "oobeSystem" && line ~ /<\/AutoLogon>/) {
+          in_autologon = 0
+        }
+
+        if (pass == "oobeSystem" && line ~ /<\/UserAccounts>/) {
+          in_accounts = 0
+        }
+
+        if (line ~ /^[[:space:]]*<\/settings>[[:space:]]*$/) {
+          pass = ""
+        }
+      }
+
+      END {
+        if (!join_added || !accounts_added || !autologon_added || !password_added) {
+          exit 1
+        }
+      }
+    ' "$asset" > "$result"; then
+    rm -rf "$tmp"
+    return 1
+  fi
+
+  if ! xmllint --nonet --noout "$result"; then
+    rm -rf "$tmp"
+    return 1
+  fi
+
+  if ! mv -f "$result" "$asset"; then
+    rm -rf "$tmp"
+    return 1
+  fi
+
+  rm -rf "$tmp"
+  return 0
+}
+
 updateXML() {
 
   local asset="$1"
   local language="$2"
   local culture region user admin pass pw keyboard
+  local domain domain_join=""
 
   [ -z "$HEIGHT" ] && HEIGHT="720"
   [ -z "$WIDTH" ] && WIDTH="1280"
@@ -928,17 +1044,55 @@ updateXML() {
     sed -i "s/<InputLocale>0409:00000409<\/InputLocale>/<InputLocale>$keyboard<\/InputLocale>/g" "$asset" || return 1
   fi
 
-  user=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g') || return 1
+  domain=$(strip "${DOMAIN:-}")
 
-  if [ -n "$user" ]; then
-    sed -i "s/-name \"Docker\"/-name \"$user\"/g" "$asset" || return 1
-    sed -i "s/<Name>Docker<\/Name>/<Name>$user<\/Name>/g" "$asset" || return 1
-    sed -i "s/where name=\"Docker\"/where name=\"$user\"/g" "$asset" || return 1
-    sed -i "s/<FullName>Docker<\/FullName>/<FullName>$user<\/FullName>/g" "$asset" || return 1
-    sed -i "s/<Username>Docker<\/Username>/<Username>$user<\/Username>/g" "$asset" || return 1
+  if [ -n "$domain" ] && [[ "$domain" != "0" ]]; then
+    case "${DETECTED,,}" in
+      "win10x64"* | "win11x64"* ) domain_join="Y" ;;
+    esac
   fi
 
-  [ -n "$PASSWORD" ] && pass="$PASSWORD" || pass="admin"
+  if [ -n "$domain_join" ]; then
+    if [ -z "$USERNAME" ]; then
+      error "The USERNAME variable must be specified when joining a domain!"
+      return 1
+    fi
+
+    if [ -z "$PASSWORD" ]; then
+      error "The PASSWORD variable must be specified when joining a domain!"
+      return 1
+    fi
+
+    if [[ "$domain" == *"://"* ]]; then
+      error "The DOMAIN variable must contain a domain name, not a URL!"
+      return 1
+    fi
+
+    user="${USERNAME##*\\}"
+    user="${user%%@*}"
+    user=$(echo "$user" | sed 's/[^[:alnum:]!._-]//g') || return 1
+
+    if [ -z "$user" ]; then
+      error "The USERNAME variable does not contain a valid domain account name!"
+      return 1
+    fi
+  else
+    user=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g') || return 1
+
+    if [ -n "$user" ]; then
+      sed -i "s/-name \"Docker\"/-name \"$user\"/g" "$asset" || return 1
+      sed -i "s/<Name>Docker<\/Name>/<Name>$user<\/Name>/g" "$asset" || return 1
+      sed -i "s/where name=\"Docker\"/where name=\"$user\"/g" "$asset" || return 1
+      sed -i "s/<FullName>Docker<\/FullName>/<FullName>$user<\/FullName>/g" "$asset" || return 1
+      sed -i "s/<Username>Docker<\/Username>/<Username>$user<\/Username>/g" "$asset" || return 1
+    fi
+  fi
+
+  if [ -n "$domain_join" ]; then
+    pass="admin"
+  else
+    [ -n "$PASSWORD" ] && pass="$PASSWORD" || pass="admin"
+  fi
 
   pw=$(printf '%s' "${pass}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
   admin=$(printf '%s' "${pass}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
@@ -949,6 +1103,15 @@ updateXML() {
   sed -i -z "s|<Password>...............<Value \/>|<Password>\n              <Value>$pw<\/Value>|g" "$asset" || return 1
   sed -i -z "s|<AdministratorPassword>...........<Value \/>|<AdministratorPassword>\n          <Value>$admin<\/Value>|g" "$asset" || return 1
   sed -i -z "s|<AdministratorPassword>...............<Value \/>|<AdministratorPassword>\n              <Value>$admin<\/Value>|g" "$asset" || return 1
+
+  if [ -n "$domain_join" ]; then
+    pw=$(printf '%s' "${PASSWORD}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
+
+    if ! updateDomainXML "$asset" "$domain" "$user" "$PASSWORD" "$pw"; then
+      error "Failed to add domain configuration to answer file!"
+      return 1
+    fi
+  fi
 
   if [ -n "$EDITION" ]; then
     [[ "${EDITION^^}" == "CORE" ]] && EDITION="STANDARDCORE"
