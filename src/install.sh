@@ -986,8 +986,8 @@ updateXML() {
 
   local asset="$1"
   local language="$2"
-  local culture region keyboard
-  local admin user raw_user pass pw domain
+  local culture region keyboard admin pw
+  local user raw_user allowed pass domain
 
   [ -z "$WIDTH" ] && WIDTH="1280"
   [ -z "$HEIGHT" ] && HEIGHT="720"
@@ -1024,6 +1024,9 @@ updateXML() {
     * ) domain="" ;;
   esac
 
+  raw_user="$USERNAME"
+  allowed="@!._-"
+
   if [ -n "$domain" ]; then
 
     if [ -z "$USERNAME" ]; then
@@ -1041,13 +1044,19 @@ updateXML() {
       return 1
     fi
 
-    raw_user="${USERNAME##*\\}"
+    raw_user="${raw_user##*\\}"
     raw_user="${raw_user%%@*}"
-    user=$(printf '%s' "$raw_user" | sed 's/[^[:alnum:]!._-]//g') || return 1
+    allowed="!._-"
 
-    if [[ "$user" != "$raw_user" ]]; then
-      warn "Unsupported characters were removed from the USERNAME value: \"$raw_user\" became \"$user\"."
-    fi
+  fi
+
+  user=$(printf '%s' "$raw_user" | sed "s/[^[:alnum:]$allowed]//g") || return 1
+
+  if [[ "$user" != "$raw_user" ]]; then
+    warn "Unsupported characters were removed from the USERNAME value: \"$raw_user\" became \"$user\"."
+  fi
+
+  if [ -n "$domain" ]; then
 
     if [ -z "$user" ]; then
       error "The USERNAME variable does not contain a valid domain account name!"
@@ -1065,13 +1074,6 @@ updateXML() {
     fi
 
   else
-
-    raw_user="$USERNAME"
-    user=$(printf '%s' "$raw_user" | sed 's/[^[:alnum:]@!._-]//g') || return 1
-
-    if [[ "$user" != "$raw_user" ]]; then
-      warn "Unsupported characters were removed from the USERNAME value: \"$raw_user\" became \"$user\"."
-    fi
 
     if [ -n "$user" ]; then
       sed -i "s/-name \"Docker\"/-name \"$user\"/g" "$asset" || return 1
