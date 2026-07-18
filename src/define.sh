@@ -5,6 +5,7 @@ set -Eeuo pipefail
 : "${WIDTH:=""}"
 : "${HEIGHT:=""}"
 : "${VERIFY:=""}"
+: "${DOMAIN:=""}"
 : "${REGION:=""}"
 : "${EDITION:=""}"
 : "${MANUAL:=""}"
@@ -20,6 +21,7 @@ set -Eeuo pipefail
 KEY=$(strip "$KEY")
 WIDTH=$(strip "$WIDTH")
 HEIGHT=$(strip "$HEIGHT")
+DOMAIN=$(strip "$DOMAIN")
 REGION=$(strip "$REGION")
 EDITION=$(strip "$EDITION")
 KEYBOARD=$(strip "$KEYBOARD")
