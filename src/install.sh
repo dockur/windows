@@ -1424,6 +1424,24 @@ updateImage() {
       return 1
     fi
 
+    local fallback="/run/assets/${DETECTED%%-*}.xml"
+
+    if [[ "$DETECTED" != win20* &&
+          "$asset" == "$fallback" &&
+          "$asset" != "/run/assets/$DETECTED.xml" ]]; then
+
+      if ! sed -i \
+        -e '/<InstallFrom>.*<\/InstallFrom>/d' \
+        -e '/<ProductKey>.*<\/ProductKey>/d' \
+        -e '/<InstallFrom>/,/<\/InstallFrom>/d' \
+        -e '/<ProductKey>/,/<\/ProductKey>/d' \
+        "$answer"; then
+        error "Failed to make answer file edition-neutral: $answer"
+        return 1
+      fi
+
+    fi
+
     if ! updateXML "$answer" "$language"; then
       error "Failed to update answer file: $answer"
       return 1
