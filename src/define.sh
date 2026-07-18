@@ -11,6 +11,7 @@ set -Eeuo pipefail
 : "${MANUAL:=""}"
 : "${REMOVE:=""}"
 : "${VERSION:=""}"
+: "${COMMAND:=""}"
 : "${DETECTED:=""}"
 : "${KEYBOARD:=""}"
 : "${LANGUAGE:=""}"
@@ -23,6 +24,7 @@ WIDTH=$(strip "$WIDTH")
 HEIGHT=$(strip "$HEIGHT")
 DOMAIN=$(strip "$DOMAIN")
 REGION=$(strip "$REGION")
+COMMAND=$(strip "$COMMAND")
 EDITION=$(strip "$EDITION")
 KEYBOARD=$(strip "$KEYBOARD")
 LANGUAGE=$(strip "$LANGUAGE")
