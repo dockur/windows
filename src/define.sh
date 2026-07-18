@@ -1358,7 +1358,7 @@ addFolder() {
   cp -Lr "$folder/." "$dest" || return 1
 
   local file
-  file=$(find "$dest" -maxdepth 1 -type f -iname install.bat  -print -quit)
+  file=$(find "$dest" -maxdepth 1 -type f -iname install.bat -print -quit) || return 1
 
   if [ -f "$file" ]; then
     if ! unix2dos -q "$file"; then
@@ -1398,8 +1398,8 @@ prepareInstall() {
     local msg="Adding drivers to image..."
     info "$msg" && html "$msg"
 
-    rm -rf "$drivers"
-    mkdir -p "$drivers"
+    rm -rf "$drivers" || return 1
+    mkdir -p "$drivers" || return 1
 
     if ! bsdtar -xf /var/drivers.txz -C "$drivers"; then
       error "Failed to extract drivers!" && return 1
@@ -1425,19 +1425,19 @@ prepareInstall() {
     cp -L "$drivers/NetKVM/$driver/$arch/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
     cp -L "$drivers/NetKVM/$driver/$arch/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
 
-    file=$(find "$target" -maxdepth 1 -type f -iname TXTSETUP.SIF -print -quit)
+    file=$(find "$target" -maxdepth 1 -type f -iname TXTSETUP.SIF -print -quit) || return 1
 
     if [ -z "$file" ]; then
       error "The file TXTSETUP.SIF could not be found!" && return 1
     fi
 
-    sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$file"
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\nviostor.sys=1,,,,,,4_,4,1,,,1,4/' "$file"
-    sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device\"/' "$file"
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$file"
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00020000=\"viostor\"/' "$file"
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$file"
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$file"
+    sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$file" || return 1
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\nviostor.sys=1,,,,,,4_,4,1,,,1,4/' "$file" || return 1
+    sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device\"/' "$file" || return 1
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$file" || return 1
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00020000=\"viostor\"/' "$file" || return 1
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$file" || return 1
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$file" || return 1
 
     if [ ! -d "$drivers/sata/xp/$arch" ]; then
       error "Failed to locate required SATA drivers!" && return 1
@@ -1447,32 +1447,32 @@ prepareInstall() {
     cp -Lr "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata" || return 1
     cp -Lr "$drivers/sata/xp/$arch/." "$target" || return 1
 
-    sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$file"
-    sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$file"
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.cat = 1,,,,,,,1,0,0/' "$file"
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.inf = 1,,,,,,,1,0,0/' "$file"
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,4_,4,1,,,1,4/' "$file"
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,,1,0,0/' "$file"
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaahci.cat = 1,,,,,,,1,0,0/' "$file"
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaAHCI.inf = 1,,,,,,,1,0,0/' "$file"
-    sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$file"
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$file"
+    sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$file" || return 1
+    sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$file" || return 1
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.cat = 1,,,,,,,1,0,0/' "$file" || return 1
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.inf = 1,,,,,,,1,0,0/' "$file" || return 1
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,4_,4,1,,,1,4/' "$file" || return 1
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,,1,0,0/' "$file" || return 1
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaahci.cat = 1,,,,,,,1,0,0/' "$file" || return 1
+    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaAHCI.inf = 1,,,,,,,1,0,0/' "$file" || return 1
+    sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$file" || return 1
+    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$file" || return 1
 
-    rm -rf "$drivers"
+    rm -rf "$drivers" || return 1
 
   fi
 
   local key setup
-  setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini -print -quit)
+  setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini -print -quit) || return 1
 
   if [ -n "$setup" ] && [ -z "$KEY" ]; then
 
-    pid=$(<"$setup")
+    pid=$(<"$setup") || return 1
     pid="${pid%$'\r'}"
 
     if [[ "$driver" == "2k" ]]; then
 
-      echo "${pid:0:$((${#pid})) - 3}270" > "$setup"
+      echo "${pid:0:$((${#pid})) - 3}270" > "$setup" || return 1
 
     else
 
@@ -1482,21 +1482,21 @@ prepareInstall() {
 
       else
 
-        file=$(find "$target" -maxdepth 1 -type f -iname PID.INF -print -quit)
+        file=$(find "$target" -maxdepth 1 -type f -iname PID.INF -print -quit) || return 1
 
         if [ -n "$file" ]; then
 
           if [[ "$driver" == "2k3" ]]; then
 
-            key=$(grep -i -A 2 "StagingKey" "$file" | tail -n 2 | head -n 1)
+            key=$(grep -i -A 2 "StagingKey" "$file" | tail -n 2 | head -n 1) || key=""
 
           else
 
             key="${pid:$((${#pid})) - 8:5}"
             if [[ "${pid^^}" == *"OEM" ]]; then
-              key=$(grep -i -A 2 "$key" "$file" | tail -n 2 | head -n 1)
+              key=$(grep -i -A 2 "$key" "$file" | tail -n 2 | head -n 1) || key=""
             else
-              key=$(grep -i -m 1 -A 2 "$key" "$file" | tail -n 2 | head -n 1)
+              key=$(grep -i -m 1 -A 2 "$key" "$file" | tail -n 2 | head -n 1) || key=""
             fi
             key="${key#*= }"
 
@@ -1534,7 +1534,7 @@ prepareInstall() {
 
           esac
 
-          echo "${pid:0:$((${#pid})) - 3}000" > "$setup"
+          echo "${pid:0:$((${#pid})) - 3}000" > "$setup" || return 1
 
         fi
 
@@ -1545,7 +1545,7 @@ prepareInstall() {
 
   [ -n "$KEY" ] && KEY="ProductID=$KEY"
 
-  mkdir -p "$dir/\$OEM\$"
+  mkdir -p "$dir/\$OEM\$" || return 1
 
   if ! addFolder "$dir"; then
     error "Failed to add OEM folder to image!" && return 1
@@ -1558,19 +1558,23 @@ prepareInstall() {
   [ -z "$WIDTH" ] && WIDTH="1280"
   [ -z "$HEIGHT" ] && HEIGHT="720"
 
-  XHEX=$(printf '%08x\n' "$WIDTH")
-  YHEX=$(printf '%08x\n' "$HEIGHT")
+  XHEX=$(printf '%08x\n' "$WIDTH") || return 1
+  YHEX=$(printf '%08x\n' "$HEIGHT") || return 1
 
   local username=""
   local password=""
 
-  [ -n "$USERNAME" ] && username=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g')
+  if [ -n "$USERNAME" ]; then
+    username=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g') || return 1
+  fi
   [ -z "$username" ] && username="Docker"
 
-  [ -n "$PASSWORD" ] && password=$(echo "$PASSWORD" | sed 's/"//g')
+  if [ -n "$PASSWORD" ]; then
+    password=$(echo "$PASSWORD" | sed 's/"//g') || return 1
+  fi
   [ -z "$password" ] && password="admin"
 
-  find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
+  find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \; || return 1
 
   {       echo "[Data]"
           echo "    AutoPartition=1"
@@ -1630,7 +1634,7 @@ prepareInstall() {
           echo "[TerminalServices]"
           echo "    AllowConnections=1"
           echo ""
-  } | unix2dos > "$target/WINNT.SIF"
+  } | unix2dos > "$target/WINNT.SIF" || return 1
 
   if [[ "$driver" == "2k3" ]]; then
     {       echo "[Components]"
@@ -1640,7 +1644,7 @@ prepareInstall() {
             echo "    AutoMode=PerServer"
             echo "    AutoUsers=5"
             echo ""
-    } | unix2dos >> "$target/WINNT.SIF"
+    } | unix2dos >> "$target/WINNT.SIF" || return 1
   fi
 
   {       echo "Windows Registry Editor Version 5.00"
@@ -1691,13 +1695,13 @@ prepareInstall() {
           echo "\"ScreenSaverOff\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"ScreenSaveActive\\\" /t REG_SZ /d \\\"0\\\"\""
           echo "$oem"
           echo ""
-  } | unix2dos > "$dir/\$OEM\$/install.reg"
+  } | unix2dos > "$dir/\$OEM\$/install.reg" || return 1
 
   if [[ "$driver" == "2k" ]]; then
     {       echo "[HKEY_USERS\.DEFAULT\Software\Microsoft\Windows\CurrentVersion\Runonce]"
             echo "\"^SetupICWDesktop\"=-"
             echo ""
-    } | unix2dos >> "$dir/\$OEM\$/install.reg"
+    } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
   fi
 
   if [[ "$driver" == "2k3" ]]; then
@@ -1707,7 +1711,7 @@ prepareInstall() {
             echo "[HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\ServerOOBE\SecurityOOBE]"
             echo "\"DontLaunchSecurityOOBE\"=dword:00000000"
             echo ""
-    } | unix2dos >> "$dir/\$OEM\$/install.reg"
+    } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
   fi
 
   {       echo "Set WshShell = WScript.CreateObject(\"WScript.Shell\")"
@@ -1759,13 +1763,13 @@ prepareInstall() {
           echo "End With"
           echo "Set oLink = Nothing"
           echo ""
-  } | unix2dos > "$dir/\$OEM\$/install.vbs"
+  } | unix2dos > "$dir/\$OEM\$/install.vbs" || return 1
 
   {       echo "[COMMANDS]"
           echo "\"REGEDIT /s install.reg\""
           echo "\"Wscript install.vbs\""
           echo ""
-  } | unix2dos > "$dir/\$OEM\$/cmdlines.txt"
+  } | unix2dos > "$dir/\$OEM\$/cmdlines.txt" || return 1
 
   return 0
 }
@@ -1782,32 +1786,32 @@ prepareLegacy() {
   ETFS="boot.img"
 
   [ -s "$dir/$ETFS" ] && return 0
-  rm -f "$dir/$ETFS"
-  rm -rf "$tmp"
+  rm -f "$dir/$ETFS" || return 1
+  rm -rf "$tmp" || return 1
 
   if ! LC_ALL=C xorriso \
       -no_rc \
       -osirrox on \
       -indev "$iso" \
       -extract_boot_images "$tmp" >/dev/null 2>&1; then
-    rm -rf "$tmp"
+    rm -rf "$tmp" || true
     error "Failed to extract boot image from $desc ISO!"
     return 1
   fi
 
   if [ ! -s "$image" ]; then
-    rm -rf "$tmp"
+    rm -rf "$tmp" || true
     error "Failed to locate BIOS boot image in $desc ISO!"
     return 1
   fi
 
   if ! mv -f "$image" "$dir/$ETFS"; then
-    rm -rf "$tmp"
+    rm -rf "$tmp" || true
     error "Failed to save boot image from $desc ISO!"
     return 1
   fi
 
-  rm -rf "$tmp"
+  rm -rf "$tmp" || return 1
   return 0
 }
 
