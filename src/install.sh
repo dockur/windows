@@ -960,7 +960,7 @@ updateDomain() {
       }
 
       section == "oobeSystem" && in_autologon &&
-        /^[[:space:]]*<Domain>.*<\/Domain>[[:space:]]*$/ { next }
+        /^[[:space:]]*<Domain([[:space:]/>])/ { next }
 
       section == "oobeSystem" && in_autologon &&
         /^[[:space:]]*<Value>.*<\/Value>[[:space:]]*$/ {
