@@ -1035,6 +1035,7 @@ updateXML() {
   validateResolution "WIDTH" "$WIDTH" 320 || return 1
   validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
   validateProductKey "$KEY" || return 1
+  validatePassword "$PASSWORD" || return 1
 
   app=$(escapeXMLSed "$APP for $ENGINE") || return 1
 
