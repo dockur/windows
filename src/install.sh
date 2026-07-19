@@ -1027,19 +1027,22 @@ updateXML() {
   local language="$2"
   local app value culture region keyboard edition key
   local user raw_user user_xml auth_user safe_user
-  local admin pass pw domain qualifier
+  local admin pass pw domain qualifier host
 
   [ -z "$WIDTH" ] && WIDTH="1280"
   [ -z "$HEIGHT" ] && HEIGHT="720"
 
   validateResolution "WIDTH" "$WIDTH" 320 || return 1
   validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
+  validateComputerName "$HOST" || return 1
   validateProductKey "$KEY" || return 1
   validatePassword "$PASSWORD" || return 1
 
   app=$(escapeXMLSed "$APP for $ENGINE") || return 1
+  host=$(escapeXMLSed "$HOST") || return 1
 
   sed -i "s|>Windows for Docker<|>$app<|g" "$asset" || return 1
+  sed -i -E "s|<ComputerName>[^<]*</ComputerName>|<ComputerName>$host</ComputerName>|g" "$asset" || return 1
   sed -i "s|<VerticalResolution>1080</VerticalResolution>|<VerticalResolution>$HEIGHT</VerticalResolution>|g" "$asset" || return 1
   sed -i "s|<HorizontalResolution>1920</HorizontalResolution>|<HorizontalResolution>$WIDTH</HorizontalResolution>|g" "$asset" || return 1
 

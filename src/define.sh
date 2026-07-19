@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 : "${KEY:=""}"
+: "${HOST:=""}"
 : "${WIDTH:=""}"
 : "${HEIGHT:=""}"
 : "${VERIFY:=""}"
@@ -20,6 +21,7 @@ set -Eeuo pipefail
 
 # Sanitize variables
 KEY=$(strip "$KEY")
+HOST=$(strip "$HOST")
 WIDTH=$(strip "$WIDTH")
 HEIGHT=$(strip "$HEIGHT")
 DOMAIN=$(strip "$DOMAIN")
@@ -1380,6 +1382,33 @@ validateProductKey() {
   return 0
 }
 
+validateComputerName() {
+
+  local value="$1"
+
+  if [ -z "$value" ]; then
+    value="$APP"
+    HOST="$value"
+  fi
+
+  if [ "${#value}" -gt 15 ]; then
+    error "The HOST variable cannot contain more than 15 characters!"
+    return 1
+  fi
+
+  if [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$ ]]; then
+    error "The HOST variable may only contain letters, digits, and hyphens, and cannot start or end with a hyphen!"
+    return 1
+  fi
+
+  if [[ "$value" =~ ^[0-9]+$ ]]; then
+    error "The HOST variable cannot contain only digits!"
+    return 1
+  fi
+
+  return 0
+}
+
 validateLegacyText() {
 
   local name="$1"
@@ -1719,6 +1748,7 @@ prepareInstall() {
 
   validateResolution "WIDTH" "$WIDTH" 320 || return 1
   validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
+  validateComputerName "$HOST" || return 1
   validateLegacyText "APP" "$APP" "$desc" || return 1
   validateLegacyText "ENGINE" "$ENGINE" "$desc" || return 1
 
@@ -1727,12 +1757,13 @@ prepareInstall() {
 
   local username="${USERNAME:-Docker}"
   local password="${PASSWORD:-admin}"
-  local sifUsername sifPassword sifOrganization
+  local sifHost sifUsername sifPassword sifOrganization
   local regUsername regPassword
 
   validateLegacyUsername "$username" "$desc" || return 1
   validateLegacyPassword "$password" "$desc" || return 1
 
+  sifHost=$(escapeSIFValue "$HOST") || return 1
   sifUsername=$(escapeSIFValue "$username") || return 1
   sifPassword=$(escapeSIFValue "$password") || return 1
   sifOrganization=$(escapeSIFValue "$APP for $ENGINE") || return 1
@@ -1774,7 +1805,7 @@ prepareInstall() {
           echo ""
           echo "[UserData]"
           echo "    FullName=\"$sifUsername\""
-          echo "    ComputerName=\"*\""
+          echo "    ComputerName=\"$sifHost\""
           echo "    OrgName=\"$sifOrganization\""
           echo "    $product"
           echo ""
