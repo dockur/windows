@@ -1013,11 +1013,11 @@ updateDomain() {
     ' "$asset" > "$result" ||
     ! mv -f "$result" "$asset"; then
 
-    rm -rf "$tmp"
+    rm -rf "$tmp" || true
     return 1
   fi
 
-  rm -rf "$tmp"
+  rm -rf "$tmp" || return 1
   return 0
 }
 
@@ -1032,10 +1032,9 @@ updateXML() {
   [ -z "$WIDTH" ] && WIDTH="1280"
   [ -z "$HEIGHT" ] && HEIGHT="720"
 
-  if [[ ! "$WIDTH" =~ ^[0-9]+$ || ! "$HEIGHT" =~ ^[0-9]+$ ]]; then
-    error "The WIDTH and HEIGHT variables must contain numeric values!"
-    return 1
-  fi
+  validateResolution "WIDTH" "$WIDTH" 320 || return 1
+  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
+  validateProductKey "$KEY" || return 1
 
   app=$(escapeXMLSed "$APP for $ENGINE") || return 1
 
@@ -1197,10 +1196,8 @@ updateXML() {
 
   sed -i "s|<Value>password</Value>|<Value>$admin</Value>|g" "$asset" || return 1
   sed -i "s|<PlainText>true</PlainText>|<PlainText>false</PlainText>|g" "$asset" || return 1
-  sed -i -z "s|<Password>...........<Value />|<Password>\n          <Value>$pw</Value>|g" "$asset" || return 1
-  sed -i -z "s|<Password>...............<Value />|<Password>\n              <Value>$pw</Value>|g" "$asset" || return 1
-  sed -i -z "s|<AdministratorPassword>...........<Value />|<AdministratorPassword>\n          <Value>$admin</Value>|g" "$asset" || return 1
-  sed -i -z "s|<AdministratorPassword>...............<Value />|<AdministratorPassword>\n              <Value>$admin</Value>|g" "$asset" || return 1
+  sed -i -z -E "s|<Password>([[:space:]]*)<Value[[:space:]]*/>|<Password>\1<Value>$pw</Value>|g" "$asset" || return 1
+  sed -i -z -E "s|<AdministratorPassword>([[:space:]]*)<Value[[:space:]]*/>|<AdministratorPassword>\1<Value>$admin</Value>|g" "$asset" || return 1
 
   if [ -n "$domain" ]; then
 
@@ -1214,14 +1211,19 @@ updateXML() {
   fi
 
   if [ -n "$EDITION" ]; then
-    [[ "${EDITION^^}" == "CORE" ]] && EDITION="STANDARDCORE"
-    edition=$(escapeXMLSed "${EDITION^^}") || return 1
+    case "${EDITION,,}" in
+      "core" ) edition="STANDARDCORE" ;;
+      * ) edition="${EDITION^^}" ;;
+    esac
+
+    edition=$(escapeXMLSed "$edition") || return 1
     sed -i "s|SERVERSTANDARD</Value>|SERVER$edition</Value>|g" "$asset" || return 1
   fi
 
   if [ -n "$KEY" ]; then
     key=$(escapeXMLSed "$KEY") || return 1
-    sed -i '/<ProductKey>/,/<\/ProductKey>/d' "$asset" || return 1
+    sed -i -E '/^[[:space:]]*<ProductKey>[[:space:]]*$/,/^[[:space:]]*<\/ProductKey>[[:space:]]*$/d' "$asset" || return 1
+    sed -i -E "s|<ProductKey>[^<]*</ProductKey>|<ProductKey>$key</ProductKey>|g" "$asset" || return 1
     sed -i "s|</UserData>|  <ProductKey>\n          <Key>$key</Key>\n          <WillShowUI>OnError</WillShowUI>\n        </ProductKey>\n      </UserData>|g" "$asset" || return 1
   fi
 

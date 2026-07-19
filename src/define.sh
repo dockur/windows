@@ -1329,7 +1329,7 @@ validVersion() {
 
   local id="$1"
   local lang="$2"
-  local url
+  local url i=0
 
   isESD "$id" "$lang" && return 0
   isMido "$id" "$lang" && return 0
@@ -1342,6 +1342,143 @@ validVersion() {
   done
 
   return 1
+}
+
+validateResolution() {
+
+  local name="$1"
+  local value="$2"
+  local minimum="$3"
+  local number
+
+  if [[ ! "$value" =~ ^[0-9]+$ ]] || [ "${#value}" -gt 5 ]; then
+    error "The $name variable must be between $minimum and 16384!"
+    return 1
+  fi
+
+  number=$((10#$value))
+
+  if [ "$number" -lt "$minimum" ] || [ "$number" -gt 16384 ]; then
+    error "The $name variable must be between $minimum and 16384!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateProductKey() {
+
+  local value="$1"
+
+  [ -z "$value" ] && return 0
+
+  if [[ ! "$value" =~ ^[A-Za-z0-9]{5}(-[A-Za-z0-9]{5}){4}$ ]]; then
+    error "The KEY variable must contain a valid 25-character product key!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateLegacyText() {
+
+  local name="$1"
+  local value="$2"
+  local desc="${3:-}"
+  local suffix=""
+
+  [ -n "$desc" ] && suffix=" for $desc"
+
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    error "The $name variable cannot contain control characters$suffix!"
+    return 1
+  fi
+
+  if [[ "$value" == *'"'* ]]; then
+    error "The $name variable cannot contain double quotes$suffix!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateLegacyUsername() {
+
+  local value="$1"
+  local desc="${2:-}"
+  local suffix=""
+
+  [ -n "$desc" ] && suffix=" for $desc"
+
+  if [ -z "$value" ]; then
+    error "The USERNAME variable cannot be empty$suffix!"
+    return 1
+  fi
+
+  if [ "${#value}" -gt 20 ]; then
+    error "The USERNAME variable cannot contain more than 20 characters$suffix!"
+    return 1
+  fi
+
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    error "The USERNAME variable cannot contain control characters$suffix!"
+    return 1
+  fi
+
+  case "$value" in
+    *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* )
+      error "The USERNAME variable contains unsupported characters$suffix!"
+      return 1 ;;
+  esac
+
+  if [[ "$value" == *"." ]]; then
+    error "The USERNAME variable cannot end with a period$suffix!"
+    return 1
+  fi
+
+  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
+    error "The USERNAME variable cannot consist only of spaces or periods$suffix!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateLegacyPassword() {
+
+  local value="$1"
+  local desc="${2:-}"
+  local suffix=""
+
+  [ -n "$desc" ] && suffix=" for $desc"
+
+  if [ "${#value}" -gt 127 ]; then
+    error "The PASSWORD variable cannot contain more than 127 characters$suffix!"
+    return 1
+  fi
+
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    error "The PASSWORD variable cannot contain control characters$suffix!"
+    return 1
+  fi
+
+  return 0
+}
+
+escapeSIFValue() {
+
+  local s="$1"
+
+  s=${s//%/%%}
+  s=${s//\"/\"\"}
+
+  printf '%s' "$s"
+  return 0
+}
+
+escapeRegistryValue() {
+
+  printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
 }
 
 addFolder() {
@@ -1457,7 +1594,6 @@ prepareInstall() {
     sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$file" || return 1
     sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00020000=\"viostor\"/' "$file" || return 1
     sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$file" || return 1
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$file" || return 1
 
     if [ ! -d "$drivers/sata/xp/$arch" ]; then
       error "Failed to locate required SATA drivers!" && return 1
@@ -1563,7 +1699,10 @@ prepareInstall() {
 
   fi
 
-  [ -n "$KEY" ] && KEY="ProductID=$KEY"
+  validateProductKey "$KEY" || return 1
+
+  local product=""
+  [ -n "$KEY" ] && product="ProductID=$KEY"
 
   mkdir -p "$dir/\$OEM\$" || return 1
 
@@ -1578,23 +1717,29 @@ prepareInstall() {
   [ -z "$WIDTH" ] && WIDTH="1280"
   [ -z "$HEIGHT" ] && HEIGHT="720"
 
-  XHEX=$(printf '%08x\n' "$WIDTH") || return 1
-  YHEX=$(printf '%08x\n' "$HEIGHT") || return 1
+  validateResolution "WIDTH" "$WIDTH" 320 || return 1
+  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
+  validateLegacyText "APP" "$APP" "$desc" || return 1
+  validateLegacyText "ENGINE" "$ENGINE" "$desc" || return 1
 
-  local username=""
-  local password=""
+  XHEX=$(printf '%08x\n' "$((10#$WIDTH))") || return 1
+  YHEX=$(printf '%08x\n' "$((10#$HEIGHT))") || return 1
 
-  if [ -n "$USERNAME" ]; then
-    username=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g') || return 1
-  fi
-  [ -z "$username" ] && username="Docker"
+  local username="${USERNAME:-Docker}"
+  local password="${PASSWORD:-admin}"
+  local organization="$APP for $ENGINE"
+  local sifUsername sifPassword
+  local regUsername regPassword
 
-  if [ -n "$PASSWORD" ]; then
-    password=$(echo "$PASSWORD" | sed 's/"//g') || return 1
-  fi
-  [ -z "$password" ] && password="admin"
+  validateLegacyUsername "$username" "$desc" || return 1
+  validateLegacyPassword "$password" "$desc" || return 1
 
-  find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \; || return 1
+  sifUsername=$(escapeSIFValue "$username") || return 1
+  sifPassword=$(escapeSIFValue "$password") || return 1
+  regUsername=$(escapeRegistryValue "$username") || return 1
+  regPassword=$(escapeRegistryValue "$password") || return 1
+
+  find "$target" -maxdepth 1 -type f -iname winnt.sif -delete || return 1
 
   {       echo "[Data]"
           echo "    AutoPartition=1"
@@ -1622,16 +1767,16 @@ prepareInstall() {
           echo "[GuiUnattended]"
           echo "    OEMSkipRegional=1"
           echo "    OemSkipWelcome=1"
-          echo "    AdminPassword=$password"
+          echo "    AdminPassword=\"$sifPassword\""
           echo "    TimeZone=0"
           echo "    AutoLogon=Yes"
           echo "    AutoLogonCount=65432"
           echo ""
           echo "[UserData]"
-          echo "    FullName=\"$username\""
+          echo "    FullName=\"$sifUsername\""
           echo "    ComputerName=\"*\""
-          echo "    OrgName=\"$APP for $ENGINE\""
-          echo "    $KEY"
+          echo "    OrgName=\"$organization\""
+          echo "    $product"
           echo ""
           echo "[Identification]"
           echo "    JoinWorkgroup = WORKGROUP"
@@ -1696,8 +1841,8 @@ prepareInstall() {
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]"
           echo "\"AutoAdminLogon\"=\"1\""
-          echo "\"DefaultUserName\"=\"$username\""
-          echo "\"DefaultPassword\"=\"$password\""
+          echo "\"DefaultUserName\"=\"$regUsername\""
+          echo "\"DefaultPassword\"=\"$regPassword\""
           echo "\"DefaultDomainName\"=\"Dockur\""
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]"
