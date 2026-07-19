@@ -1727,8 +1727,7 @@ prepareInstall() {
 
   local username="${USERNAME:-Docker}"
   local password="${PASSWORD:-admin}"
-  local organization="$APP for $ENGINE"
-  local sifUsername sifPassword
+  local sifUsername sifPassword sifOrganization
   local regUsername regPassword
 
   validateLegacyUsername "$username" "$desc" || return 1
@@ -1736,6 +1735,7 @@ prepareInstall() {
 
   sifUsername=$(escapeSIFValue "$username") || return 1
   sifPassword=$(escapeSIFValue "$password") || return 1
+  sifOrganization=$(escapeSIFValue "$APP for $ENGINE") || return 1
   regUsername=$(escapeRegistryValue "$username") || return 1
   regPassword=$(escapeRegistryValue "$password") || return 1
 
@@ -1775,7 +1775,7 @@ prepareInstall() {
           echo "[UserData]"
           echo "    FullName=\"$sifUsername\""
           echo "    ComputerName=\"*\""
-          echo "    OrgName=\"$organization\""
+          echo "    OrgName=\"$sifOrganization\""
           echo "    $product"
           echo ""
           echo "[Identification]"
