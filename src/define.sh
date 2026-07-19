@@ -1388,6 +1388,7 @@ validateComputerName() {
 
   if [ -z "$value" ]; then
     value="$APP"
+    HOST="$value"
   fi
 
   if [ "${#value}" -gt 15 ]; then
