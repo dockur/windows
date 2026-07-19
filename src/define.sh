@@ -1472,7 +1472,7 @@ validateLegacyUsername() {
   return 0
 }
 
-validateLegacyPassword() {
+validatePassword() {
 
   local value="$1"
   local desc="${2:-}"
