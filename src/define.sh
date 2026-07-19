@@ -1329,7 +1329,7 @@ validVersion() {
 
   local id="$1"
   local lang="$2"
-  local url
+  local url i=0
 
   isESD "$id" "$lang" && return 0
   isMido "$id" "$lang" && return 0
@@ -1594,7 +1594,6 @@ prepareInstall() {
     sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$file" || return 1
     sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00020000=\"viostor\"/' "$file" || return 1
     sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$file" || return 1
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$file" || return 1
 
     if [ ! -d "$drivers/sata/xp/$arch" ]; then
       error "Failed to locate required SATA drivers!" && return 1
