@@ -32,6 +32,65 @@ USERNAME=$(strip "$USERNAME")
 
 MIRRORS=4
 
+validateResolution() {
+
+  local name="$1"
+  local value="$2"
+  local minimum="$3"
+  local number
+
+  if [[ ! "$value" =~ ^[0-9]+$ ]] || [ "${#value}" -gt 5 ]; then
+    error "The $name variable must be between $minimum and 16384!"
+    return 1
+  fi
+
+  number=$((10#$value))
+
+  if [ "$number" -lt "$minimum" ] || [ "$number" -gt 16384 ]; then
+    error "The $name variable must be between $minimum and 16384!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateProductKey() {
+
+  local value="$1"
+
+  [ -z "$value" ] && return 0
+
+  if [[ ! "$value" =~ ^[A-Za-z0-9]{5}(-[A-Za-z0-9]{5}){4}$ ]]; then
+    error "The KEY variable must contain a valid 25-character product key!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateLegacyText() {
+
+  local name="$1"
+  local value="$2"
+
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    error "The $name variable cannot contain control characters for legacy Windows installations!"
+    return 1
+  fi
+
+  if [[ "$value" == *'"'* ]]; then
+    error "The $name variable cannot contain double quotes for legacy Windows installations!"
+    return 1
+  fi
+
+  return 0
+}
+
+escapeRegistryValue() {
+
+  printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
+}
+
 parseVersion() {
 
   VERSION=$(strip "$VERSION")
@@ -1563,7 +1622,10 @@ prepareInstall() {
 
   fi
 
-  [ -n "$KEY" ] && KEY="ProductID=$KEY"
+  validateProductKey "$KEY" || return 1
+
+  local product=""
+  [ -n "$KEY" ] && product="ProductID=$KEY"
 
   mkdir -p "$dir/\$OEM\$" || return 1
 
@@ -1578,23 +1640,31 @@ prepareInstall() {
   [ -z "$WIDTH" ] && WIDTH="1280"
   [ -z "$HEIGHT" ] && HEIGHT="720"
 
-  XHEX=$(printf '%08x\n' "$WIDTH") || return 1
-  YHEX=$(printf '%08x\n' "$HEIGHT") || return 1
+  validateResolution "WIDTH" "$WIDTH" 320 || return 1
+  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
+  validateLegacyText "APP" "$APP" || return 1
+  validateLegacyText "ENGINE" "$ENGINE" || return 1
+
+  XHEX=$(printf '%08x\n' "$((10#$WIDTH))") || return 1
+  YHEX=$(printf '%08x\n' "$((10#$HEIGHT))") || return 1
 
   local username=""
   local password=""
+  local organization="$APP for $ENGINE"
+  local regUsername regPassword
 
   if [ -n "$USERNAME" ]; then
-    username=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g') || return 1
+    username=$(printf '%s' "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g') || return 1
   fi
   [ -z "$username" ] && username="Docker"
 
-  if [ -n "$PASSWORD" ]; then
-    password=$(echo "$PASSWORD" | sed 's/"//g') || return 1
-  fi
-  [ -z "$password" ] && password="admin"
+  [ -n "$PASSWORD" ] && password="$PASSWORD" || password="admin"
+  validateLegacyText "PASSWORD" "$password" || return 1
 
-  find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \; || return 1
+  regUsername=$(escapeRegistryValue "$username") || return 1
+  regPassword=$(escapeRegistryValue "$password") || return 1
+
+  find "$target" -maxdepth 1 -type f -iname winnt.sif -delete || return 1
 
   {       echo "[Data]"
           echo "    AutoPartition=1"
@@ -1622,7 +1692,7 @@ prepareInstall() {
           echo "[GuiUnattended]"
           echo "    OEMSkipRegional=1"
           echo "    OemSkipWelcome=1"
-          echo "    AdminPassword=$password"
+          echo "    AdminPassword=\"$password\""
           echo "    TimeZone=0"
           echo "    AutoLogon=Yes"
           echo "    AutoLogonCount=65432"
@@ -1630,8 +1700,8 @@ prepareInstall() {
           echo "[UserData]"
           echo "    FullName=\"$username\""
           echo "    ComputerName=\"*\""
-          echo "    OrgName=\"$APP for $ENGINE\""
-          echo "    $KEY"
+          echo "    OrgName=\"$organization\""
+          echo "    $product"
           echo ""
           echo "[Identification]"
           echo "    JoinWorkgroup = WORKGROUP"
@@ -1696,8 +1766,8 @@ prepareInstall() {
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]"
           echo "\"AutoAdminLogon\"=\"1\""
-          echo "\"DefaultUserName\"=\"$username\""
-          echo "\"DefaultPassword\"=\"$password\""
+          echo "\"DefaultUserName\"=\"$regUsername\""
+          echo "\"DefaultPassword\"=\"$regPassword\""
           echo "\"DefaultDomainName\"=\"Dockur\""
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]"
