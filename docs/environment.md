@@ -53,7 +53,7 @@ An empty default means the variable is unset and its value is determined automat
 |---|---|---|
 | `NETWORK` |  | Network mode, such as `nat`, `user`, or `N` to disable networking. |
 | `DHCP` | `N` | Enables macvtap networking so Windows receives an address from the external LAN through DHCP. |
-| `HOST` | `Windows` | Hostname assigned to Windows. |
+| `HOST` | `Windows` | Computer name assigned to Windows and advertised on the network. Supports up to 15 letters, digits, or hyphens. |
 | `IP` |  | Overrides the automatically selected guest IPv4 address. |
 | `MAC` |  | Guest network adapter MAC address. |
 | `ADAPTER` | `virtio-net-pci` | QEMU network adapter model. |
