@@ -72,17 +72,95 @@ validateLegacyText() {
 
   local name="$1"
   local value="$2"
+  local desc="${3:-}"
+  local suffix=""
+
+  [ -n "$desc" ] && suffix=" for $desc"
 
   if [[ "$value" =~ [[:cntrl:]] ]]; then
-    error "The $name variable cannot contain control characters for legacy Windows installations!"
+    error "The $name variable cannot contain control characters$suffix!"
     return 1
   fi
 
   if [[ "$value" == *'"'* ]]; then
-    error "The $name variable cannot contain double quotes for legacy Windows installations!"
+    error "The $name variable cannot contain double quotes$suffix!"
     return 1
   fi
 
+  return 0
+}
+
+validateLegacyUsername() {
+
+  local value="$1"
+  local desc="${2:-}"
+  local suffix=""
+
+  [ -n "$desc" ] && suffix=" for $desc"
+
+  if [ -z "$value" ]; then
+    error "The USERNAME variable cannot be empty$suffix!"
+    return 1
+  fi
+
+  if [ "${#value}" -gt 20 ]; then
+    error "The USERNAME variable cannot contain more than 20 characters$suffix!"
+    return 1
+  fi
+
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    error "The USERNAME variable cannot contain control characters$suffix!"
+    return 1
+  fi
+
+  case "$value" in
+    *'"'* | *'/'* | *'\'* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* )
+      error "The USERNAME variable contains unsupported characters$suffix!"
+      return 1 ;;
+  esac
+
+  if [[ "$value" == *"." ]]; then
+    error "The USERNAME variable cannot end with a period$suffix!"
+    return 1
+  fi
+
+  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
+    error "The USERNAME variable cannot consist only of spaces or periods$suffix!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateLegacyPassword() {
+
+  local value="$1"
+  local desc="${2:-}"
+  local suffix=""
+
+  [ -n "$desc" ] && suffix=" for $desc"
+
+  if [ "${#value}" -gt 127 ]; then
+    error "The PASSWORD variable cannot contain more than 127 characters$suffix!"
+    return 1
+  fi
+
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    error "The PASSWORD variable cannot contain control characters$suffix!"
+    return 1
+  fi
+
+  return 0
+}
+
+escapeSIFValue() {
+
+  local s="$1"
+
+  s=${s//%/%%}
+  s=${s//\"/\"\"}
+
+  printf '%s' "$s"
   return 0
 }
 
@@ -1642,25 +1720,23 @@ prepareInstall() {
 
   validateResolution "WIDTH" "$WIDTH" 320 || return 1
   validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
-  validateLegacyText "APP" "$APP" || return 1
-  validateLegacyText "ENGINE" "$ENGINE" || return 1
+  validateLegacyText "APP" "$APP" "$desc" || return 1
+  validateLegacyText "ENGINE" "$ENGINE" "$desc" || return 1
 
   XHEX=$(printf '%08x\n' "$((10#$WIDTH))") || return 1
   YHEX=$(printf '%08x\n' "$((10#$HEIGHT))") || return 1
 
-  local username=""
-  local password=""
+  local username="${USERNAME:-Docker}"
+  local password="${PASSWORD:-admin}"
   local organization="$APP for $ENGINE"
+  local sifUsername sifPassword
   local regUsername regPassword
 
-  if [ -n "$USERNAME" ]; then
-    username=$(printf '%s' "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g') || return 1
-  fi
-  [ -z "$username" ] && username="Docker"
+  validateLegacyUsername "$username" "$desc" || return 1
+  validateLegacyPassword "$password" "$desc" || return 1
 
-  [ -n "$PASSWORD" ] && password="$PASSWORD" || password="admin"
-  validateLegacyText "PASSWORD" "$password" || return 1
-
+  sifUsername=$(escapeSIFValue "$username") || return 1
+  sifPassword=$(escapeSIFValue "$password") || return 1
   regUsername=$(escapeRegistryValue "$username") || return 1
   regPassword=$(escapeRegistryValue "$password") || return 1
 
@@ -1692,13 +1768,13 @@ prepareInstall() {
           echo "[GuiUnattended]"
           echo "    OEMSkipRegional=1"
           echo "    OemSkipWelcome=1"
-          echo "    AdminPassword=\"$password\""
+          echo "    AdminPassword=\"$sifPassword\""
           echo "    TimeZone=0"
           echo "    AutoLogon=Yes"
           echo "    AutoLogonCount=65432"
           echo ""
           echo "[UserData]"
-          echo "    FullName=\"$username\""
+          echo "    FullName=\"$sifUsername\""
           echo "    ComputerName=\"*\""
           echo "    OrgName=\"$organization\""
           echo "    $product"
