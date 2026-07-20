@@ -15,7 +15,10 @@ An empty default means the variable is unset and its value is determined automat
 | `KEYBOARD` |  | Keyboard layout. Uses `LANGUAGE` when unset. |
 | `USERNAME` | `Docker` | Name of the Windows user account. |
 | `PASSWORD` | `admin` | Password for the Windows account. |
+| `AUTOLOGIN` | `Y` | Automatically signs in to Windows after startup. |
 | `DOMAIN` |  | Active Directory domain to join during installation. |
+| `DOMAIN_OU` |  | Distinguished name of the organizational unit. |
+| `WORKGROUP` |  | Name of the Windows workgroup to join. |
 | `KEY` |  | Windows product key used to install and activate Windows. |
 
 ## 🧠 CPU and Memory

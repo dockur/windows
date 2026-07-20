@@ -771,6 +771,8 @@ setXML() {
 
   local file="/custom.xml"
 
+  CUSTOM_XML=""
+
   if [ -d "$file" ]; then
     error "The bind $file maps to a file that does not exist!" && exit 67
   fi
@@ -780,6 +782,10 @@ setXML() {
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="$1"
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/$DETECTED.xml"
   [ ! -f "$file" ] || [ ! -s "$file" ] && return 1
+
+  case "$file" in
+    "/custom.xml" | "$STORAGE/custom.xml" ) CUSTOM_XML="Y" ;;
+  esac
 
   XML="$file"
   return 0
@@ -1184,93 +1190,6 @@ updateWorkgroup() {
   return 0
 }
 
-addSharedDrive() {
-
-  local asset="$1"
-  local tmp result
-
-  grep -q '<CommandLine>cmd /C net use Z:' "$asset" && return 0
-
-  tmp=$(mktemp -d) || return 1
-  result="$tmp/answer.xml"
-
-  if ! awk '
-      function add_drive(indent, order) {
-        print indent "<SynchronousCommand wcm:action=\"add\">\n" \
-              indent "  <Order>" order "</Order>\n" \
-              indent "  <CommandLine>cmd /C net use Z: \\\\host.lan\\Data /persistent:yes</CommandLine>\n" \
-              indent "  <Description>Map shared folder</Description>\n" \
-              indent "</SynchronousCommand>"
-      }
-
-      in_command {
-        block = block $0 ORS
-
-        if (match($0, /<Order>[0-9]+<\/Order>/)) {
-          value = substr($0, RSTART + 7, RLENGTH - 15) + 0
-          command_order = value
-          if (value > max_order) max_order = value
-        }
-
-        if (/^[[:space:]]*<\/SynchronousCommand>[[:space:]]*$/) {
-          if (block ~ /<Description>Execute custom script from the OEM folder if exists<\/Description>/) {
-            if (command_order < 1) exit 1
-
-            old = "<Order>" command_order "</Order>"
-            new = "<Order>" (command_order + 1) "</Order>"
-            sub(old, new, block)
-
-            add_drive(command_indent, command_order)
-            drive_added = 1
-          }
-
-          printf "%s", block
-          block = ""
-          command_order = 0
-          in_command = 0
-        }
-
-        next
-      }
-
-      /<FirstLogonCommands([[:space:]>])/ {
-        in_first_logon = 1
-        print
-        next
-      }
-
-      in_first_logon && /^[[:space:]]*<SynchronousCommand([[:space:]>])/ {
-        in_command = 1
-        block = $0 ORS
-        command_indent = $0
-        sub(/<.*/, "", command_indent)
-        next
-      }
-
-      in_first_logon && /^[[:space:]]*<\/FirstLogonCommands>[[:space:]]*$/ {
-        if (!drive_added) {
-          indent = $0
-          sub(/<.*/, "", indent)
-          add_drive(indent "  ", max_order + 1)
-          drive_added = 1
-        }
-
-        in_first_logon = 0
-      }
-
-      { print }
-      END { exit !drive_added }
-    ' "$asset" > "$result" ||
-    ! mv -f "$result" "$asset"; then
-
-    rm -rf "$tmp" || true
-    return 1
-  fi
-
-  rm -rf "$tmp" || return 1
-  return 0
-}
-
 updateXML() {
 
   local asset="$1"
@@ -1411,10 +1330,9 @@ updateXML() {
   pw=$(printf '%s' "${pass}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
   admin=$(printf '%s' "${pass}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
 
-  sed -i "s|<Value>password</Value>|<Value>$admin</Value>|g" "$asset" || return 1
-  sed -i "s|<PlainText>true</PlainText>|<PlainText>false</PlainText>|g" "$asset" || return 1
-  sed -i -z -E "s|<Password>([[:space:]]*)<Value[[:space:]]*/>|<Password>\1<Value>$pw</Value>|g" "$asset" || return 1
-  sed -i -z -E "s|<AdministratorPassword>([[:space:]]*)<Value[[:space:]]*/>|<AdministratorPassword>\1<Value>$admin</Value>|g" "$asset" || return 1
+  sed -i -z -E "s#(<Password>[[:space:]]*<Value)([[:space:]]*/>|>[^<]*</Value>)#\1>$pw</Value>#g" "$asset" || return 1
+  sed -i -z -E "s#(<AdministratorPassword>[[:space:]]*<Value)([[:space:]]*/>|>[^<]*</Value>)#\1>$admin</Value>#g" "$asset" || return 1
+  sed -i -E "s|<PlainText>[^<]*</PlainText>|<PlainText>false</PlainText>|g" "$asset" || return 1
 
   if [ -n "$domain" ]; then
 
@@ -1437,11 +1355,6 @@ updateXML() {
 
   if disabled "$AUTOLOGIN"; then
     sed -i -E '/^[[:space:]]*<AutoLogon([[:space:]>])/,/^[[:space:]]*<\/AutoLogon>[[:space:]]*$/d' "$asset" || return 1
-  fi
-
-  if ! addSharedDrive "$asset"; then
-    error "Failed to add shared drive configuration to answer file!"
-    return 1
   fi
 
   if [ -n "$EDITION" ]; then
@@ -1678,9 +1591,20 @@ updateImage() {
 
     fi
 
-    if ! updateXML "$answer" "$language"; then
-      error "Failed to update answer file: $answer"
-      return 1
+    if [ -n "${CUSTOM_XML:-}" ]; then
+
+      if ! xmllint --nonet --noout "$answer"; then
+        error "The custom answer file is not valid XML!"
+        return 1
+      fi
+
+    else
+
+      if ! updateXML "$answer" "$language"; then
+        error "Failed to update answer file: $answer"
+        return 1
+      fi
+
     fi
 
     if ! wimlib-imagex update "$wim" "$idx" --command "add $answer /$xml" > /dev/null; then
