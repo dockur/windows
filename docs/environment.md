@@ -153,6 +153,7 @@ Also see [Dynamic memory allocation](https://github.com/qemus/qemu/blob/master/d
 
 | Variable | Default | Description |
 |---|---|---|
+| `CONNECTIONS` | `4` | Number of connections used for ISO file downloads. |
 | `MIDO` | `Y` | Enables downloading Windows ISO files directly from Microsoft. |
 | `ESD` | `Y` | Enables downloading Windows through the ESD-based installation method. |
 | `VERIFY` | `N` | Verifies downloaded installation media against predefined checksums. |
