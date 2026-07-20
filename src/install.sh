@@ -923,18 +923,19 @@ escapeXMLSed() {
 updateDomain() {
 
   local asset="$1"
-  local domain account auth pass
-  local pw cred_domain tmp result
+  local domain account account_domain
+  local auth pass pw cred_domain tmp result
 
   domain=$(escapeXML "$2") || return 1
   account=$(escapeXML "$3") || return 1
-  auth=$(escapeXML "$4") || return 1
-  pass=$(escapeXML "$5") || return 1
-  pw="$6"
+  account_domain=$(escapeXML "$4") || return 1
+  auth=$(escapeXML "$5") || return 1
+  pass=$(escapeXML "$6") || return 1
+  pw="$7"
 
   cred_domain="$domain"
 
-  case "$4" in
+  case "$5" in
     *\\* | *@* ) cred_domain="" ;;
   esac
 
@@ -943,7 +944,8 @@ updateDomain() {
   tmp=$(mktemp -d) || return 1
   result="$tmp/answer.xml"
 
-  if ! DOMAIN_XML="$domain" ACCOUNT_XML="$account" AUTH_XML="$auth" \
+  if ! DOMAIN_XML="$domain" ACCOUNT_XML="$account" \
+    ACCOUNT_DOMAIN_XML="$account_domain" AUTH_XML="$auth" \
     PASS_XML="$pass" CRED_DOMAIN="$cred_domain" PW="$pw" \
     awk '
       /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
@@ -959,7 +961,7 @@ updateDomain() {
               "              <Name>" ENVIRON["ACCOUNT_XML"] "</Name>\n" \
               "              <Group>Administrators</Group>\n" \
               "            </DomainAccount>\n" \
-              "            <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>\n" \
+              "            <Domain>" ENVIRON["ACCOUNT_DOMAIN_XML"] "</Domain>\n" \
               "          </DomainAccountList>\n" \
               "        </DomainAccounts>"
         accounts_added = 1
@@ -968,7 +970,7 @@ updateDomain() {
       section == "oobeSystem" && in_autologon &&
         /^[[:space:]]*<Username>.*<\/Username>[[:space:]]*$/ {
         print "        <Username>" ENVIRON["ACCOUNT_XML"] "</Username>\n" \
-              "        <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>"
+              "        <Domain>" ENVIRON["ACCOUNT_DOMAIN_XML"] "</Domain>"
         autologon_added = 1
         next
       }
@@ -1057,7 +1059,7 @@ validateLocalUsername() {
     "NONE" )
       error "The USERNAME value \"NONE\" is reserved by Windows!"
       return 1 ;;
-    "ADMINISTRATOR" | "GUEST" )
+    "ADMINISTRATOR" | "GUEST" | "DEFAULTACCOUNT" | "WDAGUTILITYACCOUNT" | "WSIACCOUNT" )
       error "The USERNAME value \"$value\" is reserved for a built-in Windows account!"
       return 1 ;;
   esac
@@ -1069,14 +1071,12 @@ validateDomainName() {
 
   local value="$1"
   local name="${2:-DOMAIN}"
+  local type="${3:-domain}"
+  local label
+  local -a labels
 
   if [ -z "$value" ]; then
     error "The $name variable must contain a valid domain name!"
-    return 1
-  fi
-
-  if [ "${#value}" -gt 255 ]; then
-    error "The $name variable cannot contain more than 255 characters!"
     return 1
   fi
 
@@ -1090,11 +1090,41 @@ validateDomainName() {
     return 1
   fi
 
-  case "$value" in
-    *'/'* | *\\* | *'@'* | *':'* )
+  if [[ "$type" == "netbios" ]]; then
+
+    if [ "${#value}" -gt 15 ]; then
+      error "The $name variable cannot contain a NetBIOS domain name longer than 15 characters!"
+      return 1
+    fi
+
+    if [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$ ]]; then
+      error "The $name variable does not contain a valid NetBIOS domain name!"
+      return 1
+    fi
+
+    return 0
+  fi
+
+  if [ "${#value}" -gt 255 ]; then
+    error "The $name variable cannot contain more than 255 characters!"
+    return 1
+  fi
+
+  if [[ "$value" == .* ]] || [[ "$value" == *. ]] || [[ "$value" == *..* ]]; then
+    error "The $name variable does not contain a valid domain name!"
+    return 1
+  fi
+
+  IFS='.' read -r -a labels <<< "$value"
+
+  for label in "${labels[@]}"; do
+    if [ "${#label}" -gt 63 ] ||
+      [[ ! "$label" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$ ]]; then
+
       error "The $name variable does not contain a valid domain name!"
-      return 1 ;;
-  esac
+      return 1
+    fi
+  done
 
   return 0
 }
@@ -1147,8 +1177,8 @@ updateXML() {
   local asset="$1"
   local language="$2"
   local app value culture region keyboard edition key
-  local user user_xml auth_user
-  local admin pass pw domain qualifier host
+  local user user_xml auth_user admin pass pw domain
+  local qualifier qualifier_type account_domain host
 
   [ -z "$WIDTH" ] && WIDTH="1280"
   [ -z "$HEIGHT" ] && HEIGHT="720"
@@ -1214,6 +1244,7 @@ updateXML() {
 
     auth_user="$USERNAME"
     qualifier=""
+    qualifier_type=""
 
     if [[ "$auth_user" == *\\* && "$auth_user" == *@* ]]; then
       error "The USERNAME variable must use only one domain account format!"
@@ -1223,6 +1254,7 @@ updateXML() {
     case "$auth_user" in
       *\\* )
         qualifier="${auth_user%%\\*}"
+        qualifier_type="netbios"
         user="${auth_user#*\\}"
 
         if [ -z "$qualifier" ] || [ -z "$user" ] || [[ "$user" == *\\* ]]; then
@@ -1233,6 +1265,7 @@ updateXML() {
       *@* )
         user="${auth_user%%@*}"
         qualifier="${auth_user#*@}"
+        qualifier_type="domain"
 
         if [ -z "$user" ] || [ -z "$qualifier" ] || [[ "$qualifier" == *@* ]]; then
           error "The USERNAME variable does not contain a valid domain account name!"
@@ -1246,8 +1279,11 @@ updateXML() {
 
     validateDomainUsername "$user" || return 1
 
+    account_domain="$domain"
+
     if [ -n "$qualifier" ]; then
-      validateDomainName "$qualifier" "USERNAME" || return 1
+      validateDomainName "$qualifier" "USERNAME" "$qualifier_type" || return 1
+      account_domain="$qualifier"
     fi
 
     if [[ "${user,,}" == "docker" ]]; then
@@ -1295,7 +1331,8 @@ updateXML() {
 
     pw=$(printf '%s' "${PASSWORD}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
 
-    if ! updateDomain "$asset" "$domain" "$user" "$auth_user" "$PASSWORD" "$pw"; then
+    if ! updateDomain "$asset" "$domain" "$user" "$account_domain" \
+      "$auth_user" "$PASSWORD" "$pw"; then
       error "Failed to add domain configuration to answer file!"
       return 1
     fi
