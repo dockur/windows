@@ -1195,13 +1195,67 @@ addSharedDrive() {
   result="$tmp/answer.xml"
 
   if ! awk '
-      !drive_added && /^[[:space:]]*<\/FirstLogonCommands>[[:space:]]*$/ {
-        print "        <SynchronousCommand wcm:action=\"add\">\n" \
-              "          <Order>99</Order>\n" \
-              "          <CommandLine>cmd /C net use Z: \\\\host.lan\\Data /persistent:yes</CommandLine>\n" \
-              "          <Description>Map shared folder</Description>\n" \
-              "        </SynchronousCommand>"
-        drive_added = 1
+      function add_drive(indent, order) {
+        print indent "<SynchronousCommand wcm:action=\"add\">\n" \
+              indent "  <Order>" order "</Order>\n" \
+              indent "  <CommandLine>cmd /C net use Z: \\\\host.lan\\Data /persistent:yes</CommandLine>\n" \
+              indent "  <Description>Map shared folder</Description>\n" \
+              indent "</SynchronousCommand>"
+      }
+
+      in_command {
+        block = block $0 ORS
+
+        if (match($0, /<Order>[0-9]+<\/Order>/)) {
+          value = substr($0, RSTART + 7, RLENGTH - 15) + 0
+          command_order = value
+          if (value > max_order) max_order = value
+        }
+
+        if (/^[[:space:]]*<\/SynchronousCommand>[[:space:]]*$/) {
+          if (block ~ /<Description>Execute custom script from the OEM folder if exists<\/Description>/) {
+            if (command_order < 1) exit 1
+
+            old = "<Order>" command_order "</Order>"
+            new = "<Order>" (command_order + 1) "</Order>"
+            sub(old, new, block)
+
+            add_drive(command_indent, command_order)
+            drive_added = 1
+          }
+
+          printf "%s", block
+          block = ""
+          command_order = 0
+          in_command = 0
+        }
+
+        next
+      }
+
+      /<FirstLogonCommands([[:space:]>])/ {
+        in_first_logon = 1
+        print
+        next
+      }
+
+      in_first_logon && /^[[:space:]]*<SynchronousCommand([[:space:]>])/ {
+        in_command = 1
+        block = $0 ORS
+        command_indent = $0
+        sub(/<.*/, "", command_indent)
+        next
+      }
+
+      in_first_logon && /^[[:space:]]*<\/FirstLogonCommands>[[:space:]]*$/ {
+        if (!drive_added) {
+          indent = $0
+          sub(/<.*/, "", indent)
+          add_drive(indent "  ", max_order + 1)
+          drive_added = 1
+        }
+
+        in_first_logon = 0
       }
 
       { print }
@@ -1240,8 +1294,8 @@ updateXML() {
 
   sed -i "s|>Windows for Docker<|>$app<|g" "$asset" || return 1
   sed -i -E "s|<ComputerName>[^<]*</ComputerName>|<ComputerName>$host</ComputerName>|g" "$asset" || return 1
-  sed -i "s|<VerticalResolution>1080</VerticalResolution>|<VerticalResolution>$HEIGHT</VerticalResolution>|g" "$asset" || return 1
-  sed -i "s|<HorizontalResolution>1920</HorizontalResolution>|<HorizontalResolution>$WIDTH</HorizontalResolution>|g" "$asset" || return 1
+  sed -i -E "s|<VerticalResolution>[^<]*</VerticalResolution>|<VerticalResolution>$HEIGHT</VerticalResolution>|g" "$asset" || return 1
+  sed -i -E "s|<HorizontalResolution>[^<]*</HorizontalResolution>|<HorizontalResolution>$WIDTH</HorizontalResolution>|g" "$asset" || return 1
 
   culture=$(getLanguage "$language" "culture") || return 1
 
