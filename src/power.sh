@@ -22,6 +22,8 @@ _trap() {
   TRAP_PID=$BASHPID
 
   for sig; do
+    # Capture the local callback and signal while registering the trap.
+    # shellcheck disable=SC2064
     trap "$func $sig" "$sig"
   done
 
@@ -314,7 +316,6 @@ abortDuringSetup() {
 
   local code="$1"
   info "Cannot send ACPI signal during $(app) setup, aborting..."
-
   sKill "$QEMU_PID"
 
   if ! waitPidFile "$QEMU_PID" 5; then
