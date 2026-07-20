@@ -771,6 +771,8 @@ setXML() {
 
   local file="/custom.xml"
 
+  CUSTOM_XML=""
+
   if [ -d "$file" ]; then
     error "The bind $file maps to a file that does not exist!" && exit 67
   fi
@@ -780,6 +782,10 @@ setXML() {
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="$1"
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/$DETECTED.xml"
   [ ! -f "$file" ] || [ ! -s "$file" ] && return 1
+
+  case "$file" in
+    "/custom.xml" | "$STORAGE/custom.xml" ) CUSTOM_XML="Y" ;;
+  esac
 
   XML="$file"
   return 0
@@ -924,18 +930,19 @@ updateDomain() {
 
   local asset="$1"
   local domain account auth pass
-  local pw cred_domain tmp result
+  local pw cred_domain ou tmp result
 
   domain=$(escapeXML "$2") || return 1
   account=$(escapeXML "$3") || return 1
   auth=$(escapeXML "$4") || return 1
   pass=$(escapeXML "$5") || return 1
   pw="$6"
+  ou=$(escapeXML "$7") || return 1
 
   cred_domain="$domain"
 
   case "$4" in
-    *\\* | *@* ) cred_domain="" ;;
+    *@* ) cred_domain="" ;;
   esac
 
   grep -Eq 'Microsoft-Windows-UnattendedJoin|<DomainAccounts([[:space:]/>])' "$asset" && return 1
@@ -943,8 +950,9 @@ updateDomain() {
   tmp=$(mktemp -d) || return 1
   result="$tmp/answer.xml"
 
-  if ! DOMAIN_XML="$domain" ACCOUNT_XML="$account" AUTH_XML="$auth" \
-    PASS_XML="$pass" CRED_DOMAIN="$cred_domain" PW="$pw" \
+  if ! DOMAIN_XML="$domain" ACCOUNT_XML="$account" \
+    AUTH_XML="$auth" PASS_XML="$pass" \
+    CRED_DOMAIN="$cred_domain" PW="$pw" OU_XML="$ou" \
     awk '
       /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
       /<settings[^>]*pass="oobeSystem"[^>]*>/ { section = "oobeSystem" }
@@ -996,8 +1004,13 @@ updateDomain() {
         print "          <Username>" ENVIRON["AUTH_XML"] "</Username>\n" \
               "          <Password>" ENVIRON["PASS_XML"] "</Password>\n" \
               "        </Credentials>\n" \
-              "        <JoinDomain>" ENVIRON["DOMAIN_XML"] "</JoinDomain>\n" \
-              "      </Identification>\n" \
+              "        <JoinDomain>" ENVIRON["DOMAIN_XML"] "</JoinDomain>"
+
+        if (ENVIRON["OU_XML"] != "") {
+          print "        <MachineObjectOU>" ENVIRON["OU_XML"] "</MachineObjectOU>"
+        }
+
+        print "      </Identification>\n" \
               "    </component>"
 
         join_added = 1
@@ -1057,7 +1070,7 @@ validateLocalUsername() {
     "NONE" )
       error "The USERNAME value \"NONE\" is reserved by Windows!"
       return 1 ;;
-    "ADMINISTRATOR" | "GUEST" )
+    "ADMINISTRATOR" | "GUEST" | "DEFAULTACCOUNT" | "WDAGUTILITYACCOUNT" | "WSIACCOUNT" )
       error "The USERNAME value \"$value\" is reserved for a built-in Windows account!"
       return 1 ;;
   esac
@@ -1075,26 +1088,19 @@ validateDomainName() {
     return 1
   fi
 
-  if [ "${#value}" -gt 255 ]; then
-    error "The $name variable cannot contain more than 255 characters!"
-    return 1
-  fi
-
   if [[ "$value" == *"://"* ]]; then
     error "The $name variable must contain a domain name, not a URL!"
     return 1
   fi
 
-  if [[ "$value" =~ [[:cntrl:]] ]] || [[ "$value" =~ [[:space:]] ]]; then
-    error "The $name variable cannot contain whitespace or control characters!"
+  if [ "${#value}" -gt 255 ] ||
+    [[ "$value" =~ [[:cntrl:]] ]] ||
+    [[ "$value" =~ [[:space:]] ]] ||
+    [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$ ]]; then
+
+    error "The $name variable does not contain a valid domain name!"
     return 1
   fi
-
-  case "$value" in
-    *'/'* | *\\* | *'@'* | *':'* )
-      error "The $name variable does not contain a valid domain name!"
-      return 1 ;;
-  esac
 
   return 0
 }
@@ -1142,19 +1148,62 @@ validateDomainUsername() {
   return 0
 }
 
+updateWorkgroup() {
+
+  local asset="$1"
+  local workgroup arch tmp result
+
+  workgroup=$(escapeXML "$2") || return 1
+  arch=$(sed -n -E '0,/processorArchitecture="/s/.*processorArchitecture="([^"]+)".*/\1/p' "$asset") || return 1
+  [ -z "$arch" ] && return 1
+
+  grep -q 'Microsoft-Windows-UnattendedJoin' "$asset" && return 1
+
+  tmp=$(mktemp -d) || return 1
+  result="$tmp/answer.xml"
+
+  if ! WORKGROUP_XML="$workgroup" ARCH_XML="$arch" awk '
+      /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
+
+      section == "specialize" && !workgroup_added &&
+        /^[[:space:]]*<\/settings>[[:space:]]*$/ {
+        print "    <component name=\"Microsoft-Windows-UnattendedJoin\" processorArchitecture=\"" ENVIRON["ARCH_XML"] "\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">\n" \
+              "      <Identification>\n" \
+              "        <JoinWorkgroup>" ENVIRON["WORKGROUP_XML"] "</JoinWorkgroup>\n" \
+              "      </Identification>\n" \
+              "    </component>"
+        workgroup_added = 1
+      }
+
+      { print }
+
+      /^[[:space:]]*<\/settings>[[:space:]]*$/ { section = "" }
+      END { exit !workgroup_added }
+    ' "$asset" > "$result" ||
+    ! mv -f "$result" "$asset"; then
+
+    rm -rf "$tmp" || true
+    return 1
+  fi
+
+  rm -rf "$tmp" || return 1
+  return 0
+}
+
 updateXML() {
 
   local asset="$1"
   local language="$2"
   local app value culture region keyboard edition key
-  local user user_xml auth_user
-  local admin pass pw domain qualifier host
+  local user user_xml auth_user admin pass pw
+  local domain qualifier host workgroup
 
   [ -z "$WIDTH" ] && WIDTH="1280"
   [ -z "$HEIGHT" ] && HEIGHT="720"
 
   validateResolution "WIDTH" "$WIDTH" 320 || return 1
   validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
+  validateMembership || return 1
   validateComputerName "$HOST" || return 1
   validateProductKey "$KEY" || return 1
   validatePassword "$PASSWORD" || return 1
@@ -1164,8 +1213,8 @@ updateXML() {
 
   sed -i "s|>Windows for Docker<|>$app<|g" "$asset" || return 1
   sed -i -E "s|<ComputerName>[^<]*</ComputerName>|<ComputerName>$host</ComputerName>|g" "$asset" || return 1
-  sed -i "s|<VerticalResolution>1080</VerticalResolution>|<VerticalResolution>$HEIGHT</VerticalResolution>|g" "$asset" || return 1
-  sed -i "s|<HorizontalResolution>1920</HorizontalResolution>|<HorizontalResolution>$WIDTH</HorizontalResolution>|g" "$asset" || return 1
+  sed -i -E "s|<VerticalResolution>[^<]*</VerticalResolution>|<VerticalResolution>$HEIGHT</VerticalResolution>|g" "$asset" || return 1
+  sed -i -E "s|<HorizontalResolution>[^<]*</HorizontalResolution>|<HorizontalResolution>$WIDTH</HorizontalResolution>|g" "$asset" || return 1
 
   culture=$(getLanguage "$language" "culture") || return 1
 
@@ -1193,6 +1242,7 @@ updateXML() {
   fi
 
   domain="$DOMAIN"
+  workgroup="$WORKGROUP"
   case "${DETECTED,,}" in
     "win10x64"* | "win11x64"* ) ;;
     * ) domain="" ;;
@@ -1215,27 +1265,25 @@ updateXML() {
     auth_user="$USERNAME"
     qualifier=""
 
-    if [[ "$auth_user" == *\\* && "$auth_user" == *@* ]]; then
-      error "The USERNAME variable must use only one domain account format!"
+    if [[ "$auth_user" == *\\* ]]; then
+      error "The USERNAME variable must use either \"user\" or \"user@domain\" format!"
       return 1
     fi
 
     case "$auth_user" in
-      *\\* )
-        qualifier="${auth_user%%\\*}"
-        user="${auth_user#*\\}"
-
-        if [ -z "$qualifier" ] || [ -z "$user" ] || [[ "$user" == *\\* ]]; then
-          error "The USERNAME variable does not contain a valid domain account name!"
-          return 1
-        fi
-        ;;
       *@* )
         user="${auth_user%%@*}"
         qualifier="${auth_user#*@}"
 
         if [ -z "$user" ] || [ -z "$qualifier" ] || [[ "$qualifier" == *@* ]]; then
           error "The USERNAME variable does not contain a valid domain account name!"
+          return 1
+        fi
+
+        validateDomainName "$qualifier" "USERNAME" || return 1
+
+        if [[ "${qualifier,,}" != "${domain,,}" ]]; then
+          error "The domain in the USERNAME variable must match the DOMAIN variable!"
           return 1
         fi
         ;;
@@ -1245,10 +1293,6 @@ updateXML() {
     esac
 
     validateDomainUsername "$user" || return 1
-
-    if [ -n "$qualifier" ]; then
-      validateDomainName "$qualifier" "USERNAME" || return 1
-    fi
 
     if [[ "${user,,}" == "docker" ]]; then
       error "The USERNAME variable must be changed from its default value when joining a domain!"
@@ -1286,20 +1330,31 @@ updateXML() {
   pw=$(printf '%s' "${pass}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
   admin=$(printf '%s' "${pass}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
 
-  sed -i "s|<Value>password</Value>|<Value>$admin</Value>|g" "$asset" || return 1
-  sed -i "s|<PlainText>true</PlainText>|<PlainText>false</PlainText>|g" "$asset" || return 1
-  sed -i -z -E "s|<Password>([[:space:]]*)<Value[[:space:]]*/>|<Password>\1<Value>$pw</Value>|g" "$asset" || return 1
-  sed -i -z -E "s|<AdministratorPassword>([[:space:]]*)<Value[[:space:]]*/>|<AdministratorPassword>\1<Value>$admin</Value>|g" "$asset" || return 1
+  sed -i -z -E "s#(<Password>[[:space:]]*<Value)([[:space:]]*/>|>[^<]*</Value>)#\1>$pw</Value>#g" "$asset" || return 1
+  sed -i -z -E "s#(<AdministratorPassword>[[:space:]]*<Value)([[:space:]]*/>|>[^<]*</Value>)#\1>$admin</Value>#g" "$asset" || return 1
+  sed -i -E "s|<PlainText>[^<]*</PlainText>|<PlainText>false</PlainText>|g" "$asset" || return 1
 
   if [ -n "$domain" ]; then
 
     pw=$(printf '%s' "${PASSWORD}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
 
-    if ! updateDomain "$asset" "$domain" "$user" "$auth_user" "$PASSWORD" "$pw"; then
+    if ! updateDomain "$asset" "$domain" "$user" \
+      "$auth_user" "$PASSWORD" "$pw" "$DOMAIN_OU"; then
       error "Failed to add domain configuration to answer file!"
       return 1
     fi
 
+  elif [ -n "$workgroup" ]; then
+
+    if ! updateWorkgroup "$asset" "$workgroup"; then
+      error "Failed to add workgroup configuration to answer file!"
+      return 1
+    fi
+
+  fi
+
+  if disabled "$AUTOLOGIN"; then
+    sed -i -E '/^[[:space:]]*<AutoLogon([[:space:]>])/,/^[[:space:]]*<\/AutoLogon>[[:space:]]*$/d' "$asset" || return 1
   fi
 
   if [ -n "$EDITION" ]; then
@@ -1536,9 +1591,20 @@ updateImage() {
 
     fi
 
-    if ! updateXML "$answer" "$language"; then
-      error "Failed to update answer file: $answer"
-      return 1
+    if [ -n "${CUSTOM_XML:-}" ]; then
+
+      if ! xmllint --nonet --noout "$answer"; then
+        error "The custom answer file is not valid XML!"
+        return 1
+      fi
+
+    else
+
+      if ! updateXML "$answer" "$language"; then
+        error "Failed to update answer file: $answer"
+        return 1
+      fi
+
     fi
 
     if ! wimlib-imagex update "$wim" "$idx" --command "add $answer /$xml" > /dev/null; then

@@ -18,6 +18,9 @@ set -Eeuo pipefail
 : "${LANGUAGE:=""}"
 : "${USERNAME:=""}"
 : "${PASSWORD:=""}"
+: "${DOMAIN_OU:=""}"
+: "${WORKGROUP:=""}"
+: "${AUTOLOGIN:=""}"
 
 # Sanitize variables
 KEY=$(strip "$KEY")
@@ -31,6 +34,9 @@ EDITION=$(strip "$EDITION")
 KEYBOARD=$(strip "$KEYBOARD")
 LANGUAGE=$(strip "$LANGUAGE")
 USERNAME=$(strip "$USERNAME")
+DOMAIN_OU=$(strip "$DOMAIN_OU")
+WORKGROUP=$(strip "$WORKGROUP")
+AUTOLOGIN=$(strip "$AUTOLOGIN")
 
 MIRRORS=3
 
@@ -1365,6 +1371,49 @@ validateComputerName() {
   return 0
 }
 
+validateWorkgroup() {
+
+  local value="$1"
+  local safe=""
+
+  [ -z "$value" ] && return 0
+
+  if [ "${#value}" -gt 15 ]; then
+    error "The WORKGROUP variable cannot contain more than 15 characters!"
+    return 1
+  fi
+
+  safe=$(printf '%s' "$value" | tr -d '"/\\[]:;|=,+*?<>') || return 1
+
+  if [[ "$safe" != "$value" ]]; then
+    error "The WORKGROUP variable contains characters that are not valid in a NetBIOS name!"
+    return 1
+  fi
+
+  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
+    error "The WORKGROUP variable cannot consist only of spaces or periods!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateMembership() {
+
+  if [ -n "$DOMAIN" ] && [ -n "$WORKGROUP" ]; then
+    error "The DOMAIN and WORKGROUP variables cannot be used together!"
+    return 1
+  fi
+
+  if [ -n "$DOMAIN_OU" ] && [ -z "$DOMAIN" ]; then
+    error "The DOMAIN_OU variable requires DOMAIN to be specified!"
+    return 1
+  fi
+
+  validateWorkgroup "$WORKGROUP" || return 1
+  return 0
+}
+
 validateLegacyText() {
 
   local name="$1"
@@ -1423,6 +1472,11 @@ validateLegacyUsername() {
 
   if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
     error "The USERNAME variable cannot consist only of spaces or periods$suffix!"
+    return 1
+  fi
+
+  if [[ "${value^^}" == "GUEST" ]]; then
+    error "The USERNAME value \"$value\" is reserved for a built-in Windows account$suffix!"
     return 1
   fi
 
@@ -1704,6 +1758,7 @@ prepareInstall() {
 
   validateResolution "WIDTH" "$WIDTH" 320 || return 1
   validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
+  validateMembership || return 1
   validateComputerName "$HOST" || return 1
   validateLegacyText "APP" "$APP" "$desc" || return 1
   validateLegacyText "ENGINE" "$ENGINE" "$desc" || return 1
@@ -1713,7 +1768,8 @@ prepareInstall() {
 
   local username="${USERNAME:-Docker}"
   local password="${PASSWORD:-admin}"
-  local sifHost sifUsername sifPassword sifOrganization
+  local workgroup="${WORKGROUP:-WORKGROUP}"
+  local sifHost sifUsername sifPassword sifOrganization sifWorkgroup
   local regUsername regPassword
 
   validateLegacyUsername "$username" "$desc" || return 1
@@ -1723,6 +1779,7 @@ prepareInstall() {
   sifUsername=$(escapeSIFValue "$username") || return 1
   sifPassword=$(escapeSIFValue "$password") || return 1
   sifOrganization=$(escapeSIFValue "$APP for $ENGINE") || return 1
+  sifWorkgroup=$(escapeSIFValue "$workgroup") || return 1
   regUsername=$(escapeRegistryValue "$username") || return 1
   regPassword=$(escapeRegistryValue "$password") || return 1
 
@@ -1756,8 +1813,12 @@ prepareInstall() {
           echo "    OemSkipWelcome=1"
           echo "    AdminPassword=\"$sifPassword\""
           echo "    TimeZone=0"
-          echo "    AutoLogon=Yes"
-          echo "    AutoLogonCount=65432"
+          if disabled "$AUTOLOGIN"; then
+            echo "    AutoLogon=No"
+          else
+            echo "    AutoLogon=Yes"
+            echo "    AutoLogonCount=65432"
+          fi
           echo ""
           echo "[UserData]"
           echo "    FullName=\"$sifUsername\""
@@ -1766,7 +1827,7 @@ prepareInstall() {
           echo "    $product"
           echo ""
           echo "[Identification]"
-          echo "    JoinWorkgroup = WORKGROUP"
+          echo "    JoinWorkgroup = \"$sifWorkgroup\""
           echo ""
           echo "[Display]"
           echo "    BitsPerPel=32"
@@ -1827,10 +1888,14 @@ prepareInstall() {
           echo "\"Desktopchanged\"=\"1\""
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]"
-          echo "\"AutoAdminLogon\"=\"1\""
-          echo "\"DefaultUserName\"=\"$regUsername\""
-          echo "\"DefaultPassword\"=\"$regPassword\""
-          echo "\"DefaultDomainName\"=\"Dockur\""
+          if disabled "$AUTOLOGIN"; then
+            echo "\"AutoAdminLogon\"=\"0\""
+          else
+            echo "\"AutoAdminLogon\"=\"1\""
+            echo "\"DefaultUserName\"=\"$regUsername\""
+            echo "\"DefaultPassword\"=\"$regPassword\""
+            echo "\"DefaultDomainName\"=\"Dockur\""
+          fi
           echo ""
           echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]"
           echo "\"DefaultSettings.BitsPerPel\"=dword:00000020"
@@ -1845,6 +1910,7 @@ prepareInstall() {
           echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce]"
           echo "\"ScreenSaver\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"SCRNSAVE.EXE\\\" /t REG_SZ /d \\\"off\\\"\""
           echo "\"ScreenSaverOff\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"ScreenSaveActive\\\" /t REG_SZ /d \\\"0\\\"\""
+          echo "\"SharedDrive\"=\"cmd /C net use Z: \\\\\\\\host.lan\\\\Data /persistent:yes\""
           echo "$oem"
           echo ""
   } | unix2dos > "$dir/\$OEM\$/install.reg" || return 1

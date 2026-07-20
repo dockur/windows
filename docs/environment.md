@@ -11,12 +11,15 @@ An empty default means the variable is unset and its value is determined automat
 | `VERSION` | `11` | Windows version to install, such as `10` or `11`. |
 | `EDITION` |  | Windows edition to install, such as `core` for Windows Server Core. |
 | `LANGUAGE` | `en-US` | Windows display language, such as `English`, `en-US`, or `en`. |
+| `KEY` |  | Windows product key used to install and activate Windows. |
 | `REGION` |  | Windows regional format. Uses `LANGUAGE` when unset. |
 | `KEYBOARD` |  | Keyboard layout. Uses `LANGUAGE` when unset. |
 | `USERNAME` | `Docker` | Name of the Windows user account. |
 | `PASSWORD` | `admin` | Password for the Windows account. |
+| `AUTOLOGIN` | `Y` | Automatically signs in to Windows after startup. |
 | `DOMAIN` |  | Active Directory domain to join during installation. |
-| `KEY` |  | Windows product key used to install and activate Windows. |
+| `DOMAIN_OU` |  | Distinguished name of the organizational unit. |
+| `WORKGROUP` |  | Name of the Windows workgroup to join. |
 
 ## 🧠 CPU and Memory
 
@@ -162,7 +165,7 @@ Also see [Dynamic memory allocation](https://github.com/qemus/qemu/blob/master/d
 | Variable | Default | Description |
 |---|---|---|
 | `SHUTDOWN` | `Y` | Enables graceful ACPI shutdown. |
-| `TIMEOUT` | `115` | Maximum time, in seconds, to wait before forcing Windows to stop. |
+| `TIMEOUT` | `105` | Maximum time, in seconds, to wait before forcing Windows to stop. |
 
 ## 🐞 Debugging
 
