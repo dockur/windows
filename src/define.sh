@@ -1761,7 +1761,7 @@ prepareInstall() {
   local regUsername regPassword
 
   validateLegacyUsername "$username" "$desc" || return 1
-  validateLegacyPassword "$password" "$desc" || return 1
+  validatePassword "$password" "$desc" || return 1
 
   sifHost=$(escapeSIFValue "$HOST") || return 1
   sifUsername=$(escapeSIFValue "$username") || return 1
