@@ -240,9 +240,8 @@ cleanupHelpers() {
 
 startConsole() {
 
-  local cnt=0
-  local pid=""
   local output="${1:-/dev/tty}"
+  local cnt=0 pid=""
 
   rm -f -- "$CONSOLE_SOCKET" "$CONSOLE_PID"
 
