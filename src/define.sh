@@ -1426,6 +1426,11 @@ validateLegacyUsername() {
     return 1
   fi
 
+  if [[ "${value^^}" == "GUEST" ]]; then
+    error "The USERNAME value \"$value\" is reserved for a built-in Windows account$suffix!"
+    return 1
+  fi
+
   return 0
 }
 
