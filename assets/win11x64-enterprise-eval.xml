@@ -123,7 +123,7 @@
       <SkipAutoActivation>true</SkipAutoActivation>
     </component>
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <ComputerName>*</ComputerName>
+      <ComputerName>Windows</ComputerName>
       <OEMInformation>
         <Manufacturer>Dockur</Manufacturer>
         <Model>Windows for Docker</Model>
@@ -308,14 +308,14 @@
             <Name>Docker</Name>
             <Group>Administrators</Group>
             <Password>
-              <Value />
-              <PlainText>true</PlainText>
+              <Value>YQBkAG0AaQBuAFAAYQBzAHMAdwBvAHIAZAA=</Value>
+              <PlainText>false</PlainText>
             </Password>
           </LocalAccount>
         </LocalAccounts>
         <AdministratorPassword>
-          <Value>password</Value>
-          <PlainText>true</PlainText>
+          <Value>YQBkAG0AaQBuAEEAZABtAGkAbgBpAHMAdAByAGEAdABvAHIAUABhAHMAcwB3AG8AcgBkAA==</Value>
+          <PlainText>false</PlainText>
         </AdministratorPassword>
       </UserAccounts>
       <AutoLogon>
@@ -323,14 +323,14 @@
         <Enabled>true</Enabled>
         <LogonCount>65432</LogonCount>
         <Password>
-          <Value />
-          <PlainText>true</PlainText>
+          <Value>YQBkAG0AaQBuAFAAYQBzAHMAdwBvAHIAZAA=</Value>
+          <PlainText>false</PlainText>
         </Password>
       </AutoLogon>
       <Display>
         <ColorDepth>32</ColorDepth>
-        <HorizontalResolution>1920</HorizontalResolution>
-        <VerticalResolution>1080</VerticalResolution>
+        <HorizontalResolution>1280</HorizontalResolution>
+        <VerticalResolution>720</VerticalResolution>
       </Display>
       <OOBE>
         <HideEULAPage>true</HideEULAPage>
@@ -468,6 +468,11 @@
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>26</Order>
+          <CommandLine>cmd /C net use Z: \\host.lan\Data /persistent:yes</CommandLine>
+          <Description>Map shared folder</Description>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>27</Order>
           <CommandLine>cmd /C if exist "C:\OEM\install.bat" start "Install" "cmd /C C:\OEM\install.bat"</CommandLine>
           <Description>Execute custom script from the OEM folder if exists</Description>
         </SynchronousCommand>
