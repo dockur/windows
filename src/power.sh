@@ -316,6 +316,7 @@ abortDuringSetup() {
 
   local code="$1"
   info "Cannot send ACPI signal during $(app) setup, aborting..."
+
   sKill "$QEMU_PID"
 
   if ! waitPidFile "$QEMU_PID" 5; then
