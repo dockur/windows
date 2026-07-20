@@ -924,13 +924,14 @@ updateDomain() {
 
   local asset="$1"
   local domain account auth pass
-  local pw cred_domain tmp result
+  local pw cred_domain ou tmp result
 
   domain=$(escapeXML "$2") || return 1
   account=$(escapeXML "$3") || return 1
   auth=$(escapeXML "$4") || return 1
   pass=$(escapeXML "$5") || return 1
   pw="$6"
+  ou=$(escapeXML "$7") || return 1
 
   cred_domain="$domain"
 
@@ -945,7 +946,7 @@ updateDomain() {
 
   if ! DOMAIN_XML="$domain" ACCOUNT_XML="$account" \
     AUTH_XML="$auth" PASS_XML="$pass" \
-    CRED_DOMAIN="$cred_domain" PW="$pw" \
+    CRED_DOMAIN="$cred_domain" PW="$pw" OU_XML="$ou" \
     awk '
       /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
       /<settings[^>]*pass="oobeSystem"[^>]*>/ { section = "oobeSystem" }
@@ -997,8 +998,13 @@ updateDomain() {
         print "          <Username>" ENVIRON["AUTH_XML"] "</Username>\n" \
               "          <Password>" ENVIRON["PASS_XML"] "</Password>\n" \
               "        </Credentials>\n" \
-              "        <JoinDomain>" ENVIRON["DOMAIN_XML"] "</JoinDomain>\n" \
-              "      </Identification>\n" \
+              "        <JoinDomain>" ENVIRON["DOMAIN_XML"] "</JoinDomain>"
+
+        if (ENVIRON["OU_XML"] != "") {
+          print "        <MachineObjectOU>" ENVIRON["OU_XML"] "</MachineObjectOU>"
+        }
+
+        print "      </Identification>\n" \
               "    </component>"
 
         join_added = 1
@@ -1136,19 +1142,95 @@ validateDomainUsername() {
   return 0
 }
 
+updateWorkgroup() {
+
+  local asset="$1"
+  local workgroup arch tmp result
+
+  workgroup=$(escapeXML "$2") || return 1
+  arch=$(sed -n -E '0,/processorArchitecture="/s/.*processorArchitecture="([^"]+)".*/\1/p' "$asset") || return 1
+  [ -z "$arch" ] && return 1
+
+  grep -q 'Microsoft-Windows-UnattendedJoin' "$asset" && return 1
+
+  tmp=$(mktemp -d) || return 1
+  result="$tmp/answer.xml"
+
+  if ! WORKGROUP_XML="$workgroup" ARCH_XML="$arch" awk '
+      /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
+
+      section == "specialize" && !workgroup_added &&
+        /^[[:space:]]*<\/settings>[[:space:]]*$/ {
+        print "    <component name=\"Microsoft-Windows-UnattendedJoin\" processorArchitecture=\"" ENVIRON["ARCH_XML"] "\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">\n" \
+              "      <Identification>\n" \
+              "        <JoinWorkgroup>" ENVIRON["WORKGROUP_XML"] "</JoinWorkgroup>\n" \
+              "      </Identification>\n" \
+              "    </component>"
+        workgroup_added = 1
+      }
+
+      { print }
+
+      /^[[:space:]]*<\/settings>[[:space:]]*$/ { section = "" }
+      END { exit !workgroup_added }
+    ' "$asset" > "$result" ||
+    ! mv -f "$result" "$asset"; then
+
+    rm -rf "$tmp" || true
+    return 1
+  fi
+
+  rm -rf "$tmp" || return 1
+  return 0
+}
+
+addSharedDrive() {
+
+  local asset="$1"
+  local tmp result
+
+  grep -q '<CommandLine>cmd /C net use Z:' "$asset" && return 0
+
+  tmp=$(mktemp -d) || return 1
+  result="$tmp/answer.xml"
+
+  if ! awk '
+      !drive_added && /^[[:space:]]*<\/FirstLogonCommands>[[:space:]]*$/ {
+        print "        <SynchronousCommand wcm:action=\"add\">\n" \
+              "          <Order>99</Order>\n" \
+              "          <CommandLine>cmd /C net use Z: \\\\host.lan\\Data /persistent:yes</CommandLine>\n" \
+              "          <Description>Map shared folder</Description>\n" \
+              "        </SynchronousCommand>"
+        drive_added = 1
+      }
+
+      { print }
+      END { exit !drive_added }
+    ' "$asset" > "$result" ||
+    ! mv -f "$result" "$asset"; then
+
+    rm -rf "$tmp" || true
+    return 1
+  fi
+
+  rm -rf "$tmp" || return 1
+  return 0
+}
+
 updateXML() {
 
   local asset="$1"
   local language="$2"
   local app value culture region keyboard edition key
   local user user_xml auth_user admin pass pw
-  local domain qualifier host
+  local domain qualifier host workgroup
 
   [ -z "$WIDTH" ] && WIDTH="1280"
   [ -z "$HEIGHT" ] && HEIGHT="720"
 
   validateResolution "WIDTH" "$WIDTH" 320 || return 1
   validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
+  validateMembership || return 1
   validateComputerName "$HOST" || return 1
   validateProductKey "$KEY" || return 1
   validatePassword "$PASSWORD" || return 1
@@ -1187,6 +1269,7 @@ updateXML() {
   fi
 
   domain="$DOMAIN"
+  workgroup="$WORKGROUP"
   case "${DETECTED,,}" in
     "win10x64"* | "win11x64"* ) ;;
     * ) domain="" ;;
@@ -1284,11 +1367,27 @@ updateXML() {
     pw=$(printf '%s' "${PASSWORD}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
 
     if ! updateDomain "$asset" "$domain" "$user" \
-      "$auth_user" "$PASSWORD" "$pw"; then
+      "$auth_user" "$PASSWORD" "$pw" "$DOMAIN_OU"; then
       error "Failed to add domain configuration to answer file!"
       return 1
     fi
 
+  elif [ -n "$workgroup" ]; then
+
+    if ! updateWorkgroup "$asset" "$workgroup"; then
+      error "Failed to add workgroup configuration to answer file!"
+      return 1
+    fi
+
+  fi
+
+  if disabled "$AUTOLOGIN"; then
+    sed -i -E '/^[[:space:]]*<AutoLogon([[:space:]>])/,/^[[:space:]]*<\/AutoLogon>[[:space:]]*$/d' "$asset" || return 1
+  fi
+
+  if ! addSharedDrive "$asset"; then
+    error "Failed to add shared drive configuration to answer file!"
+    return 1
   fi
 
   if [ -n "$EDITION" ]; then
