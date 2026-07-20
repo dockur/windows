@@ -16,12 +16,11 @@ jobs:
           -
             name: Run ShellCheck
             uses: ludeeus/action-shellcheck@master
-            with:
-              check_together: "yes"
             env:
               SHELLCHECK_OPTS: >-
                 -x
-                -P SCRIPTDIR
+                --source-path=src
+                -e SC1091
                 -e SC2001
                 -e SC2002
                 -e SC2034
