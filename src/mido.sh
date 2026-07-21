@@ -758,10 +758,11 @@ downloadFile() {
   local sum="$3"
   local size="$4"
   local desc="$6"
-  local console_msg="$msg"
   local connections="${7:-1}"
   local msg="Downloading $desc"
+  local console_msg="$msg"
   local total total_gb domain dots
+  local rc=0
 
   domain=$(echo "$url" | awk -F/ '{print $3}')
   dots=$(echo "$domain" | tr -cd '.' | wc -c)
@@ -773,15 +774,19 @@ downloadFile() {
 
   info "$console_msg..."
 
-  if ! downloadToFile \
+  if downloadToFile \
       "$url" \
       "$iso" \
       "$msg" \
       "${size:-0}" \
       "$connections" \
       "Y"; then
-    return 1
+    rc=0
+  else
+    rc=$?
   fi
+
+  (( rc == 0 )) || return "$rc"
 
   if ! total=$(stat -c%s -- "$iso"); then
     error "Failed to determine downloaded file size: $iso"
@@ -795,7 +800,7 @@ downloadFile() {
     return 1
   fi
 
-  # Status 2 means the download completed but failed validation.
+  # Status 2 means the download completed but failed deterministic validation.
   verifyFile "$iso" "$size" "$total" "$sum" || return 2
 
   # Extract the .iso from the compressed archive if needed.
