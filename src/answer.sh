@@ -1141,8 +1141,7 @@ legacyInstall() {
       printf '%s\n' \
         '"AutoAdminLogon"="1"' \
         "\"DefaultUserName\"=\"$regUsername\"" \
-        "\"DefaultPassword\"=\"$regPassword\"" \
-        '"DefaultDomainName"="Dockur"'
+        "\"DefaultPassword\"=\"$regPassword\""
     fi
 
     printf '%s\n' \
