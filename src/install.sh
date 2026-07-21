@@ -908,15 +908,15 @@ setMachine() {
     "win9"* )
       ETFS="[BOOT]/Boot-1.44M.img" ;;
     "win2k"* )
-      if ! prepareInstall "$iso" "$dir" "$desc" "2k"; then
+      if ! legacyInstall "$iso" "$dir" "$desc" "2k"; then
         error "Failed to prepare $desc ISO!" && return 1
       fi ;;
     "winxp"* )
-      if ! prepareInstall "$iso" "$dir" "$desc" "xp"; then
+      if ! legacyInstall "$iso" "$dir" "$desc" "xp"; then
         error "Failed to prepare $desc ISO!" && return 1
       fi ;;
     "win2003"* )
-      if ! prepareInstall "$iso" "$dir" "$desc" "2k3"; then
+      if ! legacyInstall "$iso" "$dir" "$desc" "2k3"; then
         error "Failed to prepare $desc ISO!" && return 1
       fi ;;
   esac
