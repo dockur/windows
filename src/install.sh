@@ -634,7 +634,11 @@ extractImage() {
 
   checkFreeSpace "$dir" "$size" || return 1
 
-  rm -rf "$dir"
+  if ! rm -rf -- "$dir"; then
+    error "Failed to remove directory \"$dir\" !"
+    return 1
+  fi
+
   /run/progress.sh "$dir" "$size" "$msg ([P])..." &
 
   if ! 7z x "$iso" -o"$dir" > /dev/null; then
