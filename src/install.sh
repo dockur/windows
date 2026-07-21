@@ -1184,9 +1184,9 @@ updateXML() {
 
   local asset="$1"
   local language="$2"
-  local app value culture region keyboard edition key
+  local app value culture region keyboard edition
   local user user_xml auth_user admin pass pw
-  local domain qualifier host workgroup
+  local domain qualifier host workgroup key
 
   [ -z "$WIDTH" ] && WIDTH="1280"
   [ -z "$HEIGHT" ] && HEIGHT="720"
@@ -1199,10 +1199,8 @@ updateXML() {
   validatePassword "$PASSWORD" || return 1
 
   app=$(escapeXMLSed "$APP for $ENGINE") || return 1
-  host=$(escapeXMLSed "$HOST") || return 1
 
   sed -i "s|>Windows for Docker<|>$app<|g" "$asset" || return 1
-  sed -i -E "s|<ComputerName>[^<]*</ComputerName>|<ComputerName>$host</ComputerName>|g" "$asset" || return 1
   sed -i -E "s|<VerticalResolution>[^<]*</VerticalResolution>|<VerticalResolution>$HEIGHT</VerticalResolution>|g" "$asset" || return 1
   sed -i -E "s|<HorizontalResolution>[^<]*</HorizontalResolution>|<HorizontalResolution>$WIDTH</HorizontalResolution>|g" "$asset" || return 1
 
@@ -1229,6 +1227,11 @@ updateXML() {
     value=$(escapeXMLSed "$keyboard") || return 1
     sed -i "s|<InputLocale>en-US</InputLocale>|<InputLocale>$value</InputLocale>|g" "$asset" || return 1
     sed -i "s|<InputLocale>0409:00000409</InputLocale>|<InputLocale>$value</InputLocale>|g" "$asset" || return 1
+  fi
+
+  if [ -n "$HOST" ]; then
+    host=$(escapeXMLSed "$HOST") || return 1
+    sed -i -E "s|<ComputerName>[^<]*</ComputerName>|<ComputerName>$host</ComputerName>|g" "$asset" || return 1
   fi
 
   domain="$DOMAIN"

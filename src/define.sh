@@ -1338,10 +1338,7 @@ validateComputerName() {
 
   local value="$1"
 
-  if [ -z "$value" ]; then
-    value="$APP"
-    HOST="$value"
-  fi
+  [ -z "$value" ] && return 0
 
   if [ "${#value}" -gt 15 ]; then
     error "The HOST variable cannot contain more than 15 characters!"
@@ -1764,13 +1761,14 @@ prepareInstall() {
   local username="${USERNAME:-Docker}"
   local password="${PASSWORD:-admin}"
   local workgroup="${WORKGROUP:-WORKGROUP}"
+
   local sifHost sifUsername sifPassword sifOrganization sifWorkgroup
   local regUsername regPassword
 
   validateLegacyUsername "$username" "$desc" || return 1
   validatePassword "$password" "$desc" || return 1
 
-  sifHost=$(escapeSIFValue "$HOST") || return 1
+  sifHost=$(escapeSIFValue "${HOST:-*}") || return 1
   sifUsername=$(escapeSIFValue "$username") || return 1
   sifPassword=$(escapeSIFValue "$password") || return 1
   sifOrganization=$(escapeSIFValue "$APP for $ENGINE") || return 1
