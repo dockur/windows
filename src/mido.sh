@@ -785,14 +785,14 @@ downloadFile() {
 
   if ! total=$(stat -c%s -- "$iso"); then
     error "Failed to determine downloaded file size: $iso"
-    return 2
+    return 1
   fi
 
   total_gb=$(formatBytes "$total") || return 2
 
   if (( total < 100000000 )); then
     error "Invalid download link: $url (is only $total_gb ?). Please report this at $SUPPORT/issues"
-    return 2
+    return 1
   fi
 
   # Status 2 means the download completed but failed validation.
