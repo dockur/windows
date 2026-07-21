@@ -1036,8 +1036,6 @@ downloadImage() {
     fi
   fi
 
-  switchEdition "$version"
-
   if isESD "$version" "$lang"; then
 
     if [[ "$tried" != "n" ]]; then
