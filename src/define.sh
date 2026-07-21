@@ -1065,9 +1065,9 @@ getLink3() {
       url="W11x64_26200.6584/26200.6584.250915-1905.25h2_ge_release_svc_refresh_CLIENT_CONSUMER_x64FRE_en-us.iso"
       ;;
     "win11x64-enterprise" | "win11x64-enterprise-eval" )
-      size=6209064960
-      sum="c8dbc96b61d04c8b01faf6ce0794fdf33965c7b350eaa3eb1e6697019902945c"
-      url="Windows11Enterprise23H2x64/22631.2428.231001-0608.23H2_NI_RELEASE_SVC_REFRESH_CLIENTENTERPRISEEVAL_OEMRET_x64FRE_en-us.iso"
+      size=7620513792
+      sum="2b65df49334b64e9341dc404e9c527bf1b2a9a105e95314a347fd29ac9900581"
+      url="massgrave.dev-windows-x64-and-x86-archive/en-us_windows_11_business_editions_version_25h2_x64_dvd_41c521e7.iso"
       ;;
     "win11x64-ltsc" | "win11x64-enterprise-ltsc" | "win11x64-enterprise-ltsc-eval" )
       size=5144817664
@@ -1080,9 +1080,9 @@ getLink3() {
       url="Windows11LTSC/X23-81951_26100.1742.240906-0331.ge_release_svc_refresh_CLIENT_ENTERPRISES_OEM_x64FRE_en-us.iso"
       ;;
     "win10x64" | "win10x64-enterprise" | "win10x64-enterprise-eval" )
-      size=6978310144
-      sum="7847abd6f39abd02dc8089c4177d354f9eb66fa0ee2fe8ae20e596e675d1ab67"
-      url="Windows-10-22H2-July-2024-64-bit-DVD-English/en-us_windows_10_business_editions_version_22h2_updated_july_2024_x64_dvd_c004521a.iso"
+      size=6985445376
+      sum="2c23bc8b95a9314f15ebff881dcbea49651f52a96a0327d7aaf523aa66043765"
+      url="windows_10_version_2004/Windows%2010%2C%20version%2022H2/Updated%20October%202025%20%2819045.6456%29/en-us_windows_10_business_editions_version_22h2_updated_oct_2025_x64_dvd_d2eef4b0.iso"
       ;;
     "win10x64-ltsc" | "win10x64-enterprise-ltsc" | "win10x64-enterprise-ltsc-eval" )
       size=4899461120
@@ -1105,19 +1105,19 @@ getLink3() {
       url="en_windows_8.1_enterprise_with_update_x64_dvd/en_windows_8.1_enterprise_with_update_x64_dvd_6054382.iso"
       ;;
     "win2025" | "win2025-eval" )
-      size=6014152704
-      sum="d0ef4502e350e3c6c53c15b1b3020d38a5ded011bf04998e950720ac8579b23d"
-      url="26100.1742.240906-0331.ge-release-svc-refresh-server-eval-x-64-fre-en-us/26100.1742.240906-0331.ge_release_svc_refresh_SERVER_EVAL_x64FRE_en-us.iso"
+      size=8145395712
+      sum="f3e277e75acdb793e6f08f4880b514ae0046cedf618c22f727890e54367075e6"
+      url="massgrave.dev-windows-x64-and-x86-archive/en-us_windows_server_2025_updated_dec_2025_x64_dvd_c54ab58b.iso"
       ;;
     "win2022" | "win2022-eval" )
-      size=5550684160
-      sum="5a077ee2a95976ef9f3623eb4040e25cdf7f8f01dee3b8165a32a7626f39f025"
-      url="en-us_windows_server_2022_x64_dvd_620d7eac_202405/en-us_windows_server_2022_x64_dvd_620d7eac.iso"
+      size=6023239680
+      sum="5d6d91efa972cbdd6701d78db1dcf6a34c7024ca931c1718e7cb3d0c6dd54e88"
+      url="massgrave.dev-windows-x64-and-x86-archive/en-us_windows_server_2022_updated_oct_2025_x64_dvd_26e9af36.iso"
       ;;
     "win2019" | "win2019-eval" )
-      size=5575774208
-      sum="0067afe7fdc4e61f677bd8c35a209082aa917df9c117527fc4b2b52a447e89bb"
-      url="sw-dvd-9-win-server-std-core-2019-1809.18-64-bit-english-dc-std-mlf-x-22-74330/SW_DVD9_Win_Server_STD_CORE_2019_1809.18_64Bit_English_DC_STD_MLF_X22-74330.ISO"
+      size=5651695616
+      sum="ea247e5cf4df3e5829bfaaf45d899933a2a67b1c700a02ee8141287a8520261c"
+      url="massgrave.dev-windows-x64-and-x86-archive/en-us_windows_server_2019_x64_dvd_f9475476.iso"
       ;;
     "win2016" | "win2016-eval" )
       size=6006587392
