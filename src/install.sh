@@ -774,11 +774,15 @@ selectVersion() {
 
   if [ -n "$EDITION" ] && [[ "$id" != win20* ]]; then
     case "${EDITION,,}" in
-      "pro" | "professional" | "business" ) prefer="$id" ;;
-      * ) prefer="$id-${EDITION,,}" ;;
+      "pro" | "professional" | "business" )
+        prefer="$id"
+        ;;
+      * )
+        prefer="$id-${EDITION,,}"
+        ;;
     esac
 
-    if hasVersion "$prefer" "$tag" "$xml"; then
+    if hasVersion "$prefer" "$tag" "$xml" "$platform"; then
       echo "$prefer"
       return 0
     fi
@@ -787,13 +791,16 @@ selectVersion() {
   fi
 
   prefer="$id-enterprise"
-  hasVersion "$prefer" "$tag" "$xml" && echo "$prefer" && return 0
+  hasVersion "$prefer" "$tag" "$xml" "$platform" &&
+    echo "$prefer" && return 0
 
   prefer="$id-ultimate"
-  hasVersion "$prefer" "$tag" "$xml" && echo "$prefer" && return 0
+  hasVersion "$prefer" "$tag" "$xml" "$platform" &&
+    echo "$prefer" && return 0
 
   prefer="$id"
-  hasVersion "$prefer" "$tag" "$xml" && echo "$prefer" && return 0
+  hasVersion "$prefer" "$tag" "$xml" "$platform" &&
+    echo "$prefer" && return 0
 
   prefer=$(getVersion "$name" "$platform")
 
