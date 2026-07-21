@@ -1348,10 +1348,7 @@ validateComputerName() {
 
   local value="$1"
 
-  if [ -z "$value" ]; then
-    value="$APP"
-    HOST="$value"
-  fi
+  [ -z "$value" ] && return 0
 
   if [ "${#value}" -gt 15 ]; then
     error "The HOST variable cannot contain more than 15 characters!"
