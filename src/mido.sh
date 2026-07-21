@@ -417,14 +417,14 @@ downloadWindowsEval() {
 
 getMidoDetected() {
 
-  # Return the answer-file identity for a Microsoft download source
+  # Return the answer-file identity for a successful Microsoft source
   # without changing the global DETECTED value.
 
   local version="$1"
   local source="$2"
   local current="$3"
-  local detected="$version"
   local default=""
+  local detected=""
 
   case "${version,,}" in
     "win11${PLATFORM,,}-enterprise-iot-eval" )
@@ -447,12 +447,21 @@ getMidoDetected() {
       detected="$default-eval"
       ;;
     "win2008r2" )
+      default="win2008r2"
       detected="win2008r2-eval"
+      ;;
+    *"-eval" )
+      default="${version::-5}"
+      detected="$version"
+      ;;
+    * )
+      default="$version"
+      detected="$version"
       ;;
   esac
 
-  if [ -n "$current" ] &&
-    { [ -z "$default" ] || [[ "${current,,}" != "${default,,}" ]]; }; then
+  # Preserve a genuinely different DETECTED override.
+  if [ -n "$current" ] && [[ "${current,,}" != "${default,,}" ]]; then
     detected="$current"
   fi
 
