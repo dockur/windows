@@ -12,7 +12,7 @@ An empty default means the variable is unset and its value is determined automat
 | `EDITION` |  | Windows edition to install, such as `core` for Windows Server Core. |
 | `LANGUAGE` | `en-US` | Windows display language, such as `English`, `en-US`, or `en`. |
 | `KEY` |  | Windows product key used to install and activate Windows. |
-| `REGION` |  | Windows regional format. Uses `LANGUAGE` when unset. |
+| `REGION` |  | Regional format. Uses `LANGUAGE` when unset. |
 | `KEYBOARD` |  | Keyboard layout. Uses `LANGUAGE` when unset. |
 | `USERNAME` | `Docker` | Name of the Windows user account. |
 | `PASSWORD` | `admin` | Password for the Windows account. |
@@ -55,14 +55,14 @@ An empty default means the variable is unset and its value is determined automat
 | Variable | Default | Description |
 |---|---|---|
 | `NETWORK` |  | Network mode, such as `nat`, `user`, or `N` to disable networking. |
-| `DHCP` | `N` | Enables macvtap networking so Windows receives an address from the external LAN through DHCP. |
-| `HOST` | `Windows` | Computer name assigned to Windows and advertised on the network. |
+| `DHCP` | `N` | Enables macvtap networking so Windows receives a DHCP address. |
+| `HOST` |  | Optional Windows computer name and advertised network hostname. |
 | `IP` |  | Overrides the automatically selected guest IPv4 address. |
 | `MAC` |  | Guest network adapter MAC address. |
 | `ADAPTER` | `virtio-net-pci` | QEMU network adapter model. |
 | `DEV` | `eth0` | Container network interface used as the uplink. |
 | `MTU` |  | MTU assigned to the guest network interface. |
-| `MASK` | `255.255.255.0` | IPv4 netmask. |
+| `MASK` | `255.255.255.0` | IPv4 netmask for guest network. |
 | `TAP` | `qemu` | TAP or macvtap interface name. |
 | `BRIDGE` | `docker` | Bridge name used for NAT networking. |
 | `HOST_PORTS` |  | Ports excluded from guest forwarding. |
