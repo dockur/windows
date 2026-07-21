@@ -451,6 +451,18 @@ printVersion() {
     [[ "${PLATFORM,,}" != "x64" ]] && desc+=" for ${PLATFORM}"
   fi
 
+  case "${id,,}" in
+    *"-iot" | *"-iot-eval" )
+      desc+=" IoT"
+      ;;
+    *"-ltsc" | *"-ltsc-eval" )
+      desc+=" LTSC"
+      ;;
+    *"-enterprise" | *"-enterprise-eval" )
+      desc+=" Enterprise"
+      ;;
+  esac
+
   echo "$desc"
   return 0
 }
