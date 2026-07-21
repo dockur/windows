@@ -926,11 +926,81 @@ escapeXMLSed() {
   return 0
 }
 
+validateUsername() {
+
+  local value="$1"
+  local type="$2"
+  local maximum
+
+  case "$type" in
+    "local" )
+      maximum=20
+      [ -z "$value" ] && return 0
+      ;;
+    "domain" )
+      maximum=256
+
+      if [ -z "$value" ]; then
+        error "The USERNAME variable does not contain a valid domain account name!"
+        return 1
+      fi ;;
+    * )
+      return 1 ;;
+  esac
+
+  if [ "${#value}" -gt "$maximum" ]; then
+    if [[ "$type" == "domain" ]]; then
+      error "The USERNAME variable cannot contain more than $maximum characters for a domain account!"
+    else
+      error "The USERNAME variable cannot contain more than $maximum characters!"
+    fi
+    return 1
+  fi
+
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    error "The USERNAME variable cannot contain control characters!"
+    return 1
+  fi
+
+  case "$value" in
+    *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* | *'%'* | *'@'* )
+      if [[ "$type" == "domain" ]]; then
+        error "The domain account name contains characters that are not supported by Windows unattended setup!"
+      else
+        error "The USERNAME variable contains characters that are not supported by Windows local accounts!"
+      fi
+      return 1 ;;
+  esac
+
+  if [[ "$value" == *"." ]]; then
+    error "The USERNAME variable cannot end with a period!"
+    return 1
+  fi
+
+  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
+    error "The USERNAME variable cannot consist only of spaces or periods!"
+    return 1
+  fi
+
+  case "${value^^}" in
+    "NONE" )
+      error "The USERNAME value \"NONE\" is reserved by Windows!"
+      return 1 ;;
+    "ADMINISTRATOR" | "GUEST" | "DEFAULTACCOUNT" | "WDAGUTILITYACCOUNT" | "WSIACCOUNT" )
+      if [[ "$type" == "local" ]]; then
+        error "The USERNAME value \"$value\" is reserved for a built-in Windows account!"
+        return 1
+      fi ;;
+  esac
+
+  return 0
+}
+
 updateDomain() {
 
   local asset="$1"
-  local domain account auth pass
-  local pw cred_domain ou tmp result
+  local domain account auth pass pw
+  local cred_domain ou arch tmp result
 
   domain=$(escapeXML "$2") || return 1
   account=$(escapeXML "$3") || return 1
@@ -938,6 +1008,12 @@ updateDomain() {
   pass=$(escapeXML "$5") || return 1
   pw="$6"
   ou=$(escapeXML "$7") || return 1
+
+  arch=$(sed -n -E \
+    '0,/processorArchitecture="/s/.*processorArchitecture="([^"]+)".*/\1/p' \
+    "$asset") || return 1
+
+  [ -z "$arch" ] && return 1
 
   cred_domain="$domain"
 
@@ -953,6 +1029,7 @@ updateDomain() {
   if ! DOMAIN_XML="$domain" ACCOUNT_XML="$account" \
     AUTH_XML="$auth" PASS_XML="$pass" \
     CRED_DOMAIN="$cred_domain" PW="$pw" OU_XML="$ou" \
+    ARCH_XML="$arch" \
     awk '
       /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
       /<settings[^>]*pass="oobeSystem"[^>]*>/ { section = "oobeSystem" }
@@ -993,7 +1070,7 @@ updateDomain() {
 
       section == "specialize" && !join_added &&
         /^[[:space:]]*<\/settings>[[:space:]]*$/ {
-        print "    <component name=\"Microsoft-Windows-UnattendedJoin\" processorArchitecture=\"amd64\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">\n" \
+        print "    <component name=\"Microsoft-Windows-UnattendedJoin\" processorArchitecture=\"" ENVIRON["ARCH_XML"] "\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">\n" \
               "      <Identification>\n" \
               "        <Credentials>"
 
@@ -1034,50 +1111,6 @@ updateDomain() {
   return 0
 }
 
-validateLocalUsername() {
-
-  local value="$1"
-
-  [ -z "$value" ] && return 0
-
-  if [ "${#value}" -gt 20 ]; then
-    error "The USERNAME variable cannot contain more than 20 characters!"
-    return 1
-  fi
-
-  if [[ "$value" =~ [[:cntrl:]] ]]; then
-    error "The USERNAME variable cannot contain control characters!"
-    return 1
-  fi
-
-  case "$value" in
-    *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* | *'%'* | *'@'* )
-      error "The USERNAME variable contains characters that are not supported by Windows local accounts!"
-      return 1 ;;
-  esac
-
-  if [[ "$value" == *"." ]]; then
-    error "The USERNAME variable cannot end with a period!"
-    return 1
-  fi
-
-  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
-    error "The USERNAME variable cannot consist only of spaces or periods!"
-    return 1
-  fi
-
-  case "${value^^}" in
-    "NONE" )
-      error "The USERNAME value \"NONE\" is reserved by Windows!"
-      return 1 ;;
-    "ADMINISTRATOR" | "GUEST" | "DEFAULTACCOUNT" | "WDAGUTILITYACCOUNT" | "WSIACCOUNT" )
-      error "The USERNAME value \"$value\" is reserved for a built-in Windows account!"
-      return 1 ;;
-  esac
-
-  return 0
-}
-
 validateDomainName() {
 
   local value="$1"
@@ -1099,49 +1132,6 @@ validateDomainName() {
     [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$ ]]; then
 
     error "The $name variable does not contain a valid domain name!"
-    return 1
-  fi
-
-  return 0
-}
-
-validateDomainUsername() {
-
-  local value="$1"
-
-  if [ -z "$value" ]; then
-    error "The USERNAME variable does not contain a valid domain account name!"
-    return 1
-  fi
-
-  if [ "${#value}" -gt 256 ]; then
-    error "The USERNAME variable cannot contain more than 256 characters for a domain account!"
-    return 1
-  fi
-
-  if [[ "$value" =~ [[:cntrl:]] ]]; then
-    error "The USERNAME variable cannot contain control characters!"
-    return 1
-  fi
-
-  case "$value" in
-    *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* | *'%'* | *'@'* )
-      error "The domain account name contains characters that are not supported by Windows unattended setup!"
-      return 1 ;;
-  esac
-
-  if [[ "$value" == *"." ]]; then
-    error "The USERNAME variable cannot end with a period!"
-    return 1
-  fi
-
-  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
-    error "The USERNAME variable cannot consist only of spaces or periods!"
-    return 1
-  fi
-
-  if [[ "${value^^}" == "NONE" ]]; then
-    error "The USERNAME value \"NONE\" is reserved by Windows!"
     return 1
   fi
 
@@ -1243,10 +1233,6 @@ updateXML() {
 
   domain="$DOMAIN"
   workgroup="$WORKGROUP"
-  case "${DETECTED,,}" in
-    "win10x64"* | "win11x64"* ) ;;
-    * ) domain="" ;;
-  esac
 
   if [ -n "$domain" ]; then
 
@@ -1292,7 +1278,7 @@ updateXML() {
         ;;
     esac
 
-    validateDomainUsername "$user" || return 1
+    validateUsername "$user" "domain" || return 1
 
     if [[ "${user,,}" == "docker" ]]; then
       error "The USERNAME variable must be changed from its default value when joining a domain!"
@@ -1307,7 +1293,7 @@ updateXML() {
   else
 
     user="$USERNAME"
-    validateLocalUsername "$user" || return 1
+    validateUsername "$user" "local" || return 1
 
     if [ -n "$user" ]; then
       user_xml=$(escapeXMLSed "$user") || return 1

@@ -1575,6 +1575,11 @@ prepareInstall() {
   local driver="$4"
   local drivers="/tmp/drivers"
 
+  if [ -n "$DOMAIN" ]; then
+    error "The DOMAIN variable is not supported for $desc!"
+    return 1
+  fi
+
   ETFS="[BOOT]/Boot-NoEmul.img"
 
   if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
