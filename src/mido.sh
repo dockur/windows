@@ -46,7 +46,7 @@ curlRequest() {
   local log reason 
   local rc=0 response=""
 
-  if ! log=$(mktemp); then
+  if ! log=$(mktemp -p "$QEMU_DIR"); then
     error "Failed to create a temporary curl log."
     return 1
   fi
@@ -80,17 +80,6 @@ curlRequest() {
   if [ -n "$output" ]; then
     printf -v "$output" '%s' "$response"
   fi
-
-  return 0
-}
-
-getAgent() {
-
-  local browser_version
-
-  # Approximate Firefox version, increasing every two weeks
-  browser_version="$((152 + ($(date +%s) - 1781568000) / 1209600))"
-  echo "Mozilla/5.0 (X11; Linux x86_64; rv:${browser_version}.0) Gecko/20100101 Firefox/${browser_version}.0"
 
   return 0
 }
@@ -595,7 +584,10 @@ getESD() {
     return 1
   fi
 
-  log=$(mktemp)
+  if ! log=$(mktemp -p "$QEMU_DIR"); then
+    error "Failed to create a temporary wget log."
+    return 1
+  fi
 
   {
     LC_ALL=C wget "$catalog" -O "$dir/$file" --no-verbose --timeout=30 \
@@ -766,122 +758,30 @@ downloadFile() {
 
   local iso="$1"
   local url="$2"
-  local sum="$3"
-  local size="$4"
-  local lang="$5"
-  local desc="$6"
-  local reason=""
+  local size="$3"
+  local desc="$4"
+  local connections="${5:-1}"
   local msg="Downloading $desc"
-  local rc total total_gb log
-  local domain dots agent space folder
-  local progress=()
-  local output=""
-
-  agent=$(getAgent)
-
-  if [ -n "$size" ] && [[ "$size" != "0" ]]; then
-
-    folder=$(dirname -- "$iso")
-
-    if ! space=$(df --output=avail -B 1 "$folder" | tail -n 1); then
-      error "Failed to check free space in $folder!"
-      return 1
-    fi
-
-    total_gb=$(formatBytes "$space")
-    (( size > space )) && error "Not enough free space to download file, only $total_gb left!" && return 1
-  fi
-
-  # Use Wget's progress bar in a terminal and progress.sh in container logs.
-  if [ -t 1 ]; then
-    progress=( --show-progress --progress=bar:noscroll )
-  else
-    output="log"
-  fi
-
-  html "$msg..."
-  /run/progress.sh "$iso" "${size:-0}" "$msg ([P])..." "$output" &
+  local console_msg="$msg"
+  local domain dots
 
   domain=$(echo "$url" | awk -F/ '{print $3}')
   dots=$(echo "$domain" | tr -cd '.' | wc -c)
   (( dots > 1 )) && domain=$(expr "$domain" : '.*\.\(.*\..*\)')
 
   if [ -n "$domain" ] && [[ "${domain,,}" != *"microsoft.com" ]]; then
-    msg="Downloading $desc from $domain"
+    console_msg="Downloading $desc from $domain"
   fi
 
-  info "$msg..."
-  log=$(mktemp)
-  enabled "$DEBUG" && echo "Downloading: $url"
+  info "$console_msg..."
 
-  {
-    LC_ALL=C wget "$url" -O "$iso" --continue --no-verbose --timeout=30 \
-      --no-http-keep-alive --user-agent "$agent" \
-      "${progress[@]}" --output-file="$log"
-    rc=$?
-  } || :
-
-  fKill "progress.sh"
-
-  if (( rc != 0 )); then
-    reason=$(sed -n \
-      -e 's/^wget: //p' \
-      -e 's/^[0-9-]\{10\} [0-9:]\{8\} ERROR //p' \
-      "$log" | tail -n 1)
-  fi
-
-  rm -f "$log"
-
-  if (( rc == 0 )) && [ -f "$iso" ]; then
-
-    if ! total=$(stat -c%s "$iso"); then
-      error "Failed to determine downloaded file size: $iso"
-      return 1
-    fi
-
-    total_gb=$(formatBytes "$total")
-
-    if [ "$total" -lt 100000000 ]; then
-      error "Invalid download link: $url (is only $total_gb ?). Please report this at $SUPPORT/issues"
-      return 1
-    fi
-
-    # Status 2 means the download completed but failed validation.
-    verifyFile "$iso" "$size" "$total" "$sum" || return 2
-
-    # Extract the .iso from the compressed archive if needed.
-    isCompressed "$url" && UNPACK="Y"
-
-    return 0
-  fi
-
-  msg="Failed to download $url"
-
-  if (( rc == 3 )); then
-    error "$msg because the file could not be written (disk full?)."
-  elif [ -n "$reason" ]; then
-    error "$msg: ${reason%.}."
-  else
-    error "$msg with exit status $rc."
-  fi
-
-  return 1
-}
-
-delay() {
-
-  local i
-  local delay="$1"
-  local msg="Will retry in X seconds..."
-
-  info "${msg/X/$delay}"
-
-  for i in $(seq "$delay" -1 1); do
-    html "${msg/X/$i}"
-    sleep 1
-  done
-
-  return 0
+  downloadToFile \
+    "$url" \
+    "$iso" \
+    "$msg" \
+    "${size:-0}" \
+    "$connections" \
+    "Y"
 }
 
 tryDownload() {
@@ -890,33 +790,66 @@ tryDownload() {
   local url="$2"
   local sum="$3"
   local size="$4"
-  local lang="$5"
   local desc="$6"
   local seconds="$7"
-  local rc=0
+  local total rc=0
 
-  rm -f "$iso"
-
-  if downloadFile "$iso" "$url" "$sum" "$size" "$lang" "$desc"; then
-    return 0
+  if downloadRetry \
+      "$iso" \
+      "${CONNECTIONS:-1}" \
+      "$seconds" \
+      "$desc" \
+      "100000000" \
+      "$iso" \
+      "$url" \
+      "$size" \
+      "$desc"; then
+    rc=0
   else
     rc=$?
   fi
 
-  # Do not download the same file again when its contents failed validation.
-  if (( rc == 2 )); then
-    rm -f "$iso"
+  (( rc == 0 )) || return "$rc"
+
+  # The shared helper already inspected the file, so this should
+  # only fail if the downloaded file was removed unexpectedly afterward.
+  if ! total=$(stat -c%s -- "$iso" 2>/dev/null); then
+    error "Failed to determine downloaded file size: $iso"
     return 1
   fi
 
-  delay "$seconds"
+  # Status 2 means the completed download failed deterministic validation.
+  verifyFile "$iso" "$size" "$total" "$sum" || return 2
 
-  if downloadFile "$iso" "$url" "$sum" "$size" "$lang" "$desc"; then
-    return 0
-  fi
+  # Extract the .iso from the compressed archive if needed.
+  isCompressed "$url" && UNPACK="Y"
+
+  return 0
+}
+
+fallbackEnglish() {
+
+  local iso="$1"
+  local version="$2"
+  local lang="$3"
+  local desc="$4"
+  local culture msg
+
+  msg="No working download method was found for $desc, falling back to English..."
+  info "$msg" && html "$msg"
+
+  # Preserve the requested regional format and keyboard layout.
+  culture=$(getLanguage "$lang" "culture")
+  [ -z "$REGION" ] && REGION="$culture"
+  [ -z "$KEYBOARD" ] && KEYBOARD="$culture"
+
+  # Keep the original language-specific ISO filename so that restarts
+  # still locate the same image, but use English installation media.
+  LANGUAGE="en"
 
   rm -f "$iso"
-  return 1
+
+  downloadImage "$iso" "$version" "$LANGUAGE"
 }
 
 downloadImage() {
@@ -946,12 +879,17 @@ downloadImage() {
   desc=$(printVersion "$version" "")
 
   if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
+
     language=$(getLanguage "$lang" "desc")
+
     if ! validVersion "$version" "$lang"; then
       desc=$(printEdition "$version" "$desc")
-      error "The $language language version of $desc is not available, please switch to English."
+      desc+=" in $language"
+
+      fallbackEnglish "$iso" "$version" "$lang" "$desc" && return 0
       return 1
     fi
+
     desc+=" in $language"
   fi
 
@@ -1004,6 +942,7 @@ downloadImage() {
     fi
 
     if [[ "$success" == "y" ]]; then
+
       ISO="${ISO%.*}.esd"
 
       if tryDownload "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$lang" "$desc" "$seconds"; then
@@ -1011,8 +950,8 @@ downloadImage() {
       fi
 
       ISO="$iso"
-    fi
 
+    fi
   fi
 
   for ((i=1;i<=MIRRORS;i++)); do
@@ -1030,9 +969,13 @@ downloadImage() {
       sum=$(getHash "$i" "$version" "$lang")
 
       tryDownload "$iso" "$url" "$sum" "$size" "$lang" "$desc" "$seconds" && return 0
-    fi
 
+    fi
   done
+
+  if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
+    fallbackEnglish "$iso" "$version" "$lang" "$desc" && return 0
+  fi
 
   return 1
 }

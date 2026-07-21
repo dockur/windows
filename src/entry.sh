@@ -57,7 +57,7 @@ if ! interactive; then
   "${cmd[@]}" ${ARGS:+ $ARGS} >"$pipe" 2>&1 &
 else
   startConsole "$pipe"
-  setsid -w "${cmd[@]}" ${ARGS:+ $ARGS} </dev/null >"$pipe" 2>&1 &
+  startQemu "${cmd[@]}" ${ARGS:+ $ARGS} >"$pipe" 2>&1
 fi
 
 pid=$!
