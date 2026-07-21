@@ -794,7 +794,13 @@ downloadFile() {
   total_gb=$(formatBytes "$total") || return 1
 
   if (( total < 100000000 )); then
+
     error "Invalid download link: $url (is only $total_gb ?). Please report this at $SUPPORT/issues"
+
+    if ! rm -f -- "$iso" "$iso.aria2"; then
+      warn "failed to remove invalid download \"$iso\"!"
+    fi
+
     return 1
   fi
 
