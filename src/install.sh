@@ -721,27 +721,39 @@ hasVersion() {
   local id="$1"
   local tag="$2"
   local xml="$3"
-  local edition alternate=""
+  local platform="$4"
+  local alternate=""
+  local detected name
 
-  [ ! -f "/run/assets/$id.xml" ] && return 1
-
-  edition=$(printEdition "$id" "")
-  [ -z "$edition" ] && return 1
-
-  [[ "${xml,,}" == *"<${tag,,}>${edition,,}</${tag,,}>"* ]] && return 0
+  if [ ! -f "/run/assets/$id.xml" ]; then
+    [[ "${id,,}" == *"-eval" ]] || return 1
+    [ -f "/run/assets/${id::-5}.xml" ] || return 1
+  fi
 
   case "${id,,}" in
-    *"-iot" | *"-iot-eval" )
-      alternate="${id/-iot/-ltsc}" ;;
-    *"-ltsc" | *"-ltsc-eval" )
-      alternate="${id/-ltsc/-iot}" ;;
-    * ) return 1 ;;
+    *"-iot" )
+      alternate="${id/-iot/-ltsc}"
+      ;;
+    *"-ltsc" )
+      alternate="${id/-ltsc/-iot}"
+      ;;
   esac
 
-  edition=$(printEdition "$alternate" "")
-  [ -z "$edition" ] && return 1
+  while IFS= read -r name; do
+    [ -z "$name" ] && continue
 
-  [[ "${xml,,}" == *"<${tag,,}>${edition,,}</${tag,,}>"* ]] && return 0
+    detected=$(getVersion "$name" "$platform")
+    [[ "${detected,,}" == "${id,,}" ]] && return 0
+
+    if [ -n "$alternate" ] &&
+      [[ "${detected,,}" == "${alternate,,}" ]]; then
+      return 0
+    fi
+  done < <(
+    sed -n \
+      "/$tag/{s/.*<$tag>\\(.*\\)<\\/$tag>.*/\\1/;p}" \
+      <<< "$xml"
+  )
 
   return 1
 }
