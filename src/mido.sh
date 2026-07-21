@@ -883,7 +883,10 @@ fallbackEnglish() {
   # still locate the same image, but use English installation media.
   LANGUAGE="en"
 
-  rm -f "$iso"
+  if ! rm -f -- "$iso"; then
+    error "Failed to remove ISO file \"$iso\" !"
+    return 1
+  fi
 
   downloadImage "$iso" "$version" "$LANGUAGE"
 }
@@ -1010,7 +1013,9 @@ downloadImage() {
   done
 
   if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
-    fallbackEnglish "$iso" "$version" "$lang" "$desc" && return 0
+    if fallbackEnglish "$iso" "$version" "$lang" "$desc"; then
+      return 0
+    fi
   fi
 
   return 1
