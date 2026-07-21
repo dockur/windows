@@ -794,6 +794,11 @@ legacyInstall() {
   local desc="$3"
   local driver="$4"
   local drivers="/tmp/drivers"
+  local shortcut="Y"
+
+  if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
+    shortcut="N"
+  fi
 
   if [ -n "$DOMAIN" ]; then
     error "The DOMAIN variable is not supported for $desc!"
@@ -913,11 +918,13 @@ legacyInstall() {
           else
 
             key="${pid:$((${#pid})) - 8:5}"
+
             if [[ "${pid^^}" == *"OEM" ]]; then
               key=$(grep -i -A 2 "$key" "$file" | tail -n 2 | head -n 1) || key=""
             else
               key=$(grep -i -m 1 -A 2 "$key" "$file" | tail -n 2 | head -n 1) || key=""
             fi
+
             key="${key#*= }"
 
           fi
@@ -940,7 +947,8 @@ legacyInstall() {
               else
                 # Windows XP Professional x64 generic trial key (no activation)
                 KEY="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
-              fi ;;
+              fi
+              ;;
 
             "2k3" )
 
@@ -950,7 +958,8 @@ legacyInstall() {
               else
                 # Windows Server 2003 Standard x64 generic trial key (no activation)
                 KEY="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
-              fi ;;
+              fi
+              ;;
 
           esac
 
@@ -959,6 +968,7 @@ legacyInstall() {
         fi
 
       fi
+
     fi
 
   fi
@@ -1011,208 +1021,237 @@ legacyInstall() {
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -delete || return 1
 
-  {       echo "[Data]"
-          echo "    AutoPartition=1"
-          echo "    MsDosInitiated=\"0\""
-          echo "    UnattendedInstall=\"Yes\""
-          echo "    AutomaticUpdates=\"Yes\""
-          echo ""
-          echo "[Unattended]"
-          echo "    UnattendSwitch=Yes"
-          echo "    UnattendMode=FullUnattended"
-          echo "    FileSystem=NTFS"
-          echo "    OemSkipEula=Yes"
-          echo "    OemPreinstall=Yes"
-          echo "    Repartition=Yes"
-          echo "    WaitForReboot=\"No\""
-          echo "    DriverSigningPolicy=\"Ignore\""
-          echo "    NonDriverSigningPolicy=\"Ignore\""
-          printf '%s\n' "    OemPnPDriversPath=\"Drivers\viostor;Drivers\NetKVM;Drivers\sata\""
-          echo "    NoWaitAfterTextMode=1"
-          echo "    NoWaitAfterGUIMode=1"
-          echo "    FileSystem=ConvertNTFS"
-          echo "    ExtendOemPartition=0"
-          echo "    Hibernation=\"No\""
-          echo ""
-          echo "[GuiUnattended]"
-          echo "    OEMSkipRegional=1"
-          echo "    OemSkipWelcome=1"
-          echo "    AdminPassword=\"$sifPassword\""
-          echo "    TimeZone=0"
-          if disabled "$AUTOLOGIN"; then
-            echo "    AutoLogon=No"
-          else
-            echo "    AutoLogon=Yes"
-            echo "    AutoLogonCount=65432"
-          fi
-          echo ""
-          echo "[UserData]"
-          echo "    FullName=\"$sifUsername\""
-          echo "    ComputerName=\"$sifHost\""
-          echo "    OrgName=\"$sifOrganization\""
-          echo "    $product"
-          echo ""
-          echo "[Identification]"
-          echo "    JoinWorkgroup = \"$sifWorkgroup\""
-          echo ""
-          echo "[Display]"
-          echo "    BitsPerPel=32"
-          echo "    XResolution=$WIDTH"
-          echo "    YResolution=$HEIGHT"
-          echo ""
-          echo "[Networking]"
-          echo "    InstallDefaultComponents=Yes"
-          echo ""
-          echo "[Branding]"
-          echo "    BrandIEUsingUnattended=Yes"
-          echo ""
-          echo "[URL]"
-          echo "    Home_Page = http://www.google.com"
-          echo "    Search_Page = http://www.google.com"
-          echo ""
-          echo "[TerminalServices]"
-          echo "    AllowConnections=1"
-          echo ""
+  {
+    printf '%s\n' \
+      '[Data]' \
+      '    AutoPartition=1' \
+      '    MsDosInitiated="0"' \
+      '    UnattendedInstall="Yes"' \
+      '    AutomaticUpdates="Yes"' \
+      '' \
+      '[Unattended]' \
+      '    UnattendSwitch=Yes' \
+      '    UnattendMode=FullUnattended' \
+      '    FileSystem=NTFS' \
+      '    OemSkipEula=Yes' \
+      '    OemPreinstall=Yes' \
+      '    Repartition=Yes' \
+      '    WaitForReboot="No"' \
+      '    DriverSigningPolicy="Ignore"' \
+      '    NonDriverSigningPolicy="Ignore"' \
+      '    OemPnPDriversPath="Drivers\viostor;Drivers\NetKVM;Drivers\sata"' \
+      '    NoWaitAfterTextMode=1' \
+      '    NoWaitAfterGUIMode=1' \
+      '    FileSystem=ConvertNTFS' \
+      '    ExtendOemPartition=0' \
+      '    Hibernation="No"' \
+      '' \
+      '[GuiUnattended]' \
+      '    OEMSkipRegional=1' \
+      '    OemSkipWelcome=1' \
+      "    AdminPassword=\"$sifPassword\"" \
+      '    TimeZone=0'
+
+    if disabled "$AUTOLOGIN"; then
+      printf '%s\n' '    AutoLogon=No'
+    else
+      printf '%s\n' \
+        '    AutoLogon=Yes' \
+        '    AutoLogonCount=65432'
+    fi
+
+    printf '%s\n' \
+      '' \
+      '[UserData]' \
+      "    FullName=\"$sifUsername\"" \
+      "    ComputerName=\"$sifHost\"" \
+      "    OrgName=\"$sifOrganization\"" \
+      "    $product" \
+      '' \
+      '[Identification]' \
+      "    JoinWorkgroup = \"$sifWorkgroup\"" \
+      '' \
+      '[Display]' \
+      '    BitsPerPel=32' \
+      "    XResolution=$WIDTH" \
+      "    YResolution=$HEIGHT" \
+      '' \
+      '[Networking]' \
+      '    InstallDefaultComponents=Yes' \
+      '' \
+      '[Branding]' \
+      '    BrandIEUsingUnattended=Yes' \
+      '' \
+      '[URL]' \
+      '    Home_Page = http://www.google.com' \
+      '    Search_Page = http://www.google.com' \
+      '' \
+      '[TerminalServices]' \
+      '    AllowConnections=1' \
+      ''
   } | unix2dos > "$target/WINNT.SIF" || return 1
 
   if [[ "$driver" == "2k3" ]]; then
-    {       echo "[Components]"
-            echo "    TerminalServer=On"
-            echo ""
-            echo "[LicenseFilePrintData]"
-            echo "    AutoMode=PerServer"
-            echo "    AutoUsers=5"
-            echo ""
+    {
+      printf '%s\n' \
+        '[Components]' \
+        '    TerminalServer=On' \
+        '' \
+        '[LicenseFilePrintData]' \
+        '    AutoMode=PerServer' \
+        '    AutoUsers=5' \
+        ''
     } | unix2dos >> "$target/WINNT.SIF" || return 1
   fi
 
-  {       echo "Windows Registry Editor Version 5.00"
-          echo ""
-          echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Security]"
-          echo "\"FirstRunDisabled\"=dword:00000001"
-          echo "\"UpdatesDisableNotify\"=dword:00000001"
-          echo "\"FirewallDisableNotify\"=dword:00000001"
-          echo "\"AntiVirusDisableNotify\"=dword:00000001"
-          echo ""
-          echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\wscsvc]"
-          echo "\"Start\"=dword:00000004"
-          echo ""
-          echo "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\StandardProfile\GloballyOpenPorts\List]"
-          echo "\"3389:TCP\"=\"3389:TCP:*:Enabled:@xpsp2res.dll,-22009\""
-          echo ""
-          echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Applets\Tour]"
-          echo "\"RunCount\"=dword:00000000"
-          echo ""
-          echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]"
-          echo "\"HideFileExt\"=dword:00000000"
-          echo ""
-          echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer]"
-          echo "\"NoWelcomeScreen\"=\"1\""
-          echo ""
-          echo "[HKEY_CURRENT_USER\Software\Microsoft\Internet Connection Wizard]"
-          echo "\"Completed\"=\"1\""
-          echo "\"Desktopchanged\"=\"1\""
-          echo ""
-          echo "[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]"
-          if disabled "$AUTOLOGIN"; then
-            echo "\"AutoAdminLogon\"=\"0\""
-          else
-            echo "\"AutoAdminLogon\"=\"1\""
-            echo "\"DefaultUserName\"=\"$regUsername\""
-            echo "\"DefaultPassword\"=\"$regPassword\""
-            echo "\"DefaultDomainName\"=\"Dockur\""
-          fi
-          echo ""
-          printf '%s\n' "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]"
-          echo "\"DefaultSettings.BitsPerPel\"=dword:00000020"
-          echo "\"DefaultSettings.XResolution\"=dword:$XHEX"
-          echo "\"DefaultSettings.YResolution\"=dword:$YHEX"
-          echo ""
-          printf '%s\n' "[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Hardware Profiles\Current\System\CurrentControlSet\Control\VIDEO\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]"
-          echo "\"DefaultSettings.BitsPerPel\"=dword:00000020"
-          echo "\"DefaultSettings.XResolution\"=dword:$XHEX"
-          echo "\"DefaultSettings.YResolution\"=dword:$YHEX"
-          echo ""
-          echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce]"
-          printf '%s\n' "\"ScreenSaver\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"SCRNSAVE.EXE\\\" /t REG_SZ /d \\\"off\\\"\""
-          printf '%s\n' "\"ScreenSaverOff\"=\"reg add \\\"HKCU\\\\Control Panel\\\\Desktop\\\" /f /v \\\"ScreenSaveActive\\\" /t REG_SZ /d \\\"0\\\"\""
-          printf '%s\n' "\"SharedDrive\"=\"cmd /C net use Z: \\\\\\\\host.lan\\\\Data /persistent:yes\""
-          echo "$oem"
-          echo ""
+  {
+    printf '%s\n' \
+      'Windows Registry Editor Version 5.00' \
+      '' \
+      '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Security]' \
+      '"FirstRunDisabled"=dword:00000001' \
+      '"UpdatesDisableNotify"=dword:00000001' \
+      '"FirewallDisableNotify"=dword:00000001' \
+      '"AntiVirusDisableNotify"=dword:00000001' \
+      '' \
+      '[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\wscsvc]' \
+      '"Start"=dword:00000004' \
+      '' \
+      '[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\StandardProfile\GloballyOpenPorts\List]' \
+      '"3389:TCP"="3389:TCP:*:Enabled:@xpsp2res.dll,-22009"' \
+      '' \
+      '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Applets\Tour]' \
+      '"RunCount"=dword:00000000' \
+      '' \
+      '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]' \
+      '"HideFileExt"=dword:00000000' \
+      '' \
+      '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer]' \
+      '"NoWelcomeScreen"="1"' \
+      '' \
+      '[HKEY_CURRENT_USER\Software\Microsoft\Internet Connection Wizard]' \
+      '"Completed"="1"' \
+      '"Desktopchanged"="1"' \
+      '' \
+      '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]'
+
+    if disabled "$AUTOLOGIN"; then
+      printf '%s\n' '"AutoAdminLogon"="0"'
+    else
+      printf '%s\n' \
+        '"AutoAdminLogon"="1"' \
+        "\"DefaultUserName\"=\"$regUsername\"" \
+        "\"DefaultPassword\"=\"$regPassword\"" \
+        '"DefaultDomainName"="Dockur"'
+    fi
+
+    printf '%s\n' \
+      '' \
+      '[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]' \
+      '"DefaultSettings.BitsPerPel"=dword:00000020' \
+      "\"DefaultSettings.XResolution\"=dword:$XHEX" \
+      "\"DefaultSettings.YResolution\"=dword:$YHEX" \
+      '' \
+      '[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Hardware Profiles\Current\System\CurrentControlSet\Control\VIDEO\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]' \
+      '"DefaultSettings.BitsPerPel"=dword:00000020' \
+      "\"DefaultSettings.XResolution\"=dword:$XHEX" \
+      "\"DefaultSettings.YResolution\"=dword:$YHEX" \
+      '' \
+      '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce]' \
+      '"ScreenSaver"="reg add \"HKCU\\Control Panel\\Desktop\" /f /v \"SCRNSAVE.EXE\" /t REG_SZ /d \"off\""' \
+      '"ScreenSaverOff"="reg add \"HKCU\\Control Panel\\Desktop\" /f /v \"ScreenSaveActive\" /t REG_SZ /d \"0\""'
+
+    if enabled "$shortcut"; then
+      printf '%s\n' '"SharedDrive"="cmd /C net use Z: \\\\host.lan\\Data /persistent:yes"'
+    fi
+
+    printf '%s\n' "$oem" ''
   } | unix2dos > "$dir/\$OEM\$/install.reg" || return 1
 
   if [[ "$driver" == "2k" ]]; then
-    {       echo "[HKEY_USERS\.DEFAULT\Software\Microsoft\Windows\CurrentVersion\Runonce]"
-            echo "\"^SetupICWDesktop\"=-"
-            echo ""
+    {
+      printf '%s\n' \
+        '[HKEY_USERS\.DEFAULT\Software\Microsoft\Windows\CurrentVersion\Runonce]' \
+        '"^SetupICWDesktop"=-' \
+        ''
     } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
   fi
 
   if [[ "$driver" == "2k3" ]]; then
-    {       echo "[HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\srvWiz]"
-            echo "@=dword:00000000"
-            echo ""
-            echo "[HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\ServerOOBE\SecurityOOBE]"
-            echo "\"DontLaunchSecurityOOBE\"=dword:00000000"
-            echo ""
+    {
+      printf '%s\n' \
+        '[HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\srvWiz]' \
+        '@=dword:00000000' \
+        '' \
+        '[HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\ServerOOBE\SecurityOOBE]' \
+        '"DontLaunchSecurityOOBE"=dword:00000000' \
+        ''
     } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
   fi
 
-  {       echo "Set WshShell = WScript.CreateObject(\"WScript.Shell\")"
-          echo "Set WshNetwork = WScript.CreateObject(\"WScript.Network\")"
-          echo "Set Domain = GetObject(\"WinNT://\" & WshNetwork.ComputerName)"
-          echo ""
-          echo "Function DecodeSID(binSID)"
-          echo "  ReDim o(LenB(binSID))"
-          echo ""
-          echo "  For i = 1 To LenB(binSID)"
-          echo "    o(i-1) = AscB(MidB(binSID, i, 1))"
-          echo "  Next"
-          echo ""
-          echo "  sid = \"S-\" & CStr(o(0)) & \"-\" & OctetArrayToString _"
-          echo "        (Array(o(2), o(3), o(4), o(5), o(6), o(7)))"
-          echo "  For i = 8 To (4 * o(1) + 4) Step 4"
-          echo "    sid = sid & \"-\" & OctetArrayToString _"
-          echo "          (Array(o(i+3), o(i+2), o(i+1), o(i)))"
-          echo "  Next"
-          echo ""
-          echo "  DecodeSID = sid"
-          echo "End Function"
-          echo ""
-          echo "Function OctetArrayToString(arr)"
-          echo "  v = 0"
-          echo "  For i = 0 To UBound(arr)"
-          echo "    v = v * 256 + arr(i)"
-          echo "  Next"
-          echo ""
-          echo "  OctetArrayToString = CStr(v)"
-          echo "End Function"
-          echo ""
-          echo "For Each DomainItem in Domain"
-          echo "  If DomainItem.Class = \"User\" Then"
-          echo "    sid = DecodeSID(DomainItem.Get(\"objectSID\"))"
-          echo "    If Left(sid, 9) = \"S-1-5-21-\" And Right(sid, 4) = \"-500\" Then"
-          echo "      LocalAdminADsPath = DomainItem.ADsPath"
-          echo "      Exit For"
-          echo "    End If"
-          echo "  End If"
-          echo "Next"
-          echo ""
-          echo "Call Domain.MoveHere(LocalAdminADsPath, \"$username\")"
-          echo ""
-          echo "Set oLink = WshShell.CreateShortcut(WshShell.SpecialFolders(\"Desktop\") & \"\\Shared.lnk\")"
-          echo "With oLink"
-          printf '%s\n' "  .TargetPath = \"\\\\host.lan\\Data\""
-          echo "  .Save"
-          echo "End With"
-          echo "Set oLink = Nothing"
-          echo ""
+  {
+    printf '%s\n' \
+      'Set WshShell = WScript.CreateObject("WScript.Shell")' \
+      'Set WshNetwork = WScript.CreateObject("WScript.Network")' \
+      'Set Domain = GetObject("WinNT://" & WshNetwork.ComputerName)' \
+      '' \
+      'Function DecodeSID(binSID)' \
+      '  ReDim o(LenB(binSID))' \
+      '' \
+      '  For i = 1 To LenB(binSID)' \
+      '    o(i-1) = AscB(MidB(binSID, i, 1))' \
+      '  Next' \
+      '' \
+      '  sid = "S-" & CStr(o(0)) & "-" & OctetArrayToString _' \
+      '        (Array(o(2), o(3), o(4), o(5), o(6), o(7)))' \
+      '  For i = 8 To (4 * o(1) + 4) Step 4' \
+      '    sid = sid & "-" & OctetArrayToString _' \
+      '          (Array(o(i+3), o(i+2), o(i+1), o(i)))' \
+      '  Next' \
+      '' \
+      '  DecodeSID = sid' \
+      'End Function' \
+      '' \
+      'Function OctetArrayToString(arr)' \
+      '  v = 0' \
+      '  For i = 0 To UBound(arr)' \
+      '    v = v * 256 + arr(i)' \
+      '  Next' \
+      '' \
+      '  OctetArrayToString = CStr(v)' \
+      'End Function' \
+      '' \
+      'For Each DomainItem in Domain' \
+      '  If DomainItem.Class = "User" Then' \
+      '    sid = DecodeSID(DomainItem.Get("objectSID"))' \
+      '    If Left(sid, 9) = "S-1-5-21-" And Right(sid, 4) = "-500" Then' \
+      '      LocalAdminADsPath = DomainItem.ADsPath' \
+      '      Exit For' \
+      '    End If' \
+      '  End If' \
+      'Next' \
+      '' \
+      "Call Domain.MoveHere(LocalAdminADsPath, \"$username\")" \
+      ''
+
+    if enabled "$shortcut"; then
+      printf '%s\n' \
+        'Set oLink = WshShell.CreateShortcut(WshShell.SpecialFolders("Desktop") & "\Shared.lnk")' \
+        'With oLink' \
+        '  .TargetPath = "\\host.lan\Data"' \
+        '  .Save' \
+        'End With' \
+        'Set oLink = Nothing' \
+        ''
+    fi
   } | unix2dos > "$dir/\$OEM\$/install.vbs" || return 1
 
-  {       echo "[COMMANDS]"
-          echo "\"REGEDIT /s install.reg\""
-          echo "\"Wscript install.vbs\""
-          echo ""
+  {
+    printf '%s\n' \
+      '[COMMANDS]' \
+      '"REGEDIT /s install.reg"' \
+      '"Wscript install.vbs"' \
+      ''
   } | unix2dos > "$dir/\$OEM\$/cmdlines.txt" || return 1
 
   return 0
