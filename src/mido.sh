@@ -277,8 +277,8 @@ downloadWindowsEval() {
       type="iot"
       winVer="windows-11-iot-enterprise-ltsc-eval" ;;
     "win11${PLATFORM,,}-enterprise-ltsc-eval" )
-      type="iot"
-      winVer="windows-11-iot-enterprise-ltsc-eval" ;;
+      type="ltsc"
+      winVer="windows-11-enterprise" ;;
     "win2025-eval" )
       type="server"
       winVer="windows-server-2025" ;;
@@ -343,15 +343,16 @@ downloadWindowsEval() {
   }
 
   case "$type" in
-    "iot" | "ltsc" )
+    "iot" )
       case "${PLATFORM,,}" in
         "x64" )
-          if [[ "$winVer" != "windows-10"* ]]; then
-            link=$(echo "$links" | head -n 1)
-          else
-            link=$(echo "$links" | head -n 4 | tail -n 1)
-          fi ;;
+          link=$(echo "$links" | head -n 1) ;;
         "arm64" )
+          link=$(echo "$links" | head -n 2 | tail -n 1) ;;
+      esac ;;
+    "ltsc" )
+      case "${PLATFORM,,}" in
+        "x64" )
           link=$(echo "$links" | head -n 2 | tail -n 1) ;;
       esac ;;
     "enterprise" )
@@ -405,13 +406,40 @@ downloadWindowsEval() {
 
   if enabled "$DEBUG" && enabled "$VERIFY" && [[ "${lang,,}" == "en"* ]]; then
     compare=$(getMido "$id" "$lang" "")
-    if [[ "${link,,}" != "${compare,,}" ]]; then
+    if [ -n "$compare" ] && [[ "${link,,}" != "${compare,,}" ]]; then
       echo "Retrieved link does not match the fixed link: $compare"
     fi
   fi
 
   MIDO_URL="$link"
   return 0
+}
+
+downloadWindowsLtsc() {
+
+  local id="$1"
+  local lang="$2"
+  local desc="$3"
+  local alternate=""
+
+  case "${id,,}" in
+    "win11${PLATFORM,,}-enterprise-iot-eval" )
+      alternate="win11${PLATFORM,,}-enterprise-ltsc-eval" ;;
+    "win11${PLATFORM,,}-enterprise-ltsc-eval" )
+      alternate="win11${PLATFORM,,}-enterprise-iot-eval" ;;
+    * ) error "Invalid VERSION specified, value \"$id\" is not recognized!"
+      return 1 ;;
+  esac
+
+  if downloadWindowsEval "$id" "$lang" "$desc" > /dev/null 2>&1; then
+    return 0
+  fi
+
+  info "Primary download source failed, trying the alternate LTSC source..."
+
+  downloadWindowsEval "$alternate" "$lang" "$desc" && return 0
+
+  return 1
 }
 
 getWindows() {
@@ -428,8 +456,7 @@ getWindows() {
   info "$msg" && html "$msg"
 
   case "${version,,}" in
-    "win2008r2" | "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* | \
-    "win11${PLATFORM,,}-enterprise-iot"* | "win11${PLATFORM,,}-enterprise-ltsc"* )
+    "win2008r2" | "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* )
       if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
         error "No download in the $language language available for $edition!"
         MIDO_URL="" && return 1
@@ -449,6 +476,10 @@ getWindows() {
   case "${version,,}" in
     "win11${PLATFORM,,}" )
       downloadWindows "$version" "$lang" "$edition" && return 0
+      ;;
+    "win11${PLATFORM,,}-enterprise-iot-eval" | \
+    "win11${PLATFORM,,}-enterprise-ltsc-eval" )
+      downloadWindowsLtsc "$version" "$lang" "$edition" && return 0
       ;;
     "win11${PLATFORM,,}-enterprise"* )
       downloadWindowsEval "$version" "$lang" "$edition" && return 0

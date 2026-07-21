@@ -284,7 +284,7 @@
           <Order>17</Order>
           <CommandLine>cmd /C mklink /d %userprofile%\Desktop\Shared \\host.lan\Data</CommandLine>
           <Description>Create desktop shortcut to shared folder</Description>
-        </SynchronousCommand>        
+        </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>18</Order>
           <CommandLine>cmd /C net use Z: \\host.lan\Data /persistent:yes</CommandLine>
