@@ -415,12 +415,59 @@ downloadWindowsEval() {
   return 0
 }
 
+getMidoDetected() {
+
+  # Return the answer-file identity for a Microsoft download source
+  # without changing the global DETECTED value.
+
+  local version="$1"
+  local source="$2"
+  local current="$3"
+  local detected="$version"
+  local default=""
+
+  case "${version,,}" in
+    "win11${PLATFORM,,}-enterprise-iot-eval" )
+      default="win11${PLATFORM,,}-iot"
+      detected="$default"
+      ;;
+    "win11${PLATFORM,,}-enterprise-ltsc-eval" )
+      default="win11${PLATFORM,,}-ltsc"
+      detected="$default"
+      if [[ "${source,,}" == *"-enterprise-ltsc-eval" ]]; then
+        detected+="-eval"
+      fi
+      ;;
+    "win10${PLATFORM,,}-enterprise-iot-eval" )
+      default="win10${PLATFORM,,}-iot"
+      detected="$default"
+      ;;
+    "win10${PLATFORM,,}-enterprise-ltsc-eval" )
+      default="win10${PLATFORM,,}-ltsc"
+      detected="$default-eval"
+      ;;
+    "win2008r2" )
+      detected="win2008r2-eval"
+      ;;
+  esac
+
+  if [ -n "$current" ] &&
+    { [ -z "$default" ] || [[ "${current,,}" != "${default,,}" ]]; }; then
+    detected="$current"
+  fi
+
+  echo "$detected"
+  return 0
+}
+
 downloadWindowsLtsc() {
 
   local id="$1"
   local lang="$2"
   local desc="$3"
+  local result="$4"
   local alternate=""
+  local detected
 
   case "${id,,}" in
     "win11${PLATFORM,,}-enterprise-iot-eval" )
@@ -432,12 +479,18 @@ downloadWindowsLtsc() {
   esac
 
   if downloadWindowsEval "$id" "$lang" "$desc" > /dev/null 2>&1; then
+    detected=$(getMidoDetected "$id" "$id" "$DETECTED")
+    printf -v "$result" '%s' "$detected"
     return 0
   fi
 
   info "Primary download source failed, trying the alternate LTSC source..."
 
-  downloadWindowsEval "$alternate" "$lang" "$desc" && return 0
+  if downloadWindowsEval "$alternate" "$lang" "$desc"; then
+    detected=$(getMidoDetected "$id" "$alternate" "$DETECTED")
+    printf -v "$result" '%s' "$detected"
+    return 0
+  fi
 
   return 1
 }
@@ -447,8 +500,9 @@ getWindows() {
   local version="$1"
   local lang="$2"
   local desc="$3"
+  local result="$4"
 
-  local language edition
+  local detected language edition
   language=$(getLanguage "$lang" "desc")
   edition=$(printEdition "$version" "$desc")
 
@@ -475,17 +529,29 @@ getWindows() {
 
   case "${version,,}" in
     "win11${PLATFORM,,}" )
-      downloadWindows "$version" "$lang" "$edition" && return 0
+      if downloadWindows "$version" "$lang" "$edition"; then
+        detected=$(getMidoDetected "$version" "$version" "$DETECTED")
+        printf -v "$result" '%s' "$detected"
+        return 0
+      fi
       ;;
     "win11${PLATFORM,,}-enterprise-iot-eval" | \
     "win11${PLATFORM,,}-enterprise-ltsc-eval" )
-      downloadWindowsLtsc "$version" "$lang" "$edition" && return 0
+      downloadWindowsLtsc "$version" "$lang" "$edition" "$result" && return 0
       ;;
     "win11${PLATFORM,,}-enterprise"* )
-      downloadWindowsEval "$version" "$lang" "$edition" && return 0
+      if downloadWindowsEval "$version" "$lang" "$edition"; then
+        detected=$(getMidoDetected "$version" "$version" "$DETECTED")
+        printf -v "$result" '%s' "$detected"
+        return 0
+      fi
       ;;
     "win2025-eval" | "win2022-eval" | "win2019-eval" | "win2019-hv" | "win2016-eval" | "win2012r2-eval" )
-      downloadWindowsEval "$version" "$lang" "$edition" && return 0
+      if downloadWindowsEval "$version" "$lang" "$edition"; then
+        detected=$(getMidoDetected "$version" "$version" "$DETECTED")
+        printf -v "$result" '%s' "$detected"
+        return 0
+      fi
       ;;
     "win2008r2" | "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* )
       ;;
@@ -494,6 +560,9 @@ getWindows() {
 
   MIDO_URL=$(getMido "$version" "$lang" "")
   [ -z "$MIDO_URL" ] && return 1
+
+  detected=$(getMidoDetected "$version" "$version" "$DETECTED")
+  printf -v "$result" '%s' "$detected"
 
   return 0
 }
@@ -899,6 +968,7 @@ downloadImage() {
   local tried="n"
   local success="n"
   local seconds="5"
+  local detected="$DETECTED"
   local url sum size base desc language i
 
   if [[ "${version,,}" == "http"* ]]; then
@@ -937,11 +1007,11 @@ downloadImage() {
     tried="y"
     success="n"
 
-    if getWindows "$version" "$lang" "$desc"; then
+    if getWindows "$version" "$lang" "$desc" detected; then
       success="y"
     else
       delay "$seconds"
-      getWindows "$version" "$lang" "$desc" && success="y"
+      getWindows "$version" "$lang" "$desc" detected && success="y"
     fi
 
     if [[ "$success" == "y" ]]; then
@@ -957,7 +1027,11 @@ downloadImage() {
         sum=$(getMido "$version" "$lang" "sum")
       fi
 
-      tryDownload "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$desc" "$seconds" && return 0
+      if tryDownload "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$desc" "$seconds"; then
+        # Commit the candidate only after the image was downloaded and verified.
+        DETECTED="$detected"
+        return 0
+      fi
 
     fi
   fi
