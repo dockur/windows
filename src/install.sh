@@ -672,15 +672,29 @@ hasVersion() {
   local id="$1"
   local tag="$2"
   local xml="$3"
-  local edition
+  local edition alternate=""
 
   [ ! -f "/run/assets/$id.xml" ] && return 1
 
   edition=$(printEdition "$id" "")
   [ -z "$edition" ] && return 1
-  [[ "${xml,,}" != *"<${tag,,}>${edition,,}</${tag,,}>"* ]] && return 1
 
-  return 0
+  [[ "${xml,,}" == *"<${tag,,}>${edition,,}</${tag,,}>"* ]] && return 0
+
+  case "${id,,}" in
+    *"-iot" | *"-iot-eval" )
+      alternate="${id/-iot/-ltsc}" ;;
+    *"-ltsc" | *"-ltsc-eval" )
+      alternate="${id/-ltsc/-iot}" ;;
+    * ) return 1 ;;
+  esac
+
+  edition=$(printEdition "$alternate" "")
+  [ -z "$edition" ] && return 1
+
+  [[ "${xml,,}" == *"<${tag,,}>${edition,,}</${tag,,}>"* ]] && return 0
+
+  return 1
 }
 
 selectVersion() {
