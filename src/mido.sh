@@ -912,7 +912,7 @@ downloadImage() {
     return 1
   fi
 
-  desc=$(printVersion "$version" "")
+  desc=$(printVariant "$version" "")
 
   if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
 
