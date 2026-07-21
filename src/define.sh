@@ -676,28 +676,36 @@ getVersion() {
           *" home"* ) id="$id-home" ;;
           *" starter"* ) id="$id-starter" ;;
           *" ultimate"* ) id="$id-ultimate" ;;
-          *" enterprise evaluation"* ) id="$id-enterprise-eval" ;;
-          *" enterprise"* ) id="$id-enterprise" ;;
+          *" enterprise"* )
+            id="$id-enterprise"
+            [[ "${name,,}" == *" evaluation"* ]] && id+="-eval"
+            ;;
         esac
       ;;
     "win8"* )
         case "${name,,}" in
-          *" enterprise evaluation"* ) id="$id-enterprise-eval" ;;
-          *" enterprise"* ) id="$id-enterprise" ;;
+          *" enterprise"* )
+            id="$id-enterprise"
+            [[ "${name,,}" == *" evaluation"* ]] && id+="-eval"
+            ;;
         esac
       ;;
     "win10"* | "win11"* )
        case "${name,,}" in
-          *" iot enterprise ltsc evaluation"* ) id="$id-iot-eval" ;;
-          *" iot enterprise evaluation"* ) id="$id-iot-eval" ;;
-          *" iot evaluation"* ) id="$id-iot-eval" ;;
-          *" iot"* ) id="$id-iot" ;;
-          *" ltsc evaluation"* ) id="$id-ltsc-eval" ;;
-          *" ltsc"* ) id="$id-ltsc" ;;
+          *" iot"* )
+            id="$id-iot"
+            [[ "${name,,}" == *" evaluation"* ]] && id+="-eval"
+            ;;
+          *" ltsc"* )
+            id="$id-ltsc"
+            [[ "${name,,}" == *" evaluation"* ]] && id+="-eval"
+            ;;
           *" home"* ) id="$id-home" ;;
           *" education"* ) id="$id-education" ;;
-          *" enterprise evaluation"* ) id="$id-enterprise-eval" ;;
-          *" enterprise"* ) id="$id-enterprise" ;;
+          *" enterprise"* )
+            id="$id-enterprise"
+            [[ "${name,,}" == *" evaluation"* ]] && id+="-eval"
+            ;;
         esac
       ;;
     "win2025"* | "win2022"* | "win2019"* | "win2016"* | "win2012"* | "win2008"* | "win2003"* )
