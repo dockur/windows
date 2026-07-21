@@ -785,14 +785,14 @@ downloadFile() {
 
   if ! total=$(stat -c%s -- "$iso"); then
     error "Failed to determine downloaded file size: $iso"
-    return 1
+    return 2
   fi
 
-  total_gb=$(formatBytes "$total") || return 1
+  total_gb=$(formatBytes "$total") || return 2
 
   if (( total < 100000000 )); then
     error "Invalid download link: $url (is only $total_gb ?). Please report this at $SUPPORT/issues"
-    return 1
+    return 2
   fi
 
   # Status 2 means the download completed but failed validation.
@@ -813,56 +813,18 @@ tryDownload() {
   local lang="$5"
   local desc="$6"
   local seconds="$7"
-  local connections="${CONNECTIONS:-1}"
-  local rc=0
 
-  # Always start without stale partial or aria control files.
-  rm -f -- "$iso" "$iso.aria2"
-
-  if downloadFile \
-      "$iso" \
-      "$url" \
-      "$sum" \
-      "$size" \
-      "$lang" \
-      "$desc" \
-      "$connections"; then
-    return 0
-  else
-    rc=$?
-  fi
-
-  # Do not download the same file again when its contents failed validation.
-  if (( rc == 2 )); then
-    rm -f -- "$iso" "$iso.aria2"
-    return 1
-  fi
-
-  delay "$seconds"
-
-  # A multi-connection partial file can contain non-sequential 
-  # ranges and cannot safely be resumed by Wget.
-  if (( connections > 1 )); then
-    if ! rm -f -- "$iso" "$iso.aria2"; then
-      error "Failed to remove partial download \"$iso\"!"
-      return 1
-    fi
-  fi
-
-  # Retry using the original single-connection Wget behavior.
-  if downloadFile \
-      "$iso" \
-      "$url" \
-      "$sum" \
-      "$size" \
-      "$lang" \
-      "$desc" \
-      "1"; then
-    return 0
-  fi
-
-  rm -f -- "$iso" "$iso.aria2"
-  return 1
+  downloadRetry \
+    "$iso" \
+    "${CONNECTIONS:-1}" \
+    "$seconds" \
+    "$desc" \
+    "$iso" \
+    "$url" \
+    "$sum" \
+    "$size" \
+    "$lang" \
+    "$desc"
 }
 
 fallbackEnglish() {
