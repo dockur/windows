@@ -760,9 +760,8 @@ downloadFile() {
   local desc="$6"
   local connections="${7:-1}"
   local msg="Downloading $desc"
-  local console_msg="$msg"
   local total total_gb domain dots
-  local rc=0
+  local console_msg="$msg" rc=0
 
   domain=$(echo "$url" | awk -F/ '{print $3}')
   dots=$(echo "$domain" | tr -cd '.' | wc -c)
@@ -781,12 +780,11 @@ downloadFile() {
       "${size:-0}" \
       "$connections" \
       "Y"; then
-    rc=0
-  else
-    rc=$?
+    return 0
   fi
 
-  (( rc == 0 )) || return "$rc"
+  rc=$?
+  (( rc != 0 )) && return "$rc"
 
   if ! total=$(stat -c%s -- "$iso"); then
     error "Failed to determine downloaded file size: $iso"
