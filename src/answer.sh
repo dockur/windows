@@ -1,35 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-escapeXMLSed() {
-
-  local s
-
-  s=$(escapeXML "$1") || return 1
-  s=${s//\\/\\\\}
-  s=${s//&/\\&}
-  s=${s//|/\\|}
-
-  printf '%s' "$s"
-  return 0
-}
-
-escapeSIFValue() {
-
-  local s="$1"
-
-  s=${s//%/%%}
-  s=${s//\"/\"\"}
-
-  printf '%s' "$s"
-  return 0
-}
-
-escapeRegistryValue() {
-
-  printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
-}
-
 validateResolution() {
 
   local name="$1"
@@ -133,75 +104,6 @@ validateMembership() {
   return 0
 }
 
-validateLegacyText() {
-
-  local name="$1"
-  local value="$2"
-  local desc="${3:-}"
-  local suffix=""
-
-  [ -n "$desc" ] && suffix=" for $desc"
-
-  if [[ "$value" =~ [[:cntrl:]] ]]; then
-    error "The $name variable cannot contain control characters$suffix!"
-    return 1
-  fi
-
-  if [[ "$value" == *'"'* ]]; then
-    error "The $name variable cannot contain double quotes$suffix!"
-    return 1
-  fi
-
-  return 0
-}
-
-validateLegacyUsername() {
-
-  local value="$1"
-  local desc="${2:-}"
-  local suffix=""
-
-  [ -n "$desc" ] && suffix=" for $desc"
-
-  if [ -z "$value" ]; then
-    error "The USERNAME variable cannot be empty$suffix!"
-    return 1
-  fi
-
-  if [ "${#value}" -gt 20 ]; then
-    error "The USERNAME variable cannot contain more than 20 characters$suffix!"
-    return 1
-  fi
-
-  if [[ "$value" =~ [[:cntrl:]] ]]; then
-    error "The USERNAME variable cannot contain control characters$suffix!"
-    return 1
-  fi
-
-  case "$value" in
-    *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* )
-      error "The USERNAME variable contains unsupported characters$suffix!"
-      return 1 ;;
-  esac
-
-  if [[ "$value" == *"." ]]; then
-    error "The USERNAME variable cannot end with a period$suffix!"
-    return 1
-  fi
-
-  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
-    error "The USERNAME variable cannot consist only of spaces or periods$suffix!"
-    return 1
-  fi
-
-  if [[ "${value^^}" == "GUEST" ]]; then
-    error "The USERNAME value \"$value\" is reserved for a built-in Windows account$suffix!"
-    return 1
-  fi
-
-  return 0
-}
-
 validatePassword() {
 
   local value="$1"
@@ -220,6 +122,19 @@ validatePassword() {
     return 1
   fi
 
+  return 0
+}
+
+escapeXMLSed() {
+
+  local s
+
+  s=$(escapeXML "$1") || return 1
+  s=${s//\\/\\\\}
+  s=${s//&/\\&}
+  s=${s//|/\\|}
+
+  printf '%s' "$s"
   return 0
 }
 
@@ -290,6 +205,57 @@ validateUsername() {
       fi ;;
   esac
 
+  return 0
+}
+
+validateDomainName() {
+
+  local value="$1"
+  local name="${2:-DOMAIN}"
+
+  if [ -z "$value" ]; then
+    error "The $name variable must contain a valid domain name!"
+    return 1
+  fi
+
+  if [[ "$value" == *"://"* ]]; then
+    error "The $name variable must contain a domain name, not a URL!"
+    return 1
+  fi
+
+  if [ "${#value}" -gt 255 ] ||
+    [[ "$value" =~ [[:cntrl:]] ]] ||
+    [[ "$value" =~ [[:space:]] ]] ||
+    [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$ ]]; then
+
+    error "The $name variable does not contain a valid domain name!"
+    return 1
+  fi
+
+  return 0
+}
+
+setXML() {
+
+  local file="/custom.xml"
+
+  CUSTOM_XML=""
+
+  if [ -d "$file" ]; then
+    error "The bind $file maps to a file that does not exist!" && exit 67
+  fi
+
+  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$STORAGE/custom.xml"
+  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/custom.xml"
+  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$1"
+  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/$DETECTED.xml"
+  [ ! -f "$file" ] || [ ! -s "$file" ] && return 1
+
+  case "$file" in
+    "/custom.xml" | "$STORAGE/custom.xml" ) CUSTOM_XML="Y" ;;
+  esac
+
+  XML="$file"
   return 0
 }
 
@@ -405,33 +371,6 @@ updateDomain() {
   fi
 
   rm -rf "$tmp" || return 1
-  return 0
-}
-
-validateDomainName() {
-
-  local value="$1"
-  local name="${2:-DOMAIN}"
-
-  if [ -z "$value" ]; then
-    error "The $name variable must contain a valid domain name!"
-    return 1
-  fi
-
-  if [[ "$value" == *"://"* ]]; then
-    error "The $name variable must contain a domain name, not a URL!"
-    return 1
-  fi
-
-  if [ "${#value}" -gt 255 ] ||
-    [[ "$value" =~ [[:cntrl:]] ]] ||
-    [[ "$value" =~ [[:space:]] ]] ||
-    [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$ ]]; then
-
-    error "The $name variable does not contain a valid domain name!"
-    return 1
-  fi
-
   return 0
 }
 
@@ -668,50 +607,149 @@ updateXML() {
   return 0
 }
 
-addFolder() {
+escapeSIFValue() {
 
-  local src="$1"
-  local folder="/oem" file=""
-  local dest="$src/\$OEM\$/\$1/OEM"
+  local s="$1"
 
-  [ ! -d "$folder" ] && folder="/OEM"
-  [ ! -d "$folder" ] && folder="$STORAGE/oem"
-  [ ! -d "$folder" ] && folder="$STORAGE/OEM"
-  [ ! -d "$folder" ] && folder=""
+  s=${s//%/%%}
+  s=${s//\"/\"\"}
 
-  [ -z "$folder" ] && [ -z "$COMMAND" ] && return 0
+  printf '%s' "$s"
+  return 0
+}
 
-  local msg="Adding OEM files to image..."
-  info "$msg" && html "$msg"
+escapeRegistryValue() {
 
-  mkdir -p "$dest" || return 1
+  printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
+}
 
-  if [ -n "$folder" ]; then
-    cp -Lr "$folder/." "$dest" || return 1
+validateLegacyText() {
+
+  local name="$1"
+  local value="$2"
+  local desc="${3:-}"
+  local suffix=""
+
+  [ -n "$desc" ] && suffix=" for $desc"
+
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    error "The $name variable cannot contain control characters$suffix!"
+    return 1
   fi
 
-  file=$(find "$dest" -maxdepth 1 -type f -iname install.bat -print -quit) || return 1
-
-  if [ -n "$COMMAND" ]; then
-
-    [ -z "$file" ] && file="$dest/install.bat"
-
-    if [ -s "$file" ]; then
-      printf '\n' >> "$file" || return 1
-    fi
-
-    printf '%s\n' "$COMMAND" >> "$file" || return 1
-
-  fi
-
-  if [ -f "$file" ]; then
-    if ! unix2dos -q "$file"; then
-      error "Failed to convert $file to DOS format!"
-      return 1
-    fi
+  if [[ "$value" == *'"'* ]]; then
+    error "The $name variable cannot contain double quotes$suffix!"
+    return 1
   fi
 
   return 0
+}
+
+validateLegacyUsername() {
+
+  local value="$1"
+  local desc="${2:-}"
+  local suffix=""
+
+  [ -n "$desc" ] && suffix=" for $desc"
+
+  if [ -z "$value" ]; then
+    error "The USERNAME variable cannot be empty$suffix!"
+    return 1
+  fi
+
+  if [ "${#value}" -gt 20 ]; then
+    error "The USERNAME variable cannot contain more than 20 characters$suffix!"
+    return 1
+  fi
+
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    error "The USERNAME variable cannot contain control characters$suffix!"
+    return 1
+  fi
+
+  case "$value" in
+    *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* )
+      error "The USERNAME variable contains unsupported characters$suffix!"
+      return 1 ;;
+  esac
+
+  if [[ "$value" == *"." ]]; then
+    error "The USERNAME variable cannot end with a period$suffix!"
+    return 1
+  fi
+
+  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
+    error "The USERNAME variable cannot consist only of spaces or periods$suffix!"
+    return 1
+  fi
+
+  if [[ "${value^^}" == "GUEST" ]]; then
+    error "The USERNAME value \"$value\" is reserved for a built-in Windows account$suffix!"
+    return 1
+  fi
+
+  return 0
+}
+
+detectLegacy() {
+
+  local dir="$1"
+  local find
+
+  find=$(find "$dir" -maxdepth 1 -type d -iname WIN95 -print -quit)
+  [ -n "$find" ] && DETECTED="win95" && return 0
+
+  find=$(find "$dir" -maxdepth 1 -type d -iname WIN98 -print -quit)
+  [ -n "$find" ] && DETECTED="win98" && return 0
+
+  find=$(find "$dir" -maxdepth 1 -type d -iname WIN9X -print -quit)
+  [ -n "$find" ] && DETECTED="win9x" && return 0
+
+  find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_W.40 -print -quit)
+  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_S.40 -print -quit)
+  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_TS.40 -print -quit)
+  [ -n "$find" ] && DETECTED="winnt4" && return 0
+
+  find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_NT.5 -print -quit)
+
+  if [ -n "$find" ]; then
+
+    find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IA.5 -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_ID.5 -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IP.5 -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IS.5 -print -quit)
+    [ -n "$find" ] && DETECTED="win2k" && return 0
+
+  fi
+
+  find=$(find "$dir" -maxdepth 1 -iname WIN51 -print -quit)
+
+  if [ -n "$find" ]; then
+
+    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AP -print -quit)
+    [ -n "$find" ] && DETECTED="winxpx64" && return 0
+
+    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IC -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IP -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname setupxp.htm -print -quit)
+    [ -n "$find" ] && DETECTED="winxpx86" && return 0
+
+    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IS -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IA -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IB -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51ID -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IL -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AA -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AD -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AS -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51MA -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51MD -print -quit)
+    [ -n "$find" ] && DETECTED="win2003r2" && return 0
+
+  fi
+
+  return 1
 }
 
 legacyInstall() {
@@ -1185,66 +1223,6 @@ legacyPrepare() {
 
   rm -rf "$tmp" || return 1
   return 0
-}
-
-detectLegacy() {
-
-  local dir="$1"
-  local find
-
-  find=$(find "$dir" -maxdepth 1 -type d -iname WIN95 -print -quit)
-  [ -n "$find" ] && DETECTED="win95" && return 0
-
-  find=$(find "$dir" -maxdepth 1 -type d -iname WIN98 -print -quit)
-  [ -n "$find" ] && DETECTED="win98" && return 0
-
-  find=$(find "$dir" -maxdepth 1 -type d -iname WIN9X -print -quit)
-  [ -n "$find" ] && DETECTED="win9x" && return 0
-
-  find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_W.40 -print -quit)
-  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_S.40 -print -quit)
-  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_TS.40 -print -quit)
-  [ -n "$find" ] && DETECTED="winnt4" && return 0
-
-  find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_NT.5 -print -quit)
-
-  if [ -n "$find" ]; then
-
-    find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IA.5 -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_ID.5 -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IP.5 -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IS.5 -print -quit)
-    [ -n "$find" ] && DETECTED="win2k" && return 0
-
-  fi
-
-  find=$(find "$dir" -maxdepth 1 -iname WIN51 -print -quit)
-
-  if [ -n "$find" ]; then
-
-    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AP -print -quit)
-    [ -n "$find" ] && DETECTED="winxpx64" && return 0
-
-    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IC -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IP -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname setupxp.htm -print -quit)
-    [ -n "$find" ] && DETECTED="winxpx86" && return 0
-
-    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IS -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IA -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IB -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51ID -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IL -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AA -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AD -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AS -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51MA -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51MD -print -quit)
-    [ -n "$find" ] && DETECTED="win2003r2" && return 0
-
-  fi
-
-  return 1
 }
 
 return 0
