@@ -431,7 +431,7 @@ extractESD() {
   local version="$3"
   local desc="$4"
 
-  local msg ret index
+  local msg ret index size
   local minSize freeSpace bootPad
   local info count totals links
   local bootTotal bootLinks bootSize
@@ -448,8 +448,13 @@ extractESD() {
   msg="Extracting $desc bootdisk"
   info "$msg..." && html "$msg..."
 
-  if [ "$(stat -c%s "$iso")" -lt "$minSize" ]; then
-    error "Invalid ESD file: Size is smaller than 100 MB"
+  if ! size=$(stat -c%s -- "$iso"); then
+    error "Failed to determine size of ISO file \"$iso\" !"
+    return 1
+  fi
+
+  if (( size < minSize )); then
+    error "The downloaded ISO file is too small!"
     return 1
   fi
 
