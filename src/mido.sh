@@ -755,13 +755,12 @@ downloadFile() {
 
   local iso="$1"
   local url="$2"
-  local sum="$3"
-  local size="$4"
-  local desc="$6"
-  local connections="${7:-1}"
+  local size="$3"
+  local desc="$4"
+  local connections="${5:-1}"
   local msg="Downloading $desc"
-  local total total_gb domain dots
   local console_msg="$msg"
+  local domain dots
 
   domain=$(echo "$url" | awk -F/ '{print $3}')
   dots=$(echo "$domain" | tr -cd '.' | wc -c)
@@ -773,44 +772,13 @@ downloadFile() {
 
   info "$console_msg..."
 
-  if downloadToFile \
-      "$url" \
-      "$iso" \
-      "$msg" \
-      "${size:-0}" \
-      "$connections" \
-      "Y"; then
-    return 0
-  fi
-
-  local rc=$?
-  (( rc != 0 )) && return "$rc"
-
-  if ! total=$(stat -c%s -- "$iso"); then
-    error "Failed to determine downloaded file size: $iso"
-    return 1
-  fi
-
-  total_gb=$(formatBytes "$total") || return 1
-
-  if (( total < 100000000 )); then
-
-    error "Invalid download link: $url (is only $total_gb ?). Please report this at $SUPPORT/issues"
-
-    if ! rm -f -- "$iso" "$iso.aria2"; then
-      warn "failed to remove invalid download \"$iso\"!"
-    fi
-
-    return 1
-  fi
-
-  # Status 2 means the download completed but failed deterministic validation.
-  verifyFile "$iso" "$size" "$total" "$sum" || return 2
-
-  # Extract the .iso from the compressed archive if needed.
-  isCompressed "$url" && UNPACK="Y"
-
-  return 0
+  downloadToFile \
+    "$url" \
+    "$iso" \
+    "$msg" \
+    "${size:-0}" \
+    "$connections" \
+    "Y"
 }
 
 tryDownload() {
@@ -819,21 +787,41 @@ tryDownload() {
   local url="$2"
   local sum="$3"
   local size="$4"
-  local lang="$5"
   local desc="$6"
   local seconds="$7"
+  local total rc=0
 
-  downloadRetry \
-    "$iso" \
-    "${CONNECTIONS:-1}" \
-    "$seconds" \
-    "$desc" \
-    "$iso" \
-    "$url" \
-    "$sum" \
-    "$size" \
-    "$lang" \
-    "$desc"
+  if downloadRetry \
+      "$iso" \
+      "${CONNECTIONS:-1}" \
+      "$seconds" \
+      "$desc" \
+      "100000000" \
+      "$iso" \
+      "$url" \
+      "$size" \
+      "$desc"; then
+    rc=0
+  else
+    rc=$?
+  fi
+
+  (( rc == 0 )) || return "$rc"
+
+  # The shared helper already inspected the file, so this should
+  # only fail if the downloaded file was removed unexpectedly afterward.
+  if ! total=$(stat -c%s -- "$iso" 2>/dev/null); then
+    error "Failed to determine downloaded file size: $iso"
+    return 1
+  fi
+
+  # Status 2 means the completed download failed deterministic validation.
+  verifyFile "$iso" "$size" "$total" "$sum" || return 2
+
+  # Extract the .iso from the compressed archive if needed.
+  isCompressed "$url" && UNPACK="Y"
+
+  return 0
 }
 
 fallbackEnglish() {
