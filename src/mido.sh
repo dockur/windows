@@ -761,7 +761,7 @@ downloadFile() {
   local connections="${7:-1}"
   local msg="Downloading $desc"
   local total total_gb domain dots
-  local console_msg="$msg" rc=0
+  local console_msg="$msg"
 
   domain=$(echo "$url" | awk -F/ '{print $3}')
   dots=$(echo "$domain" | tr -cd '.' | wc -c)
@@ -783,7 +783,7 @@ downloadFile() {
     return 0
   fi
 
-  rc=$?
+  local rc=$?
   (( rc != 0 )) && return "$rc"
 
   if ! total=$(stat -c%s -- "$iso"); then
