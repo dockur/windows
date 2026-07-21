@@ -235,6 +235,69 @@ validateDomainName() {
   return 0
 }
 
+generateEvalXML() {
+
+  # Evaluation templates are generated from their normal counterpart so
+  # both variants remain identical except for evaluation-specific selectors.
+
+  local id="$1"
+  local source="/run/assets/${id::-5}.xml"
+  local target="/run/assets/$id.xml"
+  local tmp
+
+  [[ "${id,,}" == *"-eval" ]] || return 1
+  [ -s "$target" ] && return 0
+  [ -s "$source" ] || return 1
+
+  if ! tmp=$(mktemp -p /run/assets ".${id}.XXXXXX"); then
+    error "Failed to create a temporary evaluation answer file!"
+    return 1
+  fi
+
+  if ! sed \
+      -e '/<ProductKey>.*<\/ProductKey>/d' \
+      -e '/<ProductKey>/,/<\/ProductKey>/d' \
+      "$source" > "$tmp"; then
+    rm -f "$tmp"
+    error "Failed to generate evaluation answer file from $source!"
+    return 1
+  fi
+
+  case "${id,,}" in
+    *"-ltsc-eval" )
+      if ! grep -q '<InstallFrom>' "$tmp"; then
+        if ! sed -i \
+          '0,/<InstallTo>/{ /<InstallTo>/i\
+          <InstallFrom>\
+            <MetaData wcm:action="add">\
+              <Key>/IMAGE/INDEX</Key>\
+              <Value>1</Value>\
+            </MetaData>\
+          </InstallFrom>
+          }' "$tmp"; then
+          rm -f "$tmp"
+          error "Failed to select the LTSC evaluation image!"
+          return 1
+        fi
+      fi
+      ;;
+  esac
+
+  if ! xmllint --nonet --noout "$tmp"; then
+    rm -f "$tmp"
+    error "Generated evaluation answer file is invalid!"
+    return 1
+  fi
+
+  if ! chmod 755 "$tmp" || ! mv -f "$tmp" "$target"; then
+    rm -f "$tmp"
+    error "Failed to create evaluation answer file: $target"
+    return 1
+  fi
+
+  return 0
+}
+
 setXML() {
 
   local file="/custom.xml"
@@ -248,6 +311,12 @@ setXML() {
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="$STORAGE/custom.xml"
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/custom.xml"
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="$1"
+
+  if { [ ! -f "$file" ] || [ ! -s "$file" ]; } &&
+    [[ "${DETECTED,,}" == *"-eval" ]]; then
+    generateEvalXML "$DETECTED" || return 1
+  fi
+
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/$DETECTED.xml"
   [ ! -f "$file" ] || [ ! -s "$file" ] && return 1
 
