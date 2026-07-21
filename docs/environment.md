@@ -80,8 +80,8 @@ An empty default means the variable is unset and its value is determined automat
 | `DISPLAY` | `web` | Display backend, such as `web`, `vnc`, `disabled`, or `none`. |
 | `LOSSY` | `N` | Enables lossy VNC compression to reduce bandwidth usage. |
 | `VGA` | `virtio` | QEMU video adapter model. |
-| `WIDTH` | `1920` | Display width configured in Windows. |
-| `HEIGHT` | `1080` | Display height configured in Windows. |
+| `WIDTH` | `1280` | Display width configured in Windows. |
+| `HEIGHT` | `720` | Display height configured in Windows. |
 | `GPU` | `N` | Enables experimental Intel iGPU acceleration. |
 | `RENDERNODE` | `/dev/dri/renderD128` | Render node used for GPU acceleration. |
 
