@@ -380,8 +380,7 @@ parseLanguage() {
     "danish" | "dk" | "danske" ) LANGUAGE="da" ;;
     "dutch" | "nederlands" ) LANGUAGE="nl" ;;
     "english" ) LANGUAGE="en" ;;
-    "gb" | "british" ) LANGUAGE="en-gb" ;;
-    "estonian" | "eesti" ) LANGUAGE="et" ;;
+    "british" | "gb" ) LANGUAGE="en-gb" ;;    "estonian" | "eesti" ) LANGUAGE="et" ;;
     "finnish" | "suomi" ) LANGUAGE="fi" ;;
     "french" | "français" | "francais" ) LANGUAGE="fr" ;;
     "german" | "deutsch" ) LANGUAGE="de" ;;
