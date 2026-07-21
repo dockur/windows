@@ -61,6 +61,57 @@ backup () {
   return 0
 }
 
+findFile() {
+
+  local dir file base
+  local fname="$1"
+  local boot="$STORAGE/windows.boot"
+
+  dir=$(find / -maxdepth 1 -type d -iname "$fname" -print -quit)
+  [ ! -d "$dir" ] && dir=$(find "$STORAGE" -maxdepth 1 -type d -iname "$fname" -print -quit)
+
+  if [ -d "$dir" ]; then
+    if ! hasData || [ ! -f "$boot" ]; then
+      error "The bind $dir maps to a file that does not exist!" && return 1
+    fi
+  fi
+
+  file=$(find / -maxdepth 1 -type f -iname "$fname" -print -quit)
+  [ ! -s "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$fname" -print -quit)
+
+  if [ ! -s "$file" ] && [[ "${VERSION,,}" != "http"* ]]; then
+    base=$(basename "$VERSION")
+    file="$STORAGE/$base"
+  fi
+
+  if [ ! -f "$file" ] || [ ! -s "$file" ]; then
+    return 0
+  fi
+
+  local size
+  size="$(stat -c%s "$file")"
+  [ -z "$size" ] || [[ "$size" == "0" ]] && return 0
+
+  ISO="$file"
+  CUSTOM="$file"
+  BOOT="$STORAGE/windows.$size.iso"
+
+  return 0
+}
+
+detectCustom() {
+
+  CUSTOM=""
+
+  ! findFile "custom.iso" && return 1
+  [ -n "$CUSTOM" ] && return 0
+
+  ! findFile "boot.iso" && return 1
+  [ -n "$CUSTOM" ] && return 0
+
+  return 0
+}
+
 skipInstall() {
 
   local iso="$1"
@@ -193,24 +244,6 @@ startInstall() {
   return 0
 }
 
-checkFreeSpace() {
-
-  local dir="$1"
-  local size="$2"
-  local size_gb space space_gb
-
-  size_gb=$(formatBytes "$size")
-  space=$(df --output=avail -B 1 "$dir" | tail -n 1)
-  space_gb=$(formatBytes "$space")
-
-  if (( size > space )); then
-    error "Not enough free space in $STORAGE, have $space_gb available but need at least $size_gb."
-    return 1
-  fi
-
-  return 0
-}
-
 finishInstall() {
 
   local iso="$1"
@@ -330,53 +363,20 @@ abortInstall() {
   return 1
 }
 
-findFile() {
+checkFreeSpace() {
 
-  local dir file base
-  local fname="$1"
-  local boot="$STORAGE/windows.boot"
+  local dir="$1"
+  local size="$2"
+  local size_gb space space_gb
 
-  dir=$(find / -maxdepth 1 -type d -iname "$fname" -print -quit)
-  [ ! -d "$dir" ] && dir=$(find "$STORAGE" -maxdepth 1 -type d -iname "$fname" -print -quit)
+  size_gb=$(formatBytes "$size")
+  space=$(df --output=avail -B 1 "$dir" | tail -n 1)
+  space_gb=$(formatBytes "$space")
 
-  if [ -d "$dir" ]; then
-    if ! hasData || [ ! -f "$boot" ]; then
-      error "The bind $dir maps to a file that does not exist!" && return 1
-    fi
+  if (( size > space )); then
+    error "Not enough free space in $STORAGE, have $space_gb available but need at least $size_gb."
+    return 1
   fi
-
-  file=$(find / -maxdepth 1 -type f -iname "$fname" -print -quit)
-  [ ! -s "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$fname" -print -quit)
-
-  if [ ! -s "$file" ] && [[ "${VERSION,,}" != "http"* ]]; then
-    base=$(basename "$VERSION")
-    file="$STORAGE/$base"
-  fi
-
-  if [ ! -f "$file" ] || [ ! -s "$file" ]; then
-    return 0
-  fi
-
-  local size
-  size="$(stat -c%s "$file")"
-  [ -z "$size" ] || [[ "$size" == "0" ]] && return 0
-
-  ISO="$file"
-  CUSTOM="$file"
-  BOOT="$STORAGE/windows.$size.iso"
-
-  return 0
-}
-
-detectCustom() {
-
-  CUSTOM=""
-
-  ! findFile "custom.iso" && return 1
-  [ -n "$CUSTOM" ] && return 0
-
-  ! findFile "boot.iso" && return 1
-  [ -n "$CUSTOM" ] && return 0
 
   return 0
 }
@@ -767,28 +767,16 @@ detectLanguage() {
   return 0
 }
 
-setXML() {
+skipVersion() {
 
-  local file="/custom.xml"
+  local id="$1"
 
-  CUSTOM_XML=""
-
-  if [ -d "$file" ]; then
-    error "The bind $file maps to a file that does not exist!" && exit 67
-  fi
-
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$STORAGE/custom.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/custom.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$1"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/$DETECTED.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && return 1
-
-  case "$file" in
-    "/custom.xml" | "$STORAGE/custom.xml" ) CUSTOM_XML="Y" ;;
+  case "${id,,}" in
+    "win9"* | "winxp"* | "win2k"* | "win2003"* )
+      return 0 ;;
   esac
 
-  XML="$file"
-  return 0
+  return 1
 }
 
 detectImage() {
@@ -885,6 +873,62 @@ detectImage() {
   return 0
 }
 
+setMachine() {
+
+  local id="$1"
+  local iso="$2"
+  local dir="$3"
+  local desc="$4"
+
+  case "${id,,}" in
+    "win9"* )
+      ETFS="[BOOT]/Boot-1.44M.img" ;;
+    "win2k"* )
+      if ! legacyInstall "$iso" "$dir" "$desc" "2k"; then
+        error "Failed to prepare $desc ISO!" && return 1
+      fi ;;
+    "winxp"* )
+      if ! legacyInstall "$iso" "$dir" "$desc" "xp"; then
+        error "Failed to prepare $desc ISO!" && return 1
+      fi ;;
+    "win2003"* )
+      if ! legacyInstall "$iso" "$dir" "$desc" "2k3"; then
+        error "Failed to prepare $desc ISO!" && return 1
+      fi ;;
+  esac
+
+  case "${id,,}" in
+    "win9"* )
+      USB="no"
+      VGA="cirrus"
+      DISK_TYPE="auto"
+      MACHINE="pc-i440fx-2.4"
+      BOOT_MODE="windows_legacy"
+      [ -z "${ADAPTER:-}" ] && ADAPTER="pcnet" ;;
+    "win2k"* )
+      VGA="cirrus"
+      MACHINE="pc"
+      USB="pci-ohci"
+      DISK_TYPE="auto"
+      BOOT_MODE="windows_legacy"
+      [ -z "${ADAPTER:-}" ] && ADAPTER="rtl8139" ;;
+    "winxp"* | "win2003"* )
+      DISK_TYPE="blk"
+      BOOT_MODE="windows_legacy"
+      [ -z "${SOUND:-}" ] && SOUND="usb-audio" ;;
+    "winvista"* | "win7"* | "win2008"* )
+      BOOT_MODE="windows_legacy" ;;
+  esac
+
+  case "${id,,}" in
+    "winxp"* | "win2003"* | "winvistax86"* | "win7x86"* | "win2008r2x86"* )
+      # Prevent bluescreen if 64 bit PCI hole size is >2G.
+      ARGS="-global q35-pcihost.x-pci-hole64-fix=false" ;;
+  esac
+
+  return 0
+}
+
 prepareImage() {
 
   local iso="$1"
@@ -907,465 +951,53 @@ prepareImage() {
     return 1
   fi
 
-  prepareLegacy "$iso" "$dir" "$desc" && return 0
+  legacyPrepare "$iso" "$dir" "$desc" && return 0
 
   error "Failed to extract boot image from ISO image!"
   return 1
 }
 
-escapeXMLSed() {
+addFolder() {
 
-  local s
+  local src="$1"
+  local folder="/oem" file=""
+  local dest="$src/\$OEM\$/\$1/OEM"
 
-  s=$(escapeXML "$1") || return 1
-  s=${s//\\/\\\\}
-  s=${s//&/\\&}
-  s=${s//|/\\|}
+  [ ! -d "$folder" ] && folder="/OEM"
+  [ ! -d "$folder" ] && folder="$STORAGE/oem"
+  [ ! -d "$folder" ] && folder="$STORAGE/OEM"
+  [ ! -d "$folder" ] && folder=""
 
-  printf '%s' "$s"
-  return 0
-}
+  [ -z "$folder" ] && [ -z "$COMMAND" ] && return 0
 
-validateUsername() {
+  local msg="Adding OEM files to image..."
+  info "$msg" && html "$msg"
 
-  local value="$1"
-  local type="$2"
-  local maximum
+  mkdir -p "$dest" || return 1
 
-  case "$type" in
-    "local" )
-      maximum=20
-      [ -z "$value" ] && return 0
-      ;;
-    "domain" )
-      maximum=256
+  if [ -n "$folder" ]; then
+    cp -Lr "$folder/." "$dest" || return 1
+  fi
 
-      if [ -z "$value" ]; then
-        error "The USERNAME variable does not contain a valid domain account name!"
-        return 1
-      fi ;;
-    * )
-      return 1 ;;
-  esac
+  file=$(find "$dest" -maxdepth 1 -type f -iname install.bat -print -quit) || return 1
 
-  if [ "${#value}" -gt "$maximum" ]; then
-    if [[ "$type" == "domain" ]]; then
-      error "The USERNAME variable cannot contain more than $maximum characters for a domain account!"
-    else
-      error "The USERNAME variable cannot contain more than $maximum characters!"
+  if [ -n "$COMMAND" ]; then
+
+    [ -z "$file" ] && file="$dest/install.bat"
+
+    if [ -s "$file" ]; then
+      printf '\n' >> "$file" || return 1
     fi
-    return 1
+
+    printf '%s\n' "$COMMAND" >> "$file" || return 1
+
   fi
 
-  if [[ "$value" =~ [[:cntrl:]] ]]; then
-    error "The USERNAME variable cannot contain control characters!"
-    return 1
-  fi
-
-  case "$value" in
-    *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* | *'%'* | *'@'* )
-      if [[ "$type" == "domain" ]]; then
-        error "The domain account name contains characters that are not supported by Windows unattended setup!"
-      else
-        error "The USERNAME variable contains characters that are not supported by Windows local accounts!"
-      fi
-      return 1 ;;
-  esac
-
-  if [[ "$value" == *"." ]]; then
-    error "The USERNAME variable cannot end with a period!"
-    return 1
-  fi
-
-  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
-    error "The USERNAME variable cannot consist only of spaces or periods!"
-    return 1
-  fi
-
-  case "${value^^}" in
-    "NONE" )
-      error "The USERNAME value \"NONE\" is reserved by Windows!"
-      return 1 ;;
-    "ADMINISTRATOR" | "GUEST" | "DEFAULTACCOUNT" | "WDAGUTILITYACCOUNT" | "WSIACCOUNT" )
-      if [[ "$type" == "local" ]]; then
-        error "The USERNAME value \"$value\" is reserved for a built-in Windows account!"
-        return 1
-      fi ;;
-  esac
-
-  return 0
-}
-
-updateDomain() {
-
-  local asset="$1"
-  local domain account auth pass pw
-  local cred_domain ou arch tmp result
-
-  domain=$(escapeXML "$2") || return 1
-  account=$(escapeXML "$3") || return 1
-  auth=$(escapeXML "$4") || return 1
-  pass=$(escapeXML "$5") || return 1
-  pw="$6"
-  ou=$(escapeXML "$7") || return 1
-
-  arch=$(sed -n -E \
-    '0,/processorArchitecture="/s/.*processorArchitecture="([^"]+)".*/\1/p' \
-    "$asset") || return 1
-
-  [ -z "$arch" ] && return 1
-
-  cred_domain="$domain"
-
-  case "$4" in
-    *@* ) cred_domain="" ;;
-  esac
-
-  grep -Eq 'Microsoft-Windows-UnattendedJoin|<DomainAccounts([[:space:]/>])' "$asset" && return 1
-
-  tmp=$(mktemp -d) || return 1
-  result="$tmp/answer.xml"
-
-  if ! DOMAIN_XML="$domain" ACCOUNT_XML="$account" \
-    AUTH_XML="$auth" PASS_XML="$pass" \
-    CRED_DOMAIN="$cred_domain" PW="$pw" OU_XML="$ou" \
-    ARCH_XML="$arch" \
-    awk '
-      /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
-      /<settings[^>]*pass="oobeSystem"[^>]*>/ { section = "oobeSystem" }
-      section == "oobeSystem" && /<UserAccounts([[:space:]>])/ { in_accounts = 1 }
-      section == "oobeSystem" && /<AutoLogon([[:space:]>])/ { in_autologon = 1 }
-
-      section == "oobeSystem" && in_accounts && !accounts_added &&
-        /<AdministratorPassword([[:space:]>])/ {
-        print "        <DomainAccounts>\n" \
-              "          <DomainAccountList wcm:action=\"add\">\n" \
-              "            <DomainAccount wcm:action=\"add\">\n" \
-              "              <Name>" ENVIRON["ACCOUNT_XML"] "</Name>\n" \
-              "              <Group>Administrators</Group>\n" \
-              "            </DomainAccount>\n" \
-              "            <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>\n" \
-              "          </DomainAccountList>\n" \
-              "        </DomainAccounts>"
-        accounts_added = 1
-      }
-
-      section == "oobeSystem" && in_autologon &&
-        /^[[:space:]]*<Username>.*<\/Username>[[:space:]]*$/ {
-        print "        <Username>" ENVIRON["ACCOUNT_XML"] "</Username>\n" \
-              "        <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>"
-        autologon_added = 1
-        next
-      }
-
-      section == "oobeSystem" && in_autologon &&
-        /^[[:space:]]*<Domain([[:space:]/>])/ { next }
-
-      section == "oobeSystem" && in_autologon &&
-        /^[[:space:]]*<Value>.*<\/Value>[[:space:]]*$/ {
-        print "          <Value>" ENVIRON["PW"] "</Value>"
-        password_added = 1
-        next
-      }
-
-      section == "specialize" && !join_added &&
-        /^[[:space:]]*<\/settings>[[:space:]]*$/ {
-        print "    <component name=\"Microsoft-Windows-UnattendedJoin\" processorArchitecture=\"" ENVIRON["ARCH_XML"] "\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">\n" \
-              "      <Identification>\n" \
-              "        <Credentials>"
-
-        if (ENVIRON["CRED_DOMAIN"] != "") {
-          print "          <Domain>" ENVIRON["CRED_DOMAIN"] "</Domain>"
-        }
-
-        print "          <Username>" ENVIRON["AUTH_XML"] "</Username>\n" \
-              "          <Password>" ENVIRON["PASS_XML"] "</Password>\n" \
-              "        </Credentials>\n" \
-              "        <JoinDomain>" ENVIRON["DOMAIN_XML"] "</JoinDomain>"
-
-        if (ENVIRON["OU_XML"] != "") {
-          print "        <MachineObjectOU>" ENVIRON["OU_XML"] "</MachineObjectOU>"
-        }
-
-        print "      </Identification>\n" \
-              "    </component>"
-
-        join_added = 1
-      }
-
-      { print }
-
-      section == "oobeSystem" && /<\/AutoLogon>/ { in_autologon = 0 }
-      section == "oobeSystem" && /<\/UserAccounts>/ { in_accounts = 0 }
-      /^[[:space:]]*<\/settings>[[:space:]]*$/ { section = "" }
-
-      END { exit !(join_added && accounts_added && autologon_added && password_added) }
-    ' "$asset" > "$result" ||
-    ! mv -f "$result" "$asset"; then
-
-    rm -rf "$tmp" || true
-    return 1
-  fi
-
-  rm -rf "$tmp" || return 1
-  return 0
-}
-
-validateDomainName() {
-
-  local value="$1"
-  local name="${2:-DOMAIN}"
-
-  if [ -z "$value" ]; then
-    error "The $name variable must contain a valid domain name!"
-    return 1
-  fi
-
-  if [[ "$value" == *"://"* ]]; then
-    error "The $name variable must contain a domain name, not a URL!"
-    return 1
-  fi
-
-  if [ "${#value}" -gt 255 ] ||
-    [[ "$value" =~ [[:cntrl:]] ]] ||
-    [[ "$value" =~ [[:space:]] ]] ||
-    [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$ ]]; then
-
-    error "The $name variable does not contain a valid domain name!"
-    return 1
-  fi
-
-  return 0
-}
-
-updateWorkgroup() {
-
-  local asset="$1"
-  local workgroup arch tmp result
-
-  workgroup=$(escapeXML "$2") || return 1
-  arch=$(sed -n -E '0,/processorArchitecture="/s/.*processorArchitecture="([^"]+)".*/\1/p' "$asset") || return 1
-  [ -z "$arch" ] && return 1
-
-  grep -q 'Microsoft-Windows-UnattendedJoin' "$asset" && return 1
-
-  tmp=$(mktemp -d) || return 1
-  result="$tmp/answer.xml"
-
-  if ! WORKGROUP_XML="$workgroup" ARCH_XML="$arch" awk '
-      /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
-
-      section == "specialize" && !workgroup_added &&
-        /^[[:space:]]*<\/settings>[[:space:]]*$/ {
-        print "    <component name=\"Microsoft-Windows-UnattendedJoin\" processorArchitecture=\"" ENVIRON["ARCH_XML"] "\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">\n" \
-              "      <Identification>\n" \
-              "        <JoinWorkgroup>" ENVIRON["WORKGROUP_XML"] "</JoinWorkgroup>\n" \
-              "      </Identification>\n" \
-              "    </component>"
-        workgroup_added = 1
-      }
-
-      { print }
-
-      /^[[:space:]]*<\/settings>[[:space:]]*$/ { section = "" }
-      END { exit !workgroup_added }
-    ' "$asset" > "$result" ||
-    ! mv -f "$result" "$asset"; then
-
-    rm -rf "$tmp" || true
-    return 1
-  fi
-
-  rm -rf "$tmp" || return 1
-  return 0
-}
-
-updateXML() {
-
-  local asset="$1"
-  local language="$2"
-  local app value culture region keyboard edition
-  local user user_xml auth_user admin pass pw
-  local domain qualifier host workgroup key
-
-  [ -z "$WIDTH" ] && WIDTH="1280"
-  [ -z "$HEIGHT" ] && HEIGHT="720"
-
-  validateResolution "WIDTH" "$WIDTH" 320 || return 1
-  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
-  validateMembership || return 1
-  validateComputerName "$HOST" || return 1
-  validateProductKey "$KEY" || return 1
-  validatePassword "$PASSWORD" || return 1
-
-  app=$(escapeXMLSed "$APP for $ENGINE") || return 1
-
-  sed -i "s|>Windows for Docker<|>$app<|g" "$asset" || return 1
-  sed -i -E "s|<VerticalResolution>[^<]*</VerticalResolution>|<VerticalResolution>$HEIGHT</VerticalResolution>|g" "$asset" || return 1
-  sed -i -E "s|<HorizontalResolution>[^<]*</HorizontalResolution>|<HorizontalResolution>$WIDTH</HorizontalResolution>|g" "$asset" || return 1
-
-  culture=$(getLanguage "$language" "culture") || return 1
-
-  if [ -n "$culture" ] && [[ "${culture,,}" != "en-us" ]]; then
-    value=$(escapeXMLSed "$culture") || return 1
-    sed -i "s|<UILanguage>en-US</UILanguage>|<UILanguage>$value</UILanguage>|g" "$asset" || return 1
-  fi
-
-  region="$REGION"
-  [ -z "$region" ] && region="$culture"
-
-  if [ -n "$region" ] && [[ "${region,,}" != "en-us" ]]; then
-    value=$(escapeXMLSed "$region") || return 1
-    sed -i "s|<UserLocale>en-US</UserLocale>|<UserLocale>$value</UserLocale>|g" "$asset" || return 1
-    sed -i "s|<SystemLocale>en-US</SystemLocale>|<SystemLocale>$value</SystemLocale>|g" "$asset" || return 1
-  fi
-
-  keyboard="$KEYBOARD"
-  [ -z "$keyboard" ] && keyboard="$culture"
-
-  if [ -n "$keyboard" ] && [[ "${keyboard,,}" != "en-us" ]]; then
-    value=$(escapeXMLSed "$keyboard") || return 1
-    sed -i "s|<InputLocale>en-US</InputLocale>|<InputLocale>$value</InputLocale>|g" "$asset" || return 1
-    sed -i "s|<InputLocale>0409:00000409</InputLocale>|<InputLocale>$value</InputLocale>|g" "$asset" || return 1
-  fi
-
-  if [ -n "$HOST" ]; then
-    host=$(escapeXMLSed "$HOST") || return 1
-    sed -i -E "s|<ComputerName>[^<]*</ComputerName>|<ComputerName>$host</ComputerName>|g" "$asset" || return 1
-  fi
-
-  domain="$DOMAIN"
-  workgroup="$WORKGROUP"
-
-  if [ -n "$domain" ]; then
-
-    if [ -z "$USERNAME" ]; then
-      error "The USERNAME variable must be specified when joining a domain!"
+  if [ -f "$file" ]; then
+    if ! unix2dos -q "$file"; then
+      error "Failed to convert $file to DOS format!"
       return 1
     fi
-
-    if [ -z "$PASSWORD" ]; then
-      error "The PASSWORD variable must be specified when joining a domain!"
-      return 1
-    fi
-
-    validateDomainName "$domain" || return 1
-
-    auth_user="$USERNAME"
-    qualifier=""
-
-    if [[ "$auth_user" == *\\* ]]; then
-      error "The USERNAME variable must use either \"user\" or \"user@domain\" format!"
-      return 1
-    fi
-
-    case "$auth_user" in
-      *@* )
-        user="${auth_user%%@*}"
-        qualifier="${auth_user#*@}"
-
-        if [ -z "$user" ] || [ -z "$qualifier" ] || [[ "$qualifier" == *@* ]]; then
-          error "The USERNAME variable does not contain a valid domain account name!"
-          return 1
-        fi
-
-        validateDomainName "$qualifier" "USERNAME" || return 1
-
-        if [[ "${qualifier,,}" != "${domain,,}" ]]; then
-          error "The domain in the USERNAME variable must match the DOMAIN variable!"
-          return 1
-        fi
-        ;;
-      * )
-        user="$auth_user"
-        ;;
-    esac
-
-    validateUsername "$user" "domain" || return 1
-
-    if [[ "${user,,}" == "docker" ]]; then
-      error "The USERNAME variable must be changed from its default value when joining a domain!"
-      return 1
-    fi
-
-    if [[ "$PASSWORD" == "admin" ]]; then
-      error "The PASSWORD variable must be changed from its default value when joining a domain!"
-      return 1
-    fi
-
-  else
-
-    user="$USERNAME"
-    validateUsername "$user" "local" || return 1
-
-    if [ -n "$user" ]; then
-      user_xml=$(escapeXMLSed "$user") || return 1
-
-      sed -i "s|-name \"Docker\"|-name \"\$env:USERNAME\"|g" "$asset" || return 1
-      sed -i 's|where name="Docker"|where name="%USERNAME%"|g' "$asset" || return 1
-      sed -i "s|<Name>Docker</Name>|<Name>$user_xml</Name>|g" "$asset" || return 1
-      sed -i "s|<FullName>Docker</FullName>|<FullName>$user_xml</FullName>|g" "$asset" || return 1
-      sed -i "s|<Username>Docker</Username>|<Username>$user_xml</Username>|g" "$asset" || return 1
-    fi
-
-  fi
-
-  if [ -n "$domain" ]; then
-    pass="admin"
-  else
-    [ -n "$PASSWORD" ] && pass="$PASSWORD" || pass="admin"
-  fi
-
-  pw=$(printf '%s' "${pass}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
-  admin=$(printf '%s' "${pass}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
-
-  sed -i -z -E "s#(<Password>[[:space:]]*<Value)([[:space:]]*/>|>[^<]*</Value>)#\1>$pw</Value>#g" "$asset" || return 1
-  sed -i -z -E "s#(<AdministratorPassword>[[:space:]]*<Value)([[:space:]]*/>|>[^<]*</Value>)#\1>$admin</Value>#g" "$asset" || return 1
-  sed -i -E "s|<PlainText>[^<]*</PlainText>|<PlainText>false</PlainText>|g" "$asset" || return 1
-
-  if [ -n "$domain" ]; then
-
-    pw=$(printf '%s' "${PASSWORD}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
-
-    if ! updateDomain "$asset" "$domain" "$user" \
-      "$auth_user" "$PASSWORD" "$pw" "$DOMAIN_OU"; then
-      error "Failed to add domain configuration to answer file!"
-      return 1
-    fi
-
-  elif [ -n "$workgroup" ]; then
-
-    if ! updateWorkgroup "$asset" "$workgroup"; then
-      error "Failed to add workgroup configuration to answer file!"
-      return 1
-    fi
-
-  fi
-
-  if disabled "$AUTOLOGIN"; then
-    sed -i -E '/^[[:space:]]*<AutoLogon([[:space:]>])/,/^[[:space:]]*<\/AutoLogon>[[:space:]]*$/d' "$asset" || return 1
-  fi
-
-  if [ -n "$EDITION" ]; then
-    case "${EDITION,,}" in
-      "core" ) edition="STANDARDCORE" ;;
-      * ) edition="${EDITION^^}" ;;
-    esac
-
-    edition=$(escapeXMLSed "$edition") || return 1
-    sed -i "s|SERVERSTANDARD</Value>|SERVER$edition</Value>|g" "$asset" || return 1
-  fi
-
-  if [ -n "$KEY" ]; then
-    key=$(escapeXMLSed "$KEY") || return 1
-    sed -i -E '/^[[:space:]]*<ProductKey>[[:space:]]*$/,/^[[:space:]]*<\/ProductKey>[[:space:]]*$/d' "$asset" || return 1
-    sed -i -E "s|<ProductKey>[^<]*</ProductKey>|<ProductKey>$key</ProductKey>|g" "$asset" || return 1
-    sed -i "s|</UserData>|  <ProductKey>\n          <Key>$key</Key>\n          <WillShowUI>OnError</WillShowUI>\n        </ProductKey>\n      </UserData>|g" "$asset" || return 1
-  fi
-
-  if ! xmllint --nonet --noout "$asset"; then
-    error "The generated answer file is not valid XML!"
-    return 1
   fi
 
   return 0
