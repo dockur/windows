@@ -804,22 +804,6 @@ downloadFile() {
   return 0
 }
 
-delay() {
-
-  local i
-  local delay="$1"
-  local msg="Will retry in X seconds..."
-
-  info "${msg/X/$delay}"
-
-  for i in $(seq "$delay" -1 1); do
-    html "${msg/X/$i}"
-    sleep 1
-  done
-
-  return 0
-}
-
 tryDownload() {
 
   local iso="$1"
