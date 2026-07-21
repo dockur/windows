@@ -720,17 +720,6 @@ getVersion() {
   return 0
 }
 
-switchEdition() {
-
-  local id="$1"
-
-  if [[ "${id,,}" == *"-eval" ]]; then
-    [ -z "$DETECTED" ] && DETECTED="${id::-5}"
-  fi
-
-  return 0
-}
-
 getMido() {
 
   local id="$1"
