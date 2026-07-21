@@ -455,6 +455,29 @@ printVersion() {
   return 0
 }
 
+printVariant() {
+
+  local id="$1"
+  local desc="$2"
+
+  desc=$(printVersion "$id" "$desc") || return 1
+
+  case "${id,,}" in
+    *"-iot" | *"-iot-eval" )
+      desc+=" IoT"
+      ;;
+    *"-ltsc" | *"-ltsc-eval" )
+      desc+=" LTSC"
+      ;;
+    *"-enterprise" | *"-enterprise-eval" )
+      desc+=" Enterprise"
+      ;;
+  esac
+
+  echo "$desc"
+  return 0
+}
+
 printEdition() {
 
   local id="$1"
