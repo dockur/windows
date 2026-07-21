@@ -568,7 +568,7 @@ extractImage() {
   if [ -z "$CUSTOM" ]; then
     desc="downloaded ISO"
     if [[ "$version" != "http"* ]]; then
-      desc=$(printVersion "$version" "$desc")
+      desc=$(printVariant "$version" "$desc")
     fi
   fi
 
@@ -949,7 +949,7 @@ prepareImage() {
   local dir="$2"
   local desc missing
 
-  desc=$(printVersion "$DETECTED" "$DETECTED")
+  desc=$(printVariant "$DETECTED" "$DETECTED")
 
   setMachine "$DETECTED" "$iso" "$dir" "$desc" || return 1
   skipVersion "$DETECTED" && return 0
@@ -1313,7 +1313,7 @@ buildImage() {
   local out="$TMP/${base%.*}.tmp"
   rm -f "$out"
 
-  desc=$(printVersion "$DETECTED" "ISO")
+  desc=$(printVariant "$DETECTED" "ISO")
 
   local msg="Building $desc image"
   info "$msg..." && html "$msg..."
