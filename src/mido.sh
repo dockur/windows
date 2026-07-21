@@ -788,7 +788,7 @@ downloadFile() {
     return 1
   fi
 
-  total_gb=$(formatBytes "$total") || return 2
+  total_gb=$(formatBytes "$total") || return 1
 
   if (( total < 100000000 )); then
     error "Invalid download link: $url (is only $total_gb ?). Please report this at $SUPPORT/issues"
