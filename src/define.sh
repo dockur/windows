@@ -18,6 +18,7 @@ set -Eeuo pipefail
 : "${LANGUAGE:=""}"
 : "${USERNAME:=""}"
 : "${PASSWORD:=""}"
+: "${SHORTCUT:=""}"
 : "${DOMAIN_OU:=""}"
 : "${WORKGROUP:=""}"
 : "${AUTOLOGIN:=""}"
@@ -36,7 +37,6 @@ LANGUAGE=$(strip "$LANGUAGE")
 USERNAME=$(strip "$USERNAME")
 DOMAIN_OU=$(strip "$DOMAIN_OU")
 WORKGROUP=$(strip "$WORKGROUP")
-AUTOLOGIN=$(strip "$AUTOLOGIN")
 
 MIRRORS=3
 
