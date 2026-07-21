@@ -84,17 +84,6 @@ curlRequest() {
   return 0
 }
 
-getAgent() {
-
-  local browser_version
-
-  # Approximate Firefox version, increasing every two weeks
-  browser_version="$((152 + ($(date +%s) - 1781568000) / 1209600))"
-  echo "Mozilla/5.0 (X11; Linux x86_64; rv:${browser_version}.0) Gecko/20100101 Firefox/${browser_version}.0"
-
-  return 0
-}
-
 downloadWindows() {
 
   local id="$1"
@@ -768,104 +757,51 @@ downloadFile() {
   local url="$2"
   local sum="$3"
   local size="$4"
-  local lang="$5"
   local desc="$6"
-  local reason=""
+  local console_msg="$msg"
+  local connections="${7:-1}"
   local msg="Downloading $desc"
-  local rc total total_gb log
-  local domain dots agent space folder
-  local progress=()
-  local output=""
-
-  agent=$(getAgent)
-
-  if [ -n "$size" ] && [[ "$size" != "0" ]]; then
-
-    folder=$(dirname -- "$iso")
-
-    if ! space=$(df --output=avail -B 1 "$folder" | tail -n 1); then
-      error "Failed to check free space in $folder!"
-      return 1
-    fi
-
-    total_gb=$(formatBytes "$space")
-    (( size > space )) && error "Not enough free space to download file, only $total_gb left!" && return 1
-  fi
-
-  # Use Wget's progress bar in a terminal and progress.sh in container logs.
-  if [ -t 1 ]; then
-    progress=( --show-progress --progress=bar:noscroll )
-  else
-    output="log"
-  fi
-
-  html "$msg..."
-  /run/progress.sh "$iso" "${size:-0}" "$msg ([P])..." "$output" &
+  local total total_gb domain dots
 
   domain=$(echo "$url" | awk -F/ '{print $3}')
   dots=$(echo "$domain" | tr -cd '.' | wc -c)
   (( dots > 1 )) && domain=$(expr "$domain" : '.*\.\(.*\..*\)')
 
   if [ -n "$domain" ] && [[ "${domain,,}" != *"microsoft.com" ]]; then
-    msg="Downloading $desc from $domain"
+    console_msg="Downloading $desc from $domain"
   fi
 
-  info "$msg..."
-  log=$(mktemp)
-  enabled "$DEBUG" && echo "Downloading: $url"
+  info "$console_msg..."
 
-  {
-    LC_ALL=C wget "$url" -O "$iso" --continue --no-verbose --timeout=30 \
-      --no-http-keep-alive --user-agent "$agent" \
-      "${progress[@]}" --output-file="$log"
-    rc=$?
-  } || :
-
-  fKill "progress.sh"
-
-  if (( rc != 0 )); then
-    reason=$(sed -n \
-      -e 's/^wget: //p' \
-      -e 's/^[0-9-]\{10\} [0-9:]\{8\} ERROR //p' \
-      "$log" | tail -n 1)
+  if ! downloadToFile \
+      "$url" \
+      "$iso" \
+      "$msg" \
+      "${size:-0}" \
+      "$connections" \
+      "Y"; then
+    return 1
   fi
 
-  rm -f "$log"
-
-  if (( rc == 0 )) && [ -f "$iso" ]; then
-
-    if ! total=$(stat -c%s "$iso"); then
-      error "Failed to determine downloaded file size: $iso"
-      return 1
-    fi
-
-    total_gb=$(formatBytes "$total")
-
-    if [ "$total" -lt 100000000 ]; then
-      error "Invalid download link: $url (is only $total_gb ?). Please report this at $SUPPORT/issues"
-      return 1
-    fi
-
-    # Status 2 means the download completed but failed validation.
-    verifyFile "$iso" "$size" "$total" "$sum" || return 2
-
-    # Extract the .iso from the compressed archive if needed.
-    isCompressed "$url" && UNPACK="Y"
-
-    return 0
+  if ! total=$(stat -c%s -- "$iso"); then
+    error "Failed to determine downloaded file size: $iso"
+    return 1
   fi
 
-  msg="Failed to download $url"
+  total_gb=$(formatBytes "$total") || return 1
 
-  if (( rc == 3 )); then
-    error "$msg because the file could not be written (disk full?)."
-  elif [ -n "$reason" ]; then
-    error "$msg: ${reason%.}."
-  else
-    error "$msg with exit status $rc."
+  if (( total < 100000000 )); then
+    error "Invalid download link: $url (is only $total_gb ?). Please report this at $SUPPORT/issues"
+    return 1
   fi
 
-  return 1
+  # Status 2 means the download completed but failed validation.
+  verifyFile "$iso" "$size" "$total" "$sum" || return 2
+
+  # Extract the .iso from the compressed archive if needed.
+  isCompressed "$url" && UNPACK="Y"
+
+  return 0
 }
 
 delay() {
@@ -893,11 +829,20 @@ tryDownload() {
   local lang="$5"
   local desc="$6"
   local seconds="$7"
+  local connections="${CONNECTIONS:-1}"
   local rc=0
 
-  rm -f "$iso"
+  # Always start without stale partial or aria control files.
+  rm -f -- "$iso" "$iso.aria2"
 
-  if downloadFile "$iso" "$url" "$sum" "$size" "$lang" "$desc"; then
+  if downloadFile \
+      "$iso" \
+      "$url" \
+      "$sum" \
+      "$size" \
+      "$lang" \
+      "$desc" \
+      "$connections"; then
     return 0
   else
     rc=$?
@@ -905,17 +850,34 @@ tryDownload() {
 
   # Do not download the same file again when its contents failed validation.
   if (( rc == 2 )); then
-    rm -f "$iso"
+    rm -f -- "$iso" "$iso.aria2"
     return 1
   fi
 
   delay "$seconds"
 
-  if downloadFile "$iso" "$url" "$sum" "$size" "$lang" "$desc"; then
+  # A multi-connection partial file can contain non-sequential 
+  # ranges and cannot safely be resumed by Wget.
+  if (( connections > 1 )); then
+    if ! rm -f -- "$iso" "$iso.aria2"; then
+      error "Failed to remove partial download \"$iso\"!"
+      return 1
+    fi
+  fi
+
+  # Retry using the original single-connection Wget behavior.
+  if downloadFile \
+      "$iso" \
+      "$url" \
+      "$sum" \
+      "$size" \
+      "$lang" \
+      "$desc" \
+      "1"; then
     return 0
   fi
 
-  rm -f "$iso"
+  rm -f -- "$iso" "$iso.aria2"
   return 1
 }
 
