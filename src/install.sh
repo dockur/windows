@@ -453,7 +453,10 @@ extractESD() {
     return 1
   fi
 
-  rm -rf "$dir"
+  if ! rm -rf -- "$dir"; then
+    error "Failed to remove directory \"$dir\" !"
+    return 1
+  fi
 
   if ! makeDir "$dir"; then
     error "Failed to create directory \"$dir\" !"
