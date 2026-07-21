@@ -415,6 +415,33 @@ downloadWindowsEval() {
   return 0
 }
 
+downloadWindowsLtsc() {
+
+  local id="$1"
+  local lang="$2"
+  local desc="$3"
+  local alternate=""
+
+  case "${id,,}" in
+    "win11${PLATFORM,,}-enterprise-iot-eval" )
+      alternate="win11${PLATFORM,,}-enterprise-ltsc-eval" ;;
+    "win11${PLATFORM,,}-enterprise-ltsc-eval" )
+      alternate="win11${PLATFORM,,}-enterprise-iot-eval" ;;
+    * ) error "Invalid VERSION specified, value \"$id\" is not recognized!"
+      return 1 ;;
+  esac
+
+  if downloadWindowsEval "$id" "$lang" "$desc" > /dev/null 2>&1; then
+    return 0
+  fi
+
+  info "Primary download source failed, trying the alternate LTSC source..."
+
+  downloadWindowsEval "$alternate" "$lang" "$desc" && return 0
+
+  return 1
+}
+
 getWindows() {
 
   local version="$1"
@@ -429,8 +456,7 @@ getWindows() {
   info "$msg" && html "$msg"
 
   case "${version,,}" in
-    "win2008r2" | "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* | \
-    "win11${PLATFORM,,}-enterprise-iot"* )
+    "win2008r2" | "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* )
       if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
         error "No download in the $language language available for $edition!"
         MIDO_URL="" && return 1
@@ -450,6 +476,10 @@ getWindows() {
   case "${version,,}" in
     "win11${PLATFORM,,}" )
       downloadWindows "$version" "$lang" "$edition" && return 0
+      ;;
+    "win11${PLATFORM,,}-enterprise-iot-eval" | \
+    "win11${PLATFORM,,}-enterprise-ltsc-eval" )
+      downloadWindowsLtsc "$version" "$lang" "$edition" && return 0
       ;;
     "win11${PLATFORM,,}-enterprise"* )
       downloadWindowsEval "$version" "$lang" "$edition" && return 0
