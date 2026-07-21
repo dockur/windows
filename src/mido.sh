@@ -46,7 +46,7 @@ curlRequest() {
   local log reason 
   local rc=0 response=""
 
-  if ! log=$(mktemp); then
+  if ! log=$(mktemp -p "$QEMU_DIR"); then
     error "Failed to create a temporary curl log."
     return 1
   fi
@@ -584,7 +584,10 @@ getESD() {
     return 1
   fi
 
-  log=$(mktemp)
+  if ! log=$(mktemp -p "$QEMU_DIR"); then
+    error "Failed to create a temporary wget log."
+    return 1
+  fi
 
   {
     LC_ALL=C wget "$catalog" -O "$dir/$file" --no-verbose --timeout=30 \
