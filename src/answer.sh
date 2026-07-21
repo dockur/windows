@@ -574,6 +574,18 @@ updateXML() {
       return 1
     fi
 
+    if ! sed -i -E '
+      /<SynchronousCommand([[:space:]>])/ {
+        :command
+        N
+        /<\/SynchronousCommand>/!b command
+        /<Description>Password Never Expires<\/Description>/d
+      }
+    ' "$asset"; then
+      error "Failed to remove local account commands from answer file!"
+      return 1
+    fi
+
   elif [ -n "$workgroup" ]; then
 
     if ! updateWorkgroup "$asset" "$workgroup"; then
