@@ -1057,14 +1057,14 @@ getLink3() {
       url="nano11_25h2/nano11%2025h2.iso"
       ;;
     "core11" )
-      size=3176654848
-      sum="29c055fcfb7b089abd9e007e7abe4bb82c70a03aac9d65e56a38b87ab32d04d2"
-      url="tiny11_25H2/tiny11core_25H2_Oct25.iso"
+      size=3304132608
+      sum="c0e0252b24144b8defb6c7ded2bc09f9297daf1fb8369b16c5b85382331eb47f"
+      url="tiny11_25H2/tiny11core_25H2_Nov25.iso"
       ;;
     "tiny11" )
-      size=5514559488
-      sum="92484f2b7f707e42383294402a9eabbadeaa5ede80ac633390ae7f3537e36275"
-      url="tiny11_25H2/tiny11_25H2_Oct25.iso"
+      size=5730246656
+      sum="7b24815845684add7250808b3b0027ba4e94cf52c62e9ef40d5b965dd304d6ca"
+      url="tiny11_25H2/tiny11_25H2_Nov25.iso"
       ;;
     "tiny10" )
       size=3839819776
