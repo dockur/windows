@@ -697,6 +697,8 @@ detectLegacy() {
   local dir="$1"
   local find
 
+  [[ "${PLATFORM,,}" != "x64" ]] && return 1
+
   find=$(find "$dir" -maxdepth 1 -type d -iname WIN95 -print -quit)
   [ -n "$find" ] && DETECTED="win95" && return 0
 
