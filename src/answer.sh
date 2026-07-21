@@ -714,7 +714,7 @@ addFolder() {
   return 0
 }
 
-prepareInstall() {
+legacyInstall() {
 
   local pid=""
   local file=""
@@ -1144,6 +1144,107 @@ prepareInstall() {
   } | unix2dos > "$dir/\$OEM\$/cmdlines.txt" || return 1
 
   return 0
+}
+
+legacyPrepare() {
+
+  local iso="$1"
+  local dir="$2"
+  local desc="$3"
+
+  local tmp="$TMP/boot-images"
+  local image="$tmp/eltorito_img1_bios.img"
+
+  ETFS="boot.img"
+
+  [ -s "$dir/$ETFS" ] && return 0
+  rm -f "$dir/$ETFS" || return 1
+  rm -rf "$tmp" || return 1
+
+  if ! LC_ALL=C xorriso \
+      -no_rc \
+      -osirrox on \
+      -indev "$iso" \
+      -extract_boot_images "$tmp" >/dev/null 2>&1; then
+    rm -rf "$tmp" || true
+    error "Failed to extract boot image from $desc ISO!"
+    return 1
+  fi
+
+  if [ ! -s "$image" ]; then
+    rm -rf "$tmp" || true
+    error "Failed to locate BIOS boot image in $desc ISO!"
+    return 1
+  fi
+
+  if ! mv -f "$image" "$dir/$ETFS"; then
+    rm -rf "$tmp" || true
+    error "Failed to save boot image from $desc ISO!"
+    return 1
+  fi
+
+  rm -rf "$tmp" || return 1
+  return 0
+}
+
+detectLegacy() {
+
+  local dir="$1"
+  local find
+
+  find=$(find "$dir" -maxdepth 1 -type d -iname WIN95 -print -quit)
+  [ -n "$find" ] && DETECTED="win95" && return 0
+
+  find=$(find "$dir" -maxdepth 1 -type d -iname WIN98 -print -quit)
+  [ -n "$find" ] && DETECTED="win98" && return 0
+
+  find=$(find "$dir" -maxdepth 1 -type d -iname WIN9X -print -quit)
+  [ -n "$find" ] && DETECTED="win9x" && return 0
+
+  find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_W.40 -print -quit)
+  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_S.40 -print -quit)
+  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_TS.40 -print -quit)
+  [ -n "$find" ] && DETECTED="winnt4" && return 0
+
+  find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_NT.5 -print -quit)
+
+  if [ -n "$find" ]; then
+
+    find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IA.5 -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_ID.5 -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IP.5 -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IS.5 -print -quit)
+    [ -n "$find" ] && DETECTED="win2k" && return 0
+
+  fi
+
+  find=$(find "$dir" -maxdepth 1 -iname WIN51 -print -quit)
+
+  if [ -n "$find" ]; then
+
+    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AP -print -quit)
+    [ -n "$find" ] && DETECTED="winxpx64" && return 0
+
+    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IC -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IP -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname setupxp.htm -print -quit)
+    [ -n "$find" ] && DETECTED="winxpx86" && return 0
+
+    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IS -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IA -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IB -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51ID -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IL -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AA -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AD -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AS -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51MA -print -quit)
+    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51MD -print -quit)
+    [ -n "$find" ] && DETECTED="win2003r2" && return 0
+
+  fi
+
+  return 1
 }
 
 return 0
