@@ -616,10 +616,14 @@ extractImage() {
   local msg="Extracting $desc image"
   info "$msg..." && html "$msg..."
 
-  rm -rf "$dir"
+  if ! rm -rf -- "$dir"; then
+    error "Failed to remove directory \"$dir\" !"
+    return 1
+  fi
 
   if ! makeDir "$dir"; then
-    error "Failed to create directory \"$dir\" !" && return 1
+    error "Failed to create directory \"$dir\" !"
+    return 1
   fi
 
   size=$(stat -c%s "$iso")
