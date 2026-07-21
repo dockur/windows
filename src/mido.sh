@@ -46,7 +46,7 @@ curlRequest() {
   local log reason 
   local rc=0 response=""
 
-  if ! log=$(mktemp); then
+  if ! log=$(mktemp -p "$QEMU_DIR"); then
     error "Failed to create a temporary curl log."
     return 1
   fi
