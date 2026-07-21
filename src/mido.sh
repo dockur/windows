@@ -919,6 +919,31 @@ tryDownload() {
   return 1
 }
 
+fallbackEnglish() {
+
+  local iso="$1"
+  local version="$2"
+  local lang="$3"
+  local desc="$4"
+  local culture msg
+
+  msg="No working download method was found for $desc, falling back to English..."
+  info "$msg" && html "$msg"
+
+  # Preserve the requested regional format and keyboard layout.
+  culture=$(getLanguage "$lang" "culture")
+  [ -z "$REGION" ] && REGION="$culture"
+  [ -z "$KEYBOARD" ] && KEYBOARD="$culture"
+
+  # Keep the original language-specific ISO filename so that restarts
+  # still locate the same image, but use English installation media.
+  LANGUAGE="en"
+
+  rm -f "$iso"
+
+  downloadImage "$iso" "$version" "$LANGUAGE"
+}
+
 downloadImage() {
 
   local iso="$1"
@@ -946,12 +971,17 @@ downloadImage() {
   desc=$(printVersion "$version" "")
 
   if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
+
     language=$(getLanguage "$lang" "desc")
+
     if ! validVersion "$version" "$lang"; then
       desc=$(printEdition "$version" "$desc")
-      error "The $language language version of $desc is not available, please switch to English."
+      desc+=" in $language"
+
+      fallbackEnglish "$iso" "$version" "$lang" "$desc" && return 0
       return 1
     fi
+
     desc+=" in $language"
   fi
 
@@ -1004,6 +1034,7 @@ downloadImage() {
     fi
 
     if [[ "$success" == "y" ]]; then
+
       ISO="${ISO%.*}.esd"
 
       if tryDownload "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$lang" "$desc" "$seconds"; then
@@ -1011,8 +1042,8 @@ downloadImage() {
       fi
 
       ISO="$iso"
-    fi
 
+    fi
   fi
 
   for ((i=1;i<=MIRRORS;i++)); do
@@ -1030,9 +1061,13 @@ downloadImage() {
       sum=$(getHash "$i" "$version" "$lang")
 
       tryDownload "$iso" "$url" "$sum" "$size" "$lang" "$desc" "$seconds" && return 0
-    fi
 
+    fi
   done
+
+  if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
+    fallbackEnglish "$iso" "$version" "$lang" "$desc" && return 0
+  fi
 
   return 1
 }
