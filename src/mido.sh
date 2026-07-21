@@ -819,7 +819,12 @@ tryDownload() {
   fi
 
   # Status 2 means the completed download failed deterministic validation.
-  verifyFile "$iso" "$size" "$total" "$sum" || return 2
+  if ! verifyFile "$iso" "$size" "$total" "$sum"; then
+    if ! rm -f -- "$iso" "$iso.aria2"; then
+      warn "failed to remove invalid download \"$iso\"!"
+    fi
+    return 2
+  fi
 
   # Extract the .iso from the compressed archive if needed.
   isCompressed "$url" && UNPACK="Y"
