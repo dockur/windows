@@ -476,28 +476,29 @@ downloadWindowsLtsc() {
   local desc="$3"
   local result="$4"
   local alternate=""
-  local detected
+  local candidate
 
   case "${id,,}" in
     "win11${PLATFORM,,}-enterprise-iot-eval" )
       alternate="win11${PLATFORM,,}-enterprise-ltsc-eval" ;;
     "win11${PLATFORM,,}-enterprise-ltsc-eval" )
       alternate="win11${PLATFORM,,}-enterprise-iot-eval" ;;
-    * ) error "Invalid VERSION specified, value \"$id\" is not recognized!"
+    * )
+      error "Invalid VERSION specified, value \"$id\" is not recognized!"
       return 1 ;;
   esac
 
   if downloadWindowsEval "$id" "$lang" "$desc" > /dev/null 2>&1; then
-    detected=$(getMidoDetected "$id" "$id" "$DETECTED")
-    printf -v "$result" '%s' "$detected"
+    candidate=$(getMidoDetected "$id" "$id" "$DETECTED")
+    printf -v "$result" '%s' "$candidate"
     return 0
   fi
 
   info "Primary download source failed, trying the alternate LTSC source..."
 
   if downloadWindowsEval "$alternate" "$lang" "$desc"; then
-    detected=$(getMidoDetected "$id" "$alternate" "$DETECTED")
-    printf -v "$result" '%s' "$detected"
+    candidate=$(getMidoDetected "$id" "$alternate" "$DETECTED")
+    printf -v "$result" '%s' "$candidate"
     return 0
   fi
 
@@ -511,7 +512,7 @@ getWindows() {
   local desc="$3"
   local result="$4"
 
-  local detected language edition
+  local candidate language edition
   language=$(getLanguage "$lang" "desc")
   edition=$(printEdition "$version" "$desc")
 
@@ -522,7 +523,8 @@ getWindows() {
     "win2008r2" | "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* )
       if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
         error "No download in the $language language available for $edition!"
-        MIDO_URL="" && return 1
+        MIDO_URL=""
+        return 1
       fi ;;
   esac
 
@@ -532,15 +534,16 @@ getWindows() {
     * )
       if [[ "${PLATFORM,,}" != "x64" ]]; then
         error "No download for the ${PLATFORM^^} platform available for $edition!"
-        MIDO_URL="" && return 1
+        MIDO_URL=""
+        return 1
       fi ;;
   esac
 
   case "${version,,}" in
     "win11${PLATFORM,,}" )
       if downloadWindows "$version" "$lang" "$edition"; then
-        detected=$(getMidoDetected "$version" "$version" "$DETECTED")
-        printf -v "$result" '%s' "$detected"
+        candidate=$(getMidoDetected "$version" "$version" "$DETECTED")
+        printf -v "$result" '%s' "$candidate"
         return 0
       fi
       ;;
@@ -550,28 +553,30 @@ getWindows() {
       ;;
     "win11${PLATFORM,,}-enterprise"* )
       if downloadWindowsEval "$version" "$lang" "$edition"; then
-        detected=$(getMidoDetected "$version" "$version" "$DETECTED")
-        printf -v "$result" '%s' "$detected"
+        candidate=$(getMidoDetected "$version" "$version" "$DETECTED")
+        printf -v "$result" '%s' "$candidate"
         return 0
       fi
       ;;
     "win2025-eval" | "win2022-eval" | "win2019-eval" | "win2019-hv" | "win2016-eval" | "win2012r2-eval" )
       if downloadWindowsEval "$version" "$lang" "$edition"; then
-        detected=$(getMidoDetected "$version" "$version" "$DETECTED")
-        printf -v "$result" '%s' "$detected"
+        candidate=$(getMidoDetected "$version" "$version" "$DETECTED")
+        printf -v "$result" '%s' "$candidate"
         return 0
       fi
       ;;
     "win2008r2" | "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* )
       ;;
-    * ) error "Invalid VERSION specified, value \"$version\" is not recognized!" ;;
+    * )
+      error "Invalid VERSION specified, value \"$version\" is not recognized!"
+      ;;
   esac
 
   MIDO_URL=$(getMido "$version" "$lang" "")
   [ -z "$MIDO_URL" ] && return 1
 
-  detected=$(getMidoDetected "$version" "$version" "$DETECTED")
-  printf -v "$result" '%s' "$detected"
+  candidate=$(getMidoDetected "$version" "$version" "$DETECTED")
+  printf -v "$result" '%s' "$candidate"
 
   return 0
 }
