@@ -690,7 +690,11 @@ getVersion() {
       ;;
     "win10"* | "win11"* )
        case "${name,,}" in
+          *" iot enterprise ltsc evaluation"* ) id="$id-iot-eval" ;;
+          *" iot enterprise evaluation"* ) id="$id-iot-eval" ;;
+          *" iot evaluation"* ) id="$id-iot-eval" ;;
           *" iot"* ) id="$id-iot" ;;
+          *" ltsc evaluation"* ) id="$id-ltsc-eval" ;;
           *" ltsc"* ) id="$id-ltsc" ;;
           *" home"* ) id="$id-home" ;;
           *" education"* ) id="$id-education" ;;
