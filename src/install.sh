@@ -11,7 +11,7 @@ backup () {
   local count=1
   local name="unknown"
   local root="$STORAGE/backups"
-  local file previous failed=""
+  local file previous find_pid failed=""
 
   previous=$(readState "base") || return 1
   [ -n "$previous" ] && name="${previous%.*}"
@@ -52,6 +52,13 @@ backup () {
       \( -iname 'data.*' -or -iname 'windows.*' -or -iname '*.rom' -or -iname '*.vars' \) \
       -not -iname '*.iso' -print0
   )
+
+  find_pid=$!
+
+  if ! wait "$find_pid"; then
+    error "Failed to enumerate files in \"$STORAGE\"."
+    failed="Y"
+  fi
 
   [ -z "$(ls -A "$dir")" ] && rm -rf "$dir"
   [ -z "$(ls -A "$root")" ] && rm -rf "$root"
