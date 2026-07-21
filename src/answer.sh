@@ -440,6 +440,11 @@ updateXML() {
   sed -i -E "s|<VerticalResolution>[^<]*</VerticalResolution>|<VerticalResolution>$HEIGHT</VerticalResolution>|g" "$asset" || return 1
   sed -i -E "s|<HorizontalResolution>[^<]*</HorizontalResolution>|<HorizontalResolution>$WIDTH</HorizontalResolution>|g" "$asset" || return 1
 
+  if [ -n "$HOST" ]; then
+    host=$(escapeXMLSed "$HOST") || return 1
+    sed -i -E "s|<ComputerName>[^<]*</ComputerName>|<ComputerName>$host</ComputerName>|g" "$asset" || return 1
+  fi
+
   culture=$(getLanguage "$language" "culture") || return 1
 
   if [ -n "$culture" ] && [[ "${culture,,}" != "en-us" ]]; then
@@ -463,11 +468,6 @@ updateXML() {
     value=$(escapeXMLSed "$keyboard") || return 1
     sed -i "s|<InputLocale>en-US</InputLocale>|<InputLocale>$value</InputLocale>|g" "$asset" || return 1
     sed -i "s|<InputLocale>0409:00000409</InputLocale>|<InputLocale>$value</InputLocale>|g" "$asset" || return 1
-  fi
-
-  if [ -n "$HOST" ]; then
-    host=$(escapeXMLSed "$HOST") || return 1
-    sed -i -E "s|<ComputerName>[^<]*</ComputerName>|<ComputerName>$host</ComputerName>|g" "$asset" || return 1
   fi
 
   domain="$DOMAIN"
@@ -544,19 +544,16 @@ updateXML() {
       sed -i "s|<Username>Docker</Username>|<Username>$user_xml</Username>|g" "$asset" || return 1
     fi
 
-  fi
-
-  if [ -n "$domain" ]; then
-    pass="admin"
-  else
     [ -n "$PASSWORD" ] && pass="$PASSWORD" || pass="admin"
+
+    pw=$(printf '%s' "${pass}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
+    admin=$(printf '%s' "${pass}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
+
+    sed -i -z -E "s#(<Password>[[:space:]]*<Value)([[:space:]]*/>|>[^<]*</Value>)#\1>$pw</Value>#g" "$asset" || return 1
+    sed -i -z -E "s#(<AdministratorPassword>[[:space:]]*<Value)([[:space:]]*/>|>[^<]*</Value>)#\1>$admin</Value>#g" "$asset" || return 1
+
   fi
 
-  pw=$(printf '%s' "${pass}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
-  admin=$(printf '%s' "${pass}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
-
-  sed -i -z -E "s#(<Password>[[:space:]]*<Value)([[:space:]]*/>|>[^<]*</Value>)#\1>$pw</Value>#g" "$asset" || return 1
-  sed -i -z -E "s#(<AdministratorPassword>[[:space:]]*<Value)([[:space:]]*/>|>[^<]*</Value>)#\1>$admin</Value>#g" "$asset" || return 1
   sed -i -E "s|<PlainText>[^<]*</PlainText>|<PlainText>false</PlainText>|g" "$asset" || return 1
 
   if [ -n "$domain" ]; then
@@ -566,6 +563,14 @@ updateXML() {
     if ! updateDomain "$asset" "$domain" "$user" \
       "$auth_user" "$PASSWORD" "$pw" "$DOMAIN_OU"; then
       error "Failed to add domain configuration to answer file!"
+      return 1
+    fi
+
+    if ! sed -i -E \
+      -e '/^[[:space:]]*<LocalAccounts([[:space:]>])/,/^[[:space:]]*<\/LocalAccounts>[[:space:]]*$/d' \
+      -e '/^[[:space:]]*<AdministratorPassword([[:space:]>])/,/^[[:space:]]*<\/AdministratorPassword>[[:space:]]*$/d' \
+      "$asset"; then
+      error "Failed to remove local account configuration from answer file!"
       return 1
     fi
 
