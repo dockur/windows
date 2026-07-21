@@ -54,7 +54,7 @@ parseVersion() {
       ;;
     "11l" | "11ltsc" | "ltsc11" | "win11l" | "win11-ltsc" | "win11x64-ltsc" )
       VERSION="win11x64-enterprise-ltsc-eval"
-      [ -z "$DETECTED" ] && DETECTED="win11x64-ltsc"
+      [ -z "$DETECTED" ] && DETECTED="win11x64-ltsc-eval"
       ;;
     "11i" | "11iot" | "iot11" | "win11i" | "win11-iot" | "win11x64-iot" )
       VERSION="win11x64-enterprise-iot-eval"
