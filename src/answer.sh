@@ -604,6 +604,21 @@ updateXML() {
     sed -i "s|</UserData>|  <ProductKey>\n          <Key>$key</Key>\n          <WillShowUI>OnError</WillShowUI>\n        </ProductKey>\n      </UserData>|g" "$asset" || return 1
   fi
 
+  if disabled "$SHORTCUT" || disabled "$SAMBA"; then
+    if ! sed -i -E '
+      /<SynchronousCommand([[:space:]>])/ {
+        :command
+        N
+        /<\/SynchronousCommand>/!b command
+        /<Description>Create desktop shortcut to shared folder<\/Description>/d
+        /<Description>Map shared folder<\/Description>/d
+      }
+    ' "$asset"; then
+      error "Failed to remove shared folder shortcuts from answer file!"
+      return 1
+    fi
+  fi
+
   if ! xmllint --nonet --noout "$asset"; then
     error "The generated answer file is not valid XML!"
     return 1
