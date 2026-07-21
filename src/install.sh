@@ -61,6 +61,57 @@ backup () {
   return 0
 }
 
+findFile() {
+
+  local dir file base
+  local fname="$1"
+  local boot="$STORAGE/windows.boot"
+
+  dir=$(find / -maxdepth 1 -type d -iname "$fname" -print -quit)
+  [ ! -d "$dir" ] && dir=$(find "$STORAGE" -maxdepth 1 -type d -iname "$fname" -print -quit)
+
+  if [ -d "$dir" ]; then
+    if ! hasData || [ ! -f "$boot" ]; then
+      error "The bind $dir maps to a file that does not exist!" && return 1
+    fi
+  fi
+
+  file=$(find / -maxdepth 1 -type f -iname "$fname" -print -quit)
+  [ ! -s "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$fname" -print -quit)
+
+  if [ ! -s "$file" ] && [[ "${VERSION,,}" != "http"* ]]; then
+    base=$(basename "$VERSION")
+    file="$STORAGE/$base"
+  fi
+
+  if [ ! -f "$file" ] || [ ! -s "$file" ]; then
+    return 0
+  fi
+
+  local size
+  size="$(stat -c%s "$file")"
+  [ -z "$size" ] || [[ "$size" == "0" ]] && return 0
+
+  ISO="$file"
+  CUSTOM="$file"
+  BOOT="$STORAGE/windows.$size.iso"
+
+  return 0
+}
+
+detectCustom() {
+
+  CUSTOM=""
+
+  ! findFile "custom.iso" && return 1
+  [ -n "$CUSTOM" ] && return 0
+
+  ! findFile "boot.iso" && return 1
+  [ -n "$CUSTOM" ] && return 0
+
+  return 0
+}
+
 skipInstall() {
 
   local iso="$1"
@@ -193,24 +244,6 @@ startInstall() {
   return 0
 }
 
-checkFreeSpace() {
-
-  local dir="$1"
-  local size="$2"
-  local size_gb space space_gb
-
-  size_gb=$(formatBytes "$size")
-  space=$(df --output=avail -B 1 "$dir" | tail -n 1)
-  space_gb=$(formatBytes "$space")
-
-  if (( size > space )); then
-    error "Not enough free space in $STORAGE, have $space_gb available but need at least $size_gb."
-    return 1
-  fi
-
-  return 0
-}
-
 finishInstall() {
 
   local iso="$1"
@@ -330,53 +363,20 @@ abortInstall() {
   return 1
 }
 
-findFile() {
+checkFreeSpace() {
 
-  local dir file base
-  local fname="$1"
-  local boot="$STORAGE/windows.boot"
+  local dir="$1"
+  local size="$2"
+  local size_gb space space_gb
 
-  dir=$(find / -maxdepth 1 -type d -iname "$fname" -print -quit)
-  [ ! -d "$dir" ] && dir=$(find "$STORAGE" -maxdepth 1 -type d -iname "$fname" -print -quit)
+  size_gb=$(formatBytes "$size")
+  space=$(df --output=avail -B 1 "$dir" | tail -n 1)
+  space_gb=$(formatBytes "$space")
 
-  if [ -d "$dir" ]; then
-    if ! hasData || [ ! -f "$boot" ]; then
-      error "The bind $dir maps to a file that does not exist!" && return 1
-    fi
+  if (( size > space )); then
+    error "Not enough free space in $STORAGE, have $space_gb available but need at least $size_gb."
+    return 1
   fi
-
-  file=$(find / -maxdepth 1 -type f -iname "$fname" -print -quit)
-  [ ! -s "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$fname" -print -quit)
-
-  if [ ! -s "$file" ] && [[ "${VERSION,,}" != "http"* ]]; then
-    base=$(basename "$VERSION")
-    file="$STORAGE/$base"
-  fi
-
-  if [ ! -f "$file" ] || [ ! -s "$file" ]; then
-    return 0
-  fi
-
-  local size
-  size="$(stat -c%s "$file")"
-  [ -z "$size" ] || [[ "$size" == "0" ]] && return 0
-
-  ISO="$file"
-  CUSTOM="$file"
-  BOOT="$STORAGE/windows.$size.iso"
-
-  return 0
-}
-
-detectCustom() {
-
-  CUSTOM=""
-
-  ! findFile "custom.iso" && return 1
-  [ -n "$CUSTOM" ] && return 0
-
-  ! findFile "boot.iso" && return 1
-  [ -n "$CUSTOM" ] && return 0
 
   return 0
 }
@@ -767,28 +767,16 @@ detectLanguage() {
   return 0
 }
 
-setXML() {
+skipVersion() {
 
-  local file="/custom.xml"
+  local id="$1"
 
-  CUSTOM_XML=""
-
-  if [ -d "$file" ]; then
-    error "The bind $file maps to a file that does not exist!" && exit 67
-  fi
-
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$STORAGE/custom.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/custom.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$1"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/$DETECTED.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && return 1
-
-  case "$file" in
-    "/custom.xml" | "$STORAGE/custom.xml" ) CUSTOM_XML="Y" ;;
+  case "${id,,}" in
+    "win9"* | "winxp"* | "win2k"* | "win2003"* )
+      return 0 ;;
   esac
 
-  XML="$file"
-  return 0
+  return 1
 }
 
 detectImage() {
@@ -885,18 +873,6 @@ detectImage() {
   return 0
 }
 
-skipVersion() {
-
-  local id="$1"
-
-  case "${id,,}" in
-    "win9"* | "winxp"* | "win2k"* | "win2003"* )
-      return 0 ;;
-  esac
-
-  return 1
-}
-
 setMachine() {
 
   local id="$1"
@@ -979,6 +955,52 @@ prepareImage() {
 
   error "Failed to extract boot image from ISO image!"
   return 1
+}
+
+addFolder() {
+
+  local src="$1"
+  local folder="/oem" file=""
+  local dest="$src/\$OEM\$/\$1/OEM"
+
+  [ ! -d "$folder" ] && folder="/OEM"
+  [ ! -d "$folder" ] && folder="$STORAGE/oem"
+  [ ! -d "$folder" ] && folder="$STORAGE/OEM"
+  [ ! -d "$folder" ] && folder=""
+
+  [ -z "$folder" ] && [ -z "$COMMAND" ] && return 0
+
+  local msg="Adding OEM files to image..."
+  info "$msg" && html "$msg"
+
+  mkdir -p "$dest" || return 1
+
+  if [ -n "$folder" ]; then
+    cp -Lr "$folder/." "$dest" || return 1
+  fi
+
+  file=$(find "$dest" -maxdepth 1 -type f -iname install.bat -print -quit) || return 1
+
+  if [ -n "$COMMAND" ]; then
+
+    [ -z "$file" ] && file="$dest/install.bat"
+
+    if [ -s "$file" ]; then
+      printf '\n' >> "$file" || return 1
+    fi
+
+    printf '%s\n' "$COMMAND" >> "$file" || return 1
+
+  fi
+
+  if [ -f "$file" ]; then
+    if ! unix2dos -q "$file"; then
+      error "Failed to convert $file to DOS format!"
+      return 1
+    fi
+  fi
+
+  return 0
 }
 
 addDriver() {
