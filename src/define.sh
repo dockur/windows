@@ -51,10 +51,11 @@ parseVersion() {
       ;;
     "11e" | "win11e" | "windows11e" | "windows 11e" )
       VERSION="win11x64-enterprise-eval"
+      [ -z "$DETECTED" ] && DETECTED="win11x64-enterprise"
       ;;
     "11l" | "11ltsc" | "ltsc11" | "win11l" | "win11-ltsc" | "win11x64-ltsc" )
       VERSION="win11x64-enterprise-ltsc-eval"
-      [ -z "$DETECTED" ] && DETECTED="win11x64-ltsc-eval"
+      [ -z "$DETECTED" ] && DETECTED="win11x64-ltsc"
       ;;
     "11i" | "11iot" | "iot11" | "win11i" | "win11-iot" | "win11x64-iot" )
       VERSION="win11x64-enterprise-iot-eval"
@@ -65,6 +66,7 @@ parseVersion() {
       ;;
     "10e" | "win10e" | "windows10e" | "windows 10e" )
       VERSION="win10x64-enterprise-eval"
+      [ -z "$DETECTED" ] && DETECTED="win10x64-enterprise"
       ;;
     "10l" | "10ltsc" | "ltsc10" | "win10l" | "win10-ltsc" | "win10x64-ltsc" )
       VERSION="win10x64-enterprise-ltsc-eval"
@@ -79,6 +81,7 @@ parseVersion() {
       ;;
     "8e" | "81e" | "8.1e" | "win8e" | "win81e" | "windows 8e" )
       VERSION="win81x64-enterprise-eval"
+      [ -z "$DETECTED" ] && DETECTED="win81x64-enterprise"
       ;;
     "7" | "win7" | "windows7" | "windows 7" )
       VERSION="win7x64"
@@ -131,24 +134,30 @@ parseVersion() {
       ;;
     "25" | "2025" | "win25" | "win2025" | "windows2025" | "windows 2025" )
       VERSION="win2025-eval"
+      [ -z "$DETECTED" ] && DETECTED="win2025"
       ;;
     "22" | "2022" | "win22" | "win2022" | "windows2022" | "windows 2022" )
       VERSION="win2022-eval"
+      [ -z "$DETECTED" ] && DETECTED="win2022"
       ;;
     "19" | "2019" | "win19" | "win2019" | "windows2019" | "windows 2019" )
       VERSION="win2019-eval"
+      [ -z "$DETECTED" ] && DETECTED="win2019"
       ;;
     "16" | "2016" | "win16" | "win2016" | "windows2016" | "windows 2016" )
       VERSION="win2016-eval"
+      [ -z "$DETECTED" ] && DETECTED="win2016"
       ;;
     "hv" | "hyperv" | "hyper v" | "hyper-v" | "19hv" | "2019hv" | "win2019hv" )
       VERSION="win2019-hv"
       ;;
     "2012" | "2012r2" | "win2012" | "win2012r2" | "windows2012" | "windows 2012" )
       VERSION="win2012r2-eval"
+      [ -z "$DETECTED" ] && DETECTED="win2012r2"
       ;;
     "2008" | "2008r2" | "win2008" | "win2008r2" | "windows2008" | "windows 2008" )
       VERSION="win2008r2"
+      [ -z "$DETECTED" ] && DETECTED="win2008r2"
       ;;
     "2003" | "2003r2" | "win2003" | "win2003r2" | "windows2003" | "windows 2003" )
       VERSION="win2003r2"
