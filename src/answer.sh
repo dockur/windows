@@ -416,6 +416,52 @@ updateWorkgroup() {
   return 0
 }
 
+updateImageIndex() {
+
+  local asset="$1"
+  local index="$2"
+  local tmp result
+
+  [[ "$index" =~ ^[0-9]+$ ]] || return 1
+
+  if ! sed -i \
+    -e '/<InstallFrom>.*<\/InstallFrom>/d' \
+    -e '/<ProductKey>.*<\/ProductKey>/d' \
+    -e '/<InstallFrom>/,/<\/InstallFrom>/d' \
+    -e '/<ProductKey>/,/<\/ProductKey>/d' \
+    "$asset"; then
+    return 1
+  fi
+
+  tmp=$(mktemp -d) || return 1
+  result="$tmp/answer.xml"
+
+  if ! INDEX_XML="$index" awk '
+      !added && /<OSImage([[:space:]>])/ {
+        print
+        print "          <InstallFrom>\n" \
+              "            <MetaData wcm:action=\"add\">\n" \
+              "              <Key>/image/index</Key>\n" \
+              "              <Value>" ENVIRON["INDEX_XML"] "</Value>\n" \
+              "            </MetaData>\n" \
+              "          </InstallFrom>"
+        added = 1
+        next
+      }
+
+      { print }
+      END { exit !added }
+    ' "$asset" > "$result" ||
+    ! mv -f "$result" "$asset"; then
+
+    rm -rf "$tmp" || true
+    return 1
+  fi
+
+  rm -rf "$tmp" || return 1
+  return 0
+}
+
 updateXML() {
 
   local asset="$1"

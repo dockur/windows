@@ -485,10 +485,10 @@ printEdition() {
       edition="2019"
       ;;
     *"-iot" | *"-iot-eval" )
-      edition="LTSC"
+      edition="IoT Enterprise LTSC"
       ;;
     *"-ltsc" | *"-ltsc-eval" )
-      edition="LTSC"
+      edition="Enterprise LTSC"
       ;;
     *"-enterprise-eval" )
       edition="Enterprise (Evaluation)"
@@ -720,7 +720,12 @@ getMido() {
       sum="a61adeab895ef5a4db436e0a7011c92a2ff17bb0357f58b13bbc4062e535e7b9"
       url="https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26200.6584.250915-1905.25h2_ge_release_svc_refresh_CLIENTENTERPRISEEVAL_OEMRET_x64FRE_en-us.iso"
       ;;
-    "win11x64-enterprise-iot-eval" | "win11x64-enterprise-ltsc-eval" )
+    "win11x64-enterprise-ltsc-eval" )
+      size=5112850432
+      sum="67cec5865eaa037a72ddc633a717a10a2bed50778862267223ddb9c60ef5da68"
+      url="https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.1742.240906-0331.ge_release_svc_refresh_CLIENT_LTSC_EVAL_x64FRE_en-us.iso"
+      ;;
+    "win11x64-enterprise-iot-eval" )
       size=5060020224
       sum="2cee70bd183df42b92a2e0da08cc2bb7a2a9ce3a3841955a012c0f77aeb3cb29"
       url="https://software-static.download.prss.microsoft.com/dbazure/998969d5-f34g-4e03-ac9d-1f9786c66749/26100.1742.240906-0331.ge_release_svc_refresh_CLIENT_IOT_LTSC_EVAL_x64FRE_en-us.iso"

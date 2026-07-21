@@ -277,8 +277,8 @@ downloadWindowsEval() {
       type="iot"
       winVer="windows-11-iot-enterprise-ltsc-eval" ;;
     "win11${PLATFORM,,}-enterprise-ltsc-eval" )
-      type="iot"
-      winVer="windows-11-iot-enterprise-ltsc-eval" ;;
+      type="ltsc"
+      winVer="windows-11-enterprise" ;;
     "win2025-eval" )
       type="server"
       winVer="windows-server-2025" ;;
@@ -343,15 +343,16 @@ downloadWindowsEval() {
   }
 
   case "$type" in
-    "iot" | "ltsc" )
+    "iot" )
       case "${PLATFORM,,}" in
         "x64" )
-          if [[ "$winVer" != "windows-10"* ]]; then
-            link=$(echo "$links" | head -n 1)
-          else
-            link=$(echo "$links" | head -n 4 | tail -n 1)
-          fi ;;
+          link=$(echo "$links" | head -n 1) ;;
         "arm64" )
+          link=$(echo "$links" | head -n 2 | tail -n 1) ;;
+      esac ;;
+    "ltsc" )
+      case "${PLATFORM,,}" in
+        "x64" )
           link=$(echo "$links" | head -n 2 | tail -n 1) ;;
       esac ;;
     "enterprise" )
@@ -405,7 +406,7 @@ downloadWindowsEval() {
 
   if enabled "$DEBUG" && enabled "$VERIFY" && [[ "${lang,,}" == "en"* ]]; then
     compare=$(getMido "$id" "$lang" "")
-    if [[ "${link,,}" != "${compare,,}" ]]; then
+    if [ -n "$compare" ] && [[ "${link,,}" != "${compare,,}" ]]; then
       echo "Retrieved link does not match the fixed link: $compare"
     fi
   fi
@@ -429,7 +430,7 @@ getWindows() {
 
   case "${version,,}" in
     "win2008r2" | "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* | \
-    "win11${PLATFORM,,}-enterprise-iot"* | "win11${PLATFORM,,}-enterprise-ltsc"* )
+    "win11${PLATFORM,,}-enterprise-iot"* )
       if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
         error "No download in the $language language available for $edition!"
         MIDO_URL="" && return 1
