@@ -498,7 +498,7 @@ printEdition() {
     *"-ultimate" )
       edition="Ultimate"
       ;;
-    *"-enterprise" )
+    *"-enterprise" | *"-enterprise-eval" )
       edition="Enterprise"
       ;;
     *"-education" )
@@ -512,9 +512,6 @@ printEdition() {
       ;;
     *"-ltsc" | *"-ltsc-eval" )
       edition="Enterprise LTSC"
-      ;;
-    *"-enterprise-eval" )
-      edition="Enterprise (Evaluation)"
       ;;
     "win7"* )
       edition="Professional"
@@ -538,6 +535,7 @@ printEdition() {
   esac
 
   [ -n "$edition" ] && result+=" $edition"
+  [[ "${id,,}" == *"-eval" ]] && result+=" (Evaluation)"
 
   echo "$result"
   return 0
