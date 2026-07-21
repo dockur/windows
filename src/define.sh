@@ -1175,9 +1175,9 @@ getLink3() {
       url="en_win_srv_2003_r2_standard_x64_with_sp2_cd1_x13-05757/en_win_srv_2003_r2_standard_x64_with_sp2_cd1_x13-05757.iso"
       ;;
     "winxpx64" )
-      size=614168576
-      sum="45807eceef84c6c29920efd4294f0bdb127e602465a7a0e4e579148c69e459a8"
-      url="en_windows_xp_professional_x64/en_windows_xp_professional_x64.iso"
+      size=628299776
+      sum="49b87fc4a9191dcf57588a2d36a87da87a37577e0f0a57b778dc15874287f8b0"
+      url="en_win_xp_pro_x64_with_sp2/CRMPXFPP_EN.iso"
       ;;
     "winxpx86" )
       size=617756672
