@@ -127,7 +127,11 @@ skipInstall() {
 
       if ! hasDisk; then
 
-        rm -f "$STORAGE/$previous"
+        if ! rm -f -- "$STORAGE/$previous"; then
+          error "Failed to remove ISO file \"$STORAGE/$previous\" !"
+          exit 50
+        fi
+
         return 1
 
       fi
@@ -210,7 +214,11 @@ startInstall() {
   fi
 
   TMP="$STORAGE/tmp"
-  rm -rf "$TMP"
+
+  if ! rm -rf -- "$TMP"; then
+    error "Failed to remove directory \"$TMP\" !"
+    exit 50
+  fi
 
   skipInstall "$BOOT" && return 1
 
@@ -221,7 +229,8 @@ startInstall() {
   fi
 
   if ! makeDir "$TMP"; then
-    error "Failed to create directory \"$TMP\" !" && exit 50
+    error "Failed to create directory \"$TMP\" !"
+    exit 50
   fi
 
   if [ -z "$CUSTOM" ]; then
@@ -230,16 +239,33 @@ startInstall() {
     ISO="$TMP/$ISO"
 
     if [ -f "$BOOT" ] && [ -s "$BOOT" ]; then
-      mv -f "$BOOT" "$ISO"
+      if ! mv -f -- "$BOOT" "$ISO"; then
+        error "Failed to move ISO file from \"$BOOT\" to \"$ISO\" !"
+        exit 50
+      fi
     fi
 
   fi
 
-  rm -f "$BOOT"
+  if ! rm -f -- "$BOOT"; then
+    error "Failed to remove ISO file \"$BOOT\" !"
+    exit 50
+  fi
 
-  find "$STORAGE" -maxdepth 1 -type f -iname 'data.*' -not -iname '*.iso' -delete
-  find "$STORAGE" -maxdepth 1 -type f -iname 'windows.*' -not -iname '*.iso' -delete
-  find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete
+  if ! find "$STORAGE" -maxdepth 1 -type f -iname 'data.*' -not -iname '*.iso' -delete; then
+    error "Failed to remove obsolete disk files from \"$STORAGE\" !"
+    exit 50
+  fi
+
+  if ! find "$STORAGE" -maxdepth 1 -type f -iname 'windows.*' -not -iname '*.iso' -delete; then
+    error "Failed to remove obsolete Windows files from \"$STORAGE\" !"
+    exit 50
+  fi
+
+  if ! find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete; then
+    error "Failed to remove obsolete firmware files from \"$STORAGE\" !"
+    exit 50
+  fi
 
   return 0
 }
