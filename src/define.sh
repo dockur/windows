@@ -911,11 +911,6 @@ getLink1() {
       sum="62b6c91563bad6cd12a352aa018627c314cfc5162d8e9f8af0756a642e602a46"
       url="xp/professional/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
       ;;
-    "winxpx64" )
-      size=614166528
-      sum="8fac68e1e56c64ad9a2aa0ad464560282e67fa4f4dd51d09a66f4e548eb0f2d6"
-      url="xp/professional/en_win_xp_pro_x64_vl.iso"
-      ;;
     "win2kx86" )
       size=331701982
       sum="a93251b31f92316411bb48458a695d9051b13cdeba714c46f105012fdda45bf3"
@@ -1014,11 +1009,6 @@ getLink2() {
       size=617756672
       sum="62b6c91563bad6cd12a352aa018627c314cfc5162d8e9f8af0756a642e602a46"
       url="Windows%20XP/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
-      ;;
-    "winxpx64" )
-      size=614166528
-      sum="8fac68e1e56c64ad9a2aa0ad464560282e67fa4f4dd51d09a66f4e548eb0f2d6"
-      url="Windows%20XP/en_win_xp_pro_x64_vl.iso"
       ;;
   esac
 
@@ -1184,15 +1174,15 @@ getLink3() {
       sum="74245cba888f935b138b106c2744bec7f392925b472358960a0b5643cd6abb32"
       url="en_win_srv_2003_r2_standard_x64_with_sp2_cd1_x13-05757/en_win_srv_2003_r2_standard_x64_with_sp2_cd1_x13-05757.iso"
       ;;
+    "winxpx64" )
+      size=614168576
+      sum="45807eceef84c6c29920efd4294f0bdb127e602465a7a0e4e579148c69e459a8"
+      url="en_windows_xp_professional_x64/en_windows_xp_professional_x64.iso"
+      ;;
     "winxpx86" )
       size=617756672
       sum="62b6c91563bad6cd12a352aa018627c314cfc5162d8e9f8af0756a642e602a46"
       url="XPPRO_SP3_ENU/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
-      ;;
-    "winxpx64" )
-      size=614166528
-      sum="8fac68e1e56c64ad9a2aa0ad464560282e67fa4f4dd51d09a66f4e548eb0f2d6"
-      url="windows-xp-all-sp-msdn-iso-files-en-de-ru-tr-x86-x64/en_win_xp_sp1_pro_x64_vl.iso"
       ;;
     "win2kx86" )
       size=386859008
