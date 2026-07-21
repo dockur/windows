@@ -424,15 +424,15 @@ updateXML() {
   local user user_xml auth_user admin pass pw
   local domain qualifier host workgroup key
 
-  [ -z "$WIDTH" ] && WIDTH="1280"
-  [ -z "$HEIGHT" ] && HEIGHT="720"
+  [ -z "${WIDTH:-}" ] && WIDTH="1280"
+  [ -z "${HEIGHT:-}" ] && HEIGHT="720"
 
   validateResolution "WIDTH" "$WIDTH" 320 || return 1
   validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
   validateMembership || return 1
-  validateComputerName "$HOST" || return 1
-  validateProductKey "$KEY" || return 1
-  validatePassword "$PASSWORD" || return 1
+  validateComputerName "${HOST:-}" || return 1
+  validateProductKey "${KEY:-}" || return 1
+  validatePassword "${PASSWORD:-}" || return 1
 
   app=$(escapeXMLSed "$APP for $ENGINE") || return 1
 
@@ -440,7 +440,7 @@ updateXML() {
   sed -i -E "s|<VerticalResolution>[^<]*</VerticalResolution>|<VerticalResolution>$HEIGHT</VerticalResolution>|g" "$asset" || return 1
   sed -i -E "s|<HorizontalResolution>[^<]*</HorizontalResolution>|<HorizontalResolution>$WIDTH</HorizontalResolution>|g" "$asset" || return 1
 
-  if [ -n "$HOST" ]; then
+  if [ -n "${HOST:-}" ]; then
     host=$(escapeXMLSed "$HOST") || return 1
     sed -i -E "s|<ComputerName>[^<]*</ComputerName>|<ComputerName>$host</ComputerName>|g" "$asset" || return 1
   fi
@@ -452,7 +452,7 @@ updateXML() {
     sed -i "s|<UILanguage>en-US</UILanguage>|<UILanguage>$value</UILanguage>|g" "$asset" || return 1
   fi
 
-  region="$REGION"
+  region="${REGION:-}"
   [ -z "$region" ] && region="$culture"
 
   if [ -n "$region" ] && [[ "${region,,}" != "en-us" ]]; then
@@ -461,7 +461,7 @@ updateXML() {
     sed -i "s|<SystemLocale>en-US</SystemLocale>|<SystemLocale>$value</SystemLocale>|g" "$asset" || return 1
   fi
 
-  keyboard="$KEYBOARD"
+  keyboard="${KEYBOARD:-}"
   [ -z "$keyboard" ] && keyboard="$culture"
 
   if [ -n "$keyboard" ] && [[ "${keyboard,,}" != "en-us" ]]; then
@@ -470,17 +470,17 @@ updateXML() {
     sed -i "s|<InputLocale>0409:00000409</InputLocale>|<InputLocale>$value</InputLocale>|g" "$asset" || return 1
   fi
 
-  domain="$DOMAIN"
-  workgroup="$WORKGROUP"
+  domain="${DOMAIN:-}"
+  workgroup="${WORKGROUP:-}"
 
   if [ -n "$domain" ]; then
 
-    if [ -z "$USERNAME" ]; then
+    if [ -z "${USERNAME:-}" ]; then
       error "The USERNAME variable must be specified when joining a domain!"
       return 1
     fi
 
-    if [ -z "$PASSWORD" ]; then
+    if [ -z "${PASSWORD:-}" ]; then
       error "The PASSWORD variable must be specified when joining a domain!"
       return 1
     fi
@@ -531,7 +531,7 @@ updateXML() {
 
   else
 
-    user="$USERNAME"
+    user="${USERNAME:-}"
     validateUsername "$user" "local" || return 1
 
     if [ -n "$user" ]; then
@@ -544,7 +544,7 @@ updateXML() {
       sed -i "s|<Username>Docker</Username>|<Username>$user_xml</Username>|g" "$asset" || return 1
     fi
 
-    [ -n "$PASSWORD" ] && pass="$PASSWORD" || pass="admin"
+    [ -n "${PASSWORD:-}" ] && pass="$PASSWORD" || pass="admin"
 
     pw=$(printf '%s' "${pass}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
     admin=$(printf '%s' "${pass}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
@@ -583,11 +583,11 @@ updateXML() {
 
   fi
 
-  if disabled "$AUTOLOGIN"; then
+  if disabled "${AUTOLOGIN:-}"; then
     sed -i -E '/^[[:space:]]*<AutoLogon([[:space:]>])/,/^[[:space:]]*<\/AutoLogon>[[:space:]]*$/d' "$asset" || return 1
   fi
 
-  if [ -n "$EDITION" ]; then
+  if [ -n "${EDITION:-}" ]; then
     case "${EDITION,,}" in
       "core" ) edition="STANDARDCORE" ;;
       * ) edition="${EDITION^^}" ;;
@@ -597,14 +597,14 @@ updateXML() {
     sed -i "s|SERVERSTANDARD</Value>|SERVER$edition</Value>|g" "$asset" || return 1
   fi
 
-  if [ -n "$KEY" ]; then
+  if [ -n "${KEY:-}" ]; then
     key=$(escapeXMLSed "$KEY") || return 1
     sed -i -E '/^[[:space:]]*<ProductKey>[[:space:]]*$/,/^[[:space:]]*<\/ProductKey>[[:space:]]*$/d' "$asset" || return 1
     sed -i -E "s|<ProductKey>[^<]*</ProductKey>|<ProductKey>$key</ProductKey>|g" "$asset" || return 1
     sed -i "s|</UserData>|  <ProductKey>\n          <Key>$key</Key>\n          <WillShowUI>OnError</WillShowUI>\n        </ProductKey>\n      </UserData>|g" "$asset" || return 1
   fi
 
-  if disabled "$SHORTCUT" || disabled "$SAMBA"; then
+  if disabled "${SHORTCUT:-}" || disabled "${SAMBA:-}"; then
     if ! sed -i -E '
       /<SynchronousCommand([[:space:]>])/ {
         :command

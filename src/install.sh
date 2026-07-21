@@ -399,11 +399,11 @@ extractESD() {
   local desc="$4"
 
   local msg ret index
-  local minSize freeSpace bootPad installPad
+  local minSize freeSpace bootPad
   local info count totals links
   local bootTotal bootLinks bootSize
   local wimTotal wimLinks wimSize
-  local installSize
+  local installSize installPad
   local bootWim installWim
   local edition imgEdition
 
