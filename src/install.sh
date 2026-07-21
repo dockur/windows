@@ -431,7 +431,7 @@ extractESD() {
   local version="$3"
   local desc="$4"
 
-  local msg ret index
+  local msg ret index size
   local minSize freeSpace bootPad
   local info count totals links
   local bootTotal bootLinks bootSize
@@ -448,12 +448,20 @@ extractESD() {
   msg="Extracting $desc bootdisk"
   info "$msg..." && html "$msg..."
 
-  if [ "$(stat -c%s "$iso")" -lt "$minSize" ]; then
-    error "Invalid ESD file: Size is smaller than 100 MB"
+  if ! size=$(stat -c%s -- "$iso"); then
+    error "Failed to determine size of ISO file \"$iso\" !"
     return 1
   fi
 
-  rm -rf "$dir"
+  if (( size < minSize )); then
+    error "The downloaded ISO file is too small!"
+    return 1
+  fi
+
+  if ! rm -rf -- "$dir"; then
+    error "Failed to remove directory \"$dir\" !"
+    return 1
+  fi
 
   if ! makeDir "$dir"; then
     error "Failed to create directory \"$dir\" !"
@@ -613,10 +621,14 @@ extractImage() {
   local msg="Extracting $desc image"
   info "$msg..." && html "$msg..."
 
-  rm -rf "$dir"
+  if ! rm -rf -- "$dir"; then
+    error "Failed to remove directory \"$dir\" !"
+    return 1
+  fi
 
   if ! makeDir "$dir"; then
-    error "Failed to create directory \"$dir\" !" && return 1
+    error "Failed to create directory \"$dir\" !"
+    return 1
   fi
 
   size=$(stat -c%s "$iso")
@@ -627,7 +639,11 @@ extractImage() {
 
   checkFreeSpace "$dir" "$size" || return 1
 
-  rm -rf "$dir"
+  if ! rm -rf -- "$dir"; then
+    error "Failed to remove directory \"$dir\" !"
+    return 1
+  fi
+
   /run/progress.sh "$dir" "$size" "$msg ([P])..." &
 
   if ! 7z x "$iso" -o"$dir" > /dev/null; then

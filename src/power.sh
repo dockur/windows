@@ -34,7 +34,13 @@ boot() {
   if [ -s "$QEMU_PTY" ]; then
     if [ "$(stat -c%s "$QEMU_PTY")" -gt 7 ]; then
       if ! bootFailed; then
-        info "$(app) started successfully, visit http://127.0.0.1:8006/ to view the screen..."
+
+        if [[ "${DISPLAY,,}" == "web" ]] && ! disabled "${WEB:-Y}"; then
+          info "$(app) started successfully, visit http://127.0.0.1:$WEB_PORT/ to view the screen..."
+        else
+          info "$(app) started successfully."
+        fi
+
         return 0
       fi
     fi
