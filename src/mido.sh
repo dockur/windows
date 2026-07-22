@@ -417,17 +417,19 @@ downloadWindowsEval() {
 
 getMidoDetected() {
 
-  # Return the answer-file identity for a successful Microsoft source
-  # without changing the global DETECTED value.
+  # Return the answer-file identity for the Microsoft source that actually
+  # succeeded without changing the global DETECTED value.
 
-  local version="$1"
-  local source="$2"
+  local version="${1,,}"
+  local source="${2,,}"
   local current="$3"
   local default="$version"
   local detected
 
-  # Derive the normal answer-file identity from the download route.
-  case "${default,,}" in
+  [ -z "$source" ] && source="$version"
+
+  # Derive the normal answer-file identity from the requested download route.
+  case "$default" in
     *"-enterprise-ltsc-eval" )
       default="${default%-enterprise-ltsc-eval}-ltsc"
       ;;
@@ -440,20 +442,26 @@ getMidoDetected() {
   esac
 
   # Preserve a genuinely different DETECTED override.
-  if [ -n "$current" ] && [[ "${current,,}" != "${default,,}" ]]; then
+  if [ -n "$current" ] && [[ "${current,,}" != "$default" ]]; then
     echo "$current"
     return 0
   fi
 
-  detected="${current:-$default}"
-
-  # A successful primary evaluation route uses an evaluation answer file.
-  # IoT deliberately retains its normal key-bearing answer file.
-  if [[ "${version,,}" == *"-eval" &&
-        "${source,,}" == "${version,,}" &&
-        "${version,,}" != *"-enterprise-iot-eval" ]]; then
-    detected+="-eval"
-  fi
+  # Select the answer-file identity for the source that actually succeeded.
+  case "$source" in
+    *"-enterprise-ltsc-eval" )
+      detected="${source%-enterprise-ltsc-eval}-ltsc-eval"
+      ;;
+    *"-enterprise-iot-eval" )
+      detected="${source%-enterprise-iot-eval}-iot"
+      ;;
+    *"-eval" )
+      detected="$source"
+      ;;
+    * )
+      detected="${current:-$default}"
+      ;;
+  esac
 
   echo "$detected"
   return 0
