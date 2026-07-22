@@ -68,7 +68,7 @@ curlRequest() {
   if (( rc != 0 )); then
 
     reason=$(sed -nE 's/^curl: \([0-9]+\) //p' "$log" | tail -n 1)
-    
+
     rm -f "$log"
     handleCurlError "$rc" "$server" "$reason"
 
