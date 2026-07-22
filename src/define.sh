@@ -171,6 +171,17 @@ parseVersion() {
       ;;
   esac
 
+  if [ -z "$DETECTED" ]; then
+    case "${VERSION,,}" in
+      *"-enterprise-ltsc-eval" )
+        DETECTED="${VERSION%-enterprise-ltsc-eval}-ltsc" ;;
+      *"-enterprise-iot-eval" )
+        DETECTED="${VERSION%-enterprise-iot-eval}-iot" ;;
+      *"-eval" )
+        DETECTED="${VERSION%-eval}" ;;
+    esac
+  fi
+
   return 0
 }
 
