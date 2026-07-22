@@ -124,7 +124,7 @@ selectVersion() {
   local xml="$2"
   local platform="$3"
 
-  local name id base prefer match suffix
+  local name id base prefer match suffix actual
   local tried=""
 
   local -a versions=()
@@ -197,10 +197,15 @@ selectVersion() {
     for base in "${bases[@]}"; do
       prefer="$base$suffix"
 
-      if match=$(hasVersion "$prefer" "${versions[@]}"); then
-        echo "$match"
-        return 0
-      fi
+      # Automatic selection must prefer an edition that is actually present.
+      for actual in "${versions[@]}"; do
+        [[ "${actual%-eval}" == "${prefer%-eval}" ]] || continue
+
+        if match=$(hasVersion "$prefer" "${versions[@]}"); then
+          echo "$match"
+          return 0
+        fi
+      done
     done
   done
 
