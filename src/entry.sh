@@ -15,6 +15,7 @@ cd /run
 . define.sh     # Define versions
 . mido.sh       # Download Windows
 . answer.sh     # Setup answer files
+. image.sh      # Detect image files
 . install.sh    # Run installation
 . disk.sh       # Initialize disks
 . display.sh    # Initialize graphics
