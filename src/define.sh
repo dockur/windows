@@ -685,14 +685,11 @@ getVersion() {
     "win7"* | "winvista"* )
       case "${name,,}" in
         *" home"* )
-          id="$id-home"
-          ;;
+          id="$id-home" ;;
         *" starter"* )
-          id="$id-starter"
-          ;;
+          id="$id-starter" ;;
         *" ultimate"* )
-          id="$id-ultimate"
-          ;;
+          id="$id-ultimate" ;;
         *" enterprise"* )
           id="$id-enterprise"
           [[ "${name,,}" == *"evaluation"* ]] && id+="-eval"
@@ -718,11 +715,9 @@ getVersion() {
           [[ "${name,,}" == *"evaluation"* ]] && id+="-eval"
           ;;
         *" home"* )
-          id="$id-home"
-          ;;
+          id="$id-home" ;;
         *" education"* )
-          id="$id-education"
-          ;;
+          id="$id-education" ;;
         *" enterprise"* )
           id="$id-enterprise"
           [[ "${name,,}" == *"evaluation"* ]] && id+="-eval"
@@ -732,11 +727,9 @@ getVersion() {
     "win2025"* | "win2022"* | "win2019"* | "win2016"* | "win2012"* | "win2008"* | "win2003"* )
       case "${name,,}" in
         *"evaluation"* )
-          id="$id-eval"
-          ;;
+          id="$id-eval" ;;
         *"hyper-v server"* )
-          id="$id-hv"
-          ;;
+          id="$id-hv" ;;
       esac
       ;;
   esac
