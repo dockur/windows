@@ -944,11 +944,26 @@ detectImage() {
   local dir="$1"
   local version="$2"
   local desc msg language
+  local file source
 
   XML=""
 
-  if [ -z "$DETECTED" ] && [ -z "$CUSTOM" ]; then
-    [[ "${version,,}" != "http"* ]] && DETECTED="$version"
+  # For normal download routes, avoid inspecting install.wim when the route
+  # already maps directly to an available answer file. Routes such as Tiny10
+  # and Tiny11 have no corresponding answer file, so their actual Windows
+  # edition will be detected from the downloaded image instead.
+  if [ -z "$DETECTED" ] && [ -z "$CUSTOM" ] &&
+    [[ "${version,,}" != "http"* ]]; then
+
+    file="/run/assets/$version.xml"
+
+    if [ -s "$file" ]; then
+      DETECTED="$version"
+    elif [[ "${version,,}" == *"-eval" ]]; then
+      source="/run/assets/${version%-eval}.xml"
+      [ -s "$source" ] && DETECTED="$version"
+    fi
+
   fi
 
   if [ -n "$DETECTED" ]; then
@@ -976,16 +991,20 @@ detectImage() {
   src=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
 
   if [ ! -d "$src" ]; then
-    warn "failed to locate 'sources' folder in ISO image, $FB" && return 1
+    warn "failed to locate 'sources' folder in ISO image, $FB"
+    return 1
   fi
 
-  wim=$(find "$src" -maxdepth 1 -type f \( -iname install.wim -or -iname install.esd \) -print -quit)
+  wim=$(find "$src" -maxdepth 1 -type f \
+    \( -iname install.wim -or -iname install.esd \) -print -quit)
 
   if [ ! -f "$wim" ]; then
-    warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB" && return 1
+    warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
+    return 1
   fi
 
-  if ! info=$(wimlib-imagex info -xml "$wim" | iconv -f UTF-16LE -t UTF-8); then
+  if ! info=$(wimlib-imagex info -xml "$wim" |
+    iconv -f UTF-16LE -t UTF-8); then
     warn "failed to read Windows image information, $FB"
     return 1
   fi
@@ -996,19 +1015,22 @@ detectImage() {
 
   if [ -z "$DETECTED" ]; then
     msg="Failed to determine Windows version from image"
+
     if setXML "" || enabled "$MANUAL"; then
       info "${msg}!"
     else
       MANUAL="Y"
       warn "${msg}, $FB."
     fi
+
     return 0
   fi
 
   desc=$(printEdition "$DETECTED" "$DETECTED")
   detectLanguage "$info"
 
-  if [[ "${LANGUAGE,,}" != "en" && "${LANGUAGE,,}" != "en-"* ]]; then
+  if [[ "${LANGUAGE,,}" != "en" &&
+    "${LANGUAGE,,}" != "en-"* ]]; then
     language=$(getLanguage "$LANGUAGE" "desc")
     desc+=" ($language)"
   fi
@@ -1016,8 +1038,10 @@ detectImage() {
   info "Detected: $desc"
   setXML "" && return 0
 
-  if [[ "$DETECTED" == "win81x86"* || "$DETECTED" == "win10x86"* ]]; then
-    error "The 32-bit version of $desc is not supported!" && return 1
+  if [[ "$DETECTED" == "win81x86"* ||
+    "$DETECTED" == "win10x86"* ]]; then
+    error "The 32-bit version of $desc is not supported!"
+    return 1
   fi
 
   msg="the answer file for $desc was not found ($DETECTED.xml)"
