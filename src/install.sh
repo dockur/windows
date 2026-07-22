@@ -196,6 +196,10 @@ startInstall() {
 
   if [ -z "$CUSTOM" ]; then
 
+    if [ -z "$DETECTED" ]; then
+      DETECTED="$SUGGEST"
+    fi
+
     local file="${VERSION//\//}.iso"
 
     if [[ "${VERSION,,}" == "http"* ]]; then
