@@ -718,42 +718,78 @@ checkPlatform() {
 
 hasVersion() {
 
-  local id="$1"
-  local tag="$2"
-  local xml="$3"
-  local platform="$4"
-  local alternate=""
-  local detected name
+  local wanted="$1"
+  shift
 
-  if [ ! -f "/run/assets/$id.xml" ]; then
-    [[ "${id,,}" == *"-eval" ]] || return 1
-    [ -f "/run/assets/${id::-5}.xml" ] || return 1
+  local actual expected_id selected_id file source
+  local i
+
+  local -a actuals=("$@")
+  local -a expected=("$wanted")
+  local -a selected=("$wanted")
+
+  # Treat normal and Evaluation variants of the same edition as compatible.
+  # The exact requested variant is always checked first.
+  if [[ "${wanted,,}" == *"-eval" ]]; then
+    expected+=("${wanted%-eval}")
+    selected+=("${wanted%-eval}")
+  else
+    expected+=("$wanted-eval")
+    selected+=("$wanted-eval")
   fi
 
-  case "${id,,}" in
+  # LTSC and IoT normal media can use each other's image. Keep the requested
+  # identity so the intended answer file and product key are selected.
+  # Evaluation images are excluded because their indexes are not equivalent.
+  case "${wanted,,}" in
     *"-iot" )
-      alternate="${id/-iot/-ltsc}"
+      expected+=("${wanted%-iot}-ltsc")
+      selected+=("$wanted")
       ;;
     *"-ltsc" )
-      alternate="${id/-ltsc/-iot}"
+      expected+=("${wanted%-ltsc}-iot")
+      selected+=("$wanted")
       ;;
   esac
 
-  while IFS= read -r name; do
-    [ -z "$name" ] && continue
+  for (( i=0; i<${#expected[@]}; i++ )); do
 
-    detected=$(getVersion "$name" "$platform")
-    [[ "${detected,,}" == "${id,,}" ]] && return 0
+    expected_id="${expected[$i]}"
+    selected_id="${selected[$i]}"
 
-    if [ -n "$alternate" ] &&
-      [[ "${detected,,}" == "${alternate,,}" ]]; then
-      return 0
-    fi
-  done < <(
-    sed -n \
-      "/$tag/{s/.*<$tag>\\(.*\\)<\\/$tag>.*/\\1/;p}" \
-      <<< "$xml"
-  )
+    for actual in "${actuals[@]}"; do
+      [[ "${actual,,}" == "${expected_id,,}" ]] || continue
+
+      file="/run/assets/$selected_id.xml"
+
+      if [ -s "$file" ]; then
+        echo "$selected_id"
+        return 0
+      fi
+
+      if [[ "${selected_id,,}" == *"-eval" ]]; then
+        source="/run/assets/${selected_id%-eval}.xml"
+
+        if [ -s "$source" ]; then
+          echo "$selected_id"
+          return 0
+        fi
+      fi
+
+      # Client editions without a dedicated template can use the generic
+      # template. updateImage() makes that copy edition-neutral.
+      case "${selected_id,,}" in
+        "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* )
+          file="/run/assets/${selected_id%%-*}.xml"
+
+          if [ -s "$file" ]; then
+            echo "$selected_id"
+            return 0
+          fi
+          ;;
+      esac
+    done
+  done
 
   return 1
 }
