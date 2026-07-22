@@ -62,20 +62,6 @@ hasVersion() {
     selected+=("$wanted-eval")
   fi
 
-  # LTSC and IoT normal media can use each other's image. Keep the requested
-  # identity so the intended answer file and product key are selected.
-  # Evaluation images are excluded because their indexes are not equivalent.
-  case "${wanted,,}" in
-    *"-iot" )
-      expected+=("${wanted%-iot}-ltsc")
-      selected+=("$wanted")
-      ;;
-    *"-ltsc" )
-      expected+=("${wanted%-ltsc}-iot")
-      selected+=("$wanted")
-      ;;
-  esac
-
   for (( i=0; i<${#expected[@]}; i++ )); do
 
     expected_id="${expected[$i]}"
