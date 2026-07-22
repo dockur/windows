@@ -680,8 +680,10 @@ getVersion() {
   local id
   local name="$1"
   local arch="$2"
+  local evaluation=""
 
   id=$(fromName "$name" "$arch")
+  [[ "${name,,}" == *"evaluation"* ]] && evaluation="-eval"
 
   case "${id,,}" in
     "win7"* | "winvista"* )
@@ -689,37 +691,28 @@ getVersion() {
         *" home"* ) id="$id-home" ;;
         *" starter"* ) id="$id-starter" ;;
         *" ultimate"* ) id="$id-ultimate" ;;
-        *" enterprise"* )
-          id="$id-enterprise"
-          [[ "${name,,}" == *"evaluation"* ]] && id+="-eval" ;;
+        *" enterprise"* ) id="$id-enterprise$evaluation" ;;
       esac
       ;;
     "win8"* )
       case "${name,,}" in
-        *" enterprise"* )
-          id="$id-enterprise"
-          [[ "${name,,}" == *"evaluation"* ]] && id+="-eval" ;;
+        *" enterprise"* ) id="$id-enterprise$evaluation" ;;
       esac
       ;;
     "win10"* | "win11"* )
       case "${name,,}" in
-        *" iot"* )
-          id="$id-iot"
-          [[ "${name,,}" == *"evaluation"* ]] && id+="-eval" ;;
-        *" ltsc"* )
-          id="$id-ltsc"
-          [[ "${name,,}" == *"evaluation"* ]] && id+="-eval" ;;
+        *" iot"* ) id="$id-iot$evaluation" ;;
+        *" ltsc"* ) id="$id-ltsc$evaluation" ;;
         *" home"* ) id="$id-home" ;;
         *" education"* ) id="$id-education" ;;
-        *" enterprise"* )
-          id="$id-enterprise"
-          [[ "${name,,}" == *"evaluation"* ]] && id+="-eval" ;;
+        *" enterprise"* ) id="$id-enterprise$evaluation" ;;
       esac
       ;;
-    "win2025"* | "win2022"* | "win2019"* | "win2016"* | "win2012"* | "win2008"* | "win2003"* )
+    "win2025"* | "win2022"* | "win2019"* | "win2016"* | \
+    "win2012"* | "win2008"* | "win2003"* )
       case "${name,,}" in
-        *"evaluation"* ) id="$id-eval" ;;
         *"hyper-v server"* ) id="$id-hv" ;;
+        *"evaluation"* ) id="$id-eval" ;;
       esac
       ;;
   esac
