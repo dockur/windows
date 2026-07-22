@@ -799,41 +799,90 @@ selectVersion() {
   local tag="$1"
   local xml="$2"
   local platform="$3"
-  local id name prefer
 
-  name=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml")
-  [[ "$name" == *"Operating System"* ]] && name=""
-  [ -z "$name" ] && return 0
+  local name id base prefer match suffix
+  local tried=""
 
-  id=$(fromName "$name" "$platform")
-  [ -z "$id" ] && warn "Unknown ${tag,,}: '$name'" && return 0
+  local -a versions=()
+  local -a bases=()
+  local -a priorities=(
+    "-enterprise"
+    "-ultimate"
+    ""
+    "-iot"
+    "-ltsc"
+    "-education"
+    "-home"
+    "-starter"
+    "-hv"
+  )
 
-  if [ -n "$EDITION" ] && [[ "$id" != win20* ]]; then
+  while IFS= read -r name; do
+    [[ "$name" == *"Operating System"* ]] && continue
+    [ -z "$name" ] && continue
 
-    case "${EDITION,,}" in
-      "pro" | "professional" | "business" ) prefer="$id" ;;
-      * ) prefer="$id-${EDITION,,}" ;;
-    esac
+    base=$(fromName "$name" "$platform")
+    id=$(getVersion "$name" "$platform")
 
-    if hasVersion "$prefer" "$tag" "$xml" "$platform"; then
-      echo "$prefer"
-      return 0
+    if [ -z "$base" ] || [ -z "$id" ]; then
+      warn "Unknown ${tag,,}: '$name'"
+      continue
     fi
 
-    warn "Edition '$EDITION' is not supported by this image, using automatic selection instead."
+    versions+=("$id")
+    bases+=("$base")
+  done < <(
+    sed -n \
+      "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" \
+      <<< "$xml"
+  )
+
+  [ "${#versions[@]}" -eq 0 ] && return 0
+
+  if [ -n "$EDITION" ]; then
+
+    for base in "${bases[@]}"; do
+      [[ "${base,,}" == win20* ]] && continue
+
+      tried="Y"
+
+      case "${EDITION,,}" in
+        "pro" | "professional" | "business" )
+          prefer="$base"
+          ;;
+        * )
+          prefer="$base-${EDITION,,}"
+          ;;
+      esac
+
+      if match=$(hasVersion "$prefer" "${versions[@]}"); then
+        echo "$match"
+        return 0
+      fi
+    done
+
+    if [ -n "$tried" ]; then
+      warn "Edition '$EDITION' is not supported by this image, using automatic selection instead."
+    fi
   fi
 
-  prefer="$id-enterprise"
-  hasVersion "$prefer" "$tag" "$xml" "$platform" && echo "$prefer" && return 0
+  # Preserve the existing preference for Enterprise, Ultimate, and the
+  # normal Pro/Professional/Business edition. The remaining entries provide
+  # deterministic selection when those editions are absent.
+  for suffix in "${priorities[@]}"; do
+    for base in "${bases[@]}"; do
+      prefer="$base$suffix"
 
-  prefer="$id-ultimate"
-  hasVersion "$prefer" "$tag" "$xml" "$platform" && echo "$prefer" && return 0
+      if match=$(hasVersion "$prefer" "${versions[@]}"); then
+        echo "$match"
+        return 0
+      fi
+    done
+  done
 
-  prefer="$id"
-  hasVersion "$prefer" "$tag" "$xml" "$platform" && echo "$prefer" && return 0
-
-  prefer=$(getVersion "$name" "$platform") && echo "$prefer"
-
+  # Future or unusual edition that getVersion() recognizes but which is not
+  # included in the priority list: use the first recognized WIM image.
+  echo "${versions[0]}"
   return 0
 }
 
