@@ -773,9 +773,9 @@ selectVersion() {
   [ -z "$id" ] && warn "Unknown ${tag,,}: '$name'" && return 0
 
   if [ -n "$EDITION" ] && [[ "$id" != win20* ]]; then
+
     case "${EDITION,,}" in
-      "pro" | "professional" | "business" )
-        prefer="$id" ;;
+      "pro" | "professional" | "business" ) prefer="$id" ;;
       * ) prefer="$id-${EDITION,,}" ;;
     esac
 
