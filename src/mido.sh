@@ -510,7 +510,7 @@ getWindows() {
   info "$msg" && html "$msg"
 
   case "${version,,}" in
-    "win2008r2" | "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* )
+    "win2008r2-eval" | "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* )
       if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
         error "No download in the $language language available for $edition!"
         MIDO_URL=""
@@ -555,7 +555,7 @@ getWindows() {
         return 0
       fi
       ;;
-    "win2008r2" | "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* )
+    "win2008r2-eval" | "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* )
       ;;
     * )
       error "Invalid VERSION specified, value \"$version\" is not recognized!"
