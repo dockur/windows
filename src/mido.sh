@@ -449,9 +449,9 @@ getMidoDetected() {
 
   # A successful primary evaluation route uses an evaluation answer file.
   # IoT deliberately retains its normal key-bearing answer file.
-  elif [[ "${version,,}" == *"-eval" &&
-          "${source,,}" == "${version,,}" &&
-          "${version,,}" != *"-enterprise-iot-eval" ]]; then
+  if [[ "${version,,}" == *"-eval" &&
+        "${source,,}" == "${version,,}" &&
+        "${version,,}" != *"-enterprise-iot-eval" ]]; then
     detected+="-eval"
   fi
 
