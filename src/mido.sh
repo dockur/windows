@@ -560,7 +560,7 @@ getWindows() {
         MIDO_SOURCE="$version"
         return 0
       fi ;;
-  
+
     "win2008r2-eval" | "win81${PLATFORM,,}"* ) ;;
 
     * ) error "Invalid VERSION specified, value \"$version\" is not recognized!"
