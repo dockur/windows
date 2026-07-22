@@ -155,19 +155,15 @@ parseVersion() {
       ;;
     "nano11" | "nano 11" )
       VERSION="nano11"
-      [ -z "$DETECTED" ] && DETECTED="win11x64"
       ;;
     "core11" | "core 11" )
       VERSION="core11"
-      [ -z "$DETECTED" ] && DETECTED="win11x64"
       ;;
     "tiny11" | "tiny 11" )
       VERSION="tiny11"
-      [ -z "$DETECTED" ] && DETECTED="win11x64"
       ;;
     "tiny10" | "tiny 10" )
       VERSION="tiny10"
-      [ -z "$DETECTED" ] && DETECTED="win10x64-ltsc"
       ;;
   esac
 
