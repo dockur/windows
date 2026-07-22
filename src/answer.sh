@@ -264,12 +264,8 @@ generateEvalXML() {
   fi
 
   case "${id,,}" in
-    *"-ltsc-eval" )
-      index="1"
-      ;;
-    *"-iot-eval" )
-      index="2"
-      ;;
+    *"-ltsc-eval" ) index="1" ;;
+    *"-iot-eval" )  index="2" ;;
   esac
 
   if [ -n "$index" ] && ! grep -q '<InstallFrom>' "$tmp"; then
