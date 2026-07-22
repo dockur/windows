@@ -423,46 +423,36 @@ getMidoDetected() {
   local version="$1"
   local source="$2"
   local current="$3"
-  local default=""
-  local detected=""
+  local default="$version"
+  local detected
 
-  case "${version,,}" in
-    "win11${PLATFORM,,}-enterprise-iot-eval" )
-      default="win11${PLATFORM,,}-iot"
-      detected="$default"
+  # Derive the normal answer-file identity from the download route.
+  case "${default,,}" in
+    *"-enterprise-ltsc-eval" )
+      default="${default%-enterprise-ltsc-eval}-ltsc"
       ;;
-    "win11${PLATFORM,,}-enterprise-ltsc-eval" )
-      default="win11${PLATFORM,,}-ltsc"
-      detected="$default"
-      if [[ "${source,,}" == *"-enterprise-ltsc-eval" ]]; then
-        detected+="-eval"
-      fi
-      ;;
-    "win10${PLATFORM,,}-enterprise-iot-eval" )
-      default="win10${PLATFORM,,}-iot"
-      detected="$default"
-      ;;
-    "win10${PLATFORM,,}-enterprise-ltsc-eval" )
-      default="win10${PLATFORM,,}-ltsc"
-      detected="$default-eval"
-      ;;
-    "win2008r2" )
-      default="win2008r2"
-      detected="win2008r2-eval"
+    *"-enterprise-iot-eval" )
+      default="${default%-enterprise-iot-eval}-iot"
       ;;
     *"-eval" )
-      default="${version::-5}"
-      detected="$version"
-      ;;
-    * )
-      default="$version"
-      detected="$version"
+      default="${default%-eval}"
       ;;
   esac
 
   # Preserve a genuinely different DETECTED override.
   if [ -n "$current" ] && [[ "${current,,}" != "${default,,}" ]]; then
-    detected="$current"
+    echo "$current"
+    return 0
+  fi
+
+  detected="${current:-$default}"
+
+  # A successful primary evaluation route uses an evaluation answer file.
+  # IoT deliberately retains its normal key-bearing answer file.
+  elif [[ "${version,,}" == *"-eval" &&
+          "${source,,}" == "${version,,}" &&
+          "${version,,}" != *"-enterprise-iot-eval" ]]; then
+    detected+="-eval"
   fi
 
   echo "$detected"
