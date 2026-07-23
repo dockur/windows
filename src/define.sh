@@ -516,7 +516,7 @@ printEdition() {
   local desc="$2"
   local show_eval="${3:-N}"
   local normalized="${id,,}"
-  local result="" edition=""
+  local result="" edition="" suffix=""
 
   result=$(printVersion "$id" "x")
   [[ "$result" == "x" ]] && echo "$desc" && return 0
@@ -524,43 +524,8 @@ printEdition() {
   normalized="${normalized%-eval}"
 
   case "$normalized" in
-    *"-home" )
-      edition="Home"
-      ;;
-    *"-starter" )
-      edition="Starter"
-      ;;
-    *"-ultimate" )
-      edition="Ultimate"
-      ;;
-    *"-enterprise" )
-      edition="Enterprise"
-      ;;
-    *"-education" )
-      edition="Education"
-      ;;
-    *"-hv" )
+    "win2019-hv"* )
       edition="2019"
-      ;;
-    *"-iot" )
-      edition="IoT Enterprise LTSC"
-      ;;
-    *"-ltsc" )
-      edition="Enterprise LTSC"
-      ;;
-    "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* )
-      if [[ "$normalized" == *"-"* ]]; then
-        edition=$(formatEdition "${normalized#*-}")
-      else
-        case "$normalized" in
-          "win7"* ) edition="Professional" ;;
-          "win8"* | "win10"* | "win11"* ) edition="Pro" ;;
-          "winvista"* ) edition="Business" ;;
-        esac
-      fi
-      ;;
-    "winxp"* )
-      edition="Professional"
       ;;
     "win2025"* | "win2022"* | "win2019"* | "win2016"* | \
     "win2012"* | "win2008"* | "win2003"* )
@@ -568,6 +533,52 @@ printEdition() {
         *"DATACENTER"* ) edition="Datacenter" ;;
         "CORE" | "STANDARDCORE" ) edition="Core" ;;
         * ) edition="Standard" ;;
+      esac
+      ;;
+    "winxp"* )
+      edition="Professional"
+      ;;
+    "winvista"* | "win7"* | "win8"* | "win10"* | "win11"* )
+      [[ "$normalized" == *"-"* ]] && suffix="${normalized#*-}"
+
+      case "$suffix" in
+        "" )
+          case "$normalized" in
+            "winvista"* ) edition="Business" ;;
+            "win7"* ) edition="Professional" ;;
+            * ) edition="Pro" ;;
+          esac
+          ;;
+        "home" )
+          edition="Home"
+          ;;
+        "starter" )
+          edition="Starter"
+          ;;
+        "ultimate" )
+          edition="Ultimate"
+          ;;
+        "enterprise" )
+          edition="Enterprise"
+          ;;
+        "education" )
+          edition="Education"
+          ;;
+        "n" )
+          case "$normalized" in
+            "win7"* ) edition="Professional N" ;;
+            * ) edition="Pro N" ;;
+          esac
+          ;;
+        "iot" )
+          edition="IoT Enterprise LTSC"
+          ;;
+        "ltsc" )
+          edition="Enterprise LTSC"
+          ;;
+        * )
+          edition=$(formatEdition "$suffix")
+          ;;
       esac
       ;;
   esac
@@ -765,7 +776,50 @@ getEditionID() {
       ;;
   esac
 
-  normalizeEdition "$edition"
+  edition=$(normalizeEdition "$edition")
+
+  case "$edition" in
+    "pro" | "professional" )
+      edition=""
+      ;;
+    "pro-n" | "professional-n" )
+      edition="n"
+      ;;
+  esac
+
+  case "$id" in
+    "winvista"* )
+      case "$edition" in
+        "business" )
+          edition=""
+          ;;
+        "home-basic" | "home-premium" )
+          edition="home"
+          ;;
+      esac
+      ;;
+    "win7"* )
+      case "$edition" in
+        "home-basic" | "home-premium" )
+          edition="home"
+          ;;
+      esac
+      ;;
+    "win10"* | "win11"* )
+      case "$edition" in
+        "iot-enterprise-ltsc" | \
+        "iot-enterprise-ltsc-"[0-9][0-9][0-9][0-9] )
+          edition="iot"
+          ;;
+        "enterprise-ltsc" | \
+        "enterprise-ltsc-"[0-9][0-9][0-9][0-9] )
+          edition="ltsc"
+          ;;
+      esac
+      ;;
+  esac
+
+  echo "$edition"
   return 0
 }
 
@@ -779,67 +833,12 @@ getVersion() {
   id=$(fromName "$name" "$arch")
   [[ "${name,,}" == *"evaluation"* ]] && evaluation="-eval"
 
-  if [ -n "${CUSTOM:-}" ]; then
-    case "${id,,}" in
-      "winvista"* | "win7"* | "win8"* | "win10"* | "win11"* )
-        if edition=$(getEditionID "$name" "$id"); then
-          case "${id,,}" in
-            "winvista"* )
-              [ "$edition" = "business" ] && edition=""
-              ;;
-            "win7"* )
-              [ "$edition" = "professional" ] && edition=""
-              ;;
-            "win8"* )
-              [ "$edition" = "pro" ] && edition=""
-              ;;
-            "win10"* | "win11"* )
-              case "$edition" in
-                "pro" )
-                  edition=""
-                  ;;
-                "iot-enterprise-ltsc" | "iot-enterprise-ltsc-"[0-9]* )
-                  edition="iot"
-                  ;;
-                "enterprise-ltsc" | "enterprise-ltsc-"[0-9]* )
-                  edition="ltsc"
-                  ;;
-              esac
-              ;;
-          esac
-
-          [ -n "$edition" ] && id+="-$edition"
-          [ -n "$evaluation" ] && id+="$evaluation"
-
-          echo "$id"
-          return 0
-        fi
-        ;;
-    esac
-  fi
-
   case "${id,,}" in
-    "win7"* | "winvista"* )
-      case "${name,,}" in
-        *" home"* ) id="$id-home" ;;
-        *" starter"* ) id="$id-starter" ;;
-        *" ultimate"* ) id="$id-ultimate" ;;
-        *" enterprise"* ) id="$id-enterprise$evaluation" ;;
-      esac
-      ;;
-    "win8"* )
-      case "${name,,}" in
-        *" enterprise"* ) id="$id-enterprise$evaluation" ;;
-      esac
-      ;;
-    "win10"* | "win11"* )
-      case "${name,,}" in
-        *" iot"* ) id="$id-iot$evaluation" ;;
-        *" ltsc"* ) id="$id-ltsc$evaluation" ;;
-        *" home"* ) id="$id-home" ;;
-        *" education"* ) id="$id-education" ;;
-        *" enterprise"* ) id="$id-enterprise$evaluation" ;;
-      esac
+    "winvista"* | "win7"* | "win8"* | "win10"* | "win11"* )
+      if edition=$(getEditionID "$name" "$id"); then
+        [ -n "$edition" ] && id+="-$edition"
+        [ -n "$evaluation" ] && id+="$evaluation"
+      fi
       ;;
     "win2025"* | "win2022"* | "win2019"* | "win2016"* | \
     "win2012"* | "win2008"* | "win2003"* )
