@@ -241,16 +241,20 @@ generateEvalXML() {
   # both variants remain identical except for evaluation-specific selectors.
 
   local id="$1"
-  local index="${2:-}"
+  local detected_index="${2:-}"
   local source="/run/assets/${id::-5}.xml"
   local target="/run/assets/$id.xml"
+  local index="$detected_index" tmp
 
   [[ "${id,,}" == *"-eval" ]] || return 1
-
-  [ -s "$target" ] && return 0
+  [ -s "$target" ] && [ -z "$detected_index" ] && return 0
   [ -s "$source" ] || return 1
 
-  local tmp
+  if [ -n "$index" ] && [[ ! "$index" =~ ^[1-9][0-9]*$ ]]; then
+    error "Invalid evaluation image index: $index"
+    return 1
+  fi
+
   if ! tmp=$(mktemp -p /run/assets ".${id}.XXXXXX"); then
     error "Failed to create a temporary evaluation answer file!"
     return 1
@@ -265,11 +269,27 @@ generateEvalXML() {
     return 1
   fi
 
-  if [ -z "$index" ]; then
+  if [ -n "$detected_index" ]; then
+
+    # A WIM index was detected, so replace any selector inherited from
+    # the normal template with the exact index from the ISO image.
+    if ! sed -i \
+      -e '/<InstallFrom>.*<\/InstallFrom>/d' \
+      -e '/<InstallFrom>/,/<\/InstallFrom>/d' \
+      "$tmp"; then
+      rm -f "$tmp"
+      error "Failed to replace evaluation image selector!"
+      return 1
+    fi
+
+  else
+
+    # No WIM was inspected, so retain the known defaults for download routes.
     case "${id,,}" in
       *"-ltsc-eval" ) index="1" ;;
       *"-iot-eval" )  index="2" ;;
     esac
+
   fi
 
   if [ -n "$index" ] && ! grep -q '<InstallFrom>' "$tmp"; then
