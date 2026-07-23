@@ -1319,15 +1319,21 @@ legacyPrepare() {
   rm -f "$dir/$ETFS" || return 1
   rm -rf "$tmp" || return 1
 
-  if ! LC_ALL=C xorriso \
+  local rc
+
+  LC_ALL=C xorriso \
       -no_rc \
       -osirrox on \
       -indev "$iso" \
-      -extract_boot_images "$tmp" >/dev/null 2>&1; then
+      -extract_boot_images "$tmp" >/dev/null 2>&1 || {
+    rc=$?
     rm -rf "$tmp" || true
+
+    (( rc > 128 )) && exit "$rc"
+
     error "Failed to extract boot image from $desc ISO!"
     return 1
-  fi
+  }
 
   if [ ! -s "$image" ]; then
     rm -rf "$tmp" || true
