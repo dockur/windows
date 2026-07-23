@@ -396,7 +396,7 @@ detectImage() {
   # and Tiny11 have no corresponding answer file, so their actual Windows
   # edition will be detected from the downloaded image instead.
   if [ -z "$DETECTED" ] && [ -z "$CUSTOM" ] &&
-    [[ "${version,,}" != "http"* ]]; then
+    [ -z "${REUSED_ISO:-}" ] && [[ "${version,,}" != "http"* ]]; then
 
     file="/run/assets/$version.xml"
 
