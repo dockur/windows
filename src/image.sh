@@ -404,7 +404,6 @@ detectImage() {
   local file source
 
   XML=""
-  IMAGE_INDEX=""
 
   # For normal download routes, avoid inspecting install.wim when the route
   # already maps directly to an available answer file. Routes such as Tiny10
@@ -497,7 +496,6 @@ detectImage() {
   fi
 
   index=$(getImageIndex "$info" "$DETECTED") || index=""
-  IMAGE_INDEX="$index"
   desc=$(printEdition "$DETECTED" "$DETECTED" "Y")
 
   detectLanguage "$info"
@@ -519,7 +517,7 @@ detectImage() {
   msg="the answer file for $desc was not found ($DETECTED.xml)"
   local fallback="/run/assets/${DETECTED%%-*}.xml"
 
-  if setXML "$fallback" || enabled "$MANUAL"; then
+  if setXML "$fallback" "$index" || enabled "$MANUAL"; then
     ! enabled "$MANUAL" && warn "${msg}."
   else
     MANUAL="Y"
