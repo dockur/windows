@@ -445,6 +445,8 @@ detectImage() {
   fi
 
   local src wim info index suggested
+  local rc=0
+
   src=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
 
   if [ ! -d "$src" ]; then
@@ -460,11 +462,17 @@ detectImage() {
     return 1
   fi
 
-  if ! info=$(wimlib-imagex info -xml "$wim" |
-    iconv -f UTF-16LE -t UTF-8); then
+  info=$(wimlib-imagex info -xml "$wim" |
+    iconv -f UTF-16LE -t UTF-8) || {
+    rc=$?
+
+    if (( rc >= 129 )); then
+      exit "$rc"
+    fi
+
     warn "failed to read Windows image information, $FB"
     return 1
-  fi
+  }
 
   checkPlatform "$info" || exit 67
 
