@@ -1013,39 +1013,6 @@ updateImage() {
       return 1
     fi
 
-    local fallback="/run/assets/${DETECTED%%-*}.xml"
-
-    if [[ "$DETECTED" != win20* &&
-          "$asset" == "$fallback" &&
-          "$asset" != "/run/assets/$DETECTED.xml" ]]; then
-
-      if ! sed -i \
-        -e '/<InstallFrom>.*<\/InstallFrom>/d' \
-        -e '/<ProductKey>.*<\/ProductKey>/d' \
-        -e '/<InstallFrom>/,/<\/InstallFrom>/d' \
-        -e '/<ProductKey>/,/<\/ProductKey>/d' \
-        "$answer"; then
-        error "Failed to make answer file edition-neutral: $answer"
-        return 1
-      fi
-
-      if [ -n "${IMAGE_INDEX:-}" ]; then
-        if ! sed -i \
-          '0,/<InstallTo>/{ /<InstallTo>/i\
-          <InstallFrom>\
-            <MetaData wcm:action="add">\
-              <Key>/IMAGE/INDEX</Key>\
-              <Value>'"$IMAGE_INDEX"'</Value>\
-            </MetaData>\
-          </InstallFrom>
-          }' "$answer"; then
-          error "Failed to select image index $IMAGE_INDEX!"
-          return 1
-        fi
-      fi
-
-    fi
-
     if [ -n "${CUSTOM_XML:-}" ]; then
 
       if ! xmllint --nonet --noout "$answer"; then
