@@ -325,8 +325,7 @@ generateEvalXML() {
 
 setXML() {
 
-  local file=""
-  local custom
+  local file
   local index="${2:-}"
   local custom_files=(
     "/custom.xml"
@@ -341,15 +340,15 @@ setXML() {
     exit 67
   fi
 
-  for custom in "${custom_files[@]}"; do
-    if [ -f "$custom" ] && [ -s "$custom" ]; then
-      file="$custom"
+  for file in "${custom_files[@]}"; do
+    if [ -f "$file" ] && [ -s "$file" ]; then
       CUSTOM_XML="Y"
-      break
+      XML="$file"
+      return 0
     fi
   done
 
-  [ -n "$file" ] || file="$1"
+  file="$1"
 
   if [[ "${DETECTED,,}" == *"-eval" ]]; then
     if [ ! -f "$file" ] || [ ! -s "$file" ]; then
@@ -357,8 +356,11 @@ setXML() {
     fi
   fi
 
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/$DETECTED.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && return 1
+  if [ ! -f "$file" ] || [ ! -s "$file" ]; then
+    file="/run/assets/$DETECTED.xml"
+  fi
+
+  [ -f "$file" ] && [ -s "$file" ] || return 1
 
   XML="$file"
   return 0
