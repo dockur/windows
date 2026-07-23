@@ -340,7 +340,7 @@ setXML() {
 
   if [[ "${DETECTED,,}" == *"-eval" ]]; then
     if [ ! -f "$file" ] || [ ! -s "$file" ]; then
-      generateEvalXML "$DETECTED" "$index" || return
+      generateEvalXML "$DETECTED" "$index" || return 1
     fi
   fi
 
