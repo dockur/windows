@@ -154,7 +154,7 @@ abortDuringSetup() {
 
   terminateQemu
 
-  if ! waitQemuExit 5; then
+  if ! waitQemuExit 10; then
     warn "Timed out while waiting for $(app) to exit!"
   fi
 
