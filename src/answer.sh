@@ -306,6 +306,7 @@ generateEvalXML() {
 setXML() {
 
   local file="/custom.xml"
+  local index="${2:-}"
 
   CUSTOM_XML=""
 
@@ -319,7 +320,7 @@ setXML() {
 
   if [[ "${DETECTED,,}" == *"-eval" ]]; then
     if [ ! -f "$file" ] || [ ! -s "$file" ]; then
-      generateEvalXML "$DETECTED" "${IMAGE_INDEX:-}" || return 1
+      generateEvalXML "$DETECTED" "$index" || return
     fi
   fi
 
