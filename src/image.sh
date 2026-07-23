@@ -404,6 +404,7 @@ detectImage() {
   local file source
 
   XML=""
+  IMAGE_INDEX=""
 
   # For normal download routes, avoid inspecting install.wim when the route
   # already maps directly to an available answer file. Routes such as Tiny10
@@ -444,9 +445,7 @@ detectImage() {
     return 0
   fi
 
-  local src wim info index suggested
-  local rc=0
-
+  local src wim info index suggested rc=0
   src=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
 
   if [ ! -d "$src" ]; then
@@ -498,6 +497,7 @@ detectImage() {
   fi
 
   index=$(getImageIndex "$info" "$DETECTED") || index=""
+  IMAGE_INDEX="$index"
   desc=$(printEdition "$DETECTED" "$DETECTED" "Y")
 
   detectLanguage "$info"
