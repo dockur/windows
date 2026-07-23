@@ -1029,6 +1029,21 @@ updateImage() {
         return 1
       fi
 
+      if [ -n "${IMAGE_INDEX:-}" ]; then
+        if ! sed -i \
+          '0,/<InstallTo>/{ /<InstallTo>/i\
+          <InstallFrom>\
+            <MetaData wcm:action="add">\
+              <Key>/IMAGE/INDEX</Key>\
+              <Value>'"$IMAGE_INDEX"'</Value>\
+            </MetaData>\
+          </InstallFrom>
+          }' "$answer"; then
+          error "Failed to select image index $IMAGE_INDEX!"
+          return 1
+        fi
+      fi
+
     fi
 
     if [ -n "${CUSTOM_XML:-}" ]; then
