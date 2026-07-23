@@ -855,6 +855,7 @@ verifyFile() {
 
   local hash=""
   local algo="SHA256"
+  local rc=0
 
   [ -z "$check" ] && return 0
   ! enabled "$VERIFY" && return 0
@@ -864,15 +865,31 @@ verifyFile() {
   info "$msg" && html "$msg"
 
   if [[ "${algo,,}" != "sha256" ]]; then
-    if ! hash=$(sha1sum "$iso" | cut -f1 -d' '); then
+
+    hash=$(sha1sum "$iso" | cut -f1 -d' ') || {
+      rc=$?
+
+      if (( rc >= 129 )); then
+        exit "$rc"
+      fi
+
       error "Failed to calculate SHA1 checksum for $iso!"
       return 1
-    fi
+    }
+
   else
-    if ! hash=$(sha256sum "$iso" | cut -f1 -d' '); then
+
+    hash=$(sha256sum "$iso" | cut -f1 -d' ') || {
+      rc=$?
+
+      if (( rc >= 129 )); then
+        exit "$rc"
+      fi
+
       error "Failed to calculate SHA256 checksum for $iso!"
       return 1
-    fi
+    }
+
   fi
 
   if [[ "$hash" == "$check" ]]; then
