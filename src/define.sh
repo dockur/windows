@@ -497,11 +497,24 @@ formatEdition() {
   local result="" word
 
   for word in $edition; do
-    if [ "${#word}" -eq 1 ]; then
-      word="${word^^}"
-    else
-      word="${word^}"
-    fi
+    case "$word" in
+      "iot" )
+        word="IoT"
+        ;;
+      "ltsc" )
+        word="LTSC"
+        ;;
+      "for" )
+        word="for"
+        ;;
+      * )
+        if [ "${#word}" -eq 1 ]; then
+          word="${word^^}"
+        else
+          word="${word^}"
+        fi
+        ;;
+    esac
 
     result+="${result:+ }$word"
   done
@@ -556,10 +569,10 @@ printEdition() {
             * ) edition="Pro N" ;;
           esac
           ;;
-        "iot" )
+        "iot" | "enterprise-iot" )
           edition="IoT Enterprise LTSC"
           ;;
-        "ltsc" )
+        "ltsc" | "enterprise-ltsc" )
           edition="Enterprise LTSC"
           ;;
         * )
