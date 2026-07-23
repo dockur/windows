@@ -325,18 +325,31 @@ generateEvalXML() {
 
 setXML() {
 
-  local file="/custom.xml"
+  local file=""
+  local custom
   local index="${2:-}"
+  local custom_files=(
+    "/custom.xml"
+    "$STORAGE/custom.xml"
+    "/run/assets/custom.xml"
+  )
 
   CUSTOM_XML=""
 
-  if [ -d "$file" ]; then
-    error "The bind $file maps to a file that does not exist!" && exit 67
+  if [ -d "${custom_files[0]}" ]; then
+    error "The bind ${custom_files[0]} maps to a file that does not exist!"
+    exit 67
   fi
 
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$STORAGE/custom.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/custom.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$1"
+  for custom in "${custom_files[@]}"; do
+    if [ -f "$custom" ] && [ -s "$custom" ]; then
+      file="$custom"
+      CUSTOM_XML="Y"
+      break
+    fi
+  done
+
+  [ -n "$file" ] || file="$1"
 
   if [[ "${DETECTED,,}" == *"-eval" ]]; then
     if [ ! -f "$file" ] || [ ! -s "$file" ]; then
@@ -346,11 +359,6 @@ setXML() {
 
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/$DETECTED.xml"
   [ ! -f "$file" ] || [ ! -s "$file" ] && return 1
-
-  case "$file" in
-    "/custom.xml" | "$STORAGE/custom.xml" | "/run/assets/custom.xml" )
-      CUSTOM_XML="Y" ;;
-  esac
 
   XML="$file"
   return 0
