@@ -428,6 +428,12 @@ getMidoDetected() {
 
   [ -z "$source" ] && source="$version"
 
+  # Preserve a DETECTED value that existed before SUGGEST was assigned.
+  if enabled "${DETECTED_ORG:-}"; then
+    echo "$current"
+    return 0
+  fi
+
   # Derive the normal answer-file identity from the requested download route.
   case "$default" in
     *"-enterprise-ltsc-eval" )
