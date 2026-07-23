@@ -247,7 +247,6 @@ generateEvalXML() {
   local index="$detected_index" tmp
 
   [[ "${id,,}" == *"-eval" ]] || return 1
-  [ -s "$target" ] && [ -z "$detected_index" ] && return 0
   [ -s "$source" ] || return 1
 
   if [ -n "$index" ] && [[ ! "$index" =~ ^[1-9][0-9]*$ ]]; then
