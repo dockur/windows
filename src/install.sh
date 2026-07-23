@@ -196,10 +196,6 @@ startInstall() {
 
   if [ -z "$CUSTOM" ]; then
 
-    if [ -z "$DETECTED" ]; then
-      DETECTED="$SUGGEST"
-    fi
-
     local file="${VERSION//\//}.iso"
 
     if [[ "${VERSION,,}" == "http"* ]]; then
@@ -221,6 +217,13 @@ startInstall() {
     fi
 
     BOOT="$STORAGE/$file"
+
+    # Use the suggested answer file for a new automatic download. When an
+    # existing ISO is reused, leave DETECTED empty so its actual image can
+    # be inspected instead.
+    if [ -z "$DETECTED" ] && [ ! -s "$BOOT" ]; then
+      DETECTED="$SUGGEST"
+    fi
 
   fi
 
