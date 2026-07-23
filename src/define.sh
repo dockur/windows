@@ -467,6 +467,7 @@ printVariant() {
 
   local id="$1"
   local desc="$2"
+  local show_eval="${3:-N}"
 
   desc=$(printVersion "$id" "$desc") || return 1
 
@@ -482,7 +483,9 @@ printVariant() {
       ;;
   esac
 
-  [[ "${id,,}" == *"-eval" ]] && desc+=" (Evaluation)"
+  if enabled "$show_eval" && [[ "${id,,}" == *"-eval" ]]; then
+    desc+=" (Evaluation)"
+  fi
 
   echo "$desc"
   return 0
@@ -492,8 +495,8 @@ printEdition() {
 
   local id="$1"
   local desc="$2"
-  local result=""
-  local edition=""
+  local show_eval="${3:-N}"
+  local result="" edition=""
 
   result=$(printVersion "$id" "x")
   [[ "$result" == "x" ]] && echo "$desc" && return 0
@@ -545,7 +548,10 @@ printEdition() {
   esac
 
   [ -n "$edition" ] && result+=" $edition"
-  [[ "${id,,}" == *"-eval" ]] && result+=" (Evaluation)"
+
+  if enabled "$show_eval" && [[ "${id,,}" == *"-eval" ]]; then
+    result+=" (Evaluation)"
+  fi
 
   echo "$result"
   return 0
