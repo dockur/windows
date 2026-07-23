@@ -218,6 +218,18 @@ startInstall() {
 
     BOOT="$STORAGE/$file"
 
+    REUSED_ISO=""
+    [ -s "$BOOT" ] && REUSED_ISO="Y"
+
+    # Use the suggested answer file for a new automatic download. When an
+    # existing ISO is reused, leave DETECTED empty so its actual image can
+    # be inspected instead.
+    if [ -n "$DETECTED" ]; then
+      DETECTED_ORG="Y"
+    elif [ -z "$REUSED_ISO" ]; then
+      DETECTED="$SUGGEST"
+    fi
+
   fi
 
   TMP="$STORAGE/tmp"
@@ -677,265 +689,6 @@ extractImage() {
   return 0
 }
 
-getPlatform() {
-
-  local xml="$1"
-  local tag="ARCH"
-  local platform="x64"
-  local arch
-
-  arch=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml")
-
-  case "${arch,,}" in
-    "0" ) platform="x86" ;;
-    "9" ) platform="x64" ;;
-    "12" ) platform="arm64" ;;
-  esac
-
-  echo "$platform"
-  return 0
-}
-
-checkPlatform() {
-
-  local xml="$1"
-  local platform compat
-
-  platform=$(getPlatform "$xml")
-
-  case "${platform,,}" in
-    "x86" ) compat="x64" ;;
-    "x64" ) compat="$platform" ;;
-    "arm64" ) compat="$platform" ;;
-    * ) compat="${PLATFORM,,}" ;;
-  esac
-
-  [[ "${compat,,}" == "${PLATFORM,,}" ]] && return 0
-
-  error "You cannot boot ${platform^^} images on a $PLATFORM CPU!"
-  return 1
-}
-
-hasVersion() {
-
-  local id="$1"
-  local tag="$2"
-  local xml="$3"
-  local edition alternate=""
-
-  [ ! -f "/run/assets/$id.xml" ] && return 1
-
-  edition=$(printEdition "$id" "")
-  [ -z "$edition" ] && return 1
-
-  [[ "${xml,,}" == *"<${tag,,}>${edition,,}</${tag,,}>"* ]] && return 0
-
-  case "${id,,}" in
-    *"-iot" | *"-iot-eval" )
-      alternate="${id/-iot/-ltsc}" ;;
-    *"-ltsc" | *"-ltsc-eval" )
-      alternate="${id/-ltsc/-iot}" ;;
-    * ) return 1 ;;
-  esac
-
-  edition=$(printEdition "$alternate" "")
-  [ -z "$edition" ] && return 1
-
-  [[ "${xml,,}" == *"<${tag,,}>${edition,,}</${tag,,}>"* ]] && return 0
-
-  return 1
-}
-
-selectVersion() {
-
-  local tag="$1"
-  local xml="$2"
-  local platform="$3"
-  local id name prefer
-
-  name=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml")
-  [[ "$name" == *"Operating System"* ]] && name=""
-  [ -z "$name" ] && return 0
-
-  id=$(fromName "$name" "$platform")
-  [ -z "$id" ] && warn "Unknown ${tag,,}: '$name'" && return 0
-
-  if [ -n "$EDITION" ] && [[ "$id" != win20* ]]; then
-    case "${EDITION,,}" in
-      "pro" | "professional" | "business" ) prefer="$id" ;;
-      * ) prefer="$id-${EDITION,,}" ;;
-    esac
-
-    if hasVersion "$prefer" "$tag" "$xml"; then
-      echo "$prefer"
-      return 0
-    fi
-
-    warn "Edition '$EDITION' is not supported by this image, using automatic selection instead."
-  fi
-
-  prefer="$id-enterprise"
-  hasVersion "$prefer" "$tag" "$xml" && echo "$prefer" && return 0
-
-  prefer="$id-ultimate"
-  hasVersion "$prefer" "$tag" "$xml" && echo "$prefer" && return 0
-
-  prefer="$id"
-  hasVersion "$prefer" "$tag" "$xml" && echo "$prefer" && return 0
-
-  prefer=$(getVersion "$name" "$platform")
-
-  echo "$prefer"
-  return 0
-}
-
-detectVersion() {
-
-  local xml="$1"
-  local id platform
-
-  platform=$(getPlatform "$xml")
-  id=$(selectVersion "DISPLAYNAME" "$xml" "$platform")
-  [ -z "$id" ] && id=$(selectVersion "PRODUCTNAME" "$xml" "$platform")
-  [ -z "$id" ] && id=$(selectVersion "NAME" "$xml" "$platform")
-
-  echo "$id"
-  return 0
-}
-
-detectLanguage() {
-
-  local xml="$1"
-  local lang=""
-
-  if [[ "$xml" == *"LANGUAGE><DEFAULT>"* ]]; then
-    lang="${xml#*LANGUAGE><DEFAULT>}"
-    lang="${lang%%<*}"
-  else
-    if [[ "$xml" == *"FALLBACK><DEFAULT>"* ]]; then
-      lang="${xml#*FALLBACK><DEFAULT>}"
-      lang="${lang%%<*}"
-    fi
-  fi
-
-  if [ -z "$lang" ]; then
-   warn "Language could not be detected from ISO!" && return 0
-  fi
-
-  local culture
-  culture=$(getLanguage "$lang" "culture")
-  [ -n "$culture" ] && LANGUAGE="$lang" && return 0
-
-  warn "Invalid language detected: \"$lang\""
-  return 0
-}
-
-skipVersion() {
-
-  local id="$1"
-
-  case "${id,,}" in
-    "win9"* | "winxp"* | "win2k"* | "win2003"* )
-      return 0 ;;
-  esac
-
-  return 1
-}
-
-detectImage() {
-
-  local dir="$1"
-  local version="$2"
-  local desc msg language
-
-  XML=""
-
-  if [ -z "$DETECTED" ] && [ -z "$CUSTOM" ]; then
-    [[ "${version,,}" != "http"* ]] && DETECTED="$version"
-  fi
-
-  if [ -n "$DETECTED" ]; then
-
-    skipVersion "${DETECTED,,}" && return 0
-
-    if ! setXML "" && ! enabled "$MANUAL"; then
-      MANUAL="Y"
-      desc=$(printEdition "$DETECTED" "this version")
-      warn "the answer file for $desc was not found ($DETECTED.xml), $FB."
-    fi
-
-    return 0
-  fi
-
-  info "Detecting version from ISO image..."
-
-  if detectLegacy "$dir"; then
-    desc=$(printEdition "$DETECTED" "$DETECTED")
-    info "Detected: $desc"
-    return 0
-  fi
-
-  local src wim info
-  src=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
-
-  if [ ! -d "$src" ]; then
-    warn "failed to locate 'sources' folder in ISO image, $FB" && return 1
-  fi
-
-  wim=$(find "$src" -maxdepth 1 -type f \( -iname install.wim -or -iname install.esd \) -print -quit)
-
-  if [ ! -f "$wim" ]; then
-    warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB" && return 1
-  fi
-
-  if ! info=$(wimlib-imagex info -xml "$wim" | iconv -f UTF-16LE -t UTF-8); then
-    warn "failed to read Windows image information, $FB"
-    return 1
-  fi
-
-  checkPlatform "$info" || exit 67
-
-  DETECTED=$(detectVersion "$info")
-
-  if [ -z "$DETECTED" ]; then
-    msg="Failed to determine Windows version from image"
-    if setXML "" || enabled "$MANUAL"; then
-      info "${msg}!"
-    else
-      MANUAL="Y"
-      warn "${msg}, $FB."
-    fi
-    return 0
-  fi
-
-  desc=$(printEdition "$DETECTED" "$DETECTED")
-  detectLanguage "$info"
-
-  if [[ "${LANGUAGE,,}" != "en" && "${LANGUAGE,,}" != "en-"* ]]; then
-    language=$(getLanguage "$LANGUAGE" "desc")
-    desc+=" ($language)"
-  fi
-
-  info "Detected: $desc"
-  setXML "" && return 0
-
-  if [[ "$DETECTED" == "win81x86"* || "$DETECTED" == "win10x86"* ]]; then
-    error "The 32-bit version of $desc is not supported!" && return 1
-  fi
-
-  msg="the answer file for $desc was not found ($DETECTED.xml)"
-  local fallback="/run/assets/${DETECTED%%-*}.xml"
-
-  if setXML "$fallback" || enabled "$MANUAL"; then
-    ! enabled "$MANUAL" && warn "${msg}."
-  else
-    MANUAL="Y"
-    warn "${msg}, $FB."
-  fi
-
-  return 0
-}
-
 setMachine() {
 
   local id="$1"
@@ -1005,10 +758,13 @@ prepareImage() {
 
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
 
-    [ -f "$dir/$ETFS" ] && [ -f "$dir/$EFISYS" ] && return 0
-
+    [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] &&
+      [ -f "$dir/$EFISYS" ] && [ -s "$dir/$EFISYS" ] && return 0
+  
     missing=$(basename "$dir/$EFISYS")
-    [ ! -f "$dir/$ETFS" ] && missing=$(basename "$dir/$ETFS")
+    if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
+      missing=$(basename "$dir/$ETFS")
+    fi
 
     error "Failed to locate file \"${missing,,}\" in ISO image!"
     return 1
@@ -1369,7 +1125,7 @@ buildImage() {
 
   [ -z "$LABEL" ] && LABEL="Windows"
 
-  if [ ! -f "$dir/$ETFS" ]; then
+  if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
     error "Failed to locate file \"$ETFS\" in ISO image!" && return 1
   fi
 

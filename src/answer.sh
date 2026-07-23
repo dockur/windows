@@ -235,25 +235,131 @@ validateDomainName() {
   return 0
 }
 
+generateEvalXML() {
+
+  # Evaluation templates are generated from their normal counterpart so
+  # both variants remain identical except for evaluation-specific selectors.
+
+  local id="$1"
+  local detected_index="${2:-}"
+  local source="/run/assets/${id::-5}.xml"
+  local target="/run/assets/$id.xml"
+  local index="$detected_index" tmp
+
+  [[ "${id,,}" == *"-eval" ]] || return 1
+  [ -s "$source" ] || return 1
+
+  if [ -n "$index" ] && [[ ! "$index" =~ ^[1-9][0-9]*$ ]]; then
+    error "Invalid evaluation image index: $index"
+    return 1
+  fi
+
+  if ! tmp=$(mktemp -p /run/assets ".${id}.XXXXXX"); then
+    error "Failed to create a temporary evaluation answer file!"
+    return 1
+  fi
+
+  if ! sed \
+      -e '/<ProductKey>.*<\/ProductKey>/d' \
+      -e '/<ProductKey>/,/<\/ProductKey>/d' \
+      "$source" > "$tmp"; then
+    rm -f "$tmp"
+    error "Failed to generate evaluation answer file from $source!"
+    return 1
+  fi
+
+  if [ -n "$detected_index" ]; then
+
+    # A WIM index was detected, so replace any selector inherited from
+    # the normal template with the exact index from the ISO image.
+    if ! sed -i \
+      -e '/<InstallFrom>.*<\/InstallFrom>/d' \
+      -e '/<InstallFrom>/,/<\/InstallFrom>/d' \
+      "$tmp"; then
+      rm -f "$tmp"
+      error "Failed to replace evaluation image selector!"
+      return 1
+    fi
+
+  else
+
+    # No WIM was inspected, so retain the known defaults for download routes.
+    case "${id,,}" in
+      *"-ltsc-eval" ) index="1" ;;
+      *"-iot-eval" )  index="2" ;;
+    esac
+
+  fi
+
+  if [ -n "$index" ] && ! grep -q '<InstallFrom>' "$tmp"; then
+    if ! sed -i \
+      '0,/<InstallTo>/{ /<InstallTo>/i\
+          <InstallFrom>\
+            <MetaData wcm:action="add">\
+              <Key>/IMAGE/INDEX</Key>\
+              <Value>'"$index"'</Value>\
+            </MetaData>\
+          </InstallFrom>
+      }' "$tmp"; then
+      rm -f "$tmp"
+      error "Failed to select evaluation image index $index!"
+      return 1
+    fi
+  fi
+
+  if ! xmllint --nonet --noout "$tmp"; then
+    rm -f "$tmp"
+    error "Generated evaluation answer file is invalid!"
+    return 1
+  fi
+
+  if ! chmod 644 "$tmp" || ! mv -f "$tmp" "$target"; then
+    rm -f "$tmp"
+    error "Failed to create evaluation answer file: $target"
+    return 1
+  fi
+
+  return 0
+}
+
 setXML() {
 
-  local file="/custom.xml"
+  local file
+  local index="${2:-}"
+  local custom_files=(
+    "/custom.xml"
+    "$STORAGE/custom.xml"
+    "/run/assets/custom.xml"
+  )
 
   CUSTOM_XML=""
 
-  if [ -d "$file" ]; then
-    error "The bind $file maps to a file that does not exist!" && exit 67
+  if [ -d "${custom_files[0]}" ]; then
+    error "The bind ${custom_files[0]} maps to a file that does not exist!"
+    exit 67
   fi
 
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$STORAGE/custom.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/custom.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="$1"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/$DETECTED.xml"
-  [ ! -f "$file" ] || [ ! -s "$file" ] && return 1
+  for file in "${custom_files[@]}"; do
+    if [ -f "$file" ] && [ -s "$file" ]; then
+      CUSTOM_XML="Y"
+      XML="$file"
+      return 0
+    fi
+  done
 
-  case "$file" in
-    "/custom.xml" | "$STORAGE/custom.xml" ) CUSTOM_XML="Y" ;;
-  esac
+  file="$1"
+
+  if [[ "${DETECTED,,}" == *"-eval" ]]; then
+    if [ ! -f "$file" ] || [ ! -s "$file" ]; then
+      generateEvalXML "$DETECTED" "$index" || return 1
+    fi
+  fi
+
+  if [ ! -f "$file" ] || [ ! -s "$file" ]; then
+    file="/run/assets/$DETECTED.xml"
+  fi
+
+  [ -f "$file" ] && [ -s "$file" ] || return 1
 
   XML="$file"
   return 0
@@ -262,15 +368,14 @@ setXML() {
 updateDomain() {
 
   local asset="$1"
-  local domain account auth pass pw
+  local domain account auth pass
   local cred_domain ou arch tmp result
 
   domain=$(escapeXML "$2") || return 1
   account=$(escapeXML "$3") || return 1
   auth=$(escapeXML "$4") || return 1
   pass=$(escapeXML "$5") || return 1
-  pw="$6"
-  ou=$(escapeXML "$7") || return 1
+  ou=$(escapeXML "$6") || return 1
 
   arch=$(sed -n -E \
     '0,/processorArchitecture="/s/.*processorArchitecture="([^"]+)".*/\1/p' \
@@ -291,7 +396,7 @@ updateDomain() {
 
   if ! DOMAIN_XML="$domain" ACCOUNT_XML="$account" \
     AUTH_XML="$auth" PASS_XML="$pass" \
-    CRED_DOMAIN="$cred_domain" PW="$pw" OU_XML="$ou" \
+    CRED_DOMAIN="$cred_domain" OU_XML="$ou" \
     ARCH_XML="$arch" \
     awk '
       /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
@@ -326,8 +431,15 @@ updateDomain() {
 
       section == "oobeSystem" && in_autologon &&
         /^[[:space:]]*<Value>.*<\/Value>[[:space:]]*$/ {
-        print "          <Value>" ENVIRON["PW"] "</Value>"
+        print "          <Value>" ENVIRON["PASS_XML"] "</Value>"
         password_added = 1
+        next
+      }
+
+      section == "oobeSystem" && in_autologon &&
+        /^[[:space:]]*<PlainText([[:space:]/>])/ {
+        print "          <PlainText>true</PlainText>"
+        plaintext_added = 1
         next
       }
 
@@ -362,7 +474,7 @@ updateDomain() {
       section == "oobeSystem" && /<\/UserAccounts>/ { in_accounts = 0 }
       /^[[:space:]]*<\/settings>[[:space:]]*$/ { section = "" }
 
-      END { exit !(join_added && accounts_added && autologon_added && password_added) }
+      END { exit !(join_added && accounts_added && autologon_added && password_added && plaintext_added) }
     ' "$asset" > "$result" ||
     ! mv -f "$result" "$asset"; then
 
@@ -558,10 +670,8 @@ updateXML() {
 
   if [ -n "$domain" ]; then
 
-    pw=$(printf '%s' "${PASSWORD}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
-
     if ! updateDomain "$asset" "$domain" "$user" \
-      "$auth_user" "$PASSWORD" "$pw" "$DOMAIN_OU"; then
+      "$auth_user" "$PASSWORD" "$DOMAIN_OU"; then
       error "Failed to add domain configuration to answer file!"
       return 1
     fi
@@ -722,68 +832,6 @@ validateLegacyUsername() {
   fi
 
   return 0
-}
-
-detectLegacy() {
-
-  local dir="$1"
-  local find
-
-  [[ "${PLATFORM,,}" != "x64" ]] && return 1
-
-  find=$(find "$dir" -maxdepth 1 -type d -iname WIN95 -print -quit)
-  [ -n "$find" ] && DETECTED="win95" && return 0
-
-  find=$(find "$dir" -maxdepth 1 -type d -iname WIN98 -print -quit)
-  [ -n "$find" ] && DETECTED="win98" && return 0
-
-  find=$(find "$dir" -maxdepth 1 -type d -iname WIN9X -print -quit)
-  [ -n "$find" ] && DETECTED="win9x" && return 0
-
-  find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_W.40 -print -quit)
-  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_S.40 -print -quit)
-  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_TS.40 -print -quit)
-  [ -n "$find" ] && DETECTED="winnt4" && return 0
-
-  find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_NT.5 -print -quit)
-
-  if [ -n "$find" ]; then
-
-    find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IA.5 -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_ID.5 -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IP.5 -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IS.5 -print -quit)
-    [ -n "$find" ] && DETECTED="win2k" && return 0
-
-  fi
-
-  find=$(find "$dir" -maxdepth 1 -iname WIN51 -print -quit)
-
-  if [ -n "$find" ]; then
-
-    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AP -print -quit)
-    [ -n "$find" ] && DETECTED="winxpx64" && return 0
-
-    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IC -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IP -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname setupxp.htm -print -quit)
-    [ -n "$find" ] && DETECTED="winxpx86" && return 0
-
-    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IS -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IA -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IB -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51ID -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IL -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AA -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AD -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AS -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51MA -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51MD -print -quit)
-    [ -n "$find" ] && DETECTED="win2003r2" && return 0
-
-  fi
-
-  return 1
 }
 
 legacyInstall() {
@@ -1266,8 +1314,8 @@ legacyPrepare() {
   local image="$tmp/eltorito_img1_bios.img"
 
   ETFS="boot.img"
+  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
 
-  [ -s "$dir/$ETFS" ] && return 0
   rm -f "$dir/$ETFS" || return 1
   rm -rf "$tmp" || return 1
 

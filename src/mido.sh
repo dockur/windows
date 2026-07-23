@@ -68,7 +68,7 @@ curlRequest() {
   if (( rc != 0 )); then
 
     reason=$(sed -nE 's/^curl: \([0-9]+\) //p' "$log" | tail -n 1)
-    
+
     rm -f "$log"
     handleCurlError "$rc" "$server" "$reason"
 
@@ -124,10 +124,6 @@ downloadWindows() {
   fi
 
   # Get product edition ID for latest release of given Windows version
-  # Product edition ID: This specifies both the Windows release (e.g. 22H2) and edition ("multi-edition" is default, either Home/Pro/Edu/etc., we select "Pro" in the answer files) in one number
-  # This is the *only* request we make that Fido doesn't. Fido manually maintains a list of all the Windows release/edition product edition IDs in its script (see: $WindowsVersions array). This is helpful for downloading older releases (e.g. Windows 10 1909, 21H1, etc.) but we always want to get the newest release which is why we get this value dynamically
-  # Also, keeping a "$WindowsVersions" array like Fido does would be way too much of a maintenance burden
-  # Remove "Accept" header that curl sends by default
   enabled "$DEBUG" && echo "Parsing download page: ${url}"
 
   curlRequest page "Microsoft" "$agent" \
@@ -415,29 +411,99 @@ downloadWindowsEval() {
   return 0
 }
 
+getMidoDetected() {
+
+  # Return the answer-file identity for the Microsoft source that actually
+  # succeeded without changing the global DETECTED value.
+
+  local version="${1,,}"
+  local source="${2,,}"
+  local current="$3"
+  local default="$version"
+  local detected
+
+  [ -z "$source" ] && source="$version"
+
+  # Preserve a DETECTED value that existed before SUGGEST was assigned.
+  if enabled "${DETECTED_ORG:-}"; then
+    echo "$current"
+    return 0
+  fi
+
+  # Derive the normal answer-file identity from the requested download route.
+  case "$default" in
+    *"-enterprise-ltsc-eval" )
+      default="${default%-enterprise-ltsc-eval}-ltsc"
+      ;;
+    *"-enterprise-iot-eval" )
+      default="${default%-enterprise-iot-eval}-iot"
+      ;;
+    *"-eval" )
+      default="${default%-eval}"
+      ;;
+  esac
+
+  # Preserve a genuinely different DETECTED override.
+  if [ -n "$current" ] && [[ "${current,,}" != "$default" ]]; then
+    echo "$current"
+    return 0
+  fi
+
+  # Select the answer-file identity for the source that actually succeeded.
+  case "$source" in
+    *"-enterprise-ltsc-eval" )
+      detected="${source%-enterprise-ltsc-eval}-ltsc-eval"
+      ;;
+    *"-enterprise-iot-eval" )
+      detected="${source%-enterprise-iot-eval}-iot"
+      ;;
+    *"-eval" )
+      detected="$source"
+      ;;
+    * )
+      detected="${current:-$default}"
+      ;;
+  esac
+
+  echo "$detected"
+  return 0
+}
+
 downloadWindowsLtsc() {
 
   local id="$1"
   local lang="$2"
   local desc="$3"
   local alternate=""
+  local alternate_desc=""
 
   case "${id,,}" in
     "win11${PLATFORM,,}-enterprise-iot-eval" )
-      alternate="win11${PLATFORM,,}-enterprise-ltsc-eval" ;;
+      alternate="win11${PLATFORM,,}-enterprise-ltsc-eval"
+      ;;
     "win11${PLATFORM,,}-enterprise-ltsc-eval" )
-      alternate="win11${PLATFORM,,}-enterprise-iot-eval" ;;
-    * ) error "Invalid VERSION specified, value \"$id\" is not recognized!"
-      return 1 ;;
+      alternate="win11${PLATFORM,,}-enterprise-iot-eval"
+      ;;
+    * )
+      error "Invalid VERSION specified, value \"$id\" is not recognized!"
+      return 1
+      ;;
   esac
 
   if downloadWindowsEval "$id" "$lang" "$desc" > /dev/null 2>&1; then
+    MIDO_SOURCE="$id"
     return 0
   fi
 
-  info "Primary download source failed, trying the alternate LTSC source..."
+  alternate_desc=$(printEdition "$alternate" "$alternate" "Y")
 
-  downloadWindowsEval "$alternate" "$lang" "$desc" && return 0
+  info "Primary download source failed, trying $alternate_desc instead..."
+
+  if downloadWindowsEval "$alternate" "$lang" "$alternate_desc"; then
+    MIDO_SOURCE="$alternate"
+    warn "the requested $desc was unavailable, using $alternate_desc instead."
+    return 0
+  fi
 
   return 1
 }
@@ -447,19 +513,24 @@ getWindows() {
   local version="$1"
   local lang="$2"
   local desc="$3"
-
   local language edition
+
+  MIDO_SOURCE=""
   language=$(getLanguage "$lang" "desc")
-  edition=$(printEdition "$version" "$desc")
+  edition=$(printEdition "$version" "$desc" "Y")
 
   local msg="Requesting $desc from the Microsoft servers..."
   info "$msg" && html "$msg"
 
   case "${version,,}" in
-    "win2008r2" | "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* )
+    "win2008r2"* | \
+    "win81${PLATFORM,,}"* | \
+    "win10${PLATFORM,,}-enterprise"* | \
+    "win11${PLATFORM,,}-enterprise-iot-eval" )
       if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
         error "No download in the $language language available for $edition!"
-        MIDO_URL="" && return 1
+        MIDO_URL=""
+        return 1
       fi ;;
   esac
 
@@ -469,32 +540,57 @@ getWindows() {
     * )
       if [[ "${PLATFORM,,}" != "x64" ]]; then
         error "No download for the ${PLATFORM^^} platform available for $edition!"
-        MIDO_URL="" && return 1
+        MIDO_URL=""
+        return 1
       fi ;;
   esac
 
   case "${version,,}" in
     "win11${PLATFORM,,}" )
-      downloadWindows "$version" "$lang" "$edition" && return 0
-      ;;
+
+      if downloadWindows "$version" "$lang" "$edition"; then
+        MIDO_SOURCE="$version"
+        return 0
+      fi ;;
+
     "win11${PLATFORM,,}-enterprise-iot-eval" | \
     "win11${PLATFORM,,}-enterprise-ltsc-eval" )
+
       downloadWindowsLtsc "$version" "$lang" "$edition" && return 0
       ;;
+
     "win11${PLATFORM,,}-enterprise"* )
-      downloadWindowsEval "$version" "$lang" "$edition" && return 0
+
+      if downloadWindowsEval "$version" "$lang" "$edition"; then
+        MIDO_SOURCE="$version"
+        return 0
+      fi ;;
+
+    "win2025-eval" | "win2022-eval" | "win2019-eval" | \
+    "win2019-hv" | "win2016-eval" | "win2012r2-eval" )
+
+      if downloadWindowsEval "$version" "$lang" "$edition"; then
+        MIDO_SOURCE="$version"
+        return 0
+      fi ;;
+
+    "win2008r2"*| "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* ) ;;
+
+    * )
+      error "Invalid VERSION specified, value \"$version\" is not recognized!"
+      return 1
       ;;
-    "win2025-eval" | "win2022-eval" | "win2019-eval" | "win2019-hv" | "win2016-eval" | "win2012r2-eval" )
-      downloadWindowsEval "$version" "$lang" "$edition" && return 0
-      ;;
-    "win2008r2" | "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* )
-      ;;
-    * ) error "Invalid VERSION specified, value \"$version\" is not recognized!" ;;
   esac
 
   MIDO_URL=$(getMido "$version" "$lang" "")
   [ -z "$MIDO_URL" ] && return 1
 
+  if [[ "${version,,}" == "win2008r2"* ]]; then
+    MIDO_SOURCE="win2008r2-eval"
+    return 0
+  fi
+
+  MIDO_SOURCE="$version"
   return 0
 }
 
@@ -668,7 +764,7 @@ getESD() {
 
   fi
 
-  if [ ! -s "$dir/$xmlFile" ]; then
+  if [ ! -f "$dir/$xmlFile" ] || [ ! -s "$dir/$xmlFile" ]; then
     error "Failed to find $xmlFile in $file!"
     return 1
   fi
@@ -682,7 +778,7 @@ getESD() {
     result=$(xmllint --nonet --xpath "${query}" "$dir/$xmlFile" 2>/dev/null || true)
 
     if [ -z "$result" ]; then
-      desc=$(printEdition "$version" "$desc")
+      desc=$(printEdition "$version" "$desc" "Y")
       language=$(getLanguage "$lang" "desc")
       error "No download link available for $desc!"
       return 1
@@ -697,7 +793,7 @@ getESD() {
   result=$(xmllint --nonet --xpath "//File[LanguageCode=\"${culture,,}\"]" "$dir/$filterFile" 2>/dev/null || true)
 
   if [ -z "$result" ]; then
-    desc=$(printEdition "$version" "$desc")
+    desc=$(printEdition "$version" "$desc" "Y")
     language=$(getLanguage "$lang" "desc")
     error "No download in the $language language available for $desc!"
     return 1
@@ -899,6 +995,7 @@ downloadImage() {
   local tried="n"
   local success="n"
   local seconds="5"
+  local detected="$DETECTED"
   local url sum size base desc language i
 
   if [[ "${version,,}" == "http"* ]]; then
@@ -915,14 +1012,14 @@ downloadImage() {
     return 1
   fi
 
-  desc=$(printVariant "$version" "")
+  desc=$(printVariant "$version" "" "Y")
 
   if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
 
     language=$(getLanguage "$lang" "desc")
 
     if ! validVersion "$version" "$lang"; then
-      desc=$(printEdition "$version" "$desc")
+      desc=$(printEdition "$version" "$desc" "Y")
       desc+=" in $language"
 
       fallbackEnglish "$iso" "$version" "$lang" "$desc" && return 0
@@ -946,6 +1043,7 @@ downloadImage() {
 
     if [[ "$success" == "y" ]]; then
 
+      detected=$(getMidoDetected "$version" "$MIDO_SOURCE" "$DETECTED")
       url=$(getMido "$version" "$lang" "")
 
       sum=""
@@ -957,12 +1055,14 @@ downloadImage() {
         sum=$(getMido "$version" "$lang" "sum")
       fi
 
-      tryDownload "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$desc" "$seconds" && return 0
+      if tryDownload "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$desc" "$seconds"; then
+        # Commit the candidate only after the image was downloaded and verified.
+        DETECTED="$detected"
+        return 0
+      fi
 
     fi
   fi
-
-  switchEdition "$version"
 
   if isESD "$version" "$lang"; then
 
