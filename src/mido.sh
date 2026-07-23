@@ -767,7 +767,7 @@ getESD() {
 
   fi
 
-  if [ ! -s "$dir/$xmlFile" ]; then
+  if [ ! -f "$dir/$xmlFile" ] || [ ! -s "$dir/$xmlFile" ]; then
     error "Failed to find $xmlFile in $file!"
     return 1
   fi
