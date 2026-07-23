@@ -235,15 +235,11 @@ getImageIndex() {
   local wanted="$2"
   local platform tag index name id
 
-  local -a matches=()
-
   [ -z "$wanted" ] && return 1
 
   platform=$(getPlatform "$xml")
 
   for tag in DISPLAYNAME PRODUCTNAME NAME; do
-
-    matches=()
 
     while IFS=$'\t' read -r index name; do
       [ -n "$index" ] || continue
@@ -253,7 +249,8 @@ getImageIndex() {
       id=$(getVersion "$name" "$platform")
       [[ "${id,,}" == "${wanted,,}" ]] || continue
 
-      matches+=("$index")
+      echo "$index"
+      return 0
     done < <(
       awk -v tag="$tag" '
         /<IMAGE INDEX="/ {
@@ -274,21 +271,6 @@ getImageIndex() {
         }
       ' <<< "$xml"
     )
-
-    case "${#matches[@]}" in
-      0 )
-        continue
-        ;;
-      1 )
-        echo "${matches[0]}"
-        return 0
-        ;;
-      * )
-        # Several WIM entries collapse to the same internal version ID,
-        # so selecting one of their indexes would be arbitrary.
-        return 1
-        ;;
-    esac
 
   done
 
