@@ -241,14 +241,16 @@ generateEvalXML() {
   # both variants remain identical except for evaluation-specific selectors.
 
   local id="$1"
+  local index="${2:-}"
   local source="/run/assets/${id::-5}.xml"
   local target="/run/assets/$id.xml"
-  local index="" tmp
 
   [[ "${id,,}" == *"-eval" ]] || return 1
+
   [ -s "$target" ] && return 0
   [ -s "$source" ] || return 1
 
+  local tmp
   if ! tmp=$(mktemp -p /run/assets ".${id}.XXXXXX"); then
     error "Failed to create a temporary evaluation answer file!"
     return 1
@@ -263,10 +265,12 @@ generateEvalXML() {
     return 1
   fi
 
-  case "${id,,}" in
-    *"-ltsc-eval" ) index="1" ;;
-    *"-iot-eval" )  index="2" ;;
-  esac
+  if [ -z "$index" ]; then
+    case "${id,,}" in
+      *"-ltsc-eval" ) index="1" ;;
+      *"-iot-eval" )  index="2" ;;
+    esac
+  fi
 
   if [ -n "$index" ] && ! grep -q '<InstallFrom>' "$tmp"; then
     if ! sed -i \
