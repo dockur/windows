@@ -149,7 +149,7 @@ parseVersion() {
       VERSION="win2012r2-eval"
       ;;
     "2008" | "2008r2" | "win2008" | "win2008r2" | "windows2008" | "windows 2008" )
-      VERSION="win2008r2-eval"
+      VERSION="win2008r2"
       ;;
     "2003" | "2003r2" | "win2003" | "win2003r2" | "windows2003" | "windows 2003" )
       VERSION="win2003r2"
