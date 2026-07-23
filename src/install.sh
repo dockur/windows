@@ -218,12 +218,15 @@ startInstall() {
 
     BOOT="$STORAGE/$file"
 
+    REUSED_ISO=""
+    [ -s "$BOOT" ] && REUSED_ISO="Y"
+
     # Use the suggested answer file for a new automatic download. When an
     # existing ISO is reused, leave DETECTED empty so its actual image can
     # be inspected instead.
     if [ -n "$DETECTED" ]; then
       DETECTED_ORG="Y"
-    elif [ ! -s "$BOOT" ]; then
+    elif [ -z "$REUSED_ISO" ]; then
       DETECTED="$SUGGEST"
     fi
 
