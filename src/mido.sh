@@ -1030,14 +1030,12 @@ downloadImage() {
       desc=$(printEdition "$version" "$desc" "Y")
       web_desc=$(printEdition "$version" "$web_desc")
       desc+=" in $language"
-      web_desc+=" in $language"
 
       fallbackEnglish "$iso" "$version" "$lang" "$desc" "$web_desc" && return 0
       return 1
     fi
 
     desc+=" in $language"
-    web_desc+=" in $language"
   fi
 
   if isMido "$version" "$lang"; then
