@@ -520,7 +520,7 @@ getWindows() {
   edition=$(printEdition "$version" "$desc" "Y")
 
   local msg="Requesting $desc from the Microsoft servers..."
-  info "$msg" && html "$msg"
+  info "$msg" && html "${msg// \(Evaluation\)/}"
 
   case "${version,,}" in
     "win2008r2"* | \
@@ -889,6 +889,7 @@ downloadFile() {
   local desc="$4"
   local connections="${5:-1}"
   local msg="Downloading $desc"
+  local web_msg="${msg// \(Evaluation\)/}"
   local console_msg="$msg"
   local domain dots
 
@@ -905,7 +906,7 @@ downloadFile() {
   downloadToFile \
     "$url" \
     "$iso" \
-    "$msg" \
+    "$web_msg" \
     "${size:-0}" \
     "$connections" \
     "Y"
@@ -968,7 +969,7 @@ fallbackEnglish() {
   local culture msg
 
   msg="No working download method was found for $desc, falling back to English..."
-  info "$msg" && html "$msg"
+  info "$msg" && html "${msg// \(Evaluation\)/}"
 
   # Preserve the requested regional format and keyboard layout.
   culture=$(getLanguage "$lang" "culture")
