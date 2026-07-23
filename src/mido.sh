@@ -479,14 +479,19 @@ downloadWindowsLtsc() {
   local lang="$2"
   local desc="$3"
   local alternate=""
+  local alternate_desc=""
 
   case "${id,,}" in
     "win11${PLATFORM,,}-enterprise-iot-eval" )
-      alternate="win11${PLATFORM,,}-enterprise-ltsc-eval" ;;
+      alternate="win11${PLATFORM,,}-enterprise-ltsc-eval"
+      ;;
     "win11${PLATFORM,,}-enterprise-ltsc-eval" )
-      alternate="win11${PLATFORM,,}-enterprise-iot-eval" ;;
-    * ) error "Invalid VERSION specified, value \"$id\" is not recognized!"
-      return 1 ;;
+      alternate="win11${PLATFORM,,}-enterprise-iot-eval"
+      ;;
+    * )
+      error "Invalid VERSION specified, value \"$id\" is not recognized!"
+      return 1
+      ;;
   esac
 
   if downloadWindowsEval "$id" "$lang" "$desc" > /dev/null 2>&1; then
@@ -494,10 +499,13 @@ downloadWindowsLtsc() {
     return 0
   fi
 
-  info "Primary download source failed, trying the alternate LTSC source..."
+  alternate_desc=$(printEdition "$alternate" "$alternate")
 
-  if downloadWindowsEval "$alternate" "$lang" "$desc"; then
+  info "Primary download source failed, trying $alternate_desc instead..."
+
+  if downloadWindowsEval "$alternate" "$lang" "$alternate_desc"; then
     MIDO_SOURCE="$alternate"
+    warn "the requested $desc was unavailable, using $alternate_desc instead."
     return 0
   fi
 
