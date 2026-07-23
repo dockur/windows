@@ -1122,7 +1122,7 @@ buildImage() {
 
   [ -z "$LABEL" ] && LABEL="Windows"
 
-  if [ ! -f "$dir/$ETFS" ]; then
+  if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
     error "Failed to locate file \"$ETFS\" in ISO image!" && return 1
   fi
 
