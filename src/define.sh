@@ -737,39 +737,23 @@ getEditionID() {
 
   case "$id" in
     "winvista"* )
-      [[ "$name" == *"windows vista"* ]] || return 1
-      edition="${name#*windows vista}"
+      edition="${name#*vista}"
       ;;
     "win7"* )
-      [[ "$name" == *"windows 7"* ]] || return 1
-      edition="${name#*windows 7}"
+      edition="${name#*7}"
       ;;
     "win8"* )
-      if [[ "$name" == *"windows 8.1"* ]]; then
-        edition="${name#*windows 8.1}"
-      elif [[ "$name" == *"windows 8"* ]]; then
-        edition="${name#*windows 8}"
+      if [[ "$name" == *"8.1"* ]]; then
+        edition="${name#*8.1}"
       else
-        return 1
+        edition="${name#*8}"
       fi
       ;;
     "win10"* )
-      if [[ "$name" == *"windows 10"* ]]; then
-        edition="${name#*windows 10}"
-      elif [[ "$name" == *"optimum 10"* ]]; then
-        edition="${name#*optimum 10}"
-      else
-        return 1
-      fi
+      edition="${name#*10}"
       ;;
     "win11"* )
-      if [[ "$name" == *"windows 11"* ]]; then
-        edition="${name#*windows 11}"
-      elif [[ "$name" == *"optimum 11"* ]]; then
-        edition="${name#*optimum 11}"
-      else
-        return 1
-      fi
+      edition="${name#*11}"
       ;;
     * )
       return 1
