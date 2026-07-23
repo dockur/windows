@@ -317,9 +317,10 @@ setXML() {
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/custom.xml"
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="$1"
 
-  if { [ ! -f "$file" ] || [ ! -s "$file" ]; } &&
-    [[ "${DETECTED,,}" == *"-eval" ]]; then
-    generateEvalXML "$DETECTED" || return 1
+  if [[ "${DETECTED,,}" == *"-eval" ]]; then
+    if [ ! -f "$file" ] || [ ! -s "$file" ]; then
+      generateEvalXML "$DETECTED" "${IMAGE_INDEX:-}" || return 1
+    fi
   fi
 
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="/run/assets/$DETECTED.xml"
