@@ -755,10 +755,13 @@ prepareImage() {
 
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
 
-    [ -f "$dir/$ETFS" ] && [ -f "$dir/$EFISYS" ] && return 0
-
+    [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] &&
+      [ -f "$dir/$EFISYS" ] && [ -s "$dir/$EFISYS" ] && return 0
+  
     missing=$(basename "$dir/$EFISYS")
-    [ ! -f "$dir/$ETFS" ] && missing=$(basename "$dir/$ETFS")
+    if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
+      missing=$(basename "$dir/$ETFS")
+    fi
 
     error "Failed to locate file \"${missing,,}\" in ISO image!"
     return 1
