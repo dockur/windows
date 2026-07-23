@@ -367,7 +367,7 @@ detectImage() {
   local dir="$1"
   local version="$2"
   local desc msg language
-  local file source index
+  local file source
 
   XML=""
 
@@ -410,7 +410,7 @@ detectImage() {
     return 0
   fi
 
-  local src wim info
+  local src wim info index
   src=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
 
   if [ ! -d "$src" ]; then
@@ -435,7 +435,6 @@ detectImage() {
   checkPlatform "$info" || exit 67
 
   DETECTED=$(detectVersion "$info")
-  index=$(getImageIndex "$info" "$DETECTED") || index=""
 
   if [ -z "$DETECTED" ]; then
     msg="Failed to determine Windows version from image"
@@ -450,11 +449,12 @@ detectImage() {
     return 0
   fi
 
+  index=$(getImageIndex "$info" "$DETECTED") || index=""
   desc=$(printEdition "$DETECTED" "$DETECTED")
+
   detectLanguage "$info"
 
-  if [[ "${LANGUAGE,,}" != "en" &&
-    "${LANGUAGE,,}" != "en-"* ]]; then
+  if [[ "${LANGUAGE,,}" != "en" && "${LANGUAGE,,}" != "en-"* ]]; then
     language=$(getLanguage "$LANGUAGE" "desc")
     desc+=" ($language)"
   fi
