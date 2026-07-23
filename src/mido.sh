@@ -124,10 +124,6 @@ downloadWindows() {
   fi
 
   # Get product edition ID for latest release of given Windows version
-  # Product edition ID: This specifies both the Windows release (e.g. 22H2) and edition ("multi-edition" is default, either Home/Pro/Edu/etc., we select "Pro" in the answer files) in one number
-  # This is the *only* request we make that Fido doesn't. Fido manually maintains a list of all the Windows release/edition product edition IDs in its script (see: $WindowsVersions array). This is helpful for downloading older releases (e.g. Windows 10 1909, 21H1, etc.) but we always want to get the newest release which is why we get this value dynamically
-  # Also, keeping a "$WindowsVersions" array like Fido does would be way too much of a maintenance burden
-  # Remove "Accept" header that curl sends by default
   enabled "$DEBUG" && echo "Parsing download page: ${url}"
 
   curlRequest page "Microsoft" "$agent" \
@@ -499,7 +495,7 @@ downloadWindowsLtsc() {
     return 0
   fi
 
-  alternate_desc=$(printEdition "$alternate" "$alternate")
+  alternate_desc=$(printEdition "$alternate" "$alternate" "Y")
 
   info "Primary download source failed, trying $alternate_desc instead..."
 
@@ -521,7 +517,7 @@ getWindows() {
 
   MIDO_SOURCE=""
   language=$(getLanguage "$lang" "desc")
-  edition=$(printEdition "$version" "$desc")
+  edition=$(printEdition "$version" "$desc" "Y")
 
   local msg="Requesting $desc from the Microsoft servers..."
   info "$msg" && html "$msg"
@@ -782,7 +778,7 @@ getESD() {
     result=$(xmllint --nonet --xpath "${query}" "$dir/$xmlFile" 2>/dev/null || true)
 
     if [ -z "$result" ]; then
-      desc=$(printEdition "$version" "$desc")
+      desc=$(printEdition "$version" "$desc" "Y")
       language=$(getLanguage "$lang" "desc")
       error "No download link available for $desc!"
       return 1
@@ -797,7 +793,7 @@ getESD() {
   result=$(xmllint --nonet --xpath "//File[LanguageCode=\"${culture,,}\"]" "$dir/$filterFile" 2>/dev/null || true)
 
   if [ -z "$result" ]; then
-    desc=$(printEdition "$version" "$desc")
+    desc=$(printEdition "$version" "$desc" "Y")
     language=$(getLanguage "$lang" "desc")
     error "No download in the $language language available for $desc!"
     return 1
@@ -1016,14 +1012,14 @@ downloadImage() {
     return 1
   fi
 
-  desc=$(printVariant "$version" "")
+  desc=$(printVariant "$version" "" "Y")
 
   if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
 
     language=$(getLanguage "$lang" "desc")
 
     if ! validVersion "$version" "$lang"; then
-      desc=$(printEdition "$version" "$desc")
+      desc=$(printEdition "$version" "$desc" "Y")
       desc+=" in $language"
 
       fallbackEnglish "$iso" "$version" "$lang" "$desc" && return 0
