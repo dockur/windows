@@ -497,11 +497,16 @@ printEdition() {
   local desc="$2"
   local show_eval="${3:-N}"
   local result="" edition=""
+  local suffix word
+  local normalized="${id,,}"
+  local -a words=()
 
   result=$(printVersion "$id" "x")
   [[ "$result" == "x" ]] && echo "$desc" && return 0
 
-  case "${id,,}" in
+  normalized="${normalized%-eval}"
+
+  case "$normalized" in
     *"-home" )
       edition="Home"
       ;;
@@ -511,7 +516,7 @@ printEdition() {
     *"-ultimate" )
       edition="Ultimate"
       ;;
-    *"-enterprise" | *"-enterprise-eval" )
+    *"-enterprise" )
       edition="Enterprise"
       ;;
     *"-education" )
@@ -520,11 +525,36 @@ printEdition() {
     *"-hv" )
       edition="2019"
       ;;
-    *"-iot" | *"-iot-eval" )
+    *"-iot" )
       edition="IoT Enterprise LTSC"
       ;;
-    *"-ltsc" | *"-ltsc-eval" )
+    *"-ltsc" )
       edition="Enterprise LTSC"
+      ;;
+    "win2025"* | "win2022"* | "win2019"* | "win2016"* | \
+    "win2012"* | "win2008"* | "win2003"* )
+      case "${EDITION^^}" in
+        *"DATACENTER"* ) edition="Datacenter" ;;
+        "CORE" | "STANDARDCORE" ) edition="Core" ;;
+        * ) edition="Standard" ;;
+      esac
+      ;;
+    *"-"* )
+      suffix="${normalized#*-}"
+      read -ra words <<< "${suffix//-/ }"
+
+      for word in "${words[@]}"; do
+        case "$word" in
+          "iot" ) word="IoT" ;;
+          "ltsc" | "n" | "se" | "x" ) word="${word^^}" ;;
+          "for" | "and" | "of" )
+            [ -z "$edition" ] && word="${word^}"
+            ;;
+          * ) word="${word^}" ;;
+        esac
+
+        edition+="${edition:+ }$word"
+      done
       ;;
     "win7"* )
       edition="Professional"
@@ -537,13 +567,6 @@ printEdition() {
       ;;
     "winvista"* )
       edition="Business"
-      ;;
-    "win2025"* | "win2022"* | "win2019"* | "win2016"* | "win2012"* | "win2008"* | "win2003"* )
-      case "${EDITION^^}" in
-        *"DATACENTER"* ) edition="Datacenter" ;;
-        "CORE" | "STANDARDCORE" ) edition="Core" ;;
-        * ) edition="Standard" ;;
-      esac
       ;;
   esac
 
@@ -680,13 +703,83 @@ fromName() {
 
 getVersion() {
 
-  local id
   local name="$1"
   local arch="$2"
   local evaluation=""
+  local id prefix edition
 
   id=$(fromName "$name" "$arch")
   [[ "${name,,}" == *"evaluation"* ]] && evaluation="-eval"
+
+  if [ -n "${CUSTOM:-}" ]; then
+
+    prefix=""
+
+    case "${id,,}" in
+      "win7"* )
+        prefix="windows 7"
+        ;;
+      "win8"* )
+        case "${name,,}" in
+          *"windows 8.1"* ) prefix="windows 8.1" ;;
+          * ) prefix="windows 8" ;;
+        esac
+        ;;
+      "win10"* )
+        case "${name,,}" in
+          *"optimum 10"* ) prefix="optimum 10" ;;
+          * ) prefix="windows 10" ;;
+        esac
+        ;;
+      "win11"* )
+        case "${name,,}" in
+          *"optimum 11"* ) prefix="optimum 11" ;;
+          * ) prefix="windows 11" ;;
+        esac
+        ;;
+      "winvista"* )
+        prefix="windows vista"
+        ;;
+    esac
+
+    if [ -n "$prefix" ]; then
+
+      edition="${name,,}"
+      edition="${edition#*"$prefix"}"
+      edition="${edition//evaluation/ }"
+      edition=$(sed -E \
+        -e 's/[^a-z0-9]+/-/g' \
+        -e 's/^-+//' \
+        -e 's/-+$//' \
+        <<< "$edition")
+
+      case "${id,,}" in
+        "win7"* )
+          [ "$edition" = "professional" ] && edition=""
+          ;;
+        "win8"* )
+          [ "$edition" = "pro" ] && edition=""
+          ;;
+        "win10"* | "win11"* )
+          case "$edition" in
+            "pro" ) edition="" ;;
+            "iot-enterprise-ltsc"* ) edition="iot" ;;
+            "enterprise-ltsc"* ) edition="ltsc" ;;
+          esac
+          ;;
+        "winvista"* )
+          [ "$edition" = "business" ] && edition=""
+          ;;
+      esac
+
+      [ -n "$edition" ] && id+="-$edition"
+      [ -n "$evaluation" ] && id+="$evaluation"
+
+      echo "$id"
+      return 0
+    fi
+
+  fi
 
   case "${id,,}" in
     "win7"* | "winvista"* )
