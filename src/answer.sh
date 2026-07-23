@@ -322,6 +322,72 @@ generateEvalXML() {
   return 0
 }
 
+generateFallbackXML() {
+
+  # Fallback templates are generated from the generic version so unsupported
+  # editions can use the detected WIM index without inheriting a product key.
+
+  local id="$1"
+  local index="${2:-}"
+  local source="/run/assets/${id%%-*}.xml"
+  local target="/run/assets/$id.xml"
+  local tmp
+
+  [ "$source" != "$target" ] || return 1
+  [ -s "$source" ] || return 1
+
+  if [ -n "$index" ] && [[ ! "$index" =~ ^[1-9][0-9]*$ ]]; then
+    error "Invalid fallback image index: $index"
+    return 1
+  fi
+
+  if ! tmp=$(mktemp -p /run/assets ".${id}.XXXXXX"); then
+    error "Failed to create a temporary fallback answer file!"
+    return 1
+  fi
+
+  if ! sed \
+      -e '/<InstallFrom>.*<\/InstallFrom>/d' \
+      -e '/<ProductKey>.*<\/ProductKey>/d' \
+      -e '/<InstallFrom>/,/<\/InstallFrom>/d' \
+      -e '/<ProductKey>/,/<\/ProductKey>/d' \
+      "$source" > "$tmp"; then
+    rm -f "$tmp"
+    error "Failed to generate fallback answer file from $source!"
+    return 1
+  fi
+
+  if [ -n "$index" ]; then
+    if ! sed -i \
+      '0,/<InstallTo>/{ /<InstallTo>/i\
+          <InstallFrom>\
+            <MetaData wcm:action="add">\
+              <Key>/IMAGE/INDEX</Key>\
+              <Value>'"$index"'</Value>\
+            </MetaData>\
+          </InstallFrom>
+      }' "$tmp"; then
+      rm -f "$tmp"
+      error "Failed to select fallback image index $index!"
+      return 1
+    fi
+  fi
+
+  if ! xmllint --nonet --noout "$tmp"; then
+    rm -f "$tmp"
+    error "Generated fallback answer file is invalid!"
+    return 1
+  fi
+
+  if ! chmod 644 "$tmp" || ! mv -f "$tmp" "$target"; then
+    rm -f "$tmp"
+    error "Failed to create fallback answer file: $target"
+    return 1
+  fi
+
+  return 0
+}
+
 setXML() {
 
   local file
@@ -356,6 +422,10 @@ setXML() {
   fi
 
   if [ ! -f "$file" ] || [ ! -s "$file" ]; then
+    file="/run/assets/$DETECTED.xml"
+  elif [[ "$DETECTED" != win20* &&
+    "$file" != "/run/assets/$DETECTED.xml" ]]; then
+    generateFallbackXML "$DETECTED" "$index" || return 1
     file="/run/assets/$DETECTED.xml"
   fi
 
