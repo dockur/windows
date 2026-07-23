@@ -490,7 +490,7 @@ detectImage() {
   fi
 
   index=$(getImageIndex "$info" "$DETECTED") || index=""
-  desc=$(printEdition "$DETECTED" "$DETECTED")
+  desc=$(printEdition "$DETECTED" "$DETECTED" "Y")
 
   detectLanguage "$info"
 
