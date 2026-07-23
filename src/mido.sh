@@ -43,7 +43,7 @@ curlRequest() {
   local agent="$3"
   shift 3
 
-  local log reason 
+  local log reason
   local rc=0 response=""
 
   if ! log=$(mktemp -p "$QEMU_DIR"); then
@@ -513,6 +513,7 @@ getWindows() {
   local version="$1"
   local lang="$2"
   local desc="$3"
+  local web_desc="$4"
   local language edition
 
   MIDO_SOURCE=""
@@ -520,7 +521,8 @@ getWindows() {
   edition=$(printEdition "$version" "$desc" "Y")
 
   local msg="Requesting $desc from the Microsoft servers..."
-  info "$msg" && html "${msg// \(Evaluation\)/}"
+  local web_msg="Requesting $web_desc from the Microsoft servers..."
+  info "$msg" && html "$web_msg"
 
   case "${version,,}" in
     "win2008r2"* | \
@@ -887,10 +889,10 @@ downloadFile() {
   local url="$2"
   local size="$3"
   local desc="$4"
-  local connections="${5:-1}"
-  local msg="Downloading $desc"
-  local web_msg="${msg// \(Evaluation\)/}"
-  local console_msg="$msg"
+  local web_desc="$5"
+  local connections="${6:-1}"
+  local msg="Downloading $web_desc"
+  local console_msg="Downloading $desc"
   local domain dots
 
   domain=$(echo "$url" | awk -F/ '{print $3}')
@@ -906,7 +908,7 @@ downloadFile() {
   downloadToFile \
     "$url" \
     "$iso" \
-    "$web_msg" \
+    "$msg" \
     "${size:-0}" \
     "$connections" \
     "Y"
@@ -920,6 +922,7 @@ tryDownload() {
   local size="$4"
   local desc="$6"
   local seconds="$7"
+  local web_desc="$8"
   local total rc=0
 
   if downloadRetry \
@@ -931,7 +934,8 @@ tryDownload() {
       "$iso" \
       "$url" \
       "$size" \
-      "$desc"; then
+      "$desc" \
+      "$web_desc"; then
     rc=0
   else
     rc=$?
@@ -966,10 +970,11 @@ fallbackEnglish() {
   local version="$2"
   local lang="$3"
   local desc="$4"
-  local culture msg
+  local web_desc="$5"
+  local culture msg web_msg
 
   msg="No working download method was found for $desc, falling back to English..."
-  info "$msg" && html "${msg// \(Evaluation\)/}"
+  info "$msg"
 
   # Preserve the requested regional format and keyboard layout.
   culture=$(getLanguage "$lang" "culture")
@@ -997,14 +1002,15 @@ downloadImage() {
   local success="n"
   local seconds="5"
   local detected="$DETECTED"
-  local url sum size base desc language i
+  local url sum size base desc web_desc language i
 
   if [[ "${version,,}" == "http"* ]]; then
 
     base=$(basename "$iso")
     desc=$(fromFile "$base")
+    web_desc="$desc"
 
-    tryDownload "$iso" "$version" "" "" "" "$desc" "$seconds" && return 0
+    tryDownload "$iso" "$version" "" "" "" "$desc" "$seconds" "$web_desc" && return 0
     return 1
   fi
 
@@ -1014,6 +1020,7 @@ downloadImage() {
   fi
 
   desc=$(printVariant "$version" "" "Y")
+  web_desc=$(printVariant "$version" "")
 
   if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
 
@@ -1021,13 +1028,16 @@ downloadImage() {
 
     if ! validVersion "$version" "$lang"; then
       desc=$(printEdition "$version" "$desc" "Y")
+      web_desc=$(printEdition "$version" "$web_desc")
       desc+=" in $language"
+      web_desc+=" in $language"
 
-      fallbackEnglish "$iso" "$version" "$lang" "$desc" && return 0
+      fallbackEnglish "$iso" "$version" "$lang" "$desc" "$web_desc" && return 0
       return 1
     fi
 
     desc+=" in $language"
+    web_desc+=" in $language"
   fi
 
   if isMido "$version" "$lang"; then
@@ -1035,11 +1045,11 @@ downloadImage() {
     tried="y"
     success="n"
 
-    if getWindows "$version" "$lang" "$desc"; then
+    if getWindows "$version" "$lang" "$desc" "$web_desc"; then
       success="y"
     else
       delay "$seconds"
-      getWindows "$version" "$lang" "$desc" && success="y"
+      getWindows "$version" "$lang" "$desc" "$web_desc" && success="y"
     fi
 
     if [[ "$success" == "y" ]]; then
@@ -1056,7 +1066,7 @@ downloadImage() {
         sum=$(getMido "$version" "$lang" "sum")
       fi
 
-      if tryDownload "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$desc" "$seconds"; then
+      if tryDownload "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$desc" "$seconds" "$web_desc"; then
         # Commit the candidate only after the image was downloaded and verified.
         DETECTED="$detected"
         return 0
@@ -1085,7 +1095,7 @@ downloadImage() {
 
       ISO="${ISO%.*}.esd"
 
-      if tryDownload "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$lang" "$desc" "$seconds"; then
+      if tryDownload "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$lang" "$desc" "$seconds" "$web_desc"; then
         return 0
       fi
 
@@ -1108,13 +1118,13 @@ downloadImage() {
       size=$(getSize "$i" "$version" "$lang")
       sum=$(getHash "$i" "$version" "$lang")
 
-      tryDownload "$iso" "$url" "$sum" "$size" "$lang" "$desc" "$seconds" && return 0
+      tryDownload "$iso" "$url" "$sum" "$size" "$lang" "$desc" "$seconds" "$web_desc" && return 0
 
     fi
   done
 
   if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
-    if fallbackEnglish "$iso" "$version" "$lang" "$desc"; then
+    if fallbackEnglish "$iso" "$version" "$lang" "$desc" "$web_desc"; then
       return 0
     fi
   fi
