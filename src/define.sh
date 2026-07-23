@@ -524,20 +524,6 @@ printEdition() {
   normalized="${normalized%-eval}"
 
   case "$normalized" in
-    "win2019-hv"* )
-      edition="2019"
-      ;;
-    "win2025"* | "win2022"* | "win2019"* | "win2016"* | \
-    "win2012"* | "win2008"* | "win2003"* )
-      case "${EDITION^^}" in
-        *"DATACENTER"* ) edition="Datacenter" ;;
-        "CORE" | "STANDARDCORE" ) edition="Core" ;;
-        * ) edition="Standard" ;;
-      esac
-      ;;
-    "winxp"* )
-      edition="Professional"
-      ;;
     "winvista"* | "win7"* | "win8"* | "win10"* | "win11"* )
       [[ "$normalized" == *"-"* ]] && suffix="${normalized#*-}"
 
@@ -579,6 +565,20 @@ printEdition() {
         * )
           edition=$(formatEdition "$suffix")
           ;;
+      esac
+      ;;
+    "winxp"* )
+      edition="Professional"
+      ;;
+    "win2019-hv"* )
+      edition="2019"
+      ;;
+    "win2025"* | "win2022"* | "win2019"* | "win2016"* | \
+    "win2012"* | "win2008"* | "win2003"* )
+      case "${EDITION^^}" in
+        *"DATACENTER"* ) edition="Datacenter" ;;
+        "CORE" | "STANDARDCORE" ) edition="Core" ;;
+        * ) edition="Standard" ;;
       esac
       ;;
   esac
