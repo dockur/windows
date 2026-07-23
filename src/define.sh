@@ -491,15 +491,29 @@ printVariant() {
   return 0
 }
 
+formatEditionID() {
+
+  local value="${1//-/ }"
+  local word result=""
+  local -a words=()
+
+  read -ra words <<< "$value"
+
+  for word in "${words[@]}"; do
+    result+="${result:+ }${word^}"
+  done
+
+  echo "$result"
+  return 0
+}
+
 printEdition() {
 
   local id="$1"
   local desc="$2"
   local show_eval="${3:-N}"
-  local result="" edition=""
-  local suffix word
   local normalized="${id,,}"
-  local -a words=()
+  local result="" edition=""
 
   result=$(printVersion "$id" "x")
   [[ "$result" == "x" ]] && echo "$desc" && return 0
@@ -531,42 +545,39 @@ printEdition() {
     *"-ltsc" )
       edition="Enterprise LTSC"
       ;;
-    "win2025"* | "win2022"* | "win2019"* | "win2016"* | \
-    "win2012"* | "win2008"* | "win2003"* )
-      case "${EDITION^^}" in
-        *"DATACENTER"* ) edition="Datacenter" ;;
-        "CORE" | "STANDARDCORE" ) edition="Core" ;;
-        * ) edition="Standard" ;;
-      esac
-      ;;
-    *"-"* )
-      suffix="${normalized#*-}"
-      read -ra words <<< "${suffix//-/ }"
-
-      for word in "${words[@]}"; do
-        case "$word" in
-          "iot" ) word="IoT" ;;
-          "ltsc" | "n" | "se" | "x" ) word="${word^^}" ;;
-          "for" | "and" | "of" )
-            [ -z "$edition" ] && word="${word^}"
+    "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* )
+      if [[ "$normalized" == *"-"* ]]; then
+        edition=$(formatEditionID "${normalized#*-}")
+      else
+        case "$normalized" in
+          "win7"* )
+            edition="Professional"
             ;;
-          * ) word="${word^}" ;;
+          "win8"* | "win10"* | "win11"* )
+            edition="Pro"
+            ;;
+          "winvista"* )
+            edition="Business"
+            ;;
         esac
-
-        edition+="${edition:+ }$word"
-      done
-      ;;
-    "win7"* )
-      edition="Professional"
-      ;;
-    "win8"* | "win10"* | "win11"* )
-      edition="Pro"
+      fi
       ;;
     "winxp"* )
       edition="Professional"
       ;;
-    "winvista"* )
-      edition="Business"
+    "win2025"* | "win2022"* | "win2019"* | "win2016"* | \
+    "win2012"* | "win2008"* | "win2003"* )
+      case "${EDITION^^}" in
+        *"DATACENTER"* )
+          edition="Datacenter"
+          ;;
+        "CORE" | "STANDARDCORE" )
+          edition="Core"
+          ;;
+        * )
+          edition="Standard"
+          ;;
+      esac
       ;;
   esac
 
@@ -786,29 +797,165 @@ getVersion() {
       case "${name,,}" in
         *" home"* ) id="$id-home" ;;
         *" starter"* ) id="$id-starter" ;;
-        *" ultimate"* ) id="$id-ultimate" ;;
-        *" enterprise"* ) id="$id-enterprise$evaluation" ;;
+getEditionID() {
+
+  local name="${1,,}"
+  local id="${2,,}"
+  local edition=""
+
+  case "$id" in
+    "winvista"* )
+      [[ "$name" == *"windows vista"* ]] || return 1
+      edition="${name#*windows vista}"
+      ;;
+    "win7"* )
+      [[ "$name" == *"windows 7"* ]] || return 1
+      edition="${name#*windows 7}"
+      ;;
+    "win8"* )
+      if [[ "$name" == *"windows 8.1"* ]]; then
+        edition="${name#*windows 8.1}"
+      elif [[ "$name" == *"windows 8"* ]]; then
+        edition="${name#*windows 8}"
+      else
+        return 1
+      fi
+      ;;
+    "win10"* )
+      if [[ "$name" == *"windows 10"* ]]; then
+        edition="${name#*windows 10}"
+      elif [[ "$name" == *"optimum 10"* ]]; then
+        edition="${name#*optimum 10}"
+      else
+        return 1
+      fi
+      ;;
+    "win11"* )
+      if [[ "$name" == *"windows 11"* ]]; then
+        edition="${name#*windows 11}"
+      elif [[ "$name" == *"optimum 11"* ]]; then
+        edition="${name#*optimum 11}"
+      else
+        return 1
+      fi
+      ;;
+    * )
+      return 1
+      ;;
+  esac
+
+  edition="${edition//evaluation/}"
+  edition=$(sed -E \
+    -e 's/[^a-z0-9]+/-/g' \
+    -e 's/^-+//' \
+    -e 's/-+$//' \
+    <<< "$edition")
+
+  echo "$edition"
+  return 0
+}
+
+getVersion() {
+
+  local id edition
+  local name="$1"
+  local arch="$2"
+  local evaluation=""
+
+  id=$(fromName "$name" "$arch")
+  [[ "${name,,}" == *"evaluation"* ]] && evaluation="-eval"
+
+  if [ -n "${CUSTOM:-}" ]; then
+    case "${id,,}" in
+      "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* )
+        if edition=$(getEditionID "$name" "$id"); then
+          case "${id,,}" in
+            "winvista"* )
+              [ "$edition" = "business" ] && edition=""
+              ;;
+            "win7"* )
+              [ "$edition" = "professional" ] && edition=""
+              ;;
+            "win8"* )
+              [ "$edition" = "pro" ] && edition=""
+              ;;
+            "win10"* | "win11"* )
+              case "$edition" in
+                "pro" )
+                  edition=""
+                  ;;
+                "iot-enterprise-ltsc"* )
+                  edition="iot"
+                  ;;
+                "enterprise-ltsc"* )
+                  edition="ltsc"
+                  ;;
+              esac
+              ;;
+          esac
+
+          [ -n "$edition" ] && id+="-$edition"
+          [ -n "$evaluation" ] && id+="$evaluation"
+
+          echo "$id"
+          return 0
+        fi
+        ;;
+    esac
+  fi
+
+  case "${id,,}" in
+    "win7"* | "winvista"* )
+      case "${name,,}" in
+        *" home"* )
+          id="$id-home"
+          ;;
+        *" starter"* )
+          id="$id-starter"
+          ;;
+        *" ultimate"* )
+          id="$id-ultimate"
+          ;;
+        *" enterprise"* )
+          id="$id-enterprise$evaluation"
+          ;;
       esac
       ;;
     "win8"* )
       case "${name,,}" in
-        *" enterprise"* ) id="$id-enterprise$evaluation" ;;
+        *" enterprise"* )
+          id="$id-enterprise$evaluation"
+          ;;
       esac
       ;;
     "win10"* | "win11"* )
       case "${name,,}" in
-        *" iot"* ) id="$id-iot$evaluation" ;;
-        *" ltsc"* ) id="$id-ltsc$evaluation" ;;
-        *" home"* ) id="$id-home" ;;
-        *" education"* ) id="$id-education" ;;
-        *" enterprise"* ) id="$id-enterprise$evaluation" ;;
+        *" iot"* )
+          id="$id-iot$evaluation"
+          ;;
+        *" ltsc"* )
+          id="$id-ltsc$evaluation"
+          ;;
+        *" home"* )
+          id="$id-home"
+          ;;
+        *" education"* )
+          id="$id-education"
+          ;;
+        *" enterprise"* )
+          id="$id-enterprise$evaluation"
+          ;;
       esac
       ;;
     "win2025"* | "win2022"* | "win2019"* | "win2016"* | \
     "win2012"* | "win2008"* | "win2003"* )
       case "${name,,}" in
-        *"hyper-v server"* ) id="$id-hv" ;;
-        *"evaluation"* ) id="$id-eval" ;;
+        *"hyper-v server"* )
+          id="$id-hv"
+          ;;
+        *"evaluation"* )
+          id="$id-eval"
+          ;;
       esac
       ;;
   esac
