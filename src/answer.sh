@@ -348,7 +348,8 @@ setXML() {
   [ ! -f "$file" ] || [ ! -s "$file" ] && return 1
 
   case "$file" in
-    "/custom.xml" | "$STORAGE/custom.xml" ) CUSTOM_XML="Y" ;;
+    "/custom.xml" | "$STORAGE/custom.xml" | "/run/assets/custom.xml" )
+      CUSTOM_XML="Y" ;;
   esac
 
   XML="$file"
