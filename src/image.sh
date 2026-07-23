@@ -239,20 +239,20 @@ getImageIndex() {
     done < <(
       awk -v tag="$tag" '
         /<IMAGE INDEX="/ {
-          index = $0
-          sub(/^.*<IMAGE INDEX="/, "", index)
-          sub(/".*$/, "", index)
+          image_index = $0
+          sub(/^.*<IMAGE INDEX="/, "", image_index)
+          sub(/".*$/, "", image_index)
         }
 
-        index != "" && $0 ~ "<" tag ">" {
+        image_index != "" && $0 ~ "<" tag ">" {
           value = $0
           sub("^.*<" tag ">", "", value)
           sub("</" tag ">.*$", "", value)
-          print index "\t" value
+          print image_index "\t" value
         }
 
         /<\/IMAGE>/ {
-          index = ""
+          image_index = ""
         }
       ' <<< "$xml"
     )
