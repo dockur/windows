@@ -368,15 +368,14 @@ setXML() {
 updateDomain() {
 
   local asset="$1"
-  local domain account auth pass pw
+  local domain account auth pass
   local cred_domain ou arch tmp result
 
   domain=$(escapeXML "$2") || return 1
   account=$(escapeXML "$3") || return 1
   auth=$(escapeXML "$4") || return 1
   pass=$(escapeXML "$5") || return 1
-  pw="$6"
-  ou=$(escapeXML "$7") || return 1
+  ou=$(escapeXML "$6") || return 1
 
   arch=$(sed -n -E \
     '0,/processorArchitecture="/s/.*processorArchitecture="([^"]+)".*/\1/p' \
@@ -397,7 +396,7 @@ updateDomain() {
 
   if ! DOMAIN_XML="$domain" ACCOUNT_XML="$account" \
     AUTH_XML="$auth" PASS_XML="$pass" \
-    CRED_DOMAIN="$cred_domain" PW="$pw" OU_XML="$ou" \
+    CRED_DOMAIN="$cred_domain" OU_XML="$ou" \
     ARCH_XML="$arch" \
     awk '
       /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
@@ -432,8 +431,15 @@ updateDomain() {
 
       section == "oobeSystem" && in_autologon &&
         /^[[:space:]]*<Value>.*<\/Value>[[:space:]]*$/ {
-        print "          <Value>" ENVIRON["PW"] "</Value>"
+        print "          <Value>" ENVIRON["PASS_XML"] "</Value>"
         password_added = 1
+        next
+      }
+
+      section == "oobeSystem" && in_autologon &&
+        /^[[:space:]]*<PlainText([[:space:]/>])/ {
+        print "          <PlainText>true</PlainText>"
+        plaintext_added = 1
         next
       }
 
@@ -468,7 +474,7 @@ updateDomain() {
       section == "oobeSystem" && /<\/UserAccounts>/ { in_accounts = 0 }
       /^[[:space:]]*<\/settings>[[:space:]]*$/ { section = "" }
 
-      END { exit !(join_added && accounts_added && autologon_added && password_added) }
+      END { exit !(join_added && accounts_added && autologon_added && password_added && plaintext_added) }
     ' "$asset" > "$result" ||
     ! mv -f "$result" "$asset"; then
 
@@ -664,10 +670,8 @@ updateXML() {
 
   if [ -n "$domain" ]; then
 
-    pw=$(printf '%s' "${PASSWORD}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
-
     if ! updateDomain "$asset" "$domain" "$user" \
-      "$auth_user" "$PASSWORD" "$pw" "$DOMAIN_OU"; then
+      "$auth_user" "$PASSWORD" "$DOMAIN_OU"; then
       error "Failed to add domain configuration to answer file!"
       return 1
     fi
