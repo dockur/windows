@@ -109,6 +109,7 @@ selectVersion() {
   local tag="$1"
   local xml="$2"
   local platform="$3"
+  local suggested="${4:-}"
 
   local name id base prefer match suffix actual
   local tried=""
@@ -176,6 +177,16 @@ selectVersion() {
     fi
   fi
 
+  # For reused automatic media, prefer the edition selected by parseVersion()
+  # when that edition is actually present in the image. An explicit EDITION
+  # remains authoritative because it is handled above.
+  if [ -n "$suggested" ]; then
+    if match=$(hasVersion "$suggested" "${versions[@]}"); then
+      echo "$match"
+      return 0
+    fi
+  fi
+
   # Preserve the existing preference for Enterprise, Ultimate, and the
   # normal Pro/Professional/Business edition. The remaining entries provide
   # deterministic selection when those editions are absent.
@@ -204,12 +215,15 @@ selectVersion() {
 detectVersion() {
 
   local xml="$1"
+  local suggested="${2:-}"
   local id platform
 
   platform=$(getPlatform "$xml")
-  id=$(selectVersion "DISPLAYNAME" "$xml" "$platform")
-  [ -z "$id" ] && id=$(selectVersion "PRODUCTNAME" "$xml" "$platform")
-  [ -z "$id" ] && id=$(selectVersion "NAME" "$xml" "$platform")
+  id=$(selectVersion "DISPLAYNAME" "$xml" "$platform" "$suggested")
+  [ -z "$id" ] &&
+    id=$(selectVersion "PRODUCTNAME" "$xml" "$platform" "$suggested")
+  [ -z "$id" ] &&
+    id=$(selectVersion "NAME" "$xml" "$platform" "$suggested")
 
   echo "$id"
   return 0
@@ -297,7 +311,7 @@ detectLanguage() {
   fi
 
   if [ -z "$lang" ]; then
-   warn "Language could not be detected from ISO!" && return 0
+    warn "Language could not be detected from ISO!" && return 0
   fi
 
   local culture
@@ -430,7 +444,7 @@ detectImage() {
     return 0
   fi
 
-  local src wim info index
+  local src wim info index suggested
   src=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
 
   if [ ! -d "$src" ]; then
@@ -454,7 +468,13 @@ detectImage() {
 
   checkPlatform "$info" || exit 67
 
-  DETECTED=$(detectVersion "$info")
+  suggested=""
+
+  if [ -z "$CUSTOM" ] && [ -n "${REUSED_ISO:-}" ]; then
+    suggested="${SUGGEST:-}"
+  fi
+
+  DETECTED=$(detectVersion "$info" "$suggested")
 
   if [ -z "$DETECTED" ]; then
     msg="Failed to determine Windows version from image"
