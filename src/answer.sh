@@ -1300,8 +1300,8 @@ legacyPrepare() {
   local image="$tmp/eltorito_img1_bios.img"
 
   ETFS="boot.img"
+  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
 
-  [ -s "$dir/$ETFS" ] && return 0
   rm -f "$dir/$ETFS" || return 1
   rm -rf "$tmp" || return 1
 
