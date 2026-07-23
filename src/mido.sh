@@ -578,8 +578,7 @@ getWindows() {
         return 0
       fi ;;
 
-    "win2008r2" | "win2008r2-eval" | \
-    "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* ) ;;
+    "win2008r2"*| "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* ) ;;
 
     * )
       error "Invalid VERSION specified, value \"$version\" is not recognized!"
