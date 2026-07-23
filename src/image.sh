@@ -215,6 +215,52 @@ detectVersion() {
   return 0
 }
 
+getImageIndex() {
+
+  local xml="$1"
+  local wanted="$2"
+  local platform tag index name id
+
+  [ -z "$wanted" ] && return 1
+
+  platform=$(getPlatform "$xml")
+
+  for tag in DISPLAYNAME PRODUCTNAME NAME; do
+    while IFS=$'\t' read -r index name; do
+      [ -n "$index" ] || continue
+      [[ "$name" == *"Operating System"* ]] && continue
+      [ -z "$name" ] && continue
+
+      id=$(getVersion "$name" "$platform")
+      [[ "${id,,}" == "${wanted,,}" ]] || continue
+
+      echo "$index"
+      return 0
+    done < <(
+      awk -v tag="$tag" '
+        /<IMAGE INDEX="/ {
+          index = $0
+          sub(/^.*<IMAGE INDEX="/, "", index)
+          sub(/".*$/, "", index)
+        }
+
+        index != "" && $0 ~ "<" tag ">" {
+          value = $0
+          sub("^.*<" tag ">", "", value)
+          sub("</" tag ">.*$", "", value)
+          print index "\t" value
+        }
+
+        /<\/IMAGE>/ {
+          index = ""
+        }
+      ' <<< "$xml"
+    )
+  done
+
+  return 1
+}
+
 detectLanguage() {
 
   local xml="$1"
@@ -321,7 +367,7 @@ detectImage() {
   local dir="$1"
   local version="$2"
   local desc msg language
-  local file source
+  local file source index
 
   XML=""
 
@@ -389,6 +435,7 @@ detectImage() {
   checkPlatform "$info" || exit 67
 
   DETECTED=$(detectVersion "$info")
+  index=$(getImageIndex "$info" "$DETECTED") || index=""
 
   if [ -z "$DETECTED" ]; then
     msg="Failed to determine Windows version from image"
@@ -413,7 +460,7 @@ detectImage() {
   fi
 
   info "Detected: $desc"
-  setXML "" && return 0
+  setXML "" "$index" && return 0
 
   if [[ "$DETECTED" == "win81x86"* ||
     "$DETECTED" == "win10x86"* ]]; then
