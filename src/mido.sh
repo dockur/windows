@@ -853,9 +853,8 @@ verifyFile() {
     fi
   fi
 
-  local hash=""
   local algo="SHA256"
-  local rc=0
+  local hash="" rc=0
 
   [ -z "$check" ] && return 0
   ! enabled "$VERIFY" && return 0
