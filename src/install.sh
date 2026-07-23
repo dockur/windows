@@ -221,7 +221,9 @@ startInstall() {
     # Use the suggested answer file for a new automatic download. When an
     # existing ISO is reused, leave DETECTED empty so its actual image can
     # be inspected instead.
-    if [ -z "$DETECTED" ] && [ ! -s "$BOOT" ]; then
+    if [ -n "$DETECTED" ]; then
+      DETECTED_ORG="Y"
+    elif [ ! -s "$BOOT" ]; then
       DETECTED="$SUGGEST"
     fi
 
