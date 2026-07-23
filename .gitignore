@@ -1,1 +1,268 @@
+##############################
+# Operating System Files
+##############################
 
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+Icon?
+$RECYCLE.BIN/
+.Spotlight-V100/
+.Trashes/
+.fseventsd
+
+##############################
+# IDEs
+##############################
+
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+
+##############################
+# VS Code
+##############################
+
+.history/
+*.code-workspace
+
+##############################
+# Vim
+##############################
+
+*.swp
+*.swo
+Session.vim
+
+##############################
+# Sublime
+##############################
+
+*.sublime-workspace
+*.sublime-project
+
+##############################
+# Temporary Files
+##############################
+
+*.tmp
+*.temp
+*.bak
+*.old
+*.orig
+*.rej
+*.save
+
+##############################
+# Logs
+##############################
+
+*.log
+logs/
+log/
+*.out
+*.err
+*.trace
+
+##############################
+# Runtime
+##############################
+
+*.pid
+*.seed
+*.pid.lock
+
+##############################
+# Secrets
+##############################
+
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+*.kdbx
+*.secret
+*.token
+
+##############################
+# SSH
+##############################
+
+.ssh/
+
+##############################
+# Docker
+##############################
+
+docker-compose.override.yml
+docker-compose.local.yml
+
+##############################
+# VM Storage
+##############################
+
+storage/
+windows/
+downloads/
+
+##############################
+# Disk Images
+##############################
+
+*.qcow2
+*.qcow
+*.vhd
+*.vhdx
+*.vdi
+*.raw
+*.img
+*.iso
+*.bin
+
+##############################
+# QEMU
+##############################
+
+*.nvram
+*.fd
+*.efi
+*.sock
+*.monitor
+*.serial
+
+##############################
+# Samba
+##############################
+
+shared/
+share/
+
+##############################
+# Backups
+##############################
+
+backup/
+backups/
+*.backup
+
+##############################
+# Cache
+##############################
+
+.cache/
+.cache-loader/
+.tmp/
+temp/
+tmp/
+
+##############################
+# Python
+##############################
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+
+##############################
+# Node
+##############################
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+##############################
+# Build
+##############################
+
+dist/
+build/
+out/
+release/
+
+##############################
+# Coverage
+##############################
+
+coverage/
+.coverage
+coverage.xml
+
+##############################
+# Archives
+##############################
+
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+
+##############################
+# Generated Config
+##############################
+
+config.local.*
+settings.local.*
+local.env
+
+##############################
+# Test Files
+##############################
+
+test-output/
+playwright-report/
+
+##############################
+# macOS
+##############################
+
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+
+##############################
+# Linux
+##############################
+
+*~
+.nfs*
+
+##############################
+# Windows
+##############################
+
+*.stackdump
+
+##############################
+# Misc
+##############################
+
+*.cache
+*.lock
+*.lock.json
+*.bak.*
+
+##############################
+# Keep Examples
+##############################
+
+!.gitkeep
+!.env.example
