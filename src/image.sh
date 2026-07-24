@@ -217,11 +217,19 @@ selectVersion() {
   if [ -n "$EDITION" ]; then
 
     for base in "${bases[@]}"; do
-      [[ "${base,,}" == win20* ]] && continue
 
       tried="Y"
 
-      edition=$(normalizeEditionID "$EDITION" "$base")
+      case "${base,,}" in
+        "win2003"* | "win2008"* | "win2012"* | "win2016"* | \
+        "win2019"* | "win2022"* | "win2025"* )
+          edition=$(normalizeServerEditionID "$EDITION")
+          ;;
+        * )
+          edition=$(normalizeEditionID "$EDITION" "$base")
+          ;;
+      esac
+
       prefer="$base"
       [ -n "$edition" ] && prefer+="-$edition"
 
