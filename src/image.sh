@@ -174,8 +174,8 @@ selectVersion() {
 
   local name id base prefer match
   local priority actual edition i
-  local tried=""
-
+  local tried="" server=""
+  
   local -a versions=()
   local -a bases=()
   local -a groups=()
