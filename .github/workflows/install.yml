@@ -13,6 +13,18 @@ on:
         required: true
         type: string
 
+      runner:
+        description: GitHub Actions runner
+        required: false
+        default: ubuntu-24.04
+        type: string
+
+      image:
+        description: Container image to test
+        required: false
+        default: ghcr.io/dockur/windows:latest
+        type: string
+
       callback:
         description: Guest callback method
         required: false
@@ -41,8 +53,8 @@ on:
         required: true
         type: number
 
-      architecture:
-        description: Expected Windows architecture
+      platform:
+        description: Expected Windows platform
         required: true
         type: string
 
@@ -52,13 +64,13 @@ permissions:
 jobs:
   install:
     name: ${{ inputs.name }}
-    runs-on: ubuntu-24.04
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 180
 
     env:
       CONTAINER: windows-test
       RECEIVER: windows-receiver
-      IMAGE: ghcr.io/dockur/windows:latest
+      IMAGE: ${{ inputs.image }}
       TEST_PORT: "18080"
 
     steps:
@@ -67,8 +79,9 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          grep -Eqm1 'vmx|svm' /proc/cpuinfo
           test -c /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
 
       - name: Free disk space
         shell: bash
@@ -147,18 +160,34 @@ jobs:
           )
 
           $ErrorActionPreference = "Stop"
-
           $windows = Get-CimInstance Win32_OperatingSystem
           $registry = Get-ItemProperty `
               "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
 
+          $platform = switch (
+              $env:PROCESSOR_ARCHITECTURE.ToUpperInvariant()
+          ) {
+              "AMD64" {
+                  "x64"
+              }
+              "ARM64" {
+                  "arm64"
+              }
+              "X86" {
+                  "x86"
+              }
+              default {
+                  $env:PROCESSOR_ARCHITECTURE.ToLowerInvariant()
+              }
+          }
+
           $result = @{
-              token        = $Token
-              caption      = [string]$windows.Caption
-              edition      = [string]$registry.EditionID
-              version      = [string]$windows.Version
-              build        = [string]$windows.BuildNumber
-              architecture = [string]$windows.OSArchitecture
+              token    = $Token
+              caption  = [string]$windows.Caption
+              edition  = [string]$registry.EditionID
+              version  = [string]$windows.Version
+              build    = [string]$windows.BuildNumber
+              platform = $platform
           }
 
           $bodyText = $result | ConvertTo-Json -Compress
@@ -239,7 +268,7 @@ jobs:
           Dim caption
           Dim version
           Dim build
-          Dim architecture
+          Dim platform
           Dim body
 
           Set service = GetObject("winmgmts:\\.\root\cimv2")
@@ -260,17 +289,22 @@ jobs:
 
           Set shell = CreateObject("WScript.Shell")
 
-          architecture = UCase( _
+          platform = UCase( _
               shell.ExpandEnvironmentStrings( _
                   "%PROCESSOR_ARCHITECTURE%" _
               ) _
           )
 
-          If architecture = "AMD64" Or architecture = "IA64" Then
-              architecture = "64-bit"
-          Else
-              architecture = "32-bit"
-          End If
+          Select Case platform
+              Case "AMD64"
+                  platform = "x64"
+              Case "ARM64"
+                  platform = "arm64"
+              Case "X86"
+                  platform = "x86"
+              Case Else
+                  platform = LCase(platform)
+          End Select
 
           body = _
               "token=" & Encode("$token") & _
@@ -278,20 +312,53 @@ jobs:
               "&edition=" & _
               "&version=" & Encode(version) & _
               "&build=" & Encode(build) & _
-              "&architecture=" & Encode(architecture)
+              "&platform=" & Encode(platform)
 
-          Set request = CreateObject("WinHttp.WinHttpRequest.5.1")
+          Do
+              Err.Clear
+              Set request = Nothing
 
-          request.Open _
-              "POST", _
-              "http://host.lan:$TEST_PORT/", _
-              False
+              On Error Resume Next
+              Set request = CreateObject( _
+                  "WinHttp.WinHttpRequest.5.1" _
+              )
 
-          request.SetRequestHeader _
-              "Content-Type", _
-              "application/x-www-form-urlencoded"
+              If request Is Nothing Then
+                  Set request = CreateObject( _
+                      "MSXML2.ServerXMLHTTP.3.0" _
+                  )
+              End If
 
-          request.Send body
+              If request Is Nothing Then
+                  Set request = CreateObject( _
+                      "Microsoft.XMLHTTP" _
+                  )
+              End If
+
+              If Not request Is Nothing Then
+                  request.Open _
+                      "POST", _
+                      "http://host.lan:$TEST_PORT/", _
+                      False
+
+                  request.SetRequestHeader _
+                      "Content-Type", _
+                      "application/x-www-form-urlencoded"
+
+                  request.Send body
+
+                  If Err.Number = 0 Then
+                      If request.Status = 200 Then
+                          Exit Do
+                      End If
+                  End If
+              End If
+
+              On Error GoTo 0
+              WScript.Sleep 10000
+          Loop
+
+          On Error GoTo 0
 
           Function Encode(value)
               Dim stream
@@ -375,7 +442,7 @@ jobs:
                           "edition",
                           "version",
                           "build",
-                          "architecture",
+                          "platform",
                       )
                   }
 
@@ -390,7 +457,11 @@ jobs:
                   self.send_header("Content-Length", "0")
                   self.end_headers()
 
-              def log_message(self, format: str, *args: object) -> None:
+              def log_message(
+                  self,
+                  format: str,
+                  *args: object,
+              ) -> None:
                   return
 
 
@@ -419,7 +490,7 @@ jobs:
           EXPECTED_TOKEN: ${{ steps.test.outputs.token }}
           EXPECTED_CAPTION: ${{ inputs.expected_caption }}
           EXPECTED_EDITION: ${{ inputs.expected_edition }}
-          EXPECTED_ARCHITECTURE: ${{ inputs.architecture }}
+          EXPECTED_PLATFORM: ${{ inputs.platform }}
           MINIMUM_BUILD: ${{ inputs.minimum_build }}
           VERSION: ${{ inputs.version }}
           DISPLAY_NAME: ${{ inputs.name }}
@@ -438,7 +509,6 @@ jobs:
             --env "CPU_CORES=half"
             --env "CPU_MODEL=$CPU"
             --env "DISK_SIZE=64G"
-            --env "DEBUG=Y"
             --volume "$RUNNER_TEMP/oem:/oem:ro"
             --volume "$RUNNER_TEMP/storage:/storage"
           )
@@ -477,126 +547,12 @@ jobs:
 
           logs_pid="$!"
 
-          capture_screenshots() {
-            local directory
-            local file
-            local i
-            local client
-
-            directory="$RUNNER_TEMP/output/screenshots"
-            mkdir -p "$directory"
-
-            if ! docker exec "$CONTAINER" \
-              test -S /run/shm/monitor.sock; then
-              echo "QEMU monitor socket does not exist." |
-                tee "$directory/error.log"
-              return
-            fi
-
-            if docker exec "$CONTAINER" \
-              command -v socat > /dev/null 2>&1; then
-              client="socat"
-            elif docker exec "$CONTAINER" \
-              sh -c 'nc -h 2>&1 | grep -q -- "-U"'; then
-              client="nc"
-            else
-              echo "Neither socat nor Unix-socket capable nc is available." |
-                tee "$directory/error.log"
-
-              docker exec "$CONTAINER" \
-                sh -c '
-                  command -v socat || true
-                  command -v nc || true
-                  ls -l /run/shm/monitor.sock || true
-                ' >> "$directory/error.log" 2>&1
-
-              return
-            fi
-
-            echo "Using $client for QEMU monitor access."
-
-            for i in $(seq -w 1 25); do
-              file="screen-$i.ppm"
-
-              case "$client" in
-                socat)
-                  docker exec "$CONTAINER" \
-                    sh -c \
-                    "printf 'screendump /storage/$file\n' |
-                      timeout 2 socat \
-                        - \
-                        UNIX-CONNECT:/run/shm/monitor.sock" \
-                    >> "$directory/capture.log" 2>&1 || true
-                  ;;
-
-                nc)
-                  docker exec "$CONTAINER" \
-                    sh -c \
-                    "printf 'screendump /storage/$file\n' |
-                      timeout 2 nc \
-                        -U /run/shm/monitor.sock" \
-                    >> "$directory/capture.log" 2>&1 || true
-                  ;;
-              esac
-
-              if [[ -s "$RUNNER_TEMP/storage/$file" ]]; then
-                mv \
-                  "$RUNNER_TEMP/storage/$file" \
-                  "$directory/$file"
-              fi
-
-              sleep 0.2
-            done
-          }
-
-          detect_reboot_loop() {
-            local count
-            local timestamp
-
-            while true; do
-              sleep 10
-
-              count="$(
-                docker logs \
-                  --since 30s \
-                  "$CONTAINER" 2>&1 |
-                  grep -c '^SeaBIOS ' || true
-              )"
-
-              if (( count >= 8 )); then
-                echo
-                echo "------------------------------------------------------------"
-                echo "Detected a probable VM reboot loop."
-                echo "SeaBIOS appeared $count times in the last 30 seconds."
-
-                capture_screenshots
-
-                timestamp="$(date --utc '+%Y-%m-%dT%H:%M:%SZ')"
-
-                {
-                  echo "Detected a probable VM reboot loop."
-                  echo "SeaBIOS occurrences: $count"
-                  echo "Window: 30 seconds"
-                  echo "Timestamp: $timestamp"
-                } > "$RUNNER_TEMP/output/reboot-loop.txt"
-
-                return 0
-              fi
-            done
-          }
-
-          detect_reboot_loop &
-          detector_pid="$!"
-
-          stop_background_tasks() {
-            kill "$detector_pid" 2>/dev/null || true
-            wait "$detector_pid" 2>/dev/null || true
-
+          stop_logs() {
             kill "$logs_pid" 2>/dev/null || true
             wait "$logs_pid" 2>/dev/null || true
           }
 
-          trap stop_background_tasks EXIT
+          trap stop_logs EXIT
 
           deadline=$((SECONDS + 9000))
 
@@ -612,13 +568,6 @@ jobs:
               echo "------------------------------------------------------------"
               echo "Container stopped before Windows became ready."
               echo "Container state: ${state:-missing}"
-              exit 1
-            fi
-
-            if [[ -f "$RUNNER_TEMP/output/reboot-loop.txt" ]]; then
-              echo
-              echo "------------------------------------------------------------"
-              cat "$RUNNER_TEMP/output/reboot-loop.txt"
               exit 1
             fi
 
@@ -646,7 +595,7 @@ jobs:
             esac
 
             if [[ -n "$response" ]]; then
-              stop_background_tasks
+              stop_logs
               trap - EXIT
 
               echo
@@ -664,10 +613,7 @@ jobs:
               edition="$(jq -r '.edition // empty' <<< "$response")"
               version="$(jq -r '.version // empty' <<< "$response")"
               build="$(jq -r '.build // empty' <<< "$response")"
-
-              architecture="$(
-                jq -r '.architecture // empty' <<< "$response"
-              )"
+              platform="$(jq -r '.platform // empty' <<< "$response")"
 
               if [[ "$token" != "$EXPECTED_TOKEN" ]]; then
                 echo "The response token does not match."
@@ -705,22 +651,19 @@ jobs:
                 exit 1
               fi
 
-              if [[ "$architecture" != "$EXPECTED_ARCHITECTURE" ]]; then
-                echo "Expected architecture:"
-                echo "  $EXPECTED_ARCHITECTURE"
-                echo "Received architecture:"
-                echo "  $architecture"
+              if [[ "$platform" != "$EXPECTED_PLATFORM" ]]; then
+                echo "Expected platform:"
+                echo "  $EXPECTED_PLATFORM"
+                echo "Received platform:"
+                echo "  $platform"
                 exit 1
               fi
-
-              printf '%s\n' "$response" |
-                jq . > "$RUNNER_TEMP/output/windows.json"
 
               echo
               echo "$DISPLAY_NAME installed successfully."
               echo "Version: $version"
               echo "Build: $build"
-              echo "Architecture: $architecture"
+              echo "Platform: $platform"
               exit 0
             fi
 
@@ -731,46 +674,6 @@ jobs:
           echo "------------------------------------------------------------"
           echo "Timed out waiting for Windows installation."
           exit 1
-
-      - name: Capture diagnostics
-        if: always()
-        shell: bash
-        run: |
-          set +e
-
-          docker logs "$CONTAINER" \
-            > "$RUNNER_TEMP/output/container.log" \
-            2>&1
-
-          docker inspect "$CONTAINER" \
-            > "$RUNNER_TEMP/output/container.json" \
-            2>&1
-
-          if docker inspect "$RECEIVER" > /dev/null 2>&1; then
-            docker logs "$RECEIVER" \
-              > "$RUNNER_TEMP/output/receiver.log" \
-              2>&1
-
-            docker inspect "$RECEIVER" \
-              > "$RUNNER_TEMP/output/receiver.json" \
-              2>&1
-          fi
-
-          df -h \
-            > "$RUNNER_TEMP/output/filesystems.txt" \
-            2>&1
-
-          echo "Final disk space:"
-          df -h /
-
-      - name: Upload diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-${{ inputs.version }}-validation
-          path: ${{ runner.temp }}/output
-          if-no-files-found: error
-          retention-days: 14
 
       - name: Cleanup
         if: always()
