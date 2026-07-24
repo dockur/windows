@@ -283,8 +283,8 @@ jobs:
             --stop-timeout 120 \
             --publish "$TEST_PORT:$TEST_PORT/tcp" \
             --env "VERSION=11" \
-            --env "RAM_SIZE=4G" \
-            --env "CPU_CORES=2" \
+            --env "RAM_SIZE=half" \
+            --env "CPU_CORES=half" \
             --env "DISK_SIZE=64G" \
             --env "USER_PORTS=$TEST_PORT" \
             --env "COMMAND=$command" \
