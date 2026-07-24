@@ -588,11 +588,17 @@ printEdition() {
       ;;
     "win2025"* | "win2022"* | "win2019"* | "win2016"* | \
     "win2012"* | "win2008"* | "win2003"* )
-      case "${EDITION^^}" in
-        *"DATACENTER"* ) edition="Datacenter" ;;
-        "CORE" | "STANDARDCORE" ) edition="Core" ;;
-        * ) edition="Standard" ;;
-      esac
+      [[ "$normalized" == *"-"* ]] && suffix="${normalized#*-}"
+
+      if [ -n "$suffix" ]; then
+        edition=$(formatEdition "$suffix")
+      else
+        case "${EDITION^^}" in
+          *"DATACENTER"* ) edition="Datacenter" ;;
+          "CORE" | "STANDARDCORE" ) edition="Core" ;;
+          * ) edition="Standard" ;;
+        esac
+      fi
       ;;
   esac
 
