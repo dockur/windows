@@ -399,7 +399,9 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
+
           docker pull "$IMAGE"
+
           docker image inspect "$IMAGE" \
             --format 'Digest: {{index .RepoDigests 0}}'
 
@@ -538,6 +540,7 @@ jobs:
 
           detect_reboot_loop() {
             local count
+            local timestamp
 
             while true; do
               sleep 10
@@ -555,9 +558,16 @@ jobs:
                 echo "Detected a probable VM reboot loop."
                 echo "SeaBIOS appeared $count times in the last 30 seconds."
 
-                touch "$RUNNER_TEMP/output/reboot-loop"
-
                 capture_screenshots
+
+                timestamp="$(date --utc '+%Y-%m-%dT%H:%M:%SZ')"
+
+                {
+                  echo "Detected a probable VM reboot loop."
+                  echo "SeaBIOS occurrences: $count"
+                  echo "Window: 30 seconds"
+                  echo "Timestamp: $timestamp"
+                } > "$RUNNER_TEMP/output/reboot-loop.txt"
 
                 return 0
               fi
@@ -594,9 +604,10 @@ jobs:
               exit 1
             fi
 
-            if [[ -f "$RUNNER_TEMP/output/reboot-loop" ]]; then
+            if [[ -f "$RUNNER_TEMP/output/reboot-loop.txt" ]]; then
               echo
-              echo "VM reboot loop detected."
+              echo "------------------------------------------------------------"
+              cat "$RUNNER_TEMP/output/reboot-loop.txt"
               exit 1
             fi
 
