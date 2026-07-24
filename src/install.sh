@@ -736,7 +736,7 @@ setMachine() {
 
       if [ -z "${CPU_MODEL,,}" ] || [[ "${CPU_MODEL,,}" == "host" ]]; then
         # Workaround for boot loop on AMD EPYC processors
-        if "${CPU,,}" == *"amd epyc"* ]]; then
+        if [[ "${CPU,,}" == *"amd epyc"* ]]; then
           CPU_MODEL="qemu32"
         fi
       fi
