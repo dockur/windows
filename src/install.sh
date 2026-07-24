@@ -11,7 +11,7 @@ backup () {
   local count=1
   local name="unknown"
   local root="$STORAGE/backups"
-  local file previous find_pid failed=""
+  local file previous failed=""
 
   previous=$(readState "base") || return 1
   [ -n "$previous" ] && name="${previous%.*}"
@@ -53,7 +53,7 @@ backup () {
       -not -iname '*.iso' -print0
   )
 
-  find_pid=$!
+  local find_pid=$!
 
   if ! wait "$find_pid"; then
     error "Failed to enumerate files in \"$STORAGE\"."
@@ -122,10 +122,8 @@ detectCustom() {
 skipInstall() {
 
   local iso="$1"
-  local method=""
-  local magic byte
+  local method magic previous
   local boot="$STORAGE/windows.boot"
-  local previous
 
   previous=$(readState "base") || return 1
 
@@ -178,7 +176,8 @@ skipInstall() {
   # Check if the ISO was already processed by our script
   magic=$(dd if="$iso" bs=1 count=1 status=none | tr -d '\000')
   magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
-  byte="16" && enabled "$MANUAL" && byte="17"
+  local byte="16"
+  enabled "$MANUAL" && byte="17"
 
   if [[ "$magic" != "$byte" ]]; then
 
@@ -293,7 +292,7 @@ finishInstall() {
 
   local iso="$1"
   local aborted="$2"
-  local base byte
+  local base
 
   if [ ! -s "$iso" ] || [ ! -f "$iso" ]; then
     error "Failed to find ISO file: $iso" && return 1
@@ -307,7 +306,8 @@ finishInstall() {
 
   if [[ "$aborted" != [Yy1]* ]]; then
     # Mark ISO as prepared via magic byte
-    byte="16" && enabled "$MANUAL" && byte="17"
+    local byte="16"
+    enabled "$MANUAL" && byte="17"
     if ! printf '%b' "\x$byte" | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none; then
       warn "failed to set magic byte in ISO file: $iso"
     fi
@@ -443,21 +443,18 @@ extractESD() {
   local version="$3"
   local desc="$4"
 
-  local msg ret index size
-  local minSize freeSpace bootPad
   local info count totals links
-  local bootTotal bootLinks bootSize
-  local wimTotal wimLinks wimSize
-  local installSize installPad
-  local bootWim installWim
+  local bootTotal bootLinks
+  local wimTotal wimLinks
+  local installSize size
   local edition imgEdition
 
-  minSize=100000000
-  freeSpace=9606127360
-  bootPad=60000000
-  installPad=3000000
+  local minSize=100000000
+  local freeSpace=9606127360
+  local bootPad=60000000
+  local installPad=3000000
 
-  msg="Extracting $desc bootdisk"
+  local msg="Extracting $desc bootdisk"
   info "$msg..." && html "$msg..."
 
   if ! size=$(stat -c%s -- "$iso"); then
@@ -510,7 +507,7 @@ extractESD() {
     return 1
   fi
 
-  bootSize=$(( bootTotal - bootLinks ))
+  local bootSize=$(( bootTotal - bootLinks ))
 
   wimTotal=$(getEsdField "$totals" 3)
   wimLinks=$(getEsdField "$links" 3)
@@ -520,13 +517,13 @@ extractESD() {
     return 1
   fi
 
-  wimSize=$(( wimTotal - wimLinks + bootPad ))
+  local wimSize=$(( wimTotal - wimLinks + bootPad ))
 
   /run/progress.sh "$dir" "$bootSize" "$msg ([P])..." &
 
-  index="1"
+  local index="1"
   wimlib-imagex apply "$iso" "$index" "$dir" --quiet 2>/dev/null || {
-    ret=$?
+    local ret=$?
     fKill "progress.sh"
     error "Extracting $desc bootdisk failed ($ret)"
     return 1
@@ -534,8 +531,8 @@ extractESD() {
 
   fKill "progress.sh"
 
-  bootWim="$dir/sources/boot.wim"
-  installWim="$dir/sources/install.wim"
+  local bootWim="$dir/sources/boot.wim"
+  local installWim="$dir/sources/install.wim"
 
   msg="Extracting $desc environment"
   info "$msg..." && html "$msg..."
@@ -544,7 +541,7 @@ extractESD() {
   /run/progress.sh "$bootWim" "$wimSize" "$msg ([P])..." &
 
   wimlib-imagex export "$iso" "$index" "$bootWim" --compress=none --quiet || {
-    ret=$?
+    local ret=$?
     fKill "progress.sh"
     error "Adding WinPE failed ($ret)"
     return 1
@@ -559,7 +556,7 @@ extractESD() {
   /run/progress.sh "$bootWim" "$wimSize" "$msg ([P])..." &
 
   wimlib-imagex export "$iso" "$index" "$bootWim" --compress=none --boot --quiet || {
-    ret=$?
+    local ret=$?
     fKill "progress.sh"
     error "Adding Windows Setup failed ($ret)"
     return 1
@@ -594,7 +591,7 @@ extractESD() {
     /run/progress.sh "$installWim" "$installSize" "$msg ([P])..." &
 
     wimlib-imagex export "$iso" "$index" "$installWim" --compress=LZMS --chunk-size 128K --quiet || {
-      ret=$?
+      local ret=$?
       fKill "progress.sh"
       error "Addition of $index to the $desc image failed ($ret)"
       return 1
@@ -781,7 +778,7 @@ prepareImage() {
 addFolder() {
 
   local src="$1"
-  local folder="/oem" file=""
+  local folder="/oem" file
   local dest="$src/\$OEM\$/\$1/OEM"
 
   [ ! -d "$folder" ] && folder="/OEM"
@@ -830,8 +827,7 @@ addDriver() {
   local path="$2"
   local target="$3"
   local driver="$4"
-  local desc=""
-  local folder=""
+  local folder="" desc
 
   if [ -z "$id" ]; then
     warn "no Windows version specified for \"$driver\" driver!" && return 0
@@ -944,7 +940,7 @@ updateImage() {
   local xml="autounattend.xml"
   local bak="${xml//.xml/.org}"
   local dat="${xml//.xml/.dat}"
-  local desc path src wim name info idx
+  local desc path src wim name info
 
   skipVersion "${DETECTED,,}" && return 0
 
@@ -973,7 +969,7 @@ updateImage() {
     return 1
   fi
 
-  idx="1"
+  local idx="1"
 
   if ! info=$(wimlib-imagex info -xml "$wim" | iconv -f UTF-16LE -t UTF-8); then
     warn "failed to read boot image information, $FB"
