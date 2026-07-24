@@ -258,8 +258,10 @@ jobs:
 
           echo "$!" > "$RUNNER_TEMP/output/disk-monitor.pid"
 
-      - name: Start Windows installation
+      - name: Install and validate Windows
         shell: bash
+        env:
+          EXPECTED_TOKEN: ${{ steps.test.outputs.token }}
         run: |
           set -Eeuo pipefail
 
@@ -270,6 +272,7 @@ jobs:
             --cap-add NET_ADMIN \
             --stop-timeout 120 \
             --publish "$TEST_PORT:$TEST_PORT/tcp" \
+            --env "DEBUG=Y" \
             --env "VERSION=11" \
             --env "RAM_SIZE=half" \
             --env "CPU_CORES=half" \
@@ -282,12 +285,23 @@ jobs:
           docker inspect "$CONTAINER" \
             --format 'Container started: {{.State.Running}}'
 
-      - name: Wait for Windows
-        shell: bash
-        env:
-          EXPECTED_TOKEN: ${{ steps.test.outputs.token }}
-        run: |
-          set -Eeuo pipefail
+          echo
+          echo "Container log:"
+          echo "------------------------------------------------------------"
+
+          docker logs \
+            --follow \
+            --timestamps \
+            "$CONTAINER" &
+
+          logs_pid="$!"
+
+          stop_logs() {
+            kill "$logs_pid" 2>/dev/null || true
+            wait "$logs_pid" 2>/dev/null || true
+          }
+
+          trap stop_logs EXIT
 
           deadline=$((SECONDS + 9000))
 
@@ -299,6 +313,8 @@ jobs:
             )"
 
             if [[ "$state" != "running" ]]; then
+              echo
+              echo "------------------------------------------------------------"
               echo "Container stopped before Windows became ready."
               echo "Container state: ${state:-missing}"
               exit 1
@@ -313,6 +329,11 @@ jobs:
             )"
 
             if [[ -n "$response" ]]; then
+              stop_logs
+              trap - EXIT
+
+              echo
+              echo "------------------------------------------------------------"
               echo "Received response:"
 
               jq . <<< "$response" || {
@@ -377,11 +398,11 @@ jobs:
               exit 0
             fi
 
-            printf '.'
             sleep 10
           done
 
           echo
+          echo "------------------------------------------------------------"
           echo "Timed out waiting for Windows installation."
           exit 1
 
