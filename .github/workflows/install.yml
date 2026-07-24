@@ -324,18 +324,22 @@ jobs:
               )
 
               If request Is Nothing Then
+                  Err.Clear
                   Set request = CreateObject( _
                       "MSXML2.ServerXMLHTTP.3.0" _
                   )
               End If
 
               If request Is Nothing Then
+                  Err.Clear
                   Set request = CreateObject( _
                       "Microsoft.XMLHTTP" _
                   )
               End If
 
               If Not request Is Nothing Then
+                  Err.Clear
+
                   request.Open _
                       "POST", _
                       "http://host.lan:$TEST_PORT/", _
