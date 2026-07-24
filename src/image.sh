@@ -6,7 +6,6 @@ getPlatform() {
   local xml="$1"
   local tag="ARCH"
   local platform="x64"
-  local arch
 
   local -a arches=()
 
@@ -18,7 +17,7 @@ getPlatform() {
   if [ "${#arches[@]}" -gt 1 ]; then
     platform="mixed"
   elif [ "${#arches[@]}" -eq 1 ]; then
-    arch="${arches[0]}"
+    local arch="${arches[0]}"
 
     case "${arch,,}" in
       "0" ) platform="x86" ;;
@@ -60,9 +59,7 @@ hasVersion() {
   local wanted="$1"
   shift
 
-  local actual expected_id selected_id file source
-  local i
-
+  local actual i
   local -a actuals=("$@")
   local -a expected=("$wanted")
   local -a selected=("$wanted")
@@ -79,13 +76,13 @@ hasVersion() {
 
   for (( i=0; i<${#expected[@]}; i++ )); do
 
-    expected_id="${expected[$i]}"
-    selected_id="${selected[$i]}"
+    local expected_id="${expected[$i]}"
+    local selected_id="${selected[$i]}"
 
     for actual in "${actuals[@]}"; do
       [[ "${actual,,}" == "${expected_id,,}" ]] || continue
 
-      file="/run/assets/$selected_id.xml"
+      local file="/run/assets/$selected_id.xml"
 
       if [ -s "$file" ]; then
         echo "$selected_id"
@@ -93,7 +90,7 @@ hasVersion() {
       fi
 
       if [[ "${selected_id,,}" == *"-eval" ]]; then
-        source="/run/assets/${selected_id%-eval}.xml"
+        local source="/run/assets/${selected_id%-eval}.xml"
 
         if [ -s "$source" ]; then
           echo "$selected_id"
@@ -169,10 +166,8 @@ detectVersion() {
 
   local xml="$1"
   local suggested="${2:-}"
-
-  local tag name id base prefer match platform
-  local priority actual edition suffix i
-  local tried=""
+  local tag name id base match platform
+  local priority edition suffix i tried=""
 
   local -a tags=(
     "DISPLAYNAME"
@@ -251,7 +246,7 @@ detectVersion() {
       esac
 
       tried="Y"
-      prefer="$base"
+      local prefer="$base"
       [ -n "$edition" ] && prefer+="-$edition"
 
       if match=$(hasVersion "$prefer" "${versions[@]}"); then
@@ -279,7 +274,7 @@ detectVersion() {
   # still allows its Evaluation counterpart when the normal variant is absent.
   for suffix in "${suffixes[@]}"; do
     for base in "${bases[@]}"; do
-      prefer="$base$suffix"
+      local prefer="$base$suffix"
 
       if match=$(hasVersion "$prefer" "${versions[@]}"); then
         echo "$match"
@@ -294,7 +289,7 @@ detectVersion() {
     for (( i=0; i<${#versions[@]}; i++ )); do
       [[ "${groups[$i]}" == "$priority" ]] || continue
 
-      actual="${versions[$i]}"
+      local actual="${versions[$i]}"
 
       if match=$(hasVersion "$actual" "${versions[@]}"); then
         echo "$match"
@@ -480,8 +475,7 @@ detectImage() {
 
   local dir="$1"
   local version="$2"
-  local desc msg language
-  local file source
+  local desc language
 
   XML=""
 
@@ -492,12 +486,12 @@ detectImage() {
   if [ -z "$DETECTED" ] && [ -z "$CUSTOM" ] &&
     [ -z "${REUSED_ISO:-}" ] && [[ "${version,,}" != "http"* ]]; then
 
-    file="/run/assets/$version.xml"
+    local file="/run/assets/$version.xml"
 
     if [ -s "$file" ]; then
       DETECTED="$version"
     elif [[ "${version,,}" == *"-eval" ]]; then
-      source="/run/assets/${version%-eval}.xml"
+      local source="/run/assets/${version%-eval}.xml"
       [ -s "$source" ] && DETECTED="$version"
     fi
 
@@ -524,7 +518,7 @@ detectImage() {
     return 0
   fi
 
-  local src wim info index suggested edition rc=0
+  local src wim info index suggested edition
   src=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
 
   if [ ! -d "$src" ]; then
@@ -542,7 +536,7 @@ detectImage() {
 
   info=$(wimlib-imagex info -xml "$wim" |
     iconv -f UTF-16LE -t UTF-8) || {
-    rc=$?
+    local rc=$?
 
     if (( rc >= 129 )); then
       exit "$rc"
@@ -578,7 +572,7 @@ detectImage() {
   fi
 
   if [ -z "$DETECTED" ]; then
-    msg="Failed to determine Windows version from image"
+    local msg="Failed to determine Windows version from image"
 
     if setXML "" || enabled "$MANUAL"; then
       info "${msg}!"
@@ -609,7 +603,7 @@ detectImage() {
     return 1
   fi
 
-  msg="the answer file for $desc was not found ($DETECTED.xml)"
+  local msg="the answer file for $desc was not found ($DETECTED.xml)"
   local fallback="/run/assets/${DETECTED%%-*}.xml"
 
   if setXML "$fallback" "$index" || enabled "$MANUAL"; then
