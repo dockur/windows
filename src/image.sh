@@ -300,8 +300,9 @@ selectClientVersion() {
   local -n bases_ref="$bases_name"
   local -n groups_ref="$groups_name"
 
-  local base edition suffix priority i
+  local base edition entry suffix priority patterns i
   local -a preferred=()
+  local -A seen=()
 
   if [ -n "$EDITION" ]; then
 
@@ -323,6 +324,7 @@ selectClientVersion() {
   fi
 
   if [ -n "$suggested" ]; then
+
     preferred=("$suggested")
 
     if selectVersion \
@@ -335,12 +337,17 @@ selectClientVersion() {
     fi
   fi
 
+  # First try each canonical edition in its configured order.
   preferred=()
 
-  for suffix in "${EDITION_ORDER[@]}"; do
+  for entry in "${EDITION_ORDER[@]}"; do
+
+    IFS='|' read -r suffix priority patterns <<< "$entry"
+
     for base in "${bases_ref[@]}"; do
       preferred+=("$base$suffix")
     done
+
   done
 
   if selectVersion \
@@ -352,19 +359,18 @@ selectClientVersion() {
     return 0
   fi
 
+  # Then try dynamic editions belonging to those same preference groups.
   preferred=()
-  local -A seen=()
+  seen=()
 
-  for suffix in "${EDITION_ORDER[@]}"; do
+  for entry in "${EDITION_ORDER[@]}"; do
 
-    priority=$(getVersionPriority \
-      "${bases_ref[0]}$suffix" \
-      "${bases_ref[0]}")
+    IFS='|' read -r suffix priority patterns <<< "$entry"
 
     [[ -v "seen[$priority]" ]] && continue
     seen["$priority"]="Y"
 
-    for (( i=0; i<${#versions_ref[@]}; i++ )); do
+    for ((i=0;i<${#versions_ref[@]};i++)); do
       [[ "${groups_ref[$i]}" == "$priority" ]] || continue
       preferred+=("${versions_ref[$i]}")
     done
@@ -383,14 +389,18 @@ selectServerVersion() {
 
   local versions_name="$1"
   local bases_name="$2"
-  local indexes_name="$3"
-  local suggested="$4"
-  local result_name="$5"
-  local index_name="$6"
+  local groups_name="$3"
+  local indexes_name="$4"
+  local suggested="$5"
+  local result_name="$6"
+  local index_name="$7"
+  local -n versions_ref="$versions_name"
   local -n bases_ref="$bases_name"
+  local -n groups_ref="$groups_name"
 
-  local base edition suffix
+  local base edition entry suffix priority patterns i
   local -a preferred=()
+  local -A seen=()
 
   if [ -n "$EDITION" ]; then
 
@@ -423,17 +433,46 @@ selectServerVersion() {
         "$index_name"; then
       return 0
     fi
-
   fi
 
+  # First try each canonical Server edition in its configured order.
   preferred=()
 
-  for suffix in "${SERVER_EDITION_ORDER[@]}"; do
+  for entry in "${SERVER_EDITION_ORDER[@]}"; do
+
+    IFS='|' read -r suffix priority patterns <<< "$entry"
+
     for base in "${bases_ref[@]}"; do
-
       preferred+=("$base$suffix")
-
     done
+
+  done
+
+  if selectVersion \
+      "$versions_name" \
+      "$indexes_name" \
+      preferred \
+      "$result_name" \
+      "$index_name"; then
+    return 0
+  fi
+
+  # Then try future or noncanonical editions from the same preference groups.
+  preferred=()
+  seen=()
+
+  for entry in "${SERVER_EDITION_ORDER[@]}"; do
+
+    IFS='|' read -r suffix priority patterns <<< "$entry"
+
+    [[ -v "seen[$priority]" ]] && continue
+    seen["$priority"]="Y"
+
+    for ((i=0;i<${#versions_ref[@]};i++)); do
+      [[ "${groups_ref[$i]}" == "$priority" ]] || continue
+      preferred+=("${versions_ref[$i]}")
+    done
+
   done
 
   selectVersion \
@@ -475,6 +514,7 @@ detectVersion() {
       selectServerVersion \
         versions \
         bases \
+        groups \
         image_indexes \
         "$suggested" \
         "$result_name" \
