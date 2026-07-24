@@ -511,7 +511,7 @@ detectImage() {
     return 0
   fi
 
-  local src wim info index suggested rc=0
+  local src wim info index suggested edition rc=0
   src=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
 
   if [ ! -d "$src" ]; then
@@ -548,6 +548,21 @@ detectImage() {
   fi
 
   DETECTED=$(detectVersion "$info" "$suggested")
+
+  if [ -n "$EDITION" ]; then
+    case "${DETECTED,,}" in
+      "win2003"* | "win2008"* | "win2012"* | "win2016"* | \
+      "win2019"* | "win2022"* | "win2025"* )
+        edition=$(normalizeServerEditionID "$EDITION")
+
+        if [ -n "$edition" ] &&
+          [[ "${DETECTED,,}" != *"-${edition,,}" &&
+            "${DETECTED,,}" != *"-${edition,,}-eval" ]]; then
+          EDITION=""
+        fi
+        ;;
+    esac
+  fi
 
   if [ -z "$DETECTED" ]; then
     msg="Failed to determine Windows version from image"
