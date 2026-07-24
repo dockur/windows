@@ -118,51 +118,6 @@ hasVersion() {
   return 1
 }
 
-getVersionPriority() {
-
-  local id="${1%-eval}"
-  local base="$2"
-  local edition="${id#"$base"}"
-
-  edition="${edition#-}"
-
-  case "$edition" in
-    "iot" | "iot-"* | "enterprise-iot" | "enterprise-iot-"* )
-      echo "iot"
-      ;;
-    "ltsc" | "ltsc-"* | "enterprise-ltsc" | "enterprise-ltsc-"* )
-      echo "ltsc"
-      ;;
-    "enterprise" | "enterprise-"* )
-      echo "enterprise"
-      ;;
-    "ultimate" | "ultimate-"* )
-      echo "ultimate"
-      ;;
-    "education" | "education-"* | "pro-education" | "pro-education-"* )
-      echo "education"
-      ;;
-    "home" | "home-"* )
-      echo "home"
-      ;;
-    "starter" | "starter-"* )
-      echo "starter"
-      ;;
-    "hv" | "hv-"* )
-      echo "hv"
-      ;;
-    "" | "n" | "pro" | "pro-"* | "professional" | "professional-"* | \
-    "business" | "business-"* )
-      echo "default"
-      ;;
-    * )
-      echo "other"
-      ;;
-  esac
-
-  return 0
-}
-
 getVersions() {
 
   local xml="$1"
