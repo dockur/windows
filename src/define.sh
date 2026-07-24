@@ -1063,32 +1063,32 @@ getLink1() {
   [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
 
   case "${id,,}" in
-    "win11x64" | "win11x64-enterprise" )
+    "win11x64" | "win11x64-enterprise" | "win11x64-enterprise-eval" )
       size=6927149056
       sum="f5ffe9313eebc6299fba9e6eeb2971007264e6c6be013073a89b5ae9bd85bfb3"
       url="11/en-us_windows_11_25h2_x64.iso"
       ;;
-    "win11x64-ltsc" | "win11x64-enterprise-ltsc" )
+    "win11x64-ltsc" | "win11x64-enterprise-ltsc" | "win11x64-enterprise-ltsc-eval" )
       size=5144817664
       sum="4f59662a96fc1da48c1b415d6c369d08af55ddd64e8f1c84e0166d9e50405d7a"
       url="11/X23-81951_26100.1742.240906-0331.ge_release_svc_refresh_CLIENT_ENTERPRISES_OEM_x64FRE_en-us.iso"
       ;;
-    "win11x64-iot" | "win11x64-enterprise-iot" )
+    "win11x64-iot" | "win11x64-enterprise-iot" | "win11x64-enterprise-iot-eval" )
       size=5144817664
       sum="4f59662a96fc1da48c1b415d6c369d08af55ddd64e8f1c84e0166d9e50405d7a"
       url="11/X23-81951_26100.1742.240906-0331.ge_release_svc_refresh_CLIENT_ENTERPRISES_OEM_x64FRE_en-us.iso"
       ;;
-    "win10x64" | "win10x64-enterprise" )
+    "win10x64" | "win10x64-enterprise" | "win10x64-enterprise-eval" )
       size=5723299840
       sum="316f718f21fc9b386d81dadd62dc60268a1cfd65b184ac6a052875a454c3431b"
       url="10/en-us_windows_10_22h2_x64.iso"
       ;;
-    "win10x64-ltsc" | "win10x64-enterprise-ltsc" )
+    "win10x64-ltsc" | "win10x64-enterprise-ltsc" | "win10x64-enterprise-ltsc-eval" )
       size=4899461120
       sum="c90a6df8997bf49e56b9673982f3e80745058723a707aef8f22998ae6479597d"
       url="10/en-us_windows_10_enterprise_ltsc_2021_x64_dvd_d289cf96.iso"
       ;;
-    "win10x64-iot" | "win10x64-enterprise-iot" )
+    "win10x64-iot" | "win10x64-enterprise-iot" | "win10x64-enterprise-iot-eval" )
       size=4851668992
       sum="a0334f31ea7a3e6932b9ad7206608248f0bd40698bfb8fc65f14fc5e4976c160"
       url="10/en-us_windows_10_iot_enterprise_ltsc_2021_x64_dvd_257ad90f.iso"
@@ -1098,32 +1098,32 @@ getLink1() {
       sum="d8333cf427eb3318ff6ab755eb1dd9d433f0e2ae43745312c1cd23e83ca1ce51"
       url="8.x/8.1/en_windows_8.1_with_update_x64_dvd_6051480.iso"
       ;;
-    "win81x64-enterprise")
+    "win81x64-enterprise" | "win81x64-enterprise-eval" )
       size=4139163648
       sum="c3c604c03677504e8905090a8ce5bb1dde76b6fd58e10f32e3a25bef21b2abe1"
       url="8.x/8.1/en_windows_8.1_enterprise_with_update_x64_dvd_6054382.iso"
       ;;
-    "win2025" )
+    "win2025" | "win2025-eval" )
       size=7571058688
       sum="d273d0a85565ffbc06a3d46313f619103e2830a3373306ddbb9a08b8824f509d"
       url="server/2025/en-us_windows_server_2025_updated_oct_2025_x64_dvd_6c0c5aa8.iso"
       ;;
-    "win2022" )
+    "win2022" | "win2022-eval" )
       size=6023239680
       sum="5d6d91efa972cbdd6701d78db1dcf6a34c7024ca931c1718e7cb3d0c6dd54e88"
       url="server/2022/en-us_windows_server_2022_updated_oct_2025_x64_dvd_26e9af36.iso"
       ;;
-    "win2019" )
+    "win2019" | "win2019-eval" )
       size=5575774208
       sum="0067afe7fdc4e61f677bd8c35a209082aa917df9c117527fc4b2b52a447e89bb"
       url="server/2019/en-us_windows_server_2019_updated_aug_2021_x64_dvd_a6431a28.iso"
       ;;
-    "win2016" )
+    "win2016" | "win2016-eval" )
       size=6006587392
       sum="af06e5483c786c023123e325cea4775050324d9e1366f46850b515ae43f764be"
       url="server/2016/en_windows_server_2016_updated_feb_2018_x64_dvd_11636692.iso"
       ;;
-    "win2012r2" )
+    "win2012r2" | "win2012r2-eval" )
       size=5397889024
       sum="f351e89eb88a96af4626ceb3450248b8573e3ed5924a4e19ea891e6003b62e4e"
       url="server/2012r2/en_windows_server_2012_r2_with_update_x64_dvd_6052708-004.iso"
@@ -1138,7 +1138,7 @@ getLink1() {
       sum="0b738b55a5ea388ad016535a5c8234daf2e5715a0638488ddd8a228a836055a1"
       url="7/en_windows_7_with_sp1_x64.iso"
       ;;
-    "win7x64-enterprise" )
+    "win7x64-enterprise" | "win7x64-enterprise-eval" )
       size=3182604288
       sum="ee69f3e9b86ff973f632db8e01700c5724ef78420b175d25bae6ead90f6805a7"
       url="7/en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.iso"
@@ -1148,7 +1148,7 @@ getLink1() {
       sum="99f3369c90160816be07093dbb0ac053e0a84e52d6ed1395c92ae208ccdf67e5"
       url="7/en_windows_7_with_sp1_x86.iso"
       ;;
-    "win7x86-enterprise" )
+    "win7x86-enterprise" | "win7x86-enterprise-eval" )
       size=2434502656
       sum="8bdd46ff8cb8b8de9c4aba02706629c8983c45e87da110e64e13be17c8434dad"
       url="7/en_windows_7_enterprise_with_sp1_x86_dvd_u_677710.iso"
@@ -1207,12 +1207,12 @@ getLink2() {
       sum="d8333cf427eb3318ff6ab755eb1dd9d433f0e2ae43745312c1cd23e83ca1ce51"
       url="Windows%208.1%20with%20Update/en_windows_8.1_with_update_x64_dvd_6051480.iso"
       ;;
-    "win81x64-enterprise" )
+    "win81x64-enterprise" | "win81x64-enterprise-eval" )
       size=4139163648
       sum="c3c604c03677504e8905090a8ce5bb1dde76b6fd58e10f32e3a25bef21b2abe1"
       url="Windows%208.1%20with%20Update/en_windows_8.1_enterprise_with_update_x64_dvd_6054382.iso"
       ;;
-    "win2012r2" )
+    "win2012r2" | "win2012r2-eval" )
       size=5397889024
       sum="f351e89eb88a96af4626ceb3450248b8573e3ed5924a4e19ea891e6003b62e4e"
       url="Windows%20Server%202012%20R2%20with%20Update/en_windows_server_2012_r2_with_update_x64_dvd_6052708.iso"
@@ -1227,7 +1227,7 @@ getLink2() {
       sum="36f4fa2416d0982697ab106e3a72d2e120dbcdb6cc54fd3906d06120d0653808"
       url="Windows%207/en_windows_7_ultimate_with_sp1_x64_dvd_u_677332.iso"
       ;;
-    "win7x64-enterprise" )
+    "win7x64-enterprise" | "win7x64-enterprise-eval" )
       size=3182604288
       sum="ee69f3e9b86ff973f632db8e01700c5724ef78420b175d25bae6ead90f6805a7"
       url="Windows%207/en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.iso"
@@ -1237,7 +1237,7 @@ getLink2() {
       sum="e2c009a66d63a742941f5087acae1aa438dcbe87010bddd53884b1af6b22c940"
       url="Windows%207/en_windows_7_ultimate_with_sp1_x86_dvd_u_677460.iso"
       ;;
-    "win7x86-enterprise" )
+    "win7x86-enterprise" | "win7x86-enterprise-eval" )
       size=2434502656
       sum="8bdd46ff8cb8b8de9c4aba02706629c8983c45e87da110e64e13be17c8434dad"
       url="Windows%207/en_windows_7_enterprise_with_sp1_x86_dvd_u_677710.iso"
@@ -1301,32 +1301,32 @@ getLink3() {
       sum="d141f6030fed50f75e2b03e1eb2e53646c4b21e5386047cb860af5223f102a32"
       url="W11x64_26200.6584/26200.6584.250915-1905.25h2_ge_release_svc_refresh_CLIENT_CONSUMER_x64FRE_en-us.iso"
       ;;
-    "win11x64-enterprise" )
+    "win11x64-enterprise" | "win11x64-enterprise-eval" )
       size=7620513792
       sum="2b65df49334b64e9341dc404e9c527bf1b2a9a105e95314a347fd29ac9900581"
       url="massgrave.dev-windows-x64-and-x86-archive/en-us_windows_11_business_editions_version_25h2_x64_dvd_41c521e7.iso"
       ;;
-    "win11x64-ltsc" | "win11x64-enterprise-ltsc" )
+    "win11x64-ltsc" | "win11x64-enterprise-ltsc" | "win11x64-enterprise-ltsc-eval" )
       size=5144817664
       sum="4f59662a96fc1da48c1b415d6c369d08af55ddd64e8f1c84e0166d9e50405d7a"
       url="Windows11LTSC/X23-81951_26100.1742.240906-0331.ge_release_svc_refresh_CLIENT_ENTERPRISES_OEM_x64FRE_en-us.iso"
       ;;
-    "win11x64-iot" | "win11x64-enterprise-iot" )
+    "win11x64-iot" | "win11x64-enterprise-iot" | "win11x64-enterprise-iot-eval" )
       size=5144817664
       sum="4f59662a96fc1da48c1b415d6c369d08af55ddd64e8f1c84e0166d9e50405d7a"
       url="Windows11LTSC/X23-81951_26100.1742.240906-0331.ge_release_svc_refresh_CLIENT_ENTERPRISES_OEM_x64FRE_en-us.iso"
       ;;
-    "win10x64" | "win10x64-enterprise" )
+    "win10x64" | "win10x64-enterprise" | "win10x64-enterprise-eval" )
       size=6985445376
       sum="2c23bc8b95a9314f15ebff881dcbea49651f52a96a0327d7aaf523aa66043765"
       url="windows_10_version_2004/Windows%2010%2C%20version%2022H2/Updated%20October%202025%20%2819045.6456%29/en-us_windows_10_business_editions_version_22h2_updated_oct_2025_x64_dvd_d2eef4b0.iso"
       ;;
-    "win10x64-ltsc" | "win10x64-enterprise-ltsc" )
+    "win10x64-ltsc" | "win10x64-enterprise-ltsc" | "win10x64-enterprise-ltsc-eval" )
       size=4899461120
       sum="c90a6df8997bf49e56b9673982f3e80745058723a707aef8f22998ae6479597d"
       url="en-us_windows_10_enterprise_ltsc_2021_x64_dvd_d289cf96_202302/en-us_windows_10_enterprise_ltsc_2021_x64_dvd_d289cf96.iso"
       ;;
-    "win10x64-iot" | "win10x64-enterprise-iot" )
+    "win10x64-iot" | "win10x64-enterprise-iot" | "win10x64-enterprise-iot-eval" )
       size=4851668992
       sum="a0334f31ea7a3e6932b9ad7206608248f0bd40698bfb8fc65f14fc5e4976c160"
       url="en-us_windows_10_iot_enterprise_ltsc_2021_x64_dvd_257ad90f_202411/en-us_windows_10_iot_enterprise_ltsc_2021_x64_dvd_257ad90f.iso"
@@ -1336,32 +1336,32 @@ getLink3() {
       sum="d8333cf427eb3318ff6ab755eb1dd9d433f0e2ae43745312c1cd23e83ca1ce51"
       url="en_windows_8.1_with_update_x64_dvd_6051480/en_windows_8.1_with_update_x64_dvd_6051480.iso"
       ;;
-    "win81x64-enterprise" )
+    "win81x64-enterprise" | "win81x64-enterprise-eval" )
       size=4139163648
       sum="c3c604c03677504e8905090a8ce5bb1dde76b6fd58e10f32e3a25bef21b2abe1"
       url="en_windows_8.1_enterprise_with_update_x64_dvd/en_windows_8.1_enterprise_with_update_x64_dvd_6054382.iso"
       ;;
-    "win2025" )
+    "win2025" | "win2025-eval" )
       size=8145395712
       sum="f3e277e75acdb793e6f08f4880b514ae0046cedf618c22f727890e54367075e6"
       url="massgrave.dev-windows-x64-and-x86-archive/en-us_windows_server_2025_updated_dec_2025_x64_dvd_c54ab58b.iso"
       ;;
-    "win2022" )
+    "win2022" | "win2022-eval" )
       size=6023239680
       sum="5d6d91efa972cbdd6701d78db1dcf6a34c7024ca931c1718e7cb3d0c6dd54e88"
       url="massgrave.dev-windows-x64-and-x86-archive/en-us_windows_server_2022_updated_oct_2025_x64_dvd_26e9af36.iso"
       ;;
-    "win2019" )
+    "win2019" | "win2019-eval" )
       size=5651695616
       sum="ea247e5cf4df3e5829bfaaf45d899933a2a67b1c700a02ee8141287a8520261c"
       url="massgrave.dev-windows-x64-and-x86-archive/en-us_windows_server_2019_x64_dvd_f9475476.iso"
       ;;
-    "win2016" )
+    "win2016" | "win2016-eval" )
       size=6006587392
       sum="af06e5483c786c023123e325cea4775050324d9e1366f46850b515ae43f764be"
       url="en_windows_server_2016_updated_feb_2018_x64_dvd_11636692/en_windows_server_2016_updated_feb_2018_x64_dvd_11636692.iso"
       ;;
-    "win2012r2" )
+    "win2012r2" | "win2012r2-eval" )
       size=5397889024
       sum="f351e89eb88a96af4626ceb3450248b8573e3ed5924a4e19ea891e6003b62e4e"
       url="en_windows_server_2012_r2_with_update_x64_dvd_6052708_202006/en_windows_server_2012_r2_with_update_x64_dvd_6052708.iso"
@@ -1376,7 +1376,7 @@ getLink3() {
       sum="36f4fa2416d0982697ab106e3a72d2e120dbcdb6cc54fd3906d06120d0653808"
       url="win7-ult-sp1-english/Win7_Ult_SP1_English_x64.iso"
       ;;
-    "win7x64-enterprise" )
+    "win7x64-enterprise" | "win7x64-enterprise-eval" )
       size=3182604288
       sum="ee69f3e9b86ff973f632db8e01700c5724ef78420b175d25bae6ead90f6805a7"
       url="en_windows_7_enterprise_with_sp1_x64_dvd_u_677651_202006/en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.iso"
@@ -1386,7 +1386,7 @@ getLink3() {
       sum="e2c009a66d63a742941f5087acae1aa438dcbe87010bddd53884b1af6b22c940"
       url="win7-ult-sp1-english/Win7_Ult_SP1_English_x32.iso"
       ;;
-    "win7x86-enterprise" )
+    "win7x86-enterprise" | "win7x86-enterprise-eval" )
       size=2434502656
       sum="8bdd46ff8cb8b8de9c4aba02706629c8983c45e87da110e64e13be17c8434dad"
       url="en_windows_7_enterprise_with_sp1_x86_dvd_u_677710_202006/en_windows_7_enterprise_with_sp1_x86_dvd_u_677710.iso"
