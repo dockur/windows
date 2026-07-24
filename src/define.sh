@@ -169,13 +169,15 @@ parseVersion() {
   esac
 
   if [ -z "$SUGGEST" ]; then
-    case "${VERSION,,}" in
+    local normalized="${VERSION,,}"
+
+    case "$normalized" in
       *"-enterprise-ltsc-eval" )
-        SUGGEST="${VERSION%-enterprise-ltsc-eval}-ltsc" ;;
+        SUGGEST="${normalized%-enterprise-ltsc-eval}-ltsc" ;;
       *"-enterprise-iot-eval" )
-        SUGGEST="${VERSION%-enterprise-iot-eval}-iot" ;;
+        SUGGEST="${normalized%-enterprise-iot-eval}-iot" ;;
       *"-eval" )
-        SUGGEST="${VERSION%-eval}" ;;
+        SUGGEST="${normalized%-eval}" ;;
     esac
   fi
 
