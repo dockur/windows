@@ -1,0 +1,55 @@
+name: Validation
+
+on:
+  release:
+    types:
+      - published
+
+  workflow_dispatch:
+
+  push:
+    branches:
+      - test
+    paths:
+      - ".github/workflows/install.yml"
+      - ".github/workflows/validate.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows 11 Pro
+            version: "11"
+            callback: powershell
+            expected_caption: Windows 11
+            expected_edition: Professional
+            minimum_build: 22000
+            architecture: 64-bit
+
+          - name: Windows XP Professional
+            version: "xp"
+            callback: legacy
+            expected_caption: Windows XP
+            expected_edition: ""
+            minimum_build: 2600
+            architecture: 32-bit
+
+    name: ${{ matrix.name }}
+    uses: ./.github/workflows/install.yml
+    with:
+      name: ${{ matrix.name }}
+      version: ${{ matrix.version }}
+      callback: ${{ matrix.callback }}
+      expected_caption: ${{ matrix.expected_caption }}
+      expected_edition: ${{ matrix.expected_edition }}
+      minimum_build: ${{ matrix.minimum_build }}
+      architecture: ${{ matrix.architecture }}
