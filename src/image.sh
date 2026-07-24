@@ -337,7 +337,7 @@ selectClientVersion() {
 
   preferred=()
 
-  for suffix in "${CLIENT_EDITION_ORDER[@]}"; do
+  for suffix in "${EDITION_ORDER[@]}"; do
     for base in "${bases_ref[@]}"; do
       preferred+=("$base$suffix")
     done
@@ -353,12 +353,22 @@ selectClientVersion() {
   fi
 
   preferred=()
+  local -A seen=()
 
-  for priority in "${CLIENT_EDITION_FALLBACK_ORDER[@]}"; do
+  for suffix in "${EDITION_ORDER[@]}"; do
+
+    priority=$(getVersionPriority \
+      "${bases_ref[0]}$suffix" \
+      "${bases_ref[0]}")
+
+    [[ -v "seen[$priority]" ]] && continue
+    seen["$priority"]="Y"
+
     for (( i=0; i<${#versions_ref[@]}; i++ )); do
       [[ "${groups_ref[$i]}" == "$priority" ]] || continue
       preferred+=("${versions_ref[$i]}")
     done
+
   done
 
   selectVersion \
