@@ -1089,6 +1089,19 @@ downloadImage() {
     fi
   fi
 
+  switchEdition "$version"
+
+  if [[ "${version,,}" == *"-eval" ]] && ! enabled "${DETECTED_ORG:-}"; then
+
+    desc=$(printVariant "$DETECTED" "" "Y")
+    web_desc=$(printVariant "$DETECTED" "")
+
+    if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
+      desc+=" in $language"
+    fi
+
+  fi
+
   if isESD "$version" "$lang"; then
 
     if [[ "$tried" != "n" ]]; then
