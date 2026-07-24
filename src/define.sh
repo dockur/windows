@@ -851,6 +851,28 @@ getEditionID() {
   return 0
 }
 
+normalizeServerEditionID() {
+
+  local edition
+
+  edition=$(normalizeEdition "$1")
+  edition="${edition#r2-}"
+  edition="${edition%-desktop-experience}"
+
+  case "$edition" in
+    "" | \
+    "standard" | "standard-core" | \
+    "serverstandard" | "serverstandardcore" | \
+    "datacenter" | "datacenter-core" | \
+    "serverdatacenter" | "serverdatacentercore" )
+      edition=""
+      ;;
+  esac
+
+  echo "$edition"
+  return 0
+}
+
 getServerEditionID() {
 
   local name="${1,,}"
@@ -884,19 +906,7 @@ getServerEditionID() {
       ;;
   esac
 
-  edition=$(normalizeEdition "$edition")
-  edition="${edition#r2-}"
-  edition="${edition%-desktop-experience}"
-
-  case "$edition" in
-    "" | \
-    "standard" | "standard-core" | \
-    "serverstandard" | "serverstandardcore" | \
-    "datacenter" | "datacenter-core" | \
-    "serverdatacenter" | "serverdatacentercore" )
-      edition=""
-      ;;
-  esac
+  edition=$(normalizeServerEditionID "$edition")
 
   echo "$edition"
   return 0
