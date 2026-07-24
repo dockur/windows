@@ -1013,6 +1013,8 @@ updateImage() {
       return 1
     fi
 
+    removeGeneratedXML "$asset" || return 1
+
     if [ -n "${CUSTOM_XML:-}" ]; then
 
       if ! xmllint --nonet --noout "$answer"; then
@@ -1039,6 +1041,8 @@ updateImage() {
   fi
 
   if enabled "$MANUAL"; then
+
+    removeGeneratedXML "$asset" || return 1
 
     wimlib-imagex update "$wim" "$idx" --command "delete --force /$xml" > /dev/null || true
 
