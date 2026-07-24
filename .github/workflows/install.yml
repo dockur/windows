@@ -26,7 +26,7 @@ on:
         type: string
 
       callback:
-        description: Guest callback method
+        description: Guest script type
         required: false
         default: powershell
         type: string
@@ -69,9 +69,7 @@ jobs:
 
     env:
       CONTAINER: windows-test
-      RECEIVER: windows-receiver
       IMAGE: ${{ inputs.image }}
-      TEST_PORT: "18080"
 
     steps:
       - name: Check KVM
@@ -134,7 +132,7 @@ jobs:
             powershell | legacy)
               ;;
             *)
-              echo "Unsupported callback method: $CALLBACK"
+              echo "Unsupported guest script type: $CALLBACK"
               exit 1
               ;;
           esac
@@ -142,19 +140,18 @@ jobs:
           token="$(cat /proc/sys/kernel/random/uuid)"
 
           mkdir -p \
+            "$RUNNER_TEMP/data" \
             "$RUNNER_TEMP/oem" \
-            "$RUNNER_TEMP/output" \
-            "$RUNNER_TEMP/receiver" \
             "$RUNNER_TEMP/storage"
+
+          printf '%s\n' "$token" > "$RUNNER_TEMP/data/readme.txt"
 
           case "$CALLBACK" in
             powershell)
               cat > "$RUNNER_TEMP/oem/ready.ps1" <<'POWERSHELL'
           param(
               [Parameter(Mandatory = $true)]
-              [string]$Token,
-
-              [int]$Port = 18080
+              [string]$Token
           )
 
           $ErrorActionPreference = "Stop"
@@ -179,68 +176,46 @@ jobs:
               }
           }
 
-          $result = @{
-              token    = $Token
-              caption  = [string]$windows.Caption
-              edition  = [string]$registry.EditionID
-              version  = [string]$windows.Version
-              build    = [string]$windows.BuildNumber
-              platform = $platform
+          function Encode([string]$Value) {
+              return [System.Uri]::EscapeDataString($Value)
           }
 
-          $bodyText = $result | ConvertTo-Json -Compress
-          $body = [System.Text.Encoding]::UTF8.GetBytes($bodyText)
-
-          netsh advfirewall firewall add rule `
-              name="Dockur installation test" `
-              dir=in `
-              action=allow `
-              protocol=TCP `
-              localport=$Port | Out-Null
-
-          $listener = New-Object System.Net.Sockets.TcpListener(
-              [System.Net.IPAddress]::Any,
-              $Port
-          )
-
-          $listener.Start()
-
           while ($true) {
-              $client = $listener.AcceptTcpClient()
-
               try {
-                  $stream = $client.GetStream()
-                  $reader = New-Object System.IO.StreamReader($stream)
+                  $share = (
+                      Get-Content `
+                          -LiteralPath "\\host.lan\Data\readme.txt" `
+                          -Raw
+                  ).Trim()
 
-                  while ($true) {
-                      $line = $reader.ReadLine()
-
-                      if ([string]::IsNullOrEmpty($line)) {
-                          break
-                      }
-                  }
-
-                  $headerText = (
-                      "HTTP/1.1 200 OK`r`n" +
-                      "Content-Type: application/json`r`n" +
-                      "Content-Length: $($body.Length)`r`n" +
-                      "Connection: close`r`n" +
-                      "`r`n"
+                  $body = (
+                      "token=$(Encode $Token)" +
+                      "&caption=$(Encode ([string]$windows.Caption))" +
+                      "&edition=$(Encode ([string]$registry.EditionID))" +
+                      "&version=$(Encode ([string]$windows.Version))" +
+                      "&build=$(Encode ([string]$windows.BuildNumber))" +
+                      "&platform=$(Encode $platform)" +
+                      "&share=$(Encode $share)"
                   )
 
-                  $header = [System.Text.Encoding]::ASCII.GetBytes(
-                      $headerText
+                  $temporary = "\\host.lan\Data\windows.tmp"
+                  $output = "\\host.lan\Data\windows.txt"
+
+                  [System.IO.File]::WriteAllText(
+                      $temporary,
+                      $body,
+                      [System.Text.Encoding]::UTF8
                   )
 
-                  $stream.Write($header, 0, $header.Length)
-                  $stream.Write($body, 0, $body.Length)
-                  $stream.Flush()
+                  Move-Item `
+                      -LiteralPath $temporary `
+                      -Destination $output `
+                      -Force
+
+                  break
               }
               catch {
-                  Write-Output $_
-              }
-              finally {
-                  $client.Close()
+                  Start-Sleep -Seconds 10
               }
           }
           POWERSHELL
@@ -249,8 +224,7 @@ jobs:
           @echo off
           powershell.exe -NoProfile -ExecutionPolicy Bypass ^
             -File C:\OEM\ready.ps1 ^
-            -Token "$token" ^
-            -Port $TEST_PORT
+            -Token "$token"
           EOF
               ;;
 
@@ -262,12 +236,17 @@ jobs:
           Dim systems
           Dim system
           Dim shell
-          Dim request
+          Dim files
+          Dim input
+          Dim output
           Dim caption
           Dim version
           Dim build
           Dim platform
+          Dim share
           Dim body
+          Dim temporary
+          Dim destination
 
           Set service = GetObject("winmgmts:\\.\root\cimv2")
           Set systems = service.ExecQuery( _
@@ -286,6 +265,7 @@ jobs:
           Next
 
           Set shell = CreateObject("WScript.Shell")
+          Set files = CreateObject("Scripting.FileSystemObject")
 
           platform = UCase( _
               shell.ExpandEnvironmentStrings( _
@@ -304,53 +284,52 @@ jobs:
                   platform = LCase(platform)
           End Select
 
-          body = _
-              "token=" & Encode("$token") & _
-              "&caption=" & Encode(caption) & _
-              "&edition=" & _
-              "&version=" & Encode(version) & _
-              "&build=" & Encode(build) & _
-              "&platform=" & Encode(platform)
+          temporary = "\\host.lan\Data\windows.tmp"
+          destination = "\\host.lan\Data\windows.txt"
 
           Do
               Err.Clear
-              Set request = Nothing
+              Set input = Nothing
+              Set output = Nothing
 
               On Error Resume Next
-              Set request = CreateObject( _
-                  "WinHttp.WinHttpRequest.5.1" _
+
+              Set input = files.OpenTextFile( _
+                  "\\host.lan\Data\readme.txt", _
+                  1, _
+                  False _
               )
 
-              If request Is Nothing Then
-                  Err.Clear
-                  Set request = CreateObject( _
-                      "MSXML2.ServerXMLHTTP.3.0" _
+              If Err.Number = 0 Then
+                  share = Trim(input.ReadAll)
+                  input.Close
+
+                  body = _
+                      "token=" & Encode("$token") & _
+                      "&caption=" & Encode(caption) & _
+                      "&edition=" & _
+                      "&version=" & Encode(version) & _
+                      "&build=" & Encode(build) & _
+                      "&platform=" & Encode(platform) & _
+                      "&share=" & Encode(share)
+
+                  Set output = files.CreateTextFile( _
+                      temporary, _
+                      True _
                   )
-              End If
-
-              If request Is Nothing Then
-                  Err.Clear
-                  Set request = CreateObject( _
-                      "Microsoft.XMLHTTP" _
-                  )
-              End If
-
-              If Not request Is Nothing Then
-                  Err.Clear
-
-                  request.Open _
-                      "POST", _
-                      "http://host.lan:$TEST_PORT/", _
-                      False
-
-                  request.SetRequestHeader _
-                      "Content-Type", _
-                      "application/x-www-form-urlencoded"
-
-                  request.Send body
 
                   If Err.Number = 0 Then
-                      If request.Status = 200 Then
+                      output.Write body
+                      output.Close
+
+                      If files.FileExists(destination) Then
+                          files.DeleteFile destination, True
+                      End If
+
+                      Err.Clear
+                      files.MoveFile temporary, destination
+
+                      If Err.Number = 0 Then
                           Exit Do
                       End If
                   End If
@@ -413,62 +392,6 @@ jobs:
           @echo off
           cscript.exe //nologo C:\OEM\ready.vbs
           BATCH
-
-              cat > "$RUNNER_TEMP/receiver/receiver.py" <<'PYTHON'
-          import json
-          from http.server import BaseHTTPRequestHandler, HTTPServer
-          from pathlib import Path
-          from urllib.parse import parse_qs
-
-          OUTPUT = Path("/output/windows.json")
-
-
-          class Handler(BaseHTTPRequestHandler):
-              def do_POST(self) -> None:
-                  length = int(self.headers.get("Content-Length", "0"))
-                  body = self.rfile.read(length).decode(
-                      "utf-8",
-                      errors="replace",
-                  )
-
-                  values = parse_qs(
-                      body,
-                      keep_blank_values=True,
-                  )
-
-                  result = {
-                      key: values.get(key, [""])[0]
-                      for key in (
-                          "token",
-                          "caption",
-                          "edition",
-                          "version",
-                          "build",
-                          "platform",
-                      )
-                  }
-
-                  temporary = OUTPUT.with_suffix(".tmp")
-                  temporary.write_text(
-                      json.dumps(result),
-                      encoding="utf-8",
-                  )
-                  temporary.replace(OUTPUT)
-
-                  self.send_response(200)
-                  self.send_header("Content-Length", "0")
-                  self.end_headers()
-
-              def log_message(
-                  self,
-                  format: str,
-                  *args: object,
-              ) -> None:
-                  return
-
-
-          HTTPServer(("0.0.0.0", 18080), Handler).serve_forever()
-          PYTHON
               ;;
           esac
 
@@ -487,7 +410,6 @@ jobs:
       - name: Install and validate Windows
         shell: bash
         env:
-          CALLBACK: ${{ inputs.callback }}
           CPU: ${{ inputs.cpu }}
           EXPECTED_TOKEN: ${{ steps.test.outputs.token }}
           EXPECTED_CAPTION: ${{ inputs.expected_caption }}
@@ -499,44 +421,21 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          docker_args=(
-            --detach
-            --name "$CONTAINER"
-            --device /dev/kvm
-            --device /dev/net/tun
-            --cap-add NET_ADMIN
-            --stop-timeout 120
-            --env "VERSION=$VERSION"
-            --env "RAM_SIZE=half"
-            --env "CPU_CORES=half"
-            --env "CPU_MODEL=$CPU"
-            --env "DISK_SIZE=64G"
-            --volume "$RUNNER_TEMP/oem:/oem:ro"
-            --volume "$RUNNER_TEMP/storage:/storage"
-          )
-
-          if [[ "$CALLBACK" == "powershell" ]]; then
-            docker_args+=(
-              --publish "$TEST_PORT:$TEST_PORT/tcp"
-              --env "USER_PORTS=$TEST_PORT"
-            )
-          fi
-
-          docker run \
-            "${docker_args[@]}" \
+          docker run --detach \
+            --name "$CONTAINER" \
+            --device /dev/kvm \
+            --device /dev/net/tun \
+            --cap-add NET_ADMIN \
+            --stop-timeout 120 \
+            --env "VERSION=$VERSION" \
+            --env "RAM_SIZE=half" \
+            --env "CPU_CORES=half" \
+            --env "CPU_MODEL=$CPU" \
+            --env "DISK_SIZE=64G" \
+            --volume "$RUNNER_TEMP/data:/data" \
+            --volume "$RUNNER_TEMP/oem:/oem:ro" \
+            --volume "$RUNNER_TEMP/storage:/storage" \
             "$IMAGE"
-
-          if [[ "$CALLBACK" == "legacy" ]]; then
-            docker pull python:3.12-alpine
-
-            docker run --detach \
-              --name "$RECEIVER" \
-              --network "container:$CONTAINER" \
-              --volume "$RUNNER_TEMP/receiver:/receiver:ro" \
-              --volume "$RUNNER_TEMP/output:/output" \
-              python:3.12-alpine \
-              python /receiver/receiver.py
-          fi
 
           echo
           echo "Container log:"
@@ -575,26 +474,41 @@ jobs:
 
             response=""
 
-            case "$CALLBACK" in
-              powershell)
-                response="$(
-                  curl \
-                    --silent \
-                    --show-error \
-                    --max-time 5 \
-                    "http://127.0.0.1:$TEST_PORT/" \
-                    2>/dev/null || true
-                )"
-                ;;
+            if [[ -s "$RUNNER_TEMP/data/windows.txt" ]]; then
+              response="$(
+                python3 - "$RUNNER_TEMP/data/windows.txt" <<'PYTHON'
+          import json
+          import sys
+          from pathlib import Path
+          from urllib.parse import parse_qs
 
-              legacy)
-                if [[ -s "$RUNNER_TEMP/output/windows.json" ]]; then
-                  response="$(
-                    cat "$RUNNER_TEMP/output/windows.json"
-                  )"
-                fi
-                ;;
-            esac
+          body = Path(sys.argv[1]).read_text(
+              encoding="utf-8-sig",
+              errors="replace",
+          )
+
+          values = parse_qs(
+              body,
+              keep_blank_values=True,
+          )
+
+          result = {
+              key: values.get(key, [""])[0]
+              for key in (
+                  "token",
+                  "caption",
+                  "edition",
+                  "version",
+                  "build",
+                  "platform",
+                  "share",
+              )
+          }
+
+          print(json.dumps(result))
+          PYTHON
+              )"
+            fi
 
             if [[ -n "$response" ]]; then
               stop_logs
@@ -616,9 +530,19 @@ jobs:
               version="$(jq -r '.version // empty' <<< "$response")"
               build="$(jq -r '.build // empty' <<< "$response")"
               platform="$(jq -r '.platform // empty' <<< "$response")"
+              share="$(jq -r '.share // empty' <<< "$response")"
 
               if [[ "$token" != "$EXPECTED_TOKEN" ]]; then
                 echo "The response token does not match."
+                exit 1
+              fi
+
+              if [[ "$share" != "$EXPECTED_TOKEN" ]]; then
+                echo "Failed to read \\\\host.lan\\Data\\readme.txt."
+                echo "Expected contents:"
+                echo "  $EXPECTED_TOKEN"
+                echo "Received:"
+                echo "  ${share:-empty}"
                 exit 1
               fi
 
@@ -647,39 +571,4 @@ jobs:
                 exit 1
               fi
 
-              if (( build < MINIMUM_BUILD )); then
-                echo "Expected build $MINIMUM_BUILD or newer."
-                echo "Received build: $build"
-                exit 1
-              fi
-
-              if [[ "$platform" != "$EXPECTED_PLATFORM" ]]; then
-                echo "Expected platform:"
-                echo "  $EXPECTED_PLATFORM"
-                echo "Received platform:"
-                echo "  $platform"
-                exit 1
-              fi
-
-              echo
-              echo "$DISPLAY_NAME installed successfully."
-              echo "Version: $version"
-              echo "Build: $build"
-              echo "Platform: $platform"
-              exit 0
-            fi
-
-            sleep 10
-          done
-
-          echo
-          echo "------------------------------------------------------------"
-          echo "Timed out waiting for Windows installation."
-          exit 1
-
-      - name: Cleanup
-        if: always()
-        shell: bash
-        run: |
-          docker rm --force "$RECEIVER" 2>/dev/null || true
-          docker rm --force "$CONTAINER" 2>/dev/null || true
+              if ((
