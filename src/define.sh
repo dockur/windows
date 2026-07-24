@@ -498,24 +498,13 @@ formatEdition() {
   local result="" word
 
   for word in $edition; do
-    case "$word" in
-      "iot" )
-        word="IoT"
-        ;;
-      "ltsc" )
-        word="LTSC"
-        ;;
-      "for" )
-        word="for"
-        ;;
-      * )
-        if [ "${#word}" -eq 1 ]; then
-          word="${word^^}"
-        else
-          word="${word^}"
-        fi
-        ;;
-    esac
+    if [ "$word" == "for" ]; then
+      word="for"
+    elif [ "${#word}" -eq 1 ]; then
+      word="${word^^}"
+    else
+      word="${word^}"
+    fi
 
     result+="${result:+ }$word"
   done
