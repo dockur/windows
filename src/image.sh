@@ -412,6 +412,7 @@ selectServerVersion() {
   fi
 
   if [ -n "$suggested" ]; then
+
     preferred=("$suggested")
 
     if selectVersion \
@@ -422,13 +423,16 @@ selectServerVersion() {
         "$index_name"; then
       return 0
     fi
+
   fi
 
   preferred=()
 
   for suffix in "${SERVER_EDITION_ORDER[@]}"; do
     for base in "${bases_ref[@]}"; do
+
       preferred+=("$base$suffix")
+
     done
   done
 
