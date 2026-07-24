@@ -228,50 +228,28 @@ jobs:
               ;;
 
             legacy)
-              cat > "$RUNNER_TEMP/oem/ready.vbs" <<EOF
-          Option Explicit
-
-          Dim files
-          Dim output
-
-          WScript.Sleep 15000
-
-          Do
-              Set files = Nothing
-              Set output = Nothing
-
-              On Error Resume Next
-              Err.Clear
-
-              Set files = CreateObject( _
-                  "Scripting.FileSystemObject" _
-              )
-
-              If Err.Number = 0 Then
-                  Set output = files.CreateTextFile( _
-                      "\\host.lan\Data\windows.txt", _
-                      True, _
-                      False _
-                  )
-              End If
-
-              If Err.Number = 0 Then
-                  output.Write "$token"
-                  output.Close
-
-                  On Error GoTo 0
-                  WScript.Quit 0
-              End If
-
-              On Error GoTo 0
-              WScript.Sleep 10000
-          Loop
-          EOF
-
-              cat > "$RUNNER_TEMP/oem/install.bat" <<'BATCH'
+              cat > "$RUNNER_TEMP/oem/install.bat" <<EOF
           @echo off
-          cscript.exe //nologo C:\OEM\ready.vbs
-          BATCH
+
+          ping 127.0.0.1 -n 16 >nul
+
+          :retry
+          > "\\host.lan\Data\windows.tmp" echo $token
+
+          if errorlevel 1 (
+            ping 127.0.0.1 -n 11 >nul
+            goto retry
+          )
+
+          move /Y ^
+            "\\host.lan\Data\windows.tmp" ^
+            "\\host.lan\Data\windows.txt" >nul
+
+          if errorlevel 1 (
+            ping 127.0.0.1 -n 11 >nul
+            goto retry
+          )
+          EOF
               ;;
           esac
 
