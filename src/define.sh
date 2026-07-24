@@ -40,29 +40,28 @@ WORKGROUP=$(strip "$WORKGROUP")
 EDITION_ORDER=(
   "-enterprise|enterprise|enterprise enterprise-*"
   "-ultimate|ultimate|ultimate ultimate-*"
-  "|default| n pro pro-* professional professional-* business business-*"
+  "|default|@default n pro pro-* professional professional-* business business-*"
   "-iot|iot|iot iot-* enterprise-iot enterprise-iot-*"
   "-ltsc|ltsc|ltsc ltsc-* enterprise-ltsc enterprise-ltsc-*"
   "-education|education|education education-* pro-education pro-education-*"
   "-home|home|home home-*"
-  "-home-premium|home|"
-  "-home-basic|home|"
+  "-home-premium|home|home-premium home-premium-*"
+  "-home-basic|home|home-basic home-basic-*"
   "-starter|starter|starter starter-*"
-  "-hv|hv|hv hv-*"
 )
 
 SERVER_EDITION_ORDER=(
-  ""
-  "-datacenter"
-  "-enterprise"
-  "-web"
-  "-foundation"
-  "-essentials"
-  "-standard-core"
-  "-datacenter-core"
-  "-enterprise-core"
-  "-web-core"
-  "-hv"
+  "|default|@default"
+  "-datacenter|datacenter|datacenter datacenter-*"
+  "-enterprise|enterprise|enterprise enterprise-*"
+  "-web|web|web web-*"
+  "-foundation|foundation|foundation foundation-*"
+  "-essentials|essentials|essentials essentials-*"
+  "-standard-core|standard-core|standard-core standard-core-*"
+  "-datacenter-core|datacenter-core|datacenter-core datacenter-core-*"
+  "-enterprise-core|enterprise-core|enterprise-core enterprise-core-*"
+  "-web-core|web-core|web-core web-core-*"
+  "-hv|hv|hv hv-*"
 )
 
 MIRRORS=3
@@ -922,27 +921,52 @@ getServerEditionID() {
 
 getVersionPriority() {
 
-  local id="${1%-eval}"
-  local base="$2"
-  local edition="${id#"$base"}"
-  local entry suffix priority patterns pattern
+  local id="${1,,}"
+  local base="${2,,}"
+  local order_name="EDITION_ORDER"
+  local edition entry suffix priority patterns pattern
+  local result="other" score best_score=-1
 
+  id="${id%-eval}"
+
+  case "$base" in
+    "win20"* )
+      order_name="SERVER_EDITION_ORDER"
+      ;;
+  esac
+
+  local -n order_ref="$order_name"
+
+  edition="${id#"$base"}"
   edition="${edition#-}"
 
-  for entry in "${EDITION_ORDER[@]}"; do
+  # Use the most specific matching pattern. This prevents broad patterns
+  # such as enterprise-* from taking precedence over enterprise-iot-*.
+  for entry in "${order_ref[@]}"; do
 
     IFS='|' read -r suffix priority patterns <<< "$entry"
 
     for pattern in $patterns; do
-      [[ "$edition" == $pattern ]] || continue
 
-      echo "$priority"
-      return 0
+      if [ "$pattern" == "@default" ]; then
+        [ -z "$edition" ] || continue
+        score=1
+      elif [[ "$edition" == $pattern ]]; then
+        score="${#pattern}"
+      else
+        continue
+      fi
+
+      if (( score > best_score )); then
+        result="$priority"
+        best_score="$score"
+      fi
+
     done
 
   done
 
-  echo "other"
+  echo "$result"
   return 0
 }
 
