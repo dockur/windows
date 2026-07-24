@@ -104,6 +104,51 @@ hasVersion() {
   return 1
 }
 
+getVersionPriority() {
+
+  local id="${1%-eval}"
+  local base="$2"
+  local edition="${id#"$base"}"
+
+  edition="${edition#-}"
+
+  case "$edition" in
+    "iot" | "iot-"* | "enterprise-iot" | "enterprise-iot-"* )
+      echo "iot"
+      ;;
+    "ltsc" | "ltsc-"* | "enterprise-ltsc" | "enterprise-ltsc-"* )
+      echo "ltsc"
+      ;;
+    "enterprise" | "enterprise-"* )
+      echo "enterprise"
+      ;;
+    "ultimate" | "ultimate-"* )
+      echo "ultimate"
+      ;;
+    "education" | "education-"* | "pro-education" | "pro-education-"* )
+      echo "education"
+      ;;
+    "home" | "home-"* )
+      echo "home"
+      ;;
+    "starter" | "starter-"* )
+      echo "starter"
+      ;;
+    "hv" | "hv-"* )
+      echo "hv"
+      ;;
+    "" | "n" | "pro" | "pro-"* | "professional" | "professional-"* | \
+    "business" | "business-"* )
+      echo "default"
+      ;;
+    * )
+      echo "other"
+      ;;
+  esac
+
+  return 0
+}
+
 selectVersion() {
 
   local tag="$1"
@@ -111,21 +156,22 @@ selectVersion() {
   local platform="$3"
   local suggested="${4:-}"
 
-  local name id base prefer match suffix actual
-  local tried=""
+  local name id base prefer match priority actual
+  local i tried=""
 
   local -a versions=()
   local -a bases=()
+  local -a groups=()
   local -a priorities=(
-    "-enterprise"
-    "-ultimate"
-    ""
-    "-iot"
-    "-ltsc"
-    "-education"
-    "-home"
-    "-starter"
-    "-hv"
+    "enterprise"
+    "ultimate"
+    "default"
+    "iot"
+    "ltsc"
+    "education"
+    "home"
+    "starter"
+    "hv"
   )
 
   while IFS= read -r name; do
@@ -142,6 +188,7 @@ selectVersion() {
 
     versions+=("$id")
     bases+=("$base")
+    groups+=("$(getVersionPriority "$id" "$base")")
   done < <(
     sed -n \
       "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" \
@@ -188,26 +235,23 @@ selectVersion() {
   fi
 
   # Preserve the existing preference for Enterprise, Ultimate, and the
-  # normal Pro/Professional/Business edition. The remaining entries provide
-  # deterministic selection when those editions are absent.
-  for suffix in "${priorities[@]}"; do
-    for base in "${bases[@]}"; do
-      prefer="$base$suffix"
+  # normal Pro/Professional/Business edition. Dynamic edition IDs are grouped
+  # with their corresponding selection family.
+  for priority in "${priorities[@]}"; do
+    for (( i=0; i<${#versions[@]}; i++ )); do
+      [[ "${groups[$i]}" == "$priority" ]] || continue
 
-      # Automatic selection must prefer an edition that is actually present.
-      for actual in "${versions[@]}"; do
-        [[ "${actual%-eval}" == "${prefer%-eval}" ]] || continue
+      actual="${versions[$i]}"
 
-        if match=$(hasVersion "$prefer" "${versions[@]}"); then
-          echo "$match"
-          return 0
-        fi
-      done
+      if match=$(hasVersion "$actual" "${versions[@]}"); then
+        echo "$match"
+        return 0
+      fi
     done
   done
 
-  # Future or unusual edition that getVersion() recognizes but which is not
-  # included in the priority list: use the first recognized WIM image.
+  # Future or unusual editions that do not belong to a known selection
+  # family use the first recognized WIM image.
   echo "${versions[0]}"
   return 0
 }
