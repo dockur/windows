@@ -339,9 +339,9 @@ getImageIndex() {
         return 0
         ;;
       * )
-        # Several WIM entries collapse to the same internal version ID,
-        # so selecting one of their indexes would be arbitrary.
-        return 1
+        # The current field is ambiguous, so try the remaining WIM fields
+        # before concluding that no unique image index can be determined.
+        continue
         ;;
     esac
 
