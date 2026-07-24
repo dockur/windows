@@ -1192,8 +1192,6 @@ bootWindows() {
 ! parseLanguage && exit 56
 ! detectCustom && exit 59
 
-testImages
-
 if ! startInstall; then
   bootWindows && return 0
   exit 68
