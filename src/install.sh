@@ -725,10 +725,23 @@ setMachine() {
       DISK_TYPE="auto"
       BOOT_MODE="windows_legacy"
       [ -z "${ADAPTER:-}" ] && ADAPTER="rtl8139" ;;
-    "winxp"* | "win2003"* )
+    "winxp"* )
       DISK_TYPE="blk"
       BOOT_MODE="windows_legacy"
-      [ -z "${SOUND:-}" ] && SOUND="usb-audio" ;;
+      [ -z "${SOUND:-}" ] && SOUND="usb-audio"
+
+      if [ -z "${CPU_MODEL,,}" ] || [[ "${CPU_MODEL,,}" == "host" ]]; then
+        # Workaround for boot loop on AMD EPYC processors
+        if "${CPU,,}" == *"amd epyc"* ]]; then
+          CPU_MODEL="qemu32"
+        fi
+      fi
+      ;;
+    "win2003"* )
+      DISK_TYPE="blk"
+      BOOT_MODE="windows_legacy"
+      [ -z "${SOUND:-}" ] && SOUND="usb-audio"
+      ;;
     "winvista"* | "win7"* | "win2008"* )
       BOOT_MODE="windows_legacy" ;;
   esac
