@@ -761,7 +761,7 @@ normalizeEditionID() {
   edition=$(normalizeEdition "$1")
 
   case "$edition" in
-    "pro" | "professional" )
+    "pro" | "professional" | "business" )
       edition=""
       ;;
     "pro-n" | "professional-n" )
