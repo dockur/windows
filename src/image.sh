@@ -174,8 +174,8 @@ selectVersion() {
 
   local name id base prefer match
   local priority actual edition i
-  local tried="" server=""
-  
+  local tried=""
+
   local -a versions=()
   local -a bases=()
   local -a groups=()
@@ -226,8 +226,6 @@ selectVersion() {
           # Known Server editions continue using the generic Server ID.
           # updateXML() applies Standard, Datacenter or Core to that template.
           [ -z "$edition" ] && continue
-
-          server="Y"
           ;;
         * )
           edition=$(normalizeEditionID "$EDITION" "$base")
@@ -246,10 +244,6 @@ selectVersion() {
 
     if [ -n "$tried" ]; then
       warn "edition '$EDITION' is not supported by this image, using automatic selection instead."
-
-      # Prevent updateXML() from constructing an invalid Server selector after
-      # an unknown explicitly requested Server edition could not be found.
-      [ -n "$server" ] && EDITION=""
     fi
   fi
 
