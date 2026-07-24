@@ -1,13 +1,19 @@
-name: Install Test
+name: Validation
 
 on:
   workflow_dispatch:
+
+  push:
+    branches:
+      - test
+    paths:
+      - ".github/workflows/install.yml"
 
 permissions:
   contents: read
 
 concurrency:
-  group: install-test-${{ github.ref }}
+  group: validation-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
