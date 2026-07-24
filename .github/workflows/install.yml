@@ -1,33 +1,57 @@
-name: Validation
+name: Installation
 
 on:
-  release:
-    types:
-      - published
+  workflow_call:
+    inputs:
+      name:
+        description: Display name for the Windows version
+        required: true
+        type: string
 
-  workflow_dispatch:
+      version:
+        description: VERSION value passed to the container
+        required: true
+        type: string
 
-  push:
-    branches:
-      - test
-    paths:
-      - ".github/workflows/install.yml"
+      callback:
+        description: Guest callback method
+        required: false
+        default: powershell
+        type: string
+
+      expected_caption:
+        description: Text expected in the Windows caption
+        required: true
+        type: string
+
+      expected_edition:
+        description: Expected Windows EditionID
+        required: false
+        default: ""
+        type: string
+
+      minimum_build:
+        description: Minimum acceptable Windows build number
+        required: true
+        type: number
+
+      architecture:
+        description: Expected Windows architecture
+        required: true
+        type: string
 
 permissions:
   contents: read
 
-concurrency:
-  group: validation-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   install:
-    name: Windows 11 Pro
+    name: ${{ inputs.name }}
     runs-on: ubuntu-24.04
     timeout-minutes: 180
 
     env:
       CONTAINER: windows-test
+      RECEIVER: windows-receiver
       IMAGE: ghcr.io/dockur/windows:latest
       TEST_PORT: "18080"
 
@@ -84,17 +108,31 @@ jobs:
       - name: Prepare installation test
         id: test
         shell: bash
+        env:
+          CALLBACK: ${{ inputs.callback }}
         run: |
           set -Eeuo pipefail
+
+          case "$CALLBACK" in
+            powershell | legacy)
+              ;;
+            *)
+              echo "Unsupported callback method: $CALLBACK"
+              exit 1
+              ;;
+          esac
 
           token="$(cat /proc/sys/kernel/random/uuid)"
 
           mkdir -p \
             "$RUNNER_TEMP/oem" \
             "$RUNNER_TEMP/output" \
+            "$RUNNER_TEMP/receiver" \
             "$RUNNER_TEMP/storage"
 
-          cat > "$RUNNER_TEMP/oem/ready.ps1" <<'POWERSHELL'
+          case "$CALLBACK" in
+            powershell)
+              cat > "$RUNNER_TEMP/oem/ready.ps1" <<'POWERSHELL'
           param(
               [Parameter(Mandatory = $true)]
               [string]$Token,
@@ -174,13 +212,186 @@ jobs:
           }
           POWERSHELL
 
-          cat > "$RUNNER_TEMP/oem/install.bat" <<EOF
+              cat > "$RUNNER_TEMP/oem/install.bat" <<EOF
           @echo off
           powershell.exe -NoProfile -ExecutionPolicy Bypass ^
             -File C:\OEM\ready.ps1 ^
             -Token "$token" ^
             -Port $TEST_PORT
           EOF
+              ;;
+
+            legacy)
+              cat > "$RUNNER_TEMP/oem/ready.vbs" <<EOF
+          Option Explicit
+
+          Dim service
+          Dim systems
+          Dim system
+          Dim shell
+          Dim request
+          Dim caption
+          Dim version
+          Dim build
+          Dim architecture
+          Dim body
+
+          Set service = GetObject("winmgmts:\\.\root\cimv2")
+          Set systems = service.ExecQuery( _
+              "Select * From Win32_OperatingSystem" _
+          )
+
+          caption = ""
+          version = ""
+          build = ""
+
+          For Each system In systems
+              caption = CStr(system.Caption)
+              version = CStr(system.Version)
+              build = CStr(system.BuildNumber)
+              Exit For
+          Next
+
+          Set shell = CreateObject("WScript.Shell")
+
+          architecture = UCase( _
+              shell.ExpandEnvironmentStrings( _
+                  "%PROCESSOR_ARCHITECTURE%" _
+              ) _
+          )
+
+          If architecture = "AMD64" Or architecture = "IA64" Then
+              architecture = "64-bit"
+          Else
+              architecture = "32-bit"
+          End If
+
+          body = _
+              "token=" & Encode("$token") & _
+              "&caption=" & Encode(caption) & _
+              "&edition=" & _
+              "&version=" & Encode(version) & _
+              "&build=" & Encode(build) & _
+              "&architecture=" & Encode(architecture)
+
+          Set request = CreateObject("WinHttp.WinHttpRequest.5.1")
+
+          request.Open _
+              "POST", _
+              "http://host.lan:$TEST_PORT/", _
+              False
+
+          request.SetRequestHeader _
+              "Content-Type", _
+              "application/x-www-form-urlencoded"
+
+          request.Send body
+
+          Function Encode(value)
+              Dim stream
+              Dim bytes
+              Dim index
+              Dim code
+              Dim result
+
+              Set stream = CreateObject("ADODB.Stream")
+
+              stream.Type = 2
+              stream.Charset = "utf-8"
+              stream.Open
+              stream.WriteText CStr(value)
+              stream.Position = 0
+              stream.Type = 1
+              stream.Position = 3
+
+              bytes = stream.Read
+              stream.Close
+
+              result = ""
+
+              For index = 1 To LenB(bytes)
+                  code = AscB(MidB(bytes, index, 1))
+
+                  If _
+                      (code >= 48 And code <= 57) Or _
+                      (code >= 65 And code <= 90) Or _
+                      (code >= 97 And code <= 122) Or _
+                      code = 45 Or _
+                      code = 46 Or _
+                      code = 95 Or _
+                      code = 126 _
+                  Then
+                      result = result & Chr(code)
+                  ElseIf code = 32 Then
+                      result = result & "+"
+                  Else
+                      result = result & "%" & _
+                          Right("0" & Hex(code), 2)
+                  End If
+              Next
+
+              Encode = result
+          End Function
+          EOF
+
+              cat > "$RUNNER_TEMP/oem/install.bat" <<'BATCH'
+          @echo off
+          cscript.exe //nologo C:\OEM\ready.vbs
+          BATCH
+
+              cat > "$RUNNER_TEMP/receiver/receiver.py" <<'PYTHON'
+          import json
+          from http.server import BaseHTTPRequestHandler, HTTPServer
+          from pathlib import Path
+          from urllib.parse import parse_qs
+
+          OUTPUT = Path("/output/windows.json")
+
+
+          class Handler(BaseHTTPRequestHandler):
+              def do_POST(self) -> None:
+                  length = int(self.headers.get("Content-Length", "0"))
+                  body = self.rfile.read(length).decode(
+                      "utf-8",
+                      errors="replace",
+                  )
+
+                  values = parse_qs(
+                      body,
+                      keep_blank_values=True,
+                  )
+
+                  result = {
+                      key: values.get(key, [""])[0]
+                      for key in (
+                          "token",
+                          "caption",
+                          "edition",
+                          "version",
+                          "build",
+                          "architecture",
+                      )
+                  }
+
+                  temporary = OUTPUT.with_suffix(".tmp")
+                  temporary.write_text(
+                      json.dumps(result),
+                      encoding="utf-8",
+                  )
+                  temporary.replace(OUTPUT)
+
+                  self.send_response(200)
+                  self.send_header("Content-Length", "0")
+                  self.end_headers()
+
+              def log_message(self, format: str, *args: object) -> None:
+                  return
+
+
+          HTTPServer(("0.0.0.0", 18080), Handler).serve_forever()
+          PYTHON
+              ;;
+          esac
 
           echo "token=$token" >> "$GITHUB_OUTPUT"
 
@@ -197,26 +408,55 @@ jobs:
       - name: Install and validate Windows
         shell: bash
         env:
+          CALLBACK: ${{ inputs.callback }}
           EXPECTED_TOKEN: ${{ steps.test.outputs.token }}
+          EXPECTED_CAPTION: ${{ inputs.expected_caption }}
+          EXPECTED_EDITION: ${{ inputs.expected_edition }}
+          EXPECTED_ARCHITECTURE: ${{ inputs.architecture }}
+          MINIMUM_BUILD: ${{ inputs.minimum_build }}
+          VERSION: ${{ inputs.version }}
+          DISPLAY_NAME: ${{ inputs.name }}
         run: |
           set -Eeuo pipefail
 
-          docker run --detach \
-            --name "$CONTAINER" \
-            --device /dev/kvm \
-            --device /dev/net/tun \
-            --cap-add NET_ADMIN \
-            --stop-timeout 120 \
-            --publish "$TEST_PORT:$TEST_PORT/tcp" \
-            --env "VERSION=11" \
-            --env "RAM_SIZE=half" \
-            --env "CPU_CORES=half" \
-            --env "DISK_SIZE=64G" \
-            --env "USER_PORTS=$TEST_PORT" \
-            --env "DEBUG=Y" \
-            --volume "$RUNNER_TEMP/oem:/oem:ro" \
-            --volume "$RUNNER_TEMP/storage:/storage" \
+          docker_args=(
+            --detach
+            --name "$CONTAINER"
+            --device /dev/kvm
+            --device /dev/net/tun
+            --cap-add NET_ADMIN
+            --stop-timeout 120
+            --env "VERSION=$VERSION"
+            --env "RAM_SIZE=half"
+            --env "CPU_CORES=half"
+            --env "DISK_SIZE=64G"
+            --env "DEBUG=Y"
+            --volume "$RUNNER_TEMP/oem:/oem:ro"
+            --volume "$RUNNER_TEMP/storage:/storage"
+          )
+
+          if [[ "$CALLBACK" == "powershell" ]]; then
+            docker_args+=(
+              --publish "$TEST_PORT:$TEST_PORT/tcp"
+              --env "USER_PORTS=$TEST_PORT"
+            )
+          fi
+
+          docker run \
+            "${docker_args[@]}" \
             "$IMAGE"
+
+          if [[ "$CALLBACK" == "legacy" ]]; then
+            docker pull python:3.12-alpine
+
+            docker run --detach \
+              --name "$RECEIVER" \
+              --network "container:$CONTAINER" \
+              --volume "$RUNNER_TEMP/receiver:/receiver:ro" \
+              --volume "$RUNNER_TEMP/output:/output" \
+              python:3.12-alpine \
+              python /receiver/receiver.py
+          fi
 
           echo
           echo "Container log:"
@@ -253,13 +493,28 @@ jobs:
               exit 1
             fi
 
-            response="$(
-              curl \
-                --silent \
-                --show-error \
-                --max-time 5 \
-                "http://127.0.0.1:$TEST_PORT/" 2>/dev/null || true
-            )"
+            response=""
+
+            case "$CALLBACK" in
+              powershell)
+                response="$(
+                  curl \
+                    --silent \
+                    --show-error \
+                    --max-time 5 \
+                    "http://127.0.0.1:$TEST_PORT/" \
+                    2>/dev/null || true
+                )"
+                ;;
+
+              legacy)
+                if [[ -s "$RUNNER_TEMP/output/windows.json" ]]; then
+                  response="$(
+                    cat "$RUNNER_TEMP/output/windows.json"
+                  )"
+                fi
+                ;;
+            esac
 
             if [[ -n "$response" ]]; then
               stop_logs
@@ -290,17 +545,22 @@ jobs:
                 exit 1
               fi
 
-              if [[ "$caption" != *"Windows 11"* ]]; then
-                echo "Expected Windows 11, but received: $caption"
+              if [[ "$caption" != *"$EXPECTED_CAPTION"* ]]; then
+                echo "Expected caption containing:"
+                echo "  $EXPECTED_CAPTION"
+                echo "Received:"
+                echo "  $caption"
                 exit 1
               fi
 
-              if [[ "$edition" != "Professional" ]]; then
-                echo "Expected Professional edition, but received: $edition"
+              if [[ -n "$EXPECTED_EDITION" &&
+                    "$edition" != "$EXPECTED_EDITION" ]]; then
+                echo "Expected edition: $EXPECTED_EDITION"
+                echo "Received edition: $edition"
                 exit 1
               fi
 
-              if [[ ! "$version" =~ ^10\.0\.[0-9]+$ ]]; then
+              if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
                 echo "Unexpected Windows version: $version"
                 exit 1
               fi
@@ -310,13 +570,17 @@ jobs:
                 exit 1
               fi
 
-              if (( build < 22000 )); then
-                echo "Expected a Windows 11 build, but received: $build"
+              if (( build < MINIMUM_BUILD )); then
+                echo "Expected build $MINIMUM_BUILD or newer."
+                echo "Received build: $build"
                 exit 1
               fi
 
-              if [[ "$architecture" != "64-bit" ]]; then
-                echo "Expected 64-bit Windows, but received: $architecture"
+              if [[ "$architecture" != "$EXPECTED_ARCHITECTURE" ]]; then
+                echo "Expected architecture:"
+                echo "  $EXPECTED_ARCHITECTURE"
+                echo "Received architecture:"
+                echo "  $architecture"
                 exit 1
               fi
 
@@ -324,7 +588,7 @@ jobs:
                 jq . > "$RUNNER_TEMP/output/windows.json"
 
               echo
-              echo "Windows 11 Pro installed successfully."
+              echo "$DISPLAY_NAME installed successfully."
               echo "Version: $version"
               echo "Build: $build"
               echo "Architecture: $architecture"
@@ -353,6 +617,16 @@ jobs:
             > "$RUNNER_TEMP/output/container.json" \
             2>&1
 
+          if docker inspect "$RECEIVER" > /dev/null 2>&1; then
+            docker logs "$RECEIVER" \
+              > "$RUNNER_TEMP/output/receiver.log" \
+              2>&1
+
+            docker inspect "$RECEIVER" \
+              > "$RUNNER_TEMP/output/receiver.json" \
+              2>&1
+          fi
+
           df -h \
             > "$RUNNER_TEMP/output/filesystems.txt" \
             2>&1
@@ -364,7 +638,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: windows-11-validation
+          name: windows-${{ inputs.version }}-validation
           path: ${{ runner.temp }}/output
           if-no-files-found: error
           retention-days: 14
@@ -373,4 +647,5 @@ jobs:
         if: always()
         shell: bash
         run: |
+          docker rm --force "$RECEIVER" 2>/dev/null || true
           docker rm --force "$CONTAINER" 2>/dev/null || true
