@@ -101,10 +101,11 @@ hasVersion() {
         fi
       fi
 
-      # Client editions without a dedicated template can use the generic
-      # template. updateImage() makes that copy edition-neutral.
+      # Editions without a dedicated template can use the generic template.
       case "${selected_id,,}" in
-        "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* )
+        "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* | \
+        "win2003"* | "win2008"* | "win2012"* | "win2016"* | \
+        "win2019"* | "win2022"* | "win2025"* )
           file="/run/assets/${selected_id%%-*}.xml"
 
           if [ -s "$file" ]; then
