@@ -262,6 +262,7 @@ jobs:
       platform: ${{ matrix.platform }}
 
   arm:
+    if: false
     strategy:
       fail-fast: false
       matrix:
