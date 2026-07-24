@@ -168,6 +168,8 @@ getSuggestedVersion() {
 
   local id="${1,,}"
 
+  [[ "$id" == http* ]] && return 0
+
   case "$id" in
     "win10x64" | "win11x64" )
       echo "$id"
