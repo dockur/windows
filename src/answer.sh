@@ -839,17 +839,14 @@ updateXML() {
   fi
 
   if [ -n "${EDITION:-}" ]; then
-    edition=$(normalizeEdition "$EDITION")
-    edition="${edition#server-}"
-    edition="${edition#server}"
 
-    [ "$edition" == "core" ] && edition="standard-core"
-
+    edition=$(normalizeServerEdition "$EDITION") || return 1
     edition="${edition//-/}"
     edition="${edition^^}"
 
     edition=$(escapeXMLSed "$edition") || return 1
     sed -i "s|SERVERSTANDARD</Value>|SERVER$edition</Value>|g" "$asset" || return 1
+
   fi
 
   if [ -n "${KEY:-}" ]; then
