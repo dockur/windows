@@ -54,11 +54,9 @@ parseVersion() {
       ;;
     "11l" | "11ltsc" | "ltsc11" | "win11l" | "win11-ltsc" | "win11x64-ltsc" )
       VERSION="win11x64-enterprise-ltsc-eval"
-      SUGGEST="win11x64-ltsc"
       ;;
     "11i" | "11iot" | "iot11" | "win11i" | "win11-iot" | "win11x64-iot" )
       VERSION="win11x64-enterprise-iot-eval"
-      SUGGEST="win11x64-iot"
       ;;
     "10" | "10p" | "win10" | "pro10" | "win10p" | "windows10" | "windows 10" )
       VERSION="win10x64"
@@ -68,11 +66,9 @@ parseVersion() {
       ;;
     "10l" | "10ltsc" | "ltsc10" | "win10l" | "win10-ltsc" | "win10x64-ltsc" )
       VERSION="win10x64-enterprise-ltsc-eval"
-      SUGGEST="win10x64-ltsc"
       ;;
     "10i" | "10iot" | "iot10" | "win10i" | "win10-iot" | "win10x64-iot" )
       VERSION="win10x64-enterprise-iot-eval"
-      SUGGEST="win10x64-iot"
       ;;
     "8" | "8p" | "81" | "81p" | "pro8" | "8.1" | "win8" | "win8p" | "win81" | "win81p" | "windows 8" )
       VERSION="win81x64"
@@ -82,7 +78,6 @@ parseVersion() {
       ;;
     "7" | "win7" | "windows7" | "windows 7" )
       VERSION="win7x64"
-      SUGGEST="win7x64-ultimate"
       ;;
     "7u" | "win7u" | "windows7u" | "windows 7u" )
       VERSION="win7x64-ultimate"
@@ -92,7 +87,6 @@ parseVersion() {
       ;;
     "7x86" | "win7x86" | "win732" | "windows7x86" )
       VERSION="win7x86"
-      SUGGEST="win7x86-ultimate"
       ;;
     "7ux86" | "7u32" | "win7x86-ultimate" )
       VERSION="win7x86-ultimate"
@@ -102,7 +96,6 @@ parseVersion() {
       ;;
     "vista" | "vs" | "6" | "winvista" | "windowsvista" | "windows vista" )
       VERSION="winvistax64"
-      SUGGEST="winvistax64-ultimate"
       ;;
     "vistu" | "vu" | "6u" | "winvistu" )
       VERSION="winvistax64-ultimate"
@@ -112,7 +105,6 @@ parseVersion() {
       ;;
     "vistax86" | "vista32" | "6x86" | "winvistax86" | "windowsvistax86" )
       VERSION="winvistax86"
-      SUGGEST="winvistax86-ultimate"
       ;;
     "vux86" | "vu32" | "winvistax86-ultimate" )
       VERSION="winvistax86-ultimate"
@@ -164,22 +156,44 @@ parseVersion() {
       ;;
     "tiny10" | "tiny 10" )
       VERSION="tiny10"
-      SUGGEST="win10x64-ltsc"
       ;;
   esac
 
-  if [ -z "$SUGGEST" ]; then
-    local normalized="${VERSION,,}"
+  SUGGEST=$(getSuggestedVersion "$VERSION")
 
-    case "$normalized" in
-      *"-enterprise-ltsc-eval" )
-        SUGGEST="${normalized%-enterprise-ltsc-eval}-ltsc" ;;
-      *"-enterprise-iot-eval" )
-        SUGGEST="${normalized%-enterprise-iot-eval}-iot" ;;
-      *"-eval" )
-        SUGGEST="${normalized%-eval}" ;;
-    esac
-  fi
+  return 0
+}
+
+getSuggestedVersion() {
+
+  local id="${1,,}"
+
+  case "$id" in
+    "win10x64" | "win11x64" )
+      echo "$id"
+      ;;
+    "win7x64" | "win7x86" | "winvistax64" | "winvistax86" )
+      echo "$id-ultimate"
+      ;;
+    "tiny10" )
+      echo "win10x64-ltsc"
+      ;;
+    *"-enterprise-ltsc-eval" )
+      echo "${id%-enterprise-ltsc-eval}-ltsc"
+      ;;
+    *"-enterprise-iot-eval" )
+      echo "${id%-enterprise-iot-eval}-iot"
+      ;;
+    *"-enterprise-ltsc" )
+      echo "${id%-enterprise-ltsc}-ltsc"
+      ;;
+    *"-enterprise-iot" )
+      echo "${id%-enterprise-iot}-iot"
+      ;;
+    *"-eval" )
+      echo "${id%-eval}"
+      ;;
+  esac
 
   return 0
 }
