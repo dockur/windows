@@ -734,7 +734,7 @@ setMachine() {
       BOOT_MODE="windows_legacy"
       [ -z "${SOUND:-}" ] && SOUND="usb-audio"
 
-      if [ -z "${CPU_MODEL,,}" ] || [[ "${CPU_MODEL,,}" == "host" ]]; then
+      if [ -z "${CPU_MODEL:-}" ] || [[ "${CPU_MODEL:-}" == "host" ]]; then
         # Workaround for boot loop on AMD EPYC processors
         if [[ "${CPU,,}" == *"amd epyc"* ]]; then
           CPU_MODEL="qemu32"
