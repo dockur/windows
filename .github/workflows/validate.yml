@@ -36,12 +36,20 @@ jobs:
             architecture: 64-bit
 
           - name: Windows XP Professional
-            cpu: qemu32
+            cpu: qemu32 # Remove after 6.03
             version: "xp"
             callback: legacy
             expected_caption: Windows XP
             expected_edition: ""
             minimum_build: 2600
+            architecture: 32-bit
+
+          - name: Windows 2000 Professional
+            version: "2000"
+            callback: legacy
+            expected_caption: Windows 2000
+            expected_edition: ""
+            minimum_build: 2195
             architecture: 32-bit
 
     name: ${{ matrix.name }}
