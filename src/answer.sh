@@ -235,6 +235,22 @@ validateDomainName() {
   return 0
 }
 
+removeGeneratedXML() {
+
+  local file="$1"
+  local marker="${file}.generated"
+
+  [ -n "$file" ] || return 0
+  [ -f "$marker" ] || return 0
+
+  if ! rm -f "$file" "$marker"; then
+    error "Failed to remove generated answer file: $file"
+    return 1
+  fi
+
+  return 0
+}
+
 generateEvalXML() {
 
   # Evaluation templates are generated from their normal counterpart so
@@ -313,8 +329,8 @@ generateEvalXML() {
     return 1
   fi
 
-  if ! chmod 644 "$tmp" || ! mv -f "$tmp" "$target"; then
-    rm -f "$tmp"
+  if ! chmod 644 "$tmp" || ! touch "$target.generated" || ! mv -f "$tmp" "$target"; then
+    rm -f "$tmp" "$target.generated"
     error "Failed to create evaluation answer file: $target"
     return 1
   fi
@@ -379,8 +395,8 @@ generateFallbackXML() {
     return 1
   fi
 
-  if ! chmod 644 "$tmp" || ! mv -f "$tmp" "$target"; then
-    rm -f "$tmp"
+  if ! chmod 644 "$tmp" || ! touch "$target.generated" || ! mv -f "$tmp" "$target"; then
+    rm -f "$tmp" "$target.generated"
     error "Failed to create fallback answer file: $target"
     return 1
   fi
@@ -392,6 +408,8 @@ setXML() {
 
   local file
   local index="${2:-}"
+  local target="/run/assets/$DETECTED.xml"
+
   local custom_files=(
     "/custom.xml"
     "$STORAGE/custom.xml"
@@ -399,6 +417,8 @@ setXML() {
   )
 
   CUSTOM_XML=""
+
+  removeGeneratedXML "$target" || return 1
 
   if [ -d "${custom_files[0]}" ]; then
     error "The bind ${custom_files[0]} maps to a file that does not exist!"
@@ -422,11 +442,11 @@ setXML() {
   fi
 
   if [ ! -f "$file" ] || [ ! -s "$file" ]; then
-    file="/run/assets/$DETECTED.xml"
+    file="$target"
   elif [[ "$DETECTED" != win20* &&
-    "$file" != "/run/assets/$DETECTED.xml" ]]; then
+    "$file" != "$target" ]]; then
     generateFallbackXML "$DETECTED" "$index" || return 1
-    file="/run/assets/$DETECTED.xml"
+    file="$target"
   fi
 
   [ -f "$file" ] && [ -s "$file" ] || return 1
