@@ -522,7 +522,7 @@ detectImage() {
 
   local dir="$1"
   local version="$2"
-  local desc language
+  local desc
 
   XML=""
 
@@ -565,7 +565,7 @@ detectImage() {
     return 0
   fi
 
-  local src wim info index suggested edition
+  local src
   src=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
 
   if [ ! -d "$src" ]; then
@@ -573,6 +573,7 @@ detectImage() {
     return 1
   fi
 
+  local wim
   wim=$(find "$src" -maxdepth 1 -type f \
     \( -iname install.wim -or -iname install.esd \) -print -quit)
 
@@ -581,6 +582,7 @@ detectImage() {
     return 1
   fi
 
+  local info
   info=$(wimlib-imagex info -xml "$wim" |
     iconv -f UTF-16LE -t UTF-8) || {
     local rc=$?
@@ -595,15 +597,18 @@ detectImage() {
 
   checkPlatform "$info" || exit 67
 
-  suggested=""
+  local suggested=""
 
   if [ -z "$CUSTOM" ] && [ -n "${REUSED_ISO:-}" ]; then
     suggested="${SUGGEST:-}"
   fi
 
-  DETECTED=$(detectVersion "$info" "$suggested")
+  local index
+  detectVersion "$info" "$suggested" DETECTED index
 
   if [ -n "$EDITION" ]; then
+    local edition
+
     case "${DETECTED,,}" in
       "win2003"* | "win2008"* | "win2012"* | "win2016"* | \
       "win2019"* | "win2022"* | "win2025"* )
@@ -631,12 +636,12 @@ detectImage() {
     return 0
   fi
 
-  index=$(getImageIndex "$info" "$DETECTED") || index=""
   desc=$(printEdition "$DETECTED" "$DETECTED" "Y")
 
   detectLanguage "$info"
 
   if [[ "${LANGUAGE,,}" != "en" && "${LANGUAGE,,}" != "en-"* ]]; then
+    local language
     language=$(getLanguage "$LANGUAGE" "desc")
     desc+=" ($language)"
   fi
