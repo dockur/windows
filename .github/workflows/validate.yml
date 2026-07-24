@@ -36,6 +36,7 @@ jobs:
             architecture: 64-bit
 
           - name: Windows XP Professional
+            cpu: qemu32
             version: "xp"
             callback: legacy
             expected_caption: Windows XP
