@@ -66,20 +66,6 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          echo "Disk space before cleanup:"
-          df -h /
-
-          echo
-          echo "Largest directories before cleanup:"
-          sudo du -x --max-depth=1 \
-            /usr \
-            /usr/local \
-            /opt \
-            /var \
-            /home 2>/dev/null |
-            sort -n |
-            tail -40
-
           sudo rm -rf \
             /usr/local/.ghcup \
             /usr/local/lib/android \
@@ -104,22 +90,9 @@ jobs:
           docker system prune \
             --all \
             --force \
-            --volumes || true
+            --volumes > /dev/null || true
 
-          echo
-          echo "Disk space after cleanup:"
           df -h /
-
-          echo
-          echo "Largest directories after cleanup:"
-          sudo du -x --max-depth=1 \
-            /usr \
-            /usr/local \
-            /opt \
-            /var \
-            /home 2>/dev/null |
-            sort -n |
-            tail -40
 
       - name: Verify available disk space
         shell: bash
