@@ -199,6 +199,18 @@ detectVersion() {
     "-starter"
     "-hv"
   )
+  local -a server_suffixes=(
+    ""
+    "-datacenter"
+    "-enterprise"
+    "-web"
+    "-foundation"
+    "-essentials"
+    "-standard-core"
+    "-datacenter-core"
+    "-enterprise-core"
+    "-web-core"
+  )
 
   platform=$(getPlatform "$xml")
 
@@ -235,10 +247,6 @@ detectVersion() {
         "win2003"* | "win2008"* | "win2012"* | "win2016"* | \
         "win2019"* | "win2022"* | "win2025"* )
           edition=$(normalizeServerEditionID "$EDITION")
-
-          # Known Server editions continue using the generic Server ID.
-          # updateXML() applies Standard, Datacenter or Core to that template.
-          [ -z "$edition" ] && continue
           ;;
         * )
           edition=$(normalizeEditionID "$EDITION" "$base")
@@ -270,6 +278,26 @@ detectVersion() {
     fi
   fi
 
+  # Server media defaults to the normal Standard GUI edition. If Standard
+  # is absent, prefer another known GUI edition before any Core variant.
+  for suffix in "${server_suffixes[@]}"; do
+    for base in "${bases[@]}"; do
+
+      case "${base,,}" in
+        "win2003"* | "win2008"* | "win2012"* | "win2016"* | \
+        "win2019"* | "win2022"* | "win2025"* )
+          local prefer="$base$suffix"
+
+          if match=$(hasVersion "$prefer" "${versions[@]}"); then
+            echo "$match"
+            return 0
+          fi
+          ;;
+      esac
+
+    done
+  done
+
   # Prefer the normal edition within each selection family. hasVersion()
   # still allows its Evaluation counterpart when the normal variant is absent.
   for suffix in "${suffixes[@]}"; do
@@ -286,7 +314,7 @@ detectVersion() {
   # When the normal edition is absent, select another compatible member of
   # that family, such as N, Workstations, or a future dynamic variant.
   for priority in "${priorities[@]}"; do
-    for (( i=0; i<${#versions[@]}; i++ )); do
+    for ((i=0; i<${#versions[@]}; i++)); do
       [[ "${groups[$i]}" == "$priority" ]] || continue
 
       local actual="${versions[$i]}"
