@@ -456,23 +456,6 @@ setXML() {
     fi
   done
 
-  # Known Server editions with name-based selectors normally share one
-  # answer file. When the exact edition is unknown, select its detected index.
-  # Legacy templates with fixed index selectors retain their known defaults.
-  if [ -n "$index" ] && [ -z "${EDITION:-}" ] &&
-    [[ "${DETECTED,,}" == win20* && "${DETECTED,,}" != *-* ]] &&
-    [ -s "$target" ] &&
-    grep -Fqi '<Key>/IMAGE/NAME</Key>' "$target"; then
-
-    file="/run/assets/$DETECTED-unknown.xml"
-
-    removeGeneratedXML "$file" || return 1
-    generateFallbackXML "$DETECTED-unknown" "$index" || return 1
-
-    XML="$file"
-    return 0
-  fi
-
   file="$1"
 
   if [[ "${DETECTED,,}" == *"-eval" ]]; then
