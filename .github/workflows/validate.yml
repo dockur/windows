@@ -29,38 +29,193 @@ jobs:
         include:
           - name: Windows 11 Pro
             version: "11"
-            callback: powershell
             expected_caption: Windows 11
             expected_edition: Professional
             minimum_build: 22000
             platform: x64
 
+          - name: Windows 11 LTSC
+            version: "11l"
+            expected_caption: Windows 11
+            expected_edition: EnterpriseS
+            minimum_build: 26100
+            platform: x64
+
+          - name: Windows 11 Enterprise
+            version: "11e"
+            expected_caption: Windows 11
+            expected_edition: Enterprise
+            minimum_build: 22000
+            platform: x64
+
+          - name: Windows 11 IoT Enterprise
+            version: "11i"
+            expected_caption: Windows 11
+            expected_edition: IoTEnterpriseS
+            minimum_build: 26100
+            platform: x64
+
+          - name: Windows 10 Pro
+            version: "10"
+            expected_caption: Windows 10
+            expected_edition: Professional
+            minimum_build: 10240
+            platform: x64
+
+          - name: Windows 10 LTSC
+            version: "10l"
+            expected_caption: Windows 10
+            expected_edition: EnterpriseS
+            minimum_build: 17763
+            platform: x64
+
+          - name: Windows 10 Enterprise
+            version: "10e"
+            expected_caption: Windows 10
+            expected_edition: Enterprise
+            minimum_build: 10240
+            platform: x64
+
+          - name: Windows 10 IoT Enterprise
+            version: "10i"
+            expected_caption: Windows 10
+            expected_edition: IoTEnterpriseS
+            minimum_build: 19044
+            platform: x64
+
+          - name: Windows 8.1 Enterprise
+            version: "8e"
+            expected_caption: Windows 8.1
+            expected_edition: Enterprise
+            minimum_build: 9600
+            platform: x64
+
+          - name: Windows 7 Ultimate
+            version: "7u"
+            callback: legacy
+            expected_caption: Windows 7
+            minimum_build: 7601
+            platform: x64
+
+          - name: Windows 7 Ultimate x86
+            version: "7x86"
+            callback: legacy
+            expected_caption: Windows 7
+            minimum_build: 7601
+            platform: x86
+
+          - name: Windows Vista Ultimate
+            version: "vu"
+            callback: legacy
+            expected_caption: Windows Vista
+            minimum_build: 6002
+            platform: x64
+
+          - name: Windows Vista Ultimate x86
+            version: "vistax86"
+            callback: legacy
+            expected_caption: Windows Vista
+            minimum_build: 6002
+            platform: x86
+
           - name: Windows XP Professional
-            cpu: qemu32 # Remove after 6.03
             version: "xp"
             callback: legacy
+            cpu: qemu32 # Remove after 6.03
             expected_caption: Windows XP
-            expected_edition: ""
             minimum_build: 2600
             platform: x86
 
+          - name: Windows XP Professional x64
+            version: "xp64"
+            callback: legacy
+            expected_caption: Windows XP
+            minimum_build: 3790
+            platform: x64
+
           - name: Windows 2000 Professional
-            version: "2000"
+            version: "2k"
             callback: legacy
             expected_caption: Windows 2000
-            expected_edition: ""
             minimum_build: 2195
             platform: x86
+
+          - name: Nano11
+            version: "nano11"
+            expected_caption: Windows 11
+            minimum_build: 22000
+            platform: x64
+
+          - name: Core11
+            version: "core11"
+            expected_caption: Windows 11
+            minimum_build: 22000
+            platform: x64
+
+          - name: Tiny11
+            version: "tiny11"
+            expected_caption: Windows 11
+            minimum_build: 22000
+            platform: x64
+
+          - name: Tiny10
+            version: "tiny10"
+            expected_caption: Windows 10
+            minimum_build: 19041
+            platform: x64
+
+          - name: Windows Server 2025
+            version: "2025"
+            expected_caption: Windows Server 2025
+            minimum_build: 26100
+            platform: x64
+
+          - name: Windows Server 2022
+            version: "2022"
+            expected_caption: Windows Server 2022
+            minimum_build: 20348
+            platform: x64
+
+          - name: Windows Server 2019
+            version: "2019"
+            expected_caption: Windows Server 2019
+            minimum_build: 17763
+            platform: x64
+
+          - name: Windows Server 2016
+            version: "2016"
+            expected_caption: Windows Server 2016
+            minimum_build: 14393
+            platform: x64
+
+          - name: Windows Server 2012 R2
+            version: "2012"
+            expected_caption: Windows Server 2012 R2
+            minimum_build: 9600
+            platform: x64
+
+          - name: Windows Server 2008 R2
+            version: "2008"
+            callback: legacy
+            expected_caption: Windows Server 2008 R2
+            minimum_build: 7601
+            platform: x64
+
+          - name: Windows Server 2003 R2
+            version: "2003"
+            callback: legacy
+            expected_caption: Windows Server 2003
+            minimum_build: 3790
+            platform: x64
 
     name: ${{ matrix.name }}
     uses: ./.github/workflows/install.yml
     with:
       name: ${{ matrix.name }}
       version: ${{ matrix.version }}
-      runner: ${{ matrix.runner || 'ubuntu-24.04' }}
-      image: ${{ matrix.image || 'ghcr.io/dockur/windows:latest' }}
+      runner: ${{ matrix.runner }}
       callback: ${{ matrix.callback }}
-      cpu: ${{ matrix.cpu || 'host' }}
+      cpu: ${{ matrix.cpu }}
       expected_caption: ${{ matrix.expected_caption }}
       expected_edition: ${{ matrix.expected_edition }}
       minimum_build: ${{ matrix.minimum_build }}
