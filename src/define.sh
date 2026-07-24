@@ -38,17 +38,17 @@ DOMAIN_OU=$(strip "$DOMAIN_OU")
 WORKGROUP=$(strip "$WORKGROUP")
 
 EDITION_ORDER=(
-  "-enterprise"
-  "-ultimate"
-  ""
-  "-iot"
-  "-ltsc"
-  "-education"
-  "-home"
-  "-home-premium"
-  "-home-basic"
-  "-starter"
-  "-hv"
+  "-enterprise|enterprise|enterprise enterprise-*"
+  "-ultimate|ultimate|ultimate ultimate-*"
+  "|default| n pro pro-* professional professional-* business business-*"
+  "-iot|iot|iot iot-* enterprise-iot enterprise-iot-*"
+  "-ltsc|ltsc|ltsc ltsc-* enterprise-ltsc enterprise-ltsc-*"
+  "-education|education|education education-* pro-education pro-education-*"
+  "-home|home|home home-*"
+  "-home-premium|home|"
+  "-home-basic|home|"
+  "-starter|starter|starter starter-*"
+  "-hv|hv|hv hv-*"
 )
 
 SERVER_EDITION_ORDER=(
@@ -66,10 +66,10 @@ SERVER_EDITION_ORDER=(
 )
 
 MIRRORS=3
-SUGGEST=""
 
 parseVersion() {
 
+  SUGGEST=""
   VERSION=$(strip "$VERSION")
   [ -z "$VERSION" ] && VERSION="win11"
 
