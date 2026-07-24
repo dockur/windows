@@ -216,9 +216,6 @@ selectVersion() {
 
   if [ -n "$EDITION" ]; then
 
-    local server=""
-    local edition=""
-
     for base in "${bases[@]}"; do
 
       case "${base,,}" in
