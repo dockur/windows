@@ -452,7 +452,7 @@ getMidoDetected() {
       detected="${source%-enterprise-ltsc-eval}-ltsc-eval"
       ;;
     *"-enterprise-iot-eval" )
-      detected="${source%-enterprise-iot-eval}-iot"
+      detected="${source%-enterprise-iot-eval}-iot-eval"
       ;;
     *"-eval" )
       detected="$source"
