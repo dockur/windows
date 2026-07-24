@@ -204,14 +204,9 @@ selectVersion() {
 
       tried="Y"
 
-      case "${EDITION,,}" in
-        "pro" | "professional" | "business" )
-          prefer="$base"
-          ;;
-        * )
-          prefer="$base-${EDITION,,}"
-          ;;
-      esac
+      edition=$(normalizeEditionID "$EDITION" "$base")
+      prefer="$base"
+      [ -n "$edition" ] && prefer+="-$edition"
 
       if match=$(hasVersion "$prefer" "${versions[@]}"); then
         echo "$match"
