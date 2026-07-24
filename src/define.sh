@@ -848,19 +848,28 @@ getEditionID() {
   return 0
 }
 
-normalizeServerEditionID() {
+normalizeServerEdition() {
 
   local edition
 
-  edition=$(normalizeEdition "$1")
+  edition=$(normalizeEdition "$1") || return 1
   edition="${edition#r2-}"
 
   case "$edition" in
-    *"-desktop-experience" )
-      edition="${edition%-desktop-experience}"
+    "core" | "core-installation" | "server-core-installation" )
+      edition="standard-core"
+      ;;
+    "desktop-experience" | "server-with-a-gui" | "full-installation" )
+      edition="standard"
       ;;
     *"-server-core-installation" )
-      edition="${edition%-server-core-installation}"
+      edition="${edition%-server-core-installation}-core"
+      ;;
+    *"-core-installation" )
+      edition="${edition%-core-installation}-core"
+      ;;
+    *"-desktop-experience" )
+      edition="${edition%-desktop-experience}"
       ;;
     *"-server-with-a-gui" )
       edition="${edition%-server-with-a-gui}"
@@ -868,10 +877,22 @@ normalizeServerEditionID() {
     *"-full-installation" )
       edition="${edition%-full-installation}"
       ;;
-    *"-core-installation" )
-      edition="${edition%-core-installation}"
-      ;;
   esac
+
+  edition="${edition#server-}"
+  edition="${edition#server}"
+
+  [ "$edition" == "core" ] && edition="standard-core"
+
+  echo "$edition"
+  return 0
+}
+
+normalizeServerEditionID() {
+
+  local edition
+
+  edition=$(normalizeServerEdition "$1") || return 1
 
   case "$edition" in
     "" | "core" | \
