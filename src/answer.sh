@@ -6,14 +6,13 @@ validateResolution() {
   local name="$1"
   local value="$2"
   local minimum="$3"
-  local number
 
   if [[ ! "$value" =~ ^[0-9]+$ ]] || [ "${#value}" -gt 5 ]; then
     error "The $name variable must be between $minimum and 16384!"
     return 1
   fi
 
-  number=$((10#$value))
+  local number=$((10#$value))
 
   if [ "$number" -lt "$minimum" ] || [ "$number" -gt 16384 ]; then
     error "The $name variable must be between $minimum and 16384!"
@@ -64,7 +63,7 @@ validateComputerName() {
 validateWorkgroup() {
 
   local value="$1"
-  local safe=""
+  local safe
 
   [ -z "$value" ] && return 0
 
@@ -498,7 +497,7 @@ updateDomain() {
 
   local asset="$1"
   local domain account auth pass
-  local cred_domain ou arch tmp result
+  local ou arch tmp
 
   domain=$(escapeXML "$2") || return 1
   account=$(escapeXML "$3") || return 1
@@ -512,7 +511,7 @@ updateDomain() {
 
   [ -z "$arch" ] && return 1
 
-  cred_domain="$domain"
+  local cred_domain="$domain"
 
   case "$4" in
     *@* ) cred_domain="" ;;
@@ -521,7 +520,7 @@ updateDomain() {
   grep -Eq 'Microsoft-Windows-UnattendedJoin|<DomainAccounts([[:space:]/>])' "$asset" && return 1
 
   tmp=$(mktemp -d) || return 1
-  result="$tmp/answer.xml"
+  local result="$tmp/answer.xml"
 
   if ! DOMAIN_XML="$domain" ACCOUNT_XML="$account" \
     AUTH_XML="$auth" PASS_XML="$pass" \
@@ -618,7 +617,7 @@ updateDomain() {
 updateWorkgroup() {
 
   local asset="$1"
-  local workgroup arch tmp result
+  local workgroup arch tmp
 
   workgroup=$(escapeXML "$2") || return 1
   arch=$(sed -n -E '0,/processorArchitecture="/s/.*processorArchitecture="([^"]+)".*/\1/p' "$asset") || return 1
@@ -627,7 +626,7 @@ updateWorkgroup() {
   grep -q 'Microsoft-Windows-UnattendedJoin' "$asset" && return 1
 
   tmp=$(mktemp -d) || return 1
-  result="$tmp/answer.xml"
+  local result="$tmp/answer.xml"
 
   if ! WORKGROUP_XML="$workgroup" ARCH_XML="$arch" awk '
       /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
@@ -661,9 +660,8 @@ updateXML() {
 
   local asset="$1"
   local language="$2"
-  local app value culture region keyboard edition
-  local user user_xml auth_user admin pass pw
-  local domain qualifier host workgroup key
+  local app value culture admin key
+  local user user_xml edition pw host
 
   [ -z "${WIDTH:-}" ] && WIDTH="1280"
   [ -z "${HEIGHT:-}" ] && HEIGHT="720"
@@ -693,7 +691,7 @@ updateXML() {
     sed -i "s|<UILanguage>en-US</UILanguage>|<UILanguage>$value</UILanguage>|g" "$asset" || return 1
   fi
 
-  region="${REGION:-}"
+  local region="${REGION:-}"
   [ -z "$region" ] && region="$culture"
 
   if [ -n "$region" ] && [[ "${region,,}" != "en-us" ]]; then
@@ -702,7 +700,7 @@ updateXML() {
     sed -i "s|<SystemLocale>en-US</SystemLocale>|<SystemLocale>$value</SystemLocale>|g" "$asset" || return 1
   fi
 
-  keyboard="${KEYBOARD:-}"
+  local keyboard="${KEYBOARD:-}"
   [ -z "$keyboard" ] && keyboard="$culture"
 
   if [ -n "$keyboard" ] && [[ "${keyboard,,}" != "en-us" ]]; then
@@ -711,8 +709,8 @@ updateXML() {
     sed -i "s|<InputLocale>0409:00000409</InputLocale>|<InputLocale>$value</InputLocale>|g" "$asset" || return 1
   fi
 
-  domain="${DOMAIN:-}"
-  workgroup="${WORKGROUP:-}"
+  local domain="${DOMAIN:-}"
+  local workgroup="${WORKGROUP:-}"
 
   if [ -n "$domain" ]; then
 
@@ -728,8 +726,8 @@ updateXML() {
 
     validateDomainName "$domain" || return 1
 
-    auth_user="$USERNAME"
-    qualifier=""
+    local auth_user="$USERNAME"
+    local qualifier=""
 
     if [[ "$auth_user" == *\\* ]]; then
       error "The USERNAME variable must use either \"user\" or \"user@domain\" format!"
@@ -785,7 +783,7 @@ updateXML() {
       sed -i "s|<Username>Docker</Username>|<Username>$user_xml</Username>|g" "$asset" || return 1
     fi
 
-    [ -n "${PASSWORD:-}" ] && pass="$PASSWORD" || pass="admin"
+    local pass="${PASSWORD:-admin}"
 
     pw=$(printf '%s' "${pass}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
     admin=$(printf '%s' "${pass}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
@@ -966,13 +964,11 @@ validateLegacyUsername() {
 
 legacyInstall() {
 
-  local pid=""
-  local file=""
   local dir="$2"
   local desc="$3"
   local driver="$4"
   local drivers="/tmp/drivers"
-  local shortcut="Y"
+  local pid file shortcut="Y"
 
   if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
     shortcut="N"
@@ -989,9 +985,10 @@ legacyInstall() {
     error "Failed to locate file \"$ETFS\" in $desc ISO image!" && return 1
   fi
 
-  local arch target
-  [ -d "$dir/AMD64" ] && arch="amd64" || arch="x86"
-  [[ "${arch,,}" == "x86" ]] && target="$dir/I386" || target="$dir/AMD64"
+  local arch="amd64"
+  [ ! -d "$dir/AMD64" ] && arch="x86"
+  local target="$dir/AMD64"
+  [[ "${arch,,}" == "x86" ]] && target="$dir/I386"
 
   if [ ! -d "$target" ]; then
     error "Failed to locate directory \"$target\" in $desc ISO image!" && return 1
@@ -1449,14 +1446,12 @@ legacyPrepare() {
   rm -f "$dir/$ETFS" || return 1
   rm -rf "$tmp" || return 1
 
-  local rc
-
   LC_ALL=C xorriso \
       -no_rc \
       -osirrox on \
       -indev "$iso" \
       -extract_boot_images "$tmp" >/dev/null 2>&1 || {
-    rc=$?
+    local rc=$?
     rm -rf "$tmp" || true
 
     (( rc > 128 )) && exit "$rc"
