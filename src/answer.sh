@@ -275,13 +275,20 @@ generateEvalXML() {
 
   local id="$1"
   local detected_index="${2:-}"
-  local source="/run/assets/${id::-5}.xml"
+  local normal="${id::-5}"
+  local source="/run/assets/$normal.xml"
   local target="/run/assets/$id.xml"
   local index="$detected_index" tmp
 
   [[ "${id,,}" == *"-eval" ]] || return 1
 
   removeGeneratedXML "$source" || return 1
+
+  if [ ! -s "$source" ]; then
+    source="/run/assets/${normal%%-*}.xml"
+    removeGeneratedXML "$source" || return 1
+  fi
+
   [ -s "$source" ] || return 1
 
   if [ -n "$index" ] && [[ ! "$index" =~ ^[1-9][0-9]*$ ]]; then
