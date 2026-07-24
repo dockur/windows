@@ -1535,13 +1535,10 @@ isESD() {
   disabled "${ESD:-}" && return 1
 
   case "${id,,}" in
-    "win11${PLATFORM,,}" | "win10${PLATFORM,,}" )
-      return 0
-      ;;
-    "win11${PLATFORM,,}-enterprise" | "win11${PLATFORM,,}-enterprise-eval")
-      return 0
-      ;;
-    "win10${PLATFORM,,}-enterprise" | "win10${PLATFORM,,}-enterprise-eval" )
+    "win11${PLATFORM,,}" | \
+    "win10${PLATFORM,,}" | \
+    "win11${PLATFORM,,}-enterprise" | \
+    "win10${PLATFORM,,}-enterprise" )
       return 0
       ;;
   esac
@@ -1555,8 +1552,11 @@ validVersion() {
   local lang="$2"
   local url i=0
 
-  isESD "$id" "$lang" && return 0
   isMido "$id" "$lang" && return 0
+
+  [[ "${id,,}" == *"-eval" ]] && id="${id::-5}"
+
+  isESD "$id" "$lang" && return 0
 
   for ((i=1;i<=MIRRORS;i++)); do
 
