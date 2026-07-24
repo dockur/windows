@@ -216,20 +216,28 @@ selectVersion() {
 
   if [ -n "$EDITION" ]; then
 
-    for base in "${bases[@]}"; do
+    local server=""
+    local edition=""
 
-      tried="Y"
+    for base in "${bases[@]}"; do
 
       case "${base,,}" in
         "win2003"* | "win2008"* | "win2012"* | "win2016"* | \
         "win2019"* | "win2022"* | "win2025"* )
           edition=$(normalizeServerEditionID "$EDITION")
+
+          # Known Server editions continue using the generic Server ID.
+          # updateXML() applies Standard, Datacenter or Core to that template.
+          [ -z "$edition" ] && continue
+
+          server="Y"
           ;;
         * )
           edition=$(normalizeEditionID "$EDITION" "$base")
           ;;
       esac
 
+      tried="Y"
       prefer="$base"
       [ -n "$edition" ] && prefer+="-$edition"
 
@@ -240,7 +248,11 @@ selectVersion() {
     done
 
     if [ -n "$tried" ]; then
-      warn "Edition '$EDITION' is not supported by this image, using automatic selection instead."
+      warn "edition '$EDITION' is not supported by this image, using automatic selection instead."
+
+      # Prevent updateXML() from constructing an invalid Server selector after
+      # an unknown explicitly requested Server edition could not be found.
+      [ -n "$server" ] && EDITION=""
     fi
   fi
 
