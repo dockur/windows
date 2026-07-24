@@ -1186,7 +1186,7 @@ downloadTest() {
       size=$(getSize "$i" "$normal" "$lang")
       sum=$(getHash "$i" "$normal" "$lang")
 
-      info "Testing download mirror $i..."
+      info "Testing download mirror $i: $(getHost "$url")..."
 
       if ! testDownload \
           "$file" \
