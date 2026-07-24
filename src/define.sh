@@ -944,6 +944,17 @@ getVersion() {
   return 0
 }
 
+switchEdition() {
+
+  local id="$1"
+
+  if [[ "${id,,}" == *"-eval" ]] && ! enabled "${DETECTED_ORG:-}"; then
+    DETECTED="${SUGGEST:-${id::-5}}"
+  fi
+
+  return 0
+}
+
 getMido() {
 
   local id="$1"
