@@ -514,16 +514,19 @@ jobs:
                 socat)
                   docker exec "$CONTAINER" \
                     sh -c \
-                    "printf 'screendump /storage/$file\nquit\n' |
-                      socat - UNIX-CONNECT:/run/shm/monitor.sock" \
+                    "printf 'screendump /storage/$file\n' |
+                      timeout 2 socat \
+                        - \
+                        UNIX-CONNECT:/run/shm/monitor.sock" \
                     >> "$directory/capture.log" 2>&1 || true
                   ;;
 
                 nc)
                   docker exec "$CONTAINER" \
                     sh -c \
-                    "printf 'screendump /storage/$file\nquit\n' |
-                      nc -U /run/shm/monitor.sock" \
+                    "printf 'screendump /storage/$file\n' |
+                      timeout 2 nc \
+                        -U /run/shm/monitor.sock" \
                     >> "$directory/capture.log" 2>&1 || true
                   ;;
               esac
