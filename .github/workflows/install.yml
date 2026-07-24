@@ -1,6 +1,10 @@
 name: Validation
 
 on:
+  release:
+    types:
+      - published
+
   workflow_dispatch:
 
   push:
@@ -24,13 +28,10 @@ jobs:
 
     env:
       CONTAINER: windows-test
-      IMAGE: dockur-windows:test
+      IMAGE: ghcr.io/dockur/windows:latest
       TEST_PORT: "18080"
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
       - name: Check KVM
         shell: bash
         run: |
@@ -59,7 +60,7 @@ jobs:
 
           echo
           echo "KVM is accessible through Docker."
-     
+
       - name: Free disk space
         shell: bash
         run: |
@@ -207,16 +208,18 @@ jobs:
 
           echo "token=$token" >> "$GITHUB_OUTPUT"
 
-      - name: Build image
+      - name: Pull image
         shell: bash
         run: |
           set -Eeuo pipefail
 
-          docker build \
-            --tag "$IMAGE" \
-            .
+          docker pull "$IMAGE"
 
-          docker image ls "$IMAGE"
+          docker image inspect "$IMAGE" \
+            --format 'Image ID: {{.Id}}'
+
+          docker image inspect "$IMAGE" \
+            --format 'Digest: {{index .RepoDigests 0}}'
 
           echo
           df -h /
@@ -311,6 +314,7 @@ jobs:
 
             if [[ -n "$response" ]]; then
               echo "Received response:"
+
               jq . <<< "$response" || {
                 echo "$response"
                 echo "The guest returned invalid JSON."
@@ -322,6 +326,7 @@ jobs:
               edition="$(jq -r '.edition // empty' <<< "$response")"
               version="$(jq -r '.version // empty' <<< "$response")"
               build="$(jq -r '.build // empty' <<< "$response")"
+
               architecture="$(
                 jq -r '.architecture // empty' <<< "$response"
               )"
@@ -400,6 +405,10 @@ jobs:
             > "$RUNNER_TEMP/output/container.json" \
             2>&1
 
+          docker image inspect "$IMAGE" \
+            > "$RUNNER_TEMP/output/image.json" \
+            2>&1
+
           docker system df --verbose \
             > "$RUNNER_TEMP/output/docker-disk.txt" \
             2>&1
@@ -429,7 +438,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: windows-11-install-test
+          name: windows-11-validation
           path: ${{ runner.temp }}/output
           if-no-files-found: error
           retention-days: 14
