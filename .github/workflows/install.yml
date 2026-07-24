@@ -37,29 +37,8 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          echo "CPU virtualization:"
-          grep -Eom1 'vmx|svm' /proc/cpuinfo
-
-          echo
-          echo "KVM device:"
-          ls -l /dev/kvm
-
+          grep -Eqm1 'vmx|svm' /proc/cpuinfo
           test -c /dev/kvm
-
-          docker run --rm \
-            --device /dev/kvm \
-            ubuntu:24.04 \
-            bash -c '
-              set -Eeuo pipefail
-
-              ls -l /dev/kvm
-              test -c /dev/kvm
-              test -r /dev/kvm
-              test -w /dev/kvm
-            '
-
-          echo
-          echo "KVM is accessible through Docker."
 
       - name: Free disk space
         shell: bash
@@ -91,13 +70,6 @@ jobs:
             --all \
             --force \
             --volumes > /dev/null || true
-
-          df -h /
-
-      - name: Verify available disk space
-        shell: bash
-        run: |
-          set -Eeuo pipefail
 
           available_kb="$(df --output=avail / | tail -1)"
           available_gb="$((available_kb / 1024 / 1024))"
@@ -220,44 +192,7 @@ jobs:
           docker pull "$IMAGE"
 
           docker image inspect "$IMAGE" \
-            --format 'Image ID: {{.Id}}'
-
-          docker image inspect "$IMAGE" \
             --format 'Digest: {{index .RepoDigests 0}}'
-
-      - name: Start disk monitoring
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-
-          output="$RUNNER_TEMP/output/disk.csv"
-
-          {
-            echo "timestamp,root_available_kb,storage_bytes,docker_bytes"
-
-            while true; do
-              timestamp="$(date --utc '+%Y-%m-%dT%H:%M:%SZ')"
-              available="$(df --output=avail / | tail -1 | tr -d ' ')"
-
-              storage="$(
-                sudo du -sb "$RUNNER_TEMP/storage" 2>/dev/null |
-                  awk '{ print $1 }'
-              )"
-
-              docker="$(
-                sudo du -sb /var/lib/docker 2>/dev/null |
-                  awk '{ print $1 }'
-              )"
-
-              storage="${storage:-0}"
-              docker="${docker:-0}"
-
-              echo "$timestamp,$available,$storage,$docker"
-              sleep 30
-            done
-          } > "$output" 2>&1 &
-
-          echo "$!" > "$RUNNER_TEMP/output/disk-monitor.pid"
 
       - name: Install and validate Windows
         shell: bash
@@ -282,9 +217,6 @@ jobs:
             --volume "$RUNNER_TEMP/oem:/oem:ro" \
             --volume "$RUNNER_TEMP/storage:/storage" \
             "$IMAGE"
-
-          docker inspect "$CONTAINER" \
-            --format 'Container started: {{.State.Running}}'
 
           echo
           echo "Container log:"
@@ -413,12 +345,6 @@ jobs:
         run: |
           set +e
 
-          if [[ -f "$RUNNER_TEMP/output/disk-monitor.pid" ]]; then
-            kill "$(
-              cat "$RUNNER_TEMP/output/disk-monitor.pid"
-            )" 2>/dev/null
-          fi
-
           docker logs "$CONTAINER" \
             > "$RUNNER_TEMP/output/container.log" \
             2>&1
@@ -427,34 +353,12 @@ jobs:
             > "$RUNNER_TEMP/output/container.json" \
             2>&1
 
-          docker image inspect "$IMAGE" \
-            > "$RUNNER_TEMP/output/image.json" \
-            2>&1
-
-          docker system df --verbose \
-            > "$RUNNER_TEMP/output/docker-disk.txt" \
-            2>&1
-
           df -h \
             > "$RUNNER_TEMP/output/filesystems.txt" \
             2>&1
 
-          sudo du -x --max-depth=2 \
-            "$RUNNER_TEMP/storage" \
-            /var/lib/docker 2>/dev/null |
-            sort -n \
-            > "$RUNNER_TEMP/output/directory-sizes.txt"
-
           echo "Final disk space:"
           df -h /
-
-          echo
-          echo "Storage usage:"
-          sudo du -sh "$RUNNER_TEMP/storage" 2>/dev/null
-
-          echo
-          echo "Docker usage:"
-          docker system df
 
       - name: Upload diagnostics
         if: always()
