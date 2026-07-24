@@ -80,6 +80,7 @@ hasVersion() {
     local selected_id="${selected[$i]}"
 
     for actual in "${actuals[@]}"; do
+
       [[ "${actual,,}" == "${expected_id,,}" ]] || continue
 
       local file="/run/assets/$selected_id.xml"
@@ -100,9 +101,8 @@ hasVersion() {
 
       # Editions without a dedicated template can use the generic template.
       case "${selected_id,,}" in
-        "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* | \
-        "win2003"* | "win2008"* | "win2012"* | "win2016"* | \
-        "win2019"* | "win2022"* | "win2025"* )
+        "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* | "win20"* )
+
           file="/run/assets/${selected_id%%-*}.xml"
 
           if [ -s "$file" ]; then
@@ -111,6 +111,7 @@ hasVersion() {
           fi
           ;;
       esac
+
     done
   done
 
@@ -162,64 +163,25 @@ getVersionPriority() {
   return 0
 }
 
-detectVersion() {
+getVersions() {
 
   local xml="$1"
-  local suggested="${2:-}"
-  local result_name="$3"
-  local index_name="$4"
-  local -n result="$result_name"
-  local -n result_index="$index_name"
-
-  local -a bases=()
-  local -a groups=()
-  local -a versions=()
-  local -A image_indexes=()
-
-  local -a priorities=(
-    "enterprise"
-    "ultimate"
-    "default"
-    "iot"
-    "ltsc"
-    "education"
-    "home"
-    "starter"
-    "hv"
-  )
-
-  local -a suffixes=(
-    "-enterprise"
-    "-ultimate"
-    ""
-    "-iot"
-    "-ltsc"
-    "-education"
-    "-home"
-    "-home-premium"
-    "-home-basic"
-    "-starter"
-    "-hv"
-  )
-
-  local -a server_suffixes=(
-    ""
-    "-datacenter"
-    "-enterprise"
-    "-web"
-    "-foundation"
-    "-essentials"
-    "-standard-core"
-    "-datacenter-core"
-    "-enterprise-core"
-    "-web-core"
-  )
-
-  result=""
-  result_index=""
+  local versions_name="$2"
+  local bases_name="$3"
+  local groups_name="$4"
+  local indexes_name="$5"
+  local -n versions_ref="$versions_name"
+  local -n bases_ref="$bases_name"
+  local -n groups_ref="$groups_name"
+  local -n indexes_ref="$indexes_name"
 
   local image image_index key
   local display product platform
+
+  versions_ref=()
+  bases_ref=()
+  groups_ref=()
+  indexes_ref=()
 
   platform=$(getPlatform "$xml")
 
@@ -243,12 +205,12 @@ detectVersion() {
 
       found="Y"
       key="${candidate_id,,}"
-      [[ -v "image_indexes[$key]" ]] && continue
+      [[ -v "indexes_ref[$key]" ]] && continue
 
-      image_indexes["$key"]="$image_index"
-      versions+=("$candidate_id")
-      bases+=("$candidate_base")
-      groups+=("$(getVersionPriority "$candidate_id" "$candidate_base")")
+      indexes_ref["$key"]="$image_index"
+      versions_ref+=("$candidate_id")
+      bases_ref+=("$candidate_base")
+      groups_ref+=("$(getVersionPriority "$candidate_id" "$candidate_base")")
 
     done
 
@@ -291,128 +253,235 @@ detectVersion() {
     ' <<< "$xml"
   )
 
-  [ "${#versions[@]}" -eq 0 ] && return 0
+  return 0
+}
 
-  local base match prefer
+selectVersion() {
 
-  if [ -n "$EDITION" ]; then
+  local versions_name="$1"
+  local indexes_name="$2"
+  local preferred_name="$3"
+  local result_name="$4"
+  local index_name="$5"
+  local -n versions_ref="$versions_name"
+  local -n indexes_ref="$indexes_name"
+  local -n preferred_ref="$preferred_name"
+  local -n result_ref="$result_name"
+  local -n index_ref="$index_name"
 
-    local edition tried=""
+  local wanted match key
 
-    for base in "${bases[@]}"; do
+  for wanted in "${preferred_ref[@]}"; do
 
-      case "${base,,}" in
-        "win20"* )
-          edition=$(normalizeServerEditionID "$EDITION")
-          ;;
-        * )
-          edition=$(normalizeEditionID "$EDITION" "$base")
-          ;;
-      esac
+    [ -n "$wanted" ] || continue
 
-      tried="Y"
-      prefer="$base"
-      [ -n "$edition" ] && prefer+="-$edition"
-
-      if match=$(hasVersion "$prefer" "${versions[@]}"); then
-        key="${match,,}"
-        result="$match"
-        result_index="${image_indexes[$key]}"
-
-        return 0
-      fi
-
-    done
-
-    if [ -n "$tried" ]; then
-      warn "edition '$EDITION' is not supported by this image, using automatic selection instead."
-    fi
-
-  fi
-
-  # For reused automatic media, prefer the edition selected by parseVersion()
-  # when that edition is actually present in the image. An explicit EDITION
-  # remains authoritative because it is handled above.
-  if [ -n "$suggested" ]; then
-
-    if match=$(hasVersion "$suggested" "${versions[@]}"); then
+    if match=$(hasVersion "$wanted" "${versions_ref[@]}"); then
       key="${match,,}"
-      result="$match"
-      result_index="${image_indexes[$key]}"
-
+      result_ref="$match"
+      index_ref="${indexes_ref[$key]}"
       return 0
     fi
 
+  done
+
+  return 1
+}
+
+selectClientVersion() {
+
+  local versions_name="$1"
+  local bases_name="$2"
+  local groups_name="$3"
+  local indexes_name="$4"
+  local suggested="$5"
+  local result_name="$6"
+  local index_name="$7"
+  local -n versions_ref="$versions_name"
+  local -n bases_ref="$bases_name"
+  local -n groups_ref="$groups_name"
+
+  local base edition suffix priority i
+  local -a preferred=()
+
+  if [ -n "$EDITION" ]; then
+
+    for base in "${bases_ref[@]}"; do
+      edition=$(normalizeEditionID "$EDITION" "$base")
+      preferred+=("$base${edition:+-$edition}")
+    done
+
+    if selectVersion \
+        "$versions_name" \
+        "$indexes_name" \
+        preferred \
+        "$result_name" \
+        "$index_name"; then
+      return 0
+    fi
+
+    warn "edition '$EDITION' is not supported by this image, using automatic selection instead."
   fi
 
-  # Server media defaults to the normal Standard GUI edition. If Standard
-  # is absent, prefer another known GUI edition before any Core variant.
-  
-  local suffix
+  if [ -n "$suggested" ]; then
+    preferred=("$suggested")
 
-  for suffix in "${server_suffixes[@]}"; do
-    for base in "${bases[@]}"; do
+    if selectVersion \
+        "$versions_name" \
+        "$indexes_name" \
+        preferred \
+        "$result_name" \
+        "$index_name"; then
+      return 0
+    fi
+  fi
 
-      case "${base,,}" in
-        "win20"* )
+  preferred=()
 
-          prefer="$base$suffix"
-
-          if match=$(hasVersion "$prefer" "${versions[@]}"); then
-            key="${match,,}"
-            result="$match"
-            result_index="${image_indexes[$key]}"
-            return 0
-          fi
-          ;;
-      esac
-
+  for suffix in "${CLIENT_EDITION_ORDER[@]}"; do
+    for base in "${bases_ref[@]}"; do
+      preferred+=("$base$suffix")
     done
   done
 
-  # Prefer the normal edition within each selection family. hasVersion()
-  # still allows its Evaluation counterpart when the normal variant is absent.
-  for suffix in "${suffixes[@]}"; do
-    for base in "${bases[@]}"; do
+  if selectVersion \
+      "$versions_name" \
+      "$indexes_name" \
+      preferred \
+      "$result_name" \
+      "$index_name"; then
+    return 0
+  fi
 
-      prefer="$base$suffix"
+  preferred=()
 
-      if match=$(hasVersion "$prefer" "${versions[@]}"); then
-        key="${match,,}"
-        result="$match"
-        result_index="${image_indexes[$key]}"
-        return 0
-      fi
-  
+  for priority in "${CLIENT_EDITION_FALLBACK_ORDER[@]}"; do
+    for (( i=0; i<${#versions_ref[@]}; i++ )); do
+      [[ "${groups_ref[$i]}" == "$priority" ]] || continue
+      preferred+=("${versions_ref[$i]}")
     done
   done
 
-  # When the normal edition is absent, select another compatible member of
-  # that family, such as N, Workstations, or a future dynamic variant.
-  local priority i
+  selectVersion \
+    "$versions_name" \
+    "$indexes_name" \
+    preferred \
+    "$result_name" \
+    "$index_name"
+}
 
-  for priority in "${priorities[@]}"; do
-    for (( i=0; i<${#versions[@]}; i++ )); do
+selectServerVersion() {
 
-      [[ "${groups[$i]}" == "$priority" ]] || continue
+  local versions_name="$1"
+  local bases_name="$2"
+  local indexes_name="$3"
+  local suggested="$4"
+  local result_name="$5"
+  local index_name="$6"
+  local -n bases_ref="$bases_name"
 
-      local actual="${versions[$i]}"
+  local base edition suffix
+  local -a preferred=()
 
-      if match=$(hasVersion "$actual" "${versions[@]}"); then
-        key="${match,,}"
-        result="$match"
-        result_index="${image_indexes[$key]}"
-        return 0
-      fi
-  
+  if [ -n "$EDITION" ]; then
+
+    for base in "${bases_ref[@]}"; do
+      edition=$(normalizeServerEditionID "$EDITION")
+      preferred+=("$base${edition:+-$edition}")
+    done
+
+    if selectVersion \
+        "$versions_name" \
+        "$indexes_name" \
+        preferred \
+        "$result_name" \
+        "$index_name"; then
+      return 0
+    fi
+
+    warn "edition '$EDITION' is not supported by this image, using automatic selection instead."
+  fi
+
+  if [ -n "$suggested" ]; then
+    preferred=("$suggested")
+
+    if selectVersion \
+        "$versions_name" \
+        "$indexes_name" \
+        preferred \
+        "$result_name" \
+        "$index_name"; then
+      return 0
+    fi
+  fi
+
+  preferred=()
+
+  for suffix in "${SERVER_EDITION_ORDER[@]}"; do
+    for base in "${bases_ref[@]}"; do
+      preferred+=("$base$suffix")
     done
   done
 
-  # Future or unusual editions that do not belong to a known selection
-  # family use the first recognized WIM image.
-  result="${versions[0]}"
-  key="${result,,}"
-  result_index="${image_indexes[$key]}"
+  selectVersion \
+    "$versions_name" \
+    "$indexes_name" \
+    preferred \
+    "$result_name" \
+    "$index_name"
+}
+
+detectVersion() {
+
+  local xml="$1"
+  local suggested="${2:-}"
+  local result_name="$3"
+  local index_name="$4"
+  local -n result_ref="$result_name"
+  local -n index_ref="$index_name"
+
+  local -a bases=()
+  local -a groups=()
+  local -a versions=()
+  local -A image_indexes=()
+
+  result_ref=""
+  index_ref=""
+
+  getVersions \
+    "$xml" \
+    versions \
+    bases \
+    groups \
+    image_indexes
+
+  [ "${#versions[@]}" -eq 0 ] && return 0
+
+  case "${bases[0],,}" in
+    "win20"* )
+      selectServerVersion \
+        versions \
+        bases \
+        image_indexes \
+        "$suggested" \
+        "$result_name" \
+        "$index_name" && return 0
+      ;;
+    * )
+      selectClientVersion \
+        versions \
+        bases \
+        groups \
+        image_indexes \
+        "$suggested" \
+        "$result_name" \
+        "$index_name" && return 0
+      ;;
+  esac
+
+  result_ref="${versions[0]}"
+
+  local key="${result_ref,,}"
+  index_ref="${image_indexes[$key]}"
 
   return 0
 }
