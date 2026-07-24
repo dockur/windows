@@ -60,25 +60,6 @@ jobs:
           echo
           echo "KVM is accessible through Docker."
      
-      - name: Show initial disk space
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-
-          df -h /
-          docker system df
-
-          echo
-          echo "Largest installed directories:"
-
-          sudo du -x --max-depth=1 \
-            /usr/local \
-            /usr/share \
-            /opt \
-            /var/lib 2>/dev/null |
-            sort -n |
-            tail -30
-
       - name: Free disk space
         shell: bash
         run: |
@@ -216,6 +197,14 @@ jobs:
           }
           POWERSHELL
 
+          cat > "$RUNNER_TEMP/oem/install.bat" <<EOF
+          @echo off
+          powershell.exe -NoProfile -ExecutionPolicy Bypass ^
+            -File C:\OEM\ready.ps1 ^
+            -Token "$token" ^
+            -Port $TEST_PORT
+          EOF
+
           echo "token=$token" >> "$GITHUB_OUTPUT"
 
       - name: Build image
@@ -268,12 +257,8 @@ jobs:
 
       - name: Start Windows installation
         shell: bash
-        env:
-          TEST_TOKEN: ${{ steps.test.outputs.token }}
         run: |
           set -Eeuo pipefail
-
-          command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\OEM\ready.ps1 -Token $TEST_TOKEN -Port $TEST_PORT"
 
           docker run --detach \
             --name "$CONTAINER" \
@@ -287,7 +272,6 @@ jobs:
             --env "CPU_CORES=half" \
             --env "DISK_SIZE=64G" \
             --env "USER_PORTS=$TEST_PORT" \
-            --env "COMMAND=$command" \
             --volume "$RUNNER_TEMP/oem:/oem:ro" \
             --volume "$RUNNER_TEMP/storage:/storage" \
             "$IMAGE"
