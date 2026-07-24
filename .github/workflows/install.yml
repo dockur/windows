@@ -1,0 +1,438 @@
+name: Install Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: install-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  install:
+    name: Windows 11 Pro
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+
+    env:
+      CONTAINER: windows-test
+      IMAGE: dockur-windows:test
+      TEST_PORT: "18080"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Check KVM
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          echo "CPU virtualization:"
+          grep -Eom1 'vmx|svm' /proc/cpuinfo
+
+          echo
+          echo "KVM device:"
+          ls -l /dev/kvm
+
+          test -c /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+
+      - name: Show initial disk space
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          df -h /
+          docker system df
+
+          echo
+          echo "Largest installed directories:"
+
+          sudo du -x --max-depth=1 \
+            /usr/local \
+            /usr/share \
+            /opt \
+            /var/lib 2>/dev/null |
+            sort -n |
+            tail -30
+
+      - name: Free disk space
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          sudo rm -rf \
+            /usr/local/.ghcup \
+            /usr/local/lib/android \
+            /usr/local/share/boost \
+            /usr/local/share/chromium \
+            /usr/local/share/powershell \
+            /usr/share/dotnet \
+            /usr/share/swift \
+            /opt/az \
+            /opt/ghc \
+            /opt/google \
+            /opt/hostedtoolcache/CodeQL \
+            /opt/microsoft \
+            /opt/pipx
+
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+
+          docker system prune --all --force --volumes || true
+
+          echo
+          echo "Disk space after cleanup:"
+          df -h /
+
+      - name: Verify available disk space
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          available_kb="$(df --output=avail / | tail -1)"
+          available_gb="$((available_kb / 1024 / 1024))"
+
+          echo "Available disk space: ${available_gb} GB"
+
+          if (( available_gb < 50 )); then
+            echo "At least 50 GB of free space is required."
+            exit 1
+          fi
+
+      - name: Prepare installation test
+        id: test
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          token="$(cat /proc/sys/kernel/random/uuid)"
+
+          mkdir -p \
+            "$RUNNER_TEMP/oem" \
+            "$RUNNER_TEMP/output" \
+            "$RUNNER_TEMP/storage"
+
+          cat > "$RUNNER_TEMP/oem/ready.ps1" <<'POWERSHELL'
+          param(
+              [Parameter(Mandatory = $true)]
+              [string]$Token,
+
+              [int]$Port = 18080
+          )
+
+          $ErrorActionPreference = "Stop"
+
+          $windows = Get-CimInstance Win32_OperatingSystem
+          $registry = Get-ItemProperty `
+              "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
+
+          $result = @{
+              token        = $Token
+              caption      = [string]$windows.Caption
+              edition      = [string]$registry.EditionID
+              version      = [string]$windows.Version
+              build        = [string]$windows.BuildNumber
+              architecture = [string]$windows.OSArchitecture
+          }
+
+          $bodyText = $result | ConvertTo-Json -Compress
+          $body = [System.Text.Encoding]::UTF8.GetBytes($bodyText)
+
+          netsh advfirewall firewall add rule `
+              name="Dockur installation test" `
+              dir=in `
+              action=allow `
+              protocol=TCP `
+              localport=$Port | Out-Null
+
+          $listener = New-Object System.Net.Sockets.TcpListener(
+              [System.Net.IPAddress]::Any,
+              $Port
+          )
+
+          $listener.Start()
+
+          while ($true) {
+              $client = $listener.AcceptTcpClient()
+
+              try {
+                  $stream = $client.GetStream()
+                  $reader = New-Object System.IO.StreamReader($stream)
+
+                  while ($true) {
+                      $line = $reader.ReadLine()
+
+                      if ([string]::IsNullOrEmpty($line)) {
+                          break
+                      }
+                  }
+
+                  $headerText = (
+                      "HTTP/1.1 200 OK`r`n" +
+                      "Content-Type: application/json`r`n" +
+                      "Content-Length: $($body.Length)`r`n" +
+                      "Connection: close`r`n" +
+                      "`r`n"
+                  )
+
+                  $header = [System.Text.Encoding]::ASCII.GetBytes(
+                      $headerText
+                  )
+
+                  $stream.Write($header, 0, $header.Length)
+                  $stream.Write($body, 0, $body.Length)
+                  $stream.Flush()
+              }
+              catch {
+                  Write-Output $_
+              }
+              finally {
+                  $client.Close()
+              }
+          }
+          POWERSHELL
+
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Build image
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          docker build \
+            --tag "$IMAGE" \
+            .
+
+          docker image ls "$IMAGE"
+
+          echo
+          df -h /
+
+      - name: Start disk monitoring
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          output="$RUNNER_TEMP/output/disk.csv"
+
+          {
+            echo "timestamp,root_available_kb,storage_bytes,docker_bytes"
+
+            while true; do
+              timestamp="$(date --utc '+%Y-%m-%dT%H:%M:%SZ')"
+              available="$(df --output=avail / | tail -1 | tr -d ' ')"
+
+              storage="$(
+                sudo du -sb "$RUNNER_TEMP/storage" 2>/dev/null |
+                  awk '{ print $1 }'
+              )"
+
+              docker="$(
+                sudo du -sb /var/lib/docker 2>/dev/null |
+                  awk '{ print $1 }'
+              )"
+
+              storage="${storage:-0}"
+              docker="${docker:-0}"
+
+              echo "$timestamp,$available,$storage,$docker"
+              sleep 30
+            done
+          } > "$output" 2>&1 &
+
+          echo "$!" > "$RUNNER_TEMP/output/disk-monitor.pid"
+
+      - name: Start Windows installation
+        shell: bash
+        env:
+          TEST_TOKEN: ${{ steps.test.outputs.token }}
+        run: |
+          set -Eeuo pipefail
+
+          command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\OEM\ready.ps1 -Token $TEST_TOKEN -Port $TEST_PORT"
+
+          docker run --detach \
+            --name "$CONTAINER" \
+            --device /dev/kvm \
+            --device /dev/net/tun \
+            --cap-add NET_ADMIN \
+            --stop-timeout 120 \
+            --publish "$TEST_PORT:$TEST_PORT/tcp" \
+            --env "VERSION=11" \
+            --env "RAM_SIZE=4G" \
+            --env "CPU_CORES=2" \
+            --env "DISK_SIZE=64G" \
+            --env "USER_PORTS=$TEST_PORT" \
+            --env "COMMAND=$command" \
+            --volume "$RUNNER_TEMP/oem:/oem:ro" \
+            --volume "$RUNNER_TEMP/storage:/storage" \
+            "$IMAGE"
+
+          docker inspect "$CONTAINER" \
+            --format 'Container started: {{.State.Running}}'
+
+      - name: Wait for Windows
+        shell: bash
+        env:
+          EXPECTED_TOKEN: ${{ steps.test.outputs.token }}
+        run: |
+          set -Eeuo pipefail
+
+          deadline=$((SECONDS + 9000))
+
+          while (( SECONDS < deadline )); do
+            state="$(
+              docker inspect \
+                --format '{{.State.Status}}' \
+                "$CONTAINER" 2>/dev/null || true
+            )"
+
+            if [[ "$state" != "running" ]]; then
+              echo "Container stopped before Windows became ready."
+              echo "Container state: ${state:-missing}"
+              exit 1
+            fi
+
+            response="$(
+              curl \
+                --silent \
+                --show-error \
+                --max-time 5 \
+                "http://127.0.0.1:$TEST_PORT/" 2>/dev/null || true
+            )"
+
+            if [[ -n "$response" ]]; then
+              echo "Received response:"
+              jq . <<< "$response" || {
+                echo "$response"
+                echo "The guest returned invalid JSON."
+                exit 1
+              }
+
+              token="$(jq -r '.token // empty' <<< "$response")"
+              caption="$(jq -r '.caption // empty' <<< "$response")"
+              edition="$(jq -r '.edition // empty' <<< "$response")"
+              version="$(jq -r '.version // empty' <<< "$response")"
+              build="$(jq -r '.build // empty' <<< "$response")"
+              architecture="$(
+                jq -r '.architecture // empty' <<< "$response"
+              )"
+
+              if [[ "$token" != "$EXPECTED_TOKEN" ]]; then
+                echo "The response token does not match."
+                exit 1
+              fi
+
+              if [[ "$caption" != *"Windows 11"* ]]; then
+                echo "Expected Windows 11, but received: $caption"
+                exit 1
+              fi
+
+              if [[ "$edition" != "Professional" ]]; then
+                echo "Expected Professional edition, but received: $edition"
+                exit 1
+              fi
+
+              if [[ ! "$version" =~ ^10\.0\.[0-9]+$ ]]; then
+                echo "Unexpected Windows version: $version"
+                exit 1
+              fi
+
+              if [[ ! "$build" =~ ^[0-9]+$ ]]; then
+                echo "Invalid Windows build number: $build"
+                exit 1
+              fi
+
+              if (( build < 22000 )); then
+                echo "Expected a Windows 11 build, but received: $build"
+                exit 1
+              fi
+
+              if [[ "$architecture" != "64-bit" ]]; then
+                echo "Expected 64-bit Windows, but received: $architecture"
+                exit 1
+              fi
+
+              printf '%s\n' "$response" |
+                jq . > "$RUNNER_TEMP/output/windows.json"
+
+              echo
+              echo "Windows 11 Pro installed successfully."
+              echo "Version: $version"
+              echo "Build: $build"
+              echo "Architecture: $architecture"
+              exit 0
+            fi
+
+            printf '.'
+            sleep 10
+          done
+
+          echo
+          echo "Timed out waiting for Windows installation."
+          exit 1
+
+      - name: Capture diagnostics
+        if: always()
+        shell: bash
+        run: |
+          set +e
+
+          if [[ -f "$RUNNER_TEMP/output/disk-monitor.pid" ]]; then
+            kill "$(
+              cat "$RUNNER_TEMP/output/disk-monitor.pid"
+            )" 2>/dev/null
+          fi
+
+          docker logs "$CONTAINER" \
+            > "$RUNNER_TEMP/output/container.log" \
+            2>&1
+
+          docker inspect "$CONTAINER" \
+            > "$RUNNER_TEMP/output/container.json" \
+            2>&1
+
+          docker system df --verbose \
+            > "$RUNNER_TEMP/output/docker-disk.txt" \
+            2>&1
+
+          df -h \
+            > "$RUNNER_TEMP/output/filesystems.txt" \
+            2>&1
+
+          sudo du -x --max-depth=2 \
+            "$RUNNER_TEMP/storage" \
+            /var/lib/docker 2>/dev/null |
+            sort -n \
+            > "$RUNNER_TEMP/output/directory-sizes.txt"
+
+          echo "Final disk space:"
+          df -h /
+
+          echo
+          echo "Storage usage:"
+          sudo du -sh "$RUNNER_TEMP/storage" 2>/dev/null
+
+          echo
+          echo "Docker usage:"
+          docker system df
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-11-install-test
+          path: ${{ runner.temp }}/output
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Cleanup
+        if: always()
+        shell: bash
+        run: |
+          docker rm --force "$CONTAINER" 2>/dev/null || true
