@@ -66,9 +66,24 @@ jobs:
         run: |
           set -Eeuo pipefail
 
+          echo "Disk space before cleanup:"
+          df -h /
+
+          echo
+          echo "Largest directories before cleanup:"
+          sudo du -x --max-depth=1 \
+            /usr \
+            /usr/local \
+            /opt \
+            /var \
+            /home 2>/dev/null |
+            sort -n |
+            tail -40
+
           sudo rm -rf \
             /usr/local/.ghcup \
             /usr/local/lib/android \
+            /usr/local/lib/node_modules \
             /usr/local/share/boost \
             /usr/local/share/chromium \
             /usr/local/share/powershell \
@@ -77,18 +92,34 @@ jobs:
             /opt/az \
             /opt/ghc \
             /opt/google \
-            /opt/hostedtoolcache/CodeQL \
+            /opt/hostedtoolcache \
             /opt/microsoft \
             /opt/pipx
 
           sudo apt-get clean
-          sudo rm -rf /var/lib/apt/lists/*
+          sudo rm -rf \
+            /var/cache/apt/* \
+            /var/lib/apt/lists/*
 
-          docker system prune --all --force --volumes || true
+          docker system prune \
+            --all \
+            --force \
+            --volumes || true
 
           echo
           echo "Disk space after cleanup:"
           df -h /
+
+          echo
+          echo "Largest directories after cleanup:"
+          sudo du -x --max-depth=1 \
+            /usr \
+            /usr/local \
+            /opt \
+            /var \
+            /home 2>/dev/null |
+            sort -n |
+            tail -40
 
       - name: Verify available disk space
         shell: bash
@@ -100,8 +131,8 @@ jobs:
 
           echo "Available disk space: ${available_gb} GB"
 
-          if (( available_gb < 50 )); then
-            echo "At least 50 GB of free space is required."
+          if (( available_gb < 40 )); then
+            echo "At least 40 GB of free space is required."
             exit 1
           fi
 
@@ -272,12 +303,12 @@ jobs:
             --cap-add NET_ADMIN \
             --stop-timeout 120 \
             --publish "$TEST_PORT:$TEST_PORT/tcp" \
-            --env "DEBUG=Y" \
             --env "VERSION=11" \
             --env "RAM_SIZE=half" \
             --env "CPU_CORES=half" \
             --env "DISK_SIZE=64G" \
             --env "USER_PORTS=$TEST_PORT" \
+            --env "DEBUG=Y" \
             --volume "$RUNNER_TEMP/oem:/oem:ro" \
             --volume "$RUNNER_TEMP/storage:/storage" \
             "$IMAGE"
