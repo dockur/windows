@@ -457,6 +457,22 @@ setXML() {
     fi
   done
 
+  # Known Server editions normally share one answer file. When the image
+  # contains only one uniquely detected Server edition and no explicit
+  # EDITION was requested, generate a keyless answer file using that index.
+  if [ -n "$index" ] && [ -z "${EDITION:-}" ] &&
+    [[ "${DETECTED,,}" == win20* && "${DETECTED,,}" != *-* ]] &&
+    [ -s "$target" ]; then
+
+    file="/run/assets/$DETECTED-selected.xml"
+
+    removeGeneratedXML "$file" || return 1
+    generateFallbackXML "$DETECTED-selected" "$index" || return 1
+
+    XML="$file"
+    return 0
+  fi
+
   file="$1"
 
   if [[ "${DETECTED,,}" == *"-eval" ]]; then
