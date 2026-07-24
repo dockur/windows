@@ -636,8 +636,8 @@ detectImage() {
     local edition
 
     case "${DETECTED,,}" in
-      "win2003"* | "win2008"* | "win2012"* | "win2016"* | \
-      "win2019"* | "win2022"* | "win2025"* )
+      "win20"* )
+
         edition=$(normalizeServerEditionID "$EDITION")
 
         if [ -n "$edition" ] &&
