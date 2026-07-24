@@ -541,7 +541,7 @@ printEdition() {
   local desc="$2"
   local show_eval="${3:-N}"
   local normalized="${id,,}"
-  local result="" edition="" suffix=""
+  local result edition="" suffix=""
 
   result=$(printVersion "$id" "x")
   [[ "$result" == "x" ]] && echo "$desc" && return 0
@@ -636,14 +636,11 @@ fromFile() {
 
   case "$file" in
     *"_x64_"* | *"_x64."*)
-      arch="x64"
-      ;;
+      arch="x64" ;;
     *"_x86_"* | *"_x86."*)
-      arch="x86"
-      ;;
+      arch="x86" ;;
     *"_arm64_"* | *"_arm64."*)
-      arch="arm64"
-      ;;
+      arch="arm64" ;;
   esac
 
   local add=""
@@ -651,59 +648,41 @@ fromFile() {
 
   case "$file" in
     "win7"* | "win_7"* | *"windows7"* | *"windows_7"* )
-      id="win7${arch}"
-      ;;
+      id="win7${arch}" ;;
     "win8"* | "win_8"* | *"windows8"* | *"windows_8"* )
-      id="win81${arch}"
-      ;;
+      id="win81${arch}" ;;
     "win10"*| "win_10"* | *"windows10"* | *"windows_10"* )
-      id="win10${arch}"
-      ;;
+      id="win10${arch}" ;;
     "win11"* | "win_11"* | *"windows11"* | *"windows_11"* )
-      id="win11${arch}"
-      ;;
+      id="win11${arch}" ;;
     *"winxp"* | *"win_xp"* | *"windowsxp"* | *"windows_xp"* )
-      id="winxpx86"
-      ;;
+      id="winxpx86" ;;
     *"winvista"* | *"win_vista"* | *"windowsvista"* | *"windows_vista"* )
-      id="winvista${arch}"
-      ;;
+      id="winvista${arch}" ;;
     "nano11"* | "nano_11"* )
-      id="nano11"
-      ;;
+      id="nano11" ;;
     "tiny11core"* | "tiny11_core"* | "tiny_11_core"* )
-      id="core11"
-      ;;
+      id="core11" ;;
     "tiny11"* | "tiny_11"* )
-      id="tiny11"
-      ;;
+      id="tiny11" ;;
     "tiny10"* | "tiny_10"* )
-      id="tiny10"
-      ;;
+      id="tiny10" ;;
     *"_serverhypercore_"* )
-      id="win2019${add}-hv"
-      ;;
+      id="win2019${add}-hv" ;;
     *"server2025"* | *"server_2025"* )
-      id="win2025${add}"
-      ;;
+      id="win2025${add}" ;;
     *"server2022"* | *"server_2022"* )
-      id="win2022${add}"
-      ;;
+      id="win2022${add}" ;;
     *"server2019"* | *"server_2019"* )
-      id="win2019${add}"
-      ;;
+      id="win2019${add}" ;;
     *"server2016"* | *"server_2016"* )
-      id="win2016${add}"
-      ;;
+      id="win2016${add}" ;;
     *"server2012"* | *"server_2012"* )
-      id="win2012r2${add}"
-      ;;
+      id="win2012r2${add}" ;;
     *"server2008"* | *"server_2008"* )
-      id="win2008r2${add}"
-      ;;
+      id="win2008r2${add}" ;;
     *"server2003"* | *"server_2003"* )
-      id="win2003r2${add}"
-      ;;
+      id="win2003r2${add}" ;;
   esac
 
   if [ -n "$id" ]; then
@@ -774,41 +753,34 @@ normalizeEditionID() {
 
   case "$edition" in
     "pro" | "professional" | "business" )
-      edition=""
-      ;;
+      edition="" ;;
     "pro-n" | "professional-n" )
-      edition="n"
-      ;;
+      edition="n" ;;
   esac
 
   case "${id,,}" in
     "winvista"* )
       case "$edition" in
         "business" )
-          edition=""
-          ;;
+          edition="" ;;
         "home-basic" | "home-premium" )
-          edition="home"
-          ;;
+          edition="home" ;;
       esac
       ;;
     "win7"* )
       case "$edition" in
         "home-basic" | "home-premium" )
-          edition="home"
-          ;;
+          edition="home" ;;
       esac
       ;;
     "win10"* | "win11"* )
       case "$edition" in
         "iot-enterprise-ltsc" | \
         "iot-enterprise-ltsc-"[0-9][0-9][0-9][0-9] )
-          edition="iot"
-          ;;
+          edition="iot" ;;
         "enterprise-ltsc" | \
         "enterprise-ltsc-"[0-9][0-9][0-9][0-9] )
-          edition="ltsc"
-          ;;
+          edition="ltsc" ;;
       esac
       ;;
   esac
@@ -821,31 +793,24 @@ getEditionID() {
 
   local name="${1,,}"
   local id="${2,,}"
-  local edition=""
+  local edition
 
   case "$id" in
     "winvista"* )
-      edition="${name#*vista}"
-      ;;
+      edition="${name#*vista}" ;;
     "win7"* )
-      edition="${name#*7}"
-      ;;
+      edition="${name#*7}" ;;
     "win8"* )
       if [[ "$name" == *"8.1"* ]]; then
         edition="${name#*8.1}"
       else
         edition="${name#*8}"
-      fi
-      ;;
+      fi ;;
     "win10"* )
-      edition="${name#*10}"
-      ;;
+      edition="${name#*10}" ;;
     "win11"* )
-      edition="${name#*11}"
-      ;;
-    * )
-      return 1
-      ;;
+      edition="${name#*11}" ;;
+    * ) return 1 ;;
   esac
 
   edition=$(normalizeEditionID "$edition" "$id")
@@ -924,33 +889,17 @@ getServerEditionID() {
 
   local name="${1,,}"
   local id="${2,,}"
-  local edition=""
+  local edition
 
   case "$id" in
-    "win2025"* )
-      edition="${name#*server 2025}"
-      ;;
-    "win2022"* )
-      edition="${name#*server 2022}"
-      ;;
-    "win2019"* )
-      edition="${name#*server 2019}"
-      ;;
-    "win2016"* )
-      edition="${name#*server 2016}"
-      ;;
-    "win2012"* )
-      edition="${name#*server 2012}"
-      ;;
-    "win2008"* )
-      edition="${name#*server 2008}"
-      ;;
-    "win2003"* )
-      edition="${name#*server 2003}"
-      ;;
-    * )
-      return 1
-      ;;
+    "win2025"* ) edition="${name#*server 2025}" ;;
+    "win2022"* ) edition="${name#*server 2022}" ;;
+    "win2019"* ) edition="${name#*server 2019}" ;;
+    "win2016"* ) edition="${name#*server 2016}" ;;
+    "win2012"* ) edition="${name#*server 2012}" ;;
+    "win2008"* ) edition="${name#*server 2008}" ;;
+    "win2003"* ) edition="${name#*server 2003}" ;;
+    * ) return 1 ;;
   esac
 
   edition=$(normalizeServerEditionID "$edition")
@@ -1581,7 +1530,7 @@ validVersion() {
 
   local id="$1"
   local lang="$2"
-  local url i=0
+  local url i
 
   isMido "$id" "$lang" && return 0
 
