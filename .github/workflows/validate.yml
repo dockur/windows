@@ -50,6 +50,7 @@ jobs:
       name: ${{ matrix.name }}
       version: ${{ matrix.version }}
       callback: ${{ matrix.callback }}
+      cpu: ${{ matrix.cpu || 'host' }}
       expected_caption: ${{ matrix.expected_caption }}
       expected_edition: ${{ matrix.expected_edition }}
       minimum_build: ${{ matrix.minimum_build }}
