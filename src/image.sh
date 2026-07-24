@@ -165,17 +165,20 @@ getVersionPriority() {
   return 0
 }
 
-selectVersion() {
+detectVersion() {
 
-  local tag="$1"
-  local xml="$2"
-  local platform="$3"
-  local suggested="${4:-}"
+  local xml="$1"
+  local suggested="${2:-}"
 
-  local name id base prefer match
-  local priority actual edition i
-  local suffix tried=""
+  local tag name id base prefer match platform
+  local priority actual edition suffix i
+  local tried=""
 
+  local -a tags=(
+    "DISPLAYNAME"
+    "PRODUCTNAME"
+    "NAME"
+  )
   local -a versions=()
   local -a bases=()
   local -a groups=()
@@ -202,26 +205,30 @@ selectVersion() {
     "-hv"
   )
 
-  while IFS= read -r name; do
-    [[ "$name" == *"Operating System"* ]] && continue
-    [ -z "$name" ] && continue
+  platform=$(getPlatform "$xml")
 
-    base=$(fromName "$name" "$platform")
-    id=$(getVersion "$name" "$platform")
+  for tag in "${tags[@]}"; do
+    while IFS= read -r name; do
+      [[ "$name" == *"Operating System"* ]] && continue
+      [ -z "$name" ] && continue
 
-    if [ -z "$base" ] || [ -z "$id" ]; then
-      warn "Unknown ${tag,,}: '$name'"
-      continue
-    fi
+      base=$(fromName "$name" "$platform")
+      id=$(getVersion "$name" "$platform")
 
-    versions+=("$id")
-    bases+=("$base")
-    groups+=("$(getVersionPriority "$id" "$base")")
-  done < <(
-    sed -n \
-      "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" \
-      <<< "$xml"
-  )
+      if [ -z "$base" ] || [ -z "$id" ]; then
+        warn "Unknown ${tag,,}: '$name'"
+        continue
+      fi
+
+      versions+=("$id")
+      bases+=("$base")
+      groups+=("$(getVersionPriority "$id" "$base")")
+    done < <(
+      sed -n \
+        "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" \
+        <<< "$xml"
+    )
+  done
 
   [ "${#versions[@]}" -eq 0 ] && return 0
 
@@ -299,23 +306,6 @@ selectVersion() {
   # Future or unusual editions that do not belong to a known selection
   # family use the first recognized WIM image.
   echo "${versions[0]}"
-  return 0
-}
-
-detectVersion() {
-
-  local xml="$1"
-  local suggested="${2:-}"
-  local id platform
-
-  platform=$(getPlatform "$xml")
-  id=$(selectVersion "DISPLAYNAME" "$xml" "$platform" "$suggested")
-  [ -z "$id" ] &&
-    id=$(selectVersion "PRODUCTNAME" "$xml" "$platform" "$suggested")
-  [ -z "$id" ] &&
-    id=$(selectVersion "NAME" "$xml" "$platform" "$suggested")
-
-  echo "$id"
   return 0
 }
 
