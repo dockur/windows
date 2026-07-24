@@ -845,6 +845,57 @@ getEditionID() {
   return 0
 }
 
+getServerEditionID() {
+
+  local name="${1,,}"
+  local id="${2,,}"
+  local edition=""
+
+  case "$id" in
+    "win2025"* )
+      edition="${name#*server 2025}"
+      ;;
+    "win2022"* )
+      edition="${name#*server 2022}"
+      ;;
+    "win2019"* )
+      edition="${name#*server 2019}"
+      ;;
+    "win2016"* )
+      edition="${name#*server 2016}"
+      ;;
+    "win2012"* )
+      edition="${name#*server 2012}"
+      ;;
+    "win2008"* )
+      edition="${name#*server 2008}"
+      ;;
+    "win2003"* )
+      edition="${name#*server 2003}"
+      ;;
+    * )
+      return 1
+      ;;
+  esac
+
+  edition=$(normalizeEdition "$edition")
+  edition="${edition#r2-}"
+  edition="${edition%-desktop-experience}"
+
+  case "$edition" in
+    "" | \
+    "standard" | "standard-core" | \
+    "serverstandard" | "serverstandardcore" | \
+    "datacenter" | "datacenter-core" | \
+    "serverdatacenter" | "serverdatacentercore" )
+      edition=""
+      ;;
+  esac
+
+  echo "$edition"
+  return 0
+}
+
 getVersion() {
 
   local id edition
@@ -864,10 +915,12 @@ getVersion() {
       ;;
     "win2025"* | "win2022"* | "win2019"* | "win2016"* | \
     "win2012"* | "win2008"* | "win2003"* )
-      case "${name,,}" in
-        *"hyper-v server"* ) id="$id-hv" ;;
-        *"evaluation"* ) id="$id-eval" ;;
-      esac
+      if [[ "${name,,}" == *"hyper-v server"* ]]; then
+        id+="-hv"
+      elif edition=$(getServerEditionID "$name" "$id"); then
+        [ -n "$edition" ] && id+="-$edition"
+        [ -n "$evaluation" ] && id+="$evaluation"
+      fi
       ;;
   esac
 
