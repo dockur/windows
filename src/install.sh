@@ -738,8 +738,10 @@ setMachine() {
 
   case "${id,,}" in
     "winxp"* | "win2003"* | "winvistax86"* | "win7x86"* | "win2008r2x86"* )
-      # Prevent bluescreen if 64 bit PCI hole size is >2G.
-      ARGS="-global q35-pcihost.x-pci-hole64-fix=false" ;;
+      if [ -z "${MACHINE:-}" ] || [[ "${MACHINE:-}" == "q35" ]]; then
+        # Prevent bluescreen if 64 bit PCI hole size is >2G.
+        ARGS="-global q35-pcihost.x-pci-hole64-fix=false"
+      fi ;;
   esac
 
   return 0
