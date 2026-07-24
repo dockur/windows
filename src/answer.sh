@@ -456,17 +456,18 @@ setXML() {
     fi
   done
 
-  # Known Server editions normally share one answer file. When the image
-  # contains only one uniquely detected Server edition and no explicit
-  # EDITION was requested, generate a keyless answer file using that index.
+  # Known Server editions with name-based selectors normally share one
+  # answer file. When the exact edition is unknown, select its detected index.
+  # Legacy templates with fixed index selectors retain their known defaults.
   if [ -n "$index" ] && [ -z "${EDITION:-}" ] &&
     [[ "${DETECTED,,}" == win20* && "${DETECTED,,}" != *-* ]] &&
-    [ -s "$target" ]; then
+    [ -s "$target" ] &&
+    grep -Fqi '<Key>/IMAGE/NAME</Key>' "$target"; then
 
-    file="/run/assets/$DETECTED-selected.xml"
+    file="/run/assets/$DETECTED-unknown.xml"
 
     removeGeneratedXML "$file" || return 1
-    generateFallbackXML "$DETECTED-selected" "$index" || return 1
+    generateFallbackXML "$DETECTED-unknown" "$index" || return 1
 
     XML="$file"
     return 0
