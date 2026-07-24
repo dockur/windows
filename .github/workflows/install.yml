@@ -427,8 +427,8 @@ jobs:
             --cap-add NET_ADMIN
             --stop-timeout 120
             --env "VERSION=$VERSION"
-            --env "RAM_SIZE=half"
-            --env "CPU_CORES=half"
+            --env "RAM_SIZE=2G"
+            --env "CPU_CORES=1"
             --env "DISK_SIZE=64G"
             --env "DEBUG=Y"
             --volume "$RUNNER_TEMP/oem:/oem:ro"
