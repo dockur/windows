@@ -231,164 +231,41 @@ jobs:
               cat > "$RUNNER_TEMP/oem/ready.vbs" <<EOF
           Option Explicit
 
-          Dim service
-          Dim systems
-          Dim system
-          Dim shell
           Dim files
-          Dim input
           Dim output
-          Dim caption
-          Dim version
-          Dim build
-          Dim platform
-          Dim share
-          Dim json
-          Dim temporary
-          Dim destination
-
-          temporary = "\\host.lan\Data\windows.tmp"
-          destination = "\\host.lan\Data\windows.json"
 
           WScript.Sleep 15000
 
           Do
-              Set service = Nothing
-              Set systems = Nothing
-              Set system = Nothing
-              Set shell = Nothing
               Set files = Nothing
-              Set input = Nothing
               Set output = Nothing
-
-              caption = ""
-              version = ""
-              build = ""
-              platform = ""
-              share = ""
-              json = ""
 
               On Error Resume Next
               Err.Clear
 
-              Set service = GetObject( _
-                  "winmgmts:\\.\root\cimv2" _
+              Set files = CreateObject( _
+                  "Scripting.FileSystemObject" _
               )
 
               If Err.Number = 0 Then
-                  Set systems = service.ExecQuery( _
-                      "Select * From Win32_OperatingSystem" _
-                  )
-              End If
-
-              If Err.Number = 0 Then
-                  For Each system In systems
-                      caption = CStr(system.Caption)
-                      version = CStr(system.Version)
-                      build = CStr(system.BuildNumber)
-                      Exit For
-                  Next
-              End If
-
-              If Err.Number = 0 Then
-                  Set shell = CreateObject("WScript.Shell")
-              End If
-
-              If Err.Number = 0 Then
-                  platform = UCase( _
-                      shell.ExpandEnvironmentStrings( _
-                          "%PROCESSOR_ARCHITECTURE%" _
-                      ) _
-                  )
-
-                  Select Case platform
-                      Case "AMD64"
-                          platform = "x64"
-                      Case "ARM64"
-                          platform = "arm64"
-                      Case "X86"
-                          platform = "x86"
-                      Case Else
-                          platform = LCase(platform)
-                  End Select
-              End If
-
-              If Err.Number = 0 Then
-                  Set files = CreateObject( _
-                      "Scripting.FileSystemObject" _
-                  )
-              End If
-
-              If Err.Number = 0 Then
-                  Set input = files.OpenTextFile( _
-                      "\\host.lan\Data\readme.txt", _
-                      1, _
-                      False _
-                  )
-              End If
-
-              If Err.Number = 0 Then
-                  share = Trim(input.ReadAll)
-                  input.Close
-
-                  json = _
-                      "{" & _
-                      """token"":""" & JsonEscape("$token") & """," & _
-                      """caption"":""" & JsonEscape(caption) & """," & _
-                      """edition"":""""," & _
-                      """version"":""" & JsonEscape(version) & """," & _
-                      """build"":""" & JsonEscape(build) & """," & _
-                      """platform"":""" & JsonEscape(platform) & """," & _
-                      """share"":""" & JsonEscape(share) & """" & _
-                      "}"
-              End If
-
-              If Err.Number = 0 Then
                   Set output = files.CreateTextFile( _
-                      temporary, _
+                      "\\host.lan\Data\windows.txt", _
                       True, _
                       False _
                   )
               End If
 
               If Err.Number = 0 Then
-                  output.Write json
+                  output.Write "$token"
                   output.Close
-              End If
 
-              If Err.Number = 0 Then
-                  If files.FileExists(destination) Then
-                      files.DeleteFile destination, True
-                  End If
-              End If
-
-              If Err.Number = 0 Then
-                  files.MoveFile temporary, destination
-              End If
-
-              If Err.Number = 0 Then
                   On Error GoTo 0
-                  Exit Do
+                  WScript.Quit 0
               End If
 
               On Error GoTo 0
               WScript.Sleep 10000
           Loop
-
-          Function JsonEscape(value)
-              Dim result
-
-              result = CStr(value)
-              result = Replace(result, "\", "\\")
-              result = Replace(result, Chr(34), "\" & Chr(34))
-              result = Replace(result, Chr(8), "\b")
-              result = Replace(result, Chr(9), "\t")
-              result = Replace(result, Chr(10), "\n")
-              result = Replace(result, Chr(12), "\f")
-              result = Replace(result, Chr(13), "\r")
-
-              JsonEscape = result
-          End Function
           EOF
 
               cat > "$RUNNER_TEMP/oem/install.bat" <<'BATCH'
@@ -413,6 +290,7 @@ jobs:
       - name: Install and validate Windows
         shell: bash
         env:
+          CALLBACK: ${{ inputs.callback }}
           CPU: ${{ inputs.cpu }}
           EXPECTED_TOKEN: ${{ steps.test.outputs.token }}
           EXPECTED_CAPTION: ${{ inputs.expected_caption }}
@@ -473,6 +351,44 @@ jobs:
               echo "Container stopped before Windows became ready."
               echo "Container state: ${state:-missing}"
               exit 1
+            fi
+
+            if [[ "$CALLBACK" == "legacy" ]]; then
+              response=""
+
+              if [[ -s "$RUNNER_TEMP/data/windows.txt" ]]; then
+                response="$(
+                  tr -d '\r\n' \
+                    < "$RUNNER_TEMP/data/windows.txt"
+                )"
+              fi
+
+              if [[ -n "$response" ]]; then
+                stop_logs
+                trap - EXIT
+
+                echo
+                echo "------------------------------------------------------------"
+                echo "Received legacy callback:"
+                echo "  $response"
+
+                if [[ "$response" != "$EXPECTED_TOKEN" ]]; then
+                  echo "The legacy response token does not match."
+                  echo "Expected:"
+                  echo "  $EXPECTED_TOKEN"
+                  echo "Received:"
+                  echo "  $response"
+                  exit 1
+                fi
+
+                echo
+                echo "$DISPLAY_NAME installed successfully."
+                echo "Legacy callback: writable"
+                exit 0
+              fi
+
+              sleep 10
+              continue
             fi
 
             response=""
