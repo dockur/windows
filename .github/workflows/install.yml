@@ -142,44 +142,9 @@ jobs:
           mkdir -p \
             "$RUNNER_TEMP/data" \
             "$RUNNER_TEMP/oem" \
-            "$RUNNER_TEMP/scripts" \
             "$RUNNER_TEMP/storage"
 
           printf '%s\n' "$token" > "$RUNNER_TEMP/data/readme.txt"
-
-          cat > "$RUNNER_TEMP/scripts/parser.py" <<'PYTHON'
-          import json
-          import sys
-          from pathlib import Path
-          from urllib.parse import parse_qs
-
-          path = Path(sys.argv[1])
-
-          body = path.read_text(
-              encoding="utf-8-sig",
-              errors="replace",
-          )
-
-          values = parse_qs(
-              body,
-              keep_blank_values=True,
-          )
-
-          result = {
-              key: values.get(key, [""])[0]
-              for key in (
-                  "token",
-                  "caption",
-                  "edition",
-                  "version",
-                  "build",
-                  "platform",
-                  "share",
-              )
-          }
-
-          print(json.dumps(result))
-          PYTHON
 
           case "$CALLBACK" in
             powershell)
@@ -190,6 +155,7 @@ jobs:
           )
 
           $ErrorActionPreference = "Stop"
+
           $windows = Get-CimInstance Win32_OperatingSystem
           $registry = Get-ItemProperty `
               "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
@@ -211,10 +177,6 @@ jobs:
               }
           }
 
-          function Encode([string]$Value) {
-              return [System.Uri]::EscapeDataString($Value)
-          }
-
           while ($true) {
               try {
                   $share = (
@@ -223,23 +185,24 @@ jobs:
                           -Raw
                   ).Trim()
 
-                  $body = (
-                      "token=$(Encode $Token)" +
-                      "&caption=$(Encode ([string]$windows.Caption))" +
-                      "&edition=$(Encode ([string]$registry.EditionID))" +
-                      "&version=$(Encode ([string]$windows.Version))" +
-                      "&build=$(Encode ([string]$windows.BuildNumber))" +
-                      "&platform=$(Encode $platform)" +
-                      "&share=$(Encode $share)"
-                  )
+                  $result = @{
+                      token    = $Token
+                      caption  = [string]$windows.Caption
+                      edition  = [string]$registry.EditionID
+                      version  = [string]$windows.Version
+                      build    = [string]$windows.BuildNumber
+                      platform = $platform
+                      share    = $share
+                  }
 
+                  $json = $result | ConvertTo-Json -Compress
                   $temporary = "\\host.lan\Data\windows.tmp"
-                  $destination = "\\host.lan\Data\windows.txt"
+                  $destination = "\\host.lan\Data\windows.json"
 
                   [System.IO.File]::WriteAllText(
                       $temporary,
-                      $body,
-                      [System.Text.Encoding]::UTF8
+                      $json,
+                      [System.Text.UTF8Encoding]::new($false)
                   )
 
                   Move-Item `
@@ -273,13 +236,13 @@ jobs:
           Dim shell
           Dim files
           Dim input
-          Dim output
+          Dim stream
           Dim caption
           Dim version
           Dim build
           Dim platform
           Dim share
-          Dim body
+          Dim json
           Dim temporary
           Dim destination
 
@@ -320,12 +283,12 @@ jobs:
           End Select
 
           temporary = "\\host.lan\Data\windows.tmp"
-          destination = "\\host.lan\Data\windows.txt"
+          destination = "\\host.lan\Data\windows.json"
 
           Do
               Err.Clear
               Set input = Nothing
-              Set output = Nothing
+              Set stream = Nothing
 
               On Error Resume Next
 
@@ -339,24 +302,29 @@ jobs:
                   share = Trim(input.ReadAll)
                   input.Close
 
-                  body = _
-                      "token=" & Encode("$token") & _
-                      "&caption=" & Encode(caption) & _
-                      "&edition=" & _
-                      "&version=" & Encode(version) & _
-                      "&build=" & Encode(build) & _
-                      "&platform=" & Encode(platform) & _
-                      "&share=" & Encode(share)
+                  json = _
+                      "{" & _
+                      """token"":""" & JsonEscape("$token") & """," & _
+                      """caption"":""" & JsonEscape(caption) & """," & _
+                      """edition"":""""," & _
+                      """version"":""" & JsonEscape(version) & """," & _
+                      """build"":""" & JsonEscape(build) & """," & _
+                      """platform"":""" & JsonEscape(platform) & """," & _
+                      """share"":""" & JsonEscape(share) & """" & _
+                      "}"
 
-                  Set output = files.CreateTextFile( _
-                      temporary, _
-                      True _
-                  )
+                  Set stream = CreateObject("ADODB.Stream")
+                  stream.Type = 2
+                  stream.Charset = "utf-8"
+                  stream.Open
+                  stream.WriteText json
+                  stream.Position = 0
+                  stream.Type = 1
+                  stream.Position = 3
+                  stream.SaveToFile temporary, 2
+                  stream.Close
 
                   If Err.Number = 0 Then
-                      output.Write body
-                      output.Close
-
                       If files.FileExists(destination) Then
                           files.DeleteFile destination, True
                       End If
@@ -376,50 +344,19 @@ jobs:
 
           On Error GoTo 0
 
-          Function Encode(value)
-              Dim stream
-              Dim bytes
-              Dim index
-              Dim code
+          Function JsonEscape(value)
               Dim result
 
-              Set stream = CreateObject("ADODB.Stream")
+              result = CStr(value)
+              result = Replace(result, "\", "\\")
+              result = Replace(result, Chr(34), "\" & Chr(34))
+              result = Replace(result, Chr(8), "\b")
+              result = Replace(result, Chr(9), "\t")
+              result = Replace(result, Chr(10), "\n")
+              result = Replace(result, Chr(12), "\f")
+              result = Replace(result, Chr(13), "\r")
 
-              stream.Type = 2
-              stream.Charset = "utf-8"
-              stream.Open
-              stream.WriteText CStr(value)
-              stream.Position = 0
-              stream.Type = 1
-              stream.Position = 3
-
-              bytes = stream.Read
-              stream.Close
-
-              result = ""
-
-              For index = 1 To LenB(bytes)
-                  code = AscB(MidB(bytes, index, 1))
-
-                  If _
-                      (code >= 48 And code <= 57) Or _
-                      (code >= 65 And code <= 90) Or _
-                      (code >= 97 And code <= 122) Or _
-                      code = 45 Or _
-                      code = 46 Or _
-                      code = 95 Or _
-                      code = 126 _
-                  Then
-                      result = result & Chr(code)
-                  ElseIf code = 32 Then
-                      result = result & "+"
-                  Else
-                      result = result & "%" & _
-                          Right("0" & Hex(code), 2)
-                  End If
-              Next
-
-              Encode = result
+              JsonEscape = result
           End Function
           EOF
 
@@ -509,12 +446,8 @@ jobs:
 
             response=""
 
-            if [[ -s "$RUNNER_TEMP/data/windows.txt" ]]; then
-              response="$(
-                python3 \
-                  "$RUNNER_TEMP/scripts/parser.py" \
-                  "$RUNNER_TEMP/data/windows.txt"
-              )"
+            if [[ -s "$RUNNER_TEMP/data/windows.json" ]]; then
+              response="$(cat "$RUNNER_TEMP/data/windows.json")"
             fi
 
             if [[ -n "$response" ]]; then
@@ -525,11 +458,11 @@ jobs:
               echo "------------------------------------------------------------"
               echo "Received response:"
 
-              jq . <<< "$response" || {
+              if ! jq . <<< "$response"; then
                 echo "$response"
                 echo "The guest returned invalid JSON."
                 exit 1
-              }
+              fi
 
               token="$(jq -r '.token // empty' <<< "$response")"
               caption="$(jq -r '.caption // empty' <<< "$response")"
