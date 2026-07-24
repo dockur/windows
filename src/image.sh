@@ -156,8 +156,9 @@ selectVersion() {
   local platform="$3"
   local suggested="${4:-}"
 
-  local name id base prefer match priority actual
-  local i tried=""
+  local name id base prefer match
+  local priority actual edition i
+  local tried=""
 
   local -a versions=()
   local -a bases=()
