@@ -247,57 +247,85 @@ jobs:
           Dim temporary
           Dim destination
 
-          Set service = GetObject("winmgmts:\\.\root\cimv2")
-          Set systems = service.ExecQuery( _
-              "Select * From Win32_OperatingSystem" _
-          )
-
-          caption = ""
-          version = ""
-          build = ""
-
-          For Each system In systems
-              caption = CStr(system.Caption)
-              version = CStr(system.Version)
-              build = CStr(system.BuildNumber)
-              Exit For
-          Next
-
-          Set shell = CreateObject("WScript.Shell")
-          Set files = CreateObject("Scripting.FileSystemObject")
-
-          platform = UCase( _
-              shell.ExpandEnvironmentStrings( _
-                  "%PROCESSOR_ARCHITECTURE%" _
-              ) _
-          )
-
-          Select Case platform
-              Case "AMD64"
-                  platform = "x64"
-              Case "ARM64"
-                  platform = "arm64"
-              Case "X86"
-                  platform = "x86"
-              Case Else
-                  platform = LCase(platform)
-          End Select
-
           temporary = "\\host.lan\Data\windows.tmp"
           destination = "\\host.lan\Data\windows.json"
 
+          WScript.Sleep 15000
+
           Do
-              Err.Clear
+              Set service = Nothing
+              Set systems = Nothing
+              Set system = Nothing
+              Set shell = Nothing
+              Set files = Nothing
               Set input = Nothing
               Set output = Nothing
 
-              On Error Resume Next
+              caption = ""
+              version = ""
+              build = ""
+              platform = ""
+              share = ""
+              json = ""
 
-              Set input = files.OpenTextFile( _
-                  "\\host.lan\Data\readme.txt", _
-                  1, _
-                  False _
+              On Error Resume Next
+              Err.Clear
+
+              Set service = GetObject( _
+                  "winmgmts:\\.\root\cimv2" _
               )
+
+              If Err.Number = 0 Then
+                  Set systems = service.ExecQuery( _
+                      "Select * From Win32_OperatingSystem" _
+                  )
+              End If
+
+              If Err.Number = 0 Then
+                  For Each system In systems
+                      caption = CStr(system.Caption)
+                      version = CStr(system.Version)
+                      build = CStr(system.BuildNumber)
+                      Exit For
+                  Next
+              End If
+
+              If Err.Number = 0 Then
+                  Set shell = CreateObject("WScript.Shell")
+              End If
+
+              If Err.Number = 0 Then
+                  platform = UCase( _
+                      shell.ExpandEnvironmentStrings( _
+                          "%PROCESSOR_ARCHITECTURE%" _
+                      ) _
+                  )
+
+                  Select Case platform
+                      Case "AMD64"
+                          platform = "x64"
+                      Case "ARM64"
+                          platform = "arm64"
+                      Case "X86"
+                          platform = "x86"
+                      Case Else
+                          platform = LCase(platform)
+                  End Select
+              End If
+
+              If Err.Number = 0 Then
+                  Set files = CreateObject( _
+                      "Scripting.FileSystemObject" _
+                  )
+              End If
+
+              If Err.Number = 0 Then
+                  Set input = files.OpenTextFile( _
+                      "\\host.lan\Data\readme.txt", _
+                      1, _
+                      False _
+                  )
+              End If
 
               If Err.Number = 0 Then
                   share = Trim(input.ReadAll)
@@ -313,37 +341,39 @@ jobs:
                       """platform"":""" & JsonEscape(platform) & """," & _
                       """share"":""" & JsonEscape(share) & """" & _
                       "}"
+              End If
 
-                  Err.Clear
-
+              If Err.Number = 0 Then
                   Set output = files.CreateTextFile( _
                       temporary, _
                       True, _
                       False _
                   )
+              End If
 
-                  If Err.Number = 0 Then
-                      output.Write json
-                      output.Close
+              If Err.Number = 0 Then
+                  output.Write json
+                  output.Close
+              End If
 
-                      If files.FileExists(destination) Then
-                          files.DeleteFile destination, True
-                      End If
-
-                      Err.Clear
-                      files.MoveFile temporary, destination
-
-                      If Err.Number = 0 Then
-                          Exit Do
-                      End If
+              If Err.Number = 0 Then
+                  If files.FileExists(destination) Then
+                      files.DeleteFile destination, True
                   End If
+              End If
+
+              If Err.Number = 0 Then
+                  files.MoveFile temporary, destination
+              End If
+
+              If Err.Number = 0 Then
+                  On Error GoTo 0
+                  Exit Do
               End If
 
               On Error GoTo 0
               WScript.Sleep 10000
           Loop
-
-          On Error GoTo 0
 
           Function JsonEscape(value)
               Dim result
