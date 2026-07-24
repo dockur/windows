@@ -37,6 +37,34 @@ USERNAME=$(strip "$USERNAME")
 DOMAIN_OU=$(strip "$DOMAIN_OU")
 WORKGROUP=$(strip "$WORKGROUP")
 
+EDITION_ORDER=(
+  "-enterprise"
+  "-ultimate"
+  ""
+  "-iot"
+  "-ltsc"
+  "-education"
+  "-home"
+  "-home-premium"
+  "-home-basic"
+  "-starter"
+  "-hv"
+)
+
+SERVER_EDITION_ORDER=(
+  ""
+  "-datacenter"
+  "-enterprise"
+  "-web"
+  "-foundation"
+  "-essentials"
+  "-standard-core"
+  "-datacenter-core"
+  "-enterprise-core"
+  "-web-core"
+  "-hv"
+)
+
 MIRRORS=3
 SUGGEST=""
 
