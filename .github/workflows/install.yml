@@ -142,9 +142,44 @@ jobs:
           mkdir -p \
             "$RUNNER_TEMP/data" \
             "$RUNNER_TEMP/oem" \
+            "$RUNNER_TEMP/scripts" \
             "$RUNNER_TEMP/storage"
 
           printf '%s\n' "$token" > "$RUNNER_TEMP/data/readme.txt"
+
+          cat > "$RUNNER_TEMP/scripts/parser.py" <<'PYTHON'
+          import json
+          import sys
+          from pathlib import Path
+          from urllib.parse import parse_qs
+
+          path = Path(sys.argv[1])
+
+          body = path.read_text(
+              encoding="utf-8-sig",
+              errors="replace",
+          )
+
+          values = parse_qs(
+              body,
+              keep_blank_values=True,
+          )
+
+          result = {
+              key: values.get(key, [""])[0]
+              for key in (
+                  "token",
+                  "caption",
+                  "edition",
+                  "version",
+                  "build",
+                  "platform",
+                  "share",
+              )
+          }
+
+          print(json.dumps(result))
+          PYTHON
 
           case "$CALLBACK" in
             powershell)
@@ -199,7 +234,7 @@ jobs:
                   )
 
                   $temporary = "\\host.lan\Data\windows.tmp"
-                  $output = "\\host.lan\Data\windows.txt"
+                  $destination = "\\host.lan\Data\windows.txt"
 
                   [System.IO.File]::WriteAllText(
                       $temporary,
@@ -209,7 +244,7 @@ jobs:
 
                   Move-Item `
                       -LiteralPath $temporary `
-                      -Destination $output `
+                      -Destination $destination `
                       -Force
 
                   break
@@ -476,37 +511,9 @@ jobs:
 
             if [[ -s "$RUNNER_TEMP/data/windows.txt" ]]; then
               response="$(
-                python3 - "$RUNNER_TEMP/data/windows.txt" <<'PYTHON'
-          import json
-          import sys
-          from pathlib import Path
-          from urllib.parse import parse_qs
-
-          body = Path(sys.argv[1]).read_text(
-              encoding="utf-8-sig",
-              errors="replace",
-          )
-
-          values = parse_qs(
-              body,
-              keep_blank_values=True,
-          )
-
-          result = {
-              key: values.get(key, [""])[0]
-              for key in (
-                  "token",
-                  "caption",
-                  "edition",
-                  "version",
-                  "build",
-                  "platform",
-                  "share",
-              )
-          }
-
-          print(json.dumps(result))
-          PYTHON
+                python3 \
+                  "$RUNNER_TEMP/scripts/parser.py" \
+                  "$RUNNER_TEMP/data/windows.txt"
               )"
             fi
 
@@ -571,4 +578,39 @@ jobs:
                 exit 1
               fi
 
-              if ((
+              if (( build < MINIMUM_BUILD )); then
+                echo "Expected build $MINIMUM_BUILD or newer."
+                echo "Received build: $build"
+                exit 1
+              fi
+
+              if [[ "$platform" != "$EXPECTED_PLATFORM" ]]; then
+                echo "Expected platform:"
+                echo "  $EXPECTED_PLATFORM"
+                echo "Received platform:"
+                echo "  $platform"
+                exit 1
+              fi
+
+              echo
+              echo "$DISPLAY_NAME installed successfully."
+              echo "Version: $version"
+              echo "Build: $build"
+              echo "Platform: $platform"
+              echo "Shared file: accessible"
+              exit 0
+            fi
+
+            sleep 10
+          done
+
+          echo
+          echo "------------------------------------------------------------"
+          echo "Timed out waiting for Windows installation."
+          exit 1
+
+      - name: Cleanup
+        if: always()
+        shell: bash
+        run: |
+          docker rm --force "$CONTAINER" 2>/dev/null || true
