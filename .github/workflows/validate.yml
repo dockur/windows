@@ -100,7 +100,7 @@ jobs:
       minimum_build: ${{ matrix.minimum_build }}
       platform: ${{ matrix.platform }}
 
-  modern:
+  tiny:
     strategy:
       fail-fast: false
       matrix:
@@ -129,6 +129,20 @@ jobs:
             minimum_build: 19041
             platform: x64
 
+    name: ${{ matrix.name }}
+    uses: ./.github/workflows/install.yml
+    with:
+      name: ${{ matrix.name }}
+      version: ${{ matrix.version }}
+      expected_caption: ${{ matrix.expected_caption }}
+      minimum_build: ${{ matrix.minimum_build }}
+      platform: ${{ matrix.platform }}
+
+  server:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
           - name: Windows Server 2025
             version: "2025"
             expected_caption: Windows Server 2025
@@ -175,48 +189,63 @@ jobs:
         include:
           - name: Windows 7 Ultimate
             version: "7u"
+            cpu: host
             expected_caption: Windows 7
             minimum_build: 7601
             platform: x64
 
           - name: Windows 7 Ultimate x86
             version: "7x86"
+            cpu: host
             expected_caption: Windows 7
             minimum_build: 7601
             platform: x86
 
           - name: Windows Vista Ultimate
             version: "vu"
+            cpu: host
             expected_caption: Windows Vista
             minimum_build: 6002
             platform: x64
 
           - name: Windows Vista Ultimate x86
             version: "vistax86"
+            cpu: host
             expected_caption: Windows Vista
             minimum_build: 6002
             platform: x86
 
+          - name: Windows XP Professional
+            version: "xp"
+            cpu: qemu32 # Remove after 6.03
+            expected_caption: Windows XP
+            minimum_build: 2600
+            platform: x86
+
           - name: Windows XP Professional x64
             version: "xp64"
+            cpu: host
             expected_caption: Windows XP
             minimum_build: 3790
             platform: x64
 
           - name: Windows 2000 Professional
             version: "2k"
+            cpu: host
             expected_caption: Windows 2000
             minimum_build: 2195
             platform: x86
 
           - name: Windows Server 2008 R2
             version: "2008"
+            cpu: host
             expected_caption: Windows Server 2008 R2
             minimum_build: 7601
             platform: x64
 
           - name: Windows Server 2003 R2
             version: "2003"
+            cpu: host
             expected_caption: Windows Server 2003
             minimum_build: 3790
             platform: x64
@@ -227,18 +256,7 @@ jobs:
       name: ${{ matrix.name }}
       version: ${{ matrix.version }}
       callback: legacy
+      cpu: ${{ matrix.cpu }}
       expected_caption: ${{ matrix.expected_caption }}
       minimum_build: ${{ matrix.minimum_build }}
       platform: ${{ matrix.platform }}
-
-  xp:
-    name: Windows XP Professional
-    uses: ./.github/workflows/install.yml
-    with:
-      name: Windows XP Professional
-      version: "xp"
-      callback: legacy
-      cpu: qemu32
-      expected_caption: Windows XP
-      minimum_build: 2600
-      platform: x86
