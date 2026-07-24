@@ -225,9 +225,6 @@ jobs:
           docker image inspect "$IMAGE" \
             --format 'Digest: {{index .RepoDigests 0}}'
 
-          echo
-          df -h /
-
       - name: Start disk monitoring
         shell: bash
         run: |
