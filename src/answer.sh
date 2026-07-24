@@ -443,8 +443,7 @@ setXML() {
 
   if [ ! -f "$file" ] || [ ! -s "$file" ]; then
     file="$target"
-  elif [[ "$DETECTED" != win20* &&
-    "$file" != "$target" ]]; then
+  elif [[ "$file" != "$target" ]]; then
     generateFallbackXML "$DETECTED" "$index" || return 1
     file="$target"
   fi
