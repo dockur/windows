@@ -868,14 +868,14 @@ normalizeServerEditionID() {
   esac
 
   case "$edition" in
-    "" | \
-    "standard" | "standard-core" | \
+    "" | "core" | \
+    "standard" | "standard-core" | "standardcore" | \
     "serverstandard" | "serverstandardcore" | \
-    "datacenter" | "datacenter-core" | \
+    "datacenter" | "datacenter-core" | "datacentercore" | \
     "serverdatacenter" | "serverdatacentercore" | \
-    "enterprise" | "enterprise-core" | \
+    "enterprise" | "enterprise-core" | "enterprisecore" | \
     "serverenterprise" | "serverenterprisecore" | \
-    "web" | "web-core" | \
+    "web" | "web-core" | "webcore" | \
     "serverweb" | "serverwebcore" | \
     "foundation" | "serverfoundation" | \
     "essentials" | "serveressentials" )
