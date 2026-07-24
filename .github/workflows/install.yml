@@ -44,9 +44,22 @@ jobs:
           ls -l /dev/kvm
 
           test -c /dev/kvm
-          test -r /dev/kvm
-          test -w /dev/kvm
 
+          docker run --rm \
+            --device /dev/kvm \
+            ubuntu:24.04 \
+            bash -c '
+              set -Eeuo pipefail
+
+              ls -l /dev/kvm
+              test -c /dev/kvm
+              test -r /dev/kvm
+              test -w /dev/kvm
+            '
+
+          echo
+          echo "KVM is accessible through Docker."
+     
       - name: Show initial disk space
         shell: bash
         run: |
