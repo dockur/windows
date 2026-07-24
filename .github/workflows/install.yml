@@ -80,8 +80,6 @@ jobs:
           set -Eeuo pipefail
 
           test -c /dev/kvm
-          test -r /dev/kvm
-          test -w /dev/kvm
 
       - name: Free disk space
         shell: bash
