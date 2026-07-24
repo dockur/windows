@@ -198,11 +198,12 @@ jobs:
                   $json = $result | ConvertTo-Json -Compress
                   $temporary = "\\host.lan\Data\windows.tmp"
                   $destination = "\\host.lan\Data\windows.json"
+                  $encoding = New-Object System.Text.UTF8Encoding($false)
 
                   [System.IO.File]::WriteAllText(
                       $temporary,
                       $json,
-                      [System.Text.UTF8Encoding]::new($false)
+                      $encoding
                   )
 
                   Move-Item `
@@ -236,7 +237,7 @@ jobs:
           Dim shell
           Dim files
           Dim input
-          Dim stream
+          Dim output
           Dim caption
           Dim version
           Dim build
@@ -288,7 +289,7 @@ jobs:
           Do
               Err.Clear
               Set input = Nothing
-              Set stream = Nothing
+              Set output = Nothing
 
               On Error Resume Next
 
@@ -313,18 +314,18 @@ jobs:
                       """share"":""" & JsonEscape(share) & """" & _
                       "}"
 
-                  Set stream = CreateObject("ADODB.Stream")
-                  stream.Type = 2
-                  stream.Charset = "utf-8"
-                  stream.Open
-                  stream.WriteText json
-                  stream.Position = 0
-                  stream.Type = 1
-                  stream.Position = 3
-                  stream.SaveToFile temporary, 2
-                  stream.Close
+                  Err.Clear
+
+                  Set output = files.CreateTextFile( _
+                      temporary, _
+                      True, _
+                      False _
+                  )
 
                   If Err.Number = 0 Then
+                      output.Write json
+                      output.Close
+
                       If files.FileExists(destination) Then
                           files.DeleteFile destination, True
                       End If
