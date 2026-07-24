@@ -399,9 +399,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-
           docker pull "$IMAGE"
-
           docker image inspect "$IMAGE" \
             --format 'Digest: {{index .RepoDigests 0}}'
 
@@ -469,12 +467,73 @@ jobs:
 
           logs_pid="$!"
 
-          stop_logs() {
+          capture_screenshots() {
+            local directory
+            local file
+            local i
+
+            directory="$RUNNER_TEMP/output/screenshots"
+            mkdir -p "$directory"
+
+            for i in $(seq -w 1 100); do
+              file="screen-$i.ppm"
+
+              docker exec "$CONTAINER" \
+                sh -c \
+                "printf 'screendump /storage/$file\n' |
+                  socat - UNIX-CONNECT:/run/shm/monitor.sock" \
+                2>/dev/null || true
+
+              if [[ -s "$RUNNER_TEMP/storage/$file" ]]; then
+                mv \
+                  "$RUNNER_TEMP/storage/$file" \
+                  "$directory/$file"
+              fi
+
+              sleep 0.2
+            done
+          }
+
+          detect_reboot_loop() {
+            local count
+
+            while true; do
+              sleep 10
+
+              count="$(
+                docker logs \
+                  --since 30s \
+                  "$CONTAINER" 2>&1 |
+                  grep -c '^SeaBIOS ' || true
+              )"
+
+              if (( count >= 8 )); then
+                echo
+                echo "------------------------------------------------------------"
+                echo "Detected a probable VM reboot loop."
+                echo "SeaBIOS appeared $count times in the last 30 seconds."
+
+                touch "$RUNNER_TEMP/output/reboot-loop"
+
+                capture_screenshots
+
+                return 0
+              fi
+            done
+          }
+
+          detect_reboot_loop &
+          detector_pid="$!"
+
+          stop_background_tasks() {
+            kill "$detector_pid" 2>/dev/null || true
+            wait "$detector_pid" 2>/dev/null || true
+
             kill "$logs_pid" 2>/dev/null || true
             wait "$logs_pid" 2>/dev/null || true
           }
 
-          trap stop_logs EXIT
+          trap stop_background_tasks EXIT
 
           deadline=$((SECONDS + 9000))
 
@@ -490,6 +549,12 @@ jobs:
               echo "------------------------------------------------------------"
               echo "Container stopped before Windows became ready."
               echo "Container state: ${state:-missing}"
+              exit 1
+            fi
+
+            if [[ -f "$RUNNER_TEMP/output/reboot-loop" ]]; then
+              echo
+              echo "VM reboot loop detected."
               exit 1
             fi
 
@@ -517,7 +582,7 @@ jobs:
             esac
 
             if [[ -n "$response" ]]; then
-              stop_logs
+              stop_background_tasks
               trap - EXIT
 
               echo
