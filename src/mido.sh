@@ -1014,6 +1014,7 @@ downloadImage() {
   local iso="$1"
   local version="$2"
   local lang="$3"
+  local requested="$version"
   local tried="n"
   local success="n"
   local seconds="5"
@@ -1149,7 +1150,7 @@ downloadImage() {
   done
 
   if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
-    if fallbackEnglish "$iso" "$version" "$lang" "$desc" "$web_desc"; then
+    if fallbackEnglish "$iso" "$requested" "$lang" "$desc" "$web_desc"; then
       return 0
     fi
   fi
