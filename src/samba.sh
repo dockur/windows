@@ -81,7 +81,7 @@ addShare() {
   local name="$3"
   local comment="$4"
   local cfg="$5"
-  local owner=""
+  local owner
   local tmp="/tmp/smb"
 
   if [ ! -d "$dir" ]; then
