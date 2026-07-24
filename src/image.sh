@@ -118,6 +118,57 @@ hasVersion() {
   return 1
 }
 
+getVersionPriority() {
+
+  local id="${1,,}"
+  local base="${2,,}"
+  local order_name="EDITION_ORDER"
+  local edition entry suffix priority patterns pattern
+  local result="other" score best_score=-1
+
+  id="${id%-eval}"
+
+  case "$base" in
+    "win20"* )
+      order_name="SERVER_EDITION_ORDER"
+      ;;
+  esac
+
+  local -n order_ref="$order_name"
+
+  edition="${id#"$base"}"
+  edition="${edition#-}"
+
+  # Use the most specific matching pattern. This prevents broad patterns
+  # such as enterprise-* from taking precedence over enterprise-iot-*.
+  for entry in "${order_ref[@]}"; do
+
+    IFS='|' read -r suffix priority patterns <<< "$entry"
+
+    for pattern in $patterns; do
+
+      if [ "$pattern" == "@default" ]; then
+        [ -z "$edition" ] || continue
+        score=1
+      elif [[ "$edition" == $pattern ]]; then
+        score="${#pattern}"
+      else
+        continue
+      fi
+
+      if (( score > best_score )); then
+        result="$priority"
+        best_score="$score"
+      fi
+
+    done
+
+  done
+
+  echo "$result"
+  return 0
+}
+
 getVersions() {
 
   local xml="$1"
