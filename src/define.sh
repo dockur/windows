@@ -866,19 +866,17 @@ normalizeServerEditionID() {
   edition=$(normalizeServerEdition "$1") || return 1
 
   case "$edition" in
-    "" | "core" | \
-    "standard" | "standard-core" | "standardcore" | \
-    "serverstandard" | "serverstandardcore" | \
-    "datacenter" | "datacenter-core" | "datacentercore" | \
-    "serverdatacenter" | "serverdatacentercore" | \
-    "enterprise" | "enterprise-core" | "enterprisecore" | \
-    "serverenterprise" | "serverenterprisecore" | \
-    "web" | "web-core" | "webcore" | \
-    "serverweb" | "serverwebcore" | \
-    "foundation" | "serverfoundation" | \
-    "essentials" | "serveressentials" )
-      edition=""
-      ;;
+    "" | "standard" | "serverstandard" ) edition="" ;;
+    "core" | "standard-core" | "standardcore" | "serverstandardcore" ) edition="standard-core" ;;
+    "datacenter" | "serverdatacenter" ) edition="datacenter" ;;
+    "datacenter-core" | "datacentercore" | "serverdatacentercore" ) edition="datacenter-core" ;;
+    "enterprise" | "serverenterprise" ) edition="enterprise" ;;
+    "enterprise-core" | "enterprisecore" | "serverenterprisecore" ) edition="enterprise-core" ;;
+    "web" | "serverweb" ) edition="web" ;;
+    "web-core" | "webcore" | "serverwebcore" ) edition="web-core" ;;
+    "foundation" | "serverfoundation" ) edition="foundation" ;;
+    "essentials" | "serveressentials" ) edition="essentials" ;;
+    * ) edition="unknown" ;;
   esac
 
   echo "$edition"
