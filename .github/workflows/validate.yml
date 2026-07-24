@@ -33,7 +33,7 @@ jobs:
             expected_caption: Windows 11
             expected_edition: Professional
             minimum_build: 22000
-            architecture: 64-bit
+            platform: x64
 
           - name: Windows XP Professional
             cpu: qemu32 # Remove after 6.03
@@ -42,7 +42,7 @@ jobs:
             expected_caption: Windows XP
             expected_edition: ""
             minimum_build: 2600
-            architecture: 32-bit
+            platform: x86
 
           - name: Windows 2000 Professional
             version: "2000"
@@ -50,16 +50,18 @@ jobs:
             expected_caption: Windows 2000
             expected_edition: ""
             minimum_build: 2195
-            architecture: 32-bit
+            platform: x86
 
     name: ${{ matrix.name }}
     uses: ./.github/workflows/install.yml
     with:
       name: ${{ matrix.name }}
       version: ${{ matrix.version }}
+      runner: ${{ matrix.runner || 'ubuntu-24.04' }}
+      image: ${{ matrix.image || 'ghcr.io/dockur/windows:latest' }}
       callback: ${{ matrix.callback }}
       cpu: ${{ matrix.cpu || 'host' }}
       expected_caption: ${{ matrix.expected_caption }}
       expected_edition: ${{ matrix.expected_edition }}
       minimum_build: ${{ matrix.minimum_build }}
-      architecture: ${{ matrix.architecture }}
+      platform: ${{ matrix.platform }}
