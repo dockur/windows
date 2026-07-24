@@ -729,14 +729,28 @@ fromName() {
 
 normalizeEdition() {
 
-  local edition="${1,,}"
+  local source="${1,,}"
+  local edition hash=""
 
-  edition="${edition//evaluation/}"
+  source="${source//evaluation/}"
+
   edition=$(sed -E \
     -e 's/[^a-z0-9]+/-/g' \
     -e 's/^-+//' \
     -e 's/-+$//' \
-    <<< "$edition")
+    <<< "$source")
+
+  if LC_ALL=C grep -q '[^ -~]' <<< "$source"; then
+    hash=$(printf '%s' "$source" | sha256sum)
+    hash="${hash%% *}"
+    edition+="${edition:+-}unicode-${hash:0:16}"
+  fi
+
+  if [ -z "$edition" ] && [ -n "${source//[[:space:]]/}" ]; then
+    hash=$(printf '%s' "$source" | sha256sum)
+    hash="${hash%% *}"
+    edition="unknown-${hash:0:16}"
+  fi
 
   echo "$edition"
   return 0
