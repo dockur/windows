@@ -166,17 +166,16 @@ detectVersion() {
 
   local xml="$1"
   local suggested="${2:-}"
-  local tag name id base match platform
-  local priority edition suffix i tried=""
+  local result_name="$3"
+  local index_name="$4"
+  local -n result="$result_name"
+  local -n result_index="$index_name"
 
-  local -a tags=(
-    "DISPLAYNAME"
-    "PRODUCTNAME"
-    "NAME"
-  )
-  local -a versions=()
   local -a bases=()
   local -a groups=()
+  local -a versions=()
+  local -A image_indexes=()
+
   local -a priorities=(
     "enterprise"
     "ultimate"
@@ -188,6 +187,7 @@ detectVersion() {
     "starter"
     "hv"
   )
+
   local -a suffixes=(
     "-enterprise"
     "-ultimate"
@@ -196,9 +196,12 @@ detectVersion() {
     "-ltsc"
     "-education"
     "-home"
+    "-home-premium"
+    "-home-basic"
     "-starter"
     "-hv"
   )
+
   local -a server_suffixes=(
     ""
     "-datacenter"
@@ -212,40 +215,94 @@ detectVersion() {
     "-web-core"
   )
 
+  result=""
+  result_index=""
+
+  local image image_index key
+  local display product platform
+
   platform=$(getPlatform "$xml")
 
-  for tag in "${tags[@]}"; do
-    while IFS= read -r name; do
-      [[ "$name" == *"Operating System"* ]] && continue
-      [ -z "$name" ] && continue
+  while IFS='|' read -r image_index display product image; do
 
-      base=$(fromName "$name" "$platform")
-      id=$(getVersion "$name" "$platform")
+    [ -n "$image_index" ] || continue
 
-      if [ -z "$base" ] || [ -z "$id" ]; then
-        warn "Unknown ${tag,,}: '$name'"
+    local candidate candidate_id candidate_base found=""
+
+    for candidate in "$display" "$product" "$image"; do
+
+      [[ "$candidate" == *"Operating System"* ]] && continue
+      [ -z "$candidate" ] && continue
+
+      candidate_base=$(fromName "$candidate" "$platform")
+      candidate_id=$(getVersion "$candidate" "$platform")
+
+      if [ -z "$candidate_base" ] || [ -z "$candidate_id" ]; then
         continue
       fi
 
-      versions+=("$id")
-      bases+=("$base")
-      groups+=("$(getVersionPriority "$id" "$base")")
-    done < <(
-      sed -n \
-        "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" \
-        <<< "$xml"
-    )
-  done
+      found="Y"
+      key="${candidate_id,,}"
+      [[ -v "image_indexes[$key]" ]] && continue
+
+      image_indexes["$key"]="$image_index"
+      versions+=("$candidate_id")
+      bases+=("$candidate_base")
+      groups+=("$(getVersionPriority "$candidate_id" "$candidate_base")")
+
+    done
+
+    if [ -z "$found" ]; then
+      local name="${display:-${product:-$image}}"
+      [ -n "$name" ] && warn "Unknown image name: '$name'"
+    fi
+
+  done < <(
+    awk '
+      /<IMAGE INDEX="/ {
+        image_index = $0
+        sub(/^.*<IMAGE INDEX="/, "", image_index)
+        sub(/".*$/, "", image_index)
+        display = product = name = ""
+      }
+
+      image_index != "" && /<DISPLAYNAME>/ {
+        display = $0
+        sub(/^.*<DISPLAYNAME>/, "", display)
+        sub(/<\/DISPLAYNAME>.*$/, "", display)
+      }
+
+      image_index != "" && /<PRODUCTNAME>/ {
+        product = $0
+        sub(/^.*<PRODUCTNAME>/, "", product)
+        sub(/<\/PRODUCTNAME>.*$/, "", product)
+      }
+
+      image_index != "" && /<NAME>/ {
+        name = $0
+        sub(/^.*<NAME>/, "", name)
+        sub(/<\/NAME>.*$/, "", name)
+      }
+
+      /<\/IMAGE>/ {
+        print image_index "|" display "|" product "|" name
+        image_index = ""
+      }
+    ' <<< "$xml"
+  )
 
   [ "${#versions[@]}" -eq 0 ] && return 0
 
+  local base match prefer
+
   if [ -n "$EDITION" ]; then
+
+    local edition tried=""
 
     for base in "${bases[@]}"; do
 
       case "${base,,}" in
-        "win2003"* | "win2008"* | "win2012"* | "win2016"* | \
-        "win2019"* | "win2022"* | "win2025"* )
+        "win20"* )
           edition=$(normalizeServerEditionID "$EDITION")
           ;;
         * )
@@ -254,42 +311,57 @@ detectVersion() {
       esac
 
       tried="Y"
-      local prefer="$base"
+      prefer="$base"
       [ -n "$edition" ] && prefer+="-$edition"
 
       if match=$(hasVersion "$prefer" "${versions[@]}"); then
-        echo "$match"
+        key="${match,,}"
+        result="$match"
+        result_index="${image_indexes[$key]}"
+
         return 0
       fi
+
     done
 
     if [ -n "$tried" ]; then
       warn "edition '$EDITION' is not supported by this image, using automatic selection instead."
     fi
+
   fi
 
   # For reused automatic media, prefer the edition selected by parseVersion()
   # when that edition is actually present in the image. An explicit EDITION
   # remains authoritative because it is handled above.
   if [ -n "$suggested" ]; then
+
     if match=$(hasVersion "$suggested" "${versions[@]}"); then
-      echo "$match"
+      key="${match,,}"
+      result="$match"
+      result_index="${image_indexes[$key]}"
+
       return 0
     fi
+
   fi
 
   # Server media defaults to the normal Standard GUI edition. If Standard
   # is absent, prefer another known GUI edition before any Core variant.
+  
+  local suffix
+
   for suffix in "${server_suffixes[@]}"; do
     for base in "${bases[@]}"; do
 
       case "${base,,}" in
-        "win2003"* | "win2008"* | "win2012"* | "win2016"* | \
-        "win2019"* | "win2022"* | "win2025"* )
-          local prefer="$base$suffix"
+        "win20"* )
+
+          prefer="$base$suffix"
 
           if match=$(hasVersion "$prefer" "${versions[@]}"); then
-            echo "$match"
+            key="${match,,}"
+            result="$match"
+            result_index="${image_indexes[$key]}"
             return 0
           fi
           ;;
@@ -302,33 +374,46 @@ detectVersion() {
   # still allows its Evaluation counterpart when the normal variant is absent.
   for suffix in "${suffixes[@]}"; do
     for base in "${bases[@]}"; do
-      local prefer="$base$suffix"
+
+      prefer="$base$suffix"
 
       if match=$(hasVersion "$prefer" "${versions[@]}"); then
-        echo "$match"
+        key="${match,,}"
+        result="$match"
+        result_index="${image_indexes[$key]}"
         return 0
       fi
+  
     done
   done
 
   # When the normal edition is absent, select another compatible member of
   # that family, such as N, Workstations, or a future dynamic variant.
+  local priority i
+
   for priority in "${priorities[@]}"; do
-    for ((i=0; i<${#versions[@]}; i++)); do
+    for (( i=0; i<${#versions[@]}; i++ )); do
+
       [[ "${groups[$i]}" == "$priority" ]] || continue
 
       local actual="${versions[$i]}"
 
       if match=$(hasVersion "$actual" "${versions[@]}"); then
-        echo "$match"
+        key="${match,,}"
+        result="$match"
+        result_index="${image_indexes[$key]}"
         return 0
       fi
+  
     done
   done
 
   # Future or unusual editions that do not belong to a known selection
   # family use the first recognized WIM image.
-  echo "${versions[0]}"
+  result="${versions[0]}"
+  key="${result,,}"
+  result_index="${image_indexes[$key]}"
+
   return 0
 }
 
