@@ -287,7 +287,7 @@ selectVersion() {
   return 1
 }
 
-selectClientVersion() {
+selectEdition() {
 
   local versions_name="$1"
   local bases_name="$2"
@@ -296,18 +296,21 @@ selectClientVersion() {
   local suggested="$5"
   local result_name="$6"
   local index_name="$7"
+  local normalize_name="$8"
+  local order_name="$9"
   local -n versions_ref="$versions_name"
   local -n bases_ref="$bases_name"
   local -n groups_ref="$groups_name"
+  local -n order_ref="$order_name"
 
-  local base edition entry suffix priority patterns i
+  local base edition entry suffix priority i
   local -a preferred=()
   local -A seen=()
 
   if [ -n "$EDITION" ]; then
 
     for base in "${bases_ref[@]}"; do
-      edition=$(normalizeEditionID "$EDITION" "$base")
+      edition=$("$normalize_name" "$EDITION" "$base")
       preferred+=("$base${edition:+-$edition}")
     done
 
@@ -340,107 +343,9 @@ selectClientVersion() {
   # First try each canonical edition in its configured order.
   preferred=()
 
-  for entry in "${EDITION_ORDER[@]}"; do
+  for entry in "${order_ref[@]}"; do
 
-    IFS='|' read -r suffix priority patterns <<< "$entry"
-
-    for base in "${bases_ref[@]}"; do
-      preferred+=("$base$suffix")
-    done
-
-  done
-
-  if selectVersion \
-      "$versions_name" \
-      "$indexes_name" \
-      preferred \
-      "$result_name" \
-      "$index_name"; then
-    return 0
-  fi
-
-  # Then try dynamic editions belonging to those same preference groups.
-  preferred=()
-  seen=()
-
-  for entry in "${EDITION_ORDER[@]}"; do
-
-    IFS='|' read -r suffix priority patterns <<< "$entry"
-
-    [[ -v "seen[$priority]" ]] && continue
-    seen["$priority"]="Y"
-
-    for ((i=0;i<${#versions_ref[@]};i++)); do
-      [[ "${groups_ref[$i]}" == "$priority" ]] || continue
-      preferred+=("${versions_ref[$i]}")
-    done
-
-  done
-
-  selectVersion \
-    "$versions_name" \
-    "$indexes_name" \
-    preferred \
-    "$result_name" \
-    "$index_name"
-}
-
-selectServerVersion() {
-
-  local versions_name="$1"
-  local bases_name="$2"
-  local groups_name="$3"
-  local indexes_name="$4"
-  local suggested="$5"
-  local result_name="$6"
-  local index_name="$7"
-  local -n versions_ref="$versions_name"
-  local -n bases_ref="$bases_name"
-  local -n groups_ref="$groups_name"
-
-  local base edition entry suffix priority patterns i
-  local -a preferred=()
-  local -A seen=()
-
-  if [ -n "$EDITION" ]; then
-
-    for base in "${bases_ref[@]}"; do
-      edition=$(normalizeServerEditionID "$EDITION")
-      preferred+=("$base${edition:+-$edition}")
-    done
-
-    if selectVersion \
-        "$versions_name" \
-        "$indexes_name" \
-        preferred \
-        "$result_name" \
-        "$index_name"; then
-      return 0
-    fi
-
-    warn "edition '$EDITION' is not supported by this image, using automatic selection instead."
-  fi
-
-  if [ -n "$suggested" ]; then
-
-    preferred=("$suggested")
-
-    if selectVersion \
-        "$versions_name" \
-        "$indexes_name" \
-        preferred \
-        "$result_name" \
-        "$index_name"; then
-      return 0
-    fi
-  fi
-
-  # First try each canonical Server edition in its configured order.
-  preferred=()
-
-  for entry in "${SERVER_EDITION_ORDER[@]}"; do
-
-    IFS='|' read -r suffix priority patterns <<< "$entry"
+    IFS='|' read -r suffix priority _ <<< "$entry"
 
     for base in "${bases_ref[@]}"; do
       preferred+=("$base$suffix")
@@ -457,13 +362,13 @@ selectServerVersion() {
     return 0
   fi
 
-  # Then try future or noncanonical editions from the same preference groups.
+  # Then try noncanonical editions from the same preference groups.
   preferred=()
   seen=()
 
-  for entry in "${SERVER_EDITION_ORDER[@]}"; do
+  for entry in "${order_ref[@]}"; do
 
-    IFS='|' read -r suffix priority patterns <<< "$entry"
+    IFS='|' read -r suffix priority _ <<< "$entry"
 
     [[ -v "seen[$priority]" ]] && continue
     seen["$priority"]="Y"
@@ -492,6 +397,9 @@ detectVersion() {
   local -n result_ref="$result_name"
   local -n index_ref="$index_name"
 
+  local order_name="EDITION_ORDER"
+  local normalize_name="normalizeEditionID"
+
   local -a bases=()
   local -a groups=()
   local -a versions=()
@@ -511,26 +419,21 @@ detectVersion() {
 
   case "${bases[0],,}" in
     "win20"* )
-      selectServerVersion \
-        versions \
-        bases \
-        groups \
-        image_indexes \
-        "$suggested" \
-        "$result_name" \
-        "$index_name" && return 0
-      ;;
-    * )
-      selectClientVersion \
-        versions \
-        bases \
-        groups \
-        image_indexes \
-        "$suggested" \
-        "$result_name" \
-        "$index_name" && return 0
+      order_name="SERVER_EDITION_ORDER"
+      normalize_name="normalizeServerEditionID"
       ;;
   esac
+
+  selectEditionVersion \
+    versions \
+    bases \
+    groups \
+    image_indexes \
+    "$suggested" \
+    "$result_name" \
+    "$index_name" \
+    "$normalize_name" \
+    "$order_name" && return 0
 
   result_ref="${versions[0]}"
 
