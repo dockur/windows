@@ -430,7 +430,7 @@ detectVersion() {
       ;;
   esac
 
-  selectEditionVersion \
+  selectEdition \
     versions \
     bases \
     groups \
