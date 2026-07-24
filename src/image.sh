@@ -174,7 +174,7 @@ selectVersion() {
 
   local name id base prefer match
   local priority actual edition i
-  local tried=""
+  local suffix tried=""
 
   local -a versions=()
   local -a bases=()
@@ -189,6 +189,17 @@ selectVersion() {
     "home"
     "starter"
     "hv"
+  )
+  local -a suffixes=(
+    "-enterprise"
+    "-ultimate"
+    ""
+    "-iot"
+    "-ltsc"
+    "-education"
+    "-home"
+    "-starter"
+    "-hv"
   )
 
   while IFS= read -r name; do
@@ -257,9 +268,21 @@ selectVersion() {
     fi
   fi
 
-  # Preserve the existing preference for Enterprise, Ultimate, and the
-  # normal Pro/Professional/Business edition. Dynamic edition IDs are grouped
-  # with their corresponding selection family.
+  # Prefer the normal edition within each selection family. hasVersion()
+  # still allows its Evaluation counterpart when the normal variant is absent.
+  for suffix in "${suffixes[@]}"; do
+    for base in "${bases[@]}"; do
+      prefer="$base$suffix"
+
+      if match=$(hasVersion "$prefer" "${versions[@]}"); then
+        echo "$match"
+        return 0
+      fi
+    done
+  done
+
+  # When the normal edition is absent, select another compatible member of
+  # that family, such as N, Workstations, or a future dynamic variant.
   for priority in "${priorities[@]}"; do
     for (( i=0; i<${#versions[@]}; i++ )); do
       [[ "${groups[$i]}" == "$priority" ]] || continue
