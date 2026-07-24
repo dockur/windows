@@ -235,15 +235,33 @@ validateDomainName() {
   return 0
 }
 
+markGeneratedXML() {
+
+  local file="$1"
+  local marker='<!-- generated-answer-file: do not reuse as a template -->'
+
+  [ -s "$file" ] || return 1
+
+  if head -n 1 "$file" | grep -q '^<?xml'; then
+    sed -i "1a$marker" "$file" || return 1
+  else
+    sed -i "1i$marker" "$file" || return 1
+  fi
+
+  return 0
+}
+
 removeGeneratedXML() {
 
   local file="$1"
-  local marker="${file}.generated"
 
   [ -n "$file" ] || return 0
-  [ -f "$marker" ] || return 0
+  [ -f "$file" ] || return 0
 
-  if ! rm -f "$file" "$marker"; then
+  head -n 5 "$file" |
+    grep -Fqi 'generated-answer-file' || return 0
+
+  if ! rm -f "$file"; then
     error "Failed to remove generated answer file: $file"
     return 1
   fi
@@ -263,6 +281,8 @@ generateEvalXML() {
   local index="$detected_index" tmp
 
   [[ "${id,,}" == *"-eval" ]] || return 1
+
+  removeGeneratedXML "$source" || return 1
   [ -s "$source" ] || return 1
 
   if [ -n "$index" ] && [[ ! "$index" =~ ^[1-9][0-9]*$ ]]; then
@@ -323,14 +343,15 @@ generateEvalXML() {
     fi
   fi
 
-  if ! xmllint --nonet --noout "$tmp"; then
+  if ! markGeneratedXML "$tmp" ||
+    ! xmllint --nonet --noout "$tmp"; then
     rm -f "$tmp"
     error "Generated evaluation answer file is invalid!"
     return 1
   fi
 
-  if ! chmod 644 "$tmp" || ! touch "$target.generated" || ! mv -f "$tmp" "$target"; then
-    rm -f "$tmp" "$target.generated"
+  if ! chmod 644 "$tmp" || ! mv -f "$tmp" "$target"; then
+    rm -f "$tmp"
     error "Failed to create evaluation answer file: $target"
     return 1
   fi
@@ -350,6 +371,8 @@ generateFallbackXML() {
   local tmp
 
   [ "$source" != "$target" ] || return 1
+
+  removeGeneratedXML "$source" || return 1
   [ -s "$source" ] || return 1
 
   if [ -n "$index" ] && [[ ! "$index" =~ ^[1-9][0-9]*$ ]]; then
@@ -389,14 +412,15 @@ generateFallbackXML() {
     fi
   fi
 
-  if ! xmllint --nonet --noout "$tmp"; then
+  if ! markGeneratedXML "$tmp" ||
+    ! xmllint --nonet --noout "$tmp"; then
     rm -f "$tmp"
     error "Generated fallback answer file is invalid!"
     return 1
   fi
 
-  if ! chmod 644 "$tmp" || ! touch "$target.generated" || ! mv -f "$tmp" "$target"; then
-    rm -f "$tmp" "$target.generated"
+  if ! chmod 644 "$tmp" || ! mv -f "$tmp" "$target"; then
+    rm -f "$tmp"
     error "Failed to create fallback answer file: $target"
     return 1
   fi
