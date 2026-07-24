@@ -1353,9 +1353,9 @@ getLink3() {
       url="W11x64_26200.6584/26200.6584.250915-1905.25h2_ge_release_svc_refresh_CLIENT_CONSUMER_x64FRE_en-us.iso"
       ;;
     "win11x64-enterprise" )
-      size=7620513792
-      sum="2b65df49334b64e9341dc404e9c527bf1b2a9a105e95314a347fd29ac9900581"
-      url="massgrave.dev-windows-x64-and-x86-archive/en-us_windows_11_business_editions_version_25h2_x64_dvd_41c521e7.iso"
+      size=6209064960
+      sum="c8dbc96b61d04c8b01faf6ce0794fdf33965c7b350eaa3eb1e6697019902945c"
+      url="Windows11Enterprise23H2x64/22631.2428.231001-0608.23H2_NI_RELEASE_SVC_REFRESH_CLIENTENTERPRISEEVAL_OEMRET_x64FRE_en-us.iso"
       ;;
     "win11x64-ltsc" | "win11x64-enterprise-ltsc" )
       size=5144817664
@@ -1395,17 +1395,17 @@ getLink3() {
     "win2025" )
       size=8145395712
       sum="f3e277e75acdb793e6f08f4880b514ae0046cedf618c22f727890e54367075e6"
-      url="massgrave.dev-windows-x64-and-x86-archive/en-us_windows_server_2025_updated_dec_2025_x64_dvd_c54ab58b.iso"
+      url="en-us_windows_server_2025_updated_dec_2025_x64_dvd_c54ab58b/en-us_windows_server_2025_updated_dec_2025_x64_dvd_c54ab58b.iso"
       ;;
     "win2022" )
-      size=6023239680
-      sum="5d6d91efa972cbdd6701d78db1dcf6a34c7024ca931c1718e7cb3d0c6dd54e88"
-      url="massgrave.dev-windows-x64-and-x86-archive/en-us_windows_server_2022_updated_oct_2025_x64_dvd_26e9af36.iso"
+      size=5550684160
+      sum="5a077ee2a95976ef9f3623eb4040e25cdf7f8f01dee3b8165a32a7626f39f025"
+      url="en-us_windows_server_2022_x64_dvd_620d7eac_202405/en-us_windows_server_2022_x64_dvd_620d7eac.iso"
       ;;
     "win2019" )
       size=5651695616
       sum="ea247e5cf4df3e5829bfaaf45d899933a2a67b1c700a02ee8141287a8520261c"
-      url="massgrave.dev-windows-x64-and-x86-archive/en-us_windows_server_2019_x64_dvd_f9475476.iso"
+      url="en-us_windows_server_2019_x64_dvd_f9475476_202603/en-us_windows_server_2019_x64_dvd_f9475476.iso"
       ;;
     "win2016" )
       size=6006587392
@@ -1475,7 +1475,7 @@ getLink3() {
     "winxpx86" )
       size=617756672
       sum="62b6c91563bad6cd12a352aa018627c314cfc5162d8e9f8af0756a642e602a46"
-      url="XPPRO_SP3_ENU/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
+      url="en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428/en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
       ;;
     "win2kx86" )
       size=386859008
