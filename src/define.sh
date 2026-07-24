@@ -759,20 +759,6 @@ normalizeEditionID() {
   esac
 
   case "${id,,}" in
-    "winvista"* )
-      case "$edition" in
-        "business" )
-          edition="" ;;
-        "home-basic" | "home-premium" )
-          edition="home" ;;
-      esac
-      ;;
-    "win7"* )
-      case "$edition" in
-        "home-basic" | "home-premium" )
-          edition="home" ;;
-      esac
-      ;;
     "win10"* | "win11"* )
       case "$edition" in
         "iot-enterprise-ltsc" | \
