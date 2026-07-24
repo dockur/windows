@@ -471,18 +471,60 @@ jobs:
             local directory
             local file
             local i
+            local client
 
             directory="$RUNNER_TEMP/output/screenshots"
             mkdir -p "$directory"
 
-            for i in $(seq -w 1 100); do
-              file="screen-$i.ppm"
+            if ! docker exec "$CONTAINER" \
+              test -S /run/shm/monitor.sock; then
+              echo "QEMU monitor socket does not exist." |
+                tee "$directory/error.log"
+              return
+            fi
+
+            if docker exec "$CONTAINER" \
+              command -v socat > /dev/null 2>&1; then
+              client="socat"
+            elif docker exec "$CONTAINER" \
+              sh -c 'nc -h 2>&1 | grep -q -- "-U"'; then
+              client="nc"
+            else
+              echo "Neither socat nor Unix-socket capable nc is available." |
+                tee "$directory/error.log"
 
               docker exec "$CONTAINER" \
-                sh -c \
-                "printf 'screendump /storage/$file\n' |
-                  socat - UNIX-CONNECT:/run/shm/monitor.sock" \
-                2>/dev/null || true
+                sh -c '
+                  command -v socat || true
+                  command -v nc || true
+                  ls -l /run/shm/monitor.sock || true
+                ' >> "$directory/error.log" 2>&1
+
+              return
+            fi
+
+            echo "Using $client for QEMU monitor access."
+
+            for i in $(seq -w 1 25); do
+              file="screen-$i.ppm"
+
+              case "$client" in
+                socat)
+                  docker exec "$CONTAINER" \
+                    sh -c \
+                    "printf 'screendump /storage/$file\nquit\n' |
+                      socat - UNIX-CONNECT:/run/shm/monitor.sock" \
+                    >> "$directory/capture.log" 2>&1 || true
+                  ;;
+
+                nc)
+                  docker exec "$CONTAINER" \
+                    sh -c \
+                    "printf 'screendump /storage/$file\nquit\n' |
+                      nc -U /run/shm/monitor.sock" \
+                    >> "$directory/capture.log" 2>&1 || true
+                  ;;
+              esac
 
               if [[ -s "$RUNNER_TEMP/storage/$file" ]]; then
                 mv \
