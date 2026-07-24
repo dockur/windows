@@ -8,13 +8,24 @@ getPlatform() {
   local platform="x64"
   local arch
 
-  arch=$(sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml")
+  local -a arches=()
 
-  case "${arch,,}" in
-    "0" ) platform="x86" ;;
-    "9" ) platform="x64" ;;
-    "12" ) platform="arm64" ;;
-  esac
+  mapfile -t arches < <(
+    sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml" |
+      sort -u
+  )
+
+  if [ "${#arches[@]}" -gt 1 ]; then
+    platform="mixed"
+  elif [ "${#arches[@]}" -eq 1 ]; then
+    arch="${arches[0]}"
+
+    case "${arch,,}" in
+      "0" ) platform="x86" ;;
+      "9" ) platform="x64" ;;
+      "12" ) platform="arm64" ;;
+    esac
+  fi
 
   echo "$platform"
   return 0
@@ -31,6 +42,10 @@ checkPlatform() {
     "x86" ) compat="x64" ;;
     "x64" ) compat="$platform" ;;
     "arm64" ) compat="$platform" ;;
+    "mixed" )
+      error "Windows images with mixed architectures are not supported!"
+      return 1
+      ;;
     * ) compat="${PLATFORM,,}" ;;
   esac
 
