@@ -950,10 +950,14 @@ getVersion() {
 
 switchEdition() {
 
-  local id="$1"
+  local -n id="$1"
 
-  if [[ "${id,,}" == *"-eval" ]] && ! enabled "${DETECTED_ORG:-}"; then
-    DETECTED="${SUGGEST:-${id::-5}}"
+  [[ "${id,,}" == *"-eval" ]] || return 1
+
+  id="${id::-5}"
+
+  if ! enabled "${DETECTED_ORG:-}"; then
+    DETECTED="${SUGGEST:-$id}"
   fi
 
   return 0
