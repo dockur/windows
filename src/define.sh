@@ -920,6 +920,32 @@ getServerEditionID() {
   return 0
 }
 
+getVersionPriority() {
+
+  local id="${1%-eval}"
+  local base="$2"
+  local edition="${id#"$base"}"
+  local entry suffix priority patterns pattern
+
+  edition="${edition#-}"
+
+  for entry in "${EDITION_ORDER[@]}"; do
+
+    IFS='|' read -r suffix priority patterns <<< "$entry"
+
+    for pattern in $patterns; do
+      [[ "$edition" == $pattern ]] || continue
+
+      echo "$priority"
+      return 0
+    done
+
+  done
+
+  echo "other"
+  return 0
+}
+
 getVersion() {
 
   local id edition
