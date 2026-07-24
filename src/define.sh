@@ -857,14 +857,37 @@ normalizeServerEditionID() {
 
   edition=$(normalizeEdition "$1")
   edition="${edition#r2-}"
-  edition="${edition%-desktop-experience}"
+
+  case "$edition" in
+    *"-desktop-experience" )
+      edition="${edition%-desktop-experience}"
+      ;;
+    *"-server-core-installation" )
+      edition="${edition%-server-core-installation}"
+      ;;
+    *"-server-with-a-gui" )
+      edition="${edition%-server-with-a-gui}"
+      ;;
+    *"-full-installation" )
+      edition="${edition%-full-installation}"
+      ;;
+    *"-core-installation" )
+      edition="${edition%-core-installation}"
+      ;;
+  esac
 
   case "$edition" in
     "" | \
     "standard" | "standard-core" | \
     "serverstandard" | "serverstandardcore" | \
     "datacenter" | "datacenter-core" | \
-    "serverdatacenter" | "serverdatacentercore" )
+    "serverdatacenter" | "serverdatacentercore" | \
+    "enterprise" | "enterprise-core" | \
+    "serverenterprise" | "serverenterprisecore" | \
+    "web" | "web-core" | \
+    "serverweb" | "serverwebcore" | \
+    "foundation" | "serverfoundation" | \
+    "essentials" | "serveressentials" )
       edition=""
       ;;
   esac
