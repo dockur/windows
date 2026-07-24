@@ -742,6 +742,58 @@ normalizeEdition() {
   return 0
 }
 
+normalizeEditionID() {
+
+  local edition
+  local id="$2"
+
+  edition=$(normalizeEdition "$1")
+
+  case "$edition" in
+    "pro" | "professional" )
+      edition=""
+      ;;
+    "pro-n" | "professional-n" )
+      edition="n"
+      ;;
+  esac
+
+  case "${id,,}" in
+    "winvista"* )
+      case "$edition" in
+        "business" )
+          edition=""
+          ;;
+        "home-basic" | "home-premium" )
+          edition="home"
+          ;;
+      esac
+      ;;
+    "win7"* )
+      case "$edition" in
+        "home-basic" | "home-premium" )
+          edition="home"
+          ;;
+      esac
+      ;;
+    "win10"* | "win11"* )
+      case "$edition" in
+        "iot-enterprise-ltsc" | \
+        "iot-enterprise-ltsc-"[0-9][0-9][0-9][0-9] )
+          edition="iot"
+          ;;
+        "enterprise-ltsc" | \
+        "enterprise-ltsc-"[0-9][0-9][0-9][0-9] )
+          edition="ltsc"
+          ;;
+      esac
+      ;;
+  esac
+
+  echo "$edition"
+  return 0
+}
+
 getEditionID() {
 
   local name="${1,,}"
@@ -773,48 +825,7 @@ getEditionID() {
       ;;
   esac
 
-  edition=$(normalizeEdition "$edition")
-
-  case "$edition" in
-    "pro" | "professional" )
-      edition=""
-      ;;
-    "pro-n" | "professional-n" )
-      edition="n"
-      ;;
-  esac
-
-  case "$id" in
-    "winvista"* )
-      case "$edition" in
-        "business" )
-          edition=""
-          ;;
-        "home-basic" | "home-premium" )
-          edition="home"
-          ;;
-      esac
-      ;;
-    "win7"* )
-      case "$edition" in
-        "home-basic" | "home-premium" )
-          edition="home"
-          ;;
-      esac
-      ;;
-    "win10"* | "win11"* )
-      case "$edition" in
-        "iot-enterprise-ltsc" | \
-        "iot-enterprise-ltsc-"[0-9][0-9][0-9][0-9] )
-          edition="iot"
-          ;;
-        "enterprise-ltsc" | \
-        "enterprise-ltsc-"[0-9][0-9][0-9][0-9] )
-          edition="ltsc"
-          ;;
-      esac
-      ;;
-  esac
+  edition=$(normalizeEditionID "$edition" "$id")
 
   echo "$edition"
   return 0
