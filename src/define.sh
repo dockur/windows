@@ -1366,7 +1366,7 @@ getLink3() {
     "win10x64" | "win10x64-enterprise" )
       size=6985445376
       sum="2c23bc8b95a9314f15ebff881dcbea49651f52a96a0327d7aaf523aa66043765"
-      url="windows_10_version_2004/Windows%2010%2C%20version%2022H2/Updated%20October%202025%20%2819045.6456%29/en-us_windows_10_business_editions_version_22h2_updated_oct_2025_x64_dvd_d2eef4b0.iso"
+      url="windows-10-business-editions-version-22h2-updated-oct-2025-en-us/en-us_windows_10_business_editions_version_22h2_updated_oct_2025_x64_dvd_d2eef4b0.iso"
       ;;
     "win10x64-ltsc" | "win10x64-enterprise-ltsc" )
       size=4899461120
