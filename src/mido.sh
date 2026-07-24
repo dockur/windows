@@ -1089,9 +1089,7 @@ downloadImage() {
     fi
   fi
 
-  switchEdition "$version"
-
-  if [[ "${version,,}" == *"-eval" ]] && ! enabled "${DETECTED_ORG:-}"; then
+  if switchEdition version; then
 
     desc=$(printVariant "$DETECTED" "" "Y")
     web_desc=$(printVariant "$DETECTED" "")
