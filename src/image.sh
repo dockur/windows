@@ -112,8 +112,8 @@ getVersionPriority() {
   local id="${1,,}"
   local base="${2,,}"
   local order_name="EDITION_ORDER"
-  local edition entry priority patterns pattern
-  local result="other" prefix score best_score=-1
+  local entry priority patterns pattern
+  local result="other" score best_score=-1
 
   id="${id%-eval}"
 
@@ -125,7 +125,7 @@ getVersionPriority() {
 
   local -n order_ref="$order_name"
 
-  edition="${id#"$base"}"
+  local edition="${id#"$base"}"
   edition="${edition#-}"
 
   # Use the most specific matching pattern. This prevents broad patterns
@@ -140,7 +140,7 @@ getVersionPriority() {
         [ -z "$edition" ] || continue
         score=1
       elif [[ "$pattern" == *"*" ]]; then
-        prefix="${pattern%\*}"
+        local prefix="${pattern%\*}"
         [[ "$edition" == "$prefix"* ]] || continue
         score="${#pattern}"
       elif [ "$edition" = "$pattern" ]; then
@@ -174,10 +174,10 @@ getVersions() {
   local -n groups_ref="$groups_name"
   local -n indexes_ref="$indexes_name"
 
-  local count i image_index
-  local display product image platform
-  local edition_id install_type flags
-  local candidate candidate_id candidate_base key
+  local count image image_index
+  local display product platform
+  local edition_id install_type
+  local candidate flags i
 
   versions_ref=()
   bases_ref=()
@@ -198,8 +198,8 @@ getVersions() {
     flags=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/FLAGS)" - 2>/dev/null <<< "$xml") || flags=""
 
     [ -n "$image_index" ] || continue
-    candidate_id=""
-    candidate_base=""
+    local candidate_id=""
+    local candidate_base=""
 
     # NAME normally contains the most precise edition identifier (including
     # Server Core), while DISPLAYNAME is the best fallback for other images.
@@ -220,7 +220,7 @@ getVersions() {
       continue
     fi
 
-    key="${candidate_id,,}"
+    local key="${candidate_id,,}"
 
     # Some client media use the same friendly name-derived ID for distinct
     # editions. Preserve the established unsuffixed Pro ID, and use the
@@ -279,7 +279,7 @@ selectVersion() {
   local -n selected_version="$result_name"
   local -n selected_image_index="$index_name"
 
-  local wanted candidate match key
+  local wanted candidate match
   local -a candidates=()
 
   for wanted in "${preference_list[@]}"; do
@@ -292,7 +292,7 @@ selectVersion() {
       match=$(hasVersion "$candidate" "${version_list[@]}") || continue
       hasAnswerFile "$match" || continue
 
-      key="${match,,}"
+      local key="${match,,}"
       selected_version="$match"
       selected_image_index="${index_map[$key]}"
       return 0
@@ -465,7 +465,7 @@ detectLanguage() {
 
   local xml="$1"
   local index="${2:-}"
-  local xpath lang=""
+  local xpath lang
 
   if [[ "$index" =~ ^[0-9]+$ ]]; then
     xpath="string((/WIM/IMAGE[@INDEX='$index']/WINDOWS/LANGUAGES/DEFAULT | /WIM/IMAGE[@INDEX='$index']/WINDOWS/LANGUAGES/FALLBACK/DEFAULT)[1])"
