@@ -804,7 +804,7 @@ checkBatch() {
   fi
 
   local source="your install.bat file"
-  [ -n "${COMMAND:-}" && source="your COMMAND variable"
+  [ -n "${COMMAND:-}" ] && source="your COMMAND variable"
 
   # First pass: silently check only for Error-level findings.
   cat > "$tmp/blinter.ini" <<'EOF'
