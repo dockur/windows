@@ -2,6 +2,8 @@ name: Links
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
 
 concurrency:
   group: links
@@ -22,29 +24,63 @@ jobs:
         with:
           fetch-depth: 0
       -
-        name: Validate Links
+        name: Validate all download mirrors
+        id: validate
         run: |
           errors=0
-          count=0
+          skipped=0
+          tested=0
           host=""
+          failed_links=""
+          failed_links_html=""
           declare -A seen
+
+          ignored_domains=(
+            files.dog
+            bobpony.com
+          )
+
           wget https://github.com/lwthiker/curl-impersonate/releases/download/v0.6.1/curl-impersonate-v0.6.1.x86_64-linux-gnu.tar.gz
           tar -xzf curl-impersonate-v0.6.1.x86_64-linux-gnu.tar.gz
           sudo cp curl-impersonate-ff /usr/local/bin/
+
           check() {
             local url="$1" http
+
             http=$(curl-impersonate-ff -sSL -o /dev/null -w "%{http_code}" --max-time 10 -I -- "$url" 2>&1) || http="000"
             [[ "$http" == 2* ]] && return 0
+
             http=$(curl-impersonate-ff -sSL -o /dev/null -w "%{http_code}" --max-time 10 -r "0-0" -- "$url" 2>&1) || http="000"
             [[ "$http" == 2* ]]
           }
+
+          isIgnoredDomain() {
+            local url="$1"
+            local domain ignored
+
+            domain="${url#*://}"
+            domain="${domain%%/*}"
+            domain="${domain%%:*}"
+            domain="${domain,,}"
+
+            for ignored in "${ignored_domains[@]}"; do
+              if [[ "$domain" == "$ignored" || "$domain" == *."$ignored" ]]; then
+                return 0
+              fi
+            done
+
+            return 1
+          }
+
           while IFS= read -r line; do
             if [[ "$line" =~ ^[[:space:]]*local[[:space:]]+host=\"(https://[^\"]+)\" ]]; then
               host="${BASH_REMATCH[1]%/}"
               continue
             fi
+
             [[ "$line" =~ ^[[:space:]]*url=\"(.+)\" ]] || continue
             val="${BASH_REMATCH[1]#/}"
+
             if [[ "$val" == https://* ]]; then
               url="$val"
             elif [[ -n "$host" ]]; then
@@ -52,16 +88,82 @@ jobs:
             else
               continue
             fi
+
             [[ -v seen[$url] ]] && continue
             seen[$url]=1
-            count=$((count + 1))
+
+            if isIgnoredDomain "$url"; then
+              echo "SKIP: $url (ignored domain)"
+              skipped=$((skipped + 1))
+              continue
+            fi
+
+            tested=$((tested + 1))
+
             if check "$url"; then
               echo "  OK: $url"
             else
               echo "FAIL: $url"
               errors=$((errors + 1))
+              failed_links+="$url"$'\n'
+              failed_links_html+="<li><a href=\"$url\">$url</a></li>"$'\n'
             fi
           done < "src/define.sh"
+
           echo ""
-          printf '%d/%d links valid\n' "$(( count - errors ))" "$count"
-          (( errors == 0 ))
+          printf '%d/%d tested links valid\n' "$((tested - errors))" "$tested"
+
+          if (( skipped > 0 )); then
+            printf '%d link(s) skipped for ignored domains\n' "$skipped"
+          fi
+
+          if (( errors > 0 )); then
+            printf '%d blocking failure(s)\n' "$errors"
+
+            {
+              echo "failed=true"
+              echo "links<<EOF"
+              printf '%s' "$failed_links"
+              echo "EOF"
+              echo "html_links<<EOF"
+              printf '%s' "$failed_links_html"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "failed=false" >> "$GITHUB_OUTPUT"
+          fi
+      -
+        name: Send mail
+        if: steps.validate.outputs.failed == 'true'
+        uses: action-pack/send-mail@v1
+        with:
+          to: ${{secrets.MAILTO}}
+          from: Github Actions <${{secrets.MAILTO}}>
+          connection_url: ${{secrets.MAIL_CONNECTION}}
+          subject: Mirror verification failed!
+          body: |
+            Mirror verification failed!
+
+            The following links failed:
+
+            ${{ steps.validate.outputs.links }}
+
+            See https://github.com/${{ github.repository }}/actions for more information.
+          html_body: |
+            <p>Mirror verification failed!</p>
+
+            <p>The following links failed:</p>
+
+            <ul>
+            ${{ steps.validate.outputs.html_links }}
+            </ul>
+
+            <p>
+              See
+              <a href="https://github.com/${{ github.repository }}/actions">GitHub Actions</a>
+              for more information.
+            </p>
+      -
+        name: Fail workflow
+        if: always() && steps.validate.outputs.failed == 'true'
+        run: exit 1
