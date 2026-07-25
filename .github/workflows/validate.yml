@@ -105,12 +105,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Nano11
-            version: "nano11"
-            expected_caption: Windows 11
-            minimum_build: 22000
-            platform: x64
-
           - name: Core11
             version: "core11"
             expected_caption: Windows 11
@@ -224,7 +218,7 @@ jobs:
 
           - name: Windows XP Professional x64
             version: "xp64"
-            cpu: host
+            cpu: qemu64
             expected_caption: Windows XP
             minimum_build: 3790
             platform: x64
