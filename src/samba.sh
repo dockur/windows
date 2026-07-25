@@ -24,20 +24,26 @@ configureNetwork() {
     hostname="$UPLINK"
     interfaces="$DEV"
 
-    return 0
-  fi
-
-  hostname="host.lan"
-
-  if isUserMode; then
-    interfaces="lo"
   else
-    interfaces="$BRIDGE"
+
+    hostname="host.lan"
+
+    if isUserMode; then
+      interfaces="lo"
+    else
+      interfaces="$BRIDGE"
+    fi
+
+    if [ -n "${SAMBA_INTERFACE:-}" ]; then
+      interfaces+=",$SAMBA_INTERFACE"
+    fi
+
   fi
 
-  if [ -n "${SAMBA_INTERFACE:-}" ]; then
-    interfaces+=",$SAMBA_INTERFACE"
-  fi
+  netbios="${hostname%%.*}"
+  netbios="${netbios:0:15}"
+
+  [ -z "$netbios" ] && netbios="host"
 
   return 0
 }
@@ -145,7 +151,7 @@ writeConfig() {
   if ! {
     echo "[global]"
     echo "    server string = Dockur"
-    echo "    netbios name = $hostname"
+    echo "    netbios name = $netbios"
     echo "    workgroup = WORKGROUP"
     echo "    interfaces = $interfaces"
     echo "    bind interfaces only = yes"
