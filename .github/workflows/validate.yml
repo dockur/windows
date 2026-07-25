@@ -7,13 +7,6 @@ on:
 
   workflow_dispatch:
 
-  push:
-    branches:
-      - test
-    paths:
-      - ".github/workflows/install.yml"
-      - ".github/workflows/validate.yml"
-
 permissions:
   contents: read
 
@@ -211,7 +204,7 @@ jobs:
 
           - name: Windows XP Professional
             version: "xp"
-            cpu: qemu32 # Remove after 6.03
+            cpu: host
             expected_caption: Windows XP
             minimum_build: 2600
             platform: x86
@@ -252,92 +245,5 @@ jobs:
       callback: legacy
       cpu: ${{ matrix.cpu }}
       expected_caption: ${{ matrix.expected_caption }}
-      minimum_build: ${{ matrix.minimum_build }}
-      platform: ${{ matrix.platform }}
-
-  arm:
-    if: false
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Windows 11 Pro ARM64
-            version: "11"
-            expected_caption: Windows 11
-            expected_edition: Professional
-            minimum_build: 22000
-            platform: arm64
-
-          - name: Windows 11 Enterprise ARM64
-            version: "11e"
-            expected_caption: Windows 11
-            expected_edition: Enterprise
-            minimum_build: 22000
-            platform: arm64
-
-          - name: Windows 11 LTSC ARM64
-            version: "11l"
-            expected_caption: Windows 11
-            expected_edition: EnterpriseS
-            minimum_build: 26100
-            platform: arm64
-
-          - name: Windows 11 IoT Enterprise ARM64
-            version: "11i"
-            expected_caption: Windows 11
-            expected_edition: IoTEnterpriseS
-            minimum_build: 26100
-            platform: arm64
-
-          - name: Windows 10 Pro ARM64
-            version: "10"
-            expected_caption: Windows 10
-            expected_edition: Professional
-            minimum_build: 10240
-            platform: arm64
-
-          - name: Windows 10 Enterprise ARM64
-            version: "10e"
-            expected_caption: Windows 10
-            expected_edition: Enterprise
-            minimum_build: 10240
-            platform: arm64
-
-          - name: Windows 10 LTSC ARM64
-            version: "10l"
-            expected_caption: Windows 10
-            expected_edition: EnterpriseS
-            minimum_build: 17763
-            platform: arm64
-
-          - name: Windows 10 IoT Enterprise ARM64
-            version: "10i"
-            expected_caption: Windows 10
-            expected_edition: IoTEnterpriseS
-            minimum_build: 19044
-            platform: arm64
-
-          - name: Tiny11 ARM64
-            version: "tiny11"
-            expected_caption: Windows 11
-            expected_edition: ""
-            minimum_build: 22000
-            platform: arm64
-
-          - name: Core11 ARM64
-            version: "core11"
-            expected_caption: Windows 11
-            expected_edition: ""
-            minimum_build: 22000
-            platform: arm64
-
-    name: ${{ matrix.name }}
-    uses: ./.github/workflows/install.yml
-    with:
-      name: ${{ matrix.name }}
-      version: ${{ matrix.version }}
-      runner: ubuntu-24.04-arm
-      expected_caption: ${{ matrix.expected_caption }}
-      expected_edition: ${{ matrix.expected_edition }}
       minimum_build: ${{ matrix.minimum_build }}
       platform: ${{ matrix.platform }}
