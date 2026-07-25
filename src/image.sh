@@ -412,8 +412,6 @@ detectVersion() {
   local suggested="${2:-}"
   local result_name="$3"
   local index_name="$4"
-  local -n result_ref="$result_name"
-  local -n index_ref="$index_name"
 
   local order_name="EDITION_ORDER"
   local normalize_name="normalizeEditionID"
@@ -423,8 +421,8 @@ detectVersion() {
   local -a versions=()
   local -A image_indexes=()
 
-  result_ref=""
-  index_ref=""
+  printf -v "$result_name" '%s' ""
+  printf -v "$index_name" '%s' ""
 
   getVersions \
     "$xml" \
@@ -453,10 +451,11 @@ detectVersion() {
     "$normalize_name" \
     "$order_name" && return 0
 
-  result_ref="${versions[0]}"
+  local result="${versions[0]}"
+  local key="${result,,}"
 
-  local key="${result_ref,,}"
-  index_ref="${image_indexes[$key]}"
+  printf -v "$result_name" '%s' "$result"
+  printf -v "$index_name" '%s' "${image_indexes[$key]}"
 
   return 0
 }
@@ -608,9 +607,9 @@ setImage() {
 findImage() {
 
   local dir="$1"
-  local -n result_ref="$2"
+  local result_name="$2"
 
-  local src
+  local src result
   src=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
 
   if [ ! -d "$src" ]; then
@@ -618,23 +617,25 @@ findImage() {
     return 1
   fi
 
-  result_ref=$(find "$src" -maxdepth 1 -type f \
+  result=$(find "$src" -maxdepth 1 -type f \
     \( -iname install.wim -or -iname install.esd \) -print -quit)
 
-  if [ ! -f "$result_ref" ]; then
+  if [ ! -f "$result" ]; then
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
     return 1
   fi
 
+  printf -v "$result_name" '%s' "$result"
   return 0
 }
 
 readImageInfo() {
 
   local wim="$1"
-  local -n result_ref="$2"
+  local result_name="$2"
+  local result
 
-  result_ref=$(wimlib-imagex info -xml "$wim" |
+  result=$(wimlib-imagex info -xml "$wim" |
     iconv -f UTF-16LE -t UTF-8) || {
     local rc=$?
 
@@ -646,6 +647,7 @@ readImageInfo() {
     return 1
   }
 
+  printf -v "$result_name" '%s' "$result"
   return 0
 }
 
@@ -695,18 +697,20 @@ describeImage() {
 
   local info_xml="$1"
   local index="$2"
-  local -n result_ref="$3"
+  local result_name="$3"
+  local result
 
-  result_ref=$(printEdition "$DETECTED" "$DETECTED" "Y")
+  result=$(printEdition "$DETECTED" "$DETECTED" "Y")
 
   detectLanguage "$info_xml" "$index"
 
   if [[ "${LANGUAGE,,}" != "en" && "${LANGUAGE,,}" != "en-"* ]]; then
     local language
     language=$(getLanguage "$LANGUAGE" "desc")
-    result_ref+=" ($language)"
+    result+=" ($language)"
   fi
 
+  printf -v "$result_name" '%s' "$result"
   return 0
 }
 
