@@ -969,112 +969,93 @@ validateLegacyUsername() {
   return 0
 }
 
-legacyInstall() {
+addLegacyDrivers() {
 
-  local dir="$2"
-  local desc="$3"
-  local driver="$4"
-  local drivers="/tmp/drivers"
-  local file shortcut="Y"
+  local dir="$1"
+  local target="$2"
+  local driver="$3"
+  local arch="$4"
+  local drivers="$5"
+  local file
+  local msg="Adding drivers to image..."
 
-  if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
-    shortcut="N"
+  info "$msg" && html "$msg"
+
+  rm -rf "$drivers" || return 1
+  mkdir -p "$drivers" || return 1
+
+  if ! bsdtar -xf /var/drivers.txz -C "$drivers"; then
+    error "Failed to extract drivers!" && return 1
   fi
 
-  if [ -n "$DOMAIN" ]; then
-    error "The DOMAIN variable is not supported for $desc!"
-    return 1
+  if [ ! -f "$drivers/viostor/$driver/$arch/viostor.sys" ]; then
+    error "Failed to locate required storage drivers!" && return 1
   fi
 
-  ETFS="[BOOT]/Boot-NoEmul.img"
+  cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$target" || return 1
 
-  if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
-    error "Failed to locate file \"$ETFS\" in $desc ISO image!" && return 1
+  mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
+  cp -L "$drivers/viostor/$driver/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
+  cp -L "$drivers/viostor/$driver/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
+  cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
+
+  if [ ! -f "$drivers/NetKVM/$driver/$arch/netkvm.sys" ]; then
+    error "Failed to locate required network drivers!" && return 1
   fi
 
-  local arch="amd64"
-  [ ! -d "$dir/AMD64" ] && arch="x86"
-  local target="$dir/AMD64"
-  [[ "${arch,,}" == "x86" ]] && target="$dir/I386"
+  mkdir -p "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
+  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
+  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
+  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
 
-  if [ ! -d "$target" ]; then
-    error "Failed to locate directory \"$target\" in $desc ISO image!" && return 1
+  file=$(find "$target" -maxdepth 1 -type f -iname TXTSETUP.SIF -print -quit) || return 1
+
+  if [ -z "$file" ]; then
+    error "The file TXTSETUP.SIF could not be found!" && return 1
   fi
 
-  if [[ "${driver,,}" == "xp" || "${driver,,}" == "2k3" ]]; then
+  sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$file" || return 1
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\nviostor.sys=1,,,,,,4_,4,1,,,1,4/' "$file" || return 1
+  sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device\"/' "$file" || return 1
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$file" || return 1
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00020000=\"viostor\"/' "$file" || return 1
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$file" || return 1
 
-    local msg="Adding drivers to image..."
-    info "$msg" && html "$msg"
-
-    rm -rf "$drivers" || return 1
-    mkdir -p "$drivers" || return 1
-
-    if ! bsdtar -xf /var/drivers.txz -C "$drivers"; then
-      error "Failed to extract drivers!" && return 1
-    fi
-
-    if [ ! -f "$drivers/viostor/$driver/$arch/viostor.sys" ]; then
-      error "Failed to locate required storage drivers!" && return 1
-    fi
-
-    cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$target" || return 1
-
-    mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
-    cp -L "$drivers/viostor/$driver/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
-    cp -L "$drivers/viostor/$driver/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
-    cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
-
-    if [ ! -f "$drivers/NetKVM/$driver/$arch/netkvm.sys" ]; then
-      error "Failed to locate required network drivers!" && return 1
-    fi
-
-    mkdir -p "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
-    cp -L "$drivers/NetKVM/$driver/$arch/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
-    cp -L "$drivers/NetKVM/$driver/$arch/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
-    cp -L "$drivers/NetKVM/$driver/$arch/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
-
-    file=$(find "$target" -maxdepth 1 -type f -iname TXTSETUP.SIF -print -quit) || return 1
-
-    if [ -z "$file" ]; then
-      error "The file TXTSETUP.SIF could not be found!" && return 1
-    fi
-
-    sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$file" || return 1
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\nviostor.sys=1,,,,,,4_,4,1,,,1,4/' "$file" || return 1
-    sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device\"/' "$file" || return 1
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$file" || return 1
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00020000=\"viostor\"/' "$file" || return 1
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$file" || return 1
-
-    if [ ! -d "$drivers/sata/xp/$arch" ]; then
-      error "Failed to locate required SATA drivers!" && return 1
-    fi
-
-    mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata" || return 1
-    cp -Lr "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata" || return 1
-    cp -Lr "$drivers/sata/xp/$arch/." "$target" || return 1
-
-    sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$file" || return 1
-    sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$file" || return 1
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.cat = 1,,,,,,,1,0,0/' "$file" || return 1
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.inf = 1,,,,,,,1,0,0/' "$file" || return 1
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,4_,4,1,,,1,4/' "$file" || return 1
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,,1,0,0/' "$file" || return 1
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaahci.cat = 1,,,,,,,1,0,0/' "$file" || return 1
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaAHCI.inf = 1,,,,,,,1,0,0/' "$file" || return 1
-    sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$file" || return 1
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$file" || return 1
-
-    rm -rf "$drivers" || return 1
-
+  if [ ! -d "$drivers/sata/xp/$arch" ]; then
+    error "Failed to locate required SATA drivers!" && return 1
   fi
 
-  local setup
+  mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata" || return 1
+  cp -Lr "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata" || return 1
+  cp -Lr "$drivers/sata/xp/$arch/." "$target" || return 1
+
+  sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$file" || return 1
+  sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$file" || return 1
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.cat = 1,,,,,,,1,0,0/' "$file" || return 1
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.inf = 1,,,,,,,1,0,0/' "$file" || return 1
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,4_,4,1,,,1,4/' "$file" || return 1
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,,1,0,0/' "$file" || return 1
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaahci.cat = 1,,,,,,,1,0,0/' "$file" || return 1
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaAHCI.inf = 1,,,,,,,1,0,0/' "$file" || return 1
+  sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$file" || return 1
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$file" || return 1
+
+  rm -rf "$drivers" || return 1
+
+  return 0
+}
+
+setLegacyKey() {
+
+  local target="$1"
+  local driver="$2"
+  local arch="$3"
+  local desc="$4"
+  local setup pid key file
+
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini -print -quit) || return 1
 
   if [ -n "$setup" ] && [ -z "$KEY" ]; then
-
-    local pid key
 
     pid=$(<"$setup") || return 1
     pid="${pid%$'\r'}"
@@ -1157,60 +1138,34 @@ legacyInstall() {
 
   fi
 
-  validateProductKey "$KEY" || return 1
+  return 0
+}
 
-  local product=""
-  [ -n "$KEY" ] && product="ProductID=$KEY"
+writeCommand() {
 
-  mkdir -p "$dir/\$OEM\$" || return 1
+  local install="$1"
 
-  if ! addFolder "$dir"; then
-    error "Failed to add OEM folder to image!" && return 1
+  [ ! -f "$install" ] && return 0
+
+  if ! enabled "${LOG:-}"; then
+    printf '%s' "\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat\\\"\""
+  else
+    printf '%s' "\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat > C:\\\\OEM\\\\install.log 2>&1\\\"\""
   fi
 
-  local oem=""
-  local install="$dir/\$OEM\$/\$1/OEM/install.bat"
+  return 0
+}
 
-  if [ -f "$install" ]; then
+writeSIF() {
 
-    if ! enabled "${LOG:-}"; then
-      oem="\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat\\\"\""
-    else
-      oem="\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat > C:\\\\OEM\\\\install.log 2>&1\\\"\""
-    fi
-
-  fi
-
-  [ -z "$WIDTH" ] && WIDTH="1280"
-  [ -z "$HEIGHT" ] && HEIGHT="720"
-
-  validateResolution "WIDTH" "$WIDTH" 320 || return 1
-  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
-  validateMembership || return 1
-  validateComputerName "$HOST" || return 1
-  validateLegacyText "APP" "$APP" "$desc" || return 1
-  validateLegacyText "ENGINE" "$ENGINE" "$desc" || return 1
-
-  XHEX=$(printf '%08x\n' "$((10#$WIDTH))") || return 1
-  YHEX=$(printf '%08x\n' "$((10#$HEIGHT))") || return 1
-
-  local username="${USERNAME:-Docker}"
-  local password="${PASSWORD:-admin}"
-  local workgroup="${WORKGROUP:-WORKGROUP}"
-
-  local sifHost sifUsername sifPassword sifOrganization sifWorkgroup
-  local regUsername regPassword
-
-  validateLegacyUsername "$username" "$desc" || return 1
-  validatePassword "$password" "$desc" || return 1
-
-  sifHost=$(escapeSIFValue "${HOST:-*}") || return 1
-  sifUsername=$(escapeSIFValue "$username") || return 1
-  sifPassword=$(escapeSIFValue "$password") || return 1
-  sifOrganization=$(escapeSIFValue "$APP for $ENGINE") || return 1
-  sifWorkgroup=$(escapeSIFValue "$workgroup") || return 1
-  regUsername=$(escapeRegistryValue "$username") || return 1
-  regPassword=$(escapeRegistryValue "$password") || return 1
+  local target="$1"
+  local driver="$2"
+  local product="$3"
+  local sifHost="$4"
+  local sifUsername="$5"
+  local sifPassword="$6"
+  local sifOrganization="$7"
+  local sifWorkgroup="$8"
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -delete || return 1
 
@@ -1297,6 +1252,17 @@ legacyInstall() {
     } | unix2dos >> "$target/WINNT.SIF" || return 1
   fi
 
+  return 0
+}
+
+writeRegistry() {
+
+  local dir="$1"
+  local shortcut="$2"
+  local oem="$3"
+  local regUsername="$4"
+  local regPassword="$5"
+
   {
     printf '%s\n' \
       'Windows Registry Editor Version 5.00' \
@@ -1360,6 +1326,14 @@ legacyInstall() {
     printf '%s\n' "$oem" ''
   } | unix2dos > "$dir/\$OEM\$/install.reg" || return 1
 
+  return 0
+}
+
+appendRegistry() {
+
+  local dir="$1"
+  local driver="$2"
+
   if [[ "$driver" == "2k" ]]; then
     {
       printf '%s\n' \
@@ -1380,6 +1354,15 @@ legacyInstall() {
         ''
     } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
   fi
+
+  return 0
+}
+
+writeVBS() {
+
+  local dir="$1"
+  local username="$2"
+  local shortcut="$3"
 
   {
     printf '%s\n' \
@@ -1438,6 +1421,8 @@ legacyInstall() {
     fi
   } | unix2dos > "$dir/\$OEM\$/install.vbs" || return 1
 
+  local dir="$1"
+
   {
     printf '%s\n' \
       '[COMMANDS]' \
@@ -1449,49 +1434,109 @@ legacyInstall() {
   return 0
 }
 
-legacyPrepare() {
+legacyInstall() {
 
-  local iso="$1"
   local dir="$2"
   local desc="$3"
+  local driver="$4"
+  local drivers="/tmp/drivers"
+  local shortcut="Y"
 
-  local tmp="$TMP/boot-images"
-  local image="$tmp/eltorito_img1_bios.img"
+  if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
+    shortcut="N"
+  fi
 
-  ETFS="boot.img"
-  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
-
-  rm -f "$dir/$ETFS" || return 1
-  rm -rf "$tmp" || return 1
-
-  LC_ALL=C xorriso \
-      -no_rc \
-      -osirrox on \
-      -indev "$iso" \
-      -extract_boot_images "$tmp" >/dev/null 2>&1 || {
-    local rc=$?
-    rm -rf "$tmp" || true
-
-    (( rc > 128 )) && exit "$rc"
-
-    error "Failed to extract boot image from $desc ISO!"
-    return 1
-  }
-
-  if [ ! -s "$image" ]; then
-    rm -rf "$tmp" || true
-    error "Failed to locate BIOS boot image in $desc ISO!"
+  if [ -n "$DOMAIN" ]; then
+    error "The DOMAIN variable is not supported for $desc!"
     return 1
   fi
 
-  if ! mv -f "$image" "$dir/$ETFS"; then
-    rm -rf "$tmp" || true
-    error "Failed to save boot image from $desc ISO!"
-    return 1
+  ETFS="[BOOT]/Boot-NoEmul.img"
+
+  if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
+    error "Failed to locate file \"$ETFS\" in $desc ISO image!" && return 1
   fi
 
-  rm -rf "$tmp" || return 1
+  local arch="amd64"
+  [ ! -d "$dir/AMD64" ] && arch="x86"
+
+  local target="$dir/AMD64"
+  [[ "${arch,,}" == "x86" ]] && target="$dir/I386"
+
+  if [ ! -d "$target" ]; then
+    error "Failed to locate directory \"$target\" in $desc ISO image!" && return 1
+  fi
+
+  if [[ "${driver,,}" == "xp" || "${driver,,}" == "2k3" ]]; then
+    addLegacyDrivers "$dir" "$target" "$driver" "$arch" "$drivers" || return 1
+  fi
+
+  setLegacyKey "$target" "$driver" "$arch" "$desc" || return 1
+  validateProductKey "$KEY" || return 1
+
+  local product=""
+  [ -n "$KEY" ] && product="ProductID=$KEY"
+
+  mkdir -p "$dir/\$OEM\$" || return 1
+  local install="$dir/\$OEM\$/\$1/OEM/install.bat"
+
+  if ! addFolder "$dir"; then
+    error "Failed to add OEM folder to image!" && return 1
+  fi
+
+  local oem=""
+  oem=$(writeCommand "$install") || return 1
+
+  [ -z "$WIDTH" ] && WIDTH="1280"
+  [ -z "$HEIGHT" ] && HEIGHT="720"
+
+  validateResolution "WIDTH" "$WIDTH" 320 || return 1
+  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
+  validateMembership || return 1
+  validateComputerName "$HOST" || return 1
+  validateLegacyText "APP" "$APP" "$desc" || return 1
+  validateLegacyText "ENGINE" "$ENGINE" "$desc" || return 1
+
+  XHEX=$(printf '%08x\n' "$((10#$WIDTH))") || return 1
+  YHEX=$(printf '%08x\n' "$((10#$HEIGHT))") || return 1
+
+  local username="${USERNAME:-Docker}"
+  local password="${PASSWORD:-admin}"
+  local workgroup="${WORKGROUP:-WORKGROUP}"
+
+  local sifHost sifUsername sifPassword sifOrganization sifWorkgroup
+  local regUsername regPassword
+
+  validateLegacyUsername "$username" "$desc" || return 1
+  validatePassword "$password" "$desc" || return 1
+
+  sifHost=$(escapeSIFValue "${HOST:-*}") || return 1
+  sifUsername=$(escapeSIFValue "$username") || return 1
+  sifPassword=$(escapeSIFValue "$password") || return 1
+  sifOrganization=$(escapeSIFValue "$APP for $ENGINE") || return 1
+  sifWorkgroup=$(escapeSIFValue "$workgroup") || return 1
+  regUsername=$(escapeRegistryValue "$username") || return 1
+  regPassword=$(escapeRegistryValue "$password") || return 1
+
+  writeSIF \
+    "$target" \
+    "$driver" \
+    "$product" \
+    "$sifHost" \
+    "$sifUsername" \
+    "$sifPassword" \
+    "$sifOrganization" \
+    "$sifWorkgroup" || return 1
+
+  writeRegistry \
+    "$dir" \
+    "$shortcut" \
+    "$oem" \
+    "$regUsername" \
+    "$regPassword" || return 1
+
+  appendRegistry "$dir" "$driver" || return 1
+  writeVBS "$dir" "$username" "$shortcut" || return 1
+
   return 0
 }
-
-return 0
