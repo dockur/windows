@@ -295,9 +295,7 @@ jobs:
           Function GetPlatform(shell)
             Dim architecture
 
-            architecture = UCase(
-              shell.ExpandEnvironmentStrings("%PROCESSOR_ARCHITECTURE%")
-            )
+            architecture = UCase(shell.ExpandEnvironmentStrings("%PROCESSOR_ARCHITECTURE%"))
 
             Select Case architecture
               Case "AMD64"
@@ -334,10 +332,7 @@ jobs:
           Set shell = CreateObject("WScript.Shell")
           Set locator = CreateObject("WbemScripting.SWbemLocator")
           Set service = locator.ConnectServer(".", "root\cimv2")
-          Set systems = service.ExecQuery(
-            "SELECT Caption, Version, BuildNumber " & _
-            "FROM Win32_OperatingSystem"
-          )
+          Set systems = service.ExecQuery("SELECT Caption, Version, BuildNumber FROM Win32_OperatingSystem")
 
           caption = ""
           version = ""
@@ -350,11 +345,7 @@ jobs:
             Exit For
           Next
 
-          edition = ReadRegistry(
-            shell,
-            "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\EditionID"
-          )
-
+          edition = ReadRegistry(shell, "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\EditionID")
           platform = GetPlatform(shell)
 
           temporary = "\\host.lan\Data\windows.tmp"
@@ -363,10 +354,7 @@ jobs:
           Do
             On Error Resume Next
 
-            share = ReadTextFile(
-              filesystem,
-              "\\host.lan\Data\readme.txt"
-            )
+            share = ReadTextFile(filesystem, "\\host.lan\Data\readme.txt")
 
             If Err.Number = 0 Then
               json = _
@@ -380,12 +368,7 @@ jobs:
                 """share"":""" & EscapeJson(share) & """" & _
                 "}"
 
-              Set file = filesystem.OpenTextFile(
-                temporary,
-                ForWriting,
-                True
-              )
-
+              Set file = filesystem.OpenTextFile(temporary, ForWriting, True)
               file.Write json
               file.Close
 
