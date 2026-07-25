@@ -747,7 +747,7 @@ detectImage() {
   resolveImage "$version" || :
 
   if [ -n "$DETECTED" ]; then
-    setImage
+    setImage || return 1
     return 0
   fi
 
@@ -768,18 +768,18 @@ detectImage() {
   checkPlatform "$image_info" || exit 67
 
   local suggested
-  suggested=$(getSuggestion)
+  suggested=$(getSuggestion) || return 1
 
   local index
-  detectVersion "$image_info" "$suggested" DETECTED index
-  validateEdition
+  detectVersion "$image_info" "$suggested" DETECTED index || return 1
+  validateEdition || return 1
 
   if [ -z "$DETECTED" ]; then
-    unknownImage
+    unknownImage || return 1
     return 0
   fi
 
-  describeImage "$image_info" "$index" desc
+  describeImage "$image_info" "$index" desc || return 1
   info "Detected: $desc"
 
   configureImage "$index" "$desc" || return 1
