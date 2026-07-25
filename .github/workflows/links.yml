@@ -24,7 +24,7 @@ jobs:
         with:
           fetch-depth: 0
       -
-        name: Validate Links
+        name: Validate all download mirrors
         id: validate
         run: |
           errors=0
