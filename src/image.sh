@@ -790,3 +790,90 @@ detectImage() {
 
   return 0
 }
+
+checkBatch() {
+
+  local file="$1"
+  local output matches line
+
+  [ ! -f "$file" ] && return 0
+
+  output=""
+
+  if ! output=$(python3 -m blinter "$file" 2>&1); then
+    :
+  fi
+
+  if [ -n "$output" ]; then
+    warn "possible issues were detected in your install.bat file:"
+    echo && echo "$output" && echo
+  fi
+
+  matches=$(
+    grep -Ein \
+      '(^|[^\\])\\host\.lan\\' \
+      "$file" || true
+  )
+
+  if [ -n "$matches" ]; then
+    warn "invalid single-backslash UNC path detected in install.bat:"
+
+    while IFS= read -r line; do
+      warn "  $line"
+    done <<< "$matches"
+
+    warn '  Use "\\host.lan\Data\..." instead of "\host.lan\Data\...".'
+  fi
+
+  matches=$(
+    grep -Ein \
+      '(^|[^\\[:alnum:]._-])host\.lan\\' \
+      "$file" || true
+  )
+
+  if [ -n "$matches" ]; then
+    warn "UNC path without leading backslashes detected in install.bat:"
+
+    while IFS= read -r line; do
+      warn "  $line"
+    done <<< "$matches"
+
+    warn '  Use "\\host.lan\Data\..." instead of "host.lan\Data\...".'
+  fi
+
+  matches=$(
+    grep -Ein \
+      '//host\.lan/' \
+      "$file" || true
+  )
+
+  if [ -n "$matches" ]; then
+    warn "invalid forward-slash UNC path detected in install.bat:"
+
+    while IFS= read -r line; do
+      warn "  $line"
+    done <<< "$matches"
+
+    warn '  Use "\\host.lan\Data\..." instead of "//host.lan/Data/...".'
+  fi
+
+  matches=$(
+    grep -Ein \
+      '\\\\host\.lan\\shared([\\/]|$)' \
+      "$file" || true
+  )
+
+  if [ -n "$matches" ]; then
+    warn "invalid Samba share name detected in install.bat:"
+
+    while IFS= read -r line; do
+      warn "  $line"
+    done <<< "$matches"
+
+    warn '  The "/shared" folder is exposed to Windows as "\\host.lan\Data".'
+  fi
+
+  return 0
+}
+
+return 0
