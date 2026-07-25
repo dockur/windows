@@ -228,22 +228,189 @@ jobs:
               ;;
 
             legacy)
-              cat > "$RUNNER_TEMP/oem/install.bat" <<EOF
-          @echo off
+              cat > "$RUNNER_TEMP/oem/ready.vbs" <<'VBSCRIPT'
+          Option Explicit
 
-          ping 127.0.0.1 -n 16 >nul
+          Const ForReading = 1
+          Const ForWriting = 2
 
-          :retry
-          echo $token > C:\windows.tmp
+          Dim arguments
+          Dim token
 
-          copy /Y C:\windows.tmp "\\host.lan\Data\windows.txt" >nul 2>&1
+          Set arguments = WScript.Arguments
 
-          if errorlevel 1 (
-            ping 127.0.0.1 -n 11 >nul
-            goto retry
+          If arguments.Count < 1 Then
+            WScript.Quit 1
+          End If
+
+          token = arguments(0)
+
+          Function EscapeJson(value)
+            Dim result
+
+            result = CStr(value)
+            result = Replace(result, "\", "\\")
+            result = Replace(result, Chr(34), "\" & Chr(34))
+            result = Replace(result, vbCr, "\r")
+            result = Replace(result, vbLf, "\n")
+            result = Replace(result, vbTab, "\t")
+
+            EscapeJson = result
+          End Function
+
+          Function ReadRegistry(shell, path)
+            Dim value
+
+            value = ""
+
+            On Error Resume Next
+            value = shell.RegRead(path)
+
+            If Err.Number <> 0 Then
+              Err.Clear
+              value = ""
+            End If
+
+            On Error GoTo 0
+
+            ReadRegistry = CStr(value)
+          End Function
+
+          Function ReadTextFile(filesystem, path)
+            Dim file
+            Dim value
+
+            value = ""
+
+            Set file = filesystem.OpenTextFile(path, ForReading, False)
+            value = file.ReadAll
+            file.Close
+
+            value = Replace(value, vbCr, "")
+            value = Replace(value, vbLf, "")
+
+            ReadTextFile = value
+          End Function
+
+          Function GetPlatform(shell)
+            Dim architecture
+
+            architecture = UCase(
+              shell.ExpandEnvironmentStrings("%PROCESSOR_ARCHITECTURE%")
+            )
+
+            Select Case architecture
+              Case "AMD64"
+                GetPlatform = "x64"
+              Case "ARM64"
+                GetPlatform = "arm64"
+              Case "X86"
+                GetPlatform = "x86"
+              Case Else
+                GetPlatform = LCase(architecture)
+            End Select
+          End Function
+
+          Dim filesystem
+          Dim shell
+          Dim locator
+          Dim service
+          Dim systems
+          Dim system
+
+          Dim caption
+          Dim edition
+          Dim version
+          Dim build
+          Dim platform
+          Dim share
+
+          Dim json
+          Dim temporary
+          Dim destination
+          Dim file
+
+          Set filesystem = CreateObject("Scripting.FileSystemObject")
+          Set shell = CreateObject("WScript.Shell")
+          Set locator = CreateObject("WbemScripting.SWbemLocator")
+          Set service = locator.ConnectServer(".", "root\cimv2")
+          Set systems = service.ExecQuery(
+            "SELECT Caption, Version, BuildNumber " & _
+            "FROM Win32_OperatingSystem"
           )
 
-          del /Q C:\windows.tmp >nul 2>&1
+          caption = ""
+          version = ""
+          build = ""
+
+          For Each system In systems
+            caption = CStr(system.Caption)
+            version = CStr(system.Version)
+            build = CStr(system.BuildNumber)
+            Exit For
+          Next
+
+          edition = ReadRegistry(
+            shell,
+            "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\EditionID"
+          )
+
+          platform = GetPlatform(shell)
+
+          temporary = "\\host.lan\Data\windows.tmp"
+          destination = "\\host.lan\Data\windows.json"
+
+          Do
+            On Error Resume Next
+
+            share = ReadTextFile(
+              filesystem,
+              "\\host.lan\Data\readme.txt"
+            )
+
+            If Err.Number = 0 Then
+              json = _
+                "{" & _
+                """token"":""" & EscapeJson(token) & """," & _
+                """caption"":""" & EscapeJson(caption) & """," & _
+                """edition"":""" & EscapeJson(edition) & """," & _
+                """version"":""" & EscapeJson(version) & """," & _
+                """build"":""" & EscapeJson(build) & """," & _
+                """platform"":""" & EscapeJson(platform) & """," & _
+                """share"":""" & EscapeJson(share) & """" & _
+                "}"
+
+              Set file = filesystem.OpenTextFile(
+                temporary,
+                ForWriting,
+                True
+              )
+
+              file.Write json
+              file.Close
+
+              If filesystem.FileExists(destination) Then
+                filesystem.DeleteFile destination, True
+              End If
+
+              filesystem.MoveFile temporary, destination
+            End If
+
+            If Err.Number = 0 Then
+              On Error GoTo 0
+              Exit Do
+            End If
+
+            Err.Clear
+            On Error GoTo 0
+
+            WScript.Sleep 10000
+          Loop
+          VBSCRIPT
+
+              cat > "$RUNNER_TEMP/oem/install.bat" <<EOF
+          @echo off
+          cscript.exe //B //NoLogo C:\OEM\ready.vbs "$token"
           EOF
               ;;
           esac
@@ -263,7 +430,6 @@ jobs:
       - name: Install and validate Windows
         shell: bash
         env:
-          CALLBACK: ${{ inputs.callback }}
           CPU: ${{ inputs.cpu }}
           EXPECTED_TOKEN: ${{ steps.test.outputs.token }}
           EXPECTED_CAPTION: ${{ inputs.expected_caption }}
@@ -274,9 +440,6 @@ jobs:
           DISPLAY_NAME: ${{ inputs.name }}
         run: |
           set -Eeuo pipefail
-
-          samba_debug="N"
-          [[ "$CALLBACK" == "legacy" ]] && samba_debug="Y"
 
           docker run --detach \
             --name "$CONTAINER" \
@@ -289,22 +452,10 @@ jobs:
             --env "CPU_CORES=half" \
             --env "CPU_MODEL=$CPU" \
             --env "DISK_SIZE=64G" \
-            --env "SAMBA_DEBUG=$samba_debug" \
             --volume "$RUNNER_TEMP/data:/shared" \
             --volume "$RUNNER_TEMP/oem:/oem:ro" \
             --volume "$RUNNER_TEMP/storage:/storage" \
             "$IMAGE"
-
-          if [[ "$CALLBACK" == "legacy" ]]; then
-            for ((i = 0; i < 60; i++)); do
-              if docker exec "$CONTAINER" \
-                smbcontrol all debug 3; then
-                break
-              fi
-
-              sleep 1
-            done
-          fi
 
           echo
           echo "Container log:"
@@ -339,44 +490,6 @@ jobs:
               echo "Container stopped before Windows became ready."
               echo "Container state: ${state:-missing}"
               exit 1
-            fi
-
-            if [[ "$CALLBACK" == "legacy" ]]; then
-              response=""
-
-              if [[ -s "$RUNNER_TEMP/data/windows.txt" ]]; then
-                response="$(
-                  tr -d '\r\n' \
-                    < "$RUNNER_TEMP/data/windows.txt"
-                )"
-              fi
-
-              if [[ -n "$response" ]]; then
-                stop_logs
-                trap - EXIT
-
-                echo
-                echo "------------------------------------------------------------"
-                echo "Received legacy callback:"
-                echo "  $response"
-
-                if [[ "$response" != "$EXPECTED_TOKEN" ]]; then
-                  echo "The legacy response token does not match."
-                  echo "Expected:"
-                  echo "  $EXPECTED_TOKEN"
-                  echo "Received:"
-                  echo "  $response"
-                  exit 1
-                fi
-
-                echo
-                echo "$DISPLAY_NAME installed successfully."
-                echo "Legacy callback: writable"
-                exit 0
-              fi
-
-              sleep 10
-              continue
             fi
 
             response=""
