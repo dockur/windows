@@ -338,6 +338,9 @@ updateDomain() {
       }
 
       section == "oobeSystem" && in_autologon &&
+        /^[[:space:]]*<Domain([[:space:]/>])/ { next }
+
+      section == "oobeSystem" && in_autologon &&
         /^[[:space:]]*<Value>.*<\/Value>[[:space:]]*$/ {
         print "          <Value>" ENVIRON["PASS_XML"] "</Value>"
         password_added = 1
@@ -394,7 +397,7 @@ updateDomain() {
   return 0
 }
 
-logBatch() {
+enableLog() {
 
   local file="$1"
 
