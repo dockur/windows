@@ -6,14 +6,13 @@ validateResolution() {
   local name="$1"
   local value="$2"
   local minimum="$3"
-  local number
 
   if [[ ! "$value" =~ ^[0-9]+$ ]] || [ "${#value}" -gt 5 ]; then
     error "The $name variable must be between $minimum and 16384!"
     return 1
   fi
 
-  number=$((10#$value))
+  local number=$((10#$value))
 
   if [ "$number" -lt "$minimum" ] || [ "$number" -gt 16384 ]; then
     error "The $name variable must be between $minimum and 16384!"
@@ -64,7 +63,7 @@ validateComputerName() {
 validateWorkgroup() {
 
   local value="$1"
-  local safe=""
+  local safe
 
   [ -z "$value" ] && return 0
 
@@ -235,133 +234,45 @@ validateDomainName() {
   return 0
 }
 
-generateEvalXML() {
+updateWorkgroup() {
 
-  # Evaluation templates are generated from their normal counterpart so
-  # both variants remain identical except for evaluation-specific selectors.
+  local asset="$1"
+  local workgroup arch tmp
 
-  local id="$1"
-  local detected_index="${2:-}"
-  local source="/run/assets/${id::-5}.xml"
-  local target="/run/assets/$id.xml"
-  local index="$detected_index" tmp
+  workgroup=$(escapeXML "$2") || return 1
+  arch=$(sed -n -E '0,/processorArchitecture="/s/.*processorArchitecture="([^"]+)".*/\1/p' "$asset") || return 1
+  [ -z "$arch" ] && return 1
 
-  [[ "${id,,}" == *"-eval" ]] || return 1
-  [ -s "$source" ] || return 1
+  grep -q 'Microsoft-Windows-UnattendedJoin' "$asset" && return 1
 
-  if [ -n "$index" ] && [[ ! "$index" =~ ^[1-9][0-9]*$ ]]; then
-    error "Invalid evaluation image index: $index"
+  tmp=$(mktemp -d) || return 1
+  local result="$tmp/answer.xml"
+
+  if ! WORKGROUP_XML="$workgroup" ARCH_XML="$arch" awk '
+      /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
+
+      section == "specialize" && !workgroup_added &&
+        /^[[:space:]]*<\/settings>[[:space:]]*$/ {
+        print "    <component name=\"Microsoft-Windows-UnattendedJoin\" processorArchitecture=\"" ENVIRON["ARCH_XML"] "\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">\n" \
+              "      <Identification>\n" \
+              "        <JoinWorkgroup>" ENVIRON["WORKGROUP_XML"] "</JoinWorkgroup>\n" \
+              "      </Identification>\n" \
+              "    </component>"
+        workgroup_added = 1
+      }
+
+      { print }
+
+      /^[[:space:]]*<\/settings>[[:space:]]*$/ { section = "" }
+      END { exit !workgroup_added }
+    ' "$asset" > "$result" ||
+    ! mv -f "$result" "$asset"; then
+
+    rm -rf "$tmp" || true
     return 1
   fi
 
-  if ! tmp=$(mktemp -p /run/assets ".${id}.XXXXXX"); then
-    error "Failed to create a temporary evaluation answer file!"
-    return 1
-  fi
-
-  if ! sed \
-      -e '/<ProductKey>.*<\/ProductKey>/d' \
-      -e '/<ProductKey>/,/<\/ProductKey>/d' \
-      "$source" > "$tmp"; then
-    rm -f "$tmp"
-    error "Failed to generate evaluation answer file from $source!"
-    return 1
-  fi
-
-  if [ -n "$detected_index" ]; then
-
-    # A WIM index was detected, so replace any selector inherited from
-    # the normal template with the exact index from the ISO image.
-    if ! sed -i \
-      -e '/<InstallFrom>.*<\/InstallFrom>/d' \
-      -e '/<InstallFrom>/,/<\/InstallFrom>/d' \
-      "$tmp"; then
-      rm -f "$tmp"
-      error "Failed to replace evaluation image selector!"
-      return 1
-    fi
-
-  else
-
-    # No WIM was inspected, so retain the known defaults for download routes.
-    case "${id,,}" in
-      *"-ltsc-eval" ) index="1" ;;
-      *"-iot-eval" )  index="2" ;;
-    esac
-
-  fi
-
-  if [ -n "$index" ] && ! grep -q '<InstallFrom>' "$tmp"; then
-    if ! sed -i \
-      '0,/<InstallTo>/{ /<InstallTo>/i\
-          <InstallFrom>\
-            <MetaData wcm:action="add">\
-              <Key>/IMAGE/INDEX</Key>\
-              <Value>'"$index"'</Value>\
-            </MetaData>\
-          </InstallFrom>
-      }' "$tmp"; then
-      rm -f "$tmp"
-      error "Failed to select evaluation image index $index!"
-      return 1
-    fi
-  fi
-
-  if ! xmllint --nonet --noout "$tmp"; then
-    rm -f "$tmp"
-    error "Generated evaluation answer file is invalid!"
-    return 1
-  fi
-
-  if ! chmod 644 "$tmp" || ! mv -f "$tmp" "$target"; then
-    rm -f "$tmp"
-    error "Failed to create evaluation answer file: $target"
-    return 1
-  fi
-
-  return 0
-}
-
-setXML() {
-
-  local file
-  local index="${2:-}"
-  local custom_files=(
-    "/custom.xml"
-    "$STORAGE/custom.xml"
-    "/run/assets/custom.xml"
-  )
-
-  CUSTOM_XML=""
-
-  if [ -d "${custom_files[0]}" ]; then
-    error "The bind ${custom_files[0]} maps to a file that does not exist!"
-    exit 67
-  fi
-
-  for file in "${custom_files[@]}"; do
-    if [ -f "$file" ] && [ -s "$file" ]; then
-      CUSTOM_XML="Y"
-      XML="$file"
-      return 0
-    fi
-  done
-
-  file="$1"
-
-  if [[ "${DETECTED,,}" == *"-eval" ]]; then
-    if [ ! -f "$file" ] || [ ! -s "$file" ]; then
-      generateEvalXML "$DETECTED" "$index" || return 1
-    fi
-  fi
-
-  if [ ! -f "$file" ] || [ ! -s "$file" ]; then
-    file="/run/assets/$DETECTED.xml"
-  fi
-
-  [ -f "$file" ] && [ -s "$file" ] || return 1
-
-  XML="$file"
+  rm -rf "$tmp" || return 1
   return 0
 }
 
@@ -369,7 +280,7 @@ updateDomain() {
 
   local asset="$1"
   local domain account auth pass
-  local cred_domain ou arch tmp result
+  local ou arch tmp
 
   domain=$(escapeXML "$2") || return 1
   account=$(escapeXML "$3") || return 1
@@ -383,7 +294,7 @@ updateDomain() {
 
   [ -z "$arch" ] && return 1
 
-  cred_domain="$domain"
+  local cred_domain="$domain"
 
   case "$4" in
     *@* ) cred_domain="" ;;
@@ -392,7 +303,7 @@ updateDomain() {
   grep -Eq 'Microsoft-Windows-UnattendedJoin|<DomainAccounts([[:space:]/>])' "$asset" && return 1
 
   tmp=$(mktemp -d) || return 1
-  result="$tmp/answer.xml"
+  local result="$tmp/answer.xml"
 
   if ! DOMAIN_XML="$domain" ACCOUNT_XML="$account" \
     AUTH_XML="$auth" PASS_XML="$pass" \
@@ -486,45 +397,259 @@ updateDomain() {
   return 0
 }
 
-updateWorkgroup() {
+enableLog() {
 
-  local asset="$1"
-  local workgroup arch tmp result
+  local file="$1"
 
-  workgroup=$(escapeXML "$2") || return 1
-  arch=$(sed -n -E '0,/processorArchitecture="/s/.*processorArchitecture="([^"]+)".*/\1/p' "$asset") || return 1
-  [ -z "$arch" ] && return 1
+  enabled "$LOG" || return 0
+  [ -f "$file" ] || return 1
 
-  grep -q 'Microsoft-Windows-UnattendedJoin' "$asset" && return 1
+  local old='C:\OEM\install.bat"</CommandLine>'
+  local new='C:\OEM\install.bat &gt; C:\OEM\install.log 2&gt;&amp;1"</CommandLine>'
+  local msg="failed to enable install logging in the answer file!"
 
-  tmp=$(mktemp -d) || return 1
-  result="$tmp/answer.xml"
+  if ! grep -Fq "$old" "$file"; then
+    enabled "$DEBUG" && warn "$msg"
+    return 0
+  fi
 
-  if ! WORKGROUP_XML="$workgroup" ARCH_XML="$arch" awk '
-      /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
+  if ! sed -i \
+    's|C:\\OEM\\install\.bat"</CommandLine>|C:\\OEM\\install.bat \&gt; C:\\OEM\\install.log 2\&gt;\&amp;1"</CommandLine>|' \
+    "$file"; then
 
-      section == "specialize" && !workgroup_added &&
-        /^[[:space:]]*<\/settings>[[:space:]]*$/ {
-        print "    <component name=\"Microsoft-Windows-UnattendedJoin\" processorArchitecture=\"" ENVIRON["ARCH_XML"] "\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">\n" \
-              "      <Identification>\n" \
-              "        <JoinWorkgroup>" ENVIRON["WORKGROUP_XML"] "</JoinWorkgroup>\n" \
-              "      </Identification>\n" \
-              "    </component>"
-        workgroup_added = 1
-      }
+    warn "$msg"
+  fi
 
-      { print }
+  return 0
+}
 
-      /^[[:space:]]*<\/settings>[[:space:]]*$/ { section = "" }
-      END { exit !workgroup_added }
-    ' "$asset" > "$result" ||
-    ! mv -f "$result" "$asset"; then
+markGeneratedXML() {
 
-    rm -rf "$tmp" || true
+  local file="$1"
+  local marker='<!-- generated-answer-file: do not reuse as a template -->'
+
+  [ -s "$file" ] || return 1
+
+  if head -n 1 "$file" | grep -q '^<?xml'; then
+    sed -i "1a$marker" "$file" || return 1
+  else
+    sed -i "1i$marker" "$file" || return 1
+  fi
+
+  return 0
+}
+
+removeGeneratedXML() {
+
+  local file="$1"
+
+  [ -n "$file" ] || return 0
+  [ -f "$file" ] || return 0
+
+  head -n 5 "$file" |
+    grep -Fqi 'generated-answer-file' || return 0
+
+  if ! rm -f "$file"; then
+    error "Failed to remove generated answer file: $file"
     return 1
   fi
 
-  rm -rf "$tmp" || return 1
+  return 0
+}
+
+generateAnswerFile() {
+
+  local id="$1"
+  local source="$2"
+  local target="$3"
+  local index="$4"
+  local type="$5"
+  local remove_selector="$6"
+  local tmp
+
+  if [ -n "$index" ] && [[ ! "$index" =~ ^[1-9][0-9]*$ ]]; then
+    error "Invalid $type image index: $index"
+    return 1
+  fi
+
+  if ! tmp=$(mktemp -p /run/assets ".${id}.XXXXXX"); then
+    error "Failed to create a temporary $type answer file!"
+    return 1
+  fi
+
+  local expressions
+
+  if [ "$type" = "evaluation" ]; then
+    expressions=(
+      -e '/<ProductKey>.*<\/ProductKey>/d'
+      -e '/<ProductKey>/,/<\/ProductKey>/d'
+    )
+  else
+    expressions=(
+      -e '/<InstallFrom>.*<\/InstallFrom>/d'
+      -e '/<ProductKey>.*<\/ProductKey>/d'
+      -e '/<InstallFrom>/,/<\/InstallFrom>/d'
+      -e '/<ProductKey>/,/<\/ProductKey>/d'
+    )
+  fi
+
+  if ! sed "${expressions[@]}" "$source" > "$tmp"; then
+    rm -f "$tmp"
+    error "Failed to generate $type answer file from $source!"
+    return 1
+  fi
+
+  if [ "$type" = "evaluation" ] && [ "$remove_selector" = "Y" ]; then
+    if ! sed -i \
+      -e '/<InstallFrom>.*<\/InstallFrom>/d' \
+      -e '/<InstallFrom>/,/<\/InstallFrom>/d' \
+      "$tmp"; then
+      rm -f "$tmp"
+      error "Failed to replace evaluation image selector!"
+      return 1
+    fi
+  fi
+
+  if [ -n "$index" ] && ! grep -q '<InstallFrom>' "$tmp"; then
+    if ! sed -i \
+      '0,/<InstallTo>/{ /<InstallTo>/i\
+          <InstallFrom>\
+            <MetaData wcm:action="add">\
+              <Key>/IMAGE/INDEX</Key>\
+              <Value>'"$index"'</Value>\
+            </MetaData>\
+          </InstallFrom>
+      }' "$tmp"; then
+      rm -f "$tmp"
+      error "Failed to select $type image index $index!"
+      return 1
+    fi
+  fi
+
+  if ! markGeneratedXML "$tmp" ||
+    ! xmllint --nonet --noout "$tmp"; then
+    rm -f "$tmp"
+    error "Generated $type answer file is invalid!"
+    return 1
+  fi
+
+  if ! chmod 644 "$tmp" || ! mv -f "$tmp" "$target"; then
+    rm -f "$tmp"
+    error "Failed to create $type answer file: $target"
+    return 1
+  fi
+
+  return 0
+}
+
+generateEvalXML() {
+
+  # Evaluation templates are generated from their normal counterpart so
+  # both variants remain identical except for evaluation-specific selectors.
+
+  local id="$1"
+  local detected_index="${2:-}"
+  local normal="${id::-5}"
+  local source="/run/assets/$normal.xml"
+  local target="/run/assets/$id.xml"
+  local index="$detected_index"
+  local remove_selector="N"
+
+  [[ "${id,,}" == *"-eval" ]] || return 1
+
+  removeGeneratedXML "$source" || return 1
+
+  if [ ! -s "$source" ]; then
+    source="/run/assets/${normal%%-*}.xml"
+    removeGeneratedXML "$source" || return 1
+  fi
+
+  [ -s "$source" ] || return 1
+
+  if [ -n "$detected_index" ]; then
+    remove_selector="Y"
+  else
+    # No WIM was inspected, so retain the known defaults for download routes.
+    case "${id,,}" in
+      *"-ltsc-eval" ) index="1" ;;
+      *"-iot-eval" )  index="2" ;;
+    esac
+  fi
+
+  generateAnswerFile \
+    "$id" "$source" "$target" "$index" "evaluation" "$remove_selector" || return 1
+
+  return 0
+}
+
+generateFallbackXML() {
+
+  # Fallback templates are generated from the generic version so unsupported
+  # editions can use the detected WIM index without inheriting a product key.
+
+  local id="$1"
+  local index="${2:-}"
+  local source="/run/assets/${id%%-*}.xml"
+  local target="/run/assets/$id.xml"
+
+  [ "$source" != "$target" ] || return 1
+
+  removeGeneratedXML "$source" || return 1
+  [ -s "$source" ] || return 1
+
+  generateAnswerFile \
+    "$id" "$source" "$target" "$index" "fallback" "Y" || return 1
+
+  return 0
+}
+
+setXML() {
+
+  local file
+  local index="${2:-}"
+  local target="/run/assets/$DETECTED.xml"
+
+  local custom_files=(
+    "/custom.xml"
+    "$STORAGE/custom.xml"
+    "/run/assets/custom.xml"
+  )
+
+  CUSTOM_XML=""
+
+  removeGeneratedXML "$target" || return 1
+
+  if [ -d "${custom_files[0]}" ]; then
+    error "The bind ${custom_files[0]} maps to a file that does not exist!"
+    exit 67
+  fi
+
+  for file in "${custom_files[@]}"; do
+    if [ -f "$file" ] && [ -s "$file" ]; then
+      CUSTOM_XML="Y"
+      XML="$file"
+      return 0
+    fi
+  done
+
+  file="$1"
+
+  if [[ "${DETECTED,,}" == *"-eval" ]]; then
+    if [ ! -f "$file" ] || [ ! -s "$file" ]; then
+      generateEvalXML "$DETECTED" "$index" || return 1
+    fi
+  fi
+
+  if [ ! -f "$file" ] || [ ! -s "$file" ]; then
+    file="$target"
+  elif [[ "$file" != "$target" ]]; then
+    generateFallbackXML "$DETECTED" "$index" || return 1
+    file="$target"
+  fi
+
+  [ -f "$file" ] && [ -s "$file" ] || return 1
+
+  XML="$file"
   return 0
 }
 
@@ -532,9 +657,7 @@ updateXML() {
 
   local asset="$1"
   local language="$2"
-  local app value culture region keyboard edition
-  local user user_xml auth_user admin pass pw
-  local domain qualifier host workgroup key
+  local value user
 
   [ -z "${WIDTH:-}" ] && WIDTH="1280"
   [ -z "${HEIGHT:-}" ] && HEIGHT="720"
@@ -546,6 +669,7 @@ updateXML() {
   validateProductKey "${KEY:-}" || return 1
   validatePassword "${PASSWORD:-}" || return 1
 
+  local app
   app=$(escapeXMLSed "$APP for $ENGINE") || return 1
 
   sed -i "s|>Windows for Docker<|>$app<|g" "$asset" || return 1
@@ -553,10 +677,12 @@ updateXML() {
   sed -i -E "s|<HorizontalResolution>[^<]*</HorizontalResolution>|<HorizontalResolution>$WIDTH</HorizontalResolution>|g" "$asset" || return 1
 
   if [ -n "${HOST:-}" ]; then
+    local host
     host=$(escapeXMLSed "$HOST") || return 1
     sed -i -E "s|<ComputerName>[^<]*</ComputerName>|<ComputerName>$host</ComputerName>|g" "$asset" || return 1
   fi
 
+  local culture
   culture=$(getLanguage "$language" "culture") || return 1
 
   if [ -n "$culture" ] && [[ "${culture,,}" != "en-us" ]]; then
@@ -564,7 +690,7 @@ updateXML() {
     sed -i "s|<UILanguage>en-US</UILanguage>|<UILanguage>$value</UILanguage>|g" "$asset" || return 1
   fi
 
-  region="${REGION:-}"
+  local region="${REGION:-}"
   [ -z "$region" ] && region="$culture"
 
   if [ -n "$region" ] && [[ "${region,,}" != "en-us" ]]; then
@@ -573,7 +699,7 @@ updateXML() {
     sed -i "s|<SystemLocale>en-US</SystemLocale>|<SystemLocale>$value</SystemLocale>|g" "$asset" || return 1
   fi
 
-  keyboard="${KEYBOARD:-}"
+  local keyboard="${KEYBOARD:-}"
   [ -z "$keyboard" ] && keyboard="$culture"
 
   if [ -n "$keyboard" ] && [[ "${keyboard,,}" != "en-us" ]]; then
@@ -582,8 +708,8 @@ updateXML() {
     sed -i "s|<InputLocale>0409:00000409</InputLocale>|<InputLocale>$value</InputLocale>|g" "$asset" || return 1
   fi
 
-  domain="${DOMAIN:-}"
-  workgroup="${WORKGROUP:-}"
+  local domain="${DOMAIN:-}"
+  local workgroup="${WORKGROUP:-}"
 
   if [ -n "$domain" ]; then
 
@@ -599,8 +725,8 @@ updateXML() {
 
     validateDomainName "$domain" || return 1
 
-    auth_user="$USERNAME"
-    qualifier=""
+    local auth_user="$USERNAME"
+    local qualifier=""
 
     if [[ "$auth_user" == *\\* ]]; then
       error "The USERNAME variable must use either \"user\" or \"user@domain\" format!"
@@ -647,6 +773,7 @@ updateXML() {
     validateUsername "$user" "local" || return 1
 
     if [ -n "$user" ]; then
+      local user_xml
       user_xml=$(escapeXMLSed "$user") || return 1
 
       sed -i "s|-name \"Docker\"|-name \"\$env:USERNAME\"|g" "$asset" || return 1
@@ -656,7 +783,8 @@ updateXML() {
       sed -i "s|<Username>Docker</Username>|<Username>$user_xml</Username>|g" "$asset" || return 1
     fi
 
-    [ -n "${PASSWORD:-}" ] && pass="$PASSWORD" || pass="admin"
+    local pass="${PASSWORD:-admin}"
+    local pw admin
 
     pw=$(printf '%s' "${pass}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
     admin=$(printf '%s' "${pass}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
@@ -709,17 +837,24 @@ updateXML() {
     sed -i -E '/^[[:space:]]*<AutoLogon([[:space:]>])/,/^[[:space:]]*<\/AutoLogon>[[:space:]]*$/d' "$asset" || return 1
   fi
 
+  if enabled "${LOG:-}"; then
+    enableLog "$asset" || return 1
+  fi
+
   if [ -n "${EDITION:-}" ]; then
-    case "${EDITION,,}" in
-      "core" ) edition="STANDARDCORE" ;;
-      * ) edition="${EDITION^^}" ;;
-    esac
+    local edition
+
+    edition=$(normalizeServerEdition "$EDITION") || return 1
+    edition="${edition//-/}"
+    edition="${edition^^}"
 
     edition=$(escapeXMLSed "$edition") || return 1
     sed -i "s|SERVERSTANDARD</Value>|SERVER$edition</Value>|g" "$asset" || return 1
+
   fi
 
   if [ -n "${KEY:-}" ]; then
+    local key
     key=$(escapeXMLSed "$KEY") || return 1
     sed -i -E '/^[[:space:]]*<ProductKey>[[:space:]]*$/,/^[[:space:]]*<\/ProductKey>[[:space:]]*$/d' "$asset" || return 1
     sed -i -E "s|<ProductKey>[^<]*</ProductKey>|<ProductKey>$key</ProductKey>|g" "$asset" || return 1
@@ -811,7 +946,8 @@ validateLegacyUsername() {
   fi
 
   case "$value" in
-    *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* )
+    *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | \
+    *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* | *'%'* )
       error "The USERNAME variable contains unsupported characters$suffix!"
       return 1 ;;
   esac
@@ -826,116 +962,102 @@ validateLegacyUsername() {
     return 1
   fi
 
-  if [[ "${value^^}" == "GUEST" ]]; then
-    error "The USERNAME value \"$value\" is reserved for a built-in Windows account$suffix!"
-    return 1
-  fi
+  case "${value^^}" in
+    "NONE" )
+      error "The USERNAME value \"NONE\" is reserved by Windows$suffix!"
+      return 1 ;;
+    "ADMINISTRATOR" | "GUEST" | "DEFAULTACCOUNT" | "WDAGUTILITYACCOUNT" | "WSIACCOUNT" )
+      error "The USERNAME value \"$value\" is reserved for a built-in Windows account$suffix!"
+      return 1 ;;
+  esac
 
   return 0
 }
 
-legacyInstall() {
+addLegacyDrivers() {
 
-  local pid=""
-  local file=""
-  local dir="$2"
-  local desc="$3"
-  local driver="$4"
-  local drivers="/tmp/drivers"
-  local shortcut="Y"
+  local dir="$1"
+  local target="$2"
+  local driver="$3"
+  local arch="$4"
+  local drivers="$5"
+  local file
+  local msg="Adding drivers to image..."
 
-  if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
-    shortcut="N"
+  info "$msg" && html "$msg"
+
+  rm -rf "$drivers" || return 1
+  mkdir -p "$drivers" || return 1
+
+  if ! bsdtar -xf /var/drivers.txz -C "$drivers"; then
+    error "Failed to extract drivers!" && return 1
   fi
 
-  if [ -n "$DOMAIN" ]; then
-    error "The DOMAIN variable is not supported for $desc!"
-    return 1
+  if [ ! -f "$drivers/viostor/$driver/$arch/viostor.sys" ]; then
+    error "Failed to locate required storage drivers!" && return 1
   fi
 
-  ETFS="[BOOT]/Boot-NoEmul.img"
+  cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$target" || return 1
 
-  if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
-    error "Failed to locate file \"$ETFS\" in $desc ISO image!" && return 1
+  mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
+  cp -L "$drivers/viostor/$driver/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
+  cp -L "$drivers/viostor/$driver/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
+  cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
+
+  if [ ! -f "$drivers/NetKVM/$driver/$arch/netkvm.sys" ]; then
+    error "Failed to locate required network drivers!" && return 1
   fi
 
-  local arch target
-  [ -d "$dir/AMD64" ] && arch="amd64" || arch="x86"
-  [[ "${arch,,}" == "x86" ]] && target="$dir/I386" || target="$dir/AMD64"
+  mkdir -p "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
+  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
+  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
+  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
 
-  if [ ! -d "$target" ]; then
-    error "Failed to locate directory \"$target\" in $desc ISO image!" && return 1
+  file=$(find "$target" -maxdepth 1 -type f -iname TXTSETUP.SIF -print -quit) || return 1
+
+  if [ -z "$file" ]; then
+    error "The file TXTSETUP.SIF could not be found!" && return 1
   fi
 
-  if [[ "${driver,,}" == "xp" || "${driver,,}" == "2k3" ]]; then
+  sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$file" || return 1
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\nviostor.sys=1,,,,,,4_,4,1,,,1,4/' "$file" || return 1
+  sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device\"/' "$file" || return 1
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$file" || return 1
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00020000=\"viostor\"/' "$file" || return 1
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$file" || return 1
 
-    local msg="Adding drivers to image..."
-    info "$msg" && html "$msg"
-
-    rm -rf "$drivers" || return 1
-    mkdir -p "$drivers" || return 1
-
-    if ! bsdtar -xf /var/drivers.txz -C "$drivers"; then
-      error "Failed to extract drivers!" && return 1
-    fi
-
-    if [ ! -f "$drivers/viostor/$driver/$arch/viostor.sys" ]; then
-      error "Failed to locate required storage drivers!" && return 1
-    fi
-
-    cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$target" || return 1
-
-    mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
-    cp -L "$drivers/viostor/$driver/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
-    cp -L "$drivers/viostor/$driver/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
-    cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
-
-    if [ ! -f "$drivers/NetKVM/$driver/$arch/netkvm.sys" ]; then
-      error "Failed to locate required network drivers!" && return 1
-    fi
-
-    mkdir -p "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
-    cp -L "$drivers/NetKVM/$driver/$arch/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
-    cp -L "$drivers/NetKVM/$driver/$arch/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
-    cp -L "$drivers/NetKVM/$driver/$arch/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
-
-    file=$(find "$target" -maxdepth 1 -type f -iname TXTSETUP.SIF -print -quit) || return 1
-
-    if [ -z "$file" ]; then
-      error "The file TXTSETUP.SIF could not be found!" && return 1
-    fi
-
-    sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$file" || return 1
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\nviostor.sys=1,,,,,,4_,4,1,,,1,4/' "$file" || return 1
-    sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device\"/' "$file" || return 1
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$file" || return 1
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00020000=\"viostor\"/' "$file" || return 1
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$file" || return 1
-
-    if [ ! -d "$drivers/sata/xp/$arch" ]; then
-      error "Failed to locate required SATA drivers!" && return 1
-    fi
-
-    mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata" || return 1
-    cp -Lr "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata" || return 1
-    cp -Lr "$drivers/sata/xp/$arch/." "$target" || return 1
-
-    sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$file" || return 1
-    sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$file" || return 1
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.cat = 1,,,,,,,1,0,0/' "$file" || return 1
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.inf = 1,,,,,,,1,0,0/' "$file" || return 1
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,4_,4,1,,,1,4/' "$file" || return 1
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,,1,0,0/' "$file" || return 1
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaahci.cat = 1,,,,,,,1,0,0/' "$file" || return 1
-    sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaAHCI.inf = 1,,,,,,,1,0,0/' "$file" || return 1
-    sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$file" || return 1
-    sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$file" || return 1
-
-    rm -rf "$drivers" || return 1
-
+  if [ ! -d "$drivers/sata/xp/$arch" ]; then
+    error "Failed to locate required SATA drivers!" && return 1
   fi
 
-  local key setup
+  mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata" || return 1
+  cp -Lr "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata" || return 1
+  cp -Lr "$drivers/sata/xp/$arch/." "$target" || return 1
+
+  sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$file" || return 1
+  sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$file" || return 1
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.cat = 1,,,,,,,1,0,0/' "$file" || return 1
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.inf = 1,,,,,,,1,0,0/' "$file" || return 1
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,4_,4,1,,,1,4/' "$file" || return 1
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,,1,0,0/' "$file" || return 1
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaahci.cat = 1,,,,,,,1,0,0/' "$file" || return 1
+  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaAHCI.inf = 1,,,,,,,1,0,0/' "$file" || return 1
+  sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$file" || return 1
+  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$file" || return 1
+
+  rm -rf "$drivers" || return 1
+
+  return 0
+}
+
+setLegacyKey() {
+
+  local target="$1"
+  local driver="$2"
+  local arch="$3"
+  local desc="$4"
+  local setup pid key file
+
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini -print -quit) || return 1
 
   if [ -n "$setup" ] && [ -z "$KEY" ]; then
@@ -1021,51 +1143,35 @@ legacyInstall() {
 
   fi
 
-  validateProductKey "$KEY" || return 1
+  return 0
+}
 
-  local product=""
-  [ -n "$KEY" ] && product="ProductID=$KEY"
+writeCommand() {
 
-  mkdir -p "$dir/\$OEM\$" || return 1
+  local install="$1"
 
-  if ! addFolder "$dir"; then
-    error "Failed to add OEM folder to image!" && return 1
+  [ -z "$install" ] && return 0
+  [ ! -f "$install" ] && return 0
+
+  if ! enabled "${LOG:-}"; then
+    printf '%s' "\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat\\\"\""
+  else
+    printf '%s' "\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat > C:\\\\OEM\\\\install.log 2>&1\\\"\""
   fi
 
-  local oem=""
-  local install="$dir/\$OEM\$/\$1/OEM/install.bat"
-  [ -f "$install" ] && oem="\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat\\\"\""
+  return 0
+}
 
-  [ -z "$WIDTH" ] && WIDTH="1280"
-  [ -z "$HEIGHT" ] && HEIGHT="720"
+writeSIF() {
 
-  validateResolution "WIDTH" "$WIDTH" 320 || return 1
-  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
-  validateMembership || return 1
-  validateComputerName "$HOST" || return 1
-  validateLegacyText "APP" "$APP" "$desc" || return 1
-  validateLegacyText "ENGINE" "$ENGINE" "$desc" || return 1
-
-  XHEX=$(printf '%08x\n' "$((10#$WIDTH))") || return 1
-  YHEX=$(printf '%08x\n' "$((10#$HEIGHT))") || return 1
-
-  local username="${USERNAME:-Docker}"
-  local password="${PASSWORD:-admin}"
-  local workgroup="${WORKGROUP:-WORKGROUP}"
-
-  local sifHost sifUsername sifPassword sifOrganization sifWorkgroup
-  local regUsername regPassword
-
-  validateLegacyUsername "$username" "$desc" || return 1
-  validatePassword "$password" "$desc" || return 1
-
-  sifHost=$(escapeSIFValue "${HOST:-*}") || return 1
-  sifUsername=$(escapeSIFValue "$username") || return 1
-  sifPassword=$(escapeSIFValue "$password") || return 1
-  sifOrganization=$(escapeSIFValue "$APP for $ENGINE") || return 1
-  sifWorkgroup=$(escapeSIFValue "$workgroup") || return 1
-  regUsername=$(escapeRegistryValue "$username") || return 1
-  regPassword=$(escapeRegistryValue "$password") || return 1
+  local target="$1"
+  local driver="$2"
+  local product="$3"
+  local sifHost="$4"
+  local sifUsername="$5"
+  local sifPassword="$6"
+  local sifOrganization="$7"
+  local sifWorkgroup="$8"
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -delete || return 1
 
@@ -1152,6 +1258,17 @@ legacyInstall() {
     } | unix2dos >> "$target/WINNT.SIF" || return 1
   fi
 
+  return 0
+}
+
+writeRegistry() {
+
+  local dir="$1"
+  local shortcut="$2"
+  local oem="$3"
+  local regUsername="$4"
+  local regPassword="$5"
+
   {
     printf '%s\n' \
       'Windows Registry Editor Version 5.00' \
@@ -1215,6 +1332,14 @@ legacyInstall() {
     printf '%s\n' "$oem" ''
   } | unix2dos > "$dir/\$OEM\$/install.reg" || return 1
 
+  return 0
+}
+
+appendRegistry() {
+
+  local dir="$1"
+  local driver="$2"
+
   if [[ "$driver" == "2k" ]]; then
     {
       printf '%s\n' \
@@ -1235,6 +1360,15 @@ legacyInstall() {
         ''
     } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
   fi
+
+  return 0
+}
+
+writeVBS() {
+
+  local dir="$1"
+  local username="$2"
+  local shortcut="$3"
 
   {
     printf '%s\n' \
@@ -1304,50 +1438,122 @@ legacyInstall() {
   return 0
 }
 
-legacyPrepare() {
+legacyInstall() {
 
-  local iso="$1"
   local dir="$2"
   local desc="$3"
+  local driver="$4"
+  local shortcut="Y"
+  local drivers="/tmp/drivers"
 
-  local tmp="$TMP/boot-images"
-  local image="$tmp/eltorito_img1_bios.img"
+  if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
+    shortcut="N"
+  fi
 
-  ETFS="boot.img"
-  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
-
-  rm -f "$dir/$ETFS" || return 1
-  rm -rf "$tmp" || return 1
-
-  local rc
-
-  LC_ALL=C xorriso \
-      -no_rc \
-      -osirrox on \
-      -indev "$iso" \
-      -extract_boot_images "$tmp" >/dev/null 2>&1 || {
-    rc=$?
-    rm -rf "$tmp" || true
-
-    (( rc > 128 )) && exit "$rc"
-
-    error "Failed to extract boot image from $desc ISO!"
-    return 1
-  }
-
-  if [ ! -s "$image" ]; then
-    rm -rf "$tmp" || true
-    error "Failed to locate BIOS boot image in $desc ISO!"
+  if [ -n "$DOMAIN" ]; then
+    error "The DOMAIN variable is not supported for $desc!"
     return 1
   fi
 
-  if ! mv -f "$image" "$dir/$ETFS"; then
-    rm -rf "$tmp" || true
-    error "Failed to save boot image from $desc ISO!"
-    return 1
+  ETFS="[BOOT]/Boot-NoEmul.img"
+
+  if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
+    error "Failed to locate file \"$ETFS\" in $desc ISO image!" && return 1
   fi
 
-  rm -rf "$tmp" || return 1
+  local arch="amd64"
+  [ ! -d "$dir/AMD64" ] && arch="x86"
+
+  local target="$dir/AMD64"
+  [[ "${arch,,}" == "x86" ]] && target="$dir/I386"
+
+  if [ ! -d "$target" ]; then
+    error "Failed to locate directory \"$target\" in $desc ISO image!" && return 1
+  fi
+
+  if [[ "${driver,,}" == "xp" || "${driver,,}" == "2k3" ]]; then
+    addLegacyDrivers "$dir" "$target" "$driver" "$arch" "$drivers" || return 1
+  fi
+
+  setLegacyKey "$target" "$driver" "$arch" "$desc" || return 1
+  validateProductKey "$KEY" || return 1
+
+  local product=""
+  [ -n "$KEY" ] && product="ProductID=$KEY"
+
+  mkdir -p "$dir/\$OEM\$" || return 1
+
+  if ! addFolder "$dir"; then
+    error "Failed to add OEM folder to image!" && return 1
+  fi
+
+  local oem=""
+  local install=""
+  local oem_dir="$dir/\$OEM\$/\$1/OEM"
+
+  if [ -d "$oem_dir" ]; then
+    install=$(find \
+      "$oem_dir" \
+      -maxdepth 1 \
+      -type f \
+      -iname install.bat \
+      -print -quit
+    ) || return 1
+  fi
+
+  oem=$(writeCommand "$install") || return 1
+
+  [ -z "$WIDTH" ] && WIDTH="1280"
+  [ -z "$HEIGHT" ] && HEIGHT="720"
+
+  validateResolution "WIDTH" "$WIDTH" 320 || return 1
+  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
+  validateMembership || return 1
+  validateComputerName "$HOST" || return 1
+  validateLegacyText "APP" "$APP" "$desc" || return 1
+  validateLegacyText "ENGINE" "$ENGINE" "$desc" || return 1
+
+  XHEX=$(printf '%08x\n' "$((10#$WIDTH))") || return 1
+  YHEX=$(printf '%08x\n' "$((10#$HEIGHT))") || return 1
+
+  local username="${USERNAME:-Docker}"
+  local password="${PASSWORD:-admin}"
+  local workgroup="${WORKGROUP:-WORKGROUP}"
+
+  local sifHost sifUsername sifPassword sifOrganization sifWorkgroup
+  local regUsername regPassword
+
+  validateLegacyUsername "$username" "$desc" || return 1
+  validatePassword "$password" "$desc" || return 1
+
+  sifHost=$(escapeSIFValue "${HOST:-*}") || return 1
+  sifUsername=$(escapeSIFValue "$username") || return 1
+  sifPassword=$(escapeSIFValue "$password") || return 1
+  sifOrganization=$(escapeSIFValue "$APP for $ENGINE") || return 1
+  sifWorkgroup=$(escapeSIFValue "$workgroup") || return 1
+  regUsername=$(escapeRegistryValue "$username") || return 1
+  regPassword=$(escapeRegistryValue "$password") || return 1
+
+  writeSIF \
+    "$target" \
+    "$driver" \
+    "$product" \
+    "$sifHost" \
+    "$sifUsername" \
+    "$sifPassword" \
+    "$sifOrganization" \
+    "$sifWorkgroup" || return 1
+
+  writeRegistry \
+    "$dir" \
+    "$shortcut" \
+    "$oem" \
+    "$regUsername" \
+    "$regPassword" || return 1
+
+  appendRegistry "$dir" "$driver" || return 1
+  writeVBS "$dir" "$username" "$shortcut" || return 1
+
   return 0
 }
 

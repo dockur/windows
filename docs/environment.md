@@ -112,6 +112,7 @@ An empty default means the variable is unset and its value is determined automat
 | Variable | Default | Description |
 |---|---|---|
 | `MACHINE` | `q35` | QEMU machine type. |
+| `PCI_BUS` | `pcie.0` | Overrides the PCI bus used for attached devices. |
 | `UUID` |  | UUID assigned to Windows. |
 | `HPET` | `off` | QEMU HPET timer setting. |
 | `VMPORT` | `off` | QEMU VMware port setting. |
@@ -160,6 +161,7 @@ Also see [Dynamic memory allocation](https://github.com/qemus/qemu/blob/master/d
 | `VERIFY` | `N` | Verifies downloaded installation media against predefined checksums. |
 | `REMOVE` | `Y` | Deletes the downloaded Windows ISO after installation to save space. |
 | `MANUAL` | `N` | Enables manual installation instead of unattended installation. |
+| `REBUILD` | `N` | Skips rebuilding the Windows ISO and uses the original image unchanged. |
 | `COMMAND` |  | Command to be executed during the final step of automatic installation. |
 
 ## 🔌 Shutdown
@@ -175,6 +177,7 @@ Also see [Dynamic memory allocation](https://github.com/qemus/qemu/blob/master/d
 |---|---|---|
 | `DEBUG` | `N` | Enables verbose debug output. |
 | `TRACE` | `N` | Enables shell command tracing. |
+| `LOG`   | `N` | Saves all output from `install.bat` to `C:\OEM\install.log` for troubleshooting. |
 | `DETECTED` |  | Overrides the automatically detected Windows image identifier. |
 | `SERIAL` | `mon:stdio` | QEMU serial device configuration. |
 | `MONITOR` | `unix:$QEMU_DIR/monitor.sock,server,wait=off,nodelay` | QEMU monitor configuration. |

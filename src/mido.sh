@@ -6,7 +6,7 @@ handleCurlError() {
   local code="$1"
   local server="$2"
   local reason="${3:-}"
-  local signal=""
+  local signal
 
   if [ -n "$reason" ] && (( code <= 125 )); then
     error "Request to $server servers failed: ${reason%.}."
@@ -43,8 +43,7 @@ curlRequest() {
   local agent="$3"
   shift 3
 
-  local log reason
-  local rc=0 response=""
+  local log reason response
 
   if ! log=$(mktemp -p "$QEMU_DIR"); then
     error "Failed to create a temporary curl log."
@@ -62,7 +61,7 @@ curlRequest() {
       --tlsv1.2 \
       --http1.1 \
       "$@" 2>"$log")
-    rc=$?
+    local rc=$?
   } || :
 
   if (( rc != 0 )); then
@@ -90,14 +89,14 @@ downloadWindows() {
   local lang="$2"
   local desc="$3"
 
-  local ovToken="" ovTicks="" ovTime=""
-  local skuId="" skuUrl="" skuJson=""
-  local linkUrl="" linkJson="" link=""
-  local language="" orgId="" ovData=""
-  local instance="" vlsUrl="" ovUrl=""
-  local session="" agent="" type=""
-  local winVer="" page="" productId=""
-  local rc=0 profile="606624d44113"
+  local ovToken="" ovTicks="" ovTime
+  local skuId skuJson
+  local linkJson link
+  local language ovData
+  local session agent
+  local type winVer
+  local page productId
+  local profile="606624d44113"
 
   agent=$(getAgent)
   language=$(getLanguage "$lang" "name")
@@ -142,8 +141,8 @@ downloadWindows() {
 
   # Microsoft download "protection" requires the sessionId to be whitelisted through vlscppe.microsoft.com/tags
 
-  orgId="y6jn8c31"
-  vlsUrl="https://vlscppe.microsoft.com/tags?org_id=$orgId&session_id=$session"
+  local orgId="y6jn8c31"
+  local vlsUrl="https://vlscppe.microsoft.com/tags?org_id=$orgId&session_id=$session"
 
   enabled "$DEBUG" && echo "Getting Session ID: $session"
 
@@ -157,8 +156,8 @@ downloadWindows() {
   # Microsoft download "protection" also requires an ov-df.microsoft.com request/reply
   # 1) Request mdt.js to get w and rticks. InstanceId is (currently) constant.
 
-  instance="560dc9f3-1aa5-4a2f-b63c-9e18f8d0e175"
-  ovUrl="https://ov-df.microsoft.com/mdt.js?instanceId=$instance&PageId=si&session_id=$session"
+  local instance="560dc9f3-1aa5-4a2f-b63c-9e18f8d0e175"
+  local ovUrl="https://ov-df.microsoft.com/mdt.js?instanceId=$instance&PageId=si&session_id=$session"
 
   enabled "$DEBUG" && echo -n "Getting OV data: "
 
@@ -199,7 +198,7 @@ downloadWindows() {
 
   enabled "$DEBUG" && echo -n "Getting language SKU ID: "
 
-  skuUrl="https://www.microsoft.com/software-download-connector/api/getskuinformationbyproductedition?profile=$profile&ProductEditionId=$productId&SKU=undefined&friendlyFileName=undefined&Locale=en-US&sessionID=$session"
+  local skuUrl="https://www.microsoft.com/software-download-connector/api/getskuinformationbyproductedition?profile=$profile&ProductEditionId=$productId&SKU=undefined&friendlyFileName=undefined&Locale=en-US&sessionID=$session"
 
   curlRequest skuJson "Microsoft" "$agent" \
     --referer "$url" \
@@ -207,7 +206,7 @@ downloadWindows() {
     --max-filesize 100K \
     -- "$skuUrl" || return 1
 
-  { skuId=$(echo "$skuJson" | jq --arg LANG "$language" -r '.Skus[] | select(.Language==$LANG).Id') 2>/dev/null; rc=$?; } || :
+  { skuId=$(echo "$skuJson" | jq --arg LANG "$language" -r '.Skus[] | select(.Language==$LANG).Id') 2>/dev/null; local rc=$?; } || :
 
   if [ -z "$skuId" ] || [[ "${skuId,,}" == "null" ]] || (( rc != 0 )); then
     language=$(getLanguage "$lang" "desc")
@@ -221,7 +220,7 @@ downloadWindows() {
   # Get ISO download link
   # If any request is going to be blocked by Microsoft it's always this last one (the previous requests always seem to succeed)
 
-  linkUrl="https://www.microsoft.com/software-download-connector/api/GetProductDownloadLinksBySku?profile=$profile&ProductEditionId=undefined&SKU=$skuId&friendlyFileName=undefined&Locale=en-US&sessionID=$session"
+  local linkUrl="https://www.microsoft.com/software-download-connector/api/GetProductDownloadLinksBySku?profile=$profile&ProductEditionId=undefined&SKU=$skuId&friendlyFileName=undefined&Locale=en-US&sessionID=$session"
 
   curlRequest linkJson "Microsoft" "$agent" \
     --referer "$url" \
@@ -262,8 +261,8 @@ downloadWindowsEval() {
   local id="$1"
   local lang="$2"
   local desc="$3"
-  local filter="" culture="" compare="" language=""
-  local agent="" type="" winVer=""
+  local culture compare type
+  local agent language winVer
 
   case "${id,,}" in
     "win11${PLATFORM,,}-enterprise-eval" )
@@ -301,9 +300,7 @@ downloadWindowsEval() {
   culture=$(getLanguage "$lang" "culture")
 
   local country="${culture#*-}"
-  local link=""
-  local links=""
-  local page=""
+  local link="" links page
   local url="https://www.microsoft.com/en-us/evalcenter/download-$winVer"
 
   enabled "$DEBUG" && echo "Parsing download page: ${url}"
@@ -321,7 +318,7 @@ downloadWindowsEval() {
 
   enabled "$DEBUG" && echo "Getting download link.."
 
-  filter="https://go.microsoft.com/fwlink/?linkid=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country,,}"
+  local filter="https://go.microsoft.com/fwlink/?linkid=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country,,}"
 
   if ! echo "$page" | grep -io "$filter" > /dev/null; then
     filter="https://go.microsoft.com/fwlink/p/?linkid=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country,,}"
@@ -383,15 +380,18 @@ downloadWindowsEval() {
     --head \
     -- "$link" || return 1
 
+  local lower="${link,,}"
+  local separator='(^|[[:space:]_./-])'
+
   case "${PLATFORM,,}" in
     "x64" )
-      if [[ "${link,,}" != *"x64"* ]]; then
+      if [[ "$lower" =~ ${separator}(arm64|a64) ]]; then
         echo "Found download link: $link"
         error "Download link is for the wrong platform? Please report this at $SUPPORT/issues"
         return 1
       fi ;;
     "arm64" )
-      if [[ "${link,,}" != *"a64"* && "${link,,}" != *"arm64"* ]]; then
+      if [[ "$lower" =~ ${separator}(x64|x86|amd64) ]]; then
         if enabled "$DEBUG"; then
           echo "Found download link: $link"
           echo "Link for ARM platform currently not available!"
@@ -401,10 +401,21 @@ downloadWindowsEval() {
   esac
 
   if enabled "$DEBUG" && enabled "$VERIFY" && [[ "${lang,,}" == "en"* ]]; then
+
     compare=$(getMido "$id" "$lang" "")
-    if [ -n "$compare" ] && [[ "${link,,}" != "${compare,,}" ]]; then
-      echo "Retrieved link does not match the fixed link: $compare"
+
+    if [ -n "$compare" ]; then
+      link_name="${link%%[?#]*}"
+      link_name="${link_name##*/}"
+
+      compare_name="${compare%%[?#]*}"
+      compare_name="${compare_name##*/}"
+
+      if [[ "${link_name,,}" != "${compare_name,,}" ]]; then
+        echo "Retrieved ISO file $link_name does not match the pre-defined filename: $compare_name"
+      fi
     fi
+
   fi
 
   MIDO_URL="$link"
@@ -455,7 +466,7 @@ getMidoDetected() {
       detected="${source%-enterprise-ltsc-eval}-ltsc-eval"
       ;;
     *"-enterprise-iot-eval" )
-      detected="${source%-enterprise-iot-eval}-iot"
+      detected="${source%-enterprise-iot-eval}-iot-eval"
       ;;
     *"-eval" )
       detected="$source"
@@ -474,8 +485,7 @@ downloadWindowsLtsc() {
   local id="$1"
   local lang="$2"
   local desc="$3"
-  local alternate=""
-  local alternate_desc=""
+  local alternate alternate_desc
 
   case "${id,,}" in
     "win11${PLATFORM,,}-enterprise-iot-eval" )
@@ -691,7 +701,7 @@ getESD() {
   local xmlFile="products.xml"
   local esdFile="esd_edition.xml"
   local filterFile="products_filter.xml"
-  local log query rc=0 reason=""
+  local log
 
   file=$(getCatalog "$version" "file")
   catalog=$(getCatalog "$version" "url")
@@ -721,11 +731,12 @@ getESD() {
   {
     LC_ALL=C wget "$catalog" -O "$dir/$file" --no-verbose --timeout=30 \
       --no-http-keep-alive --output-file="$log"
-    rc=$?
+    local rc=$?
   } || :
 
   if (( rc != 0 )); then
 
+    local reason
     reason=$(sed -n \
       -e 's/^wget: //p' \
       -e 's/^[0-9-]\{10\} [0-9:]\{8\} ERROR //p' \
@@ -771,7 +782,7 @@ getESD() {
     return 1
   fi
 
-  query='//File[Architecture="'${PLATFORM,,}'"]'"${edition}"''
+  local query='//File[Architecture="'${PLATFORM,,}'"]'"${edition}"''
   result=$(xmllint --nonet --xpath "${query}" "$dir/$xmlFile" 2>/dev/null || true)
 
   if [ -z "$result" ]; then
@@ -853,8 +864,8 @@ verifyFile() {
     fi
   fi
 
-  local hash=""
   local algo="SHA256"
+  local hash
 
   [ -z "$check" ] && return 0
   ! enabled "$VERIFY" && return 0
@@ -864,15 +875,31 @@ verifyFile() {
   info "$msg" && html "$msg"
 
   if [[ "${algo,,}" != "sha256" ]]; then
-    if ! hash=$(sha1sum "$iso" | cut -f1 -d' '); then
+
+    hash=$(sha1sum "$iso" | cut -f1 -d' ') || {
+      local rc=$?
+
+      if (( rc >= 129 )); then
+        exit "$rc"
+      fi
+
       error "Failed to calculate SHA1 checksum for $iso!"
       return 1
-    fi
+    }
+
   else
-    if ! hash=$(sha256sum "$iso" | cut -f1 -d' '); then
+
+    hash=$(sha256sum "$iso" | cut -f1 -d' ') || {
+      local rc=$?
+
+      if (( rc >= 129 )); then
+        exit "$rc"
+      fi
+
       error "Failed to calculate SHA256 checksum for $iso!"
       return 1
-    fi
+    }
+
   fi
 
   if [[ "$hash" == "$check" ]]; then
@@ -923,7 +950,7 @@ tryDownload() {
   local desc="$6"
   local seconds="$7"
   local web_desc="$8"
-  local total rc=0
+  local total
 
   if downloadRetry \
       "$iso" \
@@ -936,9 +963,9 @@ tryDownload() {
       "$size" \
       "$desc" \
       "$web_desc"; then
-    rc=0
+    local rc=0
   else
-    rc=$?
+    local rc=$?
   fi
 
   (( rc == 0 )) || return "$rc"
@@ -971,9 +998,9 @@ fallbackEnglish() {
   local lang="$3"
   local desc="$4"
   local web_desc="$5"
-  local culture msg web_msg
+  local culture web_msg
 
-  msg="No working download method was found for $desc, falling back to English..."
+  local msg="No working download method was found for $desc, falling back to English..."
   info "$msg"
 
   # Preserve the requested regional format and keyboard layout.
@@ -998,6 +1025,7 @@ downloadImage() {
   local iso="$1"
   local version="$2"
   local lang="$3"
+  local requested="$version"
   local tried="n"
   local success="n"
   local seconds="5"
@@ -1073,6 +1101,17 @@ downloadImage() {
     fi
   fi
 
+  if switchEdition version; then
+
+    desc=$(printVariant "$DETECTED" "" "Y")
+    web_desc=$(printVariant "$DETECTED" "")
+
+    if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
+      desc+=" in $language"
+    fi
+
+  fi
+
   if isESD "$version" "$lang"; then
 
     if [[ "$tried" != "n" ]]; then
@@ -1122,7 +1161,7 @@ downloadImage() {
   done
 
   if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
-    if fallbackEnglish "$iso" "$version" "$lang" "$desc" "$web_desc"; then
+    if fallbackEnglish "$iso" "$requested" "$lang" "$desc" "$web_desc"; then
       return 0
     fi
   fi

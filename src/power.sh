@@ -164,7 +164,7 @@ abortDuringSetup() {
 gracefulShutdown() {
 
   local sig="$1"
-  local pid="" code=0
+  local pid code
 
   [[ $BASHPID != "$TRAP_PID" ]] && return
 

@@ -3,11 +3,12 @@
 ARG VERSION_ARG="latest"
 FROM scratch AS build-amd64
 
-COPY --from=qemux/qemu:7.39 / /
+COPY --from=qemux/qemu:7.40 / /
 
 ARG TARGETARCH
 ARG VERSION_WSDD="1.26"
 ARG VERSION_VIRTIO="1.9.58"
+ARG VERSION_BLINTER="1.0.112"
 
 ARG DEBCONF_NOWARNINGS="yes"
 ARG DEBIAN_FRONTEND="noninteractive"
@@ -22,8 +23,15 @@ RUN <<EOF
     wimtools \
     dos2unix \
     cabextract \
+    icu-devtools \
     libxml2-utils \
     libarchive-tools
+
+  # Install Blinter
+  python3 -m pip install \
+    --break-system-packages \
+    --no-cache-dir \
+    "Blinter==${VERSION_BLINTER}"
 
   # Install wsdd
   wget "https://github.com/gershnik/wsdd-native/releases/download/v${VERSION_WSDD}/wsddn_${VERSION_WSDD}_${TARGETARCH}.deb" -O /tmp/wsddn.deb -q --timeout=10

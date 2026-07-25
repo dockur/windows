@@ -11,7 +11,7 @@ backup () {
   local count=1
   local name="unknown"
   local root="$STORAGE/backups"
-  local file previous find_pid failed=""
+  local file previous failed=""
 
   previous=$(readState "base") || return 1
   [ -n "$previous" ] && name="${previous%.*}"
@@ -53,7 +53,7 @@ backup () {
       -not -iname '*.iso' -print0
   )
 
-  find_pid=$!
+  local find_pid=$!
 
   if ! wait "$find_pid"; then
     error "Failed to enumerate files in \"$STORAGE\"."
@@ -122,10 +122,8 @@ detectCustom() {
 skipInstall() {
 
   local iso="$1"
-  local method=""
-  local magic byte
+  local method magic previous
   local boot="$STORAGE/windows.boot"
-  local previous
 
   previous=$(readState "base") || return 1
 
@@ -178,7 +176,8 @@ skipInstall() {
   # Check if the ISO was already processed by our script
   magic=$(dd if="$iso" bs=1 count=1 status=none | tr -d '\000')
   magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
-  byte="16" && enabled "$MANUAL" && byte="17"
+  local byte="16"
+  enabled "$MANUAL" && byte="17"
 
   if [[ "$magic" != "$byte" ]]; then
 
@@ -293,7 +292,7 @@ finishInstall() {
 
   local iso="$1"
   local aborted="$2"
-  local base byte
+  local base
 
   if [ ! -s "$iso" ] || [ ! -f "$iso" ]; then
     error "Failed to find ISO file: $iso" && return 1
@@ -307,7 +306,8 @@ finishInstall() {
 
   if [[ "$aborted" != [Yy1]* ]]; then
     # Mark ISO as prepared via magic byte
-    byte="16" && enabled "$MANUAL" && byte="17"
+    local byte="16"
+    enabled "$MANUAL" && byte="17"
     if ! printf '%b' "\x$byte" | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none; then
       warn "failed to set magic byte in ISO file: $iso"
     fi
@@ -372,6 +372,10 @@ finishInstall() {
 
   if [ -n "${SOUND:-}" ] && [[ "${SOUND:-}" != "intel-hda" ]]; then
     writeState "sound" "$SOUND" || return 1
+  fi
+
+  if [ -n "${CPU_MODEL:-}" ] && [[ "${CPU_MODEL,,}" != "host" ]]; then
+    writeState "cpu" "$CPU_MODEL" || return 1
   fi
 
   rm -rf "$TMP"
@@ -443,21 +447,18 @@ extractESD() {
   local version="$3"
   local desc="$4"
 
-  local msg ret index size
-  local minSize freeSpace bootPad
   local info count totals links
-  local bootTotal bootLinks bootSize
-  local wimTotal wimLinks wimSize
-  local installSize installPad
-  local bootWim installWim
+  local bootTotal bootLinks
+  local wimTotal wimLinks
+  local installSize size
   local edition imgEdition
 
-  minSize=100000000
-  freeSpace=9606127360
-  bootPad=60000000
-  installPad=3000000
+  local minSize=100000000
+  local freeSpace=9606127360
+  local bootPad=60000000
+  local installPad=3000000
 
-  msg="Extracting $desc bootdisk"
+  local msg="Extracting $desc bootdisk"
   info "$msg..." && html "$msg..."
 
   if ! size=$(stat -c%s -- "$iso"); then
@@ -510,7 +511,7 @@ extractESD() {
     return 1
   fi
 
-  bootSize=$(( bootTotal - bootLinks ))
+  local bootSize=$(( bootTotal - bootLinks ))
 
   wimTotal=$(getEsdField "$totals" 3)
   wimLinks=$(getEsdField "$links" 3)
@@ -520,13 +521,13 @@ extractESD() {
     return 1
   fi
 
-  wimSize=$(( wimTotal - wimLinks + bootPad ))
+  local wimSize=$(( wimTotal - wimLinks + bootPad ))
 
   /run/progress.sh "$dir" "$bootSize" "$msg ([P])..." &
 
-  index="1"
+  local index="1"
   wimlib-imagex apply "$iso" "$index" "$dir" --quiet 2>/dev/null || {
-    ret=$?
+    local ret=$?
     fKill "progress.sh"
     error "Extracting $desc bootdisk failed ($ret)"
     return 1
@@ -534,8 +535,8 @@ extractESD() {
 
   fKill "progress.sh"
 
-  bootWim="$dir/sources/boot.wim"
-  installWim="$dir/sources/install.wim"
+  local bootWim="$dir/sources/boot.wim"
+  local installWim="$dir/sources/install.wim"
 
   msg="Extracting $desc environment"
   info "$msg..." && html "$msg..."
@@ -544,7 +545,7 @@ extractESD() {
   /run/progress.sh "$bootWim" "$wimSize" "$msg ([P])..." &
 
   wimlib-imagex export "$iso" "$index" "$bootWim" --compress=none --quiet || {
-    ret=$?
+    local ret=$?
     fKill "progress.sh"
     error "Adding WinPE failed ($ret)"
     return 1
@@ -559,7 +560,7 @@ extractESD() {
   /run/progress.sh "$bootWim" "$wimSize" "$msg ([P])..." &
 
   wimlib-imagex export "$iso" "$index" "$bootWim" --compress=none --boot --quiet || {
-    ret=$?
+    local ret=$?
     fKill "progress.sh"
     error "Adding Windows Setup failed ($ret)"
     return 1
@@ -594,7 +595,7 @@ extractESD() {
     /run/progress.sh "$installWim" "$installSize" "$msg ([P])..." &
 
     wimlib-imagex export "$iso" "$index" "$installWim" --compress=LZMS --chunk-size 128K --quiet || {
-      ret=$?
+      local ret=$?
       fKill "progress.sh"
       error "Addition of $index to the $desc image failed ($ret)"
       return 1
@@ -728,18 +729,33 @@ setMachine() {
       DISK_TYPE="auto"
       BOOT_MODE="windows_legacy"
       [ -z "${ADAPTER:-}" ] && ADAPTER="rtl8139" ;;
-    "winxp"* | "win2003"* )
+    "winxp"* )
       DISK_TYPE="blk"
       BOOT_MODE="windows_legacy"
-      [ -z "${SOUND:-}" ] && SOUND="usb-audio" ;;
+      [ -z "${SOUND:-}" ] && SOUND="usb-audio"
+
+      if [ -z "${CPU_MODEL:-}" ] || [[ "${CPU_MODEL:-}" == "host" ]]; then
+        # Workaround for boot loop on AMD EPYC processors
+        if [[ "${CPU,,}" == *"amd epyc"* ]]; then
+          CPU_MODEL="qemu32"
+        fi
+      fi
+      ;;
+    "win2003"* )
+      DISK_TYPE="blk"
+      BOOT_MODE="windows_legacy"
+      [ -z "${SOUND:-}" ] && SOUND="usb-audio"
+      ;;
     "winvista"* | "win7"* | "win2008"* )
       BOOT_MODE="windows_legacy" ;;
   esac
 
   case "${id,,}" in
     "winxp"* | "win2003"* | "winvistax86"* | "win7x86"* | "win2008r2x86"* )
-      # Prevent bluescreen if 64 bit PCI hole size is >2G.
-      ARGS="-global q35-pcihost.x-pci-hole64-fix=false" ;;
+      if isQ35 "${MACHINE:-q35}"; then
+        # Prevent bluescreen if 64 bit PCI hole size is >2G.
+        ARGS="-global q35-pcihost.x-pci-hole64-fix=false"
+      fi ;;
   esac
 
   return 0
@@ -753,33 +769,36 @@ prepareImage() {
 
   desc=$(printVariant "$DETECTED" "$DETECTED")
 
+  # Adjust QEMU machine configuration for legacy versions
   setMachine "$DETECTED" "$iso" "$dir" "$desc" || return 1
+
+  disabled "$REBUILD" && return 0
   skipVersion "$DETECTED" && return 0
 
-  if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
+  if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
 
-    [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] &&
-      [ -f "$dir/$EFISYS" ] && [ -s "$dir/$EFISYS" ] && return 0
-  
-    missing=$(basename "$dir/$EFISYS")
-    if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
-      missing=$(basename "$dir/$ETFS")
-    fi
+    extractBootImage "$iso" "$dir" "$desc" && return 0
 
-    error "Failed to locate file \"${missing,,}\" in ISO image!"
+    error "Failed to extract boot image from ISO image \"${iso}\"!"
     return 1
   fi
 
-  legacyPrepare "$iso" "$dir" "$desc" && return 0
+  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] &&
+    [ -f "$dir/$EFISYS" ] && [ -s "$dir/$EFISYS" ] && return 0
 
-  error "Failed to extract boot image from ISO image!"
+  missing=$(basename "$dir/$EFISYS")
+  if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
+    missing=$(basename "$dir/$ETFS")
+  fi
+
+  error "Failed to locate file \"${missing,,}\" in ISO image!"
   return 1
 }
 
 addFolder() {
 
   local src="$1"
-  local folder="/oem" file=""
+  local folder="/oem" file
   local dest="$src/\$OEM\$/\$1/OEM"
 
   [ ! -d "$folder" ] && folder="/OEM"
@@ -813,10 +832,13 @@ addFolder() {
   fi
 
   if [ -f "$file" ]; then
+
     if ! unix2dos -q "$file"; then
       error "Failed to convert $file to DOS format!"
       return 1
     fi
+
+    checkBatch "$file"
   fi
 
   return 0
@@ -828,8 +850,7 @@ addDriver() {
   local path="$2"
   local target="$3"
   local driver="$4"
-  local desc=""
-  local folder=""
+  local folder="" desc
 
   if [ -z "$id" ]; then
     warn "no Windows version specified for \"$driver\" driver!" && return 0
@@ -942,7 +963,12 @@ updateImage() {
   local xml="autounattend.xml"
   local bak="${xml//.xml/.org}"
   local dat="${xml//.xml/.dat}"
-  local desc path src wim name info idx
+  local desc path src wim name info
+
+  if disabled "$REBUILD"; then
+    info "Skipping modifications to the installation image..."
+    return 1
+  fi
 
   skipVersion "${DETECTED,,}" && return 0
 
@@ -971,7 +997,7 @@ updateImage() {
     return 1
   fi
 
-  idx="1"
+  local idx="1"
 
   if ! info=$(wimlib-imagex info -xml "$wim" | iconv -f UTF-16LE -t UTF-8); then
     warn "failed to read boot image information, $FB"
@@ -1013,23 +1039,7 @@ updateImage() {
       return 1
     fi
 
-    local fallback="/run/assets/${DETECTED%%-*}.xml"
-
-    if [[ "$DETECTED" != win20* &&
-          "$asset" == "$fallback" &&
-          "$asset" != "/run/assets/$DETECTED.xml" ]]; then
-
-      if ! sed -i \
-        -e '/<InstallFrom>.*<\/InstallFrom>/d' \
-        -e '/<ProductKey>.*<\/ProductKey>/d' \
-        -e '/<InstallFrom>/,/<\/InstallFrom>/d' \
-        -e '/<ProductKey>/,/<\/ProductKey>/d' \
-        "$answer"; then
-        error "Failed to make answer file edition-neutral: $answer"
-        return 1
-      fi
-
-    fi
+    removeGeneratedXML "$asset" || return 1
 
     if [ -n "${CUSTOM_XML:-}" ]; then
 
@@ -1057,6 +1067,8 @@ updateImage() {
   fi
 
   if enabled "$MANUAL"; then
+
+    removeGeneratedXML "$asset" || return 1
 
     wimlib-imagex update "$wim" "$idx" --command "delete --force /$xml" > /dev/null || true
 
@@ -1102,80 +1114,6 @@ removeImage() {
   return 0
 }
 
-buildImage() {
-
-  local dir="$1"
-  local failed=""
-  local cat="BOOT.CAT"
-  local log="/run/shm/iso.log"
-  local base size desc
-
-  if [ -f "$BOOT" ]; then
-    error "File $BOOT does already exist?!" && return 1
-  fi
-
-  base=$(basename "$BOOT")
-  local out="$TMP/${base%.*}.tmp"
-  rm -f "$out"
-
-  desc=$(printVariant "$DETECTED" "ISO")
-
-  local msg="Building $desc image"
-  info "$msg..." && html "$msg..."
-
-  [ -z "$LABEL" ] && LABEL="Windows"
-
-  if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
-    error "Failed to locate file \"$ETFS\" in ISO image!" && return 1
-  fi
-
-  size=$(du -b --max-depth=0 "$dir" | cut -f1)
-  checkFreeSpace "$TMP" "$size" || return 1
-
-  /run/progress.sh "$out" "$size" "$msg ([P])..." &
-
-  if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
-
-    genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -V "${LABEL::30}" \
-                  -udf -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -allow-limited-size -quiet "$dir" 2> "$log" || failed="y"
-
-  else
-
-    case "${DETECTED,,}" in
-      "win2k"* | "winxp"* | "win2003"* )
-        genisoimage -o "$out" -b "$ETFS" -no-emul-boot -boot-load-seg 1984 -boot-load-size 4 -c "$cat" -iso-level 2 -J -l -D -N -joliet-long \
-                      -relaxed-filenames -V "${LABEL::30}" -quiet "$dir" 2> "$log" || failed="y" ;;
-      "win9"* )
-        genisoimage -o "$out" -b "$ETFS" -J -r -V "${LABEL::30}" -quiet "$dir" 2> "$log" || failed="y" ;;
-      * )
-        genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "${LABEL::30}" \
-                      -udf -allow-limited-size -quiet "$dir" 2> "$log" || failed="y" ;;
-    esac
-
-  fi
-
-  fKill "progress.sh"
-
-  if [ -n "$failed" ]; then
-    [ -s "$log" ] && echo "$(<"$log")"
-    error "Failed to build image!" && return 1
-  fi
-
-  local err=""
-  local hide="Warning: creating filesystem that does not conform to ISO-9660."
-
-  [ -s "$log" ] && err="$(<"$log")"
-  [[ "$err" != "$hide" ]] && echo "$err"
-
-  mv -f "$out" "$BOOT" || return 1
-
-  if ! setOwner "$BOOT"; then
-    warn "Failed to set the owner for \"$BOOT\" !"
-  fi
-
-  return 0
-}
-
 bootWindows() {
 
   ARGS=$(readState "$STORAGE/windows.args") || return 1
@@ -1188,6 +1126,7 @@ bootWindows() {
   restoreState "USB" "$STORAGE/windows.usb" || return 1
   restoreState "SOUND" "$STORAGE/windows.sound" || return 1
   restoreState "ADAPTER" "$STORAGE/windows.net" || return 1
+  restoreState "CPU_MODEL" "$STORAGE/windows.cpu" || return 1
   restoreState "DISK_TYPE" "$STORAGE/windows.type" || return 1
   restoreState "BOOT_MODE" "$STORAGE/windows.mode" "Y" || return 1
 
