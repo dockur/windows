@@ -562,52 +562,53 @@ detectLegacy() {
   return 1
 }
 
-detectImage() {
+resolveKnownImage() {
+
+  local version="$1"
+
+  [ -z "$DETECTED" ] || return 0
+  [ -z "$CUSTOM" ] || return 1
+  [ -z "${REUSED_ISO:-}" ] || return 1
+  [[ "${version,,}" != "http"* ]] || return 1
+
+  local file="/run/assets/$version.xml"
+
+  if [ -s "$file" ]; then
+    DETECTED="$version"
+    return 0
+  fi
+
+  if [[ "${version,,}" == *"-eval" ]]; then
+    local source="/run/assets/${version%-eval}.xml"
+
+    if [ -s "$source" ]; then
+      DETECTED="$version"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
+configureKnownImage() {
+
+  skipVersion "${DETECTED,,}" && return 0
+
+  if ! setXML "" && ! enabled "$MANUAL"; then
+    MANUAL="Y"
+
+    local desc
+    desc=$(printEdition "$DETECTED" "this version")
+    warn "the answer file for $desc was not found ($DETECTED.xml), $FB."
+  fi
+
+  return 0
+}
+
+findWindowsImage() {
 
   local dir="$1"
-  local version="$2"
-  local desc
-
-  XML=""
-
-  # For normal download routes, avoid inspecting install.wim when the route
-  # already maps directly to an available answer file. Routes such as Tiny10
-  # and Tiny11 have no corresponding answer file, so their actual Windows
-  # edition will be detected from the downloaded image instead.
-  if [ -z "$DETECTED" ] && [ -z "$CUSTOM" ] &&
-    [ -z "${REUSED_ISO:-}" ] && [[ "${version,,}" != "http"* ]]; then
-
-    local file="/run/assets/$version.xml"
-
-    if [ -s "$file" ]; then
-      DETECTED="$version"
-    elif [[ "${version,,}" == *"-eval" ]]; then
-      local source="/run/assets/${version%-eval}.xml"
-      [ -s "$source" ] && DETECTED="$version"
-    fi
-
-  fi
-
-  if [ -n "$DETECTED" ]; then
-
-    skipVersion "${DETECTED,,}" && return 0
-
-    if ! setXML "" && ! enabled "$MANUAL"; then
-      MANUAL="Y"
-      desc=$(printEdition "$DETECTED" "this version")
-      warn "the answer file for $desc was not found ($DETECTED.xml), $FB."
-    fi
-
-    return 0
-  fi
-
-  info "Detecting version from ISO image..."
-
-  if detectLegacy "$dir"; then
-    desc=$(printEdition "$DETECTED" "$DETECTED" "Y")
-    info "Detected: $desc"
-    return 0
-  fi
+  local -n result_ref="$2"
 
   local src
   src=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
@@ -617,17 +618,23 @@ detectImage() {
     return 1
   fi
 
-  local wim
-  wim=$(find "$src" -maxdepth 1 -type f \
+  result_ref=$(find "$src" -maxdepth 1 -type f \
     \( -iname install.wim -or -iname install.esd \) -print -quit)
 
-  if [ ! -f "$wim" ]; then
+  if [ ! -f "$result_ref" ]; then
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
     return 1
   fi
 
-  local info
-  info=$(wimlib-imagex info -xml "$wim" |
+  return 0
+}
+
+readWindowsImageInfo() {
+
+  local wim="$1"
+  local -n result_ref="$2"
+
+  result_ref=$(wimlib-imagex info -xml "$wim" |
     iconv -f UTF-16LE -t UTF-8) || {
     local rc=$?
 
@@ -639,58 +646,75 @@ detectImage() {
     return 1
   }
 
-  checkPlatform "$info" || exit 67
+  return 0
+}
 
-  local suggested=""
+getSuggestedVersion() {
 
-  if [ -z "$CUSTOM" ] && [ -n "${REUSED_ISO:-}" ]; then
-    suggested="${SUGGEST:-}"
+  [ -z "$CUSTOM" ] || return 0
+  [ -n "${REUSED_ISO:-}" ] || return 0
+
+  echo "${SUGGEST:-}"
+}
+
+validateDetectedEdition() {
+
+  [ -n "$EDITION" ] || return 0
+
+  case "${DETECTED,,}" in
+    "win20"* )
+      local edition
+      edition=$(normalizeServerEditionID "$EDITION")
+
+      if [ -n "$edition" ] &&
+        [[ "${DETECTED,,}" != *"-${edition,,}" &&
+          "${DETECTED,,}" != *"-${edition,,}-eval" ]]; then
+        EDITION=""
+      fi
+      ;;
+  esac
+
+  return 0
+}
+
+handleUnknownImage() {
+
+  local msg="Failed to determine Windows version from image"
+
+  if setXML "" || enabled "$MANUAL"; then
+    info "${msg}!"
+  else
+    MANUAL="Y"
+    warn "${msg}, $FB."
   fi
 
-  local index
-  detectVersion "$info" "$suggested" DETECTED index
+  return 0
+}
 
-  if [ -n "$EDITION" ]; then
-    local edition
+describeDetectedImage() {
 
-    case "${DETECTED,,}" in
-      "win20"* )
+  local info_xml="$1"
+  local index="$2"
+  local -n result_ref="$3"
 
-        edition=$(normalizeServerEditionID "$EDITION")
+  result_ref=$(printEdition "$DETECTED" "$DETECTED" "Y")
 
-        if [ -n "$edition" ] &&
-          [[ "${DETECTED,,}" != *"-${edition,,}" &&
-            "${DETECTED,,}" != *"-${edition,,}-eval" ]]; then
-          EDITION=""
-        fi
-        ;;
-    esac
-  fi
-
-  if [ -z "$DETECTED" ]; then
-    local msg="Failed to determine Windows version from image"
-
-    if setXML "" || enabled "$MANUAL"; then
-      info "${msg}!"
-    else
-      MANUAL="Y"
-      warn "${msg}, $FB."
-    fi
-
-    return 0
-  fi
-
-  desc=$(printEdition "$DETECTED" "$DETECTED" "Y")
-
-  detectLanguage "$info" "$index"
+  detectLanguage "$info_xml" "$index"
 
   if [[ "${LANGUAGE,,}" != "en" && "${LANGUAGE,,}" != "en-"* ]]; then
     local language
     language=$(getLanguage "$LANGUAGE" "desc")
-    desc+=" ($language)"
+    result_ref+=" ($language)"
   fi
 
-  info "Detected: $desc"
+  return 0
+}
+
+configureDetectedImage() {
+
+  local index="$1"
+  local desc="$2"
+
   setXML "" "$index" && return 0
 
   if [[ "$DETECTED" == "win81x86"* ||
@@ -708,6 +732,57 @@ detectImage() {
     MANUAL="Y"
     warn "${msg}, $FB."
   fi
+
+  return 0
+}
+
+detectImage() {
+
+  local dir="$1"
+  local version="$2"
+  local desc
+
+  XML=""
+
+  resolveKnownImage "$version" || :
+
+  if [ -n "$DETECTED" ]; then
+    configureKnownImage
+    return 0
+  fi
+
+  info "Detecting version from ISO image..."
+
+  if detectLegacy "$dir"; then
+    desc=$(printEdition "$DETECTED" "$DETECTED" "Y")
+    info "Detected: $desc"
+    return 0
+  fi
+
+  local wim
+  findWindowsImage "$dir" wim || return 1
+
+  local image_info
+  readWindowsImageInfo "$wim" image_info || return 1
+
+  checkPlatform "$image_info" || exit 67
+
+  local suggested
+  suggested=$(getSuggestedVersion)
+
+  local index
+  detectVersion "$image_info" "$suggested" DETECTED index
+  validateDetectedEdition
+
+  if [ -z "$DETECTED" ]; then
+    handleUnknownImage
+    return 0
+  fi
+
+  describeDetectedImage "$image_info" "$index" desc
+  info "Detected: $desc"
+
+  configureDetectedImage "$index" "$desc" || return 1
 
   return 0
 }
