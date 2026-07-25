@@ -1170,7 +1170,16 @@ legacyInstall() {
 
   local oem=""
   local install="$dir/\$OEM\$/\$1/OEM/install.bat"
-  [ -f "$install" ] && oem="\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat\\\"\""
+
+  if [ -f "$install" ]; then
+
+    if ! enabled "${LOG:-}"; then
+      oem="\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat\\\"\""
+    else
+      oem="\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat > C:\\\\OEM\\\\install.log 2>&1\\\"\""
+    fi
+
+  fi
 
   [ -z "$WIDTH" ] && WIDTH="1280"
   [ -z "$HEIGHT" ] && HEIGHT="720"
