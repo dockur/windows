@@ -794,7 +794,8 @@ detectImage() {
 checkBatch() {
 
   local file="$1"
-  local tmp output matches line
+  local report="N"
+  local tmp output line
 
   [ ! -f "$file" ] && return 0
 
@@ -806,21 +807,29 @@ checkBatch() {
   local source="your install.bat file"
   [ -n "${COMMAND:-}" ] && source="your COMMAND variable"
 
-  # First pass: silently check only for Error-level findings.
-  cat > "$tmp/blinter.ini" <<'EOF'
+  if enabled "$DEBUG"; then
+    report="Y"
+  else
+
+    # First pass: silently check only for Error-level findings.
+    cat > "$tmp/blinter.ini" <<'EOF'
 [general]
 min_severity = error
 EOF
 
-  if (
-    cd "$tmp"
-    python3 -m blinter "$file" >/dev/null 2>&1
-  ); then
-    rm -rf "$tmp"
-  else
+    if ! (
+      cd "$tmp"
+      python3 -m blinter "$file" >/dev/null 2>&1
+    ); then
+      report="Y"
+    fi
 
-    # Second pass: show useful diagnostic context, while excluding findings
-    # that are irrelevant to unattended OEM scripts.
+  fi
+
+  if enabled "$report"; then
+
+    # Show useful diagnostic context, while excluding findings that are
+    # irrelevant to unattended OEM scripts.
     cat > "$tmp/blinter.ini" <<'EOF'
 [general]
 min_severity = warning
@@ -834,8 +843,6 @@ EOF
       cd "$tmp"
       python3 -m blinter "$file" 2>&1 || true
     )
-
-    rm -rf "$tmp"
 
     # Remove header
     output=$(
@@ -868,7 +875,9 @@ EOF
 
   fi
 
-  matches=$(
+  rm -rf "$tmp"
+
+  local matches=$(
     grep -Ein \
       '(^|[^\\])\\host\.lan\\' \
       "$file" || true
