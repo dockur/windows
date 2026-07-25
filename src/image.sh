@@ -803,6 +803,9 @@ checkBatch() {
     return 0
   fi
 
+  local source="your install.bat file"
+  [ -n "${COMMAND:-}" && source="your COMMAND variable"
+
   # First pass: silently check only for Error-level findings.
   cat > "$tmp/blinter.ini" <<'EOF'
 [general]
@@ -834,7 +837,7 @@ EOF
 
     rm -rf "$tmp"
 
-    # Remove everything through the DETAILED ISSUES heading and separator.
+    # Remove header
     output=$(
       awk '
         /^DETAILED ISSUES:/ {
@@ -859,7 +862,7 @@ EOF
     output="${output%"${output##*[!$'\r\n ']}"}"
 
     if [ -n "$output" ]; then
-      warn "possible issues were detected in your install.bat file:"
+      warn "possible issues were detected in $source:"
       printf '\n%s\n\n' "$output" >&2
     fi
 
@@ -872,7 +875,7 @@ EOF
   )
 
   if [ -n "$matches" ]; then
-    warn "invalid single-backslash UNC path detected in install.bat:"
+    warn "invalid single-backslash UNC path detected in $source:"
 
     while IFS= read -r line; do
       printf '  %s\n' "$line" >&2
@@ -889,7 +892,7 @@ EOF
   )
 
   if [ -n "$matches" ]; then
-    warn "UNC path without leading backslashes detected in install.bat:"
+    warn "UNC path without leading backslashes detected in $source:"
 
     while IFS= read -r line; do
       printf '  %s\n' "$line" >&2
@@ -906,7 +909,7 @@ EOF
   )
 
   if [ -n "$matches" ]; then
-    warn "invalid forward-slash UNC path detected in install.bat:"
+    warn "invalid forward-slash UNC path detected in $source:"
 
     while IFS= read -r line; do
       printf '  %s\n' "$line" >&2
@@ -923,7 +926,7 @@ EOF
   )
 
   if [ -n "$matches" ]; then
-    warn "invalid Samba share name detected in install.bat:"
+    warn "invalid Samba share name detected in $source:"
 
     while IFS= read -r line; do
       printf '  %s\n' "$line" >&2
