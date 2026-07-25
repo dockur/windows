@@ -57,7 +57,7 @@ jobs:
             domain="${domain,,}"
 
             case "$domain" in
-              files.dog | bobpony.com)
+              files.dog | dl.bobpony.com)
                 return 0
                 ;;
             esac
