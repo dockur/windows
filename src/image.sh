@@ -184,6 +184,7 @@ getVersions() {
 
   local count i image_index
   local display product image platform
+  local edition_id install_type flags
   local candidate candidate_id candidate_base key
 
   versions_ref=()
@@ -200,6 +201,9 @@ getVersions() {
     display=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/DISPLAYNAME)" - 2>/dev/null <<< "$xml") || display=""
     product=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/WINDOWS/PRODUCTNAME)" - 2>/dev/null <<< "$xml") || product=""
     image=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/NAME)" - 2>/dev/null <<< "$xml") || image=""
+    edition_id=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/WINDOWS/EDITIONID)" - 2>/dev/null <<< "$xml") || edition_id=""
+    install_type=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/WINDOWS/INSTALLATIONTYPE)" - 2>/dev/null <<< "$xml") || install_type=""
+    flags=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/FLAGS)" - 2>/dev/null <<< "$xml") || flags=""
 
     [ -n "$image_index" ] || continue
     candidate_id=""
@@ -226,9 +230,32 @@ getVersions() {
 
     key="${candidate_id,,}"
 
-    # Keep the first occurrence of an edition. Each WIM image contributes at
-    # most one canonical ID, so Core and Desktop indexes cannot cross-claim it.
-    [[ -v "indexes_ref[$key]" ]] && continue
+    # Some client media use the same friendly name-derived ID for distinct
+    # editions. Preserve the established unsuffixed Pro ID, and use the
+    # structured edition metadata only to disambiguate a collision.
+    if [[ -v "indexes_ref[$key]" ]]; then
+      local structured=""
+
+      case "${candidate_base,,}" in
+        "winvista"* | "win7"* | "win8"* | "win10"* | "win11"* )
+          structured=$(normalizeEditionID "${edition_id:-${flags:-}}" "$candidate_base")
+          ;;
+        "win20"* )
+          structured=$(normalizeServerEditionID "${flags:-$edition_id}")
+          [ "$structured" = "unknown" ] && structured=""
+          ;;
+      esac
+
+      if [ -n "$structured" ]; then
+        candidate_id="$candidate_base-$structured"
+        key="${candidate_id,,}"
+      fi
+    fi
+
+    if [[ -v "indexes_ref[$key]" ]]; then
+      warn "Duplicate image identity '$candidate_id' at indexes ${indexes_ref[$key]} and $image_index"
+      continue
+    fi
 
     indexes_ref["$key"]="$image_index"
     versions_ref+=("$candidate_id")
