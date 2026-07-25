@@ -1150,6 +1150,7 @@ writeCommand() {
 
   local install="$1"
 
+  [ -z "$install" ] && return 0
   [ ! -f "$install" ] && return 0
 
   if ! enabled "${LOG:-}"; then
@@ -1487,15 +1488,18 @@ legacyInstall() {
   fi
 
   local oem=""
-  local install
+  local install=""
+  local oem_dir="$dir/\$OEM\$/\$1/OEM"
 
-  install=$(find \
-    "$dir/\$OEM\$/\$1/OEM" \
-    -maxdepth 1 \
-    -type f \
-    -iname install.bat \
-    -print -quit
-  ) || return 1
+  if [ -d "$oem_dir" ]; then
+    install=$(find \
+      "$oem_dir" \
+      -maxdepth 1 \
+      -type f \
+      -iname install.bat \
+      -print -quit
+    ) || return 1
+  fi
 
   oem=$(writeCommand "$install") || return 1
 
@@ -1550,6 +1554,51 @@ legacyInstall() {
   appendRegistry "$dir" "$driver" || return 1
   writeVBS "$dir" "$username" "$shortcut" || return 1
 
+  return 0
+}
+
+legacyPrepare() {
+
+  local iso="$1"
+  local dir="$2"
+  local desc="$3"
+
+  local tmp="$TMP/boot-images"
+  local image="$tmp/eltorito_img1_bios.img"
+
+  ETFS="boot.img"
+  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
+
+  rm -f "$dir/$ETFS" || return 1
+  rm -rf "$tmp" || return 1
+
+  LC_ALL=C xorriso \
+      -no_rc \
+      -osirrox on \
+      -indev "$iso" \
+      -extract_boot_images "$tmp" >/dev/null 2>&1 || {
+    local rc=$?
+    rm -rf "$tmp" || true
+
+    (( rc > 128 )) && exit "$rc"
+
+    error "Failed to extract boot image from $desc ISO!"
+    return 1
+  }
+
+  if [ ! -s "$image" ]; then
+    rm -rf "$tmp" || true
+    error "Failed to locate BIOS boot image in $desc ISO!"
+    return 1
+  fi
+
+  if ! mv -f "$image" "$dir/$ETFS"; then
+    rm -rf "$tmp" || true
+    error "Failed to save boot image from $desc ISO!"
+    return 1
+  fi
+
+  rm -rf "$tmp" || return 1
   return 0
 }
 
