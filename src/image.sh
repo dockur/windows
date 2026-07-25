@@ -56,60 +56,12 @@ hasVersion() {
   local wanted="$1"
   shift
 
-  local actual i
-  local -a actuals=("$@")
-  local -a expected=("$wanted")
-  local -a selected=("$wanted")
+  local actual
 
-  # Treat normal and Evaluation variants of the same edition as compatible.
-  # The exact requested variant is always checked first.
-  if [[ "${wanted,,}" == *"-eval" ]]; then
-    expected+=("${wanted%-eval}")
-    selected+=("${wanted%-eval}")
-  else
-    expected+=("$wanted-eval")
-    selected+=("$wanted-eval")
-  fi
-
-  for (( i=0; i<${#expected[@]}; i++ )); do
-
-    local expected_id="${expected[$i]}"
-    local selected_id="${selected[$i]}"
-
-    for actual in "${actuals[@]}"; do
-
-      [[ "${actual,,}" == "${expected_id,,}" ]] || continue
-
-      local file="/run/assets/$selected_id.xml"
-
-      if [ -s "$file" ]; then
-        echo "$selected_id"
-        return 0
-      fi
-
-      if [[ "${selected_id,,}" == *"-eval" ]]; then
-        local source="/run/assets/${selected_id%-eval}.xml"
-
-        if [ -s "$source" ]; then
-          echo "$selected_id"
-          return 0
-        fi
-      fi
-
-      # Editions without a dedicated template can use the generic template.
-      case "${selected_id,,}" in
-        "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* | "win20"* )
-
-          file="/run/assets/${selected_id%%-*}.xml"
-
-          if [ -s "$file" ]; then
-            echo "$selected_id"
-            return 0
-          fi
-          ;;
-      esac
-
-    done
+  for actual in "$@"; do
+    [[ "${actual,,}" == "${wanted,,}" ]] || continue
+    echo "$actual"
+    return 0
   done
 
   return 1
@@ -242,7 +194,14 @@ getVersions() {
           ;;
         "win20"* )
           structured=$(normalizeServerEditionID "${flags:-$edition_id}")
-          [ "$structured" = "unknown" ] && structured=""
+
+          # Some media use the same EDITIONID for Core and Desktop images.
+          # INSTALLATIONTYPE provides the structural distinction without
+          # requiring a hardcoded marketing name.
+          if [[ "${install_type,,}" == *"core"* &&
+            "$structured" != *"-core" ]]; then
+            structured+="-core"
+          fi
           ;;
       esac
 
@@ -280,18 +239,30 @@ selectVersion() {
   local -n selected_version="$result_name"
   local -n selected_image_index="$index_name"
 
-  local wanted match key
+  local wanted candidate match key
+  local -a candidates=()
 
   for wanted in "${preference_list[@]}"; do
 
     [ -n "$wanted" ] || continue
+    candidates=("$wanted")
 
-    if match=$(hasVersion "$wanted" "${version_list[@]}"); then
-      key="${match,,}"
-      selected_version="$match"
-      selected_image_index="${index_map[$key]}"
-      return 0
+    # Evaluation and non-evaluation media are compatible for selection, but
+    # hasVersion itself remains a pure check against the IDs read from XML.
+    if [[ "${wanted,,}" == *"-eval" ]]; then
+      candidates+=("${wanted%-eval}")
+    else
+      candidates+=("$wanted-eval")
     fi
+
+    for candidate in "${candidates[@]}"; do
+      if match=$(hasVersion "$candidate" "${version_list[@]}"); then
+        key="${match,,}"
+        selected_version="$match"
+        selected_image_index="${index_map[$key]}"
+        return 0
+      fi
+    done
 
   done
 
@@ -458,20 +429,20 @@ detectVersion() {
 detectLanguage() {
 
   local xml="$1"
-  local lang=""
+  local index="${2:-}"
+  local xpath lang=""
 
-  if [[ "$xml" == *"LANGUAGE><DEFAULT>"* ]]; then
-    lang="${xml#*LANGUAGE><DEFAULT>}"
-    lang="${lang%%<*}"
+  if [[ "$index" =~ ^[0-9]+$ ]]; then
+    xpath="string((/WIM/IMAGE[@INDEX='$index']/WINDOWS/LANGUAGES/DEFAULT | /WIM/IMAGE[@INDEX='$index']/WINDOWS/LANGUAGES/FALLBACK/DEFAULT)[1])"
   else
-    if [[ "$xml" == *"FALLBACK><DEFAULT>"* ]]; then
-      lang="${xml#*FALLBACK><DEFAULT>}"
-      lang="${lang%%<*}"
-    fi
+    xpath='string((/WIM/IMAGE/WINDOWS/LANGUAGES/DEFAULT | /WIM/IMAGE/WINDOWS/LANGUAGES/FALLBACK/DEFAULT)[1])'
   fi
 
+  lang=$(xmllint --nonet --xpath "$xpath" - 2>/dev/null <<< "$xml") || lang=""
+
   if [ -z "$lang" ]; then
-    warn "Language could not be detected from ISO!" && return 0
+    warn "Language could not be detected from ISO!"
+    return 0
   fi
 
   local culture
@@ -676,7 +647,7 @@ detectImage() {
 
   desc=$(printEdition "$DETECTED" "$DETECTED" "Y")
 
-  detectLanguage "$info"
+  detectLanguage "$info" "$index"
 
   if [[ "${LANGUAGE,,}" != "en" && "${LANGUAGE,,}" != "en-"* ]]; then
     local language
