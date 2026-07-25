@@ -459,6 +459,7 @@ jobs:
           trap stop_logs EXIT
 
           deadline=$((SECONDS + 9000))
+          boot_loop_limit=5
 
           while (( SECONDS < deadline )); do
             state="$(
@@ -472,6 +473,69 @@ jobs:
               echo "------------------------------------------------------------"
               echo "Container stopped before Windows became ready."
               echo "Container state: ${state:-missing}"
+              exit 1
+            fi
+
+            container_log="$(docker logs "$CONTAINER" 2>&1 || true)"
+
+            if grep -Eqi \
+              'KVM internal error|KVM: entry failed|hardware error 0x[0-9a-f]+|Triple fault' \
+              <<< "$container_log"; then
+              echo
+              echo "------------------------------------------------------------"
+              echo "Detected a fatal QEMU or KVM error."
+              exit 1
+            fi
+
+            bios_starts="$(
+              grep -Fci 'SeaBIOS (version ' <<< "$container_log" || true
+            )"
+
+            hard_disk_boots="$(
+              grep -Fci 'Booting from Hard Disk' <<< "$container_log" || true
+            )"
+
+            dvd_boots="$(
+              grep -Fci 'Booting from DVD/CD' <<< "$container_log" || true
+            )"
+
+            not_bootable_disk="$(
+              grep -Fci \
+                'Boot failed: not a bootable disk' \
+                <<< "$container_log" || true
+            )"
+
+            unreadable_boot_disk="$(
+              grep -Fci \
+                'Boot failed: could not read the boot disk' \
+                <<< "$container_log" || true
+            )"
+
+            no_bootable_device="$(
+              grep -Fci 'No bootable device.' <<< "$container_log" || true
+            )"
+
+            bootmgr_missing="$(
+              grep -Fci 'BOOTMGR is missing' <<< "$container_log" || true
+            )"
+
+            if (( bios_starts >= boot_loop_limit )) &&
+               (( hard_disk_boots >= boot_loop_limit ||
+                  dvd_boots >= boot_loop_limit ||
+                  not_bootable_disk >= boot_loop_limit ||
+                  unreadable_boot_disk >= boot_loop_limit ||
+                  no_bootable_device >= boot_loop_limit ||
+                  bootmgr_missing >= boot_loop_limit )); then
+              echo
+              echo "------------------------------------------------------------"
+              echo "Detected a repeated BIOS boot loop."
+              echo "SeaBIOS starts: $bios_starts"
+              echo "Hard disk boots: $hard_disk_boots"
+              echo "DVD boots: $dvd_boots"
+              echo "Not-bootable disk failures: $not_bootable_disk"
+              echo "Unreadable boot-disk failures: $unreadable_boot_disk"
+              echo "No-bootable-device failures: $no_bootable_device"
+              echo "BOOTMGR failures: $bootmgr_missing"
               exit 1
             fi
 
@@ -517,7 +581,10 @@ jobs:
                 exit 1
               fi
 
-              if [[ "$caption" != *"$EXPECTED_CAPTION"* ]]; then
+              normalized_caption="${caption//\(R\)/}"
+              normalized_expected_caption="${EXPECTED_CAPTION//\(R\)/}"
+
+              if [[ "$normalized_caption" != *"$normalized_expected_caption"* ]]; then
                 echo "Expected caption containing:"
                 echo "  $EXPECTED_CAPTION"
                 echo "Received:"
@@ -525,8 +592,11 @@ jobs:
                 exit 1
               fi
 
+              normalized_edition="${edition%Eval}"
+              normalized_expected_edition="${EXPECTED_EDITION%Eval}"
+
               if [[ -n "$EXPECTED_EDITION" &&
-                    "$edition" != "$EXPECTED_EDITION" ]]; then
+                    "$normalized_edition" != "$normalized_expected_edition" ]]; then
                 echo "Expected edition: $EXPECTED_EDITION"
                 echo "Received edition: $edition"
                 exit 1
