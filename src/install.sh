@@ -829,10 +829,13 @@ addFolder() {
   fi
 
   if [ -f "$file" ]; then
+
     if ! unix2dos -q "$file"; then
       error "Failed to convert $file to DOS format!"
       return 1
     fi
+
+    checkBatch "$file"
   fi
 
   return 0
