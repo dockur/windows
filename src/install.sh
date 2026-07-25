@@ -377,7 +377,7 @@ finishInstall() {
   if [ -n "${CPU_MODEL:-}" ] && [[ "${CPU_MODEL,,}" != "host" ]]; then
     writeState "cpu" "$CPU_MODEL" || return 1
   fi
-  
+
   rm -rf "$TMP"
   return 0
 }
