@@ -275,6 +275,9 @@ jobs:
         run: |
           set -Eeuo pipefail
 
+          samba_debug="N"
+          [[ "$CALLBACK" == "legacy" ]] && samba_debug="Y"
+
           docker run --detach \
             --name "$CONTAINER" \
             --device /dev/kvm \
@@ -286,10 +289,22 @@ jobs:
             --env "CPU_CORES=half" \
             --env "CPU_MODEL=$CPU" \
             --env "DISK_SIZE=64G" \
+            --env "SAMBA_DEBUG=$samba_debug" \
             --volume "$RUNNER_TEMP/data:/shared" \
             --volume "$RUNNER_TEMP/oem:/oem:ro" \
             --volume "$RUNNER_TEMP/storage:/storage" \
             "$IMAGE"
+
+          if [[ "$CALLBACK" == "legacy" ]]; then
+            for ((i = 0; i < 60; i++)); do
+              if docker exec "$CONTAINER" \
+                smbcontrol all debug 3; then
+                break
+              fi
+
+              sleep 1
+            done
+          fi
 
           echo
           echo "Container log:"
