@@ -869,7 +869,10 @@ EOF
     output="${output#"${output%%[!$'\r\n ']*}"}"
     output="${output%"${output##*[!$'\r\n ']}"}"
 
-    if [ -n "$output" ]; then
+    if grep -Eq \
+      '^(ERROR|WARNING|SECURITY) LEVEL ISSUES:$' \
+      <<< "$output"; then
+
       warn "possible issues were detected in $source:"
       printf '\n%s\n\n' "$output" >&2
     fi
