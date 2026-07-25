@@ -794,58 +794,75 @@ detectImage() {
 checkBatch() {
 
   local file="$1"
-  local config output matches line
+  local tmp output matches line
 
   [ ! -f "$file" ] && return 0
 
-  config=$(mktemp) || {
-    warn "failed to create temporary Blinter configuration."
+  if ! tmp=$(mktemp -d /tmp/blinter.XXXXXX); then
+    warn "failed to create temporary Blinter directory."
     return 0
-  }
+  fi
 
-  cat > "$config" <<'EOF'
+  # First pass: silently check only for Error-level findings.
+  cat > "$tmp/blinter.ini" <<'EOF'
+[general]
+min_severity = error
+EOF
+
+  if (
+    cd "$tmp"
+    python3 -m blinter "$file" >/dev/null 2>&1
+  ); then
+    rm -rf "$tmp"
+  else
+
+    # Second pass: show useful diagnostic context, while excluding findings
+    # that are irrelevant to unattended OEM scripts.
+    cat > "$tmp/blinter.ini" <<'EOF'
 [general]
 min_severity = warning
 show_summary = false
 
 [rules]
-disabled_rules = W001,S001,S007
+disabled_rules = W001,W028,W041,SEC002,SEC005
 EOF
 
-  output=$(
-    python3 -m blinter \
-      "$file" \
-      --config "$config" 2>&1 || true
-  )
+    output=$(
+      cd "$tmp"
+      python3 -m blinter "$file" 2>&1 || true
+    )
 
-  rm -f "$config"
+    rm -rf "$tmp"
 
-  output=$(
-    awk '
-      /^DETAILED ISSUES:/ {
-        found = 1
-        separator = 1
-        next
-      }
-
-      found {
-        if (separator && /^-+$/) {
-          separator = 0
+    # Remove everything through the DETAILED ISSUES heading and separator.
+    output=$(
+      awk '
+        /^DETAILED ISSUES:/ {
+          found = 1
           next
         }
 
-        separator = 0
-        print
-      }
-    ' <<< "$output"
-  )
+        found && !started {
+          if (/^-+$/) {
+            started = 1
+          }
+          next
+        }
 
-  output="${output#"${output%%[!$'\r\n ']*}"}"
-  output="${output%"${output##*[!$'\r\n ']}"}"
+        started {
+          print
+        }
+      ' <<< "$output"
+    )
 
-  if [ -n "$output" ]; then
-    warn "possible issues were detected in your install.bat file:"
-    printf '\n%s\n\n' "$output" >&2
+    output="${output#"${output%%[!$'\r\n ']*}"}"
+    output="${output%"${output##*[!$'\r\n ']}"}"
+
+    if [ -n "$output" ]; then
+      warn "possible issues were detected in your install.bat file:"
+      printf '\n%s\n\n' "$output" >&2
+    fi
+
   fi
 
   matches=$(
@@ -918,5 +935,3 @@ EOF
 
   return 0
 }
-
-return 0
