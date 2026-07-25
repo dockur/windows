@@ -961,10 +961,14 @@ validateLegacyUsername() {
     return 1
   fi
 
-  if [[ "${value^^}" == "GUEST" ]]; then
-    error "The USERNAME value \"$value\" is reserved for a built-in Windows account$suffix!"
-    return 1
-  fi
+  case "${value^^}" in
+    "NONE" )
+      error "The USERNAME value \"NONE\" is reserved by Windows$suffix!"
+      return 1 ;;
+    "ADMINISTRATOR" | "GUEST" | "DEFAULTACCOUNT" | "WDAGUTILITYACCOUNT" | "WSIACCOUNT" )
+      error "The USERNAME value \"$value\" is reserved for a built-in Windows account$suffix!"
+      return 1 ;;
+  esac
 
   return 0
 }
