@@ -218,7 +218,7 @@ jobs:
 
           - name: Windows XP Professional x64
             version: "xp64"
-            cpu: qemu64
+            cpu: host
             expected_caption: Windows XP
             minimum_build: 3790
             platform: x64
