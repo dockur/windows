@@ -67,6 +67,46 @@ hasVersion() {
   return 1
 }
 
+getCompatibleVersions() {
+
+  local wanted="$1"
+  local result_name="$2"
+  local -n result_ref="$result_name"
+
+  result_ref=("$wanted")
+
+  # Treat normal and Evaluation variants of the same edition as compatible.
+  # The exact requested variant is always checked first.
+  if [[ "${wanted,,}" == *"-eval" ]]; then
+    result_ref+=("${wanted%-eval}")
+  else
+    result_ref+=("$wanted-eval")
+  fi
+}
+
+hasAnswerFile() {
+
+  local id="$1"
+  local file="/run/assets/$id.xml"
+
+  [ -s "$file" ] && return 0
+
+  if [[ "${id,,}" == *"-eval" ]]; then
+    file="/run/assets/${id%-eval}.xml"
+    [ -s "$file" ] && return 0
+  fi
+
+  # Editions without a dedicated template can use the generic template.
+  case "${id,,}" in
+    "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* | "win20"* )
+      file="/run/assets/${id%%-*}.xml"
+      [ -s "$file" ] && return 0
+      ;;
+  esac
+
+  return 1
+}
+
 getVersionPriority() {
 
   local id="${1,,}"
@@ -245,23 +285,18 @@ selectVersion() {
   for wanted in "${preference_list[@]}"; do
 
     [ -n "$wanted" ] || continue
-    candidates=("$wanted")
-
-    # Evaluation and non-evaluation media are compatible for selection, but
-    # hasVersion itself remains a pure check against the IDs read from XML.
-    if [[ "${wanted,,}" == *"-eval" ]]; then
-      candidates+=("${wanted%-eval}")
-    else
-      candidates+=("$wanted-eval")
-    fi
+    getCompatibleVersions "$wanted" candidates
 
     for candidate in "${candidates[@]}"; do
-      if match=$(hasVersion "$candidate" "${version_list[@]}"); then
-        key="${match,,}"
-        selected_version="$match"
-        selected_image_index="${index_map[$key]}"
-        return 0
-      fi
+
+      match=$(hasVersion "$candidate" "${version_list[@]}") || continue
+      hasAnswerFile "$match" || continue
+
+      key="${match,,}"
+      selected_version="$match"
+      selected_image_index="${index_map[$key]}"
+      return 0
+
     done
 
   done
