@@ -1148,20 +1148,82 @@ buildImage() {
 
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
 
-    genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 4 -J -l -D -N -joliet-long -relaxed-filenames -V "${LABEL::30}" \
-                  -udf -boot-info-table -eltorito-alt-boot -eltorito-boot "$EFISYS" -no-emul-boot -allow-limited-size -quiet "$dir" 2> "$log" || failed="y"
+    genisoimage \
+      -o "$out" \
+      -b "$ETFS" \
+      -no-emul-boot \
+      -c "$cat" \
+      -iso-level 4 \
+      -J \
+      -l \
+      -D \
+      -N \
+      -joliet-long \
+      -relaxed-filenames \
+      -V "${LABEL::30}" \
+      -udf \
+      -boot-info-table \
+      -eltorito-alt-boot \
+      -eltorito-boot "$EFISYS" \
+      -no-emul-boot \
+      -allow-limited-size \
+      -quiet \
+      "$dir" 2> "$log" || failed="y"
 
   else
 
     case "${DETECTED,,}" in
       "win2k"* | "winxp"* | "win2003"* )
-        genisoimage -o "$out" -b "$ETFS" -no-emul-boot -boot-load-seg 1984 -boot-load-size 4 -c "$cat" -iso-level 2 -J -l -D -N -joliet-long \
-                      -relaxed-filenames -V "${LABEL::30}" -quiet "$dir" 2> "$log" || failed="y" ;;
+        genisoimage \
+          -o "$out" \
+          -b "$ETFS" \
+          -no-emul-boot \
+          -boot-load-seg 1984 \
+          -boot-load-size 4 \
+          -c "$cat" \
+          -iso-level 2 \
+          -J \
+          -l \
+          -D \
+          -N \
+          -joliet-long \
+          -relaxed-filenames \
+          -V "${LABEL::30}" \
+          -quiet \
+          "$dir" 2> "$log" || failed="y"
+        ;;
+
       "win9"* )
-        genisoimage -o "$out" -b "$ETFS" -J -r -V "${LABEL::30}" -quiet "$dir" 2> "$log" || failed="y" ;;
+        genisoimage \
+          -o "$out" \
+          -b "$ETFS" \
+          -J \
+          -r \
+          -V "${LABEL::30}" \
+          -quiet \
+          "$dir" 2> "$log" || failed="y"
+        ;;
+
       * )
-        genisoimage -o "$out" -b "$ETFS" -no-emul-boot -c "$cat" -iso-level 2 -J -l -D -N -joliet-long -relaxed-filenames -V "${LABEL::30}" \
-                      -udf -allow-limited-size -quiet "$dir" 2> "$log" || failed="y" ;;
+        genisoimage \
+          -o "$out" \
+          -b "$ETFS" \
+          -no-emul-boot \
+          -boot-load-size 4 \
+          -c "$cat" \
+          -iso-level 2 \
+          -J \
+          -l \
+          -D \
+          -N \
+          -joliet-long \
+          -relaxed-filenames \
+          -V "${LABEL::30}" \
+          -udf \
+          -allow-limited-size \
+          -quiet \
+          "$dir" 2> "$log" || failed="y"
+        ;;
     esac
 
   fi
