@@ -1097,54 +1097,75 @@ extractBootImage() {
   local tmp="$TMP/boot-images"
   local image="$tmp/eltorito_img1_bios.img"
   local max_size=$((32 * 1024 * 1024))
+  local rc size len offset
 
   ETFS="boot.img"
+
   [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
 
   rm -f "$dir/$ETFS" || return 1
   rm -rf "$tmp" || return 1
 
-  LC_ALL=C xorriso \
+  if LC_ALL=C xorriso \
       -no_rc \
       -osirrox on \
       -indev "$iso" \
-      -extract_boot_images "$tmp" >/dev/null 2>&1 || {
-    local rc=$?
-    rm -rf "$tmp" || true
+      -extract_boot_images "$tmp" >/dev/null 2>&1; then
 
-    (( rc > 128 )) && exit "$rc"
+    if [ -s "$image" ] && size=$(stat -c%s "$image") && (( size <= max_size )); then
+      if ! mv -f "$image" "$dir/$ETFS"; then
+        rm -rf "$tmp" || true
+        error "Failed to save boot image from $desc ISO!"
+        return 1
+      fi
 
+      rm -rf "$tmp" || return 1
+      return 0
+    fi
+
+  else
+    rc=$?
+    (( rc > 128 )) && {
+      rm -rf "$tmp" || true
+      exit "$rc"
+    }
+  fi
+
+  rm -rf "$tmp" || true
+
+  if ! len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$"); then
+    error "Failed to determine boot image size from $desc ISO!"
+    return 1
+  fi
+
+  if ! offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$"); then
+    error "Failed to determine boot image offset from $desc ISO!"
+    return 1
+  fi
+
+  if [[ ! "$len" =~ ^[0-9]+$ ]] || [[ ! "$offset" =~ ^[0-9]+$ ]]; then
+    error "Invalid boot image location found in $desc ISO!"
+    return 1
+  fi
+
+  if ! dd \
+      "if=$iso" \
+      "of=$dir/$ETFS" \
+      bs=2048 \
+      "count=$len" \
+      "skip=$offset" \
+      status=none; then
+    rm -f "$dir/$ETFS" || true
     error "Failed to extract boot image from $desc ISO!"
     return 1
-  }
+  fi
 
-  if [ ! -s "$image" ]; then
-    rm -rf "$tmp" || true
-    error "Failed to locate BIOS boot image in $desc ISO!"
+  if [ ! -s "$dir/$ETFS" ]; then
+    rm -f "$dir/$ETFS" || true
+    error "Failed to locate file \"$ETFS\" in $desc ISO image!"
     return 1
   fi
 
-  local size
-
-  if ! size=$(stat -c%s "$image"); then
-    rm -rf "$tmp" || true
-    error "Failed to determine BIOS boot image size in $desc ISO!"
-    return 1
-  fi
-
-  if (( size > max_size )); then
-    rm -rf "$tmp" || true
-    error "The BIOS boot image in $desc ISO exceeds 32 MB!"
-    return 1
-  fi
-
-  if ! mv -f "$image" "$dir/$ETFS"; then
-    rm -rf "$tmp" || true
-    error "Failed to save boot image from $desc ISO!"
-    return 1
-  fi
-
-  rm -rf "$tmp" || return 1
   return 0
 }
 
