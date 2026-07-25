@@ -380,15 +380,18 @@ downloadWindowsEval() {
     --head \
     -- "$link" || return 1
 
+  local lower="${link,,}"
+  local separator='(^|[[:space:]_./-])'
+
   case "${PLATFORM,,}" in
     "x64" )
-      if [[ "${link,,}" != *"x64"* ]]; then
+      if [[ "$lower" =~ ${separator}(arm64|a64) ]]; then
         echo "Found download link: $link"
         error "Download link is for the wrong platform? Please report this at $SUPPORT/issues"
         return 1
       fi ;;
     "arm64" )
-      if [[ "${link,,}" != *"a64"* && "${link,,}" != *"arm64"* ]]; then
+      if [[ "$lower" =~ ${separator}(x64|x86|amd64) ]]; then
         if enabled "$DEBUG"; then
           echo "Found download link: $link"
           echo "Link for ARM platform currently not available!"
