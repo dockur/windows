@@ -28,10 +28,17 @@ jobs:
         id: validate
         run: |
           errors=0
-          ignored=0
-          count=0
+          skipped=0
+          tested=0
           host=""
+          failed_links=""
+          failed_links_html=""
           declare -A seen
+
+          ignored_domains=(
+            files.dog
+            bobpony.com
+          )
 
           wget https://github.com/lwthiker/curl-impersonate/releases/download/v0.6.1/curl-impersonate-v0.6.1.x86_64-linux-gnu.tar.gz
           tar -xzf curl-impersonate-v0.6.1.x86_64-linux-gnu.tar.gz
@@ -49,18 +56,18 @@ jobs:
 
           isIgnoredDomain() {
             local url="$1"
-            local domain
+            local domain ignored
 
             domain="${url#*://}"
             domain="${domain%%/*}"
             domain="${domain%%:*}"
             domain="${domain,,}"
 
-            case "$domain" in
-              files.dog | dl.bobpony.com)
+            for ignored in "${ignored_domains[@]}"; do
+              if [[ "$domain" == "$ignored" || "$domain" == *."$ignored" ]]; then
                 return 0
-                ;;
-            esac
+              fi
+            done
 
             return 1
           }
@@ -84,29 +91,44 @@ jobs:
 
             [[ -v seen[$url] ]] && continue
             seen[$url]=1
-            count=$((count + 1))
+
+            if isIgnoredDomain "$url"; then
+              echo "SKIP: $url (ignored domain)"
+              skipped=$((skipped + 1))
+              continue
+            fi
+
+            tested=$((tested + 1))
 
             if check "$url"; then
               echo "  OK: $url"
-            elif isIgnoredDomain "$url"; then
-              echo "FAIL: $url (ignored domain)"
-              ignored=$((ignored + 1))
             else
               echo "FAIL: $url"
               errors=$((errors + 1))
+              failed_links+="$url"$'\n'
+              failed_links_html+="<li><a href=\"$url\">$url</a></li>"$'\n'
             fi
           done < "src/define.sh"
 
           echo ""
-          printf '%d/%d links valid\n' "$((count - errors - ignored))" "$count"
+          printf '%d/%d tested links valid\n' "$((tested - errors))" "$tested"
 
-          if (( ignored > 0 )); then
-            printf '%d failure(s) ignored for files.dog or bobpony.com\n' "$ignored"
+          if (( skipped > 0 )); then
+            printf '%d link(s) skipped for ignored domains\n' "$skipped"
           fi
 
           if (( errors > 0 )); then
             printf '%d blocking failure(s)\n' "$errors"
-            echo "failed=true" >> "$GITHUB_OUTPUT"
+
+            {
+              echo "failed=true"
+              echo "links<<EOF"
+              printf '%s' "$failed_links"
+              echo "EOF"
+              echo "html_links<<EOF"
+              printf '%s' "$failed_links_html"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
           else
             echo "failed=false" >> "$GITHUB_OUTPUT"
           fi
@@ -122,7 +144,25 @@ jobs:
           body: |
             Mirror verification failed!
 
+            The following links failed:
+
+            ${{ steps.validate.outputs.links }}
+
             See https://github.com/${{ github.repository }}/actions for more information.
+          html_body: |
+            <p>Mirror verification failed!</p>
+
+            <p>The following links failed:</p>
+
+            <ul>
+            ${{ steps.validate.outputs.html_links }}
+            </ul>
+
+            <p>
+              See
+              <a href="https://github.com/${{ github.repository }}/actions">GitHub Actions</a>
+              for more information.
+            </p>
       -
         name: Fail workflow
         if: always() && steps.validate.outputs.failed == 'true'
