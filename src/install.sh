@@ -769,7 +769,10 @@ prepareImage() {
 
   desc=$(printVariant "$DETECTED" "$DETECTED")
 
+  # Adjust QEMU machine configuration for legacy versions
   setMachine "$DETECTED" "$iso" "$dir" "$desc" || return 1
+
+  disabled "$REBUILD" && return 0
   skipVersion "$DETECTED" && return 0
 
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
@@ -961,6 +964,11 @@ updateImage() {
   local bak="${xml//.xml/.org}"
   local dat="${xml//.xml/.dat}"
   local desc path src wim name info
+
+  if disabled "$REBUILD"; then
+    info "Skipping modifications to the installation image..."
+    return 1
+  fi
 
   skipVersion "${DETECTED,,}" && return 0
 
