@@ -2,6 +2,8 @@ name: Links
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
 
 concurrency:
   group: links
@@ -23,28 +25,55 @@ jobs:
           fetch-depth: 0
       -
         name: Validate Links
+        id: validate
         run: |
           errors=0
+          ignored=0
           count=0
           host=""
           declare -A seen
+
           wget https://github.com/lwthiker/curl-impersonate/releases/download/v0.6.1/curl-impersonate-v0.6.1.x86_64-linux-gnu.tar.gz
           tar -xzf curl-impersonate-v0.6.1.x86_64-linux-gnu.tar.gz
           sudo cp curl-impersonate-ff /usr/local/bin/
+
           check() {
             local url="$1" http
+
             http=$(curl-impersonate-ff -sSL -o /dev/null -w "%{http_code}" --max-time 10 -I -- "$url" 2>&1) || http="000"
             [[ "$http" == 2* ]] && return 0
+
             http=$(curl-impersonate-ff -sSL -o /dev/null -w "%{http_code}" --max-time 10 -r "0-0" -- "$url" 2>&1) || http="000"
             [[ "$http" == 2* ]]
           }
+
+          isIgnoredDomain() {
+            local url="$1"
+            local domain
+
+            domain="${url#*://}"
+            domain="${domain%%/*}"
+            domain="${domain%%:*}"
+            domain="${domain,,}"
+
+            case "$domain" in
+              files.dog | bobpony.com)
+                return 0
+                ;;
+            esac
+
+            return 1
+          }
+
           while IFS= read -r line; do
             if [[ "$line" =~ ^[[:space:]]*local[[:space:]]+host=\"(https://[^\"]+)\" ]]; then
               host="${BASH_REMATCH[1]%/}"
               continue
             fi
+
             [[ "$line" =~ ^[[:space:]]*url=\"(.+)\" ]] || continue
             val="${BASH_REMATCH[1]#/}"
+
             if [[ "$val" == https://* ]]; then
               url="$val"
             elif [[ -n "$host" ]]; then
@@ -52,16 +81,49 @@ jobs:
             else
               continue
             fi
+
             [[ -v seen[$url] ]] && continue
             seen[$url]=1
             count=$((count + 1))
+
             if check "$url"; then
               echo "  OK: $url"
+            elif isIgnoredDomain "$url"; then
+              echo "FAIL: $url (ignored domain)"
+              ignored=$((ignored + 1))
             else
               echo "FAIL: $url"
               errors=$((errors + 1))
             fi
           done < "src/define.sh"
+
           echo ""
-          printf '%d/%d links valid\n' "$(( count - errors ))" "$count"
-          (( errors == 0 ))
+          printf '%d/%d links valid\n' "$((count - errors - ignored))" "$count"
+
+          if (( ignored > 0 )); then
+            printf '%d failure(s) ignored for files.dog or bobpony.com\n' "$ignored"
+          fi
+
+          if (( errors > 0 )); then
+            printf '%d blocking failure(s)\n' "$errors"
+            echo "failed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "failed=false" >> "$GITHUB_OUTPUT"
+          fi
+      -
+        name: Send mail
+        if: steps.validate.outputs.failed == 'true'
+        uses: action-pack/send-mail@v1
+        with:
+          to: ${{secrets.MAILTO}}
+          from: Github Actions <${{secrets.MAILTO}}>
+          connection_url: ${{secrets.MAIL_CONNECTION}}
+          subject: Mirror verification failed!
+          body: |
+            Mirror verification failed!
+
+            See https://github.com/${{ github.repository }}/actions for more information.
+      -
+        name: Fail workflow
+        if: always() && steps.validate.outputs.failed == 'true'
+        run: exit 1
