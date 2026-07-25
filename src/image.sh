@@ -794,19 +794,58 @@ detectImage() {
 checkBatch() {
 
   local file="$1"
-  local output matches line
+  local config output matches line
 
   [ ! -f "$file" ] && return 0
 
-  output=""
+  config=$(mktemp) || {
+    warn "failed to create temporary Blinter configuration."
+    return 0
+  }
 
-  if ! output=$(python3 -m blinter "$file" 2>&1); then
-    :
-  fi
+  cat > "$config" <<'EOF'
+[general]
+min_severity = warning
+show_summary = false
+
+[rules]
+disabled_rules = W001,S001,S007
+EOF
+
+  output=$(
+    python3 -m blinter \
+      "$file" \
+      --config "$config" 2>&1 || true
+  )
+
+  rm -f "$config"
+
+  output=$(
+    awk '
+      /^DETAILED ISSUES:/ {
+        found = 1
+        separator = 1
+        next
+      }
+
+      found {
+        if (separator && /^-+$/) {
+          separator = 0
+          next
+        }
+
+        separator = 0
+        print
+      }
+    ' <<< "$output"
+  )
+
+  output="${output#"${output%%[!$'\r\n ']*}"}"
+  output="${output%"${output##*[!$'\r\n ']}"}"
 
   if [ -n "$output" ]; then
     warn "possible issues were detected in your install.bat file:"
-    echo && echo "$output" && echo
+    printf '\n%s\n\n' "$output" >&2
   fi
 
   matches=$(
@@ -819,10 +858,11 @@ checkBatch() {
     warn "invalid single-backslash UNC path detected in install.bat:"
 
     while IFS= read -r line; do
-      warn "  $line"
+      printf '  %s\n' "$line" >&2
     done <<< "$matches"
 
-    warn '  Use "\\host.lan\Data\..." instead of "\host.lan\Data\...".'
+    printf '%s\n\n' \
+      '  Use "\\host.lan\Data\..." instead of "\host.lan\Data\...".' >&2
   fi
 
   matches=$(
@@ -835,10 +875,11 @@ checkBatch() {
     warn "UNC path without leading backslashes detected in install.bat:"
 
     while IFS= read -r line; do
-      warn "  $line"
+      printf '  %s\n' "$line" >&2
     done <<< "$matches"
 
-    warn '  Use "\\host.lan\Data\..." instead of "host.lan\Data\...".'
+    printf '%s\n\n' \
+      '  Use "\\host.lan\Data\..." instead of "host.lan\Data\...".' >&2
   fi
 
   matches=$(
@@ -851,10 +892,11 @@ checkBatch() {
     warn "invalid forward-slash UNC path detected in install.bat:"
 
     while IFS= read -r line; do
-      warn "  $line"
+      printf '  %s\n' "$line" >&2
     done <<< "$matches"
 
-    warn '  Use "\\host.lan\Data\..." instead of "//host.lan/Data/...".'
+    printf '%s\n\n' \
+      '  Use "\\host.lan\Data\..." instead of "//host.lan/Data/...".' >&2
   fi
 
   matches=$(
@@ -867,10 +909,11 @@ checkBatch() {
     warn "invalid Samba share name detected in install.bat:"
 
     while IFS= read -r line; do
-      warn "  $line"
+      printf '  %s\n' "$line" >&2
     done <<< "$matches"
 
-    warn '  The "/shared" folder is exposed to Windows as "\\host.lan\Data".'
+    printf '%s\n\n' \
+      '  The "/shared" folder is exposed to Windows as "\\host.lan\Data".' >&2
   fi
 
   return 0
