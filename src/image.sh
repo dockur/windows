@@ -4,26 +4,23 @@ set -Eeuo pipefail
 getPlatform() {
 
   local xml="$1"
-  local tag="ARCH"
   local platform="x64"
+  local x86 x64 arm64 count=0
 
-  local -a arches=()
+  x86=$(xmllint --nonet --xpath 'count(/WIM/IMAGE/WINDOWS/ARCH[text()="0"])' - 2>/dev/null <<< "$xml") || x86=0
+  x64=$(xmllint --nonet --xpath 'count(/WIM/IMAGE/WINDOWS/ARCH[text()="9"])' - 2>/dev/null <<< "$xml") || x64=0
+  arm64=$(xmllint --nonet --xpath 'count(/WIM/IMAGE/WINDOWS/ARCH[text()="12"])' - 2>/dev/null <<< "$xml") || arm64=0
 
-  mapfile -t arches < <(
-    sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml" |
-      sort -u
-  )
+  (( x86 > 0 )) && ((count++))
+  (( x64 > 0 )) && ((count++))
+  (( arm64 > 0 )) && ((count++))
 
-  if [ "${#arches[@]}" -gt 1 ]; then
+  if (( count > 1 )); then
     platform="mixed"
-  elif [ "${#arches[@]}" -eq 1 ]; then
-    local arch="${arches[0]}"
-
-    case "${arch,,}" in
-      "0" ) platform="x86" ;;
-      "9" ) platform="x64" ;;
-      "12" ) platform="arm64" ;;
-    esac
+  elif (( x86 > 0 )); then
+    platform="x86"
+  elif (( arm64 > 0 )); then
+    platform="arm64"
   fi
 
   echo "$platform"
@@ -185,8 +182,9 @@ getVersions() {
   local -n groups_ref="$groups_name"
   local -n indexes_ref="$indexes_name"
 
-  local image image_index key
-  local display product platform
+  local count i image_index
+  local display product image platform
+  local candidate candidate_id candidate_base key
 
   versions_ref=()
   bases_ref=()
@@ -194,74 +192,50 @@ getVersions() {
   indexes_ref=()
 
   platform=$(getPlatform "$xml")
+  count=$(xmllint --nonet --xpath 'count(/WIM/IMAGE)' - 2>/dev/null <<< "$xml") || return 0
 
-  while IFS='|' read -r image_index display product image; do
+  for ((i=1; i<=count; i++)); do
+
+    image_index=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/@INDEX)" - 2>/dev/null <<< "$xml") || continue
+    display=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/DISPLAYNAME)" - 2>/dev/null <<< "$xml") || display=""
+    product=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/WINDOWS/PRODUCTNAME)" - 2>/dev/null <<< "$xml") || product=""
+    image=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/NAME)" - 2>/dev/null <<< "$xml") || image=""
 
     [ -n "$image_index" ] || continue
+    candidate_id=""
+    candidate_base=""
 
-    local candidate candidate_id candidate_base found=""
-
-    for candidate in "$display" "$product" "$image"; do
+    # NAME normally contains the most precise edition identifier (including
+    # Server Core), while DISPLAYNAME is the best fallback for other images.
+    for candidate in "$image" "$display" "$product"; do
 
       [[ "$candidate" == *"Operating System"* ]] && continue
-      [ -z "$candidate" ] && continue
+      [ -n "$candidate" ] || continue
 
       candidate_base=$(fromName "$candidate" "$platform")
       candidate_id=$(getVersion "$candidate" "$platform")
 
-      if [ -z "$candidate_base" ] || [ -z "$candidate_id" ]; then
-        continue
-      fi
-
-      found="Y"
-      key="${candidate_id,,}"
-      [[ -v "indexes_ref[$key]" ]] && continue
-
-      indexes_ref["$key"]="$image_index"
-      versions_ref+=("$candidate_id")
-      bases_ref+=("$candidate_base")
-      groups_ref+=("$(getVersionPriority "$candidate_id" "$candidate_base")")
-
+      [ -n "$candidate_base" ] && [ -n "$candidate_id" ] && break
     done
 
-    if [ -z "$found" ]; then
-      local name="${display:-${product:-$image}}"
+    if [ -z "$candidate_base" ] || [ -z "$candidate_id" ]; then
+      local name="${display:-${image:-$product}}"
       [ -n "$name" ] && warn "Unknown image name: '$name'"
+      continue
     fi
 
-  done < <(
-    awk '
-      /<IMAGE INDEX="/ {
-        image_index = $0
-        sub(/^.*<IMAGE INDEX="/, "", image_index)
-        sub(/".*$/, "", image_index)
-        display = product = name = ""
-      }
+    key="${candidate_id,,}"
 
-      image_index != "" && /<DISPLAYNAME>/ {
-        display = $0
-        sub(/^.*<DISPLAYNAME>/, "", display)
-        sub(/<\/DISPLAYNAME>.*$/, "", display)
-      }
+    # Keep the first occurrence of an edition. Each WIM image contributes at
+    # most one canonical ID, so Core and Desktop indexes cannot cross-claim it.
+    [[ -v "indexes_ref[$key]" ]] && continue
 
-      image_index != "" && /<PRODUCTNAME>/ {
-        product = $0
-        sub(/^.*<PRODUCTNAME>/, "", product)
-        sub(/<\/PRODUCTNAME>.*$/, "", product)
-      }
+    indexes_ref["$key"]="$image_index"
+    versions_ref+=("$candidate_id")
+    bases_ref+=("$candidate_base")
+    groups_ref+=("$(getVersionPriority "$candidate_id" "$candidate_base")")
 
-      image_index != "" && /<NAME>/ {
-        name = $0
-        sub(/^.*<NAME>/, "", name)
-        sub(/<\/NAME>.*$/, "", name)
-      }
-
-      /<\/IMAGE>/ {
-        print image_index "|" display "|" product "|" name
-        image_index = ""
-      }
-    ' <<< "$xml"
-  )
+  done
 
   return 0
 }
