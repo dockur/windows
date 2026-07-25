@@ -406,8 +406,10 @@ enableLog() {
 
   local old='C:\OEM\install.bat"</CommandLine>'
   local new='C:\OEM\install.bat &gt; C:\OEM\install.log 2&gt;&amp;1"</CommandLine>'
+  local msg="failed to enable install logging in the answer file!"
 
   if ! grep -Fq "$old" "$file"; then
+    enabled "$DEBUG" && warn "$msg"
     return 0
   fi
 
@@ -415,7 +417,7 @@ enableLog() {
     's|C:\\OEM\\install\.bat"</CommandLine>|C:\\OEM\\install.bat \&gt; C:\\OEM\\install.log 2\&gt;\&amp;1"</CommandLine>|' \
     "$file"; then
 
-    warn "failed to enable install logging in the answer file!"
+    warn "$msg"
   fi
 
   return 0
@@ -833,6 +835,10 @@ updateXML() {
 
   if disabled "${AUTOLOGIN:-}"; then
     sed -i -E '/^[[:space:]]*<AutoLogon([[:space:]>])/,/^[[:space:]]*<\/AutoLogon>[[:space:]]*$/d' "$asset" || return 1
+  fi
+
+  if enabled "${LOG:-}"; then
+    enableLog "$asset" || return 1
   fi
 
   if [ -n "${EDITION:-}" ]; then
