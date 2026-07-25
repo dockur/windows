@@ -1095,56 +1095,104 @@ extractBootImage() {
   local desc="$3"
 
   local tmp="$TMP/boot-images"
-  local image="$tmp/eltorito_img1_bios.img"
   local max_size=$((32 * 1024 * 1024))
+  local rc size len offset image=""
+  local msg="using legacy extraction..."
+  local -a images=()
 
   ETFS="boot.img"
+
   [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
 
   rm -f "$dir/$ETFS" || return 1
   rm -rf "$tmp" || return 1
 
-  LC_ALL=C xorriso \
+  if LC_ALL=C xorriso \
       -no_rc \
       -osirrox on \
       -indev "$iso" \
-      -extract_boot_images "$tmp" >/dev/null 2>&1 || {
-    local rc=$?
-    rm -rf "$tmp" || true
+      -extract_boot_images "$tmp" >/dev/null 2>&1; then
 
-    (( rc > 128 )) && exit "$rc"
+    mapfile -t images < <(
+      find "$tmp" \
+        -maxdepth 1 \
+        -type f \
+        -name 'eltorito_img*_bios.img' \
+        -print
+    )
 
+    if (( ${#images[@]} == 1 )); then
+      image="${images[0]}"
+
+      if [ ! -s "$image" ]; then
+        warn "The extracted BIOS boot image is empty, $msg"
+      elif ! size=$(stat -c%s "$image"); then
+        warn "Failed to determine the BIOS boot image size, $msg"
+      elif (( size > max_size )); then
+        warn "The extracted BIOS boot image exceeds 32 MB, $msg"
+      else
+        if ! mv -f "$image" "$dir/$ETFS"; then
+          rm -rf "$tmp" || true
+          error "Failed to save boot image from $desc ISO!"
+          return 1
+        fi
+
+        rm -rf "$tmp" || return 1
+        return 0
+      fi
+
+    elif (( ${#images[@]} > 1 )); then
+      warn "Multiple BIOS boot images were found, $msg"
+    else
+      warn "No BIOS boot image was found, $msg"
+    fi
+
+  else
+    rc=$?
+
+    if (( rc > 128 )); then
+      rm -rf "$tmp" || true
+      exit "$rc"
+    fi
+
+    warn "Failed to extract the BIOS boot image, $msg"
+  fi
+
+  rm -rf "$tmp" || true
+
+  if ! len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$"); then
+    error "Failed to determine boot image size from $desc ISO!"
+    return 1
+  fi
+
+  if ! offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$"); then
+    error "Failed to determine boot image offset from $desc ISO!"
+    return 1
+  fi
+
+  if [[ ! "$len" =~ ^[0-9]+$ ]] || [[ ! "$offset" =~ ^[0-9]+$ ]]; then
+    error "Invalid boot image location found in $desc ISO!"
+    return 1
+  fi
+
+  if ! dd \
+      "if=$iso" \
+      "of=$dir/$ETFS" \
+      bs=2048 \
+      "count=$len" \
+      "skip=$offset" \
+      status=none; then
+    rm -f "$dir/$ETFS" || true
     error "Failed to extract boot image from $desc ISO!"
     return 1
-  }
+  fi
 
-  if [ ! -s "$image" ]; then
-    rm -rf "$tmp" || true
-    error "Failed to locate BIOS boot image in $desc ISO!"
+  if [ ! -s "$dir/$ETFS" ]; then
+    rm -f "$dir/$ETFS" || true
+    error "Failed to locate file \"$ETFS\" in $desc ISO image!"
     return 1
   fi
 
-  local size
-
-  if ! size=$(stat -c%s "$image"); then
-    rm -rf "$tmp" || true
-    error "Failed to determine BIOS boot image size in $desc ISO!"
-    return 1
-  fi
-
-  if (( size > max_size )); then
-    rm -rf "$tmp" || true
-    error "The BIOS boot image in $desc ISO exceeds 32 MB!"
-    return 1
-  fi
-
-  if ! mv -f "$image" "$dir/$ETFS"; then
-    rm -rf "$tmp" || true
-    error "Failed to save boot image from $desc ISO!"
-    return 1
-  fi
-
-  rm -rf "$tmp" || return 1
   return 0
 }
 
