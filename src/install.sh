@@ -752,8 +752,7 @@ setMachine() {
 
   case "${id,,}" in
     "winxp"* | "win2003"* | "winvistax86"* | "win7x86"* | "win2008r2x86"* )
-      local machine="${MACHINE:-q35}"
-      if [[ "${machine,,}" == "q35" || "${machine,,}" == "pc-q35"* ]]; then
+      if isQ35 "${MACHINE:-q35}"; then
         # Prevent bluescreen if 64 bit PCI hole size is >2G.
         ARGS="-global q35-pcihost.x-pci-hole64-fix=false"
       fi ;;
