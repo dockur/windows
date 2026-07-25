@@ -1150,6 +1150,7 @@ writeCommand() {
 
   local install="$1"
 
+  [ -z "$install" ] && return 0
   [ ! -f "$install" ] && return 0
 
   if ! enabled "${LOG:-}"; then
@@ -1487,15 +1488,18 @@ legacyInstall() {
   fi
 
   local oem=""
-  local install
+  local install=""
+  local oem_dir="$dir/\$OEM\$/\$1/OEM"
 
-  install=$(find \
-    "$dir/\$OEM\$/\$1/OEM" \
-    -maxdepth 1 \
-    -type f \
-    -iname install.bat \
-    -print -quit
-  ) || return 1
+  if [ -d "$oem_dir" ]; then
+    install=$(find \
+      "$oem_dir" \
+      -maxdepth 1 \
+      -type f \
+      -iname install.bat \
+      -print -quit
+    ) || return 1
+  fi
 
   oem=$(writeCommand "$install") || return 1
 
