@@ -161,6 +161,7 @@ Also see [Dynamic memory allocation](https://github.com/qemus/qemu/blob/master/d
 | `VERIFY` | `N` | Verifies downloaded installation media against predefined checksums. |
 | `REMOVE` | `Y` | Deletes the downloaded Windows ISO after installation to save space. |
 | `MANUAL` | `N` | Enables manual installation instead of unattended installation. |
+| `REBUILD` | `N` | Skips rebuilding the Windows ISO and uses the original image unchanged. |
 | `COMMAND` |  | Command to be executed during the final step of automatic installation. |
 
 ## 🔌 Shutdown
