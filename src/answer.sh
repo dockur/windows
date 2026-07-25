@@ -946,7 +946,8 @@ validateLegacyUsername() {
   fi
 
   case "$value" in
-    *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* )
+    *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | \
+    *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* | *'%'* )
       error "The USERNAME variable contains unsupported characters$suffix!"
       return 1 ;;
   esac
