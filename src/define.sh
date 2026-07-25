@@ -896,7 +896,9 @@ normalizeServerEditionID() {
     "web-core" | "webcore" | "serverwebcore" ) edition="web-core" ;;
     "foundation" | "serverfoundation" ) edition="foundation" ;;
     "essentials" | "serveressentials" ) edition="essentials" ;;
-    * ) edition="unknown" ;;
+    # Keep unrecognized internal edition IDs deterministic and unique.
+    # Known aliases above only provide stable, friendlier public names.
+    * ) : ;;
   esac
 
   echo "$edition"
