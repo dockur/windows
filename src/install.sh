@@ -769,26 +769,29 @@ prepareImage() {
 
   desc=$(printVariant "$DETECTED" "$DETECTED")
 
+  # Adjust QEMU machine configuration for legacy versions
   setMachine "$DETECTED" "$iso" "$dir" "$desc" || return 1
+
+  disabled "$REBUILD" && return 0
   skipVersion "$DETECTED" && return 0
 
-  if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
+  if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
 
-    [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] &&
-      [ -f "$dir/$EFISYS" ] && [ -s "$dir/$EFISYS" ] && return 0
+    extractBootImage "$iso" "$dir" "$desc" && return 0
 
-    missing=$(basename "$dir/$EFISYS")
-    if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
-      missing=$(basename "$dir/$ETFS")
-    fi
-
-    error "Failed to locate file \"${missing,,}\" in ISO image!"
+    error "Failed to extract boot image from ISO image \"${iso}\"!"
     return 1
   fi
 
-  legacyPrepare "$iso" "$dir" "$desc" && return 0
+  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] &&
+    [ -f "$dir/$EFISYS" ] && [ -s "$dir/$EFISYS" ] && return 0
 
-  error "Failed to extract boot image from ISO image!"
+  missing=$(basename "$dir/$EFISYS")
+  if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
+    missing=$(basename "$dir/$ETFS")
+  fi
+
+  error "Failed to locate file \"${missing,,}\" in ISO image!"
   return 1
 }
 
@@ -961,6 +964,11 @@ updateImage() {
   local bak="${xml//.xml/.org}"
   local dat="${xml//.xml/.dat}"
   local desc path src wim name info
+
+  if disabled "$REBUILD"; then
+    info "Skipping modifications to the installation image..."
+    return 1
+  fi
 
   skipVersion "${DETECTED,,}" && return 0
 
