@@ -174,9 +174,6 @@ parseVersion() {
     "2003" | "2003r2" | "win2003" | "win2003r2" | "windows2003" | "windows 2003" )
       VERSION="win2003r2"
       ;;
-    "nano11" | "nano 11" )
-      VERSION="nano11"
-      ;;
     "core11" | "core 11" )
       VERSION="core11"
       ;;
@@ -485,7 +482,6 @@ printVersion() {
     "tiny11"* ) desc="Tiny 11" ;;
     "tiny10"* ) desc="Tiny 10" ;;
     "core11"* ) desc="Core 11" ;;
-    "nano11"* ) desc="Nano 11" ;;
     "win7"* ) desc="Windows 7" ;;
     "win8"* ) desc="Windows 8" ;;
     "win10"* ) desc="Windows 10" ;;
@@ -627,8 +623,7 @@ printEdition() {
     "win2019-hv"* )
       edition="2019"
       ;;
-    "win2025"* | "win2022"* | "win2019"* | "win2016"* | \
-    "win2012"* | "win2008"* | "win2003"* )
+    "win20"* )
       [[ "$normalized" == *"-"* ]] && suffix="${normalized#*-}"
 
       if [ -n "$suffix" ]; then
@@ -688,8 +683,6 @@ fromFile() {
       id="winxpx86" ;;
     *"winvista"* | *"win_vista"* | *"windowsvista"* | *"windows_vista"* )
       id="winvista${arch}" ;;
-    "nano11"* | "nano_11"* )
-      id="nano11" ;;
     "tiny11core"* | "tiny11_core"* | "tiny_11_core"* )
       id="core11" ;;
     "tiny11"* | "tiny_11"* )
@@ -1450,11 +1443,6 @@ getLink3() {
       size=386859008
       sum="e3816f6e80b66ff686ead03eeafffe9daf020a5e4717b8bd4736b7c51733ba22"
       url="MicrosoftWindows2000BuildCollection/5.00.2195.6717_x86fre_client-professional_retail_en-us-ZRMPFPP_EN.iso"
-      ;;
-    "nano11" )
-      size=2463565824
-      sum="a1e0614372768cbe2d24de74b78a4a97bc1017ea5080dfed1d2125e4a527eb1a"
-      url="nano11_25h2/nano11%2025h2.iso"
       ;;
     "core11" )
       size=3304132608
