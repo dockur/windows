@@ -651,8 +651,7 @@ updateXML() {
 
   local asset="$1"
   local language="$2"
-  local app value culture admin key
-  local user user_xml edition pw host
+  local value user
 
   [ -z "${WIDTH:-}" ] && WIDTH="1280"
   [ -z "${HEIGHT:-}" ] && HEIGHT="720"
@@ -664,6 +663,7 @@ updateXML() {
   validateProductKey "${KEY:-}" || return 1
   validatePassword "${PASSWORD:-}" || return 1
 
+  local app
   app=$(escapeXMLSed "$APP for $ENGINE") || return 1
 
   sed -i "s|>Windows for Docker<|>$app<|g" "$asset" || return 1
@@ -671,10 +671,12 @@ updateXML() {
   sed -i -E "s|<HorizontalResolution>[^<]*</HorizontalResolution>|<HorizontalResolution>$WIDTH</HorizontalResolution>|g" "$asset" || return 1
 
   if [ -n "${HOST:-}" ]; then
+    local host
     host=$(escapeXMLSed "$HOST") || return 1
     sed -i -E "s|<ComputerName>[^<]*</ComputerName>|<ComputerName>$host</ComputerName>|g" "$asset" || return 1
   fi
 
+  local culture
   culture=$(getLanguage "$language" "culture") || return 1
 
   if [ -n "$culture" ] && [[ "${culture,,}" != "en-us" ]]; then
@@ -765,6 +767,7 @@ updateXML() {
     validateUsername "$user" "local" || return 1
 
     if [ -n "$user" ]; then
+      local user_xml
       user_xml=$(escapeXMLSed "$user") || return 1
 
       sed -i "s|-name \"Docker\"|-name \"\$env:USERNAME\"|g" "$asset" || return 1
@@ -775,6 +778,7 @@ updateXML() {
     fi
 
     local pass="${PASSWORD:-admin}"
+    local pw admin
 
     pw=$(printf '%s' "${pass}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
     admin=$(printf '%s' "${pass}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
@@ -828,6 +832,7 @@ updateXML() {
   fi
 
   if [ -n "${EDITION:-}" ]; then
+    local edition
 
     edition=$(normalizeServerEdition "$EDITION") || return 1
     edition="${edition//-/}"
@@ -839,6 +844,7 @@ updateXML() {
   fi
 
   if [ -n "${KEY:-}" ]; then
+    local key
     key=$(escapeXMLSed "$KEY") || return 1
     sed -i -E '/^[[:space:]]*<ProductKey>[[:space:]]*$/,/^[[:space:]]*<\/ProductKey>[[:space:]]*$/d' "$asset" || return 1
     sed -i -E "s|<ProductKey>[^<]*</ProductKey>|<ProductKey>$key</ProductKey>|g" "$asset" || return 1
@@ -959,7 +965,7 @@ legacyInstall() {
   local desc="$3"
   local driver="$4"
   local drivers="/tmp/drivers"
-  local pid file shortcut="Y"
+  local file shortcut="Y"
 
   if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
     shortcut="N"
@@ -1053,10 +1059,12 @@ legacyInstall() {
 
   fi
 
-  local key setup
+  local setup
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini -print -quit) || return 1
 
   if [ -n "$setup" ] && [ -z "$KEY" ]; then
+
+    local pid key
 
     pid=$(<"$setup") || return 1
     pid="${pid%$'\r'}"
