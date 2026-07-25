@@ -776,7 +776,7 @@ prepareImage() {
 
     [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] &&
       [ -f "$dir/$EFISYS" ] && [ -s "$dir/$EFISYS" ] && return 0
-  
+
     missing=$(basename "$dir/$EFISYS")
     if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
       missing=$(basename "$dir/$ETFS")
