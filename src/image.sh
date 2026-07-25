@@ -123,8 +123,8 @@ getVersionPriority() {
   local id="${1,,}"
   local base="${2,,}"
   local order_name="EDITION_ORDER"
-  local edition entry suffix priority patterns pattern
-  local result="other" score best_score=-1
+  local edition entry priority patterns pattern
+  local result="other" prefix score best_score=-1
 
   id="${id%-eval}"
 
@@ -143,14 +143,18 @@ getVersionPriority() {
   # such as enterprise-* from taking precedence over enterprise-iot-*.
   for entry in "${order_ref[@]}"; do
 
-    IFS='|' read -r suffix priority patterns <<< "$entry"
+    IFS='|' read -r _ priority patterns <<< "$entry"
 
     for pattern in $patterns; do
 
-      if [ "$pattern" == "@default" ]; then
+      if [ "$pattern" = "@default" ]; then
         [ -z "$edition" ] || continue
         score=1
-      elif [[ "$edition" == $pattern ]]; then
+      elif [[ "$pattern" == *"*" ]]; then
+        prefix="${pattern%\*}"
+        [[ "$edition" == "$prefix"* ]] || continue
+        score="${#pattern}"
+      elif [ "$edition" = "$pattern" ]; then
         score="${#pattern}"
       else
         continue
@@ -269,22 +273,22 @@ selectVersion() {
   local preferred_name="$3"
   local result_name="$4"
   local index_name="$5"
-  local -n versions_ref="$versions_name"
-  local -n indexes_ref="$indexes_name"
-  local -n preferred_ref="$preferred_name"
-  local -n result_ref="$result_name"
-  local -n index_ref="$index_name"
+  local -n version_list="$versions_name"
+  local -n index_map="$indexes_name"
+  local -n preference_list="$preferred_name"
+  local -n selected_version="$result_name"
+  local -n selected_image_index="$index_name"
 
   local wanted match key
 
-  for wanted in "${preferred_ref[@]}"; do
+  for wanted in "${preference_list[@]}"; do
 
     [ -n "$wanted" ] || continue
 
-    if match=$(hasVersion "$wanted" "${versions_ref[@]}"); then
+    if match=$(hasVersion "$wanted" "${version_list[@]}"); then
       key="${match,,}"
-      result_ref="$match"
-      index_ref="${indexes_ref[$key]}"
+      selected_version="$match"
+      selected_image_index="${index_map[$key]}"
       return 0
     fi
 
@@ -304,10 +308,10 @@ selectEdition() {
   local index_name="$7"
   local normalize_name="$8"
   local order_name="$9"
-  local -n versions_ref="$versions_name"
-  local -n bases_ref="$bases_name"
-  local -n groups_ref="$groups_name"
-  local -n order_ref="$order_name"
+  local -n edition_versions="$versions_name"
+  local -n edition_bases="$bases_name"
+  local -n edition_groups="$groups_name"
+  local -n edition_order="$order_name"
 
   local base edition entry suffix priority i
   local -a preferred=()
@@ -315,7 +319,7 @@ selectEdition() {
 
   if [ -n "$EDITION" ]; then
 
-    for base in "${bases_ref[@]}"; do
+    for base in "${edition_bases[@]}"; do
       edition=$("$normalize_name" "$EDITION" "$base")
       preferred+=("$base${edition:+-$edition}")
     done
@@ -344,16 +348,17 @@ selectEdition() {
         "$index_name"; then
       return 0
     fi
+
   fi
 
   # First try each canonical edition in its configured order.
   preferred=()
 
-  for entry in "${order_ref[@]}"; do
+  for entry in "${edition_order[@]}"; do
 
-    IFS='|' read -r suffix priority _ <<< "$entry"
+    IFS='|' read -r suffix _ _ <<< "$entry"
 
-    for base in "${bases_ref[@]}"; do
+    for base in "${edition_bases[@]}"; do
       preferred+=("$base$suffix")
     done
 
@@ -372,16 +377,16 @@ selectEdition() {
   preferred=()
   seen=()
 
-  for entry in "${order_ref[@]}"; do
+  for entry in "${edition_order[@]}"; do
 
-    IFS='|' read -r suffix priority _ <<< "$entry"
+    IFS='|' read -r _ priority _ <<< "$entry"
 
     [[ -v "seen[$priority]" ]] && continue
     seen["$priority"]="Y"
 
-    for ((i=0;i<${#versions_ref[@]};i++)); do
-      [[ "${groups_ref[$i]}" == "$priority" ]] || continue
-      preferred+=("${versions_ref[$i]}")
+    for ((i=0;i<${#edition_versions[@]};i++)); do
+      [[ "${edition_groups[$i]}" == "$priority" ]] || continue
+      preferred+=("${edition_versions[$i]}")
     done
 
   done
