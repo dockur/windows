@@ -53,12 +53,14 @@ EDITION_ORDER=(
 SERVER_EDITION_ORDER=(
   "|default|@default"
   "-datacenter|datacenter|datacenter datacenter-*"
+  "-datacenter-azure|datacenter|datacenter-azure"
   "-enterprise|enterprise|enterprise enterprise-*"
   "-web|web|web web-*"
   "-foundation|foundation|foundation foundation-*"
   "-essentials|essentials|essentials essentials-*"
   "-standard-core|standard-core|standard-core standard-core-*"
   "-datacenter-core|datacenter-core|datacenter-core datacenter-core-*"
+  "-datacenter-azure-core|datacenter-core|datacenter-azure-core"
   "-enterprise-core|enterprise-core|enterprise-core enterprise-core-*"
   "-web-core|web-core|web-core web-core-*"
   "-hv|hv|hv hv-*"
@@ -883,13 +885,20 @@ normalizeServerEditionID() {
     "core" | "standard-core" | "standardcore" | "serverstandardcore" ) edition="standard-core" ;;
     "datacenter" | "serverdatacenter" ) edition="datacenter" ;;
     "datacenter-core" | "datacentercore" | "serverdatacentercore" ) edition="datacenter-core" ;;
+    "datacenter-azure" | "datacenter-azure-edition" | "datacenterazureedition" | \
+    "serverdatacenterazureedition" | "serverturbine" ) edition="datacenter-azure" ;;
+    "datacenter-azure-core" | "datacenter-azure-edition-core" | \
+    "datacenterazureeditioncore" | "serverdatacenterazureeditioncore" | \
+    "serverturbinecore" ) edition="datacenter-azure-core" ;;
     "enterprise" | "serverenterprise" ) edition="enterprise" ;;
     "enterprise-core" | "enterprisecore" | "serverenterprisecore" ) edition="enterprise-core" ;;
     "web" | "serverweb" ) edition="web" ;;
     "web-core" | "webcore" | "serverwebcore" ) edition="web-core" ;;
     "foundation" | "serverfoundation" ) edition="foundation" ;;
     "essentials" | "serveressentials" ) edition="essentials" ;;
-    * ) edition="unknown" ;;
+    # Keep unrecognized internal edition IDs deterministic and unique.
+    # Known aliases above only provide stable, friendlier public names.
+    * ) : ;;
   esac
 
   echo "$edition"

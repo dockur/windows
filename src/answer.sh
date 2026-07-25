@@ -268,52 +268,49 @@ removeGeneratedXML() {
   return 0
 }
 
-generateEvalXML() {
-
-  # Evaluation templates are generated from their normal counterpart so
-  # both variants remain identical except for evaluation-specific selectors.
+generateAnswerFile() {
 
   local id="$1"
-  local detected_index="${2:-}"
-  local normal="${id::-5}"
-  local source="/run/assets/$normal.xml"
-  local target="/run/assets/$id.xml"
-  local index="$detected_index" tmp
-
-  [[ "${id,,}" == *"-eval" ]] || return 1
-
-  removeGeneratedXML "$source" || return 1
-
-  if [ ! -s "$source" ]; then
-    source="/run/assets/${normal%%-*}.xml"
-    removeGeneratedXML "$source" || return 1
-  fi
-
-  [ -s "$source" ] || return 1
+  local source="$2"
+  local target="$3"
+  local index="$4"
+  local type="$5"
+  local remove_selector="$6"
+  local tmp
 
   if [ -n "$index" ] && [[ ! "$index" =~ ^[1-9][0-9]*$ ]]; then
-    error "Invalid evaluation image index: $index"
+    error "Invalid $type image index: $index"
     return 1
   fi
 
   if ! tmp=$(mktemp -p /run/assets ".${id}.XXXXXX"); then
-    error "Failed to create a temporary evaluation answer file!"
+    error "Failed to create a temporary $type answer file!"
     return 1
   fi
 
-  if ! sed \
-      -e '/<ProductKey>.*<\/ProductKey>/d' \
-      -e '/<ProductKey>/,/<\/ProductKey>/d' \
-      "$source" > "$tmp"; then
+  local expressions
+
+  if [ "$type" = "evaluation" ]; then
+    expressions=(
+      -e '/<ProductKey>.*<\/ProductKey>/d'
+      -e '/<ProductKey>/,/<\/ProductKey>/d'
+    )
+  else
+    expressions=(
+      -e '/<InstallFrom>.*<\/InstallFrom>/d'
+      -e '/<ProductKey>.*<\/ProductKey>/d'
+      -e '/<InstallFrom>/,/<\/InstallFrom>/d'
+      -e '/<ProductKey>/,/<\/ProductKey>/d'
+    )
+  fi
+
+  if ! sed "${expressions[@]}" "$source" > "$tmp"; then
     rm -f "$tmp"
-    error "Failed to generate evaluation answer file from $source!"
+    error "Failed to generate $type answer file from $source!"
     return 1
   fi
 
-  if [ -n "$detected_index" ]; then
-
-    # A WIM index was detected, so replace any selector inherited from
-    # the normal template with the exact index from the ISO image.
+  if [ "$type" = "evaluation" ] && [ "$remove_selector" = "Y" ]; then
     if ! sed -i \
       -e '/<InstallFrom>.*<\/InstallFrom>/d' \
       -e '/<InstallFrom>/,/<\/InstallFrom>/d' \
@@ -322,15 +319,6 @@ generateEvalXML() {
       error "Failed to replace evaluation image selector!"
       return 1
     fi
-
-  else
-
-    # No WIM was inspected, so retain the known defaults for download routes.
-    case "${id,,}" in
-      *"-ltsc-eval" ) index="1" ;;
-      *"-iot-eval" )  index="2" ;;
-    esac
-
   fi
 
   if [ -n "$index" ] && ! grep -q '<InstallFrom>' "$tmp"; then
@@ -344,7 +332,7 @@ generateEvalXML() {
           </InstallFrom>
       }' "$tmp"; then
       rm -f "$tmp"
-      error "Failed to select evaluation image index $index!"
+      error "Failed to select $type image index $index!"
       return 1
     fi
   fi
@@ -352,15 +340,55 @@ generateEvalXML() {
   if ! markGeneratedXML "$tmp" ||
     ! xmllint --nonet --noout "$tmp"; then
     rm -f "$tmp"
-    error "Generated evaluation answer file is invalid!"
+    error "Generated $type answer file is invalid!"
     return 1
   fi
 
   if ! chmod 644 "$tmp" || ! mv -f "$tmp" "$target"; then
     rm -f "$tmp"
-    error "Failed to create evaluation answer file: $target"
+    error "Failed to create $type answer file: $target"
     return 1
   fi
+
+  return 0
+}
+
+generateEvalXML() {
+
+  # Evaluation templates are generated from their normal counterpart so
+  # both variants remain identical except for evaluation-specific selectors.
+
+  local id="$1"
+  local detected_index="${2:-}"
+  local normal="${id::-5}"
+  local source="/run/assets/$normal.xml"
+  local target="/run/assets/$id.xml"
+  local index="$detected_index"
+  local remove_selector="N"
+
+  [[ "${id,,}" == *"-eval" ]] || return 1
+
+  removeGeneratedXML "$source" || return 1
+
+  if [ ! -s "$source" ]; then
+    source="/run/assets/${normal%%-*}.xml"
+    removeGeneratedXML "$source" || return 1
+  fi
+
+  [ -s "$source" ] || return 1
+
+  if [ -n "$detected_index" ]; then
+    remove_selector="Y"
+  else
+    # No WIM was inspected, so retain the known defaults for download routes.
+    case "${id,,}" in
+      *"-ltsc-eval" ) index="1" ;;
+      *"-iot-eval" )  index="2" ;;
+    esac
+  fi
+
+  generateAnswerFile \
+    "$id" "$source" "$target" "$index" "evaluation" "$remove_selector" || return 1
 
   return 0
 }
@@ -374,62 +402,14 @@ generateFallbackXML() {
   local index="${2:-}"
   local source="/run/assets/${id%%-*}.xml"
   local target="/run/assets/$id.xml"
-  local tmp
 
   [ "$source" != "$target" ] || return 1
 
   removeGeneratedXML "$source" || return 1
   [ -s "$source" ] || return 1
 
-  if [ -n "$index" ] && [[ ! "$index" =~ ^[1-9][0-9]*$ ]]; then
-    error "Invalid fallback image index: $index"
-    return 1
-  fi
-
-  if ! tmp=$(mktemp -p /run/assets ".${id}.XXXXXX"); then
-    error "Failed to create a temporary fallback answer file!"
-    return 1
-  fi
-
-  if ! sed \
-      -e '/<InstallFrom>.*<\/InstallFrom>/d' \
-      -e '/<ProductKey>.*<\/ProductKey>/d' \
-      -e '/<InstallFrom>/,/<\/InstallFrom>/d' \
-      -e '/<ProductKey>/,/<\/ProductKey>/d' \
-      "$source" > "$tmp"; then
-    rm -f "$tmp"
-    error "Failed to generate fallback answer file from $source!"
-    return 1
-  fi
-
-  if [ -n "$index" ]; then
-    if ! sed -i \
-      '0,/<InstallTo>/{ /<InstallTo>/i\
-          <InstallFrom>\
-            <MetaData wcm:action="add">\
-              <Key>/IMAGE/INDEX</Key>\
-              <Value>'"$index"'</Value>\
-            </MetaData>\
-          </InstallFrom>
-      }' "$tmp"; then
-      rm -f "$tmp"
-      error "Failed to select fallback image index $index!"
-      return 1
-    fi
-  fi
-
-  if ! markGeneratedXML "$tmp" ||
-    ! xmllint --nonet --noout "$tmp"; then
-    rm -f "$tmp"
-    error "Generated fallback answer file is invalid!"
-    return 1
-  fi
-
-  if ! chmod 644 "$tmp" || ! mv -f "$tmp" "$target"; then
-    rm -f "$tmp"
-    error "Failed to create fallback answer file: $target"
-    return 1
-  fi
+  generateAnswerFile \
+    "$id" "$source" "$target" "$index" "fallback" "Y" || return 1
 
   return 0
 }
@@ -651,8 +631,7 @@ updateXML() {
 
   local asset="$1"
   local language="$2"
-  local app value culture admin key
-  local user user_xml edition pw host
+  local value user
 
   [ -z "${WIDTH:-}" ] && WIDTH="1280"
   [ -z "${HEIGHT:-}" ] && HEIGHT="720"
@@ -664,6 +643,7 @@ updateXML() {
   validateProductKey "${KEY:-}" || return 1
   validatePassword "${PASSWORD:-}" || return 1
 
+  local app
   app=$(escapeXMLSed "$APP for $ENGINE") || return 1
 
   sed -i "s|>Windows for Docker<|>$app<|g" "$asset" || return 1
@@ -671,10 +651,12 @@ updateXML() {
   sed -i -E "s|<HorizontalResolution>[^<]*</HorizontalResolution>|<HorizontalResolution>$WIDTH</HorizontalResolution>|g" "$asset" || return 1
 
   if [ -n "${HOST:-}" ]; then
+    local host
     host=$(escapeXMLSed "$HOST") || return 1
     sed -i -E "s|<ComputerName>[^<]*</ComputerName>|<ComputerName>$host</ComputerName>|g" "$asset" || return 1
   fi
 
+  local culture
   culture=$(getLanguage "$language" "culture") || return 1
 
   if [ -n "$culture" ] && [[ "${culture,,}" != "en-us" ]]; then
@@ -765,6 +747,7 @@ updateXML() {
     validateUsername "$user" "local" || return 1
 
     if [ -n "$user" ]; then
+      local user_xml
       user_xml=$(escapeXMLSed "$user") || return 1
 
       sed -i "s|-name \"Docker\"|-name \"\$env:USERNAME\"|g" "$asset" || return 1
@@ -775,6 +758,7 @@ updateXML() {
     fi
 
     local pass="${PASSWORD:-admin}"
+    local pw admin
 
     pw=$(printf '%s' "${pass}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
     admin=$(printf '%s' "${pass}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
@@ -828,6 +812,7 @@ updateXML() {
   fi
 
   if [ -n "${EDITION:-}" ]; then
+    local edition
 
     edition=$(normalizeServerEdition "$EDITION") || return 1
     edition="${edition//-/}"
@@ -839,6 +824,7 @@ updateXML() {
   fi
 
   if [ -n "${KEY:-}" ]; then
+    local key
     key=$(escapeXMLSed "$KEY") || return 1
     sed -i -E '/^[[:space:]]*<ProductKey>[[:space:]]*$/,/^[[:space:]]*<\/ProductKey>[[:space:]]*$/d' "$asset" || return 1
     sed -i -E "s|<ProductKey>[^<]*</ProductKey>|<ProductKey>$key</ProductKey>|g" "$asset" || return 1
@@ -959,7 +945,7 @@ legacyInstall() {
   local desc="$3"
   local driver="$4"
   local drivers="/tmp/drivers"
-  local pid file shortcut="Y"
+  local file shortcut="Y"
 
   if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
     shortcut="N"
@@ -1053,10 +1039,12 @@ legacyInstall() {
 
   fi
 
-  local key setup
+  local setup
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini -print -quit) || return 1
 
   if [ -n "$setup" ] && [ -z "$KEY" ]; then
+
+    local pid key
 
     pid=$(<"$setup") || return 1
     pid="${pid%$'\r'}"

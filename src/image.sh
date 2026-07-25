@@ -4,26 +4,23 @@ set -Eeuo pipefail
 getPlatform() {
 
   local xml="$1"
-  local tag="ARCH"
   local platform="x64"
+  local x86 x64 arm64 count=0
 
-  local -a arches=()
+  x86=$(xmllint --nonet --xpath 'count(/WIM/IMAGE/WINDOWS/ARCH[text()="0"])' - 2>/dev/null <<< "$xml") || x86=0
+  x64=$(xmllint --nonet --xpath 'count(/WIM/IMAGE/WINDOWS/ARCH[text()="9"])' - 2>/dev/null <<< "$xml") || x64=0
+  arm64=$(xmllint --nonet --xpath 'count(/WIM/IMAGE/WINDOWS/ARCH[text()="12"])' - 2>/dev/null <<< "$xml") || arm64=0
 
-  mapfile -t arches < <(
-    sed -n "/$tag/{s/.*<$tag>\(.*\)<\/$tag>.*/\1/;p}" <<< "$xml" |
-      sort -u
-  )
+  (( x86 > 0 )) && ((count++))
+  (( x64 > 0 )) && ((count++))
+  (( arm64 > 0 )) && ((count++))
 
-  if [ "${#arches[@]}" -gt 1 ]; then
+  if (( count > 1 )); then
     platform="mixed"
-  elif [ "${#arches[@]}" -eq 1 ]; then
-    local arch="${arches[0]}"
-
-    case "${arch,,}" in
-      "0" ) platform="x86" ;;
-      "9" ) platform="x64" ;;
-      "12" ) platform="arm64" ;;
-    esac
+  elif (( x86 > 0 )); then
+    platform="x86"
+  elif (( arm64 > 0 )); then
+    platform="arm64"
   fi
 
   echo "$platform"
@@ -59,61 +56,53 @@ hasVersion() {
   local wanted="$1"
   shift
 
-  local actual i
-  local -a actuals=("$@")
-  local -a expected=("$wanted")
-  local -a selected=("$wanted")
+  local actual
+
+  for actual in "$@"; do
+    [[ "${actual,,}" == "${wanted,,}" ]] || continue
+    echo "$actual"
+    return 0
+  done
+
+  return 1
+}
+
+getCompatibleVersions() {
+
+  local wanted="$1"
+  local result_name="$2"
+  local -n result_ref="$result_name"
+
+  result_ref=("$wanted")
 
   # Treat normal and Evaluation variants of the same edition as compatible.
   # The exact requested variant is always checked first.
   if [[ "${wanted,,}" == *"-eval" ]]; then
-    expected+=("${wanted%-eval}")
-    selected+=("${wanted%-eval}")
+    result_ref+=("${wanted%-eval}")
   else
-    expected+=("$wanted-eval")
-    selected+=("$wanted-eval")
+    result_ref+=("$wanted-eval")
+  fi
+}
+
+hasAnswerFile() {
+
+  local id="$1"
+  local file="/run/assets/$id.xml"
+
+  [ -s "$file" ] && return 0
+
+  if [[ "${id,,}" == *"-eval" ]]; then
+    file="/run/assets/${id%-eval}.xml"
+    [ -s "$file" ] && return 0
   fi
 
-  for (( i=0; i<${#expected[@]}; i++ )); do
-
-    local expected_id="${expected[$i]}"
-    local selected_id="${selected[$i]}"
-
-    for actual in "${actuals[@]}"; do
-
-      [[ "${actual,,}" == "${expected_id,,}" ]] || continue
-
-      local file="/run/assets/$selected_id.xml"
-
-      if [ -s "$file" ]; then
-        echo "$selected_id"
-        return 0
-      fi
-
-      if [[ "${selected_id,,}" == *"-eval" ]]; then
-        local source="/run/assets/${selected_id%-eval}.xml"
-
-        if [ -s "$source" ]; then
-          echo "$selected_id"
-          return 0
-        fi
-      fi
-
-      # Editions without a dedicated template can use the generic template.
-      case "${selected_id,,}" in
-        "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* | "win20"* )
-
-          file="/run/assets/${selected_id%%-*}.xml"
-
-          if [ -s "$file" ]; then
-            echo "$selected_id"
-            return 0
-          fi
-          ;;
-      esac
-
-    done
-  done
+  # Editions without a dedicated template can use the generic template.
+  case "${id,,}" in
+    "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* | "win20"* )
+      file="/run/assets/${id%%-*}.xml"
+      [ -s "$file" ] && return 0
+      ;;
+  esac
 
   return 1
 }
@@ -123,8 +112,8 @@ getVersionPriority() {
   local id="${1,,}"
   local base="${2,,}"
   local order_name="EDITION_ORDER"
-  local edition entry priority patterns pattern
-  local result="other" prefix score best_score=-1
+  local entry priority patterns pattern
+  local result="other" score best_score=-1
 
   id="${id%-eval}"
 
@@ -136,7 +125,7 @@ getVersionPriority() {
 
   local -n order_ref="$order_name"
 
-  edition="${id#"$base"}"
+  local edition="${id#"$base"}"
   edition="${edition#-}"
 
   # Use the most specific matching pattern. This prevents broad patterns
@@ -151,7 +140,7 @@ getVersionPriority() {
         [ -z "$edition" ] || continue
         score=1
       elif [[ "$pattern" == *"*" ]]; then
-        prefix="${pattern%\*}"
+        local prefix="${pattern%\*}"
         [[ "$edition" == "$prefix"* ]] || continue
         score="${#pattern}"
       elif [ "$edition" = "$pattern" ]; then
@@ -185,8 +174,10 @@ getVersions() {
   local -n groups_ref="$groups_name"
   local -n indexes_ref="$indexes_name"
 
-  local image image_index key
+  local count image image_index
   local display product platform
+  local edition_id install_type
+  local candidate flags i
 
   versions_ref=()
   bases_ref=()
@@ -194,74 +185,83 @@ getVersions() {
   indexes_ref=()
 
   platform=$(getPlatform "$xml")
+  count=$(xmllint --nonet --xpath 'count(/WIM/IMAGE)' - 2>/dev/null <<< "$xml") || return 0
 
-  while IFS='|' read -r image_index display product image; do
+  for ((i=1; i<=count; i++)); do
+
+    image_index=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/@INDEX)" - 2>/dev/null <<< "$xml") || continue
+    display=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/DISPLAYNAME)" - 2>/dev/null <<< "$xml") || display=""
+    product=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/WINDOWS/PRODUCTNAME)" - 2>/dev/null <<< "$xml") || product=""
+    image=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/NAME)" - 2>/dev/null <<< "$xml") || image=""
+    edition_id=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/WINDOWS/EDITIONID)" - 2>/dev/null <<< "$xml") || edition_id=""
+    install_type=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/WINDOWS/INSTALLATIONTYPE)" - 2>/dev/null <<< "$xml") || install_type=""
+    flags=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/FLAGS)" - 2>/dev/null <<< "$xml") || flags=""
 
     [ -n "$image_index" ] || continue
+    local candidate_id=""
+    local candidate_base=""
 
-    local candidate candidate_id candidate_base found=""
-
-    for candidate in "$display" "$product" "$image"; do
+    # NAME normally contains the most precise edition identifier (including
+    # Server Core), while DISPLAYNAME is the best fallback for other images.
+    for candidate in "$image" "$display" "$product"; do
 
       [[ "$candidate" == *"Operating System"* ]] && continue
-      [ -z "$candidate" ] && continue
+      [ -n "$candidate" ] || continue
 
       candidate_base=$(fromName "$candidate" "$platform")
       candidate_id=$(getVersion "$candidate" "$platform")
 
-      if [ -z "$candidate_base" ] || [ -z "$candidate_id" ]; then
-        continue
-      fi
-
-      found="Y"
-      key="${candidate_id,,}"
-      [[ -v "indexes_ref[$key]" ]] && continue
-
-      indexes_ref["$key"]="$image_index"
-      versions_ref+=("$candidate_id")
-      bases_ref+=("$candidate_base")
-      groups_ref+=("$(getVersionPriority "$candidate_id" "$candidate_base")")
-
+      [ -n "$candidate_base" ] && [ -n "$candidate_id" ] && break
     done
 
-    if [ -z "$found" ]; then
-      local name="${display:-${product:-$image}}"
+    if [ -z "$candidate_base" ] || [ -z "$candidate_id" ]; then
+      local name="${display:-${image:-$product}}"
       [ -n "$name" ] && warn "Unknown image name: '$name'"
+      continue
     fi
 
-  done < <(
-    awk '
-      /<IMAGE INDEX="/ {
-        image_index = $0
-        sub(/^.*<IMAGE INDEX="/, "", image_index)
-        sub(/".*$/, "", image_index)
-        display = product = name = ""
-      }
+    local key="${candidate_id,,}"
 
-      image_index != "" && /<DISPLAYNAME>/ {
-        display = $0
-        sub(/^.*<DISPLAYNAME>/, "", display)
-        sub(/<\/DISPLAYNAME>.*$/, "", display)
-      }
+    # Some client media use the same friendly name-derived ID for distinct
+    # editions. Preserve the established unsuffixed Pro ID, and use the
+    # structured edition metadata only to disambiguate a collision.
+    if [[ -v "indexes_ref[$key]" ]]; then
+      local structured=""
 
-      image_index != "" && /<PRODUCTNAME>/ {
-        product = $0
-        sub(/^.*<PRODUCTNAME>/, "", product)
-        sub(/<\/PRODUCTNAME>.*$/, "", product)
-      }
+      case "${candidate_base,,}" in
+        "winvista"* | "win7"* | "win8"* | "win10"* | "win11"* )
+          structured=$(normalizeEditionID "${edition_id:-${flags:-}}" "$candidate_base")
+          ;;
+        "win20"* )
+          structured=$(normalizeServerEditionID "${flags:-$edition_id}")
 
-      image_index != "" && /<NAME>/ {
-        name = $0
-        sub(/^.*<NAME>/, "", name)
-        sub(/<\/NAME>.*$/, "", name)
-      }
+          # Some media use the same EDITIONID for Core and Desktop images.
+          # INSTALLATIONTYPE provides the structural distinction without
+          # requiring a hardcoded marketing name.
+          if [[ "${install_type,,}" == *"core"* &&
+            "$structured" != *"-core" ]]; then
+            structured+="-core"
+          fi
+          ;;
+      esac
 
-      /<\/IMAGE>/ {
-        print image_index "|" display "|" product "|" name
-        image_index = ""
-      }
-    ' <<< "$xml"
-  )
+      if [ -n "$structured" ]; then
+        candidate_id="$candidate_base-$structured"
+        key="${candidate_id,,}"
+      fi
+    fi
+
+    if [[ -v "indexes_ref[$key]" ]]; then
+      warn "Duplicate image identity '$candidate_id' at indexes ${indexes_ref[$key]} and $image_index"
+      continue
+    fi
+
+    indexes_ref["$key"]="$image_index"
+    versions_ref+=("$candidate_id")
+    bases_ref+=("$candidate_base")
+    groups_ref+=("$(getVersionPriority "$candidate_id" "$candidate_base")")
+
+  done
 
   return 0
 }
@@ -279,18 +279,25 @@ selectVersion() {
   local -n selected_version="$result_name"
   local -n selected_image_index="$index_name"
 
-  local wanted match key
+  local wanted candidate match
+  local -a candidates=()
 
   for wanted in "${preference_list[@]}"; do
 
     [ -n "$wanted" ] || continue
+    getCompatibleVersions "$wanted" candidates
 
-    if match=$(hasVersion "$wanted" "${version_list[@]}"); then
-      key="${match,,}"
+    for candidate in "${candidates[@]}"; do
+
+      match=$(hasVersion "$candidate" "${version_list[@]}") || continue
+      hasAnswerFile "$match" || continue
+
+      local key="${match,,}"
       selected_version="$match"
       selected_image_index="${index_map[$key]}"
       return 0
-    fi
+
+    done
 
   done
 
@@ -405,8 +412,6 @@ detectVersion() {
   local suggested="${2:-}"
   local result_name="$3"
   local index_name="$4"
-  local -n result_ref="$result_name"
-  local -n index_ref="$index_name"
 
   local order_name="EDITION_ORDER"
   local normalize_name="normalizeEditionID"
@@ -416,8 +421,8 @@ detectVersion() {
   local -a versions=()
   local -A image_indexes=()
 
-  result_ref=""
-  index_ref=""
+  printf -v "$result_name" '%s' ""
+  printf -v "$index_name" '%s' ""
 
   getVersions \
     "$xml" \
@@ -446,10 +451,11 @@ detectVersion() {
     "$normalize_name" \
     "$order_name" && return 0
 
-  result_ref="${versions[0]}"
+  local result="${versions[0]}"
+  local key="${result,,}"
 
-  local key="${result_ref,,}"
-  index_ref="${image_indexes[$key]}"
+  printf -v "$result_name" '%s' "$result"
+  printf -v "$index_name" '%s' "${image_indexes[$key]}"
 
   return 0
 }
@@ -457,20 +463,20 @@ detectVersion() {
 detectLanguage() {
 
   local xml="$1"
-  local lang=""
+  local index="${2:-}"
+  local xpath lang
 
-  if [[ "$xml" == *"LANGUAGE><DEFAULT>"* ]]; then
-    lang="${xml#*LANGUAGE><DEFAULT>}"
-    lang="${lang%%<*}"
+  if [[ "$index" =~ ^[0-9]+$ ]]; then
+    xpath="string((/WIM/IMAGE[@INDEX='$index']/WINDOWS/LANGUAGES/DEFAULT | /WIM/IMAGE[@INDEX='$index']/WINDOWS/LANGUAGES/FALLBACK/DEFAULT)[1])"
   else
-    if [[ "$xml" == *"FALLBACK><DEFAULT>"* ]]; then
-      lang="${xml#*FALLBACK><DEFAULT>}"
-      lang="${lang%%<*}"
-    fi
+    xpath='string((/WIM/IMAGE/WINDOWS/LANGUAGES/DEFAULT | /WIM/IMAGE/WINDOWS/LANGUAGES/FALLBACK/DEFAULT)[1])'
   fi
 
+  lang=$(xmllint --nonet --xpath "$xpath" - 2>/dev/null <<< "$xml") || lang=""
+
   if [ -z "$lang" ]; then
-    warn "Language could not be detected from ISO!" && return 0
+    warn "Language could not be detected from ISO!"
+    return 0
   fi
 
   local culture
@@ -555,54 +561,55 @@ detectLegacy() {
   return 1
 }
 
-detectImage() {
+resolveImage() {
+
+  local version="$1"
+
+  [ -z "$DETECTED" ] || return 0
+  [ -z "$CUSTOM" ] || return 1
+  [ -z "${REUSED_ISO:-}" ] || return 1
+  [[ "${version,,}" != "http"* ]] || return 1
+
+  local file="/run/assets/$version.xml"
+
+  if [ -s "$file" ]; then
+    DETECTED="$version"
+    return 0
+  fi
+
+  if [[ "${version,,}" == *"-eval" ]]; then
+    local source="/run/assets/${version%-eval}.xml"
+
+    if [ -s "$source" ]; then
+      DETECTED="$version"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
+setImage() {
+
+  skipVersion "${DETECTED,,}" && return 0
+
+  if ! setXML "" && ! enabled "$MANUAL"; then
+    MANUAL="Y"
+
+    local desc
+    desc=$(printEdition "$DETECTED" "this version")
+    warn "the answer file for $desc was not found ($DETECTED.xml), $FB."
+  fi
+
+  return 0
+}
+
+findImage() {
 
   local dir="$1"
-  local version="$2"
-  local desc
+  local result_name="$2"
 
-  XML=""
-
-  # For normal download routes, avoid inspecting install.wim when the route
-  # already maps directly to an available answer file. Routes such as Tiny10
-  # and Tiny11 have no corresponding answer file, so their actual Windows
-  # edition will be detected from the downloaded image instead.
-  if [ -z "$DETECTED" ] && [ -z "$CUSTOM" ] &&
-    [ -z "${REUSED_ISO:-}" ] && [[ "${version,,}" != "http"* ]]; then
-
-    local file="/run/assets/$version.xml"
-
-    if [ -s "$file" ]; then
-      DETECTED="$version"
-    elif [[ "${version,,}" == *"-eval" ]]; then
-      local source="/run/assets/${version%-eval}.xml"
-      [ -s "$source" ] && DETECTED="$version"
-    fi
-
-  fi
-
-  if [ -n "$DETECTED" ]; then
-
-    skipVersion "${DETECTED,,}" && return 0
-
-    if ! setXML "" && ! enabled "$MANUAL"; then
-      MANUAL="Y"
-      desc=$(printEdition "$DETECTED" "this version")
-      warn "the answer file for $desc was not found ($DETECTED.xml), $FB."
-    fi
-
-    return 0
-  fi
-
-  info "Detecting version from ISO image..."
-
-  if detectLegacy "$dir"; then
-    desc=$(printEdition "$DETECTED" "$DETECTED" "Y")
-    info "Detected: $desc"
-    return 0
-  fi
-
-  local src
+  local src result
   src=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
 
   if [ ! -d "$src" ]; then
@@ -610,17 +617,25 @@ detectImage() {
     return 1
   fi
 
-  local wim
-  wim=$(find "$src" -maxdepth 1 -type f \
+  result=$(find "$src" -maxdepth 1 -type f \
     \( -iname install.wim -or -iname install.esd \) -print -quit)
 
-  if [ ! -f "$wim" ]; then
+  if [ ! -f "$result" ]; then
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
     return 1
   fi
 
-  local info
-  info=$(wimlib-imagex info -xml "$wim" |
+  printf -v "$result_name" '%s' "$result"
+  return 0
+}
+
+readImageInfo() {
+
+  local wim="$1"
+  local result_name="$2"
+  local result
+
+  result=$(wimlib-imagex info -xml "$wim" |
     iconv -f UTF-16LE -t UTF-8) || {
     local rc=$?
 
@@ -632,58 +647,78 @@ detectImage() {
     return 1
   }
 
-  checkPlatform "$info" || exit 67
+  printf -v "$result_name" '%s' "$result"
+  return 0
+}
 
-  local suggested=""
+getSuggestion() {
 
-  if [ -z "$CUSTOM" ] && [ -n "${REUSED_ISO:-}" ]; then
-    suggested="${SUGGEST:-}"
+  [ -z "$CUSTOM" ] || return 0
+  [ -n "${REUSED_ISO:-}" ] || return 0
+
+  echo "${SUGGEST:-}"
+}
+
+validateEdition() {
+
+  [ -n "$EDITION" ] || return 0
+
+  case "${DETECTED,,}" in
+    "win20"* )
+      local edition
+      edition=$(normalizeServerEditionID "$EDITION")
+
+      if [ -n "$edition" ] &&
+        [[ "${DETECTED,,}" != *"-${edition,,}" &&
+          "${DETECTED,,}" != *"-${edition,,}-eval" ]]; then
+        EDITION=""
+      fi
+      ;;
+  esac
+
+  return 0
+}
+
+unknownImage() {
+
+  local msg="Failed to determine Windows version from image"
+
+  if setXML "" || enabled "$MANUAL"; then
+    info "${msg}!"
+  else
+    MANUAL="Y"
+    warn "${msg}, $FB."
   fi
 
-  local index
-  detectVersion "$info" "$suggested" DETECTED index
+  return 0
+}
 
-  if [ -n "$EDITION" ]; then
-    local edition
+describeImage() {
 
-    case "${DETECTED,,}" in
-      "win20"* )
+  local info_xml="$1"
+  local index="$2"
+  local result_name="$3"
+  local result
 
-        edition=$(normalizeServerEditionID "$EDITION")
+  result=$(printEdition "$DETECTED" "$DETECTED" "Y")
 
-        if [ -n "$edition" ] &&
-          [[ "${DETECTED,,}" != *"-${edition,,}" &&
-            "${DETECTED,,}" != *"-${edition,,}-eval" ]]; then
-          EDITION=""
-        fi
-        ;;
-    esac
-  fi
-
-  if [ -z "$DETECTED" ]; then
-    local msg="Failed to determine Windows version from image"
-
-    if setXML "" || enabled "$MANUAL"; then
-      info "${msg}!"
-    else
-      MANUAL="Y"
-      warn "${msg}, $FB."
-    fi
-
-    return 0
-  fi
-
-  desc=$(printEdition "$DETECTED" "$DETECTED" "Y")
-
-  detectLanguage "$info"
+  detectLanguage "$info_xml" "$index"
 
   if [[ "${LANGUAGE,,}" != "en" && "${LANGUAGE,,}" != "en-"* ]]; then
     local language
     language=$(getLanguage "$LANGUAGE" "desc")
-    desc+=" ($language)"
+    result+=" ($language)"
   fi
 
-  info "Detected: $desc"
+  printf -v "$result_name" '%s' "$result"
+  return 0
+}
+
+configureImage() {
+
+  local index="$1"
+  local desc="$2"
+
   setXML "" "$index" && return 0
 
   if [[ "$DETECTED" == "win81x86"* ||
@@ -701,6 +736,57 @@ detectImage() {
     MANUAL="Y"
     warn "${msg}, $FB."
   fi
+
+  return 0
+}
+
+detectImage() {
+
+  local dir="$1"
+  local version="$2"
+  local desc
+
+  XML=""
+
+  resolveImage "$version" || :
+
+  if [ -n "$DETECTED" ]; then
+    setImage || return 1
+    return 0
+  fi
+
+  info "Detecting version from ISO image..."
+
+  if detectLegacy "$dir"; then
+    desc=$(printEdition "$DETECTED" "$DETECTED" "Y")
+    info "Detected: $desc"
+    return 0
+  fi
+
+  local wim
+  findImage "$dir" wim || return 1
+
+  local image_info
+  readImageInfo "$wim" image_info || return 1
+
+  checkPlatform "$image_info" || exit 67
+
+  local suggested
+  suggested=$(getSuggestion) || return 1
+
+  local index
+  detectVersion "$image_info" "$suggested" DETECTED index || return 1
+  validateEdition || return 1
+
+  if [ -z "$DETECTED" ]; then
+    unknownImage || return 1
+    return 0
+  fi
+
+  describeImage "$image_info" "$index" desc || return 1
+  info "Detected: $desc"
+
+  configureImage "$index" "$desc" || return 1
 
   return 0
 }
