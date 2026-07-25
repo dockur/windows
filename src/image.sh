@@ -562,7 +562,7 @@ detectLegacy() {
   return 1
 }
 
-resolveKnownImage() {
+resolveImage() {
 
   local version="$1"
 
@@ -590,7 +590,7 @@ resolveKnownImage() {
   return 1
 }
 
-configureKnownImage() {
+setImage() {
 
   skipVersion "${DETECTED,,}" && return 0
 
@@ -605,7 +605,7 @@ configureKnownImage() {
   return 0
 }
 
-findWindowsImage() {
+findImage() {
 
   local dir="$1"
   local -n result_ref="$2"
@@ -629,7 +629,7 @@ findWindowsImage() {
   return 0
 }
 
-readWindowsImageInfo() {
+readImageInfo() {
 
   local wim="$1"
   local -n result_ref="$2"
@@ -649,7 +649,7 @@ readWindowsImageInfo() {
   return 0
 }
 
-getSuggestedVersion() {
+getSuggestion() {
 
   [ -z "$CUSTOM" ] || return 0
   [ -n "${REUSED_ISO:-}" ] || return 0
@@ -657,7 +657,7 @@ getSuggestedVersion() {
   echo "${SUGGEST:-}"
 }
 
-validateDetectedEdition() {
+validateEdition() {
 
   [ -n "$EDITION" ] || return 0
 
@@ -677,7 +677,7 @@ validateDetectedEdition() {
   return 0
 }
 
-handleUnknownImage() {
+unknownImage() {
 
   local msg="Failed to determine Windows version from image"
 
@@ -691,7 +691,7 @@ handleUnknownImage() {
   return 0
 }
 
-describeDetectedImage() {
+describeImage() {
 
   local info_xml="$1"
   local index="$2"
@@ -710,7 +710,7 @@ describeDetectedImage() {
   return 0
 }
 
-configureDetectedImage() {
+configureImage() {
 
   local index="$1"
   local desc="$2"
@@ -744,10 +744,10 @@ detectImage() {
 
   XML=""
 
-  resolveKnownImage "$version" || :
+  resolveImage "$version" || :
 
   if [ -n "$DETECTED" ]; then
-    configureKnownImage
+    setImage
     return 0
   fi
 
@@ -760,29 +760,29 @@ detectImage() {
   fi
 
   local wim
-  findWindowsImage "$dir" wim || return 1
+  findImage "$dir" wim || return 1
 
   local image_info
-  readWindowsImageInfo "$wim" image_info || return 1
+  readImageInfo "$wim" image_info || return 1
 
   checkPlatform "$image_info" || exit 67
 
   local suggested
-  suggested=$(getSuggestedVersion)
+  suggested=$(getSuggestion)
 
   local index
   detectVersion "$image_info" "$suggested" DETECTED index
-  validateDetectedEdition
+  validateEdition
 
   if [ -z "$DETECTED" ]; then
-    handleUnknownImage
+    unknownImage
     return 0
   fi
 
-  describeDetectedImage "$image_info" "$index" desc
+  describeImage "$image_info" "$index" desc
   info "Detected: $desc"
 
-  configureDetectedImage "$index" "$desc" || return 1
+  configureImage "$index" "$desc" || return 1
 
   return 0
 }
