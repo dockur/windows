@@ -879,8 +879,8 @@ EOF
   rm -rf "$tmp"
 
   matches=$(
-    grep -Ein \
-      '(^|[^\\])\\host\.lan\\' \
+    grep -Pin \
+      '(?<!\\)\\host[.]lan\\' \
       "$file" || true
   )
 
@@ -896,8 +896,8 @@ EOF
   fi
 
   matches=$(
-    grep -Ein \
-      '(^|[^\\[:alnum:]._-])host\.lan\\' \
+    grep -Pin \
+      '(?<![\\[:alnum:]._-])host[.]lan\\' \
       "$file" || true
   )
 
@@ -913,8 +913,8 @@ EOF
   fi
 
   matches=$(
-    grep -Ein \
-      '//host\.lan/' \
+    grep -Pin \
+      '//host[.]lan/' \
       "$file" || true
   )
 
@@ -930,8 +930,8 @@ EOF
   fi
 
   matches=$(
-    grep -Ein \
-      '\\\\host\.lan\\shared([\\/]|$)' \
+    grep -Pin \
+      '\\\\host[.]lan\\shared(?:[\\/]|$)' \
       "$file" || true
   )
 
