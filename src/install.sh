@@ -377,7 +377,7 @@ finishInstall() {
   if [ -n "${CPU_MODEL:-}" ] && [[ "${CPU_MODEL,,}" != "host" ]]; then
     writeState "cpu" "$CPU_MODEL" || return 1
   fi
-  
+
   rm -rf "$TMP"
   return 0
 }
@@ -752,7 +752,7 @@ setMachine() {
 
   case "${id,,}" in
     "winxp"* | "win2003"* | "winvistax86"* | "win7x86"* | "win2008r2x86"* )
-      if [ -z "${MACHINE:-}" ] || [[ "${MACHINE:-}" == "q35" ]]; then
+      if isQ35 "${MACHINE:-q35}"; then
         # Prevent bluescreen if 64 bit PCI hole size is >2G.
         ARGS="-global q35-pcihost.x-pci-hole64-fix=false"
       fi ;;
