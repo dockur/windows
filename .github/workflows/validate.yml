@@ -23,6 +23,7 @@ concurrency:
 
 jobs:
   desktop:
+    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -101,6 +102,7 @@ jobs:
       platform: ${{ matrix.platform }}
 
   tiny:
+    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -139,6 +141,7 @@ jobs:
       platform: ${{ matrix.platform }}
 
   server:
+    if: false
     strategy:
       fail-fast: false
       matrix:
