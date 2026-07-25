@@ -1437,8 +1437,8 @@ legacyInstall() {
   local dir="$2"
   local desc="$3"
   local driver="$4"
-  local drivers="/tmp/drivers"
   local shortcut="Y"
+  local drivers="/tmp/drivers"
 
   if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
     shortcut="N"
@@ -1476,13 +1476,22 @@ legacyInstall() {
   [ -n "$KEY" ] && product="ProductID=$KEY"
 
   mkdir -p "$dir/\$OEM\$" || return 1
-  local install="$dir/\$OEM\$/\$1/OEM/install.bat"
 
   if ! addFolder "$dir"; then
     error "Failed to add OEM folder to image!" && return 1
   fi
 
   local oem=""
+  local install
+
+  install=$(find \
+    "$dir/\$OEM\$/\$1/OEM" \
+    -maxdepth 1 \
+    -type f \
+    -iname install.bat \
+    -print -quit
+  ) || return 1
+
   oem=$(writeCommand "$install") || return 1
 
   [ -z "$WIDTH" ] && WIDTH="1280"
