@@ -1421,8 +1421,6 @@ writeVBS() {
     fi
   } | unix2dos > "$dir/\$OEM\$/install.vbs" || return 1
 
-  local dir="$1"
-
   {
     printf '%s\n' \
       '[COMMANDS]' \
