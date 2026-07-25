@@ -795,7 +795,8 @@ checkBatch() {
 
   local file="$1"
   local report="N"
-  local tmp output line
+  local tmp output
+  local matches line
 
   [ ! -f "$file" ] && return 0
 
@@ -877,7 +878,7 @@ EOF
 
   rm -rf "$tmp"
 
-  local matches=$(
+  matches=$(
     grep -Ein \
       '(^|[^\\])\\host\.lan\\' \
       "$file" || true
