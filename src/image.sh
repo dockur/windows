@@ -883,7 +883,7 @@ EOF
 
   matches=$(
     grep -Pin \
-      '(?<!\\)\\host[.]lan\\' \
+      '(?<!\\)\\host[.]lan[\\]' \
       "$file" || true
   )
 
@@ -900,7 +900,7 @@ EOF
 
   matches=$(
     grep -Pin \
-      '(?<![\\[:alnum:]._-])host[.]lan\\' \
+      '(?<![\\[:alnum:]._-])host[.]lan[\\]' \
       "$file" || true
   )
 
