@@ -234,6 +234,195 @@ validateDomainName() {
   return 0
 }
 
+updateWorkgroup() {
+
+  local asset="$1"
+  local workgroup arch tmp
+
+  workgroup=$(escapeXML "$2") || return 1
+  arch=$(sed -n -E '0,/processorArchitecture="/s/.*processorArchitecture="([^"]+)".*/\1/p' "$asset") || return 1
+  [ -z "$arch" ] && return 1
+
+  grep -q 'Microsoft-Windows-UnattendedJoin' "$asset" && return 1
+
+  tmp=$(mktemp -d) || return 1
+  local result="$tmp/answer.xml"
+
+  if ! WORKGROUP_XML="$workgroup" ARCH_XML="$arch" awk '
+      /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
+
+      section == "specialize" && !workgroup_added &&
+        /^[[:space:]]*<\/settings>[[:space:]]*$/ {
+        print "    <component name=\"Microsoft-Windows-UnattendedJoin\" processorArchitecture=\"" ENVIRON["ARCH_XML"] "\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">\n" \
+              "      <Identification>\n" \
+              "        <JoinWorkgroup>" ENVIRON["WORKGROUP_XML"] "</JoinWorkgroup>\n" \
+              "      </Identification>\n" \
+              "    </component>"
+        workgroup_added = 1
+      }
+
+      { print }
+
+      /^[[:space:]]*<\/settings>[[:space:]]*$/ { section = "" }
+      END { exit !workgroup_added }
+    ' "$asset" > "$result" ||
+    ! mv -f "$result" "$asset"; then
+
+    rm -rf "$tmp" || true
+    return 1
+  fi
+
+  rm -rf "$tmp" || return 1
+  return 0
+}
+
+updateDomain() {
+
+  local asset="$1"
+  local domain account auth pass
+  local ou arch tmp
+
+  domain=$(escapeXML "$2") || return 1
+  account=$(escapeXML "$3") || return 1
+  auth=$(escapeXML "$4") || return 1
+  pass=$(escapeXML "$5") || return 1
+  ou=$(escapeXML "$6") || return 1
+
+  arch=$(sed -n -E \
+    '0,/processorArchitecture="/s/.*processorArchitecture="([^"]+)".*/\1/p' \
+    "$asset") || return 1
+
+  [ -z "$arch" ] && return 1
+
+  local cred_domain="$domain"
+
+  case "$4" in
+    *@* ) cred_domain="" ;;
+  esac
+
+  grep -Eq 'Microsoft-Windows-UnattendedJoin|<DomainAccounts([[:space:]/>])' "$asset" && return 1
+
+  tmp=$(mktemp -d) || return 1
+  local result="$tmp/answer.xml"
+
+  if ! DOMAIN_XML="$domain" ACCOUNT_XML="$account" \
+    AUTH_XML="$auth" PASS_XML="$pass" \
+    CRED_DOMAIN="$cred_domain" OU_XML="$ou" \
+    ARCH_XML="$arch" \
+    awk '
+      /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
+      /<settings[^>]*pass="oobeSystem"[^>]*>/ { section = "oobeSystem" }
+      section == "oobeSystem" && /<UserAccounts([[:space:]>])/ { in_accounts = 1 }
+      section == "oobeSystem" && /<AutoLogon([[:space:]>])/ { in_autologon = 1 }
+
+      section == "oobeSystem" && in_accounts && !accounts_added &&
+        /<AdministratorPassword([[:space:]>])/ {
+        print "        <DomainAccounts>\n" \
+              "          <DomainAccountList wcm:action=\"add\">\n" \
+              "            <DomainAccount wcm:action=\"add\">\n" \
+              "              <Name>" ENVIRON["ACCOUNT_XML"] "</Name>\n" \
+              "              <Group>Administrators</Group>\n" \
+              "            </DomainAccount>\n" \
+              "            <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>\n" \
+              "          </DomainAccountList>\n" \
+              "        </DomainAccounts>"
+        accounts_added = 1
+      }
+
+      section == "oobeSystem" && in_autologon &&
+        /^[[:space:]]*<Username>.*<\/Username>[[:space:]]*$/ {
+        print "        <Username>" ENVIRON["ACCOUNT_XML"] "</Username>\n" \
+              "        <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>"
+        autologon_added = 1
+        next
+      }
+
+      section == "oobeSystem" && in_autologon &&
+        /^[[:space:]]*<Domain([[:space:]/>])/ { next }
+
+      section == "oobeSystem" && in_autologon &&
+        /^[[:space:]]*<Value>.*<\/Value>[[:space:]]*$/ {
+        print "          <Value>" ENVIRON["PASS_XML"] "</Value>"
+        password_added = 1
+        next
+      }
+
+      section == "oobeSystem" && in_autologon &&
+        /^[[:space:]]*<PlainText([[:space:]/>])/ {
+        print "          <PlainText>true</PlainText>"
+        plaintext_added = 1
+        next
+      }
+
+      section == "specialize" && !join_added &&
+        /^[[:space:]]*<\/settings>[[:space:]]*$/ {
+        print "    <component name=\"Microsoft-Windows-UnattendedJoin\" processorArchitecture=\"" ENVIRON["ARCH_XML"] "\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">\n" \
+              "      <Identification>\n" \
+              "        <Credentials>"
+
+        if (ENVIRON["CRED_DOMAIN"] != "") {
+          print "          <Domain>" ENVIRON["CRED_DOMAIN"] "</Domain>"
+        }
+
+        print "          <Username>" ENVIRON["AUTH_XML"] "</Username>\n" \
+              "          <Password>" ENVIRON["PASS_XML"] "</Password>\n" \
+              "        </Credentials>\n" \
+              "        <JoinDomain>" ENVIRON["DOMAIN_XML"] "</JoinDomain>"
+
+        if (ENVIRON["OU_XML"] != "") {
+          print "        <MachineObjectOU>" ENVIRON["OU_XML"] "</MachineObjectOU>"
+        }
+
+        print "      </Identification>\n" \
+              "    </component>"
+
+        join_added = 1
+      }
+
+      { print }
+
+      section == "oobeSystem" && /<\/AutoLogon>/ { in_autologon = 0 }
+      section == "oobeSystem" && /<\/UserAccounts>/ { in_accounts = 0 }
+      /^[[:space:]]*<\/settings>[[:space:]]*$/ { section = "" }
+
+      END { exit !(join_added && accounts_added && autologon_added && password_added && plaintext_added) }
+    ' "$asset" > "$result" ||
+    ! mv -f "$result" "$asset"; then
+
+    rm -rf "$tmp" || true
+    return 1
+  fi
+
+  rm -rf "$tmp" || return 1
+  return 0
+}
+
+enableLog() {
+
+  local file="$1"
+
+  enabled "$LOG" || return 0
+  [ -f "$file" ] || return 1
+
+  local old='C:\OEM\install.bat"</CommandLine>'
+  local new='C:\OEM\install.bat &gt; C:\OEM\install.log 2&gt;&amp;1"</CommandLine>'
+  local msg="failed to enable install logging in the answer file!"
+
+  if ! grep -Fq "$old" "$file"; then
+    enabled "$DEBUG" && warn "$msg"
+    return 0
+  fi
+
+  if ! sed -i \
+    's|C:\\OEM\\install\.bat"</CommandLine>|C:\\OEM\\install.bat \&gt; C:\\OEM\\install.log 2\&gt;\&amp;1"</CommandLine>|' \
+    "$file"; then
+
+    warn "$msg"
+  fi
+
+  return 0
+}
+
 markGeneratedXML() {
 
   local file="$1"
@@ -464,169 +653,6 @@ setXML() {
   return 0
 }
 
-updateDomain() {
-
-  local asset="$1"
-  local domain account auth pass
-  local ou arch tmp
-
-  domain=$(escapeXML "$2") || return 1
-  account=$(escapeXML "$3") || return 1
-  auth=$(escapeXML "$4") || return 1
-  pass=$(escapeXML "$5") || return 1
-  ou=$(escapeXML "$6") || return 1
-
-  arch=$(sed -n -E \
-    '0,/processorArchitecture="/s/.*processorArchitecture="([^"]+)".*/\1/p' \
-    "$asset") || return 1
-
-  [ -z "$arch" ] && return 1
-
-  local cred_domain="$domain"
-
-  case "$4" in
-    *@* ) cred_domain="" ;;
-  esac
-
-  grep -Eq 'Microsoft-Windows-UnattendedJoin|<DomainAccounts([[:space:]/>])' "$asset" && return 1
-
-  tmp=$(mktemp -d) || return 1
-  local result="$tmp/answer.xml"
-
-  if ! DOMAIN_XML="$domain" ACCOUNT_XML="$account" \
-    AUTH_XML="$auth" PASS_XML="$pass" \
-    CRED_DOMAIN="$cred_domain" OU_XML="$ou" \
-    ARCH_XML="$arch" \
-    awk '
-      /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
-      /<settings[^>]*pass="oobeSystem"[^>]*>/ { section = "oobeSystem" }
-      section == "oobeSystem" && /<UserAccounts([[:space:]>])/ { in_accounts = 1 }
-      section == "oobeSystem" && /<AutoLogon([[:space:]>])/ { in_autologon = 1 }
-
-      section == "oobeSystem" && in_accounts && !accounts_added &&
-        /<AdministratorPassword([[:space:]>])/ {
-        print "        <DomainAccounts>\n" \
-              "          <DomainAccountList wcm:action=\"add\">\n" \
-              "            <DomainAccount wcm:action=\"add\">\n" \
-              "              <Name>" ENVIRON["ACCOUNT_XML"] "</Name>\n" \
-              "              <Group>Administrators</Group>\n" \
-              "            </DomainAccount>\n" \
-              "            <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>\n" \
-              "          </DomainAccountList>\n" \
-              "        </DomainAccounts>"
-        accounts_added = 1
-      }
-
-      section == "oobeSystem" && in_autologon &&
-        /^[[:space:]]*<Username>.*<\/Username>[[:space:]]*$/ {
-        print "        <Username>" ENVIRON["ACCOUNT_XML"] "</Username>\n" \
-              "        <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>"
-        autologon_added = 1
-        next
-      }
-
-      section == "oobeSystem" && in_autologon &&
-        /^[[:space:]]*<Domain([[:space:]/>])/ { next }
-
-      section == "oobeSystem" && in_autologon &&
-        /^[[:space:]]*<Value>.*<\/Value>[[:space:]]*$/ {
-        print "          <Value>" ENVIRON["PASS_XML"] "</Value>"
-        password_added = 1
-        next
-      }
-
-      section == "oobeSystem" && in_autologon &&
-        /^[[:space:]]*<PlainText([[:space:]/>])/ {
-        print "          <PlainText>true</PlainText>"
-        plaintext_added = 1
-        next
-      }
-
-      section == "specialize" && !join_added &&
-        /^[[:space:]]*<\/settings>[[:space:]]*$/ {
-        print "    <component name=\"Microsoft-Windows-UnattendedJoin\" processorArchitecture=\"" ENVIRON["ARCH_XML"] "\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">\n" \
-              "      <Identification>\n" \
-              "        <Credentials>"
-
-        if (ENVIRON["CRED_DOMAIN"] != "") {
-          print "          <Domain>" ENVIRON["CRED_DOMAIN"] "</Domain>"
-        }
-
-        print "          <Username>" ENVIRON["AUTH_XML"] "</Username>\n" \
-              "          <Password>" ENVIRON["PASS_XML"] "</Password>\n" \
-              "        </Credentials>\n" \
-              "        <JoinDomain>" ENVIRON["DOMAIN_XML"] "</JoinDomain>"
-
-        if (ENVIRON["OU_XML"] != "") {
-          print "        <MachineObjectOU>" ENVIRON["OU_XML"] "</MachineObjectOU>"
-        }
-
-        print "      </Identification>\n" \
-              "    </component>"
-
-        join_added = 1
-      }
-
-      { print }
-
-      section == "oobeSystem" && /<\/AutoLogon>/ { in_autologon = 0 }
-      section == "oobeSystem" && /<\/UserAccounts>/ { in_accounts = 0 }
-      /^[[:space:]]*<\/settings>[[:space:]]*$/ { section = "" }
-
-      END { exit !(join_added && accounts_added && autologon_added && password_added && plaintext_added) }
-    ' "$asset" > "$result" ||
-    ! mv -f "$result" "$asset"; then
-
-    rm -rf "$tmp" || true
-    return 1
-  fi
-
-  rm -rf "$tmp" || return 1
-  return 0
-}
-
-updateWorkgroup() {
-
-  local asset="$1"
-  local workgroup arch tmp
-
-  workgroup=$(escapeXML "$2") || return 1
-  arch=$(sed -n -E '0,/processorArchitecture="/s/.*processorArchitecture="([^"]+)".*/\1/p' "$asset") || return 1
-  [ -z "$arch" ] && return 1
-
-  grep -q 'Microsoft-Windows-UnattendedJoin' "$asset" && return 1
-
-  tmp=$(mktemp -d) || return 1
-  local result="$tmp/answer.xml"
-
-  if ! WORKGROUP_XML="$workgroup" ARCH_XML="$arch" awk '
-      /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
-
-      section == "specialize" && !workgroup_added &&
-        /^[[:space:]]*<\/settings>[[:space:]]*$/ {
-        print "    <component name=\"Microsoft-Windows-UnattendedJoin\" processorArchitecture=\"" ENVIRON["ARCH_XML"] "\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">\n" \
-              "      <Identification>\n" \
-              "        <JoinWorkgroup>" ENVIRON["WORKGROUP_XML"] "</JoinWorkgroup>\n" \
-              "      </Identification>\n" \
-              "    </component>"
-        workgroup_added = 1
-      }
-
-      { print }
-
-      /^[[:space:]]*<\/settings>[[:space:]]*$/ { section = "" }
-      END { exit !workgroup_added }
-    ' "$asset" > "$result" ||
-    ! mv -f "$result" "$asset"; then
-
-    rm -rf "$tmp" || true
-    return 1
-  fi
-
-  rm -rf "$tmp" || return 1
-  return 0
-}
-
 updateXML() {
 
   local asset="$1"
@@ -809,6 +835,10 @@ updateXML() {
 
   if disabled "${AUTOLOGIN:-}"; then
     sed -i -E '/^[[:space:]]*<AutoLogon([[:space:]>])/,/^[[:space:]]*<\/AutoLogon>[[:space:]]*$/d' "$asset" || return 1
+  fi
+
+  if enabled "${LOG:-}"; then
+    enableLog "$asset" || return 1
   fi
 
   if [ -n "${EDITION:-}" ]; then
@@ -1140,7 +1170,16 @@ legacyInstall() {
 
   local oem=""
   local install="$dir/\$OEM\$/\$1/OEM/install.bat"
-  [ -f "$install" ] && oem="\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat\\\"\""
+
+  if [ -f "$install" ]; then
+
+    if ! enabled "${LOG:-}"; then
+      oem="\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat\\\"\""
+    else
+      oem="\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat > C:\\\\OEM\\\\install.log 2>&1\\\"\""
+    fi
+
+  fi
 
   [ -z "$WIDTH" ] && WIDTH="1280"
   [ -z "$HEIGHT" ] && HEIGHT="720"

@@ -790,3 +790,164 @@ detectImage() {
 
   return 0
 }
+
+checkBatch() {
+
+  local file="$1"
+  local report="N"
+  local tmp output
+  local matches line
+
+  [ ! -f "$file" ] && return 0
+
+  if ! tmp=$(mktemp -d /tmp/blinter.XXXXXX); then
+    warn "failed to create temporary Blinter directory."
+    return 0
+  fi
+
+  local source="your install.bat file"
+  [ -n "${COMMAND:-}" ] && source="your COMMAND variable"
+
+  if enabled "$DEBUG"; then
+    report="Y"
+  else
+
+    # First pass: silently check only for Error-level findings.
+    cat > "$tmp/blinter.ini" <<'EOF'
+[general]
+min_severity = error
+EOF
+
+    if ! (
+      cd "$tmp"
+      python3 -m blinter "$file" >/dev/null 2>&1
+    ); then
+      report="Y"
+    fi
+
+  fi
+
+  if enabled "$report"; then
+
+    # Show useful diagnostic context, while excluding findings that are
+    # irrelevant to unattended OEM scripts.
+    cat > "$tmp/blinter.ini" <<'EOF'
+[general]
+min_severity = warning
+show_summary = false
+
+[rules]
+disabled_rules = W001,W028,W041,SEC002,SEC005
+EOF
+
+    output=$(
+      cd "$tmp"
+      python3 -m blinter "$file" 2>&1 || true
+    )
+
+    # Remove header
+    output=$(
+      awk '
+        /^DETAILED ISSUES:/ {
+          found = 1
+          next
+        }
+
+        found && !started {
+          if (/^-+$/) {
+            started = 1
+          }
+          next
+        }
+
+        started {
+          print
+        }
+      ' <<< "$output"
+    )
+
+    output="${output#"${output%%[!$'\r\n ']*}"}"
+    output="${output%"${output##*[!$'\r\n ']}"}"
+
+    if grep -Eq \
+      '^(ERROR|WARNING|SECURITY) LEVEL ISSUES:$' \
+      <<< "$output"; then
+
+      warn "possible issues were detected in $source:"
+      printf '\n%s\n\n' "$output" >&2
+    fi
+
+  fi
+
+  rm -rf "$tmp"
+
+  matches=$(
+    grep -Pin \
+      '(?<!\\)\\host[.]lan[\\]' \
+      "$file" || true
+  )
+
+  if [ -n "$matches" ]; then
+    warn "invalid single-backslash UNC path detected in $source:"
+
+    while IFS= read -r line; do
+      printf '  %s\n' "$line" >&2
+    done <<< "$matches"
+
+    printf '%s\n\n' \
+      '  Use "\\host.lan\Data\..." instead of "\host.lan\Data\...".' >&2
+  fi
+
+  matches=$(
+    grep -Pin \
+      '(?<![\\[:alnum:]._-])host[.]lan[\\]' \
+      "$file" || true
+  )
+
+  if [ -n "$matches" ]; then
+    warn "UNC path without leading backslashes detected in $source:"
+
+    while IFS= read -r line; do
+      printf '  %s\n' "$line" >&2
+    done <<< "$matches"
+
+    printf '%s\n\n' \
+      '  Use "\\host.lan\Data\..." instead of "host.lan\Data\...".' >&2
+  fi
+
+  matches=$(
+    grep -Pin \
+      '//host[.]lan/' \
+      "$file" || true
+  )
+
+  if [ -n "$matches" ]; then
+    warn "invalid forward-slash UNC path detected in $source:"
+
+    while IFS= read -r line; do
+      printf '  %s\n' "$line" >&2
+    done <<< "$matches"
+
+    printf '%s\n\n' \
+      '  Use "\\host.lan\Data\..." instead of "//host.lan/Data/...".' >&2
+  fi
+
+  matches=$(
+    grep -Pin \
+      '\\\\host[.]lan\\shared(?:[\\/]|$)' \
+      "$file" || true
+  )
+
+  if [ -n "$matches" ]; then
+    warn "invalid Samba share name detected in $source:"
+
+    while IFS= read -r line; do
+      printf '  %s\n' "$line" >&2
+    done <<< "$matches"
+
+    printf '%s\n\n' \
+      '  The "/shared" folder is exposed to Windows as "\\host.lan\Data".' >&2
+  fi
+
+  return 0
+}

@@ -776,7 +776,7 @@ prepareImage() {
 
     [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] &&
       [ -f "$dir/$EFISYS" ] && [ -s "$dir/$EFISYS" ] && return 0
-  
+
     missing=$(basename "$dir/$EFISYS")
     if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
       missing=$(basename "$dir/$ETFS")
@@ -829,10 +829,13 @@ addFolder() {
   fi
 
   if [ -f "$file" ]; then
+
     if ! unix2dos -q "$file"; then
       error "Failed to convert $file to DOS format!"
       return 1
     fi
+
+    checkBatch "$file"
   fi
 
   return 0

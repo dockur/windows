@@ -401,10 +401,21 @@ downloadWindowsEval() {
   esac
 
   if enabled "$DEBUG" && enabled "$VERIFY" && [[ "${lang,,}" == "en"* ]]; then
+
     compare=$(getMido "$id" "$lang" "")
-    if [ -n "$compare" ] && [[ "${link,,}" != "${compare,,}" ]]; then
-      echo "Retrieved link does not match the fixed link: $compare"
+
+    if [ -n "$compare" ]; then
+      link_name="${link%%[?#]*}"
+      link_name="${link_name##*/}"
+
+      compare_name="${compare%%[?#]*}"
+      compare_name="${compare_name##*/}"
+
+      if [[ "${link_name,,}" != "${compare_name,,}" ]]; then
+        echo "Retrieved ISO file $link_name does not match the pre-defined filename: $compare_name"
+      fi
     fi
+
   fi
 
   MIDO_URL="$link"
