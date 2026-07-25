@@ -234,21 +234,16 @@ jobs:
           ping 127.0.0.1 -n 16 >nul
 
           :retry
-          > "\\host.lan\Data\windows.tmp" echo $token
+          echo $token > C:\windows.tmp
+
+          copy /Y C:\windows.tmp "\\host.lan\Data\windows.txt" >nul 2>&1
 
           if errorlevel 1 (
             ping 127.0.0.1 -n 11 >nul
             goto retry
           )
 
-          move /Y ^
-            "\\host.lan\Data\windows.tmp" ^
-            "\\host.lan\Data\windows.txt" >nul
-
-          if errorlevel 1 (
-            ping 127.0.0.1 -n 11 >nul
-            goto retry
-          )
+          del /Q C:\windows.tmp >nul 2>&1
           EOF
               ;;
           esac
@@ -291,7 +286,7 @@ jobs:
             --env "CPU_CORES=half" \
             --env "CPU_MODEL=$CPU" \
             --env "DISK_SIZE=64G" \
-            --volume "$RUNNER_TEMP/data:/data" \
+            --volume "$RUNNER_TEMP/data:/shared" \
             --volume "$RUNNER_TEMP/oem:/oem:ro" \
             --volume "$RUNNER_TEMP/storage:/storage" \
             "$IMAGE"
