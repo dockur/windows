@@ -1187,6 +1187,40 @@ buildImage() {
   return 0
 }
 
+getBootLoadSize() {
+
+  local iso="$1"
+  local desc="$2"
+  local value
+
+  value=$(
+    isoinfo -d -i "$iso" |
+      awk '/Nsect / { print $NF; exit }'
+  ) || {
+    error "Failed to read boot image information from $desc ISO!"
+    return 1
+  }
+
+  if [ -z "$value" ]; then
+    error "Failed to determine boot image load size from $desc ISO!"
+    return 1
+  fi
+
+  if [[ ! "$value" =~ ^[0-9]+$ ]] || [ "${#value}" -gt 5 ]; then
+    error "Invalid boot image load size found in $desc ISO!"
+    return 1
+  fi
+
+  BOOT_LOAD_SIZE=$((10#$value))
+
+  if (( BOOT_LOAD_SIZE < 1 || BOOT_LOAD_SIZE > 65535 )); then
+    error "Invalid boot image load size found in $desc ISO!"
+    return 1
+  fi
+
+  return 0
+}
+
 extractBootImage() {
 
   local iso="$1"
@@ -1195,38 +1229,13 @@ extractBootImage() {
 
   local tmp="$TMP/boot-images"
   local max_size=$((32 * 1024 * 1024))
-  local rc size len offset image=""
+  local rc size offset image=""
   local msg="using legacy extraction..."
   local boot_info
   local -a images=()
 
   ETFS="boot.img"
-
-  if ! boot_info=$(isoinfo -d -i "$iso"); then
-    error "Failed to read boot image information from $desc ISO!"
-    return 1
-  fi
-
-  len=$(awk '/Nsect / { print $NF; exit }' <<< "$boot_info")
-
-  if [ -z "$len" ]; then
-    error "Failed to determine boot image load size from $desc ISO!"
-    return 1
-  fi
-
-  if [[ ! "$len" =~ ^[0-9]+$ ]] || [ "${#len}" -gt 5 ]; then
-    error "Invalid boot image load size found in $desc ISO!"
-    return 1
-  fi
-
-  BOOT_LOAD_SIZE=$((10#$len))
-
-  if (( BOOT_LOAD_SIZE < 1 || BOOT_LOAD_SIZE > 65535 )); then
-    error "Invalid boot image load size found in $desc ISO!"
-    return 1
-  fi
-
-  [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
+  [ -s "$dir/$ETFS" ] && return 0
 
   rm -f "$dir/$ETFS" || return 1
   rm -rf "$tmp" || return 1
