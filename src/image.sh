@@ -520,60 +520,105 @@ skipVersion() {
 detectLegacy() {
 
   local dir="$1"
-  local find
+  local marker
 
-  [[ "${PLATFORM,,}" != "x64" ]] && return 1
+  [[ "${PLATFORM,,}" == "x64" ]] || return 1
 
-  find=$(find "$dir" -maxdepth 1 -type d -iname WIN95 -print -quit)
-  [ -n "$find" ] && DETECTED="win95" && return 0
+  marker=$(find "$dir" -maxdepth 1 -type d -iname WIN95 -print -quit) || return 1
 
-  find=$(find "$dir" -maxdepth 1 -type d -iname WIN98 -print -quit)
-  [ -n "$find" ] && DETECTED="win98" && return 0
+  if [ -n "$marker" ]; then
+    DETECTED="win95"
+    return 0
+  fi
 
-  find=$(find "$dir" -maxdepth 1 -type d -iname WIN9X -print -quit)
-  [ -n "$find" ] && DETECTED="win9x" && return 0
+  marker=$(find "$dir" -maxdepth 1 -type d -iname WIN98 -print -quit) || return 1
 
-  find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_W.40 -print -quit)
-  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_S.40 -print -quit)
-  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_TS.40 -print -quit)
-  [ -n "$find" ] && DETECTED="winnt4" && return 0
+  if [ -n "$marker" ]; then
+    DETECTED="win98"
+    return 0
+  fi
 
-  find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_NT.5 -print -quit)
+  marker=$(find "$dir" -maxdepth 1 -type d -iname WIN9X -print -quit) || return 1
 
-  if [ -n "$find" ]; then
+  if [ -n "$marker" ]; then
+    DETECTED="win9x"
+    return 0
+  fi
 
-    find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IA.5 -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_ID.5 -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IP.5 -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IS.5 -print -quit)
-    [ -n "$find" ] && DETECTED="win2k" && return 0
+  marker=$(find "$dir" -maxdepth 1 -type f \
+    \( \
+      -iname CDROM_W.40 -o \
+      -iname CDROM_S.40 -o \
+      -iname CDROM_TS.40 \
+    \) \
+    -print -quit) || return 1
+
+  if [ -n "$marker" ]; then
+    DETECTED="winnt4"
+    return 0
+  fi
+
+  marker=$(find "$dir" -maxdepth 1 -type f -iname CDROM_NT.5 -print -quit) || return 1
+
+  if [ -n "$marker" ]; then
+
+    marker=$(find "$dir" -maxdepth 1 -type f \
+      \( \
+        -iname CDROM_IA.5 -o \
+        -iname CDROM_ID.5 -o \
+        -iname CDROM_IP.5 -o \
+        -iname CDROM_IS.5 \
+      \) \
+      -print -quit) || return 1
+
+    if [ -n "$marker" ]; then
+      DETECTED="win2k"
+      return 0
+    fi
 
   fi
 
-  find=$(find "$dir" -maxdepth 1 -iname WIN51 -print -quit)
+  marker=$(find "$dir" -maxdepth 1 -iname WIN51 -print -quit) || return 1
+  [ -n "$marker" ] || return 1
 
-  if [ -n "$find" ]; then
+  marker=$(find "$dir" -maxdepth 1 -type f -iname WIN51AP -print -quit) || return 1
 
-    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AP -print -quit)
-    [ -n "$find" ] && DETECTED="winxpx64" && return 0
+  if [ -n "$marker" ]; then
+    DETECTED="winxpx64"
+    return 0
+  fi
 
-    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IC -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IP -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname setupxp.htm -print -quit)
-    [ -n "$find" ] && DETECTED="winxpx86" && return 0
+  marker=$(find "$dir" -maxdepth 1 -type f \
+    \( \
+      -iname WIN51IC -o \
+      -iname WIN51IP -o \
+      -iname setupxp.htm \
+    \) \
+    -print -quit) || return 1
 
-    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IS -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IA -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IB -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51ID -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IL -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AA -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AD -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AS -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51MA -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51MD -print -quit)
-    [ -n "$find" ] && DETECTED="win2003r2" && return 0
+  if [ -n "$marker" ]; then
+    DETECTED="winxpx86"
+    return 0
+  fi
 
+  marker=$(find "$dir" -maxdepth 1 -type f \
+    \( \
+      -iname WIN51IS -o \
+      -iname WIN51IA -o \
+      -iname WIN51IB -o \
+      -iname WIN51ID -o \
+      -iname WIN51IL -o \
+      -iname WIN51AA -o \
+      -iname WIN51AD -o \
+      -iname WIN51AS -o \
+      -iname WIN51MA -o \
+      -iname WIN51MD \
+    \) \
+    -print -quit) || return 1
+
+  if [ -n "$marker" ]; then
+    DETECTED="win2003r2"
+    return 0
   fi
 
   return 1
