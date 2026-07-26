@@ -141,30 +141,35 @@ validateUsername() {
 
   local value="$1"
   local type="$2"
-  local maximum
+  local maximum length_suffix invalid_message
 
   case "$type" in
     "local" )
-      maximum=20
       [ -z "$value" ] && return 0
-      ;;
-    "domain" )
-      maximum=256
 
+      maximum=20
+      length_suffix=""
+      invalid_message="The USERNAME variable contains characters that are not supported by Windows local accounts!"
+      ;;
+
+    "domain" )
       if [ -z "$value" ]; then
         error "The USERNAME variable does not contain a valid domain account name!"
         return 1
-      fi ;;
+      fi
+
+      maximum=256
+      length_suffix=" for a domain account"
+      invalid_message="The domain account name contains characters that are not supported by Windows unattended setup!"
+      ;;
+
     * )
-      return 1 ;;
+      return 1
+      ;;
   esac
 
   if [ "${#value}" -gt "$maximum" ]; then
-    if [[ "$type" == "domain" ]]; then
-      error "The USERNAME variable cannot contain more than $maximum characters for a domain account!"
-    else
-      error "The USERNAME variable cannot contain more than $maximum characters!"
-    fi
+    error "The USERNAME variable cannot contain more than $maximum characters$length_suffix!"
     return 1
   fi
 
@@ -175,12 +180,9 @@ validateUsername() {
 
   case "$value" in
     *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* | *'%'* | *'@'* )
-      if [[ "$type" == "domain" ]]; then
-        error "The domain account name contains characters that are not supported by Windows unattended setup!"
-      else
-        error "The USERNAME variable contains characters that are not supported by Windows local accounts!"
-      fi
-      return 1 ;;
+      error "$invalid_message"
+      return 1
+      ;;
   esac
 
   if [[ "$value" == *"." ]]; then
@@ -196,12 +198,15 @@ validateUsername() {
   case "${value^^}" in
     "NONE" )
       error "The USERNAME value \"NONE\" is reserved by Windows!"
-      return 1 ;;
+      return 1
+      ;;
+
     "ADMINISTRATOR" | "GUEST" | "DEFAULTACCOUNT" | "WDAGUTILITYACCOUNT" | "WSIACCOUNT" )
-      if [[ "$type" == "local" ]]; then
-        error "The USERNAME value \"$value\" is reserved for a built-in Windows account!"
-        return 1
-      fi ;;
+      [[ "$type" == "domain" ]] && return 0
+
+      error "The USERNAME value \"$value\" is reserved for a built-in Windows account!"
+      return 1
+      ;;
   esac
 
   return 0
@@ -234,14 +239,28 @@ validateDomainName() {
   return 0
 }
 
+getXMLArchitecture() {
+
+  local asset="$1"
+  local arch
+
+  arch=$(sed -n -E \
+    '0,/processorArchitecture="/s/.*processorArchitecture="([^"]+)".*/\1/p' \
+    "$asset") || return 1
+
+  [ -n "$arch" ] || return 1
+
+  printf '%s' "$arch"
+  return 0
+}
+
 updateWorkgroup() {
 
   local asset="$1"
   local workgroup arch tmp
 
   workgroup=$(escapeXML "$2") || return 1
-  arch=$(sed -n -E '0,/processorArchitecture="/s/.*processorArchitecture="([^"]+)".*/\1/p' "$asset") || return 1
-  [ -z "$arch" ] && return 1
+  arch=$(getXMLArchitecture "$asset") || return 1
 
   grep -q 'Microsoft-Windows-UnattendedJoin' "$asset" && return 1
 
@@ -287,12 +306,7 @@ updateDomain() {
   auth=$(escapeXML "$4") || return 1
   pass=$(escapeXML "$5") || return 1
   ou=$(escapeXML "$6") || return 1
-
-  arch=$(sed -n -E \
-    '0,/processorArchitecture="/s/.*processorArchitecture="([^"]+)".*/\1/p' \
-    "$asset") || return 1
-
-  [ -z "$arch" ] && return 1
+  arch=$(getXMLArchitecture "$asset") || return 1
 
   local cred_domain="$domain"
 
@@ -397,16 +411,43 @@ updateDomain() {
   return 0
 }
 
+removeLocalAccountXML() {
+
+  local asset="$1"
+
+  if ! sed -i -E \
+    -e '/^[[:space:]]*<LocalAccounts([[:space:]>])/,/^[[:space:]]*<\/LocalAccounts>[[:space:]]*$/d' \
+    -e '/^[[:space:]]*<AdministratorPassword([[:space:]>])/,/^[[:space:]]*<\/AdministratorPassword>[[:space:]]*$/d' \
+    "$asset"; then
+
+    error "Failed to remove local account configuration from answer file!"
+    return 1
+  fi
+
+  if ! sed -i -E '
+    /<SynchronousCommand([[:space:]>])/ {
+      :command
+      N
+      /<\/SynchronousCommand>/!b command
+      /<Description>Password Never Expires<\/Description>/d
+    }
+  ' "$asset"; then
+
+    error "Failed to remove local account commands from answer file!"
+    return 1
+  fi
+
+  return 0
+}
+
 enableLog() {
 
   local file="$1"
-
-  enabled "$LOG" || return 0
-  [ -f "$file" ] || return 1
-
   local old='C:\OEM\install.bat"</CommandLine>'
-  local new='C:\OEM\install.bat &gt; C:\OEM\install.log 2&gt;&amp;1"</CommandLine>'
   local msg="failed to enable install logging in the answer file!"
+
+  enabled "${LOG:-}" || return 0
+  [ -f "$file" ] || return 1
 
   if ! grep -Fq "$old" "$file"; then
     enabled "$DEBUG" && warn "$msg"
@@ -549,13 +590,14 @@ generateEvalXML() {
 
   local id="$1"
   local detected_index="${2:-}"
+
+  [[ "${id,,}" == *"-eval" ]] || return 1
+
   local normal="${id::-5}"
   local source="/run/assets/$normal.xml"
   local target="/run/assets/$id.xml"
   local index="$detected_index"
   local remove_selector="N"
-
-  [[ "${id,,}" == *"-eval" ]] || return 1
 
   removeGeneratedXML "$source" || return 1
 
@@ -605,7 +647,7 @@ generateFallbackXML() {
 
 setXML() {
 
-  local file
+  local file="$1"
   local index="${2:-}"
   local target="/run/assets/$DETECTED.xml"
 
@@ -634,17 +676,21 @@ setXML() {
 
   file="$1"
 
-  if [[ "${DETECTED,,}" == *"-eval" ]]; then
-    if [ ! -f "$file" ] || [ ! -s "$file" ]; then
-      generateEvalXML "$DETECTED" "$index" || return 1
-    fi
-  fi
+  if [[ "${DETECTED,,}" == *"-eval" ]] &&
+    { [ ! -f "$file" ] || [ ! -s "$file" ]; }; then
 
-  if [ ! -f "$file" ] || [ ! -s "$file" ]; then
+    generateEvalXML "$DETECTED" "$index" || return 1
     file="$target"
+
+  elif [ ! -f "$file" ] || [ ! -s "$file" ]; then
+
+    file="$target"
+
   elif [[ "$file" != "$target" ]]; then
+
     generateFallbackXML "$DETECTED" "$index" || return 1
     file="$target"
+
   fi
 
   [ -f "$file" ] && [ -s "$file" ] || return 1
@@ -653,14 +699,7 @@ setXML() {
   return 0
 }
 
-updateXML() {
-
-  local asset="$1"
-  local language="$2"
-  local value user
-
-  [ -z "${WIDTH:-}" ] && WIDTH="1280"
-  [ -z "${HEIGHT:-}" ] && HEIGHT="720"
+validateXMLSettings() {
 
   validateResolution "WIDTH" "$WIDTH" 320 || return 1
   validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
@@ -669,20 +708,34 @@ updateXML() {
   validateProductKey "${KEY:-}" || return 1
   validatePassword "${PASSWORD:-}" || return 1
 
-  local app
+  return 0
+}
+
+updateDisplayXML() {
+
+  local asset="$1"
+  local app host
+
   app=$(escapeXMLSed "$APP for $ENGINE") || return 1
 
   sed -i "s|>Windows for Docker<|>$app<|g" "$asset" || return 1
   sed -i -E "s|<VerticalResolution>[^<]*</VerticalResolution>|<VerticalResolution>$HEIGHT</VerticalResolution>|g" "$asset" || return 1
   sed -i -E "s|<HorizontalResolution>[^<]*</HorizontalResolution>|<HorizontalResolution>$WIDTH</HorizontalResolution>|g" "$asset" || return 1
 
-  if [ -n "${HOST:-}" ]; then
-    local host
-    host=$(escapeXMLSed "$HOST") || return 1
-    sed -i -E "s|<ComputerName>[^<]*</ComputerName>|<ComputerName>$host</ComputerName>|g" "$asset" || return 1
-  fi
+  [ -n "${HOST:-}" ] || return 0
 
-  local culture
+  host=$(escapeXMLSed "$HOST") || return 1
+  sed -i -E "s|<ComputerName>[^<]*</ComputerName>|<ComputerName>$host</ComputerName>|g" "$asset" || return 1
+
+  return 0
+}
+
+updateLocaleXML() {
+
+  local asset="$1"
+  local language="$2"
+  local culture region keyboard value
+
   culture=$(getLanguage "$language" "culture") || return 1
 
   if [ -n "$culture" ] && [[ "${culture,,}" != "en-us" ]]; then
@@ -690,8 +743,7 @@ updateXML() {
     sed -i "s|<UILanguage>en-US</UILanguage>|<UILanguage>$value</UILanguage>|g" "$asset" || return 1
   fi
 
-  local region="${REGION:-}"
-  [ -z "$region" ] && region="$culture"
+  region="${REGION:-$culture}"
 
   if [ -n "$region" ] && [[ "${region,,}" != "en-us" ]]; then
     value=$(escapeXMLSed "$region") || return 1
@@ -699,8 +751,7 @@ updateXML() {
     sed -i "s|<SystemLocale>en-US</SystemLocale>|<SystemLocale>$value</SystemLocale>|g" "$asset" || return 1
   fi
 
-  local keyboard="${KEYBOARD:-}"
-  [ -z "$keyboard" ] && keyboard="$culture"
+  keyboard="${KEYBOARD:-$culture}"
 
   if [ -n "$keyboard" ] && [[ "${keyboard,,}" != "en-us" ]]; then
     value=$(escapeXMLSed "$keyboard") || return 1
@@ -708,178 +759,283 @@ updateXML() {
     sed -i "s|<InputLocale>0409:00000409</InputLocale>|<InputLocale>$value</InputLocale>|g" "$asset" || return 1
   fi
 
-  local domain="${DOMAIN:-}"
-  local workgroup="${WORKGROUP:-}"
+  return 0
+}
 
-  if [ -n "$domain" ]; then
+prepareDomainAccount() {
 
-    if [ -z "${USERNAME:-}" ]; then
-      error "The USERNAME variable must be specified when joining a domain!"
-      return 1
-    fi
+  local domain="$1"
+  local -n account_ref="$2"
+  local -n auth_ref="$3"
+  local qualifier=""
 
-    if [ -z "${PASSWORD:-}" ]; then
-      error "The PASSWORD variable must be specified when joining a domain!"
-      return 1
-    fi
+  auth_ref="${USERNAME:-}"
+  account_ref=""
 
-    validateDomainName "$domain" || return 1
-
-    local auth_user="$USERNAME"
-    local qualifier=""
-
-    if [[ "$auth_user" == *\\* ]]; then
-      error "The USERNAME variable must use either \"user\" or \"user@domain\" format!"
-      return 1
-    fi
-
-    case "$auth_user" in
-      *@* )
-        user="${auth_user%%@*}"
-        qualifier="${auth_user#*@}"
-
-        if [ -z "$user" ] || [ -z "$qualifier" ] || [[ "$qualifier" == *@* ]]; then
-          error "The USERNAME variable does not contain a valid domain account name!"
-          return 1
-        fi
-
-        validateDomainName "$qualifier" "USERNAME" || return 1
-
-        if [[ "${qualifier,,}" != "${domain,,}" ]]; then
-          error "The domain in the USERNAME variable must match the DOMAIN variable!"
-          return 1
-        fi
-        ;;
-      * )
-        user="$auth_user"
-        ;;
-    esac
-
-    validateUsername "$user" "domain" || return 1
-
-    if [[ "${user,,}" == "docker" ]]; then
-      error "The USERNAME variable must be changed from its default value when joining a domain!"
-      return 1
-    fi
-
-    if [[ "$PASSWORD" == "admin" ]]; then
-      error "The PASSWORD variable must be changed from its default value when joining a domain!"
-      return 1
-    fi
-
-  else
-
-    user="${USERNAME:-}"
-    validateUsername "$user" "local" || return 1
-
-    if [ -n "$user" ]; then
-      local user_xml
-      user_xml=$(escapeXMLSed "$user") || return 1
-
-      sed -i "s|-name \"Docker\"|-name \"\$env:USERNAME\"|g" "$asset" || return 1
-      sed -i 's|where name="Docker"|where name="%USERNAME%"|g' "$asset" || return 1
-      sed -i "s|<Name>Docker</Name>|<Name>$user_xml</Name>|g" "$asset" || return 1
-      sed -i "s|<FullName>Docker</FullName>|<FullName>$user_xml</FullName>|g" "$asset" || return 1
-      sed -i "s|<Username>Docker</Username>|<Username>$user_xml</Username>|g" "$asset" || return 1
-    fi
-
-    local pass="${PASSWORD:-admin}"
-    local pw admin
-
-    pw=$(printf '%s' "${pass}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
-    admin=$(printf '%s' "${pass}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0) || return 1
-
-    sed -i -z -E "s#(<Password>[[:space:]]*<Value)([[:space:]]*/>|>[^<]*</Value>)#\1>$pw</Value>#g" "$asset" || return 1
-    sed -i -z -E "s#(<AdministratorPassword>[[:space:]]*<Value)([[:space:]]*/>|>[^<]*</Value>)#\1>$admin</Value>#g" "$asset" || return 1
-
+  if [ -z "$auth_ref" ]; then
+    error "The USERNAME variable must be specified when joining a domain!"
+    return 1
   fi
 
-  sed -i -E "s|<PlainText>[^<]*</PlainText>|<PlainText>false</PlainText>|g" "$asset" || return 1
+  if [ -z "${PASSWORD:-}" ]; then
+    error "The PASSWORD variable must be specified when joining a domain!"
+    return 1
+  fi
+
+  validateDomainName "$domain" || return 1
+
+  if [[ "$auth_ref" == *\\* ]]; then
+    error "The USERNAME variable must use either \"user\" or \"user@domain\" format!"
+    return 1
+  fi
+
+  case "$auth_ref" in
+    *@* )
+      account_ref="${auth_ref%%@*}"
+      qualifier="${auth_ref#*@}"
+
+      if [ -z "$account_ref" ] ||
+        [ -z "$qualifier" ] ||
+        [[ "$qualifier" == *@* ]]; then
+
+        error "The USERNAME variable does not contain a valid domain account name!"
+        return 1
+      fi
+
+      validateDomainName "$qualifier" "USERNAME" || return 1
+
+      if [[ "${qualifier,,}" != "${domain,,}" ]]; then
+        error "The domain in the USERNAME variable must match the DOMAIN variable!"
+        return 1
+      fi
+      ;;
+
+    * )
+      account_ref="$auth_ref"
+      ;;
+  esac
+
+  validateUsername "$account_ref" "domain" || return 1
+
+  if [[ "${account_ref,,}" == "docker" ]]; then
+    error "The USERNAME variable must be changed from its default value when joining a domain!"
+    return 1
+  fi
+
+  if [[ "$PASSWORD" == "admin" ]]; then
+    error "The PASSWORD variable must be changed from its default value when joining a domain!"
+    return 1
+  fi
+
+  return 0
+}
+
+updateLocalAccountXML() {
+
+  local asset="$1"
+  local user="${USERNAME:-}"
+  local pass="${PASSWORD:-admin}"
+  local user_xml pw admin
+
+  validateUsername "$user" "local" || return 1
+
+  if [ -n "$user" ]; then
+    user_xml=$(escapeXMLSed "$user") || return 1
+
+    sed -i "s|-name \"Docker\"|-name \"\$env:USERNAME\"|g" "$asset" || return 1
+    sed -i 's|where name="Docker"|where name="%USERNAME%"|g' "$asset" || return 1
+    sed -i "s|<Name>Docker</Name>|<Name>$user_xml</Name>|g" "$asset" || return 1
+    sed -i "s|<FullName>Docker</FullName>|<FullName>$user_xml</FullName>|g" "$asset" || return 1
+    sed -i "s|<Username>Docker</Username>|<Username>$user_xml</Username>|g" "$asset" || return 1
+  fi
+
+  pw=$(printf '%s' "${pass}Password" |
+    iconv -f utf-8 -t utf-16le |
+    base64 -w 0) || return 1
+
+  admin=$(printf '%s' "${pass}AdministratorPassword" |
+    iconv -f utf-8 -t utf-16le |
+    base64 -w 0) || return 1
+
+  sed -i -z -E \
+    "s#(<Password>[[:space:]]*<Value)([[:space:]]*/>|>[^<]*</Value>)#\1>$pw</Value>#g" \
+    "$asset" || return 1
+
+  sed -i -z -E \
+    "s#(<AdministratorPassword>[[:space:]]*<Value)([[:space:]]*/>|>[^<]*</Value>)#\1>$admin</Value>#g" \
+    "$asset" || return 1
+
+  return 0
+}
+
+updateMembershipXML() {
+
+  local asset="$1"
+  local domain="$2"
+  local workgroup="$3"
+  local account="$4"
+  local auth="$5"
 
   if [ -n "$domain" ]; then
 
-    if updateDomain "$asset" "$domain" "$user" \
-      "$auth_user" "$PASSWORD" "$DOMAIN_OU"; then
+    if ! updateDomain \
+      "$asset" \
+      "$domain" \
+      "$account" \
+      "$auth" \
+      "$PASSWORD" \
+      "${DOMAIN_OU:-}"; then
 
-      if ! sed -i -E \
-        -e '/^[[:space:]]*<LocalAccounts([[:space:]>])/,/^[[:space:]]*<\/LocalAccounts>[[:space:]]*$/d' \
-        -e '/^[[:space:]]*<AdministratorPassword([[:space:]>])/,/^[[:space:]]*<\/AdministratorPassword>[[:space:]]*$/d' \
-        "$asset"; then
-        error "Failed to remove local account configuration from answer file!"
-        return 1
-      fi
-
-      if ! sed -i -E '
-        /<SynchronousCommand([[:space:]>])/ {
-          :command
-          N
-          /<\/SynchronousCommand>/!b command
-          /<Description>Password Never Expires<\/Description>/d
-        }
-      ' "$asset"; then
-        error "Failed to remove local account commands from answer file!"
-        return 1
-      fi
-
-    else
       warn "failed to add domain configuration to answer file!"
+      return 0
     fi
 
-  elif [ -n "$workgroup" ]; then
-
-    if ! updateWorkgroup "$asset" "$workgroup"; then
-      warn "failed to add workgroup configuration to answer file!"
-    fi
-
+    removeLocalAccountXML "$asset" || return 1
+    return 0
   fi
 
-  if disabled "${AUTOLOGIN:-}"; then
-    sed -i -E '/^[[:space:]]*<AutoLogon([[:space:]>])/,/^[[:space:]]*<\/AutoLogon>[[:space:]]*$/d' "$asset" || return 1
+  [ -n "$workgroup" ] || return 0
+
+  if ! updateWorkgroup "$asset" "$workgroup"; then
+    warn "failed to add workgroup configuration to answer file!"
   fi
 
-  if enabled "${LOG:-}"; then
-    enableLog "$asset" || return 1
+  return 0
+}
+
+updateAutologinXML() {
+
+  local asset="$1"
+
+  disabled "${AUTOLOGIN:-}" || return 0
+
+  sed -i -E \
+    '/^[[:space:]]*<AutoLogon([[:space:]>])/,/^[[:space:]]*<\/AutoLogon>[[:space:]]*$/d' \
+    "$asset" || return 1
+
+  return 0
+}
+
+updateEditionXML() {
+
+  local asset="$1"
+  local edition
+
+  [ -n "${EDITION:-}" ] || return 0
+
+  edition=$(normalizeServerEdition "$EDITION") || return 1
+  edition="${edition//-/}"
+  edition="${edition^^}"
+  edition=$(escapeXMLSed "$edition") || return 1
+
+  sed -i \
+    "s|SERVERSTANDARD</Value>|SERVER$edition</Value>|g" \
+    "$asset" || return 1
+
+  return 0
+}
+
+updateProductKeyXML() {
+
+  local asset="$1"
+  local key
+
+  [ -n "${KEY:-}" ] || return 0
+
+  key=$(escapeXMLSed "$KEY") || return 1
+
+  sed -i -E \
+    '/^[[:space:]]*<ProductKey>[[:space:]]*$/,/^[[:space:]]*<\/ProductKey>[[:space:]]*$/d' \
+    "$asset" || return 1
+
+  sed -i -E \
+    "s|<ProductKey>[^<]*</ProductKey>|<ProductKey>$key</ProductKey>|g" \
+    "$asset" || return 1
+
+  sed -i \
+    "s|</UserData>|  <ProductKey>\n          <Key>$key</Key>\n          <WillShowUI>OnError</WillShowUI>\n        </ProductKey>\n      </UserData>|g" \
+    "$asset" || return 1
+
+  return 0
+}
+
+removeSharedFolderXML() {
+
+  local asset="$1"
+
+  if ! disabled "${SHORTCUT:-}" &&
+    ! disabled "${SAMBA:-}"; then
+    return 0
   fi
 
-  if [ -n "${EDITION:-}" ]; then
-    local edition
+  if ! sed -i -E '
+    /<SynchronousCommand([[:space:]>])/ {
+      :command
+      N
+      /<\/SynchronousCommand>/!b command
+      /<Description>Create desktop shortcut to shared folder<\/Description>/d
+      /<Description>Map shared folder<\/Description>/d
+    }
+  ' "$asset"; then
 
-    edition=$(normalizeServerEdition "$EDITION") || return 1
-    edition="${edition//-/}"
-    edition="${edition^^}"
-
-    edition=$(escapeXMLSed "$edition") || return 1
-    sed -i "s|SERVERSTANDARD</Value>|SERVER$edition</Value>|g" "$asset" || return 1
-
+    error "Failed to remove shared folder shortcuts from answer file!"
+    return 1
   fi
 
-  if [ -n "${KEY:-}" ]; then
-    local key
-    key=$(escapeXMLSed "$KEY") || return 1
-    sed -i -E '/^[[:space:]]*<ProductKey>[[:space:]]*$/,/^[[:space:]]*<\/ProductKey>[[:space:]]*$/d' "$asset" || return 1
-    sed -i -E "s|<ProductKey>[^<]*</ProductKey>|<ProductKey>$key</ProductKey>|g" "$asset" || return 1
-    sed -i "s|</UserData>|  <ProductKey>\n          <Key>$key</Key>\n          <WillShowUI>OnError</WillShowUI>\n        </ProductKey>\n      </UserData>|g" "$asset" || return 1
-  fi
+  return 0
+}
 
-  if disabled "${SHORTCUT:-}" || disabled "${SAMBA:-}"; then
-    if ! sed -i -E '
-      /<SynchronousCommand([[:space:]>])/ {
-        :command
-        N
-        /<\/SynchronousCommand>/!b command
-        /<Description>Create desktop shortcut to shared folder<\/Description>/d
-        /<Description>Map shared folder<\/Description>/d
-      }
-    ' "$asset"; then
-      error "Failed to remove shared folder shortcuts from answer file!"
-      return 1
-    fi
-  fi
+validateGeneratedXML() {
+
+  local asset="$1"
 
   if ! xmllint --nonet --noout "$asset"; then
     error "The generated answer file is not valid XML!"
     return 1
   fi
+
+  return 0
+}
+
+updateXML() {
+
+  local asset="$1"
+  local language="$2"
+  local domain="${DOMAIN:-}"
+  local workgroup="${WORKGROUP:-}"
+  local account=""
+  local auth=""
+
+  [ -z "${WIDTH:-}" ] && WIDTH="1280"
+  [ -z "${HEIGHT:-}" ] && HEIGHT="720"
+
+  validateXMLSettings || return 1
+  updateDisplayXML "$asset" || return 1
+  updateLocaleXML "$asset" "$language" || return 1
+
+  if [ -n "$domain" ]; then
+    prepareDomainAccount "$domain" account auth || return 1
+  else
+    updateLocalAccountXML "$asset" || return 1
+  fi
+
+  sed -i -E \
+    "s|<PlainText>[^<]*</PlainText>|<PlainText>false</PlainText>|g" \
+    "$asset" || return 1
+
+  updateMembershipXML \
+    "$asset" \
+    "$domain" \
+    "$workgroup" \
+    "$account" \
+    "$auth" || return 1
+
+  updateAutologinXML "$asset" || return 1
+  enableLog "$asset" || return 1
+  updateEditionXML "$asset" || return 1
+  updateProductKeyXML "$asset" || return 1
+  removeSharedFolderXML "$asset" || return 1
+  validateGeneratedXML "$asset" || return 1
 
   return 0
 }
@@ -974,50 +1130,70 @@ validateLegacyUsername() {
   return 0
 }
 
-addLegacyDrivers() {
+extractLegacyDrivers() {
+
+  local drivers="$1"
+
+  rm -rf "$drivers" || return 1
+  mkdir -p "$drivers" || return 1
+
+  if ! bsdtar -xf /var/drivers.txz -C "$drivers"; then
+    error "Failed to extract drivers!"
+    return 1
+  fi
+
+  return 0
+}
+
+copyLegacyStorageDriver() {
 
   local dir="$1"
   local target="$2"
   local driver="$3"
   local arch="$4"
   local drivers="$5"
-  local file
-  local msg="Adding drivers to image..."
-
-  info "$msg" && html "$msg"
-
-  rm -rf "$drivers" || return 1
-  mkdir -p "$drivers" || return 1
-
-  if ! bsdtar -xf /var/drivers.txz -C "$drivers"; then
-    error "Failed to extract drivers!" && return 1
-  fi
+  local destination="$dir/\$OEM\$/\$1/Drivers/viostor"
 
   if [ ! -f "$drivers/viostor/$driver/$arch/viostor.sys" ]; then
-    error "Failed to locate required storage drivers!" && return 1
+    error "Failed to locate required storage drivers!"
+    return 1
   fi
 
   cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$target" || return 1
 
-  mkdir -p "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
-  cp -L "$drivers/viostor/$driver/$arch/viostor.cat" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
-  cp -L "$drivers/viostor/$driver/$arch/viostor.inf" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
-  cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$dir/\$OEM\$/\$1/Drivers/viostor" || return 1
+  mkdir -p "$destination" || return 1
+  cp -L "$drivers/viostor/$driver/$arch/viostor.cat" "$destination" || return 1
+  cp -L "$drivers/viostor/$driver/$arch/viostor.inf" "$destination" || return 1
+  cp -L "$drivers/viostor/$driver/$arch/viostor.sys" "$destination" || return 1
+
+  return 0
+}
+
+addLegacyNetworkDriver() {
+
+  local dir="$1"
+  local driver="$2"
+  local arch="$3"
+  local drivers="$4"
+  local destination="$dir/\$OEM\$/\$1/Drivers/NetKVM"
 
   if [ ! -f "$drivers/NetKVM/$driver/$arch/netkvm.sys" ]; then
-    error "Failed to locate required network drivers!" && return 1
+    error "Failed to locate required network drivers!"
+    return 1
   fi
 
-  mkdir -p "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
-  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.cat" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
-  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.inf" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
-  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.sys" "$dir/\$OEM\$/\$1/Drivers/NetKVM" || return 1
+  mkdir -p "$destination" || return 1
+  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.cat" "$destination" || return 1
+  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.inf" "$destination" || return 1
+  cp -L "$drivers/NetKVM/$driver/$arch/netkvm.sys" "$destination" || return 1
 
-  file=$(find "$target" -maxdepth 1 -type f -iname TXTSETUP.SIF -print -quit) || return 1
+  return 0
+}
 
-  if [ -z "$file" ]; then
-    error "The file TXTSETUP.SIF could not be found!" && return 1
-  fi
+patchLegacyStorageDriver() {
+
+  local file="$1"
+  local arch="$2"
 
   sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$file" || return 1
   sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\nviostor.sys=1,,,,,,4_,4,1,,,1,4/' "$file" || return 1
@@ -1026,12 +1202,25 @@ addLegacyDrivers() {
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00020000=\"viostor\"/' "$file" || return 1
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$file" || return 1
 
+  return 0
+}
+
+addLegacySataDriver() {
+
+  local dir="$1"
+  local target="$2"
+  local arch="$3"
+  local drivers="$4"
+  local file="$5"
+  local destination="$dir/\$OEM\$/\$1/Drivers/sata"
+
   if [ ! -d "$drivers/sata/xp/$arch" ]; then
-    error "Failed to locate required SATA drivers!" && return 1
+    error "Failed to locate required SATA drivers!"
+    return 1
   fi
 
-  mkdir -p "$dir/\$OEM\$/\$1/Drivers/sata" || return 1
-  cp -Lr "$drivers/sata/xp/$arch/." "$dir/\$OEM\$/\$1/Drivers/sata" || return 1
+  mkdir -p "$destination" || return 1
+  cp -Lr "$drivers/sata/xp/$arch/." "$destination" || return 1
   cp -Lr "$drivers/sata/xp/$arch/." "$target" || return 1
 
   sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$file" || return 1
@@ -1044,6 +1233,35 @@ addLegacyDrivers() {
   sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaAHCI.inf = 1,,,,,,,1,0,0/' "$file" || return 1
   sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$file" || return 1
   sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$file" || return 1
+
+  return 0
+}
+
+addLegacyDrivers() {
+
+  local dir="$1"
+  local target="$2"
+  local driver="$3"
+  local arch="$4"
+  local drivers="$5"
+  local file
+  local msg="Adding drivers to image..."
+
+  info "$msg" && html "$msg"
+
+  extractLegacyDrivers "$drivers" || return 1
+  copyLegacyStorageDriver "$dir" "$target" "$driver" "$arch" "$drivers" || return 1
+  addLegacyNetworkDriver "$dir" "$driver" "$arch" "$drivers" || return 1
+
+  file=$(find "$target" -maxdepth 1 -type f -iname TXTSETUP.SIF -print -quit) || return 1
+
+  if [ -z "$file" ]; then
+    error "The file TXTSETUP.SIF could not be found!"
+    return 1
+  fi
+
+  patchLegacyStorageDriver "$file" "$arch" || return 1
+  addLegacySataDriver "$dir" "$target" "$arch" "$drivers" "$file" || return 1
 
   rm -rf "$drivers" || return 1
 
@@ -1060,88 +1278,77 @@ setLegacyKey() {
 
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini -print -quit) || return 1
 
-  if [ -n "$setup" ] && [ -z "$KEY" ]; then
+  [[ -n "$setup" ]] || return 0
+  [[ -z "$KEY" ]] || return 0
 
-    pid=$(<"$setup") || return 1
-    pid="${pid%$'\r'}"
+  pid=$(<"$setup") || return 1
+  pid="${pid%$'\r'}"
 
-    if [[ "$driver" == "2k" ]]; then
+  if [[ "$driver" == "2k" ]]; then
+    echo "${pid::-3}270" > "$setup" || return 1
+    return 0
+  fi
 
-      echo "${pid:0:$((${#pid})) - 3}270" > "$setup" || return 1
+  if [[ "$pid" == *"270" ]]; then
+    warn "this version of $desc requires a volume license key (VLK), it will ask for one during installation."
+    return 0
+  fi
 
+  file=$(find "$target" -maxdepth 1 -type f -iname PID.INF -print -quit) || return 1
+
+  if [[ -n "$file" ]]; then
+
+    if [[ "$driver" == "2k3" ]]; then
+      key=$(grep -i -A 2 "StagingKey" "$file" | tail -n 2 | head -n 1) || key=""
     else
 
-      if [[ "$pid" == *"270" ]]; then
+      key="${pid: -8:5}"
 
-        warn "this version of $desc requires a volume license key (VLK), it will ask for one during installation."
-
+      if [[ "${pid^^}" == *"OEM" ]]; then
+        key=$(grep -i -A 2 "$key" "$file" | tail -n 2 | head -n 1) || key=""
       else
-
-        file=$(find "$target" -maxdepth 1 -type f -iname PID.INF -print -quit) || return 1
-
-        if [ -n "$file" ]; then
-
-          if [[ "$driver" == "2k3" ]]; then
-
-            key=$(grep -i -A 2 "StagingKey" "$file" | tail -n 2 | head -n 1) || key=""
-
-          else
-
-            key="${pid:$((${#pid})) - 8:5}"
-
-            if [[ "${pid^^}" == *"OEM" ]]; then
-              key=$(grep -i -A 2 "$key" "$file" | tail -n 2 | head -n 1) || key=""
-            else
-              key=$(grep -i -m 1 -A 2 "$key" "$file" | tail -n 2 | head -n 1) || key=""
-            fi
-
-            key="${key#*= }"
-
-          fi
-
-          key="${key%$'\r'}"
-          [[ "${#key}" == "29" ]] && KEY="$key"
-
-        fi
-
-        if [ -z "$KEY" ]; then
-
-          # These are NOT pirated keys, they come from official MS documentation.
-
-          case "${driver,,}" in
-            "xp" )
-
-              if [[ "${arch,,}" == "x86" ]]; then
-                # Windows XP Professional x86 generic trial key (no activation)
-                KEY="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
-              else
-                # Windows XP Professional x64 generic trial key (no activation)
-                KEY="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
-              fi
-              ;;
-
-            "2k3" )
-
-              if [[ "${arch,,}" == "x86" ]]; then
-                # Windows Server 2003 Standard x86 generic trial key (no activation)
-                KEY="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
-              else
-                # Windows Server 2003 Standard x64 generic trial key (no activation)
-                KEY="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
-              fi
-              ;;
-
-          esac
-
-          echo "${pid:0:$((${#pid})) - 3}000" > "$setup" || return 1
-
-        fi
-
+        key=$(grep -i -m 1 -A 2 "$key" "$file" | tail -n 2 | head -n 1) || key=""
       fi
+
+      key="${key#*= }"
 
     fi
 
+    key="${key%$'\r'}"
+    [[ "${#key}" == "29" ]] && KEY="$key"
+
   fi
+
+  [[ -n "$KEY" ]] && return 0
+
+  # These are NOT pirated keys, they come from official MS documentation.
+
+  case "${driver,,}" in
+    "xp" )
+
+      if [[ "${arch,,}" == "x86" ]]; then
+        # Windows XP Professional x86 generic trial key (no activation)
+        KEY="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
+      else
+        # Windows XP Professional x64 generic trial key (no activation)
+        KEY="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
+      fi
+      ;;
+
+    "2k3" )
+
+      if [[ "${arch,,}" == "x86" ]]; then
+        # Windows Server 2003 Standard x86 generic trial key (no activation)
+        KEY="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
+      else
+        # Windows Server 2003 Standard x64 generic trial key (no activation)
+        KEY="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
+      fi
+      ;;
+
+  esac
+
+  echo "${pid::-3}000" > "$setup" || return 1
 
   return 0
 }
@@ -1150,13 +1357,12 @@ writeCommand() {
 
   local install="$1"
 
-  [ -z "$install" ] && return 0
-  [ ! -f "$install" ] && return 0
+  [ -f "$install" ] || return 0
 
-  if ! enabled "${LOG:-}"; then
-    printf '%s' "\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat\\\"\""
-  else
+  if enabled "${LOG:-}"; then
     printf '%s' "\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat > C:\\\\OEM\\\\install.log 2>&1\\\"\""
+  else
+    printf '%s' "\"Script\"=\"cmd /C start \\\"Install\\\" \\\"cmd /C C:\\\\OEM\\\\install.bat\\\"\""
   fi
 
   return 0
@@ -1458,7 +1664,8 @@ legacyInstall() {
   ETFS="[BOOT]/Boot-NoEmul.img"
 
   if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
-    error "Failed to locate file \"$ETFS\" in $desc ISO image!" && return 1
+    error "Failed to locate file \"$ETFS\" in $desc ISO image!"
+    return 1
   fi
 
   local arch="amd64"
@@ -1468,7 +1675,8 @@ legacyInstall() {
   [[ "${arch,,}" == "x86" ]] && target="$dir/I386"
 
   if [ ! -d "$target" ]; then
-    error "Failed to locate directory \"$target\" in $desc ISO image!" && return 1
+    error "Failed to locate directory \"$target\" in $desc ISO image!"
+    return 1
   fi
 
   if [[ "${driver,,}" == "xp" || "${driver,,}" == "2k3" ]]; then
@@ -1484,7 +1692,8 @@ legacyInstall() {
   mkdir -p "$dir/\$OEM\$" || return 1
 
   if ! addFolder "$dir"; then
-    error "Failed to add OEM folder to image!" && return 1
+    error "Failed to add OEM folder to image!"
+    return 1
   fi
 
   local oem=""

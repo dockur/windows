@@ -184,7 +184,7 @@ getVersions() {
   groups_ref=()
   indexes_ref=()
 
-  platform=$(getPlatform "$xml")
+  platform=$(getPlatform "$xml") || return 1
   count=$(xmllint --nonet --xpath 'count(/WIM/IMAGE)' - 2>/dev/null <<< "$xml") || return 0
 
   for ((i=1; i<=count; i++)); do
@@ -245,10 +245,10 @@ getVersions() {
 
       case "${candidate_base,,}" in
         "winvista"* | "win7"* | "win8"* | "win10"* | "win11"* )
-          structured=$(normalizeEditionID "${edition_id:-${flags:-}}" "$candidate_base")
+          structured=$(normalizeEditionID "${edition_id:-${flags:-}}" "$candidate_base") || return 1
           ;;
         "win20"* )
-          structured=$(normalizeServerEditionID "${flags:-$edition_id}")
+          structured=$(normalizeServerEditionID "${flags:-$edition_id}") || return 1
 
           # Some media use the same EDITIONID for Core and Desktop images.
           # INSTALLATIONTYPE provides the structural distinction without
@@ -342,7 +342,7 @@ selectEdition() {
   if [ -n "$EDITION" ]; then
 
     for base in "${edition_bases[@]}"; do
-      edition=$("$normalize_name" "$EDITION" "$base")
+      edition=$("$normalize_name" "$EDITION" "$base") || return 1
       preferred+=("$base${edition:+-$edition}")
     done
 
@@ -444,7 +444,7 @@ detectVersion() {
     versions \
     bases \
     groups \
-    image_indexes
+    image_indexes || return 1
 
   [ "${#versions[@]}" -eq 0 ] && return 0
 
@@ -479,7 +479,7 @@ detectLanguage() {
 
   local xml="$1"
   local index="${2:-}"
-  local xpath lang
+  local xpath lang culture
 
   if [[ "$index" =~ ^[0-9]+$ ]]; then
     xpath="string((/WIM/IMAGE[@INDEX='$index']/WINDOWS/LANGUAGES/DEFAULT | /WIM/IMAGE[@INDEX='$index']/WINDOWS/LANGUAGES/FALLBACK/DEFAULT)[1])"
@@ -494,9 +494,12 @@ detectLanguage() {
     return 0
   fi
 
-  local culture
-  culture=$(getLanguage "$lang" "culture")
-  [ -n "$culture" ] && LANGUAGE="$lang" && return 0
+  culture=$(getLanguage "$lang" "culture") || return 1
+
+  if [ -n "$culture" ]; then
+    LANGUAGE="$lang"
+    return 0
+  fi
 
   warn "Invalid language detected: \"$lang\""
   return 0
@@ -517,60 +520,105 @@ skipVersion() {
 detectLegacy() {
 
   local dir="$1"
-  local find
+  local marker
 
-  [[ "${PLATFORM,,}" != "x64" ]] && return 1
+  [[ "${PLATFORM,,}" == "x64" ]] || return 1
 
-  find=$(find "$dir" -maxdepth 1 -type d -iname WIN95 -print -quit)
-  [ -n "$find" ] && DETECTED="win95" && return 0
+  marker=$(find "$dir" -maxdepth 1 -type d -iname WIN95 -print -quit) || return 1
 
-  find=$(find "$dir" -maxdepth 1 -type d -iname WIN98 -print -quit)
-  [ -n "$find" ] && DETECTED="win98" && return 0
+  if [ -n "$marker" ]; then
+    DETECTED="win95"
+    return 0
+  fi
 
-  find=$(find "$dir" -maxdepth 1 -type d -iname WIN9X -print -quit)
-  [ -n "$find" ] && DETECTED="win9x" && return 0
+  marker=$(find "$dir" -maxdepth 1 -type d -iname WIN98 -print -quit) || return 1
 
-  find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_W.40 -print -quit)
-  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_S.40 -print -quit)
-  [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_TS.40 -print -quit)
-  [ -n "$find" ] && DETECTED="winnt4" && return 0
+  if [ -n "$marker" ]; then
+    DETECTED="win98"
+    return 0
+  fi
 
-  find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_NT.5 -print -quit)
+  marker=$(find "$dir" -maxdepth 1 -type d -iname WIN9X -print -quit) || return 1
 
-  if [ -n "$find" ]; then
+  if [ -n "$marker" ]; then
+    DETECTED="win9x"
+    return 0
+  fi
 
-    find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IA.5 -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_ID.5 -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IP.5 -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname CDROM_IS.5 -print -quit)
-    [ -n "$find" ] && DETECTED="win2k" && return 0
+  marker=$(find "$dir" -maxdepth 1 -type f \
+    \( \
+      -iname CDROM_W.40 -o \
+      -iname CDROM_S.40 -o \
+      -iname CDROM_TS.40 \
+    \) \
+    -print -quit) || return 1
+
+  if [ -n "$marker" ]; then
+    DETECTED="winnt4"
+    return 0
+  fi
+
+  marker=$(find "$dir" -maxdepth 1 -type f -iname CDROM_NT.5 -print -quit) || return 1
+
+  if [ -n "$marker" ]; then
+
+    marker=$(find "$dir" -maxdepth 1 -type f \
+      \( \
+        -iname CDROM_IA.5 -o \
+        -iname CDROM_ID.5 -o \
+        -iname CDROM_IP.5 -o \
+        -iname CDROM_IS.5 \
+      \) \
+      -print -quit) || return 1
+
+    if [ -n "$marker" ]; then
+      DETECTED="win2k"
+      return 0
+    fi
 
   fi
 
-  find=$(find "$dir" -maxdepth 1 -iname WIN51 -print -quit)
+  marker=$(find "$dir" -maxdepth 1 -iname WIN51 -print -quit) || return 1
+  [ -n "$marker" ] || return 1
 
-  if [ -n "$find" ]; then
+  marker=$(find "$dir" -maxdepth 1 -type f -iname WIN51AP -print -quit) || return 1
 
-    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AP -print -quit)
-    [ -n "$find" ] && DETECTED="winxpx64" && return 0
+  if [ -n "$marker" ]; then
+    DETECTED="winxpx64"
+    return 0
+  fi
 
-    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IC -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IP -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname setupxp.htm -print -quit)
-    [ -n "$find" ] && DETECTED="winxpx86" && return 0
+  marker=$(find "$dir" -maxdepth 1 -type f \
+    \( \
+      -iname WIN51IC -o \
+      -iname WIN51IP -o \
+      -iname setupxp.htm \
+    \) \
+    -print -quit) || return 1
 
-    find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IS -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IA -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IB -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51ID -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51IL -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AA -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AD -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51AS -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51MA -print -quit)
-    [ -z "$find" ] && find=$(find "$dir" -maxdepth 1 -type f -iname WIN51MD -print -quit)
-    [ -n "$find" ] && DETECTED="win2003r2" && return 0
+  if [ -n "$marker" ]; then
+    DETECTED="winxpx86"
+    return 0
+  fi
 
+  marker=$(find "$dir" -maxdepth 1 -type f \
+    \( \
+      -iname WIN51IS -o \
+      -iname WIN51IA -o \
+      -iname WIN51IB -o \
+      -iname WIN51ID -o \
+      -iname WIN51IL -o \
+      -iname WIN51AA -o \
+      -iname WIN51AD -o \
+      -iname WIN51AS -o \
+      -iname WIN51MA -o \
+      -iname WIN51MD \
+    \) \
+    -print -quit) || return 1
+
+  if [ -n "$marker" ]; then
+    DETECTED="win2003r2"
+    return 0
   fi
 
   return 1
@@ -607,15 +655,15 @@ resolveImage() {
 setImage() {
 
   skipVersion "${DETECTED,,}" && return 0
+  setXML "" && return 0
+  enabled "$MANUAL" && return 0
 
-  if ! setXML "" && ! enabled "$MANUAL"; then
-    MANUAL="Y"
+  MANUAL="Y"
 
-    local desc
-    desc=$(printEdition "$DETECTED" "this version")
-    warn "the answer file for $desc was not found ($DETECTED.xml), $FB."
-  fi
+  local desc
+  desc=$(printEdition "$DETECTED" "this version") || return 1
 
+  warn "the answer file for $desc was not found ($DETECTED.xml), $FB."
   return 0
 }
 
@@ -677,20 +725,19 @@ getSuggestion() {
 validateEdition() {
 
   [ -n "$EDITION" ] || return 0
+  [[ "${DETECTED,,}" == "win20"* ]] || return 0
 
-  case "${DETECTED,,}" in
-    "win20"* )
-      local edition
-      edition=$(normalizeServerEditionID "$EDITION")
+  local edition
+  edition=$(normalizeServerEditionID "$EDITION") || return 1
 
-      if [ -n "$edition" ] &&
-        [[ "${DETECTED,,}" != *"-${edition,,}" &&
-          "${DETECTED,,}" != *"-${edition,,}-eval" ]]; then
-        EDITION=""
-      fi
-      ;;
-  esac
+  [ -n "$edition" ] || return 0
 
+  if [[ "${DETECTED,,}" == *"-${edition,,}" ||
+    "${DETECTED,,}" == *"-${edition,,}-eval" ]]; then
+    return 0
+  fi
+
+  EDITION=""
   return 0
 }
 
@@ -715,13 +762,12 @@ describeImage() {
   local result_name="$3"
   local result
 
-  result=$(printEdition "$DETECTED" "$DETECTED" "Y")
-
-  detectLanguage "$info_xml" "$index"
+  result=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 1
+  detectLanguage "$info_xml" "$index" || return 1
 
   if [[ "${LANGUAGE,,}" != "en" && "${LANGUAGE,,}" != "en-"* ]]; then
     local language
-    language=$(getLanguage "$LANGUAGE" "desc")
+    language=$(getLanguage "$LANGUAGE" "desc") || return 1
     result+=" ($language)"
   fi
 
@@ -745,12 +791,17 @@ configureImage() {
   local msg="the answer file for $desc was not found ($DETECTED.xml)"
   local fallback="/run/assets/${DETECTED%%-*}.xml"
 
-  if setXML "$fallback" "$index" || enabled "$MANUAL"; then
-    ! enabled "$MANUAL" && warn "${msg}."
-  else
-    MANUAL="Y"
-    warn "${msg}, $FB."
+  if setXML "$fallback" "$index"; then
+    if ! enabled "$MANUAL"; then
+      warn "${msg}."
+    fi
+    return 0
   fi
+
+  enabled "$MANUAL" && return 0
+
+  MANUAL="Y"
+  warn "${msg}, $FB."
 
   return 0
 }
@@ -763,9 +814,7 @@ detectImage() {
 
   XML=""
 
-  resolveImage "$version" || :
-
-  if [ -n "$DETECTED" ]; then
+  if resolveImage "$version"; then
     setImage || return 1
     return 0
   fi
@@ -773,7 +822,7 @@ detectImage() {
   info "Detecting version from ISO image..."
 
   if detectLegacy "$dir"; then
-    desc=$(printEdition "$DETECTED" "$DETECTED" "Y")
+    desc=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 1
     info "Detected: $desc"
     return 0
   fi
@@ -811,7 +860,6 @@ normalizeBatch() {
   local file="$1"
   local bom tmp encoding
 
-  [ ! -f "$file" ] && return 0
   [ ! -s "$file" ] && return 0
 
   bom=$(od -An -N2 -tx1 "$file" | tr -d ' \n') || return 1
@@ -838,6 +886,30 @@ normalizeBatch() {
     error "Failed to replace batch file: $file"
     return 1
   fi
+
+  return 0
+}
+
+reportBatchMatches() {
+
+  local file="$1"
+  local source="$2"
+  local pattern="$3"
+  local message="$4"
+  local suggestion="$5"
+  local matches line
+
+  matches=$(grep -Pin "$pattern" "$file" || true)
+
+  [ -n "$matches" ] || return 0
+
+  warn "$message in $source:"
+
+  while IFS= read -r line; do
+    printf '  %s\n' "$line" >&2
+  done <<< "$matches"
+
+  printf '  %s\n\n' "$suggestion" >&2
 
   return 0
 }
@@ -936,75 +1008,35 @@ EOC
 
   fi
 
-  rm -rf "$tmp"
+  rm -rf "$tmp" || true
 
-  matches=$(
-    grep -Pin \
-      '(?<!\\)\\host[.]lan[\\]' \
-      "$file" || true
-  )
+  reportBatchMatches \
+    "$file" \
+    "$source" \
+    '(?<!\\)\\host[.]lan[\\]' \
+    "invalid single-backslash UNC path detected" \
+    'Use "\\host.lan\Data\..." instead of "\host.lan\Data\...".'
 
-  if [ -n "$matches" ]; then
-    warn "invalid single-backslash UNC path detected in $source:"
+  reportBatchMatches \
+    "$file" \
+    "$source" \
+    '(?<![\\[:alnum:]._-])host[.]lan[\\]' \
+    "UNC path without leading backslashes detected" \
+    'Use "\\host.lan\Data\..." instead of "host.lan\Data\...".'
 
-    while IFS= read -r line; do
-      printf '  %s\n' "$line" >&2
-    done <<< "$matches"
+  reportBatchMatches \
+    "$file" \
+    "$source" \
+    '//host[.]lan/' \
+    "invalid forward-slash UNC path detected" \
+    'Use "\\host.lan\Data\..." instead of "//host.lan/Data/...".'
 
-    printf '%s\n\n' \
-      '  Use "\\host.lan\Data\..." instead of "\host.lan\Data\...".' >&2
-  fi
-
-  matches=$(
-    grep -Pin \
-      '(?<![\\[:alnum:]._-])host[.]lan[\\]' \
-      "$file" || true
-  )
-
-  if [ -n "$matches" ]; then
-    warn "UNC path without leading backslashes detected in $source:"
-
-    while IFS= read -r line; do
-      printf '  %s\n' "$line" >&2
-    done <<< "$matches"
-
-    printf '%s\n\n' \
-      '  Use "\\host.lan\Data\..." instead of "host.lan\Data\...".' >&2
-  fi
-
-  matches=$(
-    grep -Pin \
-      '//host[.]lan/' \
-      "$file" || true
-  )
-
-  if [ -n "$matches" ]; then
-    warn "invalid forward-slash UNC path detected in $source:"
-
-    while IFS= read -r line; do
-      printf '  %s\n' "$line" >&2
-    done <<< "$matches"
-
-    printf '%s\n\n' \
-      '  Use "\\host.lan\Data\..." instead of "//host.lan/Data/...".' >&2
-  fi
-
-  matches=$(
-    grep -Pin \
-      '\\\\host[.]lan\\shared(?:[\\/]|$)' \
-      "$file" || true
-  )
-
-  if [ -n "$matches" ]; then
-    warn "invalid Samba share name detected in $source:"
-
-    while IFS= read -r line; do
-      printf '  %s\n' "$line" >&2
-    done <<< "$matches"
-
-    printf '%s\n\n' \
-      '  The "/shared" folder is exposed to Windows as "\\host.lan\Data".' >&2
-  fi
+  reportBatchMatches \
+    "$file" \
+    "$source" \
+    '\\\\host[.]lan\\shared(?:[\\/]|$)' \
+    "invalid Samba share name detected" \
+    'The "/shared" folder is exposed to Windows as "\\host.lan\Data".'
 
   return 0
 }
@@ -1134,7 +1166,10 @@ buildImage() {
   local hide="Warning: creating filesystem that does not conform to ISO-9660."
 
   [ -s "$log" ] && err="$(<"$log")"
-  [[ "$err" != "$hide" ]] && echo "$err"
+
+  if [ -n "$err" ] && [[ "$err" != "$hide" ]]; then
+    echo "$err"
+  fi
 
   mv -f "$out" "$BOOT" || return 1
 
@@ -1217,12 +1252,22 @@ extractBootImage() {
 
   rm -rf "$tmp" || true
 
-  if ! len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$"); then
+  local boot_info
+
+  if ! boot_info=$(isoinfo -d -i "$iso"); then
+    error "Failed to read boot image information from $desc ISO!"
+    return 1
+  fi
+
+  len=$(awk '/Nsect / { print $NF; exit }' <<< "$boot_info")
+  offset=$(awk '/Bootoff / { print $NF; exit }' <<< "$boot_info")
+
+  if [ -z "$len" ]; then
     error "Failed to determine boot image size from $desc ISO!"
     return 1
   fi
 
-  if ! offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$"); then
+  if [ -z "$offset" ]; then
     error "Failed to determine boot image offset from $desc ISO!"
     return 1
   fi
