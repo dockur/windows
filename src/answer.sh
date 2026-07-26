@@ -141,30 +141,35 @@ validateUsername() {
 
   local value="$1"
   local type="$2"
-  local maximum
+  local maximum length_suffix invalid_message
 
   case "$type" in
     "local" )
-      maximum=20
       [ -z "$value" ] && return 0
-      ;;
-    "domain" )
-      maximum=256
 
+      maximum=20
+      length_suffix=""
+      invalid_message="The USERNAME variable contains characters that are not supported by Windows local accounts!"
+      ;;
+
+    "domain" )
       if [ -z "$value" ]; then
         error "The USERNAME variable does not contain a valid domain account name!"
         return 1
-      fi ;;
+      fi
+
+      maximum=256
+      length_suffix=" for a domain account"
+      invalid_message="The domain account name contains characters that are not supported by Windows unattended setup!"
+      ;;
+
     * )
-      return 1 ;;
+      return 1
+      ;;
   esac
 
   if [ "${#value}" -gt "$maximum" ]; then
-    if [[ "$type" == "domain" ]]; then
-      error "The USERNAME variable cannot contain more than $maximum characters for a domain account!"
-    else
-      error "The USERNAME variable cannot contain more than $maximum characters!"
-    fi
+    error "The USERNAME variable cannot contain more than $maximum characters$length_suffix!"
     return 1
   fi
 
@@ -175,12 +180,9 @@ validateUsername() {
 
   case "$value" in
     *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* | *'%'* | *'@'* )
-      if [[ "$type" == "domain" ]]; then
-        error "The domain account name contains characters that are not supported by Windows unattended setup!"
-      else
-        error "The USERNAME variable contains characters that are not supported by Windows local accounts!"
-      fi
-      return 1 ;;
+      error "$invalid_message"
+      return 1
+      ;;
   esac
 
   if [[ "$value" == *"." ]]; then
@@ -196,12 +198,15 @@ validateUsername() {
   case "${value^^}" in
     "NONE" )
       error "The USERNAME value \"NONE\" is reserved by Windows!"
-      return 1 ;;
+      return 1
+      ;;
+
     "ADMINISTRATOR" | "GUEST" | "DEFAULTACCOUNT" | "WDAGUTILITYACCOUNT" | "WSIACCOUNT" )
-      if [[ "$type" == "local" ]]; then
-        error "The USERNAME value \"$value\" is reserved for a built-in Windows account!"
-        return 1
-      fi ;;
+      [[ "$type" == "domain" ]] && return 0
+
+      error "The USERNAME value \"$value\" is reserved for a built-in Windows account!"
+      return 1
+      ;;
   esac
 
   return 0
