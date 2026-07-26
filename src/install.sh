@@ -734,39 +734,40 @@ setMachine() {
 
   case "${id,,}" in
 
-    "win9"* )
-      USB="no"
-      VGA="cirrus"
-      DISK_TYPE="auto"
-      MACHINE="pc-i440fx-2.4"
-      BOOT_MODE="windows_legacy"
-      [ -z "${ADAPTER:-}" ] && ADAPTER="pcnet" ;;
-
-    "win2k"* )
-      VGA="cirrus"
-      MACHINE="pc"
-      USB="pci-ohci"
-      DISK_TYPE="auto"
-      BOOT_MODE="windows_legacy"
-      [ -z "${ADAPTER:-}" ] && ADAPTER="rtl8139" ;;
-
-    "winxp"* | "win2003"* )
-      DISK_TYPE="blk"
-      BOOT_MODE="windows_legacy"
-      [ -z "${SOUND:-}" ] && SOUND="usb-audio" ;;
-
-    "winvista"* | "win7"* | "win2008"* )
+    "win9"* | "win2k"* | "winxp"* | "win2003"* | \
+    "winvista"* | "win7"* | "win2008"* | "reactos" )
       BOOT_MODE="windows_legacy" ;;
 
+  esac
+
+  case "${id,,}" in
+
+    "win9"* )
+      isQ35 && MACHINE="pc-i440fx-2.4"
+      [ -z "${USB:-}" ] && USB="no"
+      [ -z "${VGA:-}" ] && VGA="cirrus"
+      [ -z "${ADAPTER:-}" ] && ADAPTER="pcnet"
+      [ -z "${DISK_TYPE:-}" ] && DISK_TYPE="auto" ;;
+
+    "win2k"* )
+      isQ35 && MACHINE="pc"
+      [ -z "${VGA:-}" ] && VGA="cirrus"
+      [ -z "${USB:-}" ] && USB="pci-ohci"
+      [ -z "${ADAPTER:-}" ] && ADAPTER="rtl8139"
+      [ -z "${DISK_TYPE:-}" ] && DISK_TYPE="auto" ;;
+
+    "winxp"* | "win2003"* )
+      [ -z "${SOUND:-}" ] && SOUND="usb-audio"
+      [ -z "${DISK_TYPE:-}" ] && DISK_TYPE="blk" ;;
+
     "reactos" )
-      VGA="cirrus"
-      MACHINE="pc"
-      REMOVE="N"
-      REBUILD="N"
-      USB="pci-ohci"
-      DISK_TYPE="auto"
-      BOOT_MODE="windows_legacy"
-      [ -z "${ADAPTER:-}" ] && ADAPTER="rtl8139" ;;
+      isQ35 && MACHINE="pc"
+      [ -z "${VGA:-}" ] && VGA="cirrus"
+      [ -z "${REMOVE:-}" ] && REMOVE="N"
+      [ -z "${USB:-}" ] && USB="pci-ohci"
+      [ -z "${REBUILD:-}" ] && REBUILD="N"
+      [ -z "${ADAPTER:-}" ] && ADAPTER="rtl8139"
+      [ -z "${DISK_TYPE:-}" ] && DISK_TYPE="auto" ;;
 
   esac
 
