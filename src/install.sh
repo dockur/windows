@@ -753,6 +753,7 @@ setMachine() {
     "reactos" )
       VGA="cirrus"
       MACHINE="pc"
+      REBUILD="N"
       USB="pci-ohci"
       DISK_TYPE="ide"
       BOOT_MODE="windows_legacy"
