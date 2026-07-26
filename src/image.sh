@@ -510,7 +510,7 @@ skipVersion() {
   local id="$1"
 
   case "${id,,}" in
-    "win9"* | "winxp"* | "win2k"* | "win2003"* )
+    "win9"* | "winxp"* | "win2k"* | "win2003"* | "reactos" )
       return 0 ;;
   esac
 
