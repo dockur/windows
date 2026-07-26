@@ -824,14 +824,20 @@ checkBatch() {
   [ -n "${COMMAND:-}" ] && source="your COMMAND variable"
 
   if enabled "$DEBUG"; then
+
     report="Y"
+
+    if LC_ALL=C grep -Pq '[^\x09\x0D\x20-\x7E]' "$file"; then
+      warn "non-ASCII characters were detected in $source and may not execute correctly in Windows Command Prompt."
+    fi
+
   else
 
     # First pass: silently check only for Error-level findings.
-    cat > "$tmp/blinter.ini" <<'EOF'
+    cat > "$tmp/blinter.ini" <<'EOC'
 [general]
 min_severity = error
-EOF
+EOC
 
     if ! (
       cd "$tmp"
@@ -846,14 +852,14 @@ EOF
 
     # Show useful diagnostic context, while excluding findings that are
     # irrelevant to unattended OEM scripts.
-    cat > "$tmp/blinter.ini" <<'EOF'
+    cat > "$tmp/blinter.ini" <<'EOC'
 [general]
 min_severity = warning
 show_summary = false
 
 [rules]
 disabled_rules = W001,W028,W041,SEC002,SEC005
-EOF
+EOC
 
     output=$(
       cd "$tmp"
