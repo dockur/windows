@@ -476,9 +476,22 @@ jobs:
           echo "Building branch: ${{ inputs.branch }}"
           echo "Commit: $(git rev-parse HEAD)"
 
-          docker build \
-            --tag "$IMAGE" \
-            .
+          for attempt in 1 2 3; do
+            if docker build \
+              --tag "$IMAGE" \
+              .; then
+              break
+            fi
+
+            if (( attempt == 3 )); then
+              echo "Image build failed after $attempt attempts."
+              exit 1
+            fi
+
+            delay=$((attempt * 15))
+            echo "Image build failed, retrying in $delay seconds..."
+            sleep "$delay"
+          done
 
           docker image inspect "$IMAGE" \
             --format 'Image ID: {{.Id}}'
