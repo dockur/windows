@@ -327,34 +327,41 @@ jobs:
           Dim temporary
           Dim destination
           Dim file
-
-          Set filesystem = CreateObject("Scripting.FileSystemObject")
-          Set shell = CreateObject("WScript.Shell")
-          Set locator = CreateObject("WbemScripting.SWbemLocator")
-          Set service = locator.ConnectServer(".", "root\cimv2")
-          Set systems = service.ExecQuery("SELECT Caption, Version, BuildNumber FROM Win32_OperatingSystem")
-
-          caption = ""
-          version = ""
-          build = ""
-
-          For Each system In systems
-            caption = CStr(system.Caption)
-            version = CStr(system.Version)
-            build = CStr(system.BuildNumber)
-            Exit For
-          Next
-
-          edition = ReadRegistry(shell, "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\EditionID")
-          platform = GetPlatform(shell)
+          Dim success
 
           temporary = "\\host.lan\Data\windows.tmp"
           destination = "\\host.lan\Data\windows.json"
 
           Do
-            On Error Resume Next
+            success = False
 
-            share = ReadTextFile(filesystem, "\\host.lan\Data\readme.txt")
+            On Error Resume Next
+            Err.Clear
+
+            Set filesystem = CreateObject("Scripting.FileSystemObject")
+            Set shell = CreateObject("WScript.Shell")
+            Set locator = CreateObject("WbemScripting.SWbemLocator")
+            Set service = locator.ConnectServer(".", "root\cimv2")
+            Set systems = service.ExecQuery("SELECT Caption, Version, BuildNumber FROM Win32_OperatingSystem")
+
+            caption = ""
+            version = ""
+            build = ""
+
+            If Err.Number = 0 Then
+              For Each system In systems
+                caption = CStr(system.Caption)
+                version = CStr(system.Version)
+                build = CStr(system.BuildNumber)
+                Exit For
+              Next
+            End If
+
+            If Err.Number = 0 Then
+              edition = ReadRegistry(shell, "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\EditionID")
+              platform = GetPlatform(shell)
+              share = ReadTextFile(filesystem, "\\host.lan\Data\readme.txt")
+            End If
 
             If Err.Number = 0 Then
               json = _
@@ -371,7 +378,9 @@ jobs:
               Set file = filesystem.OpenTextFile(temporary, ForWriting, True)
               file.Write json
               file.Close
+            End If
 
+            If Err.Number = 0 Then
               If filesystem.FileExists(destination) Then
                 filesystem.DeleteFile destination, True
               End If
@@ -380,12 +389,15 @@ jobs:
             End If
 
             If Err.Number = 0 Then
-              On Error GoTo 0
-              Exit Do
+              success = True
             End If
 
             Err.Clear
             On Error GoTo 0
+
+            If success Then
+              Exit Do
+            End If
 
             WScript.Sleep 10000
           Loop
@@ -431,7 +443,6 @@ jobs:
             --cap-add NET_ADMIN \
             --stop-timeout 120 \
             --env "VERSION=$VERSION" \
-            --env "DEBUG=Y" \
             --env "RAM_SIZE=half" \
             --env "CPU_CORES=half" \
             --env "CPU_MODEL=$CPU" \
