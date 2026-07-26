@@ -630,7 +630,11 @@ detectReactOS() {
   local marker
 
   marker=$(find "$dir" -maxdepth 2 -type f \
-    -ipath '*/reactos/reactos.inf' -print -quit) || return 1
+    \( \
+      -ipath '*/reactos/reactos.inf' -o \
+      -ipath '*/reactos/unattend.inf' \
+    \) \
+    -print -quit) || return 1
 
   [ -n "$marker" ] || return 1
 
