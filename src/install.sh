@@ -716,6 +716,7 @@ setMachine() {
   fi
 
   case "${id,,}" in
+
     "win9"* )
       USB="no"
       VGA="cirrus"
@@ -723,6 +724,7 @@ setMachine() {
       MACHINE="pc-i440fx-2.4"
       BOOT_MODE="windows_legacy"
       [ -z "${ADAPTER:-}" ] && ADAPTER="pcnet" ;;
+
     "win2k"* )
       VGA="cirrus"
       MACHINE="pc"
@@ -730,6 +732,7 @@ setMachine() {
       DISK_TYPE="auto"
       BOOT_MODE="windows_legacy"
       [ -z "${ADAPTER:-}" ] && ADAPTER="rtl8139" ;;
+
     "winxp"* )
       DISK_TYPE="blk"
       BOOT_MODE="windows_legacy"
@@ -737,26 +740,30 @@ setMachine() {
 
       if [ -z "${CPU_MODEL:-}" ] || [[ "${CPU_MODEL:-}" == "host" ]]; then
         # Workaround for boot loop on AMD EPYC processors
-        if [[ "${CPU,,}" == *"amd epyc"* ]]; then
+        if [[ "${id,,}" == "winxpx86"* && "${CPU,,}" == *"amd epyc"* ]]; then
           CPU_MODEL="qemu32"
         fi
-      fi
-      ;;
+      fi ;;
+
     "win2003"* )
       DISK_TYPE="blk"
       BOOT_MODE="windows_legacy"
-      [ -z "${SOUND:-}" ] && SOUND="usb-audio"
-      ;;
+      [ -z "${SOUND:-}" ] && SOUND="usb-audio" ;;
+
     "winvista"* | "win7"* | "win2008"* )
       BOOT_MODE="windows_legacy" ;;
+
   esac
 
   case "${id,,}" in
+
     "winxp"* | "win2003"* | "winvistax86"* | "win7x86"* | "win2008r2x86"* )
+
       if isQ35 "${MACHINE:-q35}"; then
         # Prevent bluescreen if 64 bit PCI hole size is >2G.
         ARGS="-global q35-pcihost.x-pci-hole64-fix=false"
       fi ;;
+
   esac
 
   return 0
