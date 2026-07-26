@@ -798,37 +798,37 @@ updateXML() {
 
   if [ -n "$domain" ]; then
 
-    if ! updateDomain "$asset" "$domain" "$user" \
+    if updateDomain "$asset" "$domain" "$user" \
       "$auth_user" "$PASSWORD" "$DOMAIN_OU"; then
-      error "Failed to add domain configuration to answer file!"
-      return 1
-    fi
 
-    if ! sed -i -E \
-      -e '/^[[:space:]]*<LocalAccounts([[:space:]>])/,/^[[:space:]]*<\/LocalAccounts>[[:space:]]*$/d' \
-      -e '/^[[:space:]]*<AdministratorPassword([[:space:]>])/,/^[[:space:]]*<\/AdministratorPassword>[[:space:]]*$/d' \
-      "$asset"; then
-      error "Failed to remove local account configuration from answer file!"
-      return 1
-    fi
+      if ! sed -i -E \
+        -e '/^[[:space:]]*<LocalAccounts([[:space:]>])/,/^[[:space:]]*<\/LocalAccounts>[[:space:]]*$/d' \
+        -e '/^[[:space:]]*<AdministratorPassword([[:space:]>])/,/^[[:space:]]*<\/AdministratorPassword>[[:space:]]*$/d' \
+        "$asset"; then
+        error "Failed to remove local account configuration from answer file!"
+        return 1
+      fi
 
-    if ! sed -i -E '
-      /<SynchronousCommand([[:space:]>])/ {
-        :command
-        N
-        /<\/SynchronousCommand>/!b command
-        /<Description>Password Never Expires<\/Description>/d
-      }
-    ' "$asset"; then
-      error "Failed to remove local account commands from answer file!"
-      return 1
+      if ! sed -i -E '
+        /<SynchronousCommand([[:space:]>])/ {
+          :command
+          N
+          /<\/SynchronousCommand>/!b command
+          /<Description>Password Never Expires<\/Description>/d
+        }
+      ' "$asset"; then
+        error "Failed to remove local account commands from answer file!"
+        return 1
+      fi
+
+    else
+      warn "failed to add domain configuration to answer file!"
     fi
 
   elif [ -n "$workgroup" ]; then
 
     if ! updateWorkgroup "$asset" "$workgroup"; then
-      error "Failed to add workgroup configuration to answer file!"
-      return 1
+      warn "failed to add workgroup configuration to answer file!"
     fi
 
   fi
