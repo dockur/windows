@@ -1323,6 +1323,14 @@ extractBootImage() {
     error "Failed to extract boot image from $desc ISO!"
     return 1
   fi
+
+  if [ ! -s "$dir/$ETFS" ]; then
+    rm -f "$dir/$ETFS" || true
+    error "Failed to locate file \"$ETFS\" in $desc ISO image!"
+    return 1
+  fi
+
+  return 0
 }
 
 return 0
