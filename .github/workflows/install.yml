@@ -487,6 +487,15 @@ jobs:
               exit 1
             fi
 
+            if grep -Fqi \
+              'CDBOOT: Cannot boot from CD - Code: 5' \
+              <<< "$container_log"; then
+              echo
+              echo "------------------------------------------------------------"
+              echo "Detected an unbootable installation medium."
+              exit 1
+            fi
+
             bios_starts="$(
               grep -Fci 'SeaBIOS (version ' <<< "$container_log" || true
             )"
