@@ -459,7 +459,10 @@ jobs:
           trap stop_logs EXIT
 
           deadline=$((SECONDS + 9000))
+          reboot_timeout=1800
+          minimum_reboots=1
           boot_loop_limit=5
+          first_bios_start=-1
 
           while (( SECONDS < deadline )); do
             state="$(
@@ -487,12 +490,12 @@ jobs:
               exit 1
             fi
 
-            if grep -Fqi \
-              'CDBOOT: Cannot boot from CD - Code: 5' \
+            if grep -Eqi \
+              'CDBOOT: Cannot boot from CD.*Code: 5' \
               <<< "$container_log"; then
               echo
               echo "------------------------------------------------------------"
-              echo "Detected an unbootable installation medium."
+              echo "The installation media could not be booted."
               exit 1
             fi
 
@@ -527,6 +530,24 @@ jobs:
             bootmgr_missing="$(
               grep -Fci 'BOOTMGR is missing' <<< "$container_log" || true
             )"
+
+            reboots=$((bios_starts > 0 ? bios_starts - 1 : 0))
+
+            if (( first_bios_start < 0 && bios_starts > 0 )); then
+              first_bios_start=$SECONDS
+            fi
+
+            if (( first_bios_start >= 0 &&
+                  SECONDS - first_bios_start >= reboot_timeout &&
+                  reboots < minimum_reboots )); then
+              echo
+              echo "------------------------------------------------------------"
+              echo "The installation did not reboot within" \
+                "$((reboot_timeout / 60)) minutes after the first BIOS start."
+              echo "Observed reboots: $reboots"
+              echo "Required reboots: $minimum_reboots"
+              exit 1
+            fi
 
             if (( bios_starts >= boot_loop_limit )) &&
                (( hard_disk_boots >= boot_loop_limit ||
