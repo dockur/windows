@@ -19,10 +19,10 @@ on:
         default: ubuntu-24.04
         type: string
 
-      image:
-        description: Container image to test
+      branch:
+        description: Repository branch to build
         required: false
-        default: ghcr.io/dockur/windows:latest
+        default: master
         type: string
 
       callback:
@@ -75,9 +75,14 @@ jobs:
 
     env:
       CONTAINER: windows-test
-      IMAGE: ${{ inputs.image }}
+      IMAGE: windows-validation:local
 
     steps:
+      - name: Checkout branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.branch }}
+
       - name: Check KVM
         shell: bash
         run: |
@@ -462,15 +467,20 @@ jobs:
 
           echo "token=$token" >> "$GITHUB_OUTPUT"
 
-      - name: Pull image
+      - name: Build image
         shell: bash
         run: |
           set -Eeuo pipefail
 
-          docker pull "$IMAGE"
+          echo "Building branch: ${{ inputs.branch }}"
+          echo "Commit: $(git rev-parse HEAD)"
+
+          docker build \
+            --tag "$IMAGE" \
+            .
 
           docker image inspect "$IMAGE" \
-            --format 'Digest: {{index .RepoDigests 0}}'
+            --format 'Image ID: {{.Id}}'
 
       - name: Install and validate Windows
         shell: bash
