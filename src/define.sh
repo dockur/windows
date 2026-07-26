@@ -1491,8 +1491,8 @@ getLink4() {
 
   case "${id,,}" in
     "reactos" )
-      size=4320526336
-      sum="d8333cf427eb3318ff6ab755eb1dd9d433f0e2ae43745312c1cd23e83ca1ce51"
+      size=35678345
+      sum="712a25ebececd1129ee03645b4dd63fd96b53de49367f61ea58ace1a1c89f926"
       url="livecd/reactos-livecd-0.4.17-dev-541-gaf36fc6-x86-gcc-lin-rel.7z"
       ;;
   esac
