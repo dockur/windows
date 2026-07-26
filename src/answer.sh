@@ -434,13 +434,11 @@ removeLocalAccountXML() {
 enableLog() {
 
   local file="$1"
+  local old='C:\OEM\install.bat"</CommandLine>'
+  local msg="failed to enable install logging in the answer file!"
 
   enabled "$LOG" || return 0
   [ -f "$file" ] || return 1
-
-  local old='C:\OEM\install.bat"</CommandLine>'
-  local new='C:\OEM\install.bat &gt; C:\OEM\install.log 2&gt;&amp;1"</CommandLine>'
-  local msg="failed to enable install logging in the answer file!"
 
   if ! grep -Fq "$old" "$file"; then
     enabled "$DEBUG" && warn "$msg"
