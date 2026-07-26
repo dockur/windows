@@ -950,10 +950,10 @@ tryDownload() {
   local desc="$6"
   local seconds="$7"
   local web_desc="$8"
-  local total minimum="100000000"
+  local total minimum="104857600"
 
   if isCompressed "$url"; then
-    minimum="10000000"
+    minimum="10485760"
   fi
 
   if downloadRetry \
