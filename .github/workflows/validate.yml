@@ -41,7 +41,7 @@ jobs:
             minimum_build: 22000
             platform: x64
 
-          - name: Windows 11 IoT Enterprise
+          - name: Windows 11 IoT
             version: "11i"
             expected_caption: Windows 11
             expected_edition: IoTEnterpriseS
@@ -69,7 +69,7 @@ jobs:
             minimum_build: 10240
             platform: x64
 
-          - name: Windows 10 IoT Enterprise
+          - name: Windows 10 IoT
             version: "10i"
             expected_caption: Windows 10
             expected_edition: IoTEnterpriseS
@@ -90,38 +90,6 @@ jobs:
       version: ${{ matrix.version }}
       expected_caption: ${{ matrix.expected_caption }}
       expected_edition: ${{ matrix.expected_edition }}
-      minimum_build: ${{ matrix.minimum_build }}
-      platform: ${{ matrix.platform }}
-
-  tiny:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Core11
-            version: "core11"
-            expected_caption: Windows 11
-            minimum_build: 22000
-            platform: x64
-
-          - name: Tiny11
-            version: "tiny11"
-            expected_caption: Windows 11
-            minimum_build: 22000
-            platform: x64
-
-          - name: Tiny10
-            version: "tiny10"
-            expected_caption: Windows 10
-            minimum_build: 19041
-            platform: x64
-
-    name: ${{ matrix.name }}
-    uses: ./.github/workflows/install.yml
-    with:
-      name: ${{ matrix.name }}
-      version: ${{ matrix.version }}
-      expected_caption: ${{ matrix.expected_caption }}
       minimum_build: ${{ matrix.minimum_build }}
       platform: ${{ matrix.platform }}
 
@@ -154,7 +122,7 @@ jobs:
             minimum_build: 14393
             platform: x64
 
-          - name: Windows Server 2012 R2
+          - name: Windows Server 2012
             version: "2012"
             expected_caption: Windows Server 2012 R2
             minimum_build: 9600
@@ -174,65 +142,56 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Windows 7 Ultimate
+          - name: Windows 7 x64
             version: "7u"
-            cpu: host
             expected_caption: Windows 7
             minimum_build: 7601
             platform: x64
 
-          - name: Windows 7 Ultimate x86
+          - name: Windows 7 x86
             version: "7x86"
-            cpu: host
             expected_caption: Windows 7
             minimum_build: 7601
             platform: x86
 
-          - name: Windows Vista Ultimate
+          - name: Windows Vista x64
             version: "vu"
-            cpu: host
             expected_caption: Windows Vista
             minimum_build: 6002
             platform: x64
 
-          - name: Windows Vista Ultimate x86
+          - name: Windows Vista x86
             version: "vistax86"
-            cpu: host
             expected_caption: Windows Vista
             minimum_build: 6002
             platform: x86
 
-          - name: Windows XP Professional
+          - name: Windows XP x86
             version: "xp"
-            cpu: host
             expected_caption: Windows XP
             minimum_build: 2600
             platform: x86
 
-          - name: Windows XP Professional x64
+          - name: Windows XP x64
             version: "xp64"
-            cpu: host
             expected_caption: Windows XP
             minimum_build: 3790
             platform: x64
 
-          - name: Windows 2000 Professional
+          - name: Windows 2000
             version: "2k"
-            cpu: host
             expected_caption: Windows 2000
             minimum_build: 2195
             platform: x86
 
-          - name: Windows Server 2008 R2
+          - name: Windows Server 2008
             version: "2008"
-            cpu: host
             expected_caption: Windows Server 2008 R2
             minimum_build: 7601
             platform: x64
 
-          - name: Windows Server 2003 R2
+          - name: Windows Server 2003
             version: "2003"
-            cpu: host
             expected_caption: Windows Server 2003
             minimum_build: 3790
             platform: x64
@@ -243,7 +202,38 @@ jobs:
       name: ${{ matrix.name }}
       version: ${{ matrix.version }}
       callback: legacy
-      cpu: ${{ matrix.cpu }}
+      expected_caption: ${{ matrix.expected_caption }}
+      minimum_build: ${{ matrix.minimum_build }}
+      platform: ${{ matrix.platform }}
+
+  tiny:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Core 11
+            version: "core11"
+            expected_caption: Windows 11
+            minimum_build: 22000
+            platform: x64
+
+          - name: Tiny 11
+            version: "tiny11"
+            expected_caption: Windows 11
+            minimum_build: 22000
+            platform: x64
+
+          - name: Tiny 10
+            version: "tiny10"
+            expected_caption: Windows 10
+            minimum_build: 19041
+            platform: x64
+
+    name: ${{ matrix.name }}
+    uses: ./.github/workflows/install.yml
+    with:
+      name: ${{ matrix.name }}
+      version: ${{ matrix.version }}
       expected_caption: ${{ matrix.expected_caption }}
       minimum_build: ${{ matrix.minimum_build }}
       platform: ${{ matrix.platform }}

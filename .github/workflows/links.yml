@@ -24,11 +24,17 @@ jobs:
         with:
           fetch-depth: 0
       -
+        name: Install aria2
+        run: |
+          if ! command -v aria2c > /dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -qq --no-install-recommends -y aria2
+          fi
+      -
         name: Validate all download mirrors
         id: validate
         run: |
           errors=0
-          skipped=0
           tested=0
           host=""
           failed_links=""
@@ -37,21 +43,88 @@ jobs:
 
           ignored_domains=(
             files.dog
-            bobpony.com
           )
 
-          wget https://github.com/lwthiker/curl-impersonate/releases/download/v0.6.1/curl-impersonate-v0.6.1.x86_64-linux-gnu.tar.gz
-          tar -xzf curl-impersonate-v0.6.1.x86_64-linux-gnu.tar.gz
-          sudo cp curl-impersonate-ff /usr/local/bin/
-
           check() {
-            local url="$1" http
+            local url="$1"
+            local agent="Mozilla/5.0 (X11; Linux x86_64; rv:154.0) Gecko/20100101 Firefox/154.0"
+            local tmp output pid blocks bytes rc
+            local start=$SECONDS
 
-            http=$(curl-impersonate-ff -sSL -o /dev/null -w "%{http_code}" --max-time 10 -I -- "$url" 2>&1) || http="000"
-            [[ "$http" == 2* ]] && return 0
+            tmp=$(mktemp -d)
+            output="$tmp/aria2.log"
 
-            http=$(curl-impersonate-ff -sSL -o /dev/null -w "%{http_code}" --max-time 10 -r "0-0" -- "$url" 2>&1) || http="000"
-            [[ "$http" == 2* ]]
+            aria2c \
+              --no-conf=true \
+              --connect-timeout=30 \
+              --timeout=30 \
+              --max-tries=2 \
+              --retry-wait=2 \
+              --async-dns=false \
+              --follow-metalink=false \
+              --follow-torrent=false \
+              --user-agent="$agent" \
+              --split=4 \
+              --max-connection-per-server=4 \
+              --file-allocation=none \
+              --allow-overwrite=true \
+              --auto-file-renaming=false \
+              --continue=false \
+              --dir="$tmp" \
+              --out=probe \
+              --console-log-level=error \
+              --summary-interval=0 \
+              --download-result=hide \
+              --show-console-readout=false \
+              --enable-color=false \
+              -- "$url" > "$output" 2>&1 &
+            pid=$!
+
+            while kill -0 "$pid" 2>/dev/null; do
+              if [[ -f "$tmp/probe" ]]; then
+                blocks=$(stat -c '%b' "$tmp/probe" 2>/dev/null || echo 0)
+                bytes=$((blocks * 512))
+
+                if (( bytes >= 1048576 )); then
+                  kill "$pid" 2>/dev/null || true
+                  wait "$pid" 2>/dev/null || true
+                  rm -rf -- "$tmp"
+                  return 0
+                fi
+              fi
+
+              if (( SECONDS - start >= 60 )); then
+                kill "$pid" 2>/dev/null || true
+                break
+              fi
+
+              sleep 0.2
+            done
+
+            if wait "$pid"; then
+              rc=0
+            else
+              rc=$?
+            fi
+
+            blocks=0
+
+            if [[ -f "$tmp/probe" ]]; then
+              blocks=$(stat -c '%b' "$tmp/probe" 2>/dev/null || echo 0)
+            fi
+
+            bytes=$((blocks * 512))
+
+            if (( bytes >= 1048576 || (rc == 0 && bytes > 0) )); then
+              rm -rf -- "$tmp"
+              return 0
+            fi
+
+            sed 's/^/      /' "$output" >&2
+            echo "      Downloaded bytes: $bytes" >&2
+            echo "      aria2c exit status: $rc" >&2
+            rm -rf -- "$tmp"
+            return 1
           }
 
           isIgnoredDomain() {
@@ -93,8 +166,7 @@ jobs:
             seen[$url]=1
 
             if isIgnoredDomain "$url"; then
-              echo "SKIP: $url (ignored domain)"
-              skipped=$((skipped + 1))
+              echo "SKIP: $url"
               continue
             fi
 
@@ -112,10 +184,6 @@ jobs:
 
           echo ""
           printf '%d/%d tested links valid\n' "$((tested - errors))" "$tested"
-
-          if (( skipped > 0 )); then
-            printf '%d link(s) skipped for ignored domains\n' "$skipped"
-          fi
 
           if (( errors > 0 )); then
             printf '%d blocking failure(s)\n' "$errors"
