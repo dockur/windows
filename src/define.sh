@@ -1340,7 +1340,7 @@ getLink4() {
   local url=""
   local sum=""
   local size=""
-  local host="https://downloads.sourceforge.net"
+  local host="https://master.dl.sourceforge.net"
 
   [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
 
