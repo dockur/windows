@@ -841,11 +841,13 @@ getESD() {
 
 isCompressed() {
 
-  local file="$1"
+  local url="${1%%\?*}"
 
-  case "${file,,}" in
-    *".7z" | *".zip" | *".rar" | *".lzma" | *".bz" | *".bz2" )
-      return 0 ;;
+  case "${url,,}" in
+    *.7z | *.zip | *.rar | *.tar | *.cab | *.cpio | \
+    *.lzh | *.lha | *.xar | */latest-x86-gcc-lin-rel )
+      return 0
+      ;;
   esac
 
   return 1
@@ -950,14 +952,18 @@ tryDownload() {
   local desc="$6"
   local seconds="$7"
   local web_desc="$8"
-  local total
+  local total minimum="104857600"
+
+  if isCompressed "$url"; then
+    minimum="10485760"
+  fi
 
   if downloadRetry \
       "$iso" \
       "${CONNECTIONS:-1}" \
       "$seconds" \
       "$desc" \
-      "100000000" \
+      "$minimum" \
       "$iso" \
       "$url" \
       "$size" \
