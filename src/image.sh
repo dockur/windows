@@ -607,15 +607,15 @@ resolveImage() {
 setImage() {
 
   skipVersion "${DETECTED,,}" && return 0
+  setXML "" && return 0
+  enabled "$MANUAL" && return 0
 
-  if ! setXML "" && ! enabled "$MANUAL"; then
-    MANUAL="Y"
+  MANUAL="Y"
 
-    local desc
-    desc=$(printEdition "$DETECTED" "this version")
-    warn "the answer file for $desc was not found ($DETECTED.xml), $FB."
-  fi
+  local desc
+  desc=$(printEdition "$DETECTED" "this version") || return 1
 
+  warn "the answer file for $desc was not found ($DETECTED.xml), $FB."
   return 0
 }
 
@@ -677,20 +677,19 @@ getSuggestion() {
 validateEdition() {
 
   [ -n "$EDITION" ] || return 0
+  [[ "${DETECTED,,}" == "win20"* ]] || return 0
 
-  case "${DETECTED,,}" in
-    "win20"* )
-      local edition
-      edition=$(normalizeServerEditionID "$EDITION")
+  local edition
+  edition=$(normalizeServerEditionID "$EDITION") || return 1
 
-      if [ -n "$edition" ] &&
-        [[ "${DETECTED,,}" != *"-${edition,,}" &&
-          "${DETECTED,,}" != *"-${edition,,}-eval" ]]; then
-        EDITION=""
-      fi
-      ;;
-  esac
+  [ -n "$edition" ] || return 0
 
+  if [[ "${DETECTED,,}" == *"-${edition,,}" ||
+    "${DETECTED,,}" == *"-${edition,,}-eval" ]]; then
+    return 0
+  fi
+
+  EDITION=""
   return 0
 }
 
