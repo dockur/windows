@@ -76,6 +76,7 @@ jobs:
     env:
       CONTAINER: windows-test
       IMAGE: windows-validation:local
+      TUNNEL: windows-test-tunnel
 
     steps:
       - name: Checkout branch
@@ -516,6 +517,47 @@ jobs:
             --volume "$RUNNER_TEMP/storage:/storage" \
             "$IMAGE"
 
+          if docker run --detach \
+            --name "$TUNNEL" \
+            --network "container:$CONTAINER" \
+            cloudflare/cloudflared:latest \
+            tunnel \
+            --no-autoupdate \
+            --url http://127.0.0.1:8006 > /dev/null; then
+            novnc_url=""
+
+            for _ in {1..30}; do
+              novnc_url="$(
+                docker logs "$TUNNEL" 2>&1 |
+                  grep -Eo 'https://[-a-z0-9]+\.trycloudflare\.com' |
+                  tail -n 1 || true
+              )"
+
+              [ -n "$novnc_url" ] && break
+              sleep 2
+            done
+
+            if [ -n "$novnc_url" ]; then
+              echo
+              echo "::notice title=noVNC viewer::$novnc_url"
+              echo "noVNC viewer: $novnc_url"
+              echo "Warning: this temporary URL is publicly accessible."
+
+              {
+                echo "### noVNC viewer"
+                echo
+                echo "[$novnc_url]($novnc_url)"
+                echo
+                echo "> This temporary URL is publicly accessible while the job is running."
+              } >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::warning::Failed to obtain a noVNC tunnel URL."
+              docker logs "$TUNNEL" 2>&1 || true
+            fi
+          else
+            echo "::warning::Failed to start the noVNC tunnel."
+          fi
+
           echo
           echo "Container log:"
           echo "------------------------------------------------------------"
@@ -563,7 +605,7 @@ jobs:
           deadline=$((SECONDS + 9000))
           reboot_timeout=1800
           minimum_reboots=1
-          boot_loop_limit=10
+          boot_loop_limit=5
           first_bios_start=-1
 
           while (( SECONDS < deadline )); do
@@ -779,4 +821,5 @@ jobs:
         if: always()
         shell: bash
         run: |
+          docker rm --force "$TUNNEL" 2>/dev/null || true
           docker rm --force "$CONTAINER" 2>/dev/null || true
