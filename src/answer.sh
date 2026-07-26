@@ -605,7 +605,7 @@ generateFallbackXML() {
 
 setXML() {
 
-  local file
+  local file="$1"
   local index="${2:-}"
   local target="/run/assets/$DETECTED.xml"
 
@@ -634,17 +634,21 @@ setXML() {
 
   file="$1"
 
-  if [[ "${DETECTED,,}" == *"-eval" ]]; then
-    if [ ! -f "$file" ] || [ ! -s "$file" ]; then
-      generateEvalXML "$DETECTED" "$index" || return 1
-    fi
-  fi
+  if [[ "${DETECTED,,}" == *"-eval" ]] &&
+    { [ ! -f "$file" ] || [ ! -s "$file" ]; }; then
 
-  if [ ! -f "$file" ] || [ ! -s "$file" ]; then
+    generateEvalXML "$DETECTED" "$index" || return 1
     file="$target"
+
+  elif [ ! -f "$file" ] || [ ! -s "$file" ]; then
+
+    file="$target"
+
   elif [[ "$file" != "$target" ]]; then
+
     generateFallbackXML "$DETECTED" "$index" || return 1
     file="$target"
+
   fi
 
   [ -f "$file" ] && [ -s "$file" ] || return 1
