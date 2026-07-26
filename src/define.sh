@@ -184,6 +184,9 @@ parseVersion() {
     "tiny10" | "tiny 10" )
       VERSION="tiny10"
       ;;
+    "reactos" | "react os" )
+      VERSION="reactos"
+      ;;
   esac
 
   SUGGEST=$(getSuggestedVersion "$VERSION")
@@ -483,6 +486,7 @@ printVersion() {
     "tiny11"* ) desc="Tiny 11" ;;
     "tiny10"* ) desc="Tiny 10" ;;
     "core11"* ) desc="Core 11" ;;
+    "reactos"* ) desc="Reactos" ;;
     "win7"* ) desc="Windows 7" ;;
     "win8"* ) desc="Windows 8" ;;
     "win10"* ) desc="Windows 10" ;;
@@ -690,6 +694,8 @@ fromFile() {
       id="tiny11" ;;
     "tiny10"* | "tiny_10"* )
       id="tiny10" ;;
+    "reactos"* )
+      id="reactos" ;;
     *"_serverhypercore_"* )
       id="win2019${add}-hv" ;;
     *"server2025"* | *"server_2025"* )
