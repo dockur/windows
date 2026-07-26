@@ -684,15 +684,23 @@ extractImage() {
     file=$(find "$dir" -maxdepth 1 -type f -iname "*.iso" -print -quit)
 
     if [ -z "$file" ]; then
-      error "Failed to find any .iso file in archive!" && return 1
+      error "Failed to find any .iso file in archive!"
+      return 1
     fi
 
     if ! 7z x "$file" -o"$dir" > /dev/null; then
-      error "Failed to extract archive!" && return 1
+      error "Failed to extract archive!"
+      return 1
     fi
 
     LABEL=$(isoinfo -d -i "$file" | sed -n 's/Volume id: //p') || LABEL=""
-    rm -f "$file" || warn "Failed to remove temporary ISO file: $file"
+
+    if ! mv -f -- "$file" "$iso"; then
+      error "Failed to preserve extracted ISO file: $file"
+      return 1
+    fi
+
+    UNPACK=""
 
   fi
 
