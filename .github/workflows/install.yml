@@ -43,6 +43,12 @@ on:
         default: ""
         type: string
 
+      kill_on_failure:
+        description: Stop the workflow when an installation failure is detected
+        required: false
+        default: false
+        type: boolean
+
       expected_caption:
         description: Text expected in the Windows caption
         required: true
@@ -501,6 +507,7 @@ jobs:
         env:
           CPU: ${{ inputs.cpu }}
           DISK_TYPE: ${{ inputs.disk_type }}
+          KILL_ON_FAILURE: ${{ inputs.kill_on_failure }}
           EXPECTED_TOKEN: ${{ steps.test.outputs.token }}
           EXPECTED_CAPTION: ${{ inputs.expected_caption }}
           EXPECTED_EDITION: ${{ inputs.expected_edition }}
@@ -615,10 +622,27 @@ jobs:
 
           trap stop_logs EXIT
 
+          failure_checks_disabled=0
+
+          handle_failure() {
+            local message="$1"
+
+            if [[ "$KILL_ON_FAILURE" == "true" ]]; then
+              return 1
+            fi
+
+            echo
+            echo "Automatic termination is disabled by kill_on_failure."
+            echo "The container and noVNC tunnel will remain available."
+            echo "::warning title=Failure detected::$message"
+            failure_checks_disabled=1
+            return 0
+          }
+
           deadline=$((SECONDS + 9000))
           reboot_timeout=1800
           minimum_reboots=1
-          boot_loop_limit=5
+          boot_loop_limit=10
           first_bios_start=-1
 
           while (( SECONDS < deadline )); do
@@ -638,22 +662,30 @@ jobs:
 
             container_log="$(docker logs "$CONTAINER" 2>&1 || true)"
 
-            if grep -Eqi \
-              'KVM internal error|KVM: entry failed|hardware error 0x[0-9a-f]+|Triple fault' \
-              <<< "$container_log"; then
+            if (( failure_checks_disabled == 0 )) &&
+               grep -Eqi \
+                 'KVM internal error|KVM: entry failed|hardware error 0x[0-9a-f]+|Triple fault' \
+                 <<< "$container_log"; then
               echo
               echo "------------------------------------------------------------"
               echo "Detected a fatal QEMU or KVM error."
-              exit 1
+
+              if ! handle_failure "Detected a fatal QEMU or KVM error."; then
+                exit 1
+              fi
             fi
 
-            if grep -Eqi \
-              'CDBOOT: Cannot boot from CD.*Code: 5' \
-              <<< "$container_log"; then
+            if (( failure_checks_disabled == 0 )) &&
+               grep -Eqi \
+                 'CDBOOT: Cannot boot from CD.*Code: 5' \
+                 <<< "$container_log"; then
               echo
               echo "------------------------------------------------------------"
               echo "The installation media could not be booted."
-              exit 1
+
+              if ! handle_failure "The installation media could not be booted."; then
+                exit 1
+              fi
             fi
 
             bios_starts="$(
@@ -694,7 +726,8 @@ jobs:
               first_bios_start=$SECONDS
             fi
 
-            if (( first_bios_start >= 0 &&
+            if (( failure_checks_disabled == 0 &&
+                  first_bios_start >= 0 &&
                   SECONDS - first_bios_start >= reboot_timeout &&
                   reboots < minimum_reboots )); then
               echo
@@ -703,10 +736,14 @@ jobs:
                 "$((reboot_timeout / 60)) minutes after the first BIOS start."
               echo "Observed reboots: $reboots"
               echo "Required reboots: $minimum_reboots"
-              exit 1
+
+              if ! handle_failure "The installation did not reboot in time."; then
+                exit 1
+              fi
             fi
 
-            if (( bios_starts >= boot_loop_limit )) &&
+            if (( failure_checks_disabled == 0 &&
+                  bios_starts >= boot_loop_limit )) &&
                (( hard_disk_boots >= boot_loop_limit ||
                   dvd_boots >= boot_loop_limit ||
                   not_bootable_disk >= boot_loop_limit ||
@@ -723,7 +760,10 @@ jobs:
               echo "Unreadable boot-disk failures: $unreadable_boot_disk"
               echo "No-bootable-device failures: $no_bootable_device"
               echo "BOOTMGR failures: $bootmgr_missing"
-              exit 1
+
+              if ! handle_failure "Detected a repeated BIOS boot loop."; then
+                exit 1
+              fi
             fi
 
             response=""
