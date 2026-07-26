@@ -386,15 +386,24 @@ abortInstall() {
 
   local dir="$1"
   local iso="$2"
-  local efi
+  local efi efi32 efi64
 
   [[ "${iso,,}" == *".esd" ]] && exit 60
   enabled "${UNPACK:-}" && exit 60
 
-  efi=$(find "$dir" -maxdepth 1 -type d -iname efi -print -quit)
+  if [[ "${PLATFORM,,}" == "x64" ]]; then
 
-  if [ -z "$efi" ]; then
-    [[ "${PLATFORM,,}" == "x64" ]] && BOOT_MODE="windows_legacy"
+    efi=$(find "$dir" -maxdepth 1 -type d -iname efi -print -quit)
+    efi32=$(find "$dir" -maxdepth 3 -type f \
+      -ipath '*/efi/boot/bootia32.efi' -print -quit)
+    efi64=$(find "$dir" -maxdepth 3 -type f \
+      -ipath '*/efi/boot/bootx64.efi' -print -quit)
+
+    if [ -z "$efi" ] ||
+      { [ -n "$efi32" ] && [ -z "$efi64" ]; }; then
+      BOOT_MODE="windows_legacy"
+    fi
+
   fi
 
   if [ -n "$CUSTOM" ]; then
