@@ -479,7 +479,7 @@ detectLanguage() {
 
   local xml="$1"
   local index="${2:-}"
-  local xpath lang
+  local xpath lang culture
 
   if [[ "$index" =~ ^[0-9]+$ ]]; then
     xpath="string((/WIM/IMAGE[@INDEX='$index']/WINDOWS/LANGUAGES/DEFAULT | /WIM/IMAGE[@INDEX='$index']/WINDOWS/LANGUAGES/FALLBACK/DEFAULT)[1])"
@@ -494,9 +494,12 @@ detectLanguage() {
     return 0
   fi
 
-  local culture
-  culture=$(getLanguage "$lang" "culture")
-  [ -n "$culture" ] && LANGUAGE="$lang" && return 0
+  culture=$(getLanguage "$lang" "culture") || return 1
+
+  if [ -n "$culture" ]; then
+    LANGUAGE="$lang"
+    return 0
+  fi
 
   warn "Invalid language detected: \"$lang\""
   return 0
