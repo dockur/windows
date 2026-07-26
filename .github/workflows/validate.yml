@@ -94,39 +94,6 @@ jobs:
       minimum_build: ${{ matrix.minimum_build }}
       platform: ${{ matrix.platform }}
 
-  tiny:
-    if: false
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Core11
-            version: "core11"
-            expected_caption: Windows 11
-            minimum_build: 22000
-            platform: x64
-
-          - name: Tiny11
-            version: "tiny11"
-            expected_caption: Windows 11
-            minimum_build: 22000
-            platform: x64
-
-          - name: Tiny10
-            version: "tiny10"
-            expected_caption: Windows 10
-            minimum_build: 19041
-            platform: x64
-
-    name: ${{ matrix.name }}
-    uses: ./.github/workflows/install.yml
-    with:
-      name: ${{ matrix.name }}
-      version: ${{ matrix.version }}
-      expected_caption: ${{ matrix.expected_caption }}
-      minimum_build: ${{ matrix.minimum_build }}
-      platform: ${{ matrix.platform }}
-
   server:
     if: false
     strategy:
@@ -186,8 +153,7 @@ jobs:
 
           - name: Windows 7 Ultimate x86
             version: "7x86"
-            cpu: host
-            disk_mode: ide
+            cpu: Penryn
             expected_caption: Windows 7
             minimum_build: 7601
             platform: x86
@@ -201,15 +167,14 @@ jobs:
 
           - name: Windows Vista Ultimate x86
             version: "vistax86"
-            cpu: host
-            disk_mode: ide
+            cpu: Penryn
             expected_caption: Windows Vista
             minimum_build: 6002
             platform: x86
 
           - name: Windows XP Professional
             version: "xp"
-            cpu: host
+            cpu: Penryn
             disk_mode: ide
             expected_caption: Windows XP
             minimum_build: 2600
@@ -250,6 +215,39 @@ jobs:
       version: ${{ matrix.version }}
       callback: legacy
       cpu: ${{ matrix.cpu }}
+      expected_caption: ${{ matrix.expected_caption }}
+      minimum_build: ${{ matrix.minimum_build }}
+      platform: ${{ matrix.platform }}
+
+  tiny:
+    if: false
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Core11
+            version: "core11"
+            expected_caption: Windows 11
+            minimum_build: 22000
+            platform: x64
+
+          - name: Tiny11
+            version: "tiny11"
+            expected_caption: Windows 11
+            minimum_build: 22000
+            platform: x64
+
+          - name: Tiny10
+            version: "tiny10"
+            expected_caption: Windows 10
+            minimum_build: 19041
+            platform: x64
+
+    name: ${{ matrix.name }}
+    uses: ./.github/workflows/install.yml
+    with:
+      name: ${{ matrix.name }}
+      version: ${{ matrix.version }}
       expected_caption: ${{ matrix.expected_caption }}
       minimum_build: ${{ matrix.minimum_build }}
       platform: ${{ matrix.platform }}
