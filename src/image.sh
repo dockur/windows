@@ -624,6 +624,23 @@ detectLegacy() {
   return 1
 }
 
+detectReactOS() {
+
+  local dir="$1"
+  local root marker
+
+  root=$(find "$dir" -maxdepth 1 -type d -iname reactos -print -quit)
+  [ -d "$root" ] || return 1
+
+  marker=$(find "$root" -maxdepth 1 -type f -iname reactos.inf -print -quit)
+  [ -s "$marker" ] || return 1
+
+  DETECTED="reactos"
+  PASSTHROUGH="Y"
+
+  return 0
+}
+
 resolveImage() {
 
   local version="$1"
@@ -821,7 +838,7 @@ detectImage() {
 
   info "Detecting version from ISO image..."
 
-  if detectLegacy "$dir"; then
+  if detectLegacy "$dir" || detectReactOS "$dir"; then
     desc=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 1
     info "Detected: $desc"
     return 0
