@@ -1068,6 +1068,13 @@ buildImage() {
     error "Failed to locate file \"$ETFS\" in ISO image!" && return 1
   fi
 
+  if [[ "${BOOT_MODE,,}" == "windows_legacy" &&
+    "${DETECTED,,}" != "win9"* &&
+    -z "${BOOT_LOAD_SIZE:-}" ]]; then
+    error "Failed to determine the boot image load size!"
+    return 1
+  fi
+
   size=$(du -b --max-depth=0 "$dir" | cut -f1)
   checkFreeSpace "$TMP" "$size" || return 1
 
@@ -1106,7 +1113,7 @@ buildImage() {
           -b "$ETFS" \
           -no-emul-boot \
           -boot-load-seg 1984 \
-          -boot-load-size 4 \
+          -boot-load-size "$BOOT_LOAD_SIZE" \
           -c "$cat" \
           -iso-level 2 \
           -J \
@@ -1136,7 +1143,7 @@ buildImage() {
           -o "$out" \
           -b "$ETFS" \
           -no-emul-boot \
-          -boot-load-size 4 \
+          -boot-load-size "$BOOT_LOAD_SIZE" \
           -c "$cat" \
           -iso-level 2 \
           -J \
@@ -1190,9 +1197,34 @@ extractBootImage() {
   local max_size=$((32 * 1024 * 1024))
   local rc size len offset image=""
   local msg="using legacy extraction..."
+  local boot_info
   local -a images=()
 
   ETFS="boot.img"
+
+  if ! boot_info=$(isoinfo -d -i "$iso"); then
+    error "Failed to read boot image information from $desc ISO!"
+    return 1
+  fi
+
+  len=$(awk '/Nsect / { print $NF; exit }' <<< "$boot_info")
+
+  if [ -z "$len" ]; then
+    error "Failed to determine boot image load size from $desc ISO!"
+    return 1
+  fi
+
+  if [[ ! "$len" =~ ^[0-9]+$ ]] || [ "${#len}" -gt 5 ]; then
+    error "Invalid boot image load size found in $desc ISO!"
+    return 1
+  fi
+
+  BOOT_LOAD_SIZE=$((10#$len))
+
+  if (( BOOT_LOAD_SIZE < 1 || BOOT_LOAD_SIZE > 65535 )); then
+    error "Invalid boot image load size found in $desc ISO!"
+    return 1
+  fi
 
   [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] && return 0
 
@@ -1252,27 +1284,14 @@ extractBootImage() {
 
   rm -rf "$tmp" || true
 
-  local boot_info
-
-  if ! boot_info=$(isoinfo -d -i "$iso"); then
-    error "Failed to read boot image information from $desc ISO!"
-    return 1
-  fi
-
-  len=$(awk '/Nsect / { print $NF; exit }' <<< "$boot_info")
   offset=$(awk '/Bootoff / { print $NF; exit }' <<< "$boot_info")
-
-  if [ -z "$len" ]; then
-    error "Failed to determine boot image size from $desc ISO!"
-    return 1
-  fi
 
   if [ -z "$offset" ]; then
     error "Failed to determine boot image offset from $desc ISO!"
     return 1
   fi
 
-  if [[ ! "$len" =~ ^[0-9]+$ ]] || [[ ! "$offset" =~ ^[0-9]+$ ]]; then
+  if [[ ! "$offset" =~ ^[0-9]+$ ]]; then
     error "Invalid boot image location found in $desc ISO!"
     return 1
   fi
@@ -1281,7 +1300,7 @@ extractBootImage() {
       "if=$iso" \
       "of=$dir/$ETFS" \
       bs=2048 \
-      "count=$len" \
+      "count=$BOOT_LOAD_SIZE" \
       "skip=$offset" \
       status=none; then
     rm -f "$dir/$ETFS" || true
