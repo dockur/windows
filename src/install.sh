@@ -696,23 +696,24 @@ setMachine() {
   local iso="$2"
   local dir="$3"
   local desc="$4"
+  local legacy=""
 
-  case "${id,,}" in
-    "win9"* )
-      ETFS="[BOOT]/Boot-1.44M.img" ;;
-    "win2k"* )
-      if ! legacyInstall "$iso" "$dir" "$desc" "2k"; then
-        error "Failed to prepare $desc ISO!" && return 1
-      fi ;;
-    "winxp"* )
-      if ! legacyInstall "$iso" "$dir" "$desc" "xp"; then
-        error "Failed to prepare $desc ISO!" && return 1
-      fi ;;
-    "win2003"* )
-      if ! legacyInstall "$iso" "$dir" "$desc" "2k3"; then
-        error "Failed to prepare $desc ISO!" && return 1
-      fi ;;
-  esac
+  if ! disabled "$REBUILD"; then
+
+    case "${id,,}" in
+      "win2k"* )   legacy="2k" ;;
+      "winxp"* )   legacy="xp" ;;
+      "win2003"* ) legacy="2k3" ;;
+    esac
+
+    if [ -n "$legacy" ]; then
+      if ! legacyInstall "$iso" "$dir" "$desc" "$legacy"; then
+        error "Failed to prepare $desc ISO!"
+        return 1
+      fi
+    fi
+
+  fi
 
   case "${id,,}" in
     "win9"* )
