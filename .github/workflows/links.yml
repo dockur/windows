@@ -36,22 +36,27 @@ jobs:
           declare -A seen
 
           ignored_domains=(
-            files.dog
-            bobpony.com
+            filexxs.dog
+            bobpoxxny.com
           )
 
-          wget https://github.com/lwthiker/curl-impersonate/releases/download/v0.6.1/curl-impersonate-v0.6.1.x86_64-linux-gnu.tar.gz
-          tar -xzf curl-impersonate-v0.6.1.x86_64-linux-gnu.tar.gz
-          sudo cp curl-impersonate-ff /usr/local/bin/
-
           check() {
-            local url="$1" http
+            local url="$1"
+            local http
 
-            http=$(curl-impersonate-ff -sSL -o /dev/null -w "%{http_code}" --max-time 10 -I -- "$url" 2>&1) || http="000"
-            [[ "$http" == 2* ]] && return 0
+            http=$(curl \
+              --silent \
+              --show-error \
+              --location \
+              --output /dev/null \
+              --write-out "%{http_code}" \
+              --connect-timeout 30 \
+              --max-time 60 \
+              --retry 1 \
+              --range "0-1048575" \
+              -- "$url") || http="000"
 
-            http=$(curl-impersonate-ff -sSL -o /dev/null -w "%{http_code}" --max-time 10 -r "0-0" -- "$url" 2>&1) || http="000"
-            [[ "$http" == 2* ]]
+            [[ "$http" == "200" || "$http" == "206" ]]
           }
 
           isIgnoredDomain() {
