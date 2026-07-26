@@ -748,9 +748,7 @@ setMachine() {
     "winvistax86"* | "win7x86"* )
 
       # Fix boot loop issue on AMD EPYC processors
-      if [ -z "${CPU_MODEL:-}" ] && [[ "${id,,}" == *"x86"* ]]; then
-        CPU_MODEL="qemu32"
-      fi ;;
+      [ -z "${CPU_MODEL:-}" ] && CPU_MODEL="qemu32" ;;
 
   esac
 
