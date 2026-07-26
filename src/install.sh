@@ -750,6 +750,14 @@ setMachine() {
     "winvista"* | "win7"* | "win2008"* )
       BOOT_MODE="windows_legacy" ;;
 
+    "reactos" )
+      VGA="cirrus"
+      MACHINE="pc"
+      USB="pci-ohci"
+      DISK_TYPE="ide"
+      BOOT_MODE="windows_legacy"
+      [ -z "${ADAPTER:-}" ] && ADAPTER="rtl8139" ;;
+
   esac
 
   case "${id,,}" in
@@ -763,7 +771,8 @@ setMachine() {
 
   case "${id,,}" in
 
-    "winxp"* | "win2003"* | "winvistax86"* | "win7x86"* | "win2008r2x86"* )
+    "winxp"* | "win2003"* | "winvistax86"* | \
+    "win7x86"* | "win2008r2x86"* | "reactos")
 
       if isQ35 "${MACHINE:-q35}"; then
 
