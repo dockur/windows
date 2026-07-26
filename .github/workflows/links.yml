@@ -41,6 +41,10 @@ jobs:
           failed_links_html=""
           declare -A seen
 
+          ignored_domains=(
+            files.dog
+          )
+
           check() {
             local url="$1"
             local agent="Mozilla/5.0 (X11; Linux x86_64; rv:154.0) Gecko/20100101 Firefox/154.0"
@@ -123,6 +127,24 @@ jobs:
             return 1
           }
 
+          isIgnoredDomain() {
+            local url="$1"
+            local domain ignored
+
+            domain="${url#*://}"
+            domain="${domain%%/*}"
+            domain="${domain%%:*}"
+            domain="${domain,,}"
+
+            for ignored in "${ignored_domains[@]}"; do
+              if [[ "$domain" == "$ignored" || "$domain" == *."$ignored" ]]; then
+                return 0
+              fi
+            done
+
+            return 1
+          }
+
           while IFS= read -r line; do
             if [[ "$line" =~ ^[[:space:]]*local[[:space:]]+host=\"(https://[^\"]+)\" ]]; then
               host="${BASH_REMATCH[1]%/}"
@@ -142,6 +164,11 @@ jobs:
 
             [[ -v seen[$url] ]] && continue
             seen[$url]=1
+
+            if isIgnoredDomain "$url"; then
+              echo "SKIP: $url"
+              continue
+            fi
 
             tested=$((tested + 1))
 
