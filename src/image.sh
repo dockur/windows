@@ -1044,43 +1044,53 @@ EOC
 getBootLoadSize() {
 
   local iso="$1"
-  local desc="$2"
-  local boot_info value
+  local dir="$2"
+  local desc="$3"
+  local boot_info size value
 
-  if ! boot_info=$(isoinfo -d -i "$iso"); then
+  case "${DETECTED,,}" in
+    "win2k"* | "winxp"* | "win2003"* )
 
-    case "${DETECTED,,}" in
-      "win2k"* | "winxp"* | "win2003"* )
-        BOOT_LOAD_SIZE=4
-        return 0
-        ;;
-    esac
+      if [ ! -s "$dir/$ETFS" ]; then
+        error "Failed to locate file \"$ETFS\" in $desc ISO image!"
+        return 1
+      fi
 
-    error "Failed to read boot image information from $desc ISO!"
-    return 1
-  fi
+      if ! size=$(stat -c%s "$dir/$ETFS"); then
+        error "Failed to determine boot image size from $desc ISO!"
+        return 1
+      fi
 
-  value=$(awk '/Nsect / { print $NF; exit }' <<< "$boot_info")
+      if (( size < 512 || size % 512 != 0 )); then
+        error "Invalid boot image size found in $desc ISO!"
+        return 1
+      fi
 
-  if [ -z "$value" ]; then
+      BOOT_LOAD_SIZE=$((size / 512))
+      ;;
 
-    case "${DETECTED,,}" in
-      "win2k"* | "winxp"* | "win2003"* )
-        BOOT_LOAD_SIZE=4
-        return 0
-        ;;
-    esac
+    * )
 
-    error "Failed to determine boot image load size from $desc ISO!"
-    return 1
-  fi
+      if ! boot_info=$(isoinfo -d -i "$iso"); then
+        error "Failed to read boot image information from $desc ISO!"
+        return 1
+      fi
 
-  if [[ ! "$value" =~ ^[0-9]+$ ]] || [ "${#value}" -gt 5 ]; then
-    error "Invalid boot image load size found in $desc ISO!"
-    return 1
-  fi
+      value=$(awk '/Nsect / { print $NF; exit }' <<< "$boot_info")
 
-  BOOT_LOAD_SIZE=$((10#$value))
+      if [ -z "$value" ]; then
+        error "Failed to determine boot image load size from $desc ISO!"
+        return 1
+      fi
+
+      if [[ ! "$value" =~ ^[0-9]+$ ]] || [ "${#value}" -gt 5 ]; then
+        error "Invalid boot image load size found in $desc ISO!"
+        return 1
+      fi
+
+      BOOT_LOAD_SIZE=$((10#$value))
+      ;;
+  esac
 
   if (( BOOT_LOAD_SIZE < 1 || BOOT_LOAD_SIZE > 65535 )); then
     error "Invalid boot image load size found in $desc ISO!"
