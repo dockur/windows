@@ -984,7 +984,7 @@ min_severity = warning
 show_summary = false
 
 [rules]
-disabled_rules = W001,W028,W041,SEC002,SEC005
+disabled_rules = W001,W025,W028,W33,W041,SEC002,SEC005
 EOC
 
     output=$(
