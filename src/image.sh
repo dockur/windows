@@ -770,9 +770,7 @@ detectImage() {
 
   XML=""
 
-  resolveImage "$version" || :
-
-  if [ -n "$DETECTED" ]; then
+  if resolveImage "$version"; then
     setImage || return 1
     return 0
   fi
@@ -780,7 +778,7 @@ detectImage() {
   info "Detecting version from ISO image..."
 
   if detectLegacy "$dir"; then
-    desc=$(printEdition "$DETECTED" "$DETECTED" "Y")
+    desc=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 1
     info "Detected: $desc"
     return 0
   fi
