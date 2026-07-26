@@ -1191,15 +1191,14 @@ getBootLoadSize() {
 
   local iso="$1"
   local desc="$2"
-  local value
+  local boot_info value
 
-  value=$(
-    isoinfo -d -i "$iso" |
-      awk '/Nsect / { print $NF; exit }'
-  ) || {
+  if ! boot_info=$(isoinfo -d -i "$iso"); then
     error "Failed to read boot image information from $desc ISO!"
     return 1
-  }
+  fi
+
+  value=$(awk '/Nsect / { print $NF; exit }' <<< "$boot_info")
 
   if [ -z "$value" ]; then
     error "Failed to determine boot image load size from $desc ISO!"
