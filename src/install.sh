@@ -733,8 +733,8 @@ setMachine() {
       BOOT_MODE="windows_legacy"
       [ -z "${ADAPTER:-}" ] && ADAPTER="rtl8139" ;;
 
-    "winxp"* )
-      DISK_TYPE="blk"
+    "winxpx86"* )
+      DISK_TYPE="ide"
       BOOT_MODE="windows_legacy"
       [ -z "${SOUND:-}" ] && SOUND="usb-audio"
 
@@ -745,7 +745,7 @@ setMachine() {
         fi
       fi ;;
 
-    "win2003"* )
+    "win2003"* | "winxpx64"* )
       DISK_TYPE="blk"
       BOOT_MODE="windows_legacy"
       [ -z "${SOUND:-}" ] && SOUND="usb-audio" ;;
