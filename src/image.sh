@@ -636,8 +636,6 @@ detectReactOS() {
   [ -s "$marker" ] || return 1
 
   DETECTED="reactos"
-  PASSTHROUGH="Y"
-
   return 0
 }
 
