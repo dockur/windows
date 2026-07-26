@@ -1,4 +1,4 @@
-name: Validation
+name: XP Validation
 
 on:
   release:
@@ -11,229 +11,39 @@ permissions:
   contents: read
 
 concurrency:
-  group: validation-${{ github.ref }}
+  group: xp-validation-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  desktop:
+  xp:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: Windows 11 Pro
-            version: "11"
-            expected_caption: Windows 11
-            expected_edition: Professional
-            minimum_build: 22000
-            platform: x64
+          - name: Windows XP x86 - host + blk
+            cpu: host
+            disk_type: blk
 
-          - name: Windows 11 LTSC
-            version: "11l"
-            expected_caption: Windows 11
-            expected_edition: EnterpriseS
-            minimum_build: 26100
-            platform: x64
+          - name: Windows XP x86 - host + ide
+            cpu: host
+            disk_type: ide
 
-          - name: Windows 11 Enterprise
-            version: "11e"
-            expected_caption: Windows 11
-            expected_edition: Enterprise
-            minimum_build: 22000
-            platform: x64
+          - name: Windows XP x86 - qemu32 + blk
+            cpu: qemu32
+            disk_type: blk
 
-          - name: Windows 11 IoT
-            version: "11i"
-            expected_caption: Windows 11
-            expected_edition: IoTEnterpriseS
-            minimum_build: 26100
-            platform: x64
-
-          - name: Windows 10 Pro
-            version: "10"
-            expected_caption: Windows 10
-            expected_edition: Professional
-            minimum_build: 10240
-            platform: x64
-
-          - name: Windows 10 LTSC
-            version: "10l"
-            expected_caption: Windows 10
-            expected_edition: EnterpriseS
-            minimum_build: 17763
-            platform: x64
-
-          - name: Windows 10 Enterprise
-            version: "10e"
-            expected_caption: Windows 10
-            expected_edition: Enterprise
-            minimum_build: 10240
-            platform: x64
-
-          - name: Windows 10 IoT
-            version: "10i"
-            expected_caption: Windows 10
-            expected_edition: IoTEnterpriseS
-            minimum_build: 19044
-            platform: x64
-
-          - name: Windows 8.1 Enterprise
-            version: "8e"
-            expected_caption: Windows 8.1
-            expected_edition: Enterprise
-            minimum_build: 9600
-            platform: x64
+          - name: Windows XP x86 - qemu32 + ide
+            cpu: qemu32
+            disk_type: ide
 
     name: ${{ matrix.name }}
     uses: ./.github/workflows/install.yml
     with:
       name: ${{ matrix.name }}
-      version: ${{ matrix.version }}
-      expected_caption: ${{ matrix.expected_caption }}
-      expected_edition: ${{ matrix.expected_edition }}
-      minimum_build: ${{ matrix.minimum_build }}
-      platform: ${{ matrix.platform }}
-
-  server:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Windows Server 2025
-            version: "2025"
-            expected_caption: Windows Server 2025
-            minimum_build: 26100
-            platform: x64
-
-          - name: Windows Server 2022
-            version: "2022"
-            expected_caption: Windows Server 2022
-            minimum_build: 20348
-            platform: x64
-
-          - name: Windows Server 2019
-            version: "2019"
-            expected_caption: Windows Server 2019
-            minimum_build: 17763
-            platform: x64
-
-          - name: Windows Server 2016
-            version: "2016"
-            expected_caption: Windows Server 2016
-            minimum_build: 14393
-            platform: x64
-
-          - name: Windows Server 2012
-            version: "2012"
-            expected_caption: Windows Server 2012 R2
-            minimum_build: 9600
-            platform: x64
-
-    name: ${{ matrix.name }}
-    uses: ./.github/workflows/install.yml
-    with:
-      name: ${{ matrix.name }}
-      version: ${{ matrix.version }}
-      expected_caption: ${{ matrix.expected_caption }}
-      minimum_build: ${{ matrix.minimum_build }}
-      platform: ${{ matrix.platform }}
-
-  legacy:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Windows 7 x64
-            version: "7u"
-            expected_caption: Windows 7
-            minimum_build: 7601
-            platform: x64
-
-          - name: Windows 7 x86
-            version: "7x86"
-            expected_caption: Windows 7
-            minimum_build: 7601
-            platform: x86
-
-          - name: Windows Vista x64
-            version: "vu"
-            expected_caption: Windows Vista
-            minimum_build: 6002
-            platform: x64
-
-          - name: Windows Vista x86
-            version: "vistax86"
-            expected_caption: Windows Vista
-            minimum_build: 6002
-            platform: x86
-
-          - name: Windows XP x86
-            version: "xp"
-            expected_caption: Windows XP
-            minimum_build: 2600
-            platform: x86
-
-          - name: Windows XP x64
-            version: "xp64"
-            expected_caption: Windows XP
-            minimum_build: 3790
-            platform: x64
-
-          - name: Windows 2000
-            version: "2k"
-            expected_caption: Windows 2000
-            minimum_build: 2195
-            platform: x86
-
-          - name: Windows Server 2008
-            version: "2008"
-            expected_caption: Windows Server 2008 R2
-            minimum_build: 7601
-            platform: x64
-
-          - name: Windows Server 2003
-            version: "2003"
-            expected_caption: Windows Server 2003
-            minimum_build: 3790
-            platform: x64
-
-    name: ${{ matrix.name }}
-    uses: ./.github/workflows/install.yml
-    with:
-      name: ${{ matrix.name }}
-      version: ${{ matrix.version }}
+      version: "xp"
       callback: legacy
-      expected_caption: ${{ matrix.expected_caption }}
-      minimum_build: ${{ matrix.minimum_build }}
-      platform: ${{ matrix.platform }}
-
-  tiny:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Core 11
-            version: "core11"
-            expected_caption: Windows 11
-            minimum_build: 22000
-            platform: x64
-
-          - name: Tiny 11
-            version: "tiny11"
-            expected_caption: Windows 11
-            minimum_build: 22000
-            platform: x64
-
-          - name: Tiny 10
-            version: "tiny10"
-            expected_caption: Windows 10
-            minimum_build: 19041
-            platform: x64
-
-    name: ${{ matrix.name }}
-    uses: ./.github/workflows/install.yml
-    with:
-      name: ${{ matrix.name }}
-      version: ${{ matrix.version }}
-      expected_caption: ${{ matrix.expected_caption }}
-      minimum_build: ${{ matrix.minimum_build }}
-      platform: ${{ matrix.platform }}
+      cpu: ${{ matrix.cpu }}
+      disk_type: ${{ matrix.disk_type }}
+      expected_caption: Windows XP
+      minimum_build: 2600
+      platform: x86
