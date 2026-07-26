@@ -34,7 +34,13 @@ on:
       cpu:
         description: CPU model exposed to Windows
         required: false
-        default: host
+        default: ""
+        type: string
+
+      disk_type:
+        description: Disk controller type exposed to Windows
+        required: false
+        default: ""
         type: string
 
       expected_caption:
@@ -470,6 +476,7 @@ jobs:
         shell: bash
         env:
           CPU: ${{ inputs.cpu }}
+          DISK_TYPE: ${{ inputs.disk_type }}
           EXPECTED_TOKEN: ${{ steps.test.outputs.token }}
           EXPECTED_CAPTION: ${{ inputs.expected_caption }}
           EXPECTED_EDITION: ${{ inputs.expected_edition }}
@@ -491,6 +498,7 @@ jobs:
             --env "CPU_CORES=half" \
             --env "DISK_SIZE=64G" \
             --env "CPU_MODEL=$CPU" \
+            --env "DISK_TYPE=$DISK_TYPE" \
             --env "LOG=Y" \
             --env "DEBUG=Y" \
             --volume "$RUNNER_TEMP/data:/shared" \
