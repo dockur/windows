@@ -1293,6 +1293,13 @@ extractBootImage() {
 
   rm -rf "$tmp" || true
 
+  local boot_info
+
+  if ! boot_info=$(isoinfo -d -i "$iso"); then
+    error "Failed to read boot image information from $desc ISO!"
+    return 1
+  fi
+
   offset=$(awk '/Bootoff / { print $NF; exit }' <<< "$boot_info")
 
   if [ -z "$offset" ]; then
