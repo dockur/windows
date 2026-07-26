@@ -490,6 +490,7 @@ jobs:
             --env "RAM_SIZE=half" \
             --env "CPU_CORES=half" \
             --env "DISK_SIZE=64G" \
+            --env "CPU_MODEL=$CPU" \
             --env "LOG=Y" \
             --env "DEBUG=Y" \
             --volume "$RUNNER_TEMP/data:/shared" \
