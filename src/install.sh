@@ -796,46 +796,6 @@ prepareImage() {
   return 1
 }
 
-normalizeBatch() {
-
-  local file="$1"
-  local bom tmp encoding
-
-  [ ! -f "$file" ] && return 0
-  [ ! -s "$file" ] && return 0
-
-  bom=$(od -An -N2 -tx1 "$file" | tr -d ' \n') || return 1
-
-  case "$bom" in
-    "fffe" ) encoding="UTF-16LE" ;;
-    "feff" ) encoding="UTF-16BE" ;;
-    * ) return 0 ;;
-  esac
-
-  if ! tmp=$(mktemp "${file}.XXXXXX"); then
-    error "Failed to create temporary batch file!"
-    return 1
-  fi
-
-  if ! tail -c +3 "$file" |
-      iconv -f "$encoding" -t UTF-8 > "$tmp"; then
-
-    rm -f "$tmp"
-    error "Failed to convert $file from $encoding to UTF-8!"
-    return 1
-  fi
-
-  if ! chmod --reference="$file" "$tmp" ||
-    ! mv -f "$tmp" "$file"; then
-
-    rm -f "$tmp"
-    error "Failed to replace batch file: $file"
-    return 1
-  fi
-
-  return 0
-}
-
 addFolder() {
 
   local src="$1"
@@ -860,7 +820,7 @@ addFolder() {
 
   file=$(find "$dest" -maxdepth 1 -type f -iname install.bat -print -quit) || return 1
 
-  if [ -n "$file" ]; then
+  if [ -s "$file" ]; then
     normalizeBatch "$file" || return 1
   fi
 
@@ -876,7 +836,7 @@ addFolder() {
 
   fi
 
-  if [ -f "$file" ]; then
+  if [ -s "$file" ]; then
 
     if ! unix2dos -q "$file"; then
       error "Failed to convert $file to DOS format!"
