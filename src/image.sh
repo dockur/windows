@@ -220,6 +220,21 @@ getVersions() {
       continue
     fi
 
+    local evaluation=""
+
+    if [[ "${image,,}" == *"evaluation"* ||
+      "${display,,}" == *"evaluation"* ||
+      "${product,,}" == *"evaluation"* ||
+      "${edition_id,,}" == *"eval"* ||
+      "${flags,,}" == *"eval"* ]]; then
+      evaluation="-eval"
+    fi
+
+    if [ -n "$evaluation" ] &&
+      [[ "${candidate_id,,}" != *"-eval" ]]; then
+      candidate_id+="$evaluation"
+    fi
+
     local key="${candidate_id,,}"
 
     # Some client media use the same friendly name-derived ID for distinct
@@ -246,7 +261,7 @@ getVersions() {
       esac
 
       if [ -n "$structured" ]; then
-        candidate_id="$candidate_base-$structured"
+        candidate_id="$candidate_base-$structured$evaluation"
         key="${candidate_id,,}"
       fi
     fi
