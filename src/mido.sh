@@ -841,11 +841,13 @@ getESD() {
 
 isCompressed() {
 
-  local file="$1"
+  local url="${1%%\?*}"
 
-  case "${file,,}" in
-    *".7z" | *".zip" | *".rar" | *".lzma" | *".bz" | *".bz2" )
-      return 0 ;;
+  case "${url,,}" in
+    *.7z | *.zip | *.rar | *.tar | *.cab | *.cpio | \
+    *.lzh | *.lha | *.xar | */latest-x86-gcc-lin-rel )
+      return 0
+      ;;
   esac
 
   return 1
