@@ -156,29 +156,29 @@ jobs:
 
           $ErrorActionPreference = "Stop"
 
-          $windows = Get-CimInstance Win32_OperatingSystem
-          $registry = Get-ItemProperty `
-              "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
-
-          $platform = switch (
-              $env:PROCESSOR_ARCHITECTURE.ToUpperInvariant()
-          ) {
-              "AMD64" {
-                  "x64"
-              }
-              "ARM64" {
-                  "arm64"
-              }
-              "X86" {
-                  "x86"
-              }
-              default {
-                  $env:PROCESSOR_ARCHITECTURE.ToLowerInvariant()
-              }
-          }
-
           while ($true) {
               try {
+                  $windows = Get-CimInstance Win32_OperatingSystem
+                  $registry = Get-ItemProperty `
+                      "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
+
+                  $platform = switch (
+                      $env:PROCESSOR_ARCHITECTURE.ToUpperInvariant()
+                  ) {
+                      "AMD64" {
+                          "x64"
+                      }
+                      "ARM64" {
+                          "arm64"
+                      }
+                      "X86" {
+                          "x86"
+                      }
+                      default {
+                          $env:PROCESSOR_ARCHITECTURE.ToLowerInvariant()
+                      }
+                  }
+
                   $share = (
                       Get-Content `
                           -LiteralPath "\\host.lan\Data\readme.txt" `
@@ -214,6 +214,7 @@ jobs:
                   break
               }
               catch {
+                  Write-Output "$(Get-Date -Format s) - Callback retry: $($_.Exception.Message)"
                   Start-Sleep -Seconds 10
               }
           }
@@ -390,6 +391,13 @@ jobs:
 
             If Err.Number = 0 Then
               success = True
+            Else
+              WScript.Echo _
+                Now & _
+                " - Callback retry: 0x" & _
+                Hex(Err.Number) & _
+                " - " & _
+                Err.Description
             End If
 
             Err.Clear
@@ -446,6 +454,7 @@ jobs:
             --env "RAM_SIZE=half" \
             --env "CPU_CORES=half" \
             --env "CPU_MODEL=$CPU" \
+            --env "LOG=Y" \
             --env "DISK_SIZE=64G" \
             --volume "$RUNNER_TEMP/data:/shared" \
             --volume "$RUNNER_TEMP/oem:/oem:ro" \
@@ -462,10 +471,36 @@ jobs:
             "$CONTAINER" &
 
           logs_pid="$!"
+          guest_log="$RUNNER_TEMP/data/install.log"
+
+          (
+            offset=0
+            snapshot="$RUNNER_TEMP/install-log.snapshot"
+
+            while true; do
+              if cp "$guest_log" "$snapshot" 2>/dev/null; then
+                size="$(stat -c %s "$snapshot" 2>/dev/null || echo 0)"
+
+                if (( size < offset )); then
+                  offset=0
+                fi
+
+                if (( size > offset )); then
+                  tail -c "+$((offset + 1))" "$snapshot" 2>/dev/null |
+                    sed -u 's/^/[install.bat] /' || true
+                  offset="$size"
+                fi
+              fi
+
+              sleep 2
+            done
+          ) &
+
+          guest_logs_pid="$!"
 
           stop_logs() {
-            kill "$logs_pid" 2>/dev/null || true
-            wait "$logs_pid" 2>/dev/null || true
+            kill "$logs_pid" "$guest_logs_pid" 2>/dev/null || true
+            wait "$logs_pid" "$guest_logs_pid" 2>/dev/null || true
           }
 
           trap stop_logs EXIT
