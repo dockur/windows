@@ -186,7 +186,7 @@ jobs:
 
           - name: Windows 7 Ultimate x86
             version: "7x86"
-            cpu: qemu32
+            disk_mode: ide
             expected_caption: Windows 7
             minimum_build: 7601
             platform: x86
@@ -200,7 +200,7 @@ jobs:
 
           - name: Windows Vista Ultimate x86
             version: "vistax86"
-            cpu: qemu32
+            disk_mode: ide
             expected_caption: Windows Vista
             minimum_build: 6002
             platform: x86
