@@ -761,6 +761,7 @@ setMachine() {
     "reactos" )
       VGA="cirrus"
       MACHINE="pc"
+      REMOVE="N"
       REBUILD="N"
       USB="pci-ohci"
       DISK_TYPE="auto"
