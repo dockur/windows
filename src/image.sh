@@ -627,13 +627,12 @@ detectLegacy() {
 detectReactOS() {
 
   local dir="$1"
-  local root marker
+  local marker
 
-  root=$(find "$dir" -maxdepth 1 -type d -iname reactos -print -quit)
-  [ -d "$root" ] || return 1
+  marker=$(find "$dir" -maxdepth 2 -type f \
+    -ipath '*/reactos/reactos.inf' -print -quit) || return 1
 
-  marker=$(find "$root" -maxdepth 1 -type f -iname reactos.inf -print -quit)
-  [ -s "$marker" ] || return 1
+  [ -n "$marker" ] || return 1
 
   DETECTED="reactos"
   return 0
