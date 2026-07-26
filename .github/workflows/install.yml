@@ -431,6 +431,7 @@ jobs:
             --cap-add NET_ADMIN \
             --stop-timeout 120 \
             --env "VERSION=$VERSION" \
+            --env "DEBUG=Y" \
             --env "RAM_SIZE=half" \
             --env "CPU_CORES=half" \
             --env "CPU_MODEL=$CPU" \
