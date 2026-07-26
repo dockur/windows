@@ -64,17 +64,9 @@ legacyBootReady() {
   last="${line#*:}"
   recent=$(tail -n +"${line%%:*}" "$QEMU_PTY")
 
-  # ReactOS LiveCD
-  if [[ "${last,,}" == "${cdrom,,}"* ]]; then
-    grep -Fq "Launching rosload.exe..." <<< "$recent" && return 0
-    return 1
-  fi
-
   [[ "${last,,}" != "${hard,,}"* ]] && return 1
 
-  # Installed ReactOS
   grep -Fq "Loading FreeLoader..." <<< "$recent" && return 0
-
   grep -Fq "No bootable device." <<< "$recent" && return 1
   grep -Fq "BOOTMGR is missing" <<< "$recent" && return 1
   grep -Fq "Boot failed: not a bootable disk" <<< "$recent" && return 1
@@ -174,7 +166,11 @@ abortDuringSetup() {
 
   local code="$1"
 
-  info "Cannot send ACPI signal during $(app) setup, aborting..."
+  if [[ "${DETECTED,,}" != "reactos" ]] || [ -n "${CUSTOM:-}" ]; then
+    info "Cannot send ACPI signal during $(app) setup, aborting..."
+  else
+    info "ReactOS LiveCD does not support ACPI shutdown, terminating..."
+  fi
 
   terminateQemu
 
