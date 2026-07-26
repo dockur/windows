@@ -186,6 +186,7 @@ jobs:
 
           - name: Windows 7 Ultimate x86
             version: "7x86"
+            cpu: host
             disk_mode: ide
             expected_caption: Windows 7
             minimum_build: 7601
@@ -200,6 +201,7 @@ jobs:
 
           - name: Windows Vista Ultimate x86
             version: "vistax86"
+            cpu: host
             disk_mode: ide
             expected_caption: Windows Vista
             minimum_build: 6002
