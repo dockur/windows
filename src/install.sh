@@ -733,19 +733,7 @@ setMachine() {
       BOOT_MODE="windows_legacy"
       [ -z "${ADAPTER:-}" ] && ADAPTER="rtl8139" ;;
 
-    "winxp"* )
-      DISK_TYPE="blk"
-      BOOT_MODE="windows_legacy"
-      [ -z "${SOUND:-}" ] && SOUND="usb-audio"
-
-      if [ -z "${CPU_MODEL:-}" ] || [[ "${CPU_MODEL:-}" == "host" ]]; then
-        # Workaround for boot loop on AMD EPYC processors
-        if [[ "${id,,}" == "winxpx86"* && "${CPU,,}" == *"amd epyc"* ]]; then
-          CPU_MODEL="qemu32"
-        fi
-      fi ;;
-
-    "win2003"* )
+    "winxp"* | "win2003"* )
       DISK_TYPE="blk"
       BOOT_MODE="windows_legacy"
       [ -z "${SOUND:-}" ] && SOUND="usb-audio" ;;
@@ -757,11 +745,22 @@ setMachine() {
 
   case "${id,,}" in
 
+    "winvistax86"* | "win7x86"* )
+
+      # Fix boot loop issue on AMD EPYC processors
+      [ -z "${CPU_MODEL:-}" ] && CPU_MODEL="qemu32" ;;
+
+  esac
+
+  case "${id,,}" in
+
     "winxp"* | "win2003"* | "winvistax86"* | "win7x86"* | "win2008r2x86"* )
 
       if isQ35 "${MACHINE:-q35}"; then
+
         # Prevent bluescreen if 64 bit PCI hole size is >2G.
         ARGS="-global q35-pcihost.x-pci-hole64-fix=false"
+
       fi ;;
 
   esac
