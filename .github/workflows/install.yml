@@ -146,6 +146,26 @@ jobs:
 
           printf '%s\n' "$token" > "$RUNNER_TEMP/data/readme.txt"
 
+          cat > "$RUNNER_TEMP/oem/sync-log.bat" <<'BATCH'
+          @echo off
+          setlocal
+
+          :sync
+          if exist C:\OEM\install.log (
+            copy /Y C:\OEM\install.log \\host.lan\Data\install.tmp >nul 2>&1
+
+            if not errorlevel 1 (
+              move /Y \\host.lan\Data\install.tmp \\host.lan\Data\install.log >nul 2>&1
+            )
+          )
+
+          if /I "%~1"=="once" exit /B
+          if exist C:\OEM\install.done exit /B
+
+          ping 127.0.0.1 -n 6 >nul
+          goto sync
+          BATCH
+
           case "$CALLBACK" in
             powershell)
               cat > "$RUNNER_TEMP/oem/ready.ps1" <<'POWERSHELL'
@@ -156,29 +176,29 @@ jobs:
 
           $ErrorActionPreference = "Stop"
 
-          $windows = Get-CimInstance Win32_OperatingSystem
-          $registry = Get-ItemProperty `
-              "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
-
-          $platform = switch (
-              $env:PROCESSOR_ARCHITECTURE.ToUpperInvariant()
-          ) {
-              "AMD64" {
-                  "x64"
-              }
-              "ARM64" {
-                  "arm64"
-              }
-              "X86" {
-                  "x86"
-              }
-              default {
-                  $env:PROCESSOR_ARCHITECTURE.ToLowerInvariant()
-              }
-          }
-
           while ($true) {
               try {
+                  $windows = Get-CimInstance Win32_OperatingSystem
+                  $registry = Get-ItemProperty `
+                      "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
+
+                  $platform = switch (
+                      $env:PROCESSOR_ARCHITECTURE.ToUpperInvariant()
+                  ) {
+                      "AMD64" {
+                          "x64"
+                      }
+                      "ARM64" {
+                          "arm64"
+                      }
+                      "X86" {
+                          "x86"
+                      }
+                      default {
+                          $env:PROCESSOR_ARCHITECTURE.ToLowerInvariant()
+                      }
+                  }
+
                   $share = (
                       Get-Content `
                           -LiteralPath "\\host.lan\Data\readme.txt" `
@@ -214,6 +234,7 @@ jobs:
                   break
               }
               catch {
+                  Write-Output "$(Get-Date -Format s) - Callback retry: $($_.Exception.Message)"
                   Start-Sleep -Seconds 10
               }
           }
@@ -221,9 +242,17 @@ jobs:
 
               cat > "$RUNNER_TEMP/oem/install.bat" <<EOF
           @echo off
+          del /Q C:\OEM\install.done 2>nul
+          start "" /B cmd.exe /C C:\OEM\sync-log.bat
+
           powershell.exe -NoProfile -ExecutionPolicy Bypass ^
             -File C:\OEM\ready.ps1 ^
             -Token "$token"
+
+          set "result=%errorlevel%"
+          type nul > C:\OEM\install.done
+          call C:\OEM\sync-log.bat once
+          exit /B %result%
           EOF
               ;;
 
@@ -390,6 +419,13 @@ jobs:
 
             If Err.Number = 0 Then
               success = True
+            Else
+              WScript.Echo _
+                Now & _
+                " - Callback retry: 0x" & _
+                Hex(Err.Number) & _
+                " - " & _
+                Err.Description
             End If
 
             Err.Clear
@@ -405,7 +441,15 @@ jobs:
 
               cat > "$RUNNER_TEMP/oem/install.bat" <<EOF
           @echo off
+          del /Q C:\OEM\install.done 2>nul
+          start "" /B cmd.exe /C C:\OEM\sync-log.bat
+
           cscript.exe //B //NoLogo C:\OEM\ready.vbs "$token"
+
+          set "result=%errorlevel%"
+          type nul > C:\OEM\install.done
+          call C:\OEM\sync-log.bat once
+          exit /B %result%
           EOF
               ;;
           esac
@@ -446,6 +490,7 @@ jobs:
             --env "RAM_SIZE=half" \
             --env "CPU_CORES=half" \
             --env "CPU_MODEL=$CPU" \
+            --env "LOG=Y" \
             --env "DISK_SIZE=64G" \
             --volume "$RUNNER_TEMP/data:/shared" \
             --volume "$RUNNER_TEMP/oem:/oem:ro" \
@@ -462,10 +507,36 @@ jobs:
             "$CONTAINER" &
 
           logs_pid="$!"
+          guest_log="$RUNNER_TEMP/data/install.log"
+
+          (
+            offset=0
+            snapshot="$RUNNER_TEMP/install-log.snapshot"
+
+            while true; do
+              if cp "$guest_log" "$snapshot" 2>/dev/null; then
+                size="$(stat -c %s "$snapshot" 2>/dev/null || echo 0)"
+
+                if (( size < offset )); then
+                  offset=0
+                fi
+
+                if (( size > offset )); then
+                  tail -c "+$((offset + 1))" "$snapshot" 2>/dev/null |
+                    sed -u 's/^/[install.bat] /' || true
+                  offset="$size"
+                fi
+              fi
+
+              sleep 2
+            done
+          ) &
+
+          guest_logs_pid="$!"
 
           stop_logs() {
-            kill "$logs_pid" 2>/dev/null || true
-            wait "$logs_pid" 2>/dev/null || true
+            kill "$logs_pid" "$guest_logs_pid" 2>/dev/null || true
+            wait "$logs_pid" "$guest_logs_pid" 2>/dev/null || true
           }
 
           trap stop_logs EXIT
