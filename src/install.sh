@@ -781,6 +781,12 @@ prepareImage() {
   setMachine "$DETECTED" "$iso" "$dir" "$desc" || return 1
 
   disabled "$REBUILD" && return 0
+
+  if [[ "${BOOT_MODE,,}" == "windows_legacy" &&
+    "${DETECTED,,}" != "win9"* ]]; then
+    getBootLoadSize "$iso" "$desc" || return 1
+  fi
+
   skipVersion "$DETECTED" && return 0
 
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
