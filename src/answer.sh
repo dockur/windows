@@ -402,6 +402,35 @@ updateDomain() {
   return 0
 }
 
+removeLocalAccountXML() {
+
+  local asset="$1"
+
+  if ! sed -i -E \
+    -e '/^[[:space:]]*<LocalAccounts([[:space:]>])/,/^[[:space:]]*<\/LocalAccounts>[[:space:]]*$/d' \
+    -e '/^[[:space:]]*<AdministratorPassword([[:space:]>])/,/^[[:space:]]*<\/AdministratorPassword>[[:space:]]*$/d' \
+    "$asset"; then
+
+    error "Failed to remove local account configuration from answer file!"
+    return 1
+  fi
+
+  if ! sed -i -E '
+    /<SynchronousCommand([[:space:]>])/ {
+      :command
+      N
+      /<\/SynchronousCommand>/!b command
+      /<Description>Password Never Expires<\/Description>/d
+    }
+  ' "$asset"; then
+
+    error "Failed to remove local account commands from answer file!"
+    return 1
+  fi
+
+  return 0
+}
+
 enableLog() {
 
   local file="$1"
@@ -810,25 +839,7 @@ updateXML() {
     if updateDomain "$asset" "$domain" "$user" \
       "$auth_user" "$PASSWORD" "$DOMAIN_OU"; then
 
-      if ! sed -i -E \
-        -e '/^[[:space:]]*<LocalAccounts([[:space:]>])/,/^[[:space:]]*<\/LocalAccounts>[[:space:]]*$/d' \
-        -e '/^[[:space:]]*<AdministratorPassword([[:space:]>])/,/^[[:space:]]*<\/AdministratorPassword>[[:space:]]*$/d' \
-        "$asset"; then
-        error "Failed to remove local account configuration from answer file!"
-        return 1
-      fi
-
-      if ! sed -i -E '
-        /<SynchronousCommand([[:space:]>])/ {
-          :command
-          N
-          /<\/SynchronousCommand>/!b command
-          /<Description>Password Never Expires<\/Description>/d
-        }
-      ' "$asset"; then
-        error "Failed to remove local account commands from answer file!"
-        return 1
-      fi
+      removeLocalAccountXML "$asset" || return 1
 
     else
       warn "failed to add domain configuration to answer file!"
