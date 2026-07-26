@@ -733,12 +733,7 @@ setMachine() {
       BOOT_MODE="windows_legacy"
       [ -z "${ADAPTER:-}" ] && ADAPTER="rtl8139" ;;
 
-    "winxpx86"* )
-      DISK_TYPE="ide"
-      BOOT_MODE="windows_legacy"
-      [ -z "${SOUND:-}" ] && SOUND="usb-audio" ;;
-
-    "win2003"* | "winxpx64"* )
+    "winxp"* | "win2003"* )
       DISK_TYPE="blk"
       BOOT_MODE="windows_legacy"
       [ -z "${SOUND:-}" ] && SOUND="usb-audio" ;;
@@ -750,14 +745,18 @@ setMachine() {
 
   case "${id,,}" in
 
+    "winvistax86"* | "win7x86"* )
+
+      # Fix boot loop issue on AMD EPYC processors
+      [ -z "${CPU_MODEL:-}" ] && CPU_MODEL="qemu32" ;;
+
+  esac
+
+  case "${id,,}" in
+
     "winxp"* | "win2003"* | "winvistax86"* | "win7x86"* | "win2008r2x86"* )
 
       if isQ35 "${MACHINE:-q35}"; then
-
-        # Fix instability on AMD EPYC processors
-        if [ -z "${CPU_MODEL:-}" ] && [[ "${id,,}" == *"x86"* ]]; then
-          CPU_MODEL="qemu32"
-        fi
 
         # Prevent bluescreen if 64 bit PCI hole size is >2G.
         ARGS="-global q35-pcihost.x-pci-hole64-fix=false"
