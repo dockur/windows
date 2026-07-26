@@ -24,64 +24,56 @@ jobs:
         with:
           fetch-depth: 0
       -
+        name: Install aria2
+        run: |
+          if ! command -v aria2c > /dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -qq --no-install-recommends -y aria2
+          fi
+      -
         name: Validate all download mirrors
         id: validate
         run: |
           errors=0
-          skipped=0
           tested=0
           host=""
           failed_links=""
           failed_links_html=""
           declare -A seen
 
-          ignored_domains=(
-            filexxs.dog
-            bobpoxxny.com
-          )
-
           check() {
             local url="$1"
-            local http rc
             local agent="Mozilla/5.0 (X11; Linux x86_64; rv:154.0) Gecko/20100101 Firefox/154.0"
+            local output rc
 
-            http=$(curl \
-              --silent \
-              --show-error \
-              --location \
-              --http1.1 \
-              --output >(head -c 1048576 > /dev/null) \
-              --write-out "%{http_code}" \
-              --connect-timeout 30 \
-              --max-time 60 \
-              --retry 1 \
-              --user-agent "$agent" \
-              -- "$url")
-            rc=$?
+            output=$(mktemp)
 
-            if [[ "$http" == "200" && ( "$rc" == "0" || "$rc" == "23" ) ]]; then
+            if aria2c \
+              --no-conf=true \
+              --dry-run=true \
+              --connect-timeout=30 \
+              --timeout=30 \
+              --max-tries=2 \
+              --retry-wait=2 \
+              --async-dns=false \
+              --follow-metalink=false \
+              --follow-torrent=false \
+              --user-agent="$agent" \
+              --console-log-level=error \
+              --summary-interval=0 \
+              --download-result=hide \
+              --show-console-readout=false \
+              --enable-color=false \
+              -- "$url" > "$output" 2>&1; then
+              rm -f -- "$output"
               return 0
+            else
+              rc=$?
             fi
 
-            echo "      HTTP status: ${http:-000}, curl exit status: $rc" >&2
-            return 1
-          }
-
-          isIgnoredDomain() {
-            local url="$1"
-            local domain ignored
-
-            domain="${url#*://}"
-            domain="${domain%%/*}"
-            domain="${domain%%:*}"
-            domain="${domain,,}"
-
-            for ignored in "${ignored_domains[@]}"; do
-              if [[ "$domain" == "$ignored" || "$domain" == *."$ignored" ]]; then
-                return 0
-              fi
-            done
-
+            sed 's/^/      /' "$output" >&2
+            echo "      aria2c exit status: $rc" >&2
+            rm -f -- "$output"
             return 1
           }
 
@@ -105,12 +97,6 @@ jobs:
             [[ -v seen[$url] ]] && continue
             seen[$url]=1
 
-            if isIgnoredDomain "$url"; then
-              echo "SKIP: $url (ignored domain)"
-              skipped=$((skipped + 1))
-              continue
-            fi
-
             tested=$((tested + 1))
 
             if check "$url"; then
@@ -125,10 +111,6 @@ jobs:
 
           echo ""
           printf '%d/%d tested links valid\n' "$((tested - errors))" "$tested"
-
-          if (( skipped > 0 )); then
-            printf '%d link(s) skipped for ignored domains\n' "$skipped"
-          fi
 
           if (( errors > 0 )); then
             printf '%d blocking failure(s)\n' "$errors"
