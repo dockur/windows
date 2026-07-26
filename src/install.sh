@@ -820,6 +820,10 @@ addFolder() {
 
   file=$(find "$dest" -maxdepth 1 -type f -iname install.bat -print -quit) || return 1
 
+  if [ -s "$file" ]; then
+    normalizeBatch "$file" || return 1
+  fi
+
   if [ -n "$COMMAND" ]; then
 
     [ -z "$file" ] && file="$dest/install.bat"
@@ -832,7 +836,7 @@ addFolder() {
 
   fi
 
-  if [ -f "$file" ]; then
+  if [ -s "$file" ]; then
 
     if ! unix2dos -q "$file"; then
       error "Failed to convert $file to DOS format!"

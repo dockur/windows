@@ -806,6 +806,42 @@ detectImage() {
   return 0
 }
 
+normalizeBatch() {
+
+  local file="$1"
+  local bom tmp encoding
+
+  [ ! -f "$file" ] && return 0
+  [ ! -s "$file" ] && return 0
+
+  bom=$(od -An -N2 -tx1 "$file" | tr -d ' \n') || return 1
+
+  case "$bom" in
+    "fffe" ) encoding="UTF-16LE" ;;
+    "feff" ) encoding="UTF-16BE" ;;
+    * ) return 0 ;;
+  esac
+
+  if ! tmp=$(mktemp "${file}.XXXXXX"); then
+    error "Failed to create temporary batch file!"
+    return 1
+  fi
+
+  if ! tail -c +3 "$file" | iconv -f "$encoding" -t UTF-8 > "$tmp"; then
+    rm -f "$tmp"
+    error "Failed to convert $file from $encoding to UTF-8!"
+    return 1
+  fi
+
+  if ! chmod --reference="$file" "$tmp" || ! mv -f "$tmp" "$file"; then
+    rm -f "$tmp"
+    error "Failed to replace batch file: $file"
+    return 1
+  fi
+
+  return 0
+}
+
 checkBatch() {
 
   local file="$1"
@@ -813,7 +849,7 @@ checkBatch() {
   local tmp output
   local matches line
 
-  [ ! -f "$file" ] && return 0
+  [ -s "$file" ] || return 0
 
   if ! tmp=$(mktemp -d /tmp/blinter.XXXXXX); then
     warn "failed to create temporary Blinter directory."
@@ -824,14 +860,20 @@ checkBatch() {
   [ -n "${COMMAND:-}" ] && source="your COMMAND variable"
 
   if enabled "$DEBUG"; then
+
     report="Y"
+
+    if LC_ALL=C grep -Pq '[^\x09\x0D\x20-\x7E]' "$file"; then
+      warn "non-ASCII characters were detected in $source and may not execute correctly in Windows Command Prompt."
+    fi
+
   else
 
     # First pass: silently check only for Error-level findings.
-    cat > "$tmp/blinter.ini" <<'EOF'
+    cat > "$tmp/blinter.ini" <<'EOC'
 [general]
 min_severity = error
-EOF
+EOC
 
     if ! (
       cd "$tmp"
@@ -846,14 +888,14 @@ EOF
 
     # Show useful diagnostic context, while excluding findings that are
     # irrelevant to unattended OEM scripts.
-    cat > "$tmp/blinter.ini" <<'EOF'
+    cat > "$tmp/blinter.ini" <<'EOC'
 [general]
 min_severity = warning
 show_summary = false
 
 [rules]
 disabled_rules = W001,W028,W041,SEC002,SEC005
-EOF
+EOC
 
     output=$(
       cd "$tmp"
