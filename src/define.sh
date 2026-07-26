@@ -1311,6 +1311,35 @@ getLink3() {
   local url=""
   local sum=""
   local size=""
+  local host="https://iso.reactos.org"
+
+  [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
+
+  case "${id,,}" in
+    "reactos" )
+      size=35678345
+      sum="712a25ebececd1129ee03645b4dd63fd96b53de49367f61ea58ace1a1c89f926"
+      url="livecd/reactos-livecd-0.4.17-dev-541-gaf36fc6-x86-gcc-lin-rel.7z"
+      ;;
+  esac
+
+  case "${ret,,}" in
+    "sum" ) echo "$sum" ;;
+    "size" ) echo "$size" ;;
+    *) [ -n "$url" ] && echo "$host/$url";;
+  esac
+
+  return 0
+}
+
+getLink4() {
+
+  local id="$1"
+  local lang="$2"
+  local ret="$3"
+  local url=""
+  local sum=""
+  local size=""
   local host="https://archive.org/download"
 
   [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
@@ -1465,35 +1494,6 @@ getLink3() {
       size=3839819776
       sum="a11116c0645d892d6a5a7c585ecc1fa13aa66f8c7cc6b03bf1f27bd16860cc35"
       url="tiny-10-23-h2/tiny10%20x64%2023h2.iso"
-      ;;
-  esac
-
-  case "${ret,,}" in
-    "sum" ) echo "$sum" ;;
-    "size" ) echo "$size" ;;
-    *) [ -n "$url" ] && echo "$host/$url";;
-  esac
-
-  return 0
-}
-
-getLink4() {
-
-  local id="$1"
-  local lang="$2"
-  local ret="$3"
-  local url=""
-  local sum=""
-  local size=""
-  local host="https://iso.reactos.org"
-
-  [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
-
-  case "${id,,}" in
-    "reactos" )
-      size=35678345
-      sum="712a25ebececd1129ee03645b4dd63fd96b53de49367f61ea58ace1a1c89f926"
-      url="livecd/reactos-livecd-0.4.17-dev-541-gaf36fc6-x86-gcc-lin-rel.7z"
       ;;
   esac
 
