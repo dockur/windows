@@ -1060,88 +1060,77 @@ setLegacyKey() {
 
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini -print -quit) || return 1
 
-  if [ -n "$setup" ] && [ -z "$KEY" ]; then
+  [[ -n "$setup" ]] || return 0
+  [[ -z "$KEY" ]] || return 0
 
-    pid=$(<"$setup") || return 1
-    pid="${pid%$'\r'}"
+  pid=$(<"$setup") || return 1
+  pid="${pid%$'\r'}"
 
-    if [[ "$driver" == "2k" ]]; then
+  if [[ "$driver" == "2k" ]]; then
+    echo "${pid::-3}270" > "$setup" || return 1
+    return 0
+  fi
 
-      echo "${pid:0:$((${#pid})) - 3}270" > "$setup" || return 1
+  if [[ "$pid" == *"270" ]]; then
+    warn "this version of $desc requires a volume license key (VLK), it will ask for one during installation."
+    return 0
+  fi
 
+  file=$(find "$target" -maxdepth 1 -type f -iname PID.INF -print -quit) || return 1
+
+  if [[ -n "$file" ]]; then
+
+    if [[ "$driver" == "2k3" ]]; then
+      key=$(grep -i -A 2 "StagingKey" "$file" | tail -n 2 | head -n 1) || key=""
     else
 
-      if [[ "$pid" == *"270" ]]; then
+      key="${pid: -8:5}"
 
-        warn "this version of $desc requires a volume license key (VLK), it will ask for one during installation."
-
+      if [[ "${pid^^}" == *"OEM" ]]; then
+        key=$(grep -i -A 2 "$key" "$file" | tail -n 2 | head -n 1) || key=""
       else
-
-        file=$(find "$target" -maxdepth 1 -type f -iname PID.INF -print -quit) || return 1
-
-        if [ -n "$file" ]; then
-
-          if [[ "$driver" == "2k3" ]]; then
-
-            key=$(grep -i -A 2 "StagingKey" "$file" | tail -n 2 | head -n 1) || key=""
-
-          else
-
-            key="${pid:$((${#pid})) - 8:5}"
-
-            if [[ "${pid^^}" == *"OEM" ]]; then
-              key=$(grep -i -A 2 "$key" "$file" | tail -n 2 | head -n 1) || key=""
-            else
-              key=$(grep -i -m 1 -A 2 "$key" "$file" | tail -n 2 | head -n 1) || key=""
-            fi
-
-            key="${key#*= }"
-
-          fi
-
-          key="${key%$'\r'}"
-          [[ "${#key}" == "29" ]] && KEY="$key"
-
-        fi
-
-        if [ -z "$KEY" ]; then
-
-          # These are NOT pirated keys, they come from official MS documentation.
-
-          case "${driver,,}" in
-            "xp" )
-
-              if [[ "${arch,,}" == "x86" ]]; then
-                # Windows XP Professional x86 generic trial key (no activation)
-                KEY="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
-              else
-                # Windows XP Professional x64 generic trial key (no activation)
-                KEY="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
-              fi
-              ;;
-
-            "2k3" )
-
-              if [[ "${arch,,}" == "x86" ]]; then
-                # Windows Server 2003 Standard x86 generic trial key (no activation)
-                KEY="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
-              else
-                # Windows Server 2003 Standard x64 generic trial key (no activation)
-                KEY="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
-              fi
-              ;;
-
-          esac
-
-          echo "${pid:0:$((${#pid})) - 3}000" > "$setup" || return 1
-
-        fi
-
+        key=$(grep -i -m 1 -A 2 "$key" "$file" | tail -n 2 | head -n 1) || key=""
       fi
+
+      key="${key#*= }"
 
     fi
 
+    key="${key%$'\r'}"
+    [[ "${#key}" == "29" ]] && KEY="$key"
+
   fi
+
+  [[ -n "$KEY" ]] && return 0
+
+  # These are NOT pirated keys, they come from official MS documentation.
+
+  case "${driver,,}" in
+    "xp" )
+
+      if [[ "${arch,,}" == "x86" ]]; then
+        # Windows XP Professional x86 generic trial key (no activation)
+        KEY="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
+      else
+        # Windows XP Professional x64 generic trial key (no activation)
+        KEY="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
+      fi
+      ;;
+
+    "2k3" )
+
+      if [[ "${arch,,}" == "x86" ]]; then
+        # Windows Server 2003 Standard x86 generic trial key (no activation)
+        KEY="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
+      else
+        # Windows Server 2003 Standard x64 generic trial key (no activation)
+        KEY="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
+      fi
+      ;;
+
+  esac
+
+  echo "${pid::-3}000" > "$setup" || return 1
 
   return 0
 }
