@@ -1493,7 +1493,7 @@ getLink4() {
     "reactos" )
       size=4320526336
       sum="d8333cf427eb3318ff6ab755eb1dd9d433f0e2ae43745312c1cd23e83ca1ce51"
-      url="/livecd/reactos-livecd-0.4.17-dev-541-gaf36fc6-x86-gcc-lin-rel.7z"
+      url="livecd/reactos-livecd-0.4.17-dev-541-gaf36fc6-x86-gcc-lin-rel.7z"
       ;;
   esac
 
