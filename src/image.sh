@@ -747,12 +747,17 @@ configureImage() {
   local msg="the answer file for $desc was not found ($DETECTED.xml)"
   local fallback="/run/assets/${DETECTED%%-*}.xml"
 
-  if setXML "$fallback" "$index" || enabled "$MANUAL"; then
-    ! enabled "$MANUAL" && warn "${msg}."
-  else
-    MANUAL="Y"
-    warn "${msg}, $FB."
+  if setXML "$fallback" "$index"; then
+    if ! enabled "$MANUAL"; then
+      warn "${msg}."
+    fi
+    return 0
   fi
+
+  enabled "$MANUAL" && return 0
+
+  MANUAL="Y"
+  warn "${msg}, $FB."
 
   return 0
 }
