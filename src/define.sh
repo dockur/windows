@@ -210,9 +210,6 @@ getSuggestedVersion() {
     "tiny10" )
       echo "win10x64-ltsc"
       ;;
-    "reactos" )
-      echo "$id"
-      ;;
     *"-enterprise-ltsc-eval" )
       echo "${id%-enterprise-ltsc-eval}-ltsc"
       ;;
