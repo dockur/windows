@@ -755,7 +755,7 @@ setMachine() {
       MACHINE="pc"
       REBUILD="N"
       USB="pci-ohci"
-      DISK_TYPE="ide"
+      DISK_TYPE="auto"
       BOOT_MODE="windows_legacy"
       [ -z "${ADAPTER:-}" ] && ADAPTER="rtl8139" ;;
 
