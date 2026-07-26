@@ -67,7 +67,7 @@ SERVER_EDITION_ORDER=(
   "-hv|hv|hv hv-*"
 )
 
-MIRRORS=4
+MIRRORS=5
 
 parseVersion() {
 
@@ -1333,6 +1333,35 @@ getLink3() {
 }
 
 getLink4() {
+
+  local id="$1"
+  local lang="$2"
+  local ret="$3"
+  local url=""
+  local sum=""
+  local size=""
+  local host="https://downloads.sourceforge.net"
+
+  [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
+
+  case "${id,,}" in
+    "reactos" )
+      size=35678345
+      sum="712a25ebececd1129ee03645b4dd63fd96b53de49367f61ea58ace1a1c89f926"
+      url="project/reactos/ReactOS/0.4.15/ReactOS-0.4.15-release-1-gdbb43bbaeb2-x86-live.zip"
+      ;;
+  esac
+
+  case "${ret,,}" in
+    "sum" ) echo "$sum" ;;
+    "size" ) echo "$size" ;;
+    *) [ -n "$url" ] && echo "$host/$url";;
+  esac
+
+  return 0
+}
+
+getLink5() {
 
   local id="$1"
   local lang="$2"
