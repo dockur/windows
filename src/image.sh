@@ -1097,9 +1097,9 @@ extractBootImage() {
   local desc="$3"
 
   local tmp="$TMP/boot-images"
-  local max_size=$((32 * 1024 * 1024))
   local rc size offset image=""
   local msg="using legacy extraction..."
+  local expected_size=$((BOOT_LOAD_SIZE * 512))
   local boot_info
   local -a images=()
 
@@ -1130,8 +1130,8 @@ extractBootImage() {
         warn "The extracted BIOS boot image is empty, $msg"
       elif ! size=$(stat -c%s "$image"); then
         warn "Failed to determine the BIOS boot image size, $msg"
-      elif (( size > max_size )); then
-        warn "The extracted BIOS boot image exceeds 32 MB, $msg"
+      elif (( size != expected_size )); then
+        enabled "$DEBUG" && warn "The extracted BIOS boot image has an unexpected size, $msg"
       else
         if ! mv -f "$image" "$dir/$ETFS"; then
           rm -rf "$tmp" || true
@@ -1162,8 +1162,6 @@ extractBootImage() {
 
   rm -rf "$tmp" || true
 
-  local boot_info
-
   if ! boot_info=$(isoinfo -d -i "$iso"); then
     error "Failed to read boot image information from $desc ISO!"
     return 1
@@ -1184,9 +1182,9 @@ extractBootImage() {
   if ! dd \
       "if=$iso" \
       "of=$dir/$ETFS" \
-      bs=2048 \
+      bs=512 \
       "count=$BOOT_LOAD_SIZE" \
-      "skip=$offset" \
+      "skip=$((offset * 4))" \
       status=none; then
     rm -f "$dir/$ETFS" || true
     error "Failed to extract boot image from $desc ISO!"
