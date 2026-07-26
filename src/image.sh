@@ -184,7 +184,7 @@ getVersions() {
   groups_ref=()
   indexes_ref=()
 
-  platform=$(getPlatform "$xml")
+  platform=$(getPlatform "$xml") || return 1
   count=$(xmllint --nonet --xpath 'count(/WIM/IMAGE)' - 2>/dev/null <<< "$xml") || return 0
 
   for ((i=1; i<=count; i++)); do
@@ -245,10 +245,10 @@ getVersions() {
 
       case "${candidate_base,,}" in
         "winvista"* | "win7"* | "win8"* | "win10"* | "win11"* )
-          structured=$(normalizeEditionID "${edition_id:-${flags:-}}" "$candidate_base")
+          structured=$(normalizeEditionID "${edition_id:-${flags:-}}" "$candidate_base") || return 1
           ;;
         "win20"* )
-          structured=$(normalizeServerEditionID "${flags:-$edition_id}")
+          structured=$(normalizeServerEditionID "${flags:-$edition_id}") || return 1
 
           # Some media use the same EDITIONID for Core and Desktop images.
           # INSTALLATIONTYPE provides the structural distinction without
@@ -342,7 +342,7 @@ selectEdition() {
   if [ -n "$EDITION" ]; then
 
     for base in "${edition_bases[@]}"; do
-      edition=$("$normalize_name" "$EDITION" "$base")
+      edition=$("$normalize_name" "$EDITION" "$base") || return 1
       preferred+=("$base${edition:+-$edition}")
     done
 
@@ -444,7 +444,7 @@ detectVersion() {
     versions \
     bases \
     groups \
-    image_indexes
+    image_indexes || return 1
 
   [ "${#versions[@]}" -eq 0 ] && return 0
 
@@ -762,13 +762,12 @@ describeImage() {
   local result_name="$3"
   local result
 
-  result=$(printEdition "$DETECTED" "$DETECTED" "Y")
-
-  detectLanguage "$info_xml" "$index"
+  result=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 1
+  detectLanguage "$info_xml" "$index" || return 1
 
   if [[ "${LANGUAGE,,}" != "en" && "${LANGUAGE,,}" != "en-"* ]]; then
     local language
-    language=$(getLanguage "$LANGUAGE" "desc")
+    language=$(getLanguage "$LANGUAGE" "desc") || return 1
     result+=" ($language)"
   fi
 
@@ -861,7 +860,6 @@ normalizeBatch() {
   local file="$1"
   local bom tmp encoding
 
-  [ ! -f "$file" ] && return 0
   [ ! -s "$file" ] && return 0
 
   bom=$(od -An -N2 -tx1 "$file" | tr -d ' \n') || return 1
@@ -888,6 +886,30 @@ normalizeBatch() {
     error "Failed to replace batch file: $file"
     return 1
   fi
+
+  return 0
+}
+
+reportBatchMatches() {
+
+  local file="$1"
+  local source="$2"
+  local pattern="$3"
+  local message="$4"
+  local suggestion="$5"
+  local matches line
+
+  matches=$(grep -Pin "$pattern" "$file" || true)
+
+  [ -n "$matches" ] || return 0
+
+  warn "$message in $source:"
+
+  while IFS= read -r line; do
+    printf '  %s\n' "$line" >&2
+  done <<< "$matches"
+
+  printf '  %s\n\n' "$suggestion" >&2
 
   return 0
 }
@@ -986,75 +1008,35 @@ EOC
 
   fi
 
-  rm -rf "$tmp"
+  rm -rf "$tmp" || true
 
-  matches=$(
-    grep -Pin \
-      '(?<!\\)\\host[.]lan[\\]' \
-      "$file" || true
-  )
+  reportBatchMatches \
+    "$file" \
+    "$source" \
+    '(?<!\\)\\host[.]lan[\\]' \
+    "invalid single-backslash UNC path detected" \
+    'Use "\\host.lan\Data\..." instead of "\host.lan\Data\...".'
 
-  if [ -n "$matches" ]; then
-    warn "invalid single-backslash UNC path detected in $source:"
+  reportBatchMatches \
+    "$file" \
+    "$source" \
+    '(?<![\\[:alnum:]._-])host[.]lan[\\]' \
+    "UNC path without leading backslashes detected" \
+    'Use "\\host.lan\Data\..." instead of "host.lan\Data\...".'
 
-    while IFS= read -r line; do
-      printf '  %s\n' "$line" >&2
-    done <<< "$matches"
+  reportBatchMatches \
+    "$file" \
+    "$source" \
+    '//host[.]lan/' \
+    "invalid forward-slash UNC path detected" \
+    'Use "\\host.lan\Data\..." instead of "//host.lan/Data/...".'
 
-    printf '%s\n\n' \
-      '  Use "\\host.lan\Data\..." instead of "\host.lan\Data\...".' >&2
-  fi
-
-  matches=$(
-    grep -Pin \
-      '(?<![\\[:alnum:]._-])host[.]lan[\\]' \
-      "$file" || true
-  )
-
-  if [ -n "$matches" ]; then
-    warn "UNC path without leading backslashes detected in $source:"
-
-    while IFS= read -r line; do
-      printf '  %s\n' "$line" >&2
-    done <<< "$matches"
-
-    printf '%s\n\n' \
-      '  Use "\\host.lan\Data\..." instead of "host.lan\Data\...".' >&2
-  fi
-
-  matches=$(
-    grep -Pin \
-      '//host[.]lan/' \
-      "$file" || true
-  )
-
-  if [ -n "$matches" ]; then
-    warn "invalid forward-slash UNC path detected in $source:"
-
-    while IFS= read -r line; do
-      printf '  %s\n' "$line" >&2
-    done <<< "$matches"
-
-    printf '%s\n\n' \
-      '  Use "\\host.lan\Data\..." instead of "//host.lan/Data/...".' >&2
-  fi
-
-  matches=$(
-    grep -Pin \
-      '\\\\host[.]lan\\shared(?:[\\/]|$)' \
-      "$file" || true
-  )
-
-  if [ -n "$matches" ]; then
-    warn "invalid Samba share name detected in $source:"
-
-    while IFS= read -r line; do
-      printf '  %s\n' "$line" >&2
-    done <<< "$matches"
-
-    printf '%s\n\n' \
-      '  The "/shared" folder is exposed to Windows as "\\host.lan\Data".' >&2
-  fi
+  reportBatchMatches \
+    "$file" \
+    "$source" \
+    '\\\\host[.]lan\\shared(?:[\\/]|$)' \
+    "invalid Samba share name detected" \
+    'The "/shared" folder is exposed to Windows as "\\host.lan\Data".'
 
   return 0
 }
@@ -1184,7 +1166,10 @@ buildImage() {
   local hide="Warning: creating filesystem that does not conform to ISO-9660."
 
   [ -s "$log" ] && err="$(<"$log")"
-  [[ "$err" != "$hide" ]] && echo "$err"
+
+  if [ -n "$err" ] && [[ "$err" != "$hide" ]]; then
+    echo "$err"
+  fi
 
   mv -f "$out" "$BOOT" || return 1
 
@@ -1267,12 +1252,22 @@ extractBootImage() {
 
   rm -rf "$tmp" || true
 
-  if ! len=$(isoinfo -d -i "$iso" | grep "Nsect " | grep -o "[^ ]*$"); then
+  local boot_info
+
+  if ! boot_info=$(isoinfo -d -i "$iso"); then
+    error "Failed to read boot image information from $desc ISO!"
+    return 1
+  fi
+
+  len=$(awk '/Nsect / { print $NF; exit }' <<< "$boot_info")
+  offset=$(awk '/Bootoff / { print $NF; exit }' <<< "$boot_info")
+
+  if [ -z "$len" ]; then
     error "Failed to determine boot image size from $desc ISO!"
     return 1
   fi
 
-  if ! offset=$(isoinfo -d -i "$iso" | grep "Bootoff " | grep -o "[^ ]*$"); then
+  if [ -z "$offset" ]; then
     error "Failed to determine boot image offset from $desc ISO!"
     return 1
   fi
