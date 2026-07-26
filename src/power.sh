@@ -57,10 +57,20 @@ legacyBootReady() {
   local last
   local bios="Booting from Hard"
 
+  # ReactOS LiveCD
+  grep -Fq "Launching rosload.exe..." "$QEMU_PTY" && return 0
+
+  # ReactOS installed system
+  grep -Fq "Loading FreeLoader..." "$QEMU_PTY" && return 0
+
   last=$(grep "^Booting.*" "$QEMU_PTY" | tail -1)
   [[ "${last,,}" != "${bios,,}"* ]] && return 1
+
   grep -Fq "No bootable device." "$QEMU_PTY" && return 1
   grep -Fq "BOOTMGR is missing" "$QEMU_PTY" && return 1
+  grep -Fq "CDBOOT: Cannot boot from CD." "$QEMU_PTY" && return 1
+  grep -Fq "Boot failed: not a bootable disk" "$QEMU_PTY" && return 1
+  grep -Fq "Boot failed: could not read the boot disk" "$QEMU_PTY" && return 1
 
   return 0
 }
