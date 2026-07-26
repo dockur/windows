@@ -950,14 +950,18 @@ tryDownload() {
   local desc="$6"
   local seconds="$7"
   local web_desc="$8"
-  local total
+  local total minimum="100000000"
+
+  if isCompressed "$url"; then
+    minimum="10000000"
+  fi
 
   if downloadRetry \
       "$iso" \
       "${CONNECTIONS:-1}" \
       "$seconds" \
       "$desc" \
-      "100000000" \
+      "$minimum" \
       "$iso" \
       "$url" \
       "$size" \
