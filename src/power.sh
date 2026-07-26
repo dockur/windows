@@ -54,23 +54,31 @@ boot() {
 
 legacyBootReady() {
 
-  local last
-  local bios="Booting from Hard"
+  local line last recent
+  local hard="Booting from Hard"
+  local cdrom="Booting from DVD/CD"
+
+  line=$(grep -n "^Booting.*" "$QEMU_PTY" | tail -1)
+  [ -z "$line" ] && return 1
+
+  last="${line#*:}"
+  recent=$(tail -n +"${line%%:*}" "$QEMU_PTY")
 
   # ReactOS LiveCD
-  grep -Fq "Launching rosload.exe..." "$QEMU_PTY" && return 0
+  if [[ "${last,,}" == "${cdrom,,}"* ]]; then
+    grep -Fq "Launching rosload.exe..." <<< "$recent" && return 0
+    return 1
+  fi
 
-  # ReactOS installed system
-  grep -Fq "Loading FreeLoader..." "$QEMU_PTY" && return 0
+  [[ "${last,,}" != "${hard,,}"* ]] && return 1
 
-  last=$(grep "^Booting.*" "$QEMU_PTY" | tail -1)
-  [[ "${last,,}" != "${bios,,}"* ]] && return 1
+  # Installed ReactOS
+  grep -Fq "Loading FreeLoader..." <<< "$recent" && return 0
 
-  grep -Fq "No bootable device." "$QEMU_PTY" && return 1
-  grep -Fq "BOOTMGR is missing" "$QEMU_PTY" && return 1
-  grep -Fq "CDBOOT: Cannot boot from CD." "$QEMU_PTY" && return 1
-  grep -Fq "Boot failed: not a bootable disk" "$QEMU_PTY" && return 1
-  grep -Fq "Boot failed: could not read the boot disk" "$QEMU_PTY" && return 1
+  grep -Fq "No bootable device." <<< "$recent" && return 1
+  grep -Fq "BOOTMGR is missing" <<< "$recent" && return 1
+  grep -Fq "Boot failed: not a bootable disk" <<< "$recent" && return 1
+  grep -Fq "Boot failed: could not read the boot disk" <<< "$recent" && return 1
 
   return 0
 }
@@ -85,8 +93,14 @@ ready() {
     return 1
   fi
 
-  local line="\"Windows Boot Manager\""
-  grep -Fq "$line" "$QEMU_PTY" && return 0
+  local last
+  last=$(grep -E \
+    'BdsDxe: starting Boot[[:xdigit:]]{4} ' \
+    "$QEMU_PTY" | tail -1)
+
+  grep -Eq \
+    'BdsDxe: starting Boot[[:xdigit:]]{4} "Windows Boot Manager" from HD\(' \
+    <<< "$last" && return 0
 
   return 1
 }
