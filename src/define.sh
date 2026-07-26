@@ -67,7 +67,7 @@ SERVER_EDITION_ORDER=(
   "-hv|hv|hv hv-*"
 )
 
-MIRRORS=3
+MIRRORS=4
 
 parseVersion() {
 
@@ -1465,6 +1465,35 @@ getLink3() {
       size=3839819776
       sum="a11116c0645d892d6a5a7c585ecc1fa13aa66f8c7cc6b03bf1f27bd16860cc35"
       url="tiny-10-23-h2/tiny10%20x64%2023h2.iso"
+      ;;
+  esac
+
+  case "${ret,,}" in
+    "sum" ) echo "$sum" ;;
+    "size" ) echo "$size" ;;
+    *) [ -n "$url" ] && echo "$host/$url";;
+  esac
+
+  return 0
+}
+
+getLink4() {
+
+  local id="$1"
+  local lang="$2"
+  local ret="$3"
+  local url=""
+  local sum=""
+  local size=""
+  local host="https://iso.reactos.org"
+
+  [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
+
+  case "${id,,}" in
+    "reactos" )
+      size=4320526336
+      sum="d8333cf427eb3318ff6ab755eb1dd9d433f0e2ae43745312c1cd23e83ca1ce51"
+      url="/livecd/reactos-livecd-0.4.17-dev-541-gaf36fc6-x86-gcc-lin-rel.7z"
       ;;
   esac
 
