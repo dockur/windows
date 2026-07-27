@@ -789,6 +789,8 @@ setMachine() {
 
         # Prevent bluescreen if 64 bit PCI hole size is >2G.
         ARGS="-global q35-pcihost.x-pci-hole64-fix=false"
+        ARGS+=" -global virtio-pci.disable-modern=on"
+        ARGS+=" -global virtio-pci.disable-legacy=off"
 
       fi ;;
 
