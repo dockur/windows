@@ -47,6 +47,7 @@ An empty default means the variable is unset and its value is determined automat
 | `DISK_DISCARD` | `unmap` | Discard/TRIM mode for the primary disk. |
 | `DISK_ROTATION` | `1` | Rotation rate reported to the guest. Use `1` to identify the disk as an SSD. |
 | `DISK_FLAGS` |  | Additional options used when creating `qcow2` disks. |
+| `DISK_OPTIONS` |  | Additional options appended to QEMU disk devices. |
 | `ALLOCATE` | `N` | Preallocates space for the primary disk. |
 | `STORAGE` | `/storage` | Storage directory used for disks, firmware variables, and downloads. |
 
