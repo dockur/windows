@@ -775,21 +775,12 @@ setMachine() {
 
   esac
 
-  #case "${id,,}" in
-
-    #"winvistax86"* | "win7x86"* )
-
-      # Fix boot loop issue on AMD EPYC processors
-      # [ -z "${CPU_MODEL:-}" ] && CPU_MODEL="qemu32" ;;
-
-  #esac
-
   case "${id,,}" in
 
     "win9"* | "win2k"* | *"x86"* | "reactos" )
   
-      # Work around an issue where exposing the NX flag while using an AMD EPYC processor can
-      # trigger repeated guest resets during the transition to graphical setup on XP (32-bit).
+      # Work around an issue where exposing the NX flag can trigger repeated guest
+      # resets during the transition to graphical setup on 32-bit Windows versions.
 
       if [ -z "${CPU_FLAGS:-}" ]; then
         CPU_FLAGS="nx=off"
