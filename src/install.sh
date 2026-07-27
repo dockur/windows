@@ -778,9 +778,9 @@ setMachine() {
   case "${id,,}" in
 
     "win9"* | "win2k"* | *"x86"* | "reactos" )
-  
-      # Work around an issue where exposing the NX flag can trigger repeated guest
-      # resets during the transition to graphical setup on 32-bit Windows versions.
+
+      # Legacy 32-bit Windows may enter an incompatible PAE/DEP path when the
+      # NX flag is exposed, causing installation failures or repeated resets.
 
       if [ -z "${CPU_FLAGS:-}" ]; then
         CPU_FLAGS="nx=off"
@@ -799,7 +799,7 @@ setMachine() {
         # pc-q35-2.11 began advertising a synthetic 64-bit PCI MMIO aperture.
         # Older Windows ACPI implementations may reject that resource layout,
         # so retain the pre-2.11 behavior for these guests to prevent a 
-        # bluescreen on XP and others if the 64 bit PCI hole size is >2G.
+        # blue screen on XP and others if the 64 bit PCI hole size is >2G.
 
         ARGS="-global q35-pcihost.x-pci-hole64-fix=false"
 
