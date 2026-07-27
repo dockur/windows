@@ -717,7 +717,7 @@ setMachine() {
       writeState "type" "auto" || return 1
       writeState "vga" "cirrus" || return 1
       writeState "old" "pc-i440fx-2.4" || return 1 ;;
-   
+
     "win2k"* )
 
       writeState "old" "pc" || return 1
@@ -731,12 +731,12 @@ setMachine() {
       writeState "type" "blk" || return 1
       writeState "net" "rtl8139" || return 1
       writeState "sound" "usb-audio" || return 1 ;;
-    
+
     "winxpx64"* | "win2003"* )
 
       writeState "type" "blk" || return 1
       writeState "sound" "usb-audio" || return 1 ;;
-  
+
     "reactos" )
 
       [ -z "${REMOVE:-}" ] && REMOVE="N"
@@ -749,6 +749,8 @@ setMachine() {
       writeState "usb" "pci-ohci" || return 1 ;;
 
   esac
+
+  restoreMachine || return 1
 
   case "${id,,}" in
 
@@ -765,11 +767,11 @@ setMachine() {
 
     "win9"* | "win2k"* | "winxp"* | "win2003"* | "reactos" )
 
-      if isQ35 "${MACHINE:-q35}"; then
+      if isQ35 "$MACHINE"; then
 
         # pc-q35-2.11 began advertising a synthetic 64-bit PCI MMIO aperture.
         # Older Windows ACPI implementations may reject that resource layout,
-        # so retain the pre-2.11 behavior for these guests to prevent a 
+        # so retain the pre-2.11 behavior for these guests to prevent a
         # blue screen on XP and others if the 64 bit PCI hole size is >2G.
 
         writeState "args" "-global q35-pcihost.x-pci-hole64-fix=false" || return 1
