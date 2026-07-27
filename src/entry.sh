@@ -28,11 +28,6 @@ cd /run
 . memory.sh     # Check available memory
 . balloon.sh    # Initialize ballooning
 . config.sh     # Configure arguments
-
-if [[ "${DETECTED,,}" == "winxp"* ]]; then
-  ARGS="${ARGS//,smm=on,/,smm=off,}"
-fi
-
 . finish.sh     # Finish initialization
 
 trap - ERR
