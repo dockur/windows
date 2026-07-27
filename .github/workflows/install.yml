@@ -55,6 +55,12 @@ on:
         default: ""
         type: string
 
+      network:
+        description: Network backend exposed to Windows
+        required: false
+        default: ""
+        type: string
+
       kill_on_failure:
         description: Stop the workflow when an installation failure is detected
         required: false
@@ -241,6 +247,46 @@ jobs:
           Next
           VBSCRIPT
 
+          cat > "$RUNNER_TEMP/oem/watchdog.vbs" <<'VBSCRIPT'
+          Option Explicit
+
+          Const ForAppending = 8
+
+          Dim filesystem
+          Dim file
+          Dim shell
+          Dim service
+          Dim systems
+          Dim system
+
+          WScript.Sleep 180000
+
+          Set filesystem = CreateObject("Scripting.FileSystemObject")
+
+          If filesystem.FileExists("C:\OEM\install.done") Then
+            WScript.Quit 0
+          End If
+
+          On Error Resume Next
+
+          Set file = filesystem.OpenTextFile("C:\OEM\install.log", ForAppending, True)
+          file.WriteLine Now & " - Callback failed for 3 minutes."
+          file.Close
+
+          Set file = filesystem.CreateTextFile("C:\OEM\install.done", True)
+          file.Close
+
+          Set shell = CreateObject("WScript.Shell")
+          shell.Run "shutdown.exe -s -f -t 0", 0, False
+
+          Set service = GetObject("winmgmts:{impersonationLevel=impersonate,(Shutdown)}!\\.\root\cimv2")
+          Set systems = service.ExecQuery("SELECT * FROM Win32_OperatingSystem")
+
+          For Each system In systems
+            system.Win32Shutdown 5
+          Next
+          VBSCRIPT
+
           case "$CALLBACK" in
             powershell)
               cat > "$RUNNER_TEMP/oem/ready.ps1" <<'POWERSHELL'
@@ -250,8 +296,6 @@ jobs:
           )
 
           $ErrorActionPreference = "Stop"
-          $attempts = 0
-          $maximumAttempts = 60
 
           while ($true) {
               try {
@@ -311,14 +355,7 @@ jobs:
                   break
               }
               catch {
-                  $attempts++
                   Write-Output "$(Get-Date -Format s) - Callback retry: $($_.Exception.Message)"
-
-                  if ($attempts -ge $maximumAttempts) {
-                      Write-Output "$(Get-Date -Format s) - Callback failed for 10 minutes."
-                      exit 1
-                  }
-
                   Start-Sleep -Seconds 10
               }
           }
@@ -328,6 +365,7 @@ jobs:
           @echo off
           del /Q C:\OEM\install.done 2>nul
           start "" /B cmd.exe /C C:\OEM\sync-log.bat
+          start "" /B cscript.exe //B //NoLogo C:\OEM\watchdog.vbs
 
           powershell.exe -NoProfile -ExecutionPolicy Bypass ^
             -File C:\OEM\ready.ps1 ^
@@ -336,9 +374,8 @@ jobs:
           set "result=%errorlevel%"
 
           if not "%result%"=="0" (
-            echo %date% %time% - Callback failed for 10 minutes.>>C:\OEM\install.log
+            echo %date% %time% - Callback failed.>>C:\OEM\install.log
             type nul > C:\OEM\install.done
-            call C:\OEM\sync-log.bat once
             shutdown.exe -s -f -t 0 >nul 2>&1
             if errorlevel 1 cscript.exe //B //NoLogo C:\OEM\shutdown.vbs
             exit /B %result%
@@ -451,9 +488,7 @@ jobs:
           Dim destination
           Dim file
           Dim success
-          Dim attempts
 
-          attempts = 0
           temporary = "\\host.lan\Data\windows.tmp"
           destination = "\\host.lan\Data\windows.json"
 
@@ -516,8 +551,6 @@ jobs:
             If Err.Number = 0 Then
               success = True
             Else
-              attempts = attempts + 1
-
               WScript.Echo _
                 Now & _
                 " - Callback retry: 0x" & _
@@ -533,11 +566,6 @@ jobs:
               Exit Do
             End If
 
-            If attempts >= 60 Then
-              WScript.Echo Now & " - Callback failed for 10 minutes."
-              WScript.Quit 1
-            End If
-
             WScript.Sleep 10000
           Loop
           VBSCRIPT
@@ -546,15 +574,15 @@ jobs:
           @echo off
           del /Q C:\OEM\install.done 2>nul
           start "" /B cmd.exe /C C:\OEM\sync-log.bat
+          start "" /B cscript.exe //B //NoLogo C:\OEM\watchdog.vbs
 
           cscript.exe //B //NoLogo C:\OEM\ready.vbs "$token"
 
           set "result=%errorlevel%"
 
           if not "%result%"=="0" (
-            echo %date% %time% - Callback failed for 10 minutes.>>C:\OEM\install.log
+            echo %date% %time% - Callback failed.>>C:\OEM\install.log
             type nul > C:\OEM\install.done
-            call C:\OEM\sync-log.bat once
             shutdown.exe -s -f -t 0 >nul 2>&1
             if errorlevel 1 cscript.exe //B //NoLogo C:\OEM\shutdown.vbs
             exit /B %result%
@@ -604,6 +632,7 @@ jobs:
           CPU_FLAGS: ${{ inputs.cpu_flags }}
           DISK_TYPE: ${{ inputs.disk_type }}
           MACHINE: ${{ inputs.machine }}
+          NETWORK: ${{ inputs.network }}
           VERSION: ${{ inputs.version }}
         run: |
           set -Eeuo pipefail
@@ -622,6 +651,7 @@ jobs:
             --env "CPU_MODEL=$CPU" \
             --env "CPU_FLAGS=$CPU_FLAGS" \
             --env "DISK_TYPE=$DISK_TYPE" \
+            --env "NETWORK=$NETWORK" \
             --env "LOG=Y" \
             --env "DEBUG=Y" \
             --volume "$RUNNER_TEMP/data:/shared" \
