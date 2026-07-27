@@ -226,6 +226,21 @@ jobs:
           goto sync
           BATCH
 
+          cat > "$RUNNER_TEMP/oem/shutdown.vbs" <<'VBSCRIPT'
+          On Error Resume Next
+
+          Dim service
+          Dim systems
+          Dim system
+
+          Set service = GetObject("winmgmts:{impersonationLevel=impersonate,(Shutdown)}!\\.\root\cimv2")
+          Set systems = service.ExecQuery("SELECT * FROM Win32_OperatingSystem")
+
+          For Each system In systems
+            system.Win32Shutdown 5
+          Next
+          VBSCRIPT
+
           case "$CALLBACK" in
             powershell)
               cat > "$RUNNER_TEMP/oem/ready.ps1" <<'POWERSHELL'
@@ -235,6 +250,8 @@ jobs:
           )
 
           $ErrorActionPreference = "Stop"
+          $attempts = 0
+          $maximumAttempts = 60
 
           while ($true) {
               try {
@@ -294,7 +311,14 @@ jobs:
                   break
               }
               catch {
+                  $attempts++
                   Write-Output "$(Get-Date -Format s) - Callback retry: $($_.Exception.Message)"
+
+                  if ($attempts -ge $maximumAttempts) {
+                      Write-Output "$(Get-Date -Format s) - Callback failed for 10 minutes."
+                      exit 1
+                  }
+
                   Start-Sleep -Seconds 10
               }
           }
@@ -310,6 +334,16 @@ jobs:
             -Token "$token"
 
           set "result=%errorlevel%"
+
+          if not "%result%"=="0" (
+            echo %date% %time% - Callback failed for 10 minutes.>>C:\OEM\install.log
+            type nul > C:\OEM\install.done
+            call C:\OEM\sync-log.bat once
+            shutdown.exe -s -f -t 0 >nul 2>&1
+            if errorlevel 1 cscript.exe //B //NoLogo C:\OEM\shutdown.vbs
+            exit /B %result%
+          )
+
           type nul > C:\OEM\install.done
           call C:\OEM\sync-log.bat once
           exit /B %result%
@@ -417,7 +451,9 @@ jobs:
           Dim destination
           Dim file
           Dim success
+          Dim attempts
 
+          attempts = 0
           temporary = "\\host.lan\Data\windows.tmp"
           destination = "\\host.lan\Data\windows.json"
 
@@ -480,6 +516,8 @@ jobs:
             If Err.Number = 0 Then
               success = True
             Else
+              attempts = attempts + 1
+
               WScript.Echo _
                 Now & _
                 " - Callback retry: 0x" & _
@@ -495,6 +533,11 @@ jobs:
               Exit Do
             End If
 
+            If attempts >= 60 Then
+              WScript.Echo Now & " - Callback failed for 10 minutes."
+              WScript.Quit 1
+            End If
+
             WScript.Sleep 10000
           Loop
           VBSCRIPT
@@ -507,6 +550,16 @@ jobs:
           cscript.exe //B //NoLogo C:\OEM\ready.vbs "$token"
 
           set "result=%errorlevel%"
+
+          if not "%result%"=="0" (
+            echo %date% %time% - Callback failed for 10 minutes.>>C:\OEM\install.log
+            type nul > C:\OEM\install.done
+            call C:\OEM\sync-log.bat once
+            shutdown.exe -s -f -t 0 >nul 2>&1
+            if errorlevel 1 cscript.exe //B //NoLogo C:\OEM\shutdown.vbs
+            exit /B %result%
+          )
+
           type nul > C:\OEM\install.done
           call C:\OEM\sync-log.bat once
           exit /B %result%
