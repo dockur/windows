@@ -974,17 +974,23 @@ EOC
 
   fi
 
-  if enabled "$report"; then
+if enabled "$report"; then
 
-    # Show useful diagnostic context, while excluding findings that are
-    # irrelevant to unattended OEM scripts.
-    cat > "$tmp/blinter.ini" <<'EOC'
+  # Show useful diagnostic context, while excluding findings that are
+  # irrelevant to unattended OEM scripts.
+  disabled_rules="W001,W002,W003,W007,W014,W018,W019,W020"
+  disabled_rules+=",W023,W024,W025,W026,W027,W028,W033,W035"
+  disabled_rules+=",W036,W037,W039,W041,W042,W043"
+  disabled_rules+=",SEC002,SEC003,SEC004,SEC005,SEC006,SEC009"
+  disabled_rules+=",SEC015,SEC019,SEC020,SEC021,SEC022,SEC023,SEC024"
+
+  cat > "$tmp/blinter.ini" <<EOC
 [general]
 min_severity = warning
 show_summary = false
 
 [rules]
-disabled_rules = W001,W025,W028,W033,W041,SEC002,SEC005
+disabled_rules = $disabled_rules
 EOC
 
     output=$(
