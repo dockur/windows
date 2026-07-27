@@ -517,6 +517,7 @@ jobs:
             --device /dev/net/tun \
             --cap-add NET_ADMIN \
             --stop-timeout 120 \
+            --env "MACHINE=pc-q35-2.10" \
             --env "VERSION=$VERSION" \
             --env "RAM_SIZE=half" \
             --env "CPU_CORES=half" \
