@@ -885,8 +885,7 @@ jobs:
               fi
             fi
 
-            if (( failure_checks_disabled == 0 &&
-                  bios_starts >= boot_loop_limit )) &&
+            if (( bios_starts >= boot_loop_limit )) &&
                (( hard_disk_boots >= boot_loop_limit ||
                   dvd_boots >= boot_loop_limit ||
                   not_bootable_disk >= boot_loop_limit ||
@@ -896,6 +895,7 @@ jobs:
               echo
               echo "------------------------------------------------------------"
               echo "Detected a repeated BIOS boot loop."
+              echo
               echo "SeaBIOS starts: $bios_starts"
               echo "Hard disk boots: $hard_disk_boots"
               echo "DVD boots: $dvd_boots"
@@ -904,9 +904,7 @@ jobs:
               echo "No-bootable-device failures: $no_bootable_device"
               echo "BOOTMGR failures: $bootmgr_missing"
 
-              if ! handle_failure "Detected a repeated BIOS boot loop."; then
-                exit 1
-              fi
+              exit 1
             fi
 
             response=""
