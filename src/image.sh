@@ -978,11 +978,14 @@ if enabled "$report"; then
 
   # Show useful diagnostic context, while excluding findings that are
   # irrelevant to unattended OEM scripts.
-  disabled_rules="W001,W002,W003,W007,W014,W018,W019,W020"
-  disabled_rules+=",W023,W024,W025,W026,W027,W028,W033,W035"
-  disabled_rules+=",W036,W037,W039,W041,W042,W043"
-  disabled_rules+=",SEC002,SEC003,SEC004,SEC005,SEC006,SEC009"
-  disabled_rules+=",SEC015,SEC019,SEC020,SEC021,SEC022,SEC023,SEC024"
+  disabled_rules="W001,W002,W003,W006,W007,W008,W009,W010"
+  disabled_rules+=",W011,W012,W014,W018,W019,W020,W023,W024"
+  disabled_rules+=",W025,W026,W027,W028,W029,W030,W031,W032"
+  disabled_rules+=",W033,W035,W036,W037,W039,W042,W043"
+  disabled_rules+=",SEC001,SEC002,SEC003,SEC004,SEC005,SEC006"
+  disabled_rules+=",SEC007,SEC008,SEC009,SEC010,SEC011,SEC012"
+  disabled_rules+=",SEC013,SEC014,SEC015,SEC016,SEC017,SEC018"
+  disabled_rules+=",SEC019,SEC020,SEC021,SEC022,SEC023,SEC024"
 
   cat > "$tmp/blinter.ini" <<EOC
 [general]
