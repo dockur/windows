@@ -19,29 +19,27 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: Windows XP x86 - host + blk
-            cpu: host
-            disk_type: blk
+        machine:
+          - q35
+          - pc-q35-2.10
+          - pc
 
-          - name: Windows XP x86 - host + ide
-            cpu: host
-            disk_type: ide
+        cpu:
+          - host
+          - qemu32
 
-          - name: Windows XP x86 - qemu32 + blk
-            cpu: qemu32
-            disk_type: blk
+        disk_type:
+          - blk
+          - ide
 
-          - name: Windows XP x86 - qemu32 + ide
-            cpu: qemu32
-            disk_type: ide
+    name: Windows XP x86 - ${{ matrix.machine }} + ${{ matrix.cpu }} + ${{ matrix.disk_type }}
 
-    name: ${{ matrix.name }}
     uses: ./.github/workflows/install.yml
     with:
-      name: ${{ matrix.name }}
+      name: Windows XP x86 - ${{ matrix.machine }} + ${{ matrix.cpu }} + ${{ matrix.disk_type }}
       version: "xp"
       callback: legacy
+      machine: ${{ matrix.machine }}
       cpu: ${{ matrix.cpu }}
       disk_type: ${{ matrix.disk_type }}
       expected_caption: Windows XP
