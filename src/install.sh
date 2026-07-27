@@ -715,17 +715,15 @@ setMachine() {
 
     "win9"* )
 
-      isQ35 && MACHINE="pc-i440fx-2.4"
-
       writeState "usb" "no" || return 1
       writeState "net" "pcnet" || return 1
       writeState "type" "auto" || return 1
-      writeState "vga" "cirrus" || return 1 ;;
-    
+      writeState "vga" "cirrus" || return 1
+      writeState "old" "pc-i440fx-2.4" || return 1 ;;
+   
     "win2k"* )
 
-      isQ35 && MACHINE="pc"
-
+      writeState "old" "pc" || return 1
       writeState "vga" "cirrus" || return 1
       writeState "type" "auto" || return 1
       writeState "net" "rtl8139" || return 1
@@ -744,11 +742,10 @@ setMachine() {
   
     "reactos" )
 
-      isQ35 && MACHINE="pc"
-
       [ -z "${REMOVE:-}" ] && REMOVE="N"
       [ -z "${REBUILD:-}" ] && REBUILD="N"
 
+      writeState "old" "pc" || return 1
       writeState "type" "auto" || return 1
       writeState "vga" "cirrus" || return 1
       writeState "net" "rtl8139" || return 1
@@ -1168,6 +1165,18 @@ mergeState() {
   fi
 
   printf -v "$var" '%s' "$value" || return 1
+  return 0
+}
+
+restoreMachine() {
+
+  [[ "${PLATFORM,,}" != "x64" ]] && return 0
+  [[ "${MACHINE,,}" != "q35" ]] && return 0
+
+  MACHINE=""
+  restoreState "MACHINE" "old" || return 1
+  [ -z "$MACHINE" ] && MACHINE="q35"
+
   return 0
 }
 
