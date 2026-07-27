@@ -354,34 +354,6 @@ finishInstall() {
     writeState "args" "$ARGS" || return 1
   fi
 
-  if [ -n "${VGA:-}" ] && [[ "${VGA:-}" != "virtio"* ]]; then
-    writeState "vga" "$VGA" || return 1
-  fi
-
-  if [ -n "${USB:-}" ] && [[ "${USB:-}" != "qemu-xhci"* ]]; then
-    writeState "usb" "$USB" || return 1
-  fi
-
-  if [ -n "${DISK_TYPE:-}" ] && [[ "${DISK_TYPE:-}" != "scsi" ]]; then
-    writeState "type" "$DISK_TYPE" || return 1
-  fi
-
-  if [ -n "${ADAPTER:-}" ] && [[ "${ADAPTER:-}" != "virtio-net-pci" ]]; then
-    writeState "net" "$ADAPTER" || return 1
-  fi
-
-  if [ -n "${SOUND:-}" ] && [[ "${SOUND:-}" != "intel-hda" ]]; then
-    writeState "sound" "$SOUND" || return 1
-  fi
-
-  if [ -n "${CPU_MODEL:-}" ] && [[ "${CPU_MODEL,,}" != "host" ]]; then
-    writeState "cpu" "$CPU_MODEL" || return 1
-  fi
-
-  if [ -n "${CPU_FLAGS:-}" ]; then
-    writeState "flag" "$CPU_FLAGS" || return 1
-  fi
-
   rm -rf "$TMP"
   return 0
 }
