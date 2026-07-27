@@ -28,6 +28,30 @@ cd /run
 . memory.sh     # Check available memory
 . balloon.sh    # Initialize ballooning
 . config.sh     # Configure arguments
+
+# Temporarily force legacy VirtIO devices for Windows XP on Q35.
+if [[ "${DETECTED,,}" == "winxp"* ]] &&
+  isQ35 "${MACHINE:-q35}"; then
+
+  virtio_options="disable-modern=on,disable-legacy=off"
+
+  for device in \
+    virtio-blk-pci \
+    virtio-scsi-pci \
+    virtio-net-pci \
+    virtio-rng-pci \
+    virtio-balloon-pci \
+    virtio-serial-pci \
+    virtio-9p-pci; do
+
+    ARGS="${ARGS//-device $device,/-device $device,$virtio_options,}"
+  done
+
+  # The display is generated through the "-vga virtio" alias rather than
+  # an explicit "-device" argument, so replace it separately.
+  ARGS="${ARGS//-vga virtio/-device virtio-vga,$virtio_options}"
+fi
+
 . finish.sh     # Finish initialization
 
 trap - ERR
