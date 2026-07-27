@@ -378,6 +378,10 @@ finishInstall() {
     writeState "cpu" "$CPU_MODEL" || return 1
   fi
 
+  if [ -n "${CPU_FLAGS:-}" ]; then
+    writeState "flag" "$CPU_FLAGS" || return 1
+  fi
+
   rm -rf "$TMP"
   return 0
 }
@@ -771,23 +775,41 @@ setMachine() {
 
   esac
 
-  case "${id,,}" in
+  #case "${id,,}" in
 
-    "winvistax86"* | "win7x86"* )
+    #"winvistax86"* | "win7x86"* )
 
       # Fix boot loop issue on AMD EPYC processors
       # [ -z "${CPU_MODEL:-}" ] && CPU_MODEL="qemu32" ;;
+
+  #esac
+
+  case "${id,,}" in
+
+    "win9"* | "win2k"* | *"x86"* | "reactos" )
+  
+      # Work around an issue where exposing the NX flag while using an AMD EPYC processor can
+      # trigger repeated guest resets during the transition to graphical setup on XP (32-bit).
+
+      if [ -z "${CPU_FLAGS:-}" ]; then
+        CPU_FLAGS="nx=off"
+      else
+        CPU_FLAGS+=",nx=off"
+      fi ;;
 
   esac
 
   case "${id,,}" in
 
-    "winxp"* | "win2003"* | "winvistax86"* | \
-    "win7x86"* | "win2008r2x86"* | "reactos")
+    "win9"* | "win2k"* | "winxp"* | "win2003"* | "reactos" )
 
       if isQ35 "${MACHINE:-q35}"; then
 
-        # Prevent bluescreen if 64 bit PCI hole size is >2G.
+        # pc-q35-2.11 began advertising a synthetic 64-bit PCI MMIO aperture.
+        # Older Windows ACPI implementations may reject that resource layout,
+        # so retain the pre-2.11 behavior for these guests to prevent a 
+        # bluescreen on XP and others if the 64 bit PCI hole size is >2G.
+
         ARGS="-global q35-pcihost.x-pci-hole64-fix=false"
 
       fi ;;
@@ -1162,22 +1184,23 @@ removeImage() {
 
 bootWindows() {
 
-  ARGS=$(readState "$STORAGE/windows.args") || return 1
+  ARGS=$(readState "args") || return 1
 
   if [ -n "$ARGS" ]; then
     ARGUMENTS="$ARGS ${ARGUMENTS:-}"
   fi
 
-  restoreState "VGA" "$STORAGE/windows.vga" || return 1
-  restoreState "USB" "$STORAGE/windows.usb" || return 1
-  restoreState "SOUND" "$STORAGE/windows.sound" || return 1
-  restoreState "ADAPTER" "$STORAGE/windows.net" || return 1
-  restoreState "CPU_MODEL" "$STORAGE/windows.cpu" || return 1
-  restoreState "DISK_TYPE" "$STORAGE/windows.type" || return 1
-  restoreState "BOOT_MODE" "$STORAGE/windows.mode" "Y" || return 1
+  restoreState "VGA" "vga" || return 1
+  restoreState "USB" "usb" || return 1
+  restoreState "SOUND" "sound" || return 1
+  restoreState "ADAPTER" "net" || return 1
+  restoreState "CPU_MODEL" "cpu" || return 1
+  restoreState "CPU_FLAGS" "flag" || return 1  
+  restoreState "DISK_TYPE" "type" || return 1
+  restoreState "BOOT_MODE" "mode" "Y" || return 1
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
-    restoreState "MACHINE" "$STORAGE/windows.old" "Y" || return 1
+    restoreState "MACHINE" "old" "Y" || return 1
   fi
 
   return 0
