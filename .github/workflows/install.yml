@@ -669,6 +669,7 @@ jobs:
             "$IMAGE"
 
       - name: Start noVNC tunnel
+        if: ${{ !inputs.kill_on_failure }}
         id: tunnel
         shell: bash
         run: |
