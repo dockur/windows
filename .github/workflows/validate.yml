@@ -1,17 +1,13 @@
-name: XP Validation
+name: XP PC Validation
 
 on:
-  release:
-    types:
-      - published
-
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: xp-validation-${{ github.ref }}
+  group: xp-pc-validation-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -52,14 +48,14 @@ jobs:
             cpu: host
             cpu_flags: ""
 
-    name: Windows XP x86 - ${{ matrix.name }}
+    name: Windows XP x86 - pc - ${{ matrix.name }}
 
     uses: ./.github/workflows/install.yml
     with:
-      name: XP q35 + ${{ matrix.name }} + blk
+      name: XP pc + ${{ matrix.name }} + blk
       version: "xp"
       callback: legacy
-      machine: q35
+      machine: pc
       cpu: ${{ matrix.cpu }}
       cpu_flags: ${{ matrix.cpu_flags }}
       disk_type: blk
