@@ -1720,8 +1720,8 @@ legacyInstall() {
     addLegacyDrivers "$dir" "$target" "$driver" "$arch" "$drivers" || return 1
   fi
 
-  if [[ "${driver,,}" == "xp" ]] && enabled "$DEBUG"; then
-    disableLegacyAutoReboot "$target" || return 1
+  if [[ "${driver,,}" == "xp" ]]; then
+    disableAutoReboot "$target" || return 1
   fi
 
   setLegacyKey "$target" "$driver" "$arch" "$desc" || return 1
