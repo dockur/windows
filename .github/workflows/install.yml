@@ -517,7 +517,7 @@ jobs:
             --device /dev/net/tun \
             --cap-add NET_ADMIN \
             --stop-timeout 120 \
-            --env "MACHINE=pc-q35-2.10" \
+            --env "MACHINE=pc" \
             --env "VERSION=$VERSION" \
             --env "RAM_SIZE=half" \
             --env "CPU_CORES=half" \
@@ -543,7 +543,7 @@ jobs:
             cloudflare/cloudflared:latest \
             tunnel \
             --no-autoupdate \
-            --url http://127.0.0.1:8006 > /dev/null; then
+            --url http://127.0.0.1:8006 > /dev/null 2>/dev/null; then
             novnc_url=""
 
             for _ in {1..30}; do
