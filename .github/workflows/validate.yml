@@ -42,6 +42,7 @@ jobs:
       machine: ${{ matrix.machine }}
       cpu: ${{ matrix.cpu }}
       disk_type: ${{ matrix.disk_type }}
+      kill_on_failure: true
       expected_caption: Windows XP
       minimum_build: 2600
       platform: x86
