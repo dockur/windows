@@ -20,30 +20,47 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Default
+          - name: host + no OSVW
+            cpu: host
+            cpu_flags: osvw=off
+
+          - name: host + no AMD legacy features
+            cpu: host
+            cpu_flags: osvw=off,topoext=off,cr8legacy=off,svm=off,x2apic=off
+
+          - name: qemu32
+            cpu: qemu32
             cpu_flags: ""
 
-          - name: No topoext
-            cpu_flags: topoext=off
+          - name: kvm32
+            cpu: kvm32
+            cpu_flags: ""
 
-          - name: No topoext or cr8legacy
-            cpu_flags: topoext=off,cr8legacy=off
+          - name: Opteron G1
+            cpu: Opteron_G1
+            cpu_flags: ""
 
-          - name: No topoext, cr8legacy, or SVM
-            cpu_flags: topoext=off,cr8legacy=off,svm=off
+          - name: Opteron G2
+            cpu: Opteron_G2
+            cpu_flags: ""
 
-          - name: No topoext, cr8legacy, SVM, or x2APIC
-            cpu_flags: topoext=off,cr8legacy=off,svm=off,x2apic=off
+          - name: Opteron G3
+            cpu: Opteron_G3
+            cpu_flags: ""
+
+          - name: host
+            cpu: host
+            cpu_flags: ""
 
     name: Windows XP x86 - ${{ matrix.name }}
 
     uses: ./.github/workflows/install.yml
     with:
-      name: XP q35 + host + blk - ${{ matrix.name }}
+      name: XP q35 + ${{ matrix.name }} + blk
       version: "xp"
       callback: legacy
       machine: q35
-      cpu: host
+      cpu: ${{ matrix.cpu }}
       cpu_flags: ${{ matrix.cpu_flags }}
       disk_type: blk
       kill_on_failure: true
