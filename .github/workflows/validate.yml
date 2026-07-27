@@ -36,7 +36,7 @@ jobs:
 
     uses: ./.github/workflows/install.yml
     with:
-      name: Windows XP x86 - ${{ matrix.machine }} + ${{ matrix.cpu }} + ${{ matrix.disk_type }}
+      name: XP ${{ matrix.machine }} + ${{ matrix.cpu }} + ${{ matrix.disk_type }}
       version: "xp"
       callback: legacy
       machine: ${{ matrix.machine }}
