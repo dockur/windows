@@ -654,6 +654,7 @@ jobs:
             --env "NETWORK=$NETWORK" \
             --env "LOG=Y" \
             --env "DEBUG=Y" \
+            --env "LOSSY=Y" \            
             --volume "$RUNNER_TEMP/data:/shared" \
             --volume "$RUNNER_TEMP/oem:/oem:ro" \
             --volume "$RUNNER_TEMP/storage:/storage" \
