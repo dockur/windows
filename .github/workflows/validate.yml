@@ -1,4 +1,4 @@
-name: XP CPU Feature Validation
+name: XP NX Subtractive Validation
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: xp-cpu-feature-validation-${{ github.ref }}
+  group: xp-nx-subtractive-validation-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -20,33 +20,17 @@ jobs:
             cpu: kvm32
             cpu_flags: ""
 
-          - name: kvm32 + LM
-            cpu: kvm32
-            cpu_flags: lm=on
-
           - name: kvm32 + NX
             cpu: kvm32
             cpu_flags: nx=on
 
-          - name: kvm32 + SYSCALL
-            cpu: kvm32
-            cpu_flags: syscall=on
+          - name: Opteron G1 - NX
+            cpu: Opteron_G1
+            cpu_flags: nx=off
 
-          - name: kvm32 + LM + NX
-            cpu: kvm32
-            cpu_flags: lm=on,nx=on
-
-          - name: kvm32 + LM + SYSCALL
-            cpu: kvm32
-            cpu_flags: lm=on,syscall=on
-
-          - name: kvm32 + NX + SYSCALL
-            cpu: kvm32
-            cpu_flags: nx=on,syscall=on
-
-          - name: kvm32 + LM + NX + SYSCALL
-            cpu: kvm32
-            cpu_flags: lm=on,nx=on,syscall=on
+          - name: host - NX
+            cpu: host
+            cpu_flags: nx=off
 
     name: Windows XP x86 - ${{ matrix.name }}
 
@@ -54,12 +38,13 @@ jobs:
     with:
       name: XP q35 + ${{ matrix.name }} + blk
       version: "xp"
+      branch: dev
       callback: legacy
       machine: q35
       cpu: ${{ matrix.cpu }}
       cpu_flags: ${{ matrix.cpu_flags }}
       disk_type: blk
-      kill_on_failure: true
+      kill_on_failure: false
       expected_caption: Windows XP
       minimum_build: 2600
       platform: x86
