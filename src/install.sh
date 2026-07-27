@@ -349,11 +349,6 @@ finishInstall() {
     fi
   fi
 
-  if [ -n "${ARGS:-}" ]; then
-    ARGUMENTS="$ARGS ${ARGUMENTS:-}"
-    writeState "args" "$ARGS" || return 1
-  fi
-
   rm -rf "$TMP"
   return 0
 }
@@ -777,9 +772,7 @@ setMachine() {
         # so retain the pre-2.11 behavior for these guests to prevent a 
         # blue screen on XP and others if the 64 bit PCI hole size is >2G.
 
-        # TODO TODO TODO
-        
-        ARGS="-global q35-pcihost.x-pci-hole64-fix=false"
+        writeState "args" "-global q35-pcihost.x-pci-hole64-fix=false" || return 1
 
       fi ;;
 
@@ -1152,6 +1145,26 @@ removeImage() {
   return 0
 }
 
+mergeState() {
+
+  local var="$1"
+  local name="$2"
+  local separator="${3:-,}"
+  local prefix="${4:-$PROCESS}"
+  local current="${!var:-}"
+  local value
+
+  value=$(readState "$name" "$prefix") || return 1
+  [ -n "$value" ] || return 0
+
+  if [ -n "$current" ]; then
+    value="$current$separator$value"
+  fi
+
+  printf -v "$var" '%s' "$value" || return 1
+  return 0
+}
+
 restoreMachineState() {
 
   restoreState "VGA" "vga" || return 1
@@ -1159,22 +1172,18 @@ restoreMachineState() {
   restoreState "SOUND" "sound" || return 1
   restoreState "ADAPTER" "net" || return 1
   restoreState "CPU_MODEL" "cpu" || return 1
-  # TODO: Word hier niet ge-append?
-  restoreState "CPU_FLAGS" "flag" || return 1
   restoreState "DISK_TYPE" "type" || return 1
+
+  mergeState "CPU_FLAGS" "flag" "," || return 1
+  mergeState "ARGUMENTS" "args" " " || return 1
 
   return 0
 }
 
 bootWindows() {
 
-  ARGS=$(readState "args") || return 1
-
-  if [ -n "$ARGS" ]; then
-    ARGUMENTS="$ARGS ${ARGUMENTS:-}"
-  fi
-
   restoreMachineState || return 1
+
   restoreState "BOOT_MODE" "mode" "Y" || return 1
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
