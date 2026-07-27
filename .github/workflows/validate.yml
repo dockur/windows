@@ -19,29 +19,33 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        machine:
-          - q35
-          - pc-q35-2.10
-          - pc
+        include:
+          - name: Default
+            cpu_flags: ""
 
-        cpu:
-          - host
-          - qemu32
+          - name: No topoext
+            cpu_flags: topoext=off
 
-        disk_type:
-          - blk
-          - ide
+          - name: No topoext or cr8legacy
+            cpu_flags: topoext=off,cr8legacy=off
 
-    name: Windows XP x86 - ${{ matrix.machine }} + ${{ matrix.cpu }} + ${{ matrix.disk_type }}
+          - name: No topoext, cr8legacy, or SVM
+            cpu_flags: topoext=off,cr8legacy=off,svm=off
+
+          - name: No topoext, cr8legacy, SVM, or x2APIC
+            cpu_flags: topoext=off,cr8legacy=off,svm=off,x2apic=off
+
+    name: Windows XP x86 - ${{ matrix.name }}
 
     uses: ./.github/workflows/install.yml
     with:
-      name: XP ${{ matrix.machine }} + ${{ matrix.cpu }} + ${{ matrix.disk_type }}
+      name: XP q35 + host + blk - ${{ matrix.name }}
       version: "xp"
       callback: legacy
-      machine: ${{ matrix.machine }}
-      cpu: ${{ matrix.cpu }}
-      disk_type: ${{ matrix.disk_type }}
+      machine: q35
+      cpu: host
+      cpu_flags: ${{ matrix.cpu_flags }}
+      disk_type: blk
       kill_on_failure: true
       expected_caption: Windows XP
       minimum_build: 2600
