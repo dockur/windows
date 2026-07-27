@@ -580,7 +580,7 @@ jobs:
           @echo off
           del /Q C:\OEM\install.done 2>nul
           start "" /B cmd.exe /C C:\OEM\sync-log.bat
-          rem start "" /B cscript.exe //B //NoLogo C:\OEM\watchdog.vbs
+          start "" /B cscript.exe //B //NoLogo C:\OEM\watchdog.vbs
 
           cscript.exe //B //NoLogo C:\OEM\ready.vbs "$token"
 
