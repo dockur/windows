@@ -486,7 +486,7 @@ printVersion() {
     "tiny11"* ) desc="Tiny 11" ;;
     "tiny10"* ) desc="Tiny 10" ;;
     "core11"* ) desc="Core 11" ;;
-    "reactos"* ) desc="Reactos" ;;
+    "reactos"* ) desc="ReactOS" ;;
     "win7"* ) desc="Windows 7" ;;
     "win8"* ) desc="Windows 8" ;;
     "win10"* ) desc="Windows 10" ;;
