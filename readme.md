@@ -137,7 +137,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   | `core11`  | Tiny11 Core      | 3.0 GB   |
   | `tiny11`  | Tiny11           | 5.3 GB   |
   | `tiny10`  | Tiny10           | 3.6 GB   |
-  | `reactos` | Reactos          | 0.03 GB   |
+  | `reactos` | ReactOS          | 0.1 GB   |
 
 > [!TIP]
 > To install ARM64 versions of Windows use [dockur/windows-arm](https://github.com/dockur/windows-arm/).
