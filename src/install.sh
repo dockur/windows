@@ -779,7 +779,8 @@ setMachine() {
 
   case "${id,,}" in
 
-    "win9"* | "win2k"* | "winxp"* | "win2003"* | "reactos" )
+    "win9"* | "win2k"* | "winxp"* | "win2003"* | \
+    "winvistax86"* | "win7x86"* | "reactos" )
 
       if isQ35 "$MACHINE"; then
 
