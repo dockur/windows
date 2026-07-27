@@ -1173,6 +1173,20 @@ removeImage() {
   return 0
 }
 
+restoreMachineState() {
+
+  restoreState "VGA" "vga" || return 1
+  restoreState "USB" "usb" || return 1
+  restoreState "SOUND" "sound" || return 1
+  restoreState "ADAPTER" "net" || return 1
+  restoreState "CPU_MODEL" "cpu" || return 1
+  # TODO: Word hier niet ge-append?
+  restoreState "CPU_FLAGS" "flag" || return 1
+  restoreState "DISK_TYPE" "type" || return 1
+
+  return 0
+}
+
 bootWindows() {
 
   ARGS=$(readState "args") || return 1
@@ -1181,13 +1195,7 @@ bootWindows() {
     ARGUMENTS="$ARGS ${ARGUMENTS:-}"
   fi
 
-  restoreState "VGA" "vga" || return 1
-  restoreState "USB" "usb" || return 1
-  restoreState "SOUND" "sound" || return 1
-  restoreState "ADAPTER" "net" || return 1
-  restoreState "CPU_MODEL" "cpu" || return 1
-  restoreState "CPU_FLAGS" "flag" || return 1  
-  restoreState "DISK_TYPE" "type" || return 1
+  restoreMachineState || return 1
   restoreState "BOOT_MODE" "mode" "Y" || return 1
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
