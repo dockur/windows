@@ -730,8 +730,14 @@ setMachine() {
       writeState "type" "auto" || return 1
       writeState "net" "rtl8139" || return 1
       writeState "usb" "pci-ohci" || return 1 ;;
+
+    "winxpx86"* )
+
+      writeState "type" "blk" || return 1
+      writeState "net" "rtl8139" || return 1
+      writeState "sound" "usb-audio" || return 1 ;;
     
-    "winxp"* | "win2003"* )
+    "winxpx64"* | "win2003"* )
 
       writeState "type" "blk" || return 1
       writeState "sound" "usb-audio" || return 1 ;;
