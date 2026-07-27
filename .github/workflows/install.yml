@@ -43,6 +43,12 @@ on:
         default: ""
         type: string
 
+      cpu_flags:
+        description: Additional CPU flags exposed to Windows
+        required: false
+        default: ""
+        type: string
+
       disk_type:
         description: Disk controller type exposed to Windows
         required: false
@@ -542,6 +548,7 @@ jobs:
         shell: bash
         env:
           CPU: ${{ inputs.cpu }}
+          CPU_FLAGS: ${{ inputs.cpu_flags }}
           DISK_TYPE: ${{ inputs.disk_type }}
           MACHINE: ${{ inputs.machine }}
           VERSION: ${{ inputs.version }}
@@ -560,6 +567,7 @@ jobs:
             --env "CPU_CORES=half" \
             --env "DISK_SIZE=64G" \
             --env "CPU_MODEL=$CPU" \
+            --env "CPU_FLAGS=$CPU_FLAGS" \
             --env "DISK_TYPE=$DISK_TYPE" \
             --env "LOG=Y" \
             --env "DEBUG=Y" \
