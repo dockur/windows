@@ -747,31 +747,39 @@ setMachine() {
   case "${id,,}" in
 
     "win9"* )
+
       isQ35 && MACHINE="pc-i440fx-2.4"
-      [ -z "${USB:-}" ] && USB="no"
-      [ -z "${VGA:-}" ] && VGA="cirrus"
-      [ -z "${ADAPTER:-}" ] && ADAPTER="pcnet"
-      [ -z "${DISK_TYPE:-}" ] && DISK_TYPE="auto" ;;
 
+      writeState "usb" "no" || return 1
+      writeState "net" "pcnet" || return 1
+      writeState "type" "auto" || return 1
+      writeState "vga" "cirrus" || return 1 ;;
+    
     "win2k"* )
-      isQ35 && MACHINE="pc"
-      [ -z "${VGA:-}" ] && VGA="cirrus"
-      [ -z "${USB:-}" ] && USB="pci-ohci"
-      [ -z "${ADAPTER:-}" ] && ADAPTER="rtl8139"
-      [ -z "${DISK_TYPE:-}" ] && DISK_TYPE="auto" ;;
 
+      isQ35 && MACHINE="pc"
+
+      writeState "vga" "cirrus" || return 1
+      writeState "type" "auto" || return 1
+      writeState "net" "rtl8139" || return 1
+      writeState "usb" "pci-ohci" || return 1 ;;
+    
     "winxp"* | "win2003"* )
-      [ -z "${SOUND:-}" ] && SOUND="usb-audio"
-      [ -z "${DISK_TYPE:-}" ] && DISK_TYPE="blk" ;;
 
+      writeState "type" "blk" || return 1
+      writeState "sound" "usb-audio" || return 1 ;;
+  
     "reactos" )
+
       isQ35 && MACHINE="pc"
-      [ -z "${VGA:-}" ] && VGA="cirrus"
+
       [ -z "${REMOVE:-}" ] && REMOVE="N"
-      [ -z "${USB:-}" ] && USB="pci-ohci"
       [ -z "${REBUILD:-}" ] && REBUILD="N"
-      [ -z "${ADAPTER:-}" ] && ADAPTER="rtl8139"
-      [ -z "${DISK_TYPE:-}" ] && DISK_TYPE="auto" ;;
+
+      writeState "type" "auto" || return 1
+      writeState "vga" "cirrus" || return 1
+      writeState "net" "rtl8139" || return 1
+      writeState "usb" "pci-ohci" || return 1 ;;
 
   esac
 
@@ -782,11 +790,7 @@ setMachine() {
       # Legacy 32-bit Windows may enter an incompatible PAE/DEP path when the
       # NX flag is exposed, causing installation failures or repeated resets.
 
-      if [ -z "${CPU_FLAGS:-}" ]; then
-        CPU_FLAGS="nx=off"
-      else
-        CPU_FLAGS+=",nx=off"
-      fi ;;
+      writeState "flag" "nx=off" || return 1 ;;
 
   esac
 
@@ -801,6 +805,8 @@ setMachine() {
         # so retain the pre-2.11 behavior for these guests to prevent a 
         # blue screen on XP and others if the 64 bit PCI hole size is >2G.
 
+        # TODO TODO TODO
+        
         ARGS="-global q35-pcihost.x-pci-hole64-fix=false"
 
       fi ;;
