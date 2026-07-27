@@ -1159,7 +1159,7 @@ extractBootImage() {
       elif ! size=$(stat -c%s "$image"); then
         warn "Failed to determine the BIOS boot image size, $msg"
       elif (( size != expected_size )); then
-        enabled "$DEBUG" && warn "The extracted BIOS boot image has an unexpected size, $msg"
+        info "The extracted BIOS boot image has an unexpected size, $msg"
       else
         if ! mv -f "$image" "$dir/$ETFS"; then
           rm -rf "$tmp" || true
