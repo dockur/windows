@@ -22,7 +22,7 @@ on:
       branch:
         description: Repository branch to build
         required: false
-        default: master
+        default: dev
         type: string
 
       callback:
