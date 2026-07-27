@@ -1,4 +1,4 @@
-name: XP NX Subtractive Validation
+name: x86 NX Validation
 
 on:
   workflow_dispatch:
@@ -7,44 +7,45 @@ permissions:
   contents: read
 
 concurrency:
-  group: xp-nx-subtractive-validation-${{ github.ref }}
+  group: x86-nx-validation-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  xp:
+  test:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: kvm32 control
-            cpu: kvm32
-            cpu_flags: ""
+          - name: Windows 7 x86 - NX
+            version: "7x86"
+            expected_caption: Windows 7
+            minimum_build: 7601
 
-          - name: kvm32 + NX
-            cpu: kvm32
-            cpu_flags: nx=on
+          - name: Windows Vista x86 - NX
+            version: "vistax86"
+            expected_caption: Windows Vista
+            minimum_build: 6002
 
-          - name: Opteron G1 - NX
-            cpu: Opteron_G1
-            cpu_flags: nx=off
+          - name: Windows XP x86 - NX test 1
+            version: "xp"
+            expected_caption: Windows XP
+            minimum_build: 2600
 
-          - name: host - NX
-            cpu: host
-            cpu_flags: nx=off
+          - name: Windows XP x86 - NX test 2
+            version: "xp"
+            expected_caption: Windows XP
+            minimum_build: 2600
 
-    name: Windows XP x86 - ${{ matrix.name }}
+    name: ${{ matrix.name }}
 
     uses: ./.github/workflows/install.yml
     with:
-      name: XP q35 + ${{ matrix.name }} + blk
-      version: "xp"
+      name: ${{ matrix.name }}
+      version: ${{ matrix.version }}
       branch: dev
       callback: legacy
-      machine: q35
-      cpu: ${{ matrix.cpu }}
-      cpu_flags: ${{ matrix.cpu_flags }}
-      disk_type: blk
+      cpu_flags: nx=off
       kill_on_failure: false
-      expected_caption: Windows XP
-      minimum_build: 2600
+      expected_caption: ${{ matrix.expected_caption }}
+      minimum_build: ${{ matrix.minimum_build }}
       platform: x86
