@@ -365,7 +365,7 @@ jobs:
           @echo off
           del /Q C:\OEM\install.done 2>nul
           start "" /B cmd.exe /C C:\OEM\sync-log.bat
-          start "" /B cscript.exe //B //NoLogo C:\OEM\watchdog.vbs
+          rem start "" /B cscript.exe //B //NoLogo C:\OEM\watchdog.vbs
 
           powershell.exe -NoProfile -ExecutionPolicy Bypass ^
             -File C:\OEM\ready.ps1 ^
