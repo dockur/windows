@@ -34,7 +34,7 @@ on:
       machine:
         description: QEMU machine type exposed to Windows
         required: false
-        default: q35
+        default: ""
         type: string
 
       cpu:
