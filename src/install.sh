@@ -329,20 +329,28 @@ finishInstall() {
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
     if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+
       writeState "mode" "$BOOT_MODE" || return 1
+
     else
+
+      local secure=""
+
       # Enable secure boot + TPM on manual installs as Win11 requires
       if enabled "$MANUAL" || [[ "$aborted" == [Yy1]* ]]; then
-        if [[ "${DETECTED,,}" == "win11"* ]]; then
-          BOOT_MODE="windows_secure"
-          writeState "mode" "$BOOT_MODE" || return 1
-        fi
+        [[ "${DETECTED,,}" == "win11"* ]] && secure="Y"
       fi
+
       # Enable secure boot on multi-socket systems to workaround freeze
       if [ -n "$SOCKETS" ] && [[ "$SOCKETS" != "1" ]]; then
+        secure="Y"
+      fi
+
+      if [ -n "$secure" ]; then
         BOOT_MODE="windows_secure"
         writeState "mode" "$BOOT_MODE" || return 1
       fi
+
     fi
   fi
 
@@ -369,7 +377,10 @@ abortInstall() {
 
     if [ -z "$efi" ] ||
       { [ -n "$efi32" ] && [ -z "$efi64" ]; }; then
-      BOOT_MODE="windows_legacy"
+
+      writeState "mode" "windows_legacy" || return 1
+      restoreBootMode || return 1
+
     fi
 
   fi
@@ -704,9 +715,12 @@ setMachine() {
 
     "win9"* | "win2k"* | "winxp"* | "win2003"* | \
     "winvista"* | "win7"* | "win2008"* | "reactos" )
-      BOOT_MODE="windows_legacy" ;;
+
+      writeState "mode" "windows_legacy" || return 1 ;;
 
   esac
+
+  restoreBootMode || return 1
 
   case "${id,,}" in
 
@@ -1167,6 +1181,28 @@ mergeState() {
   return 0
 }
 
+restoreBootMode() {
+
+  local current="${BOOT_MODE:-}"
+
+  local mode
+  mode=$(readState "mode") || return 1
+
+  [ -n "$mode" ] || return 0
+
+  if [[ "${mode,,}" == "windows_legacy" ]]; then
+    BOOT_MODE="$mode"
+    return 0
+  fi
+
+  case "${current,,}" in
+    "" | "windows" | "windows_plain" )
+      BOOT_MODE="$mode" ;;
+  esac
+
+  return 0
+}
+
 restoreMachine() {
 
   [[ "${PLATFORM,,}" != "x64" ]] && return 0
@@ -1197,7 +1233,7 @@ restoreMachineState() {
 bootWindows() {
 
   restoreMachineState || return 1
-  restoreState "BOOT_MODE" "mode" "Y" || return 1
+  restoreBootMode || return 1
   restoreMachine || return 1
 
   return 0
