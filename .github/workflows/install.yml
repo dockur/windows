@@ -91,10 +91,40 @@ jobs:
       TUNNEL: windows-test-tunnel
 
     steps:
+      - name: Resolve branch
+        id: branch
+        shell: bash
+        env:
+          REQUESTED_BRANCH: ${{ inputs.branch }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+
+          authorization="$(
+            printf 'x-access-token:%s' "$GITHUB_TOKEN" |
+              base64 -w 0
+          )"
+
+          if git \
+            -c "http.extraheader=Authorization: basic $authorization" \
+            ls-remote \
+            --exit-code \
+            --heads \
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" \
+            "refs/heads/$REQUESTED_BRANCH" > /dev/null 2>&1; then
+
+            branch="$REQUESTED_BRANCH"
+          else
+            branch="master"
+            echo "Branch '$REQUESTED_BRANCH' does not exist; using '$branch'."
+          fi
+
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
       - name: Checkout branch
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.branch }}
+          ref: ${{ steps.branch.outputs.branch }}
 
       - name: Check KVM
         shell: bash
@@ -485,7 +515,7 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          echo "Building branch: ${{ inputs.branch }}"
+          echo "Building branch: ${{ steps.branch.outputs.branch }}"
           echo "Commit: $(git rev-parse HEAD)"
 
           for attempt in 1 2 3; do
