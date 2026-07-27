@@ -29,25 +29,8 @@ cd /run
 . balloon.sh    # Initialize ballooning
 . config.sh     # Configure arguments
 
-if [[ "${DETECTED,,}" == "winxp"* ]] &&
-  isQ35 "${MACHINE:-q35}"; then
-
-  virtio_options="disable-modern=on,disable-legacy=off"
-
-  for device in \
-    virtio-blk-pci \
-    virtio-scsi-pci \
-    virtio-net-pci \
-    virtio-rng-pci \
-    virtio-balloon-pci \
-    virtio-serial-pci \
-    virtio-9p-pci; do
-
-    ARGS="${ARGS//-device $device,/-device $device,$virtio_options,}"
-  done
-
-  ARGS="${ARGS//-vga virtio/-device virtio-vga,$virtio_options}"
-  ARGS="${ARGS//smm=on/smm=off}"
+if [[ "${DETECTED,,}" == "winxp"* ]]; then
+  ARGS="${ARGS//,smm=on,/,smm=off,}"
 fi
 
 . finish.sh     # Finish initialization
