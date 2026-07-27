@@ -330,9 +330,6 @@ finishInstall() {
   if [[ "${PLATFORM,,}" == "x64" ]]; then
     if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
       writeState "mode" "$BOOT_MODE" || return 1
-      if [[ "${MACHINE,,}" != "q35" ]]; then
-        writeState "old" "$MACHINE" || return 1
-      fi
     else
       # Enable secure boot + TPM on manual installs as Win11 requires
       if enabled "$MANUAL" || [[ "$aborted" == [Yy1]* ]]; then
@@ -1198,12 +1195,8 @@ restoreMachineState() {
 bootWindows() {
 
   restoreMachineState || return 1
-
   restoreState "BOOT_MODE" "mode" "Y" || return 1
-
-  if [[ "${PLATFORM,,}" == "x64" ]]; then
-    restoreState "MACHINE" "old" "Y" || return 1
-  fi
+  restoreMachine || return 1
 
   return 0
 }
