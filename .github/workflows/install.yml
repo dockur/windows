@@ -19,10 +19,10 @@ on:
         default: ubuntu-24.04
         type: string
 
-      image:
-        description: Container image to test
+      branch:
+        description: Repository branch to build
         required: false
-        default: ghcr.io/dockur/windows:latest
+        default: dev
         type: string
 
       callback:
@@ -31,11 +31,47 @@ on:
         default: powershell
         type: string
 
+      machine:
+        description: QEMU machine type exposed to Windows
+        required: false
+        default: ""
+        type: string
+
       cpu:
         description: CPU model exposed to Windows
         required: false
-        default: host
+        default: ""
         type: string
+
+      cpu_flags:
+        description: Additional CPU flags exposed to Windows
+        required: false
+        default: ""
+        type: string
+
+      disk_type:
+        description: Disk controller type exposed to Windows
+        required: false
+        default: ""
+        type: string
+
+      network:
+        description: Network backend exposed to Windows
+        required: false
+        default: ""
+        type: string
+
+      adapter:
+        description: Network adapter exposed to Windows
+        required: false
+        default: ""
+        type: string
+
+      kill_on_failure:
+        description: Stop the workflow when an installation failure is detected
+        required: false
+        default: true
+        type: boolean
 
       expected_caption:
         description: Text expected in the Windows caption
@@ -69,9 +105,45 @@ jobs:
 
     env:
       CONTAINER: windows-test
-      IMAGE: ${{ inputs.image }}
+      IMAGE: windows-validation:local
+      TUNNEL: windows-test-tunnel
 
     steps:
+      - name: Resolve branch
+        id: branch
+        shell: bash
+        env:
+          REQUESTED_BRANCH: ${{ inputs.branch }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+
+          authorization="$(
+            printf 'x-access-token:%s' "$GITHUB_TOKEN" |
+              base64 -w 0
+          )"
+
+          if git \
+            -c "http.extraheader=Authorization: basic $authorization" \
+            ls-remote \
+            --exit-code \
+            --heads \
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" \
+            "refs/heads/$REQUESTED_BRANCH" > /dev/null 2>&1; then
+
+            branch="$REQUESTED_BRANCH"
+          else
+            branch="master"
+            echo "Branch '$REQUESTED_BRANCH' does not exist; using '$branch'."
+          fi
+
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.branch.outputs.branch }}
+
       - name: Check KVM
         shell: bash
         run: |
@@ -166,6 +238,61 @@ jobs:
           goto sync
           BATCH
 
+          cat > "$RUNNER_TEMP/oem/shutdown.vbs" <<'VBSCRIPT'
+          On Error Resume Next
+
+          Dim service
+          Dim systems
+          Dim system
+
+          Set service = GetObject("winmgmts:{impersonationLevel=impersonate,(Shutdown)}!\\.\root\cimv2")
+          Set systems = service.ExecQuery("SELECT * FROM Win32_OperatingSystem")
+
+          For Each system In systems
+            system.Win32Shutdown 5
+          Next
+          VBSCRIPT
+
+          cat > "$RUNNER_TEMP/oem/watchdog.vbs" <<'VBSCRIPT'
+          Option Explicit
+
+          Const ForAppending = 8
+
+          Dim filesystem
+          Dim file
+          Dim shell
+          Dim service
+          Dim systems
+          Dim system
+
+          WScript.Sleep 180000
+
+          Set filesystem = CreateObject("Scripting.FileSystemObject")
+
+          If filesystem.FileExists("C:\OEM\install.done") Then
+            WScript.Quit 0
+          End If
+
+          On Error Resume Next
+
+          Set file = filesystem.OpenTextFile("C:\OEM\install.log", ForAppending, True)
+          file.WriteLine Now & " - Callback failed for 3 minutes."
+          file.Close
+
+          Set file = filesystem.CreateTextFile("C:\OEM\install.done", True)
+          file.Close
+
+          Set shell = CreateObject("WScript.Shell")
+          shell.Run "shutdown.exe -s -f -t 0", 0, False
+
+          Set service = GetObject("winmgmts:{impersonationLevel=impersonate,(Shutdown)}!\\.\root\cimv2")
+          Set systems = service.ExecQuery("SELECT * FROM Win32_OperatingSystem")
+
+          For Each system In systems
+            system.Win32Shutdown 5
+          Next
+          VBSCRIPT
+
           case "$CALLBACK" in
             powershell)
               cat > "$RUNNER_TEMP/oem/ready.ps1" <<'POWERSHELL'
@@ -244,12 +371,22 @@ jobs:
           @echo off
           del /Q C:\OEM\install.done 2>nul
           start "" /B cmd.exe /C C:\OEM\sync-log.bat
+          start "" /B cscript.exe //B //NoLogo C:\OEM\watchdog.vbs
 
           powershell.exe -NoProfile -ExecutionPolicy Bypass ^
             -File C:\OEM\ready.ps1 ^
             -Token "$token"
 
           set "result=%errorlevel%"
+
+          if not "%result%"=="0" (
+            echo %date% %time% - Callback failed.>>C:\OEM\install.log
+            type nul > C:\OEM\install.done
+            shutdown.exe -s -f -t 0 >nul 2>&1
+            if errorlevel 1 cscript.exe //B //NoLogo C:\OEM\shutdown.vbs
+            exit /B %result%
+          )
+
           type nul > C:\OEM\install.done
           call C:\OEM\sync-log.bat once
           exit /B %result%
@@ -443,10 +580,20 @@ jobs:
           @echo off
           del /Q C:\OEM\install.done 2>nul
           start "" /B cmd.exe /C C:\OEM\sync-log.bat
+          start "" /B cscript.exe //B //NoLogo C:\OEM\watchdog.vbs
 
           cscript.exe //B //NoLogo C:\OEM\ready.vbs "$token"
 
           set "result=%errorlevel%"
+
+          if not "%result%"=="0" (
+            echo %date% %time% - Callback failed.>>C:\OEM\install.log
+            type nul > C:\OEM\install.done
+            shutdown.exe -s -f -t 0 >nul 2>&1
+            if errorlevel 1 cscript.exe //B //NoLogo C:\OEM\shutdown.vbs
+            exit /B %result%
+          )
+
           type nul > C:\OEM\install.done
           call C:\OEM\sync-log.bat once
           exit /B %result%
@@ -456,27 +603,44 @@ jobs:
 
           echo "token=$token" >> "$GITHUB_OUTPUT"
 
-      - name: Pull image
+      - name: Build image
         shell: bash
         run: |
           set -Eeuo pipefail
 
-          docker pull "$IMAGE"
+          echo "Building branch: ${{ steps.branch.outputs.branch }}"
+          echo "Commit: $(git rev-parse HEAD)"
+
+          for attempt in 1 2 3; do
+            if docker build \
+              --tag "$IMAGE" \
+              . >/dev/null 2>/dev/null; then
+              break
+            fi
+
+            if (( attempt == 3 )); then
+              echo "Image build failed after $attempt attempts."
+              exit 1
+            fi
+
+            delay=$((attempt * 15))
+            echo "Image build failed, retrying in $delay seconds..."
+            sleep "$delay"
+          done
 
           docker image inspect "$IMAGE" \
-            --format 'Digest: {{index .RepoDigests 0}}'
+            --format 'Image ID: {{.Id}}'
 
-      - name: Install and validate Windows
+      - name: Start Windows container
         shell: bash
         env:
+          ADAPTER: ${{ inputs.adapter }}
           CPU: ${{ inputs.cpu }}
-          EXPECTED_TOKEN: ${{ steps.test.outputs.token }}
-          EXPECTED_CAPTION: ${{ inputs.expected_caption }}
-          EXPECTED_EDITION: ${{ inputs.expected_edition }}
-          EXPECTED_PLATFORM: ${{ inputs.platform }}
-          MINIMUM_BUILD: ${{ inputs.minimum_build }}
+          CPU_FLAGS: ${{ inputs.cpu_flags }}
+          DISK_TYPE: ${{ inputs.disk_type }}
+          MACHINE: ${{ inputs.machine }}
+          NETWORK: ${{ inputs.network }}
           VERSION: ${{ inputs.version }}
-          DISPLAY_NAME: ${{ inputs.name }}
         run: |
           set -Eeuo pipefail
 
@@ -486,16 +650,85 @@ jobs:
             --device /dev/net/tun \
             --cap-add NET_ADMIN \
             --stop-timeout 120 \
+            --env "MACHINE=$MACHINE" \
             --env "VERSION=$VERSION" \
             --env "RAM_SIZE=half" \
             --env "CPU_CORES=half" \
-            --env "CPU_MODEL=$CPU" \
-            --env "LOG=Y" \
             --env "DISK_SIZE=64G" \
+            --env "CPU_MODEL=$CPU" \
+            --env "CPU_FLAGS=$CPU_FLAGS" \
+            --env "DISK_TYPE=$DISK_TYPE" \
+            --env "NETWORK=$NETWORK" \
+            --env "ADAPTER=$ADAPTER" \
+            --env "LOG=Y" \
+            --env "DEBUG=Y" \
+            --env "LOSSY=Y" \
             --volume "$RUNNER_TEMP/data:/shared" \
             --volume "$RUNNER_TEMP/oem:/oem:ro" \
             --volume "$RUNNER_TEMP/storage:/storage" \
             "$IMAGE"
+
+      - name: Start noVNC tunnel
+        if: ${{ !inputs.kill_on_failure }}
+        id: tunnel
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          if docker run --detach \
+            --name "$TUNNEL" \
+            --network "container:$CONTAINER" \
+            cloudflare/cloudflared:latest \
+            tunnel \
+            --no-autoupdate \
+            --url http://127.0.0.1:8006 > /dev/null 2>/dev/null; then
+            novnc_url=""
+
+            for _ in {1..30}; do
+              novnc_url="$(
+                docker logs "$TUNNEL" 2>&1 |
+                  grep -Eo 'https://[-a-z0-9]+\.trycloudflare\.com' |
+                  tail -n 1 || true
+              )"
+
+              [ -n "$novnc_url" ] && break
+              sleep 2
+            done
+
+            if [ -n "$novnc_url" ]; then
+              echo
+              echo "::notice title=noVNC viewer::$novnc_url"
+              echo "noVNC viewer: $novnc_url"
+              echo "Warning: this temporary URL is publicly accessible."
+              echo "url=$novnc_url" >> "$GITHUB_OUTPUT"
+
+              {
+                echo "### noVNC viewer"
+                echo
+                echo "[$novnc_url]($novnc_url)"
+                echo
+                echo "> This temporary URL is publicly accessible while the job is running."
+              } >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::warning::Failed to obtain a noVNC tunnel URL."
+              docker logs "$TUNNEL" 2>&1 || true
+            fi
+          else
+            echo "::warning::Failed to start the noVNC tunnel."
+          fi
+
+      - name: Install and validate Windows
+        shell: bash
+        env:
+          KILL_ON_FAILURE: ${{ inputs.kill_on_failure }}
+          EXPECTED_TOKEN: ${{ steps.test.outputs.token }}
+          EXPECTED_CAPTION: ${{ inputs.expected_caption }}
+          EXPECTED_EDITION: ${{ inputs.expected_edition }}
+          EXPECTED_PLATFORM: ${{ inputs.platform }}
+          MINIMUM_BUILD: ${{ inputs.minimum_build }}
+          DISPLAY_NAME: ${{ inputs.name }}
+        run: |
+          set -Eeuo pipefail
 
           echo
           echo "Container log:"
@@ -541,10 +774,27 @@ jobs:
 
           trap stop_logs EXIT
 
+          failure_checks_disabled=0
+
+          handle_failure() {
+            local message="$1"
+
+            if [[ "$KILL_ON_FAILURE" == "true" ]]; then
+              return 1
+            fi
+
+            echo
+            echo "Automatic termination is disabled by kill_on_failure."
+            echo "The container and noVNC tunnel will remain available."
+            echo "::warning title=Failure detected::$message"
+            failure_checks_disabled=1
+            return 0
+          }
+
           deadline=$((SECONDS + 9000))
           reboot_timeout=1800
           minimum_reboots=1
-          boot_loop_limit=5
+          boot_loop_limit=10
           first_bios_start=-1
 
           while (( SECONDS < deadline )); do
@@ -564,22 +814,30 @@ jobs:
 
             container_log="$(docker logs "$CONTAINER" 2>&1 || true)"
 
-            if grep -Eqi \
-              'KVM internal error|KVM: entry failed|hardware error 0x[0-9a-f]+|Triple fault' \
-              <<< "$container_log"; then
+            if (( failure_checks_disabled == 0 )) &&
+               grep -Eqi \
+                 'KVM internal error|KVM: entry failed|hardware error 0x[0-9a-f]+|Triple fault' \
+                 <<< "$container_log"; then
               echo
               echo "------------------------------------------------------------"
               echo "Detected a fatal QEMU or KVM error."
-              exit 1
+
+              if ! handle_failure "Detected a fatal QEMU or KVM error."; then
+                exit 1
+              fi
             fi
 
-            if grep -Eqi \
-              'CDBOOT: Cannot boot from CD.*Code: 5' \
-              <<< "$container_log"; then
+            if (( failure_checks_disabled == 0 )) &&
+               grep -Eqi \
+                 'CDBOOT: Cannot boot from CD.*Code: 5' \
+                 <<< "$container_log"; then
               echo
               echo "------------------------------------------------------------"
               echo "The installation media could not be booted."
-              exit 1
+
+              if ! handle_failure "The installation media could not be booted."; then
+                exit 1
+              fi
             fi
 
             bios_starts="$(
@@ -620,7 +878,8 @@ jobs:
               first_bios_start=$SECONDS
             fi
 
-            if (( first_bios_start >= 0 &&
+            if (( failure_checks_disabled == 0 &&
+                  first_bios_start >= 0 &&
                   SECONDS - first_bios_start >= reboot_timeout &&
                   reboots < minimum_reboots )); then
               echo
@@ -629,7 +888,10 @@ jobs:
                 "$((reboot_timeout / 60)) minutes after the first BIOS start."
               echo "Observed reboots: $reboots"
               echo "Required reboots: $minimum_reboots"
-              exit 1
+
+              if ! handle_failure "The installation did not reboot in time."; then
+                exit 1
+              fi
             fi
 
             if (( bios_starts >= boot_loop_limit )) &&
@@ -642,6 +904,7 @@ jobs:
               echo
               echo "------------------------------------------------------------"
               echo "Detected a repeated BIOS boot loop."
+              echo
               echo "SeaBIOS starts: $bios_starts"
               echo "Hard disk boots: $hard_disk_boots"
               echo "DVD boots: $dvd_boots"
@@ -649,6 +912,7 @@ jobs:
               echo "Unreadable boot-disk failures: $unreadable_boot_disk"
               echo "No-bootable-device failures: $no_bootable_device"
               echo "BOOTMGR failures: $bootmgr_missing"
+
               exit 1
             fi
 
@@ -760,4 +1024,5 @@ jobs:
         if: always()
         shell: bash
         run: |
+          docker rm --force "$TUNNEL" 2>/dev/null || true
           docker rm --force "$CONTAINER" 2>/dev/null || true
