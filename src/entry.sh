@@ -29,7 +29,6 @@ cd /run
 . balloon.sh    # Initialize ballooning
 . config.sh     # Configure arguments
 
-# Temporarily force legacy VirtIO devices for Windows XP on Q35.
 if [[ "${DETECTED,,}" == "winxp"* ]] &&
   isQ35 "${MACHINE:-q35}"; then
 
@@ -47,9 +46,8 @@ if [[ "${DETECTED,,}" == "winxp"* ]] &&
     ARGS="${ARGS//-device $device,/-device $device,$virtio_options,}"
   done
 
-  # The display is generated through the "-vga virtio" alias rather than
-  # an explicit "-device" argument, so replace it separately.
   ARGS="${ARGS//-vga virtio/-device virtio-vga,$virtio_options}"
+  ARGS="${ARGS//smm=on/smm=off}"
 fi
 
 . finish.sh     # Finish initialization
