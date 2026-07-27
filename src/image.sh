@@ -935,9 +935,9 @@ reportBatchMatches() {
 checkBatch() {
 
   local file="$1"
-  local report="N"
   local tmp output
   local matches line
+  local enabled_rules
 
   [ -s "$file" ] || return 0
 
@@ -949,43 +949,18 @@ checkBatch() {
   local source="your install.bat file"
   [ -n "${COMMAND:-}" ] && source="your COMMAND variable"
 
+  # Only check rules that indicate likely execution or behavioural failures.
+  enabled_rules="E001,E002,E003,E004,E005,E006,E007,E008"
+  enabled_rules+=",E009,E010,E011,E012,E013,E014,E015,E016"
+  enabled_rules+=",E017,E018,E019,E020,E021,E022,E023,E024"
+  enabled_rules+=",E025,E027,E028,E029,E030,E031,E032,E033,E034"
+  enabled_rules+=",W004,W005,W013,W017,W021,W022,W034,W038,W040"
+
   if enabled "$DEBUG"; then
-
-    report="Y"
-
     if LC_ALL=C grep -Pq '[^\x09\x0D\x20-\x7E]' "$file"; then
       warn "non-ASCII characters were detected in $source and may not execute correctly in Windows Command Prompt."
     fi
-
-  else
-
-    # First pass: silently check only for Error-level findings.
-    cat > "$tmp/blinter.ini" <<'EOC'
-[general]
-min_severity = error
-EOC
-
-    if ! (
-      cd "$tmp"
-      python3 -m blinter "$file" >/dev/null 2>&1
-    ); then
-      report="Y"
-    fi
-
   fi
-
-if enabled "$report"; then
-
-  # Show useful diagnostic context, while excluding findings that are
-  # irrelevant to unattended OEM scripts.
-  disabled_rules="W001,W002,W003,W006,W007,W008,W009,W010"
-  disabled_rules+=",W011,W012,W014,W018,W019,W020,W023,W024"
-  disabled_rules+=",W025,W026,W027,W028,W029,W030,W031,W032"
-  disabled_rules+=",W033,W035,W036,W037,W039,W042,W043"
-  disabled_rules+=",SEC001,SEC002,SEC003,SEC004,SEC005,SEC006"
-  disabled_rules+=",SEC007,SEC008,SEC009,SEC010,SEC011,SEC012"
-  disabled_rules+=",SEC013,SEC014,SEC015,SEC016,SEC017,SEC018"
-  disabled_rules+=",SEC019,SEC020,SEC021,SEC022,SEC023,SEC024"
 
   cat > "$tmp/blinter.ini" <<EOC
 [general]
@@ -993,46 +968,44 @@ min_severity = warning
 show_summary = false
 
 [rules]
-disabled_rules = $disabled_rules
+enabled_rules = $enabled_rules
 EOC
 
-    output=$(
-      cd "$tmp"
-      python3 -m blinter "$file" 2>&1 || true
-    )
+  output=$(
+    cd "$tmp"
+    python3 -m blinter "$file" 2>&1 || true
+  )
 
-    # Remove header
-    output=$(
-      awk '
-        /^DETAILED ISSUES:/ {
-          found = 1
-          next
+  # Remove header.
+  output=$(
+    awk '
+      /^DETAILED ISSUES:/ {
+        found = 1
+        next
+      }
+
+      found && !started {
+        if (/^-+$/) {
+          started = 1
         }
+        next
+      }
 
-        found && !started {
-          if (/^-+$/) {
-            started = 1
-          }
-          next
-        }
+      started {
+        print
+      }
+    ' <<< "$output"
+  )
 
-        started {
-          print
-        }
-      ' <<< "$output"
-    )
+  output="${output#"${output%%[!$'\r\n ']*}"}"
+  output="${output%"${output##*[!$'\r\n ']}"}"
 
-    output="${output#"${output%%[!$'\r\n ']*}"}"
-    output="${output%"${output##*[!$'\r\n ']}"}"
+  if grep -Eq \
+    '^(ERROR|WARNING|SECURITY) LEVEL ISSUES:$' \
+    <<< "$output"; then
 
-    if grep -Eq \
-      '^(ERROR|WARNING|SECURITY) LEVEL ISSUES:$' \
-      <<< "$output"; then
-
-      warn "possible issues were detected in $source:"
-      printf '\n%s\n\n' "$output" >&2
-    fi
-
+    warn "possible issues were detected in $source:"
+    printf '\n%s\n\n' "$output" >&2
   fi
 
   rm -rf "$tmp" || true
