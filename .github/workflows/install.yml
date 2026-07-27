@@ -70,7 +70,7 @@ on:
       kill_on_failure:
         description: Stop the workflow when an installation failure is detected
         required: false
-        default: false
+        default: true
         type: boolean
 
       expected_caption:
