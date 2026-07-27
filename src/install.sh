@@ -826,6 +826,7 @@ prepareImage() {
 
   # Adjust QEMU machine configuration for legacy versions
   setMachine "$DETECTED" "$iso" "$dir" "$desc" || return 1
+  restoreMachineState || return 1
 
   disabled "$REBUILD" && return 0
 
