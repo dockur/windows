@@ -61,6 +61,12 @@ on:
         default: ""
         type: string
 
+      adapter:
+        description: Network adapter exposed to Windows
+        required: false
+        default: ""
+        type: string
+
       kill_on_failure:
         description: Stop the workflow when an installation failure is detected
         required: false
@@ -628,6 +634,7 @@ jobs:
       - name: Start Windows container
         shell: bash
         env:
+          ADAPTER: ${{ inputs.adapter }}
           CPU: ${{ inputs.cpu }}
           CPU_FLAGS: ${{ inputs.cpu_flags }}
           DISK_TYPE: ${{ inputs.disk_type }}
@@ -652,6 +659,7 @@ jobs:
             --env "CPU_FLAGS=$CPU_FLAGS" \
             --env "DISK_TYPE=$DISK_TYPE" \
             --env "NETWORK=$NETWORK" \
+            --env "ADAPTER=$ADAPTER" \
             --env "LOG=Y" \
             --env "DEBUG=Y" \
             --env "LOSSY=Y" \
