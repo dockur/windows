@@ -510,7 +510,7 @@ skipVersion() {
   local id="$1"
 
   case "${id,,}" in
-    "win9"* | "winxp"* | "win2k"* | "win2003"* )
+    "win9"* | "winxp"* | "win2k"* | "win2003"* | "reactos" )
       return 0 ;;
   esac
 
@@ -622,6 +622,24 @@ detectLegacy() {
   fi
 
   return 1
+}
+
+detectReactOS() {
+
+  local dir="$1"
+  local marker
+
+  marker=$(find "$dir" -maxdepth 2 -type f \
+    \( \
+      -ipath '*/reactos/reactos.inf' -o \
+      -ipath '*/reactos/unattend.inf' \
+    \) \
+    -print -quit) || return 1
+
+  [ -n "$marker" ] || return 1
+
+  DETECTED="reactos"
+  return 0
 }
 
 resolveImage() {
@@ -821,7 +839,7 @@ detectImage() {
 
   info "Detecting version from ISO image..."
 
-  if detectLegacy "$dir"; then
+  if detectLegacy "$dir" || detectReactOS "$dir"; then
     desc=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 1
     info "Detected: $desc"
     return 0
@@ -966,7 +984,7 @@ min_severity = warning
 show_summary = false
 
 [rules]
-disabled_rules = W001,W028,W041,SEC002,SEC005
+disabled_rules = W001,W025,W028,W033,W041,SEC002,SEC005
 EOC
 
     output=$(

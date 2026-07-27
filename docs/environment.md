@@ -47,6 +47,7 @@ An empty default means the variable is unset and its value is determined automat
 | `DISK_DISCARD` | `unmap` | Discard/TRIM mode for the primary disk. |
 | `DISK_ROTATION` | `1` | Rotation rate reported to the guest. Use `1` to identify the disk as an SSD. |
 | `DISK_FLAGS` |  | Additional options used when creating `qcow2` disks. |
+| `DISK_OPTIONS` |  | Additional options appended to QEMU disk devices. |
 | `ALLOCATE` | `N` | Preallocates space for the primary disk. |
 | `STORAGE` | `/storage` | Storage directory used for disks, firmware variables, and downloads. |
 
@@ -126,12 +127,12 @@ An empty default means the variable is unset and its value is determined automat
 | `BOOT_MODE` | `windows` | Boot configuration, such as `windows`, `windows_secure`, or `windows_legacy`. |
 | `BOOT_INDEX` | `9` | Boot priority index for the installation media. |
 | `MEDIA_TYPE` |  | Device type used for installation media. |
+| `USB` | `qemu-xhci,id=xhci` | QEMU USB controller configuration. |
 | `BIOS` |  | Custom firmware file. |
 | `TPM` | `N` | Enables the TPM emulator, usually set by `BOOT_MODE`. |
 | `SMM` | `N` | Enables System Management Mode, usually set by `BOOT_MODE`. |
 | `LOGO` | `Y` | Enables the custom boot logo. |
 | `CLEAR` | `N` | Resets the NVRAM variables on the next boot. |
-| `USB` | `qemu-xhci,id=xhci` | QEMU USB controller configuration. |
 
 ## 🎈 Memory Ballooning
 

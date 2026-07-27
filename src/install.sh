@@ -329,53 +329,29 @@ finishInstall() {
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
     if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+
       writeState "mode" "$BOOT_MODE" || return 1
-      if [[ "${MACHINE,,}" != "q35" ]]; then
-        writeState "old" "$MACHINE" || return 1
-      fi
+
     else
+
+      local secure=""
+
       # Enable secure boot + TPM on manual installs as Win11 requires
       if enabled "$MANUAL" || [[ "$aborted" == [Yy1]* ]]; then
-        if [[ "${DETECTED,,}" == "win11"* ]]; then
-          BOOT_MODE="windows_secure"
-          writeState "mode" "$BOOT_MODE" || return 1
-        fi
+        [[ "${DETECTED,,}" == "win11"* ]] && secure="Y"
       fi
+
       # Enable secure boot on multi-socket systems to workaround freeze
       if [ -n "$SOCKETS" ] && [[ "$SOCKETS" != "1" ]]; then
+        secure="Y"
+      fi
+
+      if [ -n "$secure" ]; then
         BOOT_MODE="windows_secure"
         writeState "mode" "$BOOT_MODE" || return 1
       fi
+
     fi
-  fi
-
-  if [ -n "${ARGS:-}" ]; then
-    ARGUMENTS="$ARGS ${ARGUMENTS:-}"
-    writeState "args" "$ARGS" || return 1
-  fi
-
-  if [ -n "${VGA:-}" ] && [[ "${VGA:-}" != "virtio"* ]]; then
-    writeState "vga" "$VGA" || return 1
-  fi
-
-  if [ -n "${USB:-}" ] && [[ "${USB:-}" != "qemu-xhci"* ]]; then
-    writeState "usb" "$USB" || return 1
-  fi
-
-  if [ -n "${DISK_TYPE:-}" ] && [[ "${DISK_TYPE:-}" != "scsi" ]]; then
-    writeState "type" "$DISK_TYPE" || return 1
-  fi
-
-  if [ -n "${ADAPTER:-}" ] && [[ "${ADAPTER:-}" != "virtio-net-pci" ]]; then
-    writeState "net" "$ADAPTER" || return 1
-  fi
-
-  if [ -n "${SOUND:-}" ] && [[ "${SOUND:-}" != "intel-hda" ]]; then
-    writeState "sound" "$SOUND" || return 1
-  fi
-
-  if [ -n "${CPU_MODEL:-}" ] && [[ "${CPU_MODEL,,}" != "host" ]]; then
-    writeState "cpu" "$CPU_MODEL" || return 1
   fi
 
   rm -rf "$TMP"
@@ -401,7 +377,10 @@ abortInstall() {
 
     if [ -z "$efi" ] ||
       { [ -n "$efi32" ] && [ -z "$efi64" ]; }; then
-      BOOT_MODE="windows_legacy"
+
+      writeState "mode" "windows_legacy" || return 1
+      restoreBootMode || return 1
+
     fi
 
   fi
@@ -655,8 +634,8 @@ extractImage() {
 
   size=$(stat -c%s "$iso")
 
-  if (( size < 100000000 )); then
-    error "Invalid ISO file: Size is smaller than 100 MB" && return 1
+  if (( size < 10000000 )); then
+    error "Invalid ISO file: Size is smaller than 10 MB" && return 1
   fi
 
   checkFreeSpace "$dir" "$size" || return 1
@@ -684,15 +663,23 @@ extractImage() {
     file=$(find "$dir" -maxdepth 1 -type f -iname "*.iso" -print -quit)
 
     if [ -z "$file" ]; then
-      error "Failed to find any .iso file in archive!" && return 1
+      error "Failed to find any .iso file in archive!"
+      return 1
     fi
 
     if ! 7z x "$file" -o"$dir" > /dev/null; then
-      error "Failed to extract archive!" && return 1
+      error "Failed to extract archive!"
+      return 1
     fi
 
     LABEL=$(isoinfo -d -i "$file" | sed -n 's/Volume id: //p') || LABEL=""
-    rm -f "$file" || warn "Failed to remove temporary ISO file: $file"
+
+    if ! mv -f -- "$file" "$iso"; then
+      error "Failed to preserve extracted ISO file: $file"
+      return 1
+    fi
+
+    UNPACK=""
 
   fi
 
@@ -726,49 +713,83 @@ setMachine() {
 
   case "${id,,}" in
 
+    "win9"* | "win2k"* | "winxp"* | "win2003"* | \
+    "winvista"* | "win7"* | "win2008"* | "reactos" )
+
+      writeState "mode" "windows_legacy" || return 1 ;;
+
+  esac
+
+  restoreBootMode || return 1
+
+  case "${id,,}" in
+
     "win9"* )
-      USB="no"
-      VGA="cirrus"
-      DISK_TYPE="auto"
-      MACHINE="pc-i440fx-2.4"
-      BOOT_MODE="windows_legacy"
-      [ -z "${ADAPTER:-}" ] && ADAPTER="pcnet" ;;
+
+      writeState "usb" "no" || return 1
+      writeState "net" "pcnet" || return 1
+      writeState "type" "auto" || return 1
+      writeState "vga" "cirrus" || return 1
+      writeState "old" "pc-i440fx-2.4" || return 1 ;;
 
     "win2k"* )
-      VGA="cirrus"
-      MACHINE="pc"
-      USB="pci-ohci"
-      DISK_TYPE="auto"
-      BOOT_MODE="windows_legacy"
-      [ -z "${ADAPTER:-}" ] && ADAPTER="rtl8139" ;;
 
-    "winxp"* | "win2003"* )
-      DISK_TYPE="blk"
-      BOOT_MODE="windows_legacy"
-      [ -z "${SOUND:-}" ] && SOUND="usb-audio" ;;
+      writeState "old" "pc" || return 1
+      writeState "vga" "cirrus" || return 1
+      writeState "type" "auto" || return 1
+      writeState "net" "rtl8139" || return 1
+      writeState "usb" "pci-ohci" || return 1 ;;
 
-    "winvista"* | "win7"* | "win2008"* )
-      BOOT_MODE="windows_legacy" ;;
+    "winxpx86"* )
+
+      writeState "type" "blk" || return 1
+      writeState "net" "rtl8139" || return 1
+      writeState "sound" "usb-audio" || return 1 ;;
+
+    "winxpx64"* | "win2003"* )
+
+      writeState "type" "blk" || return 1
+      writeState "sound" "usb-audio" || return 1 ;;
+
+    "reactos" )
+
+      [ -z "${REMOVE:-}" ] && REMOVE="N"
+      [ -z "${REBUILD:-}" ] && REBUILD="N"
+
+      writeState "old" "pc" || return 1
+      writeState "type" "auto" || return 1
+      writeState "vga" "cirrus" || return 1
+      writeState "net" "rtl8139" || return 1
+      writeState "usb" "pci-ohci" || return 1 ;;
+
+  esac
+
+  restoreMachine || return 1
+
+  case "${id,,}" in
+
+    "win9"* | "win2k"* | *"x86"* | "reactos" )
+
+      # Legacy 32-bit Windows may enter an incompatible PAE/DEP path when the
+      # NX flag is exposed, causing installation failures or repeated resets.
+
+      writeState "flag" "nx=off" || return 1 ;;
 
   esac
 
   case "${id,,}" in
 
-    "winvistax86"* | "win7x86"* )
+    "win9"* | "win2k"* | "winxp"* | "win2003"* | \
+    "winvistax86"* | "win7x86"* | "reactos" )
 
-      # Fix boot loop issue on AMD EPYC processors
-      [ -z "${CPU_MODEL:-}" ] && CPU_MODEL="qemu32" ;;
+      if isQ35 "$MACHINE"; then
 
-  esac
+        # pc-q35-2.11 began advertising a synthetic 64-bit PCI MMIO aperture.
+        # Older Windows ACPI implementations may reject that resource layout,
+        # so retain the pre-2.11 behavior for these guests to prevent a
+        # blue screen on XP and others if the 64 bit PCI hole size is >2G.
 
-  case "${id,,}" in
-
-    "winxp"* | "win2003"* | "winvistax86"* | "win7x86"* | "win2008r2x86"* )
-
-      if isQ35 "${MACHINE:-q35}"; then
-
-        # Prevent bluescreen if 64 bit PCI hole size is >2G.
-        ARGS="-global q35-pcihost.x-pci-hole64-fix=false"
+        writeState "args" "-global q35-pcihost.x-pci-hole64-fix=false" || return 1
 
       fi ;;
 
@@ -787,6 +808,7 @@ prepareImage() {
 
   # Adjust QEMU machine configuration for legacy versions
   setMachine "$DETECTED" "$iso" "$dir" "$desc" || return 1
+  restoreMachineState || return 1
 
   disabled "$REBUILD" && return 0
 
@@ -1140,25 +1162,80 @@ removeImage() {
   return 0
 }
 
+mergeState() {
+
+  local var="$1"
+  local name="$2"
+  local separator="${3:-,}"
+  local prefix="${4:-$PROCESS}"
+  local current="${!var:-}"
+  local value
+
+  value=$(readState "$name" "$prefix") || return 1
+  [ -n "$value" ] || return 0
+
+  if [ -n "$current" ]; then
+    value="$current$separator$value"
+  fi
+
+  printf -v "$var" '%s' "$value" || return 1
+  return 0
+}
+
+restoreBootMode() {
+
+  local current="${BOOT_MODE:-}"
+
+  local mode
+  mode=$(readState "mode") || return 1
+
+  [ -n "$mode" ] || return 0
+
+  if [[ "${mode,,}" == "windows_legacy" ]]; then
+    BOOT_MODE="$mode"
+    return 0
+  fi
+
+  case "${current,,}" in
+    "" | "windows" | "windows_plain" )
+      BOOT_MODE="$mode" ;;
+  esac
+
+  return 0
+}
+
+restoreMachine() {
+
+  [[ "${PLATFORM,,}" != "x64" ]] && return 0
+  [[ "${MACHINE,,}" != "q35" ]] && return 0
+
+  MACHINE=""
+  restoreState "MACHINE" "old" || return 1
+  [ -z "$MACHINE" ] && MACHINE="q35"
+
+  return 0
+}
+
+restoreMachineState() {
+
+  restoreState "VGA" "vga" || return 1
+  restoreState "USB" "usb" || return 1
+  restoreState "SOUND" "sound" || return 1
+  restoreState "ADAPTER" "net" || return 1
+  restoreState "CPU_MODEL" "cpu" || return 1
+  restoreState "DISK_TYPE" "type" || return 1
+
+  mergeState "CPU_FLAGS" "flag" "," || return 1
+  mergeState "ARGUMENTS" "args" " " || return 1
+
+  return 0
+}
+
 bootWindows() {
 
-  ARGS=$(readState "$STORAGE/windows.args") || return 1
-
-  if [ -n "$ARGS" ]; then
-    ARGUMENTS="$ARGS ${ARGUMENTS:-}"
-  fi
-
-  restoreState "VGA" "$STORAGE/windows.vga" || return 1
-  restoreState "USB" "$STORAGE/windows.usb" || return 1
-  restoreState "SOUND" "$STORAGE/windows.sound" || return 1
-  restoreState "ADAPTER" "$STORAGE/windows.net" || return 1
-  restoreState "CPU_MODEL" "$STORAGE/windows.cpu" || return 1
-  restoreState "DISK_TYPE" "$STORAGE/windows.type" || return 1
-  restoreState "BOOT_MODE" "$STORAGE/windows.mode" "Y" || return 1
-
-  if [[ "${PLATFORM,,}" == "x64" ]]; then
-    restoreState "MACHINE" "$STORAGE/windows.old" "Y" || return 1
-  fi
+  restoreMachineState || return 1
+  restoreBootMode || return 1
+  restoreMachine || return 1
 
   return 0
 }

@@ -1644,6 +1644,43 @@ writeVBS() {
   return 0
 }
 
+disableAutoReboot() {
+
+  local target="$1"
+  local file
+
+  file=$(find \
+    "$target" \
+    -maxdepth 1 \
+    -type f \
+    -iname HIVESYS.INF \
+    -print -quit
+  ) || return 1
+
+  if [ -z "$file" ]; then
+    error "The file HIVESYS.INF could not be found!"
+    return 1
+  fi
+
+  if grep -Fqi \
+    'HKLM,"SYSTEM\CurrentControlSet\Control\CrashControl","AutoReboot"' \
+    "$file"; then
+
+    sed -i -E \
+      's|^(HKLM,"SYSTEM\\CurrentControlSet\\Control\\CrashControl","AutoReboot",[^,]*,)[^[:space:]]*|\1 0|I' \
+      "$file" || return 1
+
+  else
+
+    printf '%s\n' \
+      'HKLM,"SYSTEM\CurrentControlSet\Control\CrashControl","AutoReboot",0x00010001,0' |
+      unix2dos >> "$file" || return 1
+
+  fi
+
+  return 0
+}
+
 legacyInstall() {
 
   local dir="$2"
@@ -1683,6 +1720,7 @@ legacyInstall() {
     addLegacyDrivers "$dir" "$target" "$driver" "$arch" "$drivers" || return 1
   fi
 
+  disableAutoReboot "$target" || return 1
   setLegacyKey "$target" "$driver" "$arch" "$desc" || return 1
   validateProductKey "$KEY" || return 1
 

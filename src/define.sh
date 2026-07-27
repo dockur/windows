@@ -67,7 +67,7 @@ SERVER_EDITION_ORDER=(
   "-hv|hv|hv hv-*"
 )
 
-MIRRORS=3
+MIRRORS=4
 
 parseVersion() {
 
@@ -183,6 +183,9 @@ parseVersion() {
       ;;
     "tiny10" | "tiny 10" )
       VERSION="tiny10"
+      ;;
+    "reactos" | "react os" )
+      VERSION="reactos"
       ;;
   esac
 
@@ -483,6 +486,7 @@ printVersion() {
     "tiny11"* ) desc="Tiny 11" ;;
     "tiny10"* ) desc="Tiny 10" ;;
     "core11"* ) desc="Core 11" ;;
+    "reactos"* ) desc="ReactOS" ;;
     "win7"* ) desc="Windows 7" ;;
     "win8"* ) desc="Windows 8" ;;
     "win10"* ) desc="Windows 10" ;;
@@ -690,6 +694,8 @@ fromFile() {
       id="tiny11" ;;
     "tiny10"* | "tiny_10"* )
       id="tiny10" ;;
+    "reactos"* )
+      id="reactos" ;;
     *"_serverhypercore_"* )
       id="win2019${add}-hv" ;;
     *"server2025"* | *"server_2025"* )
@@ -1298,6 +1304,35 @@ getLink2() {
 }
 
 getLink3() {
+
+  local id="$1"
+  local lang="$2"
+  local ret="$3"
+  local url=""
+  local sum=""
+  local size=""
+  local host="https://iso.reactos.org"
+
+  [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
+
+  case "${id,,}" in
+    "reactos" )
+      size=0
+      sum=""
+      url="livecd/latest-x86-gcc-lin-rel"
+      ;;
+  esac
+
+  case "${ret,,}" in
+    "sum" ) echo "$sum" ;;
+    "size" ) echo "$size" ;;
+    *) [ -n "$url" ] && echo "$host/$url";;
+  esac
+
+  return 0
+}
+
+getLink4() {
 
   local id="$1"
   local lang="$2"
