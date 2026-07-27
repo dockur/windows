@@ -1,4 +1,4 @@
-name: XP PC Validation
+name: XP CPU Feature Validation
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: xp-pc-validation-${{ github.ref }}
+  group: xp-cpu-feature-validation-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -16,46 +16,46 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: host + no OSVW
-            cpu: host
-            cpu_flags: osvw=off
-
-          - name: host + no AMD legacy features
-            cpu: host
-            cpu_flags: osvw=off,topoext=off,cr8legacy=off,svm=off,x2apic=off
-
-          - name: qemu32
-            cpu: qemu32
-            cpu_flags: ""
-
-          - name: kvm32
+          - name: kvm32 control
             cpu: kvm32
             cpu_flags: ""
 
-          - name: Opteron G1
-            cpu: Opteron_G1
-            cpu_flags: ""
+          - name: kvm32 + LM
+            cpu: kvm32
+            cpu_flags: lm=on
 
-          - name: Opteron G2
-            cpu: Opteron_G2
-            cpu_flags: ""
+          - name: kvm32 + NX
+            cpu: kvm32
+            cpu_flags: nx=on
 
-          - name: Opteron G3
-            cpu: Opteron_G3
-            cpu_flags: ""
+          - name: kvm32 + SYSCALL
+            cpu: kvm32
+            cpu_flags: syscall=on
 
-          - name: host
-            cpu: host
-            cpu_flags: ""
+          - name: kvm32 + LM + NX
+            cpu: kvm32
+            cpu_flags: lm=on,nx=on
 
-    name: Windows XP x86 - pc - ${{ matrix.name }}
+          - name: kvm32 + LM + SYSCALL
+            cpu: kvm32
+            cpu_flags: lm=on,syscall=on
+
+          - name: kvm32 + NX + SYSCALL
+            cpu: kvm32
+            cpu_flags: nx=on,syscall=on
+
+          - name: kvm32 + LM + NX + SYSCALL
+            cpu: kvm32
+            cpu_flags: lm=on,nx=on,syscall=on
+
+    name: Windows XP x86 - ${{ matrix.name }}
 
     uses: ./.github/workflows/install.yml
     with:
-      name: XP pc + ${{ matrix.name }} + blk
+      name: XP q35 + ${{ matrix.name }} + blk
       version: "xp"
       callback: legacy
-      machine: pc
+      machine: q35
       cpu: ${{ matrix.cpu }}
       cpu_flags: ${{ matrix.cpu_flags }}
       disk_type: blk
