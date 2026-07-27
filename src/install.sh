@@ -1162,26 +1162,6 @@ removeImage() {
   return 0
 }
 
-mergeState() {
-
-  local var="$1"
-  local name="$2"
-  local separator="${3:-,}"
-  local prefix="${4:-$PROCESS}"
-  local current="${!var:-}"
-  local value
-
-  value=$(readState "$name" "$prefix") || return 1
-  [ -n "$value" ] || return 0
-
-  if [ -n "$current" ]; then
-    value="$current$separator$value"
-  fi
-
-  printf -v "$var" '%s' "$value" || return 1
-  return 0
-}
-
 restoreBootMode() {
 
   local current="${BOOT_MODE:-}"
