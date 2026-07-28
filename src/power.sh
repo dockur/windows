@@ -72,7 +72,7 @@ waitForBoot() {
           info "$(app) started successfully."
         fi
 
-        return 0 ;;
+        echo && return 0 ;;
 
       2) echo
 
@@ -82,7 +82,7 @@ waitForBoot() {
           warn "$(app) could not boot."
         fi
 
-        return 0 ;;
+        echo && return 0 ;;
     esac
 
     (( SECONDS >= deadline )) && break
