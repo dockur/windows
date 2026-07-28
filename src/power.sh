@@ -46,7 +46,8 @@ bootStatus() {
     <<< "$last" && return 2
 
   grep -Eq \
-    -e '"Windows Boot Manager".*HD\(' \
+    -e '"Windows Boot Manager"' \
+    -e '"UEFI QEMU .*DVD-ROM' \
     -e 'CDROM\(' \
     -e 'USB\(' \
     <<< "$last"
