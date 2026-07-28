@@ -64,7 +64,8 @@ waitForBoot() {
     fi
 
     case "$status" in
-      0)
+      0) echo
+
         if [[ "${DISPLAY,,}" == "web" ]] && ! disabled "${WEB:-Y}"; then
           info "$(app) started successfully, $screen"
         else
@@ -72,7 +73,9 @@ waitForBoot() {
         fi
 
         return 0 ;;
-      2)
+
+      2) echo
+
         if [[ "${DISPLAY,,}" == "web" ]] && ! disabled "${WEB:-Y}"; then
           warn "$(app) could not boot, $screen"
         else
