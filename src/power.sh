@@ -35,15 +35,10 @@ bootStatus() {
 
   local last
   last=$(grep -E \
-    -e 'BdsDxe: starting Boot[[:xdigit:]]{4} ' \
-    -e 'BdsDxe: failed to (start|load) Boot[[:xdigit:]]{4} ' \
+    'BdsDxe: starting Boot[[:xdigit:]]{4} ' \
     "$QEMU_PTY" | tail -1)
 
   [ -z "$last" ] && return 1
-
-  grep -Eq \
-    -e 'BdsDxe: failed to (start|load) Boot' \
-    <<< "$last" && return 2
 
   grep -Eq \
     -e '"Windows Boot Manager"' \
