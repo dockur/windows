@@ -74,20 +74,15 @@ waitForBoot() {
 
         echo && return 0 ;;
 
-      2) echo
+      2) error "$(app) could not boot, aborting..."
+         terminateQemu
+         return 0 ;;
 
-        if [[ "${DISPLAY,,}" == "web" ]] && ! disabled "${WEB:-Y}"; then
-          warn "$(app) could not boot, $screen"
-        else
-          warn "$(app) could not boot."
-        fi
-
-        echo && return 0 ;;
     esac
 
     (( SECONDS >= deadline )) && break
 
-    sleep 0.1
+    sleep 0.25
   done
 
   ! isAlive "$pid" && return 0
