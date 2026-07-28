@@ -63,7 +63,7 @@ else
 fi
 
 pid=$!
-( sleep 30; boot ) &
+waitForBoot "$pid" 30 &
 
 rc=0
 wait "$pid" || rc=$?
