@@ -15,36 +15,84 @@ CONSOLE_PID="$QEMU_DIR/console.pid"
 CONSOLE_SOCKET="$QEMU_DIR/console.sock"
 QEMU_START_PID="$QEMU_DIR/qemu.start.pid"
 
-bootFailed() {
+bootStatus() {
 
-  local fail=""
+  [ ! -s "$QEMU_PTY" ] && return 1
 
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
-    grep -Fq "No bootable device." "$QEMU_PTY" && fail="y"
-    grep -Fq "BOOTMGR is missing" "$QEMU_PTY" && fail="y"
+    grep -Fq \
+      -e "No bootable device." \
+      -e "BOOTMGR is missing" \
+      -e "Boot failed: not a bootable disk" \
+      -e "Boot failed: could not read the boot disk" \
+      "$QEMU_PTY" && return 2
+
+    grep -Eq '^Booting from (Hard|DVD/CD)' "$QEMU_PTY"
+    return $?
   fi
 
-  [ -n "$fail" ]
+  grep -Fq "UEFI Interactive Shell" "$QEMU_PTY" && return 2
+
+  local last
+  last=$(grep -E \
+    -e 'BdsDxe: starting Boot[[:xdigit:]]{4} ' \
+    -e 'BdsDxe: failed to (start|load) Boot[[:xdigit:]]{4} ' \
+    "$QEMU_PTY" | tail -1)
+
+  [ -z "$last" ] && return 1
+
+  grep -Eq \
+    -e 'BdsDxe: failed to (start|load) Boot' \
+    <<< "$last" && return 2
+
+  grep -Eq \
+    -e '"Windows Boot Manager".*HD\(' \
+    -e 'CDROM\(' \
+    -e 'USB\(' \
+    <<< "$last"
 }
 
-boot() {
+waitForBoot() {
 
-  [ -f "$QEMU_END" ] && return 0
+  local pid="$1"
+  local timeout="${2:-30}"
+  local deadline=$((SECONDS + timeout))
+  local screen="visit http://127.0.0.1:$WEB_PORT/ to view the screen..."
 
-  if [ -s "$QEMU_PTY" ]; then
-    if [ "$(stat -c%s "$QEMU_PTY")" -gt 7 ]; then
-      if ! bootFailed; then
+  while isAlive "$pid"; do
 
+    if bootStatus; then
+      local status=0
+    else
+      local status=$?
+    fi
+
+    case "$status" in
+      0)
         if [[ "${DISPLAY,,}" == "web" ]] && ! disabled "${WEB:-Y}"; then
-          info "$(app) started successfully, visit http://127.0.0.1:$WEB_PORT/ to view the screen..."
+          info "$(app) started successfully, $screen"
         else
           info "$(app) started successfully."
         fi
 
-        return 0
-      fi
-    fi
-  fi
+        return 0 ;;
+      2)
+        if [[ "${DISPLAY,,}" == "web" ]] && ! disabled "${WEB:-Y}"; then
+          warn "$(app) could not boot, $screen"
+        else
+          warn "$(app) could not boot."
+        fi
+
+        return 0 ;;
+    esac
+
+    (( SECONDS >= deadline )) && break
+
+    sleep 0.1
+  done
+
+  ! isAlive "$pid" && return 0
+  [ -f "$QEMU_END" ] && return 0
 
   error "Timeout while waiting for QEMU to boot the machine, aborting..."
   terminateQemu
