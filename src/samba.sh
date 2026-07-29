@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-: "${SAMBA:="Y"}"         # Enable Samba
-: "${SAMBA_DEBUG:="N"}"   # Disable debug
+: "${SAMBA:="Y"}"            # Enable Samba
+: "${SAMBA_DEBUG:="N"}"      # Disable debug
+: "${SAMBA_READONLY:="N"}"   # Disable writes
 : "${SAMBA_CONFIG:="/etc/samba/smb.conf"}"
 
 DDN_PID="/var/run/wsdd.pid"
@@ -87,7 +88,10 @@ addShare() {
   local name="$3"
   local comment="$4"
   local cfg="$5"
-  local owner
+  local owner probe
+  local empty="N"
+  local writable="N"
+  local readonly="N"
   local tmp="/tmp/smb"
 
   if [ ! -d "$dir" ]; then
@@ -102,12 +106,43 @@ addShare() {
     error "$msg" && return 1
   fi
 
-  if [ ! -w "$dir" ]; then
-    local msg="shared folder ($dir) is not writeable!"
-    warn "$msg"
+  if [ -z "$(ls -A "$dir")" ]; then
+    empty="Y"
   fi
 
-  if [ -z "$(ls -A "$dir")" ]; then
+  if [[ "$dir" == "$tmp" ]]; then
+
+    readonly="Y"
+
+  elif enabled "$SAMBA_READONLY"; then
+
+    readonly="Y"
+
+  elif probe=$(mktemp "$dir/.samba-write-test.XXXXXX" 2>/dev/null); then
+
+    writable="Y"
+
+    if ! rm -f "$probe"; then
+      error "Failed to remove write test file ($probe)."
+      return 1
+    fi
+
+  elif [[ "$empty" == "Y" ]] && chmod 2777 "$dir" 2>/dev/null; then
+
+    if probe=$(mktemp "$dir/.samba-write-test.XXXXXX" 2>/dev/null); then
+
+      writable="Y"
+
+      if ! rm -f "$probe"; then
+        error "Failed to remove write test file ($probe)."
+        return 1
+      fi
+
+    fi
+
+  fi
+
+  if [[ "$writable" == "Y" ]] && [[ "$empty" == "Y" ]]; then
 
     if ! chmod 2777 "$dir"; then
       error "Failed to set permissions for directory $dir" && return 1
@@ -124,6 +159,10 @@ addShare() {
       fi
     fi
 
+  elif [[ "$readonly" != "Y" ]]; then
+
+    readonly="Y"
+
   fi
 
   if [[ "$dir" == "$tmp" ]]; then
@@ -135,7 +174,13 @@ addShare() {
     echo "[$name]"
     echo "    path = $dir"
     echo "    comment = $comment"
-    echo "    writable = yes"
+
+    if [[ "$readonly" == "Y" ]]; then
+      echo "    read only = yes"
+    else
+      echo "    read only = no"
+    fi
+
     echo "    guest ok = yes"
     echo "    guest only = yes"
   } >> "$cfg"; then

@@ -106,6 +106,7 @@ An empty default means the variable is unset and its value is determined automat
 |---|---|---|
 | `SAMBA` | `Y` | Enables the Samba shared folder. |
 | `SAMBA_DEBUG` | `N` | Enables Samba debug output. |
+| `SAMBA_READONLY` | `N` | Enables read-only mode for the shared folder. |
 | `SHORTCUT` | `Y` | Creates desktop and drive shortcuts to the shared folder. |
 
 ## ⚙️ System
