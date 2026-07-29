@@ -428,12 +428,12 @@ detectVersion() {
   local result_name="$3"
   local index_name="$4"
 
-  local order_name="EDITION_ORDER"
   local normalize_name="normalizeEditionID"
 
   local -a bases=()
   local -a groups=()
   local -a versions=()
+  local -a edition_order=()
   local -A image_indexes=()
 
   printf -v "$result_name" '%s' ""
@@ -450,10 +450,11 @@ detectVersion() {
 
   case "${bases[0],,}" in
     "win20"* )
-      order_name="SERVER_EDITION_ORDER"
       normalize_name="normalizeServerEditionID"
       ;;
   esac
+
+  getEditionOrder "${bases[0]}" edition_order || return 1
 
   selectEdition \
     versions \
@@ -464,7 +465,7 @@ detectVersion() {
     "$result_name" \
     "$index_name" \
     "$normalize_name" \
-    "$order_name" && return 0
+    edition_order && return 0
 
   local result="${versions[0]}"
   local key="${result,,}"
