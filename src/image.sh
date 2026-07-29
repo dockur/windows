@@ -524,6 +524,13 @@ detectLegacy() {
 
   [[ "${PLATFORM,,}" == "x64" ]] || return 1
 
+  marker=$(find "$dir" -maxdepth 1 -type d -iname 'ia64' -print -quit) || return 1
+
+  if [ -n "$marker" ]; then
+    error "Windows IA-64 (Itanium) images are not supported by this container!"
+    return 1
+  fi
+
   marker=$(find "$dir" -maxdepth 1 -type d -iname WIN95 -print -quit) || return 1
 
   if [ -n "$marker" ]; then
@@ -612,7 +619,8 @@ detectLegacy() {
       -iname WIN51AD -o \
       -iname WIN51AS -o \
       -iname WIN51MA -o \
-      -iname WIN51MD \
+      -iname WIN51MD -o \
+      -iname WIN51MP \
     \) \
     -print -quit) || return 1
 
