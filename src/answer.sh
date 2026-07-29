@@ -1081,7 +1081,7 @@ removeSharedFolderXML() {
   return 0
 }
 
-enableConfigurationSetXML() {
+setConfiguration() {
 
   local asset="$1"
   local tmp
