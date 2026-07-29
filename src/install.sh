@@ -1028,46 +1028,6 @@ addDrivers() {
   return 0
 }
 
-getImageSize() {
-
-  local stage="$1"
-  local mib=$((1024 * 1024))
-  local minimum=$((64 * mib))
-  local payload required size large_file
-
-  if [ ! -d "$stage" ]; then
-    error "Failed to find setup directory: $stage"
-    return 1
-  fi
-
-  large_file=$(find "$stage" \
-    -type f \
-    -size +4294967295c \
-    -print \
-    -quit) || return 1
-
-  if [ -n "$large_file" ]; then
-    error "Setup file exceeds the FAT32 limit: $large_file"
-    return 1
-  fi
-
-  if ! read -r payload _ < <(
-    du -sb --apparent-size -- "$stage"
-  ); then
-    error "Failed to calculate setup size!"
-    return 1
-  fi
-
-  required=$((payload + ((payload + 3) / 4) + (32 * mib)))
-  size="$minimum"
-
-  while ((size < required)); do
-    size=$((size * 2))
-  done
-
-  printf '%s\n' "$size"
-}
-
 stageSetup() {
 
   local asset="$1"
