@@ -1176,6 +1176,7 @@ updateXML() {
   updateEditionXML "$asset" || return 1
   updateProductKeyXML "$asset" || return 1
   removeSharedFolderXML "$asset" || return 1
+  validateGeneratedXML "$asset" || return 1
 
   return 0
 }
