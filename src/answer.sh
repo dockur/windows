@@ -470,7 +470,7 @@ shiftDiskID() {
   local disk_type="${2,,}"
 
   case "$disk_type" in
-    "scsi" | "virtio-scsi" | "blk" | "virtio-blk" ) ;;
+    "" | "scsi" | "virtio-scsi" | "blk" | "virtio-blk" ) ;;
     * ) return 0 ;;
   esac
 
@@ -543,7 +543,7 @@ stageAnswer() {
     fi
   fi
 
-  if ! shiftDiskID "$answer" "$DISK_TYPE"; then
+  if ! shiftDiskID "$answer" "${DISK_TYPE:-}"; then
     error "Failed to adjust the Windows installation disk!"
     return 1
   fi
