@@ -542,7 +542,7 @@ createSetupImage() {
     -C \
     -F \
     -T "$sectors" \
-    -v "DOCKUR" \
+    -v "SETUP" \
     ::; then
     rm -f -- "$tmp"
     error "Failed to format setup image!"
