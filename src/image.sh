@@ -748,6 +748,8 @@ resolveImage() {
 
   local version="$1"
 
+  XML=""
+
   [ -z "$DETECTED" ] || return 0
   [ -z "$CUSTOM" ] || return 1
   [ -z "${REUSED_ISO:-}" ] || return 1
@@ -929,15 +931,7 @@ configureImage() {
 detectImage() {
 
   local dir="$1"
-  local version="$2"
   local desc
-
-  XML=""
-
-  if resolveImage "$version"; then
-    setImage || return 1
-    return 0
-  fi
 
   info "Detecting version from ISO image..."
 
