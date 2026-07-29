@@ -552,7 +552,7 @@ stageAnswer() {
 
   fi
 
-  if ! setConfiguration "$answer"; then
+  if ! setConfigurationXML "$answer"; then
     error "Failed to enable the Windows configuration set!"
     return 1
   fi
@@ -1081,101 +1081,45 @@ removeSharedFolderXML() {
   return 0
 }
 
-setConfiguration() {
+setConfigurationXML() {
 
   local asset="$1"
-  local tmp
+  local section
 
-  [ -f "$asset" ] && [ -s "$asset" ] || return 1
+  [ -s "$asset" ] || return 1
 
-  if ! tmp=$(mktemp -p "$(dirname "$asset")" ".configuration-set.XXXXXX"); then
+  section=$(sed -n -E '
+    /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/ {
+      /<component[^>]*name="Microsoft-Windows-Setup"[^>]*>/,/<\/component>/p
+    }
+  ' "$asset") || return 1
+
+  [ -n "$section" ] || return 1
+
+  if grep -Fq '<UseConfigurationSet>' <<< "$section"; then
+
+    sed -i -E '
+      /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/ {
+        /<component[^>]*name="Microsoft-Windows-Setup"[^>]*>/,/<\/component>/ {
+          s#<UseConfigurationSet>[^<]*</UseConfigurationSet>#<UseConfigurationSet>true</UseConfigurationSet>#g
+        }
+      }
+    ' "$asset" || return 1
+
+    return 0
+  fi
+
+  if ! grep -Fq '<UserData>' <<< "$section"; then
     return 1
   fi
 
-  if ! python3 - "$asset" "$tmp" <<'PY'
-import sys
-import xml.etree.ElementTree as ET
-
-source = sys.argv[1]
-target = sys.argv[2]
-namespaces = []
-
-for _, namespace in ET.iterparse(source, events=("start-ns",)):
-    if namespace in namespaces:
-        continue
-
-    namespaces.append(namespace)
-    prefix, uri = namespace
-
-    try:
-        ET.register_namespace(prefix or "", uri)
-    except ValueError:
-        pass
-
-parser = ET.XMLParser(target=ET.TreeBuilder(insert_comments=True))
-tree = ET.parse(source, parser=parser)
-root = tree.getroot()
-namespace = ""
-
-if root.tag.startswith("{"):
-    namespace = root.tag[1:].split("}", 1)[0]
-
-prefix = f"{{{namespace}}}" if namespace else ""
-settings_tag = f"{prefix}settings"
-component_tag = f"{prefix}component"
-configuration_tag = f"{prefix}UseConfigurationSet"
-user_data_tag = f"{prefix}UserData"
-updated = False
-
-for settings in root.findall(settings_tag):
-    if settings.get("pass") != "windowsPE":
-        continue
-
-    for component in settings.findall(component_tag):
-        if component.get("name") != "Microsoft-Windows-Setup":
-            continue
-
-        matches = [child for child in component if child.tag == configuration_tag]
-
-        if matches:
-            matches[0].text = "true"
-
-            for duplicate in matches[1:]:
-                component.remove(duplicate)
-        else:
-            setting = ET.Element(configuration_tag)
-            setting.text = "true"
-            children = list(component)
-            position = len(children)
-
-            for index, child in enumerate(children):
-                if child.tag == user_data_tag:
-                    position = index
-                    break
-
-            component.insert(position, setting)
-
-        updated = True
-
-if not updated:
-    raise SystemExit(1)
-
-ET.indent(tree, space="  ")
-tree.write(target, encoding="UTF-8", xml_declaration=True)
-PY
-  then
-
-    rm -f "$tmp"
-    return 1
-  fi
-
-  if ! xmllint --nonet --noout "$tmp" ||
-    ! chmod 644 "$tmp" ||
-    ! mv -f -- "$tmp" "$asset"; then
-
-    rm -f "$tmp"
-    return 1
-  fi
+  sed -i -E '
+    /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/ {
+      /<component[^>]*name="Microsoft-Windows-Setup"[^>]*>/,/<\/component>/ {
+        s#^([[:space:]]*)<UserData>#\1<UseConfigurationSet>true</UseConfigurationSet>\n\1<UserData>#
+      }
+    }
+  ' "$asset" || return 1
 
   return 0
 }
