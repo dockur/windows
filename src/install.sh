@@ -944,39 +944,20 @@ addDriver() {
   return 0
 }
 
-stageSetup() {
+stageAnswer() {
 
   local asset="$1"
   local language="$2"
   local stage="$3"
-  local drivers="$TMP/setup-drivers"
   local answer="$stage/Autounattend.xml"
-  local selected="$drivers/selected"
-  local winpe="$stage/\$WinPEDriver\$"
-  local system="$stage/\$OEM\$/\$\$/Drivers"
-  local oem="$stage/\$OEM\$/\$1/OEM"
-  local folder="/oem"
-  local version="$DETECTED"
-  local file driver
 
-  skipVersion "${DETECTED,,}" && return 0
-  enabled "$MANUAL" && return 0
+  if enabled "$MANUAL"; then
+    removeGeneratedXML "$asset" || return 1
+    return 0
+  fi
 
   if [ ! -f "$asset" ] || [ ! -s "$asset" ]; then
     error "Failed to find answer file: $asset"
-    return 1
-  fi
-
-  local msg="Staging Windows setup files..."
-  info "$msg" && html "$msg"
-
-  if ! rm -rf -- "$stage" "$drivers"; then
-    error "Failed to remove previous setup files!"
-    return 1
-  fi
-
-  if ! mkdir -p "$stage" "$drivers" "$selected" "$winpe" "$system"; then
-    error "Failed to create setup directories!"
     return 1
   fi
 
@@ -1008,100 +989,42 @@ stageSetup() {
     return 1
   fi
 
-  if [ -z "$version" ]; then
-    version="win11x64"
-    warn "Windows version unknown, falling back to Windows 11 drivers..."
-  fi
+  return 0
+}
 
-  if ! bsdtar -xf /var/drivers.txz -C "$drivers"; then
-    error "Failed to extract drivers!"
+stageSetup() {
+
+  local asset="$1"
+  local language="$2"
+  local stage="$3"
+
+  skipVersion "${DETECTED,,}" && return 0
+
+  local msg="Staging Windows setup files..."
+  info "$msg" && html "$msg"
+
+  if ! rm -rf -- "$stage"; then
+    error "Failed to remove previous setup files!"
     return 1
   fi
 
-  local driver_list=(
-    qxl
-    viofs
-    sriov
-    smbus
-    qxldod
-    viorng
-    viostor
-    viomem
-    NetKVM
-    Balloon
-    vioscsi
-    pvpanic
-    vioinput
-    viogpudo
-    vioserial
-    qemupciserial
-  )
+  if ! mkdir -p "$stage"; then
+    error "Failed to create setup directory!"
+    return 1
+  fi
 
-  for driver in "${driver_list[@]}"; do
-    addDriver "$version" "$drivers" "selected" "$driver" || return 1
-  done
+  stageAnswer "$asset" "$language" "$stage" || return 1
 
-  if ! cp -Lr "$selected/." "$system"; then
+  if ! addDrivers "$stage" "$stage" "$DETECTED"; then
     error "Failed to stage Windows drivers!"
     return 1
   fi
 
-  if ! cp -Lr "$selected/." "$winpe"; then
-    error "Failed to stage WinPE drivers!"
+  if ! addFolder "$stage"; then
+    error "Failed to stage OEM folder!"
     return 1
   fi
 
-  case "${version,,}" in
-    "win11x64"* | "win2025"* )
-      # Workaround VirtIO GPU driver bug
-      rm -rf "$winpe/viogpudo" || return 1
-      ;;
-  esac
-
-  [ ! -d "$folder" ] && folder="/OEM"
-  [ ! -d "$folder" ] && folder="$STORAGE/oem"
-  [ ! -d "$folder" ] && folder="$STORAGE/OEM"
-  [ ! -d "$folder" ] && folder=""
-
-  if [ -n "$folder" ] || [ -n "$COMMAND" ]; then
-
-    mkdir -p "$oem" || return 1
-
-    if [ -n "$folder" ]; then
-      cp -Lr "$folder/." "$oem" || return 1
-    fi
-
-    file=$(find "$oem" -maxdepth 1 -type f -iname install.bat -print -quit) || return 1
-
-    if [ -s "$file" ]; then
-      normalizeBatch "$file" || return 1
-    fi
-
-    if [ -n "$COMMAND" ]; then
-
-      [ -z "$file" ] && file="$oem/install.bat"
-
-      if [ -s "$file" ]; then
-        printf '\n' >> "$file" || return 1
-      fi
-
-      printf '%s\n' "$COMMAND" >> "$file" || return 1
-
-    fi
-
-    if [ -s "$file" ]; then
-
-      if ! unix2dos -q "$file"; then
-        error "Failed to convert $file to DOS format!"
-        return 1
-      fi
-
-      checkBatch "$file"
-    fi
-
-  fi
-
-  rm -rf "$drivers" || return 1
   return 0
 }
 
@@ -1109,15 +1032,16 @@ addDrivers() {
 
   local src="$1"
   local tmp="$2"
-  local file="$3"
-  local index="$4"
-  local version="$5"
+  local version="$3"
+  local file="${4:-}"
+  local index="${5:-}"
   local drivers="$tmp/drivers"
 
   rm -rf "$drivers"
   mkdir -p "$drivers"
 
-  local msg="Adding drivers to image..."
+  local msg="Adding drivers to setup files..."
+  [ -n "$file" ] && msg="Adding drivers to image..."
   info "$msg" && html "$msg"
 
   if [ -z "$version" ]; then
@@ -1133,7 +1057,16 @@ addDrivers() {
   local dest="$drivers/$target"
   mkdir -p "$dest" || return 1
 
-  wimlib-imagex update "$file" "$index" --command "delete --force --recursive /$target" >/dev/null || true
+  if [ -n "$file" ]; then
+
+    if [ -z "$index" ]; then
+      error "No boot image index specified!"
+      return 1
+    fi
+
+    wimlib-imagex update "$file" "$index" --command "delete --force --recursive /$target" >/dev/null || true
+
+  fi
 
   local driver
   local driver_list=( qxl viofs sriov smbus qxldod viorng viostor viomem NetKVM Balloon vioscsi pvpanic vioinput viogpudo vioserial qemupciserial )
@@ -1153,8 +1086,19 @@ addDrivers() {
       ;;
   esac
 
-  if ! wimlib-imagex update "$file" "$index" --command "add $dest /$target" >/dev/null; then
-    return 1
+  if [ -n "$file" ]; then
+
+    if ! wimlib-imagex update "$file" "$index" --command "add $dest /$target" >/dev/null; then
+      return 1
+    fi
+
+  else
+
+    local winpe="$src/$target"
+    rm -rf "$winpe" || return 1
+    mkdir -p "$winpe" || return 1
+    cp -Lr "$dest/." "$winpe" || return 1
+
   fi
 
   rm -rf "$drivers"
@@ -1216,7 +1160,7 @@ updateImage() {
     idx="2"
   fi
 
-  if ! addDrivers "$src" "$tmp" "$wim" "$idx" "$DETECTED"; then
+  if ! addDrivers "$src" "$tmp" "$DETECTED" "$wim" "$idx"; then
     error "Failed to add drivers to image!"
   fi
 
