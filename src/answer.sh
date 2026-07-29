@@ -536,26 +536,24 @@ stageAnswer() {
 
   removeGeneratedXML "$asset" || return 1
 
-  if [ -n "${CUSTOM_XML:-}" ]; then
-
-    if ! xmllint --nonet --noout "$answer"; then
-      error "The custom answer file is not valid XML!"
-      return 1
-    fi
-
-  else
-
+  if [ -z "${CUSTOM_XML:-}" ]; then
     if ! updateXML "$answer" "$language"; then
       error "Failed to update answer file: $answer"
       return 1
     fi
+  fi
 
+  if ! shiftDiskID "$answer" "$DISK_TYPE"; then
+    error "Failed to adjust the Windows installation disk!"
+    return 1
   fi
 
   if ! setConfigurationXML "$answer"; then
     error "Failed to enable the Windows configuration set!"
     return 1
   fi
+
+  validateGeneratedXML "$answer" || return 1
 
   return 0
 }
@@ -663,10 +661,14 @@ generateAnswerFile() {
     fi
   fi
 
-  if ! markGeneratedXML "$tmp" ||
-    ! xmllint --nonet --noout "$tmp"; then
+  if ! markGeneratedXML "$tmp"; then
     rm -f "$tmp"
-    error "Generated $type answer file is invalid!"
+    error "Failed to mark generated $type answer file!"
+    return 1
+  fi
+
+  if ! validateGeneratedXML "$tmp"; then
+    rm -f "$tmp"
     return 1
   fi
 
@@ -1174,7 +1176,6 @@ updateXML() {
   updateEditionXML "$asset" || return 1
   updateProductKeyXML "$asset" || return 1
   removeSharedFolderXML "$asset" || return 1
-  validateGeneratedXML "$asset" || return 1
 
   return 0
 }
