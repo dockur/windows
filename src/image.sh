@@ -1204,6 +1204,7 @@ extractBootImage() {
   local desc="$3"
 
   local tmp="$TMP/boot-images"
+  local log="$TMP/xorriso-boot.log"
   local rc size offset image=""
   local msg="using legacy extraction..."
   local expected_size=$((BOOT_LOAD_SIZE * 512))
@@ -1216,15 +1217,18 @@ extractBootImage() {
 
   rm -f "$dir/$ETFS" || return 1
   rm -rf "$tmp" || return 1
+  rm -f "$log" || return 1
 
   if command -v prlimit >/dev/null 2>&1; then
     LC_ALL=C prlimit \
       "--fsize=$max_extract_size:$max_extract_size" \
       xorriso \
+        -signal_handling sig_dfl \
         -no_rc \
         -osirrox on \
+        -error_behavior file_extraction delete \
         -indev "$iso" \
-        -extract_boot_images "$tmp" >/dev/null 2>&1
+        -extract_boot_images "$tmp" >/dev/null 2>"$log"
     rc=$?
 
     if (( rc == 0 )); then
@@ -1248,11 +1252,13 @@ extractBootImage() {
         else
           if ! mv -f "$image" "$dir/$ETFS"; then
             rm -rf "$tmp" || true
+            rm -f "$log" || true
             error "Failed to save boot image from $desc ISO!"
             return 1
           fi
 
           rm -rf "$tmp" || return 1
+          rm -f "$log" || return 1
           return 0
         fi
 
@@ -1266,8 +1272,13 @@ extractBootImage() {
       info "The extracted BIOS boot image exceeded the size limit, $msg"
 
     else
+      if (( rc == 1 )) && [ -s "$log" ]; then
+        cat "$log" >&2 || true
+      fi
+
       if (( rc > 128 )); then
         rm -rf "$tmp" || true
+        rm -f "$log" || true
         exit "$rc"
       fi
 
@@ -1279,6 +1290,7 @@ extractBootImage() {
   fi
 
   rm -rf "$tmp" || true
+  rm -f "$log" || true
 
   if ! boot_info=$(isoinfo -d -i "$iso"); then
     error "Failed to read boot image information from $desc ISO!"
