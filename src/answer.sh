@@ -1325,7 +1325,7 @@ validateLegacyUsername() {
   return 0
 }
 
-extractLegacyDrivers() {
+extractDrivers() {
 
   local drivers="$1"
 
@@ -1340,7 +1340,7 @@ extractLegacyDrivers() {
   return 0
 }
 
-copyLegacyStorageDriver() {
+copyStorageDriver() {
 
   local dir="$1"
   local target="$2"
@@ -1364,7 +1364,7 @@ copyLegacyStorageDriver() {
   return 0
 }
 
-addLegacyNetworkDriver() {
+addNetworkDriver() {
 
   local dir="$1"
   local driver="$2"
@@ -1385,7 +1385,7 @@ addLegacyNetworkDriver() {
   return 0
 }
 
-patchLegacyStorageDriver() {
+patchStorageDriver() {
 
   local file="$1"
   local arch="$2"
@@ -1400,7 +1400,7 @@ patchLegacyStorageDriver() {
   return 0
 }
 
-addLegacySataDriver() {
+addSataDriver() {
 
   local dir="$1"
   local target="$2"
@@ -1444,9 +1444,9 @@ addLegacyDrivers() {
 
   info "$msg" && html "$msg"
 
-  extractLegacyDrivers "$drivers" || return 1
-  copyLegacyStorageDriver "$dir" "$target" "$driver" "$arch" "$drivers" || return 1
-  addLegacyNetworkDriver "$dir" "$driver" "$arch" "$drivers" || return 1
+  extractDrivers "$drivers" || return 1
+  copyStorageDriver "$dir" "$target" "$driver" "$arch" "$drivers" || return 1
+  addNetworkDriver "$dir" "$driver" "$arch" "$drivers" || return 1
 
   file=$(find "$target" -maxdepth 1 -type f -iname TXTSETUP.SIF -print -quit) || return 1
 
@@ -1455,8 +1455,8 @@ addLegacyDrivers() {
     return 1
   fi
 
-  patchLegacyStorageDriver "$file" "$arch" || return 1
-  addLegacySataDriver "$dir" "$target" "$arch" "$drivers" "$file" || return 1
+  patchStorageDriver "$file" "$arch" || return 1
+  addSataDriver "$dir" "$target" "$arch" "$drivers" "$file" || return 1
 
   rm -rf "$drivers" || return 1
 
