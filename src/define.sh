@@ -11,7 +11,6 @@ set -Eeuo pipefail
 : "${EDITION:=""}"
 : "${MANUAL:=""}"
 : "${REMOVE:=""}"
-: "${REBUILD:=""}"
 : "${VERSION:=""}"
 : "${COMMAND:=""}"
 : "${DETECTED:=""}"
