@@ -477,7 +477,6 @@ extractESD() {
   }
 
   count=$(awk '/Image Count:/ {print $3}' <<< "$info")
-
   if [[ ! "$count" =~ ^[0-9]+$ ]]; then
     error "Cannot read the image count in ESD file!"
     return 1
@@ -566,7 +565,6 @@ extractESD() {
   info "$msg..." && html "$msg..."
 
   edition=$(getCatalog "$version" "name")
-
   if [ -z "$edition" ]; then
     error "Invalid VERSION specified, value \"$version\" is not recognized!"
     return 1
@@ -582,7 +580,7 @@ extractESD() {
 
     /run/progress.sh "$installWim" "$installSize" "$msg ([P])..." &
 
-    wimlib-imagex export "$iso" "$index" "$installWim" --compress=LZMS --chunk-size 128K --quiet || {
+    wimlib-imagex export "$iso" "$index" "$installWim" --quiet || {
       local ret=$?
       fKill "progress.sh"
       error "Addition of $index to the $desc image failed ($ret)"
