@@ -5,190 +5,6 @@ ETFS="boot/etfsboot.com"
 FB="falling back to manual installation!"
 EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 
-backup () {
-
-  local iso="$1"
-  local count=1
-  local name="unknown"
-  local root="$STORAGE/backups"
-  local file previous failed=""
-
-  previous=$(readState "base") || return 1
-  [ -n "$previous" ] && name="${previous%.*}"
-
-  if ! makeDir "$root"; then
-    error "Failed to create directory \"$root\" !"
-    return 1
-  fi
-
-  local folder="$name"
-  local dir="$root/$folder"
-
-  while [ -d "$dir" ]; do
-    (( count++ ))
-    folder="${name}.${count}"
-    dir="$root/$folder"
-  done
-
-  if ! makeDir "$dir"; then
-    error "Failed to create directory \"$dir\" !"
-    return 1
-  fi
-
-  if [ -f "$iso" ]; then
-    if ! mv -f -- "$iso" "$dir/"; then
-      error "Failed to move \"$iso\" to \"$dir\"."
-      failed="Y"
-    fi
-  fi
-
-  while IFS= read -r -d '' file; do
-    if ! mv -n -- "$file" "$dir/"; then
-      error "Failed to move \"$file\" to \"$dir\"."
-      failed="Y"
-    fi
-  done < <(
-    find "$STORAGE" -maxdepth 1 -type f \
-      \( -iname 'data.*' -or -iname 'windows.*' -or -iname '*.rom' -or -iname '*.vars' \) \
-      -not -iname '*.iso' -print0
-  )
-
-  local find_pid=$!
-
-  if ! wait "$find_pid"; then
-    error "Failed to enumerate files in \"$STORAGE\"."
-    failed="Y"
-  fi
-
-  [ -z "$(ls -A "$dir")" ] && rm -rf "$dir"
-  [ -z "$(ls -A "$root")" ] && rm -rf "$root"
-
-  [ -n "$failed" ] && return 1
-
-  return 0
-}
-
-findFile() {
-
-  local dir file base
-  local fname="$1"
-  local boot="$STORAGE/windows.boot"
-
-  dir=$(find / -maxdepth 1 -type d -iname "$fname" -print -quit)
-  [ ! -d "$dir" ] && dir=$(find "$STORAGE" -maxdepth 1 -type d -iname "$fname" -print -quit)
-
-  if [ -d "$dir" ]; then
-    if ! hasData || [ ! -f "$boot" ]; then
-      error "The bind $dir maps to a file that does not exist!" && return 1
-    fi
-  fi
-
-  file=$(find / -maxdepth 1 -type f -iname "$fname" -print -quit)
-  [ ! -s "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$fname" -print -quit)
-
-  if [ ! -s "$file" ] && [[ "${VERSION,,}" != "http"* ]]; then
-    base=$(basename "$VERSION")
-    file="$STORAGE/$base"
-  fi
-
-  if [ ! -f "$file" ] || [ ! -s "$file" ]; then
-    return 0
-  fi
-
-  local size
-  size="$(stat -c%s "$file")"
-  [ -z "$size" ] || [[ "$size" == "0" ]] && return 0
-
-  ISO="$file"
-  CUSTOM="$file"
-  BOOT="$STORAGE/windows.$size.iso"
-
-  return 0
-}
-
-detectCustom() {
-
-  CUSTOM=""
-
-  ! findFile "custom.iso" && return 1
-  [ -n "$CUSTOM" ] && return 0
-
-  ! findFile "boot.iso" && return 1
-  [ -n "$CUSTOM" ] && return 0
-
-  return 0
-}
-
-skipInstall() {
-
-  local iso="$1"
-  local method magic previous
-  local boot="$STORAGE/windows.boot"
-
-  previous=$(readState "base") || return 1
-
-  if [ -n "$previous" ]; then
-    if [[ "${STORAGE,,}/${previous,,}" != "${iso,,}" ]]; then
-
-      if ! hasDisk; then
-
-        if ! rm -f -- "$STORAGE/$previous"; then
-          error "Failed to remove ISO file \"$STORAGE/$previous\" !"
-          exit 50
-        fi
-
-        return 1
-
-      fi
-
-      if [[ "${iso,,}" == "${STORAGE,,}/windows."* ]]; then
-        method="your custom .iso file was changed"
-      else
-        if [[ "${previous,,}" != "windows."* ]]; then
-          method="the VERSION variable was changed"
-        else
-          method="your custom .iso file was removed"
-
-          if [ -f "$boot" ] && hasData; then
-            info "Detected that $method, will be ignored."
-            return 0
-          fi
-
-        fi
-      fi
-
-      info "Detected that $method, a backup of your previous installation will be saved..."
-
-      if ! backup "$STORAGE/$previous"; then
-        warn "the backup was incomplete, continuing with installation..."
-      fi
-
-      return 1
-
-    fi
-  fi
-
-  [ -f "$boot" ] && hasData && return 0
-
-  [ ! -f "$iso" ] && return 1
-  [ ! -s "$iso" ] && return 1
-
-  # Check if the ISO was already processed by our script
-  magic=$(dd if="$iso" bs=1 count=1 status=none | tr -d '\000')
-  magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
-  local byte="16"
-  enabled "$MANUAL" && byte="17"
-
-  if [[ "$magic" != "$byte" ]]; then
-
-    info "The ISO will be processed again because the configuration was changed..."
-    return 1
-
-  fi
-
-  return 0
-}
-
 startInstall() {
 
   html "Starting $APP..."
@@ -295,6 +111,118 @@ startInstall() {
   return 0
 }
 
+abortInstall() {
+
+  local dir="$1"
+  local iso="$2"
+  local efi efi32 efi64
+
+  [[ "${iso,,}" == *".esd" ]] && exit 60
+  enabled "${UNPACK:-}" && exit 60
+
+  if [[ "${PLATFORM,,}" == "x64" ]]; then
+
+    efi=$(find "$dir" -maxdepth 1 -type d -iname efi -print -quit)
+    efi32=$(find "$dir" -maxdepth 3 -type f \
+      -ipath '*/efi/boot/bootia32.efi' -print -quit)
+    efi64=$(find "$dir" -maxdepth 3 -type f \
+      -ipath '*/efi/boot/bootx64.efi' -print -quit)
+
+    if [ -z "$efi" ] ||
+      { [ -n "$efi32" ] && [ -z "$efi64" ]; }; then
+
+      writeState "mode" "windows_legacy" || return 1
+      restoreBootMode || return 1
+
+    fi
+
+  fi
+
+  if [ -n "$CUSTOM" ]; then
+    BOOT="$iso"
+    REMOVE="N"
+  else
+    if [[ "$iso" != "$BOOT" ]]; then
+      if ! mv -f "$iso" "$BOOT"; then
+        error "Failed to move ISO file: $iso" && return 1
+      fi
+    fi
+  fi
+
+  finishInstall "$BOOT" "Y" && return 0
+  return 1
+}
+
+skipInstall() {
+
+  local iso="$1"
+  local method magic previous
+  local boot="$STORAGE/windows.boot"
+
+  previous=$(readState "base") || return 1
+
+  if [ -n "$previous" ]; then
+    if [[ "${STORAGE,,}/${previous,,}" != "${iso,,}" ]]; then
+
+      if ! hasDisk; then
+
+        if ! rm -f -- "$STORAGE/$previous"; then
+          error "Failed to remove ISO file \"$STORAGE/$previous\" !"
+          exit 50
+        fi
+
+        return 1
+
+      fi
+
+      if [[ "${iso,,}" == "${STORAGE,,}/windows."* ]]; then
+        method="your custom .iso file was changed"
+      else
+        if [[ "${previous,,}" != "windows."* ]]; then
+          method="the VERSION variable was changed"
+        else
+          method="your custom .iso file was removed"
+
+          if [ -f "$boot" ] && hasData; then
+            info "Detected that $method, will be ignored."
+            return 0
+          fi
+
+        fi
+      fi
+
+      info "Detected that $method, a backup of your previous installation will be saved..."
+
+      if ! backup "$STORAGE/$previous"; then
+        warn "the backup was incomplete, continuing with installation..."
+      fi
+
+      return 1
+
+    fi
+  fi
+
+  [ -f "$boot" ] && hasData && return 0
+
+  [ ! -f "$iso" ] && return 1
+  [ ! -s "$iso" ] && return 1
+
+  # Check if the ISO was already processed by our script
+  magic=$(dd if="$iso" bs=1 count=1 status=none | tr -d '\000')
+  magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
+  local byte="16"
+  enabled "$MANUAL" && byte="17"
+
+  if [[ "$magic" != "$byte" ]]; then
+
+    info "The ISO will be processed again because the configuration was changed..."
+    return 1
+
+  fi
+
+  return 0
+}
+
 finishInstall() {
 
   local iso="$1"
@@ -365,46 +293,118 @@ finishInstall() {
   return 0
 }
 
-abortInstall() {
+findFile() {
 
-  local dir="$1"
-  local iso="$2"
-  local efi efi32 efi64
+  local dir file base
+  local fname="$1"
+  local boot="$STORAGE/windows.boot"
 
-  [[ "${iso,,}" == *".esd" ]] && exit 60
-  enabled "${UNPACK:-}" && exit 60
+  dir=$(find / -maxdepth 1 -type d -iname "$fname" -print -quit)
+  [ ! -d "$dir" ] && dir=$(find "$STORAGE" -maxdepth 1 -type d -iname "$fname" -print -quit)
 
-  if [[ "${PLATFORM,,}" == "x64" ]]; then
-
-    efi=$(find "$dir" -maxdepth 1 -type d -iname efi -print -quit)
-    efi32=$(find "$dir" -maxdepth 3 -type f \
-      -ipath '*/efi/boot/bootia32.efi' -print -quit)
-    efi64=$(find "$dir" -maxdepth 3 -type f \
-      -ipath '*/efi/boot/bootx64.efi' -print -quit)
-
-    if [ -z "$efi" ] ||
-      { [ -n "$efi32" ] && [ -z "$efi64" ]; }; then
-
-      writeState "mode" "windows_legacy" || return 1
-      restoreBootMode || return 1
-
-    fi
-
-  fi
-
-  if [ -n "$CUSTOM" ]; then
-    BOOT="$iso"
-    REMOVE="N"
-  else
-    if [[ "$iso" != "$BOOT" ]]; then
-      if ! mv -f "$iso" "$BOOT"; then
-        error "Failed to move ISO file: $iso" && return 1
-      fi
+  if [ -d "$dir" ]; then
+    if ! hasData || [ ! -f "$boot" ]; then
+      error "The bind $dir maps to a file that does not exist!" && return 1
     fi
   fi
 
-  finishInstall "$BOOT" "Y" && return 0
-  return 1
+  file=$(find / -maxdepth 1 -type f -iname "$fname" -print -quit)
+  [ ! -s "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$fname" -print -quit)
+
+  if [ ! -s "$file" ] && [[ "${VERSION,,}" != "http"* ]]; then
+    base=$(basename "$VERSION")
+    file="$STORAGE/$base"
+  fi
+
+  if [ ! -f "$file" ] || [ ! -s "$file" ]; then
+    return 0
+  fi
+
+  local size
+  size="$(stat -c%s "$file")"
+  [ -z "$size" ] || [[ "$size" == "0" ]] && return 0
+
+  ISO="$file"
+  CUSTOM="$file"
+  BOOT="$STORAGE/windows.$size.iso"
+
+  return 0
+}
+
+detectCustom() {
+
+  CUSTOM=""
+
+  ! findFile "custom.iso" && return 1
+  [ -n "$CUSTOM" ] && return 0
+
+  ! findFile "boot.iso" && return 1
+  [ -n "$CUSTOM" ] && return 0
+
+  return 0
+}
+
+backup () {
+
+  local iso="$1"
+  local count=1
+  local name="unknown"
+  local root="$STORAGE/backups"
+  local file previous failed=""
+
+  previous=$(readState "base") || return 1
+  [ -n "$previous" ] && name="${previous%.*}"
+
+  if ! makeDir "$root"; then
+    error "Failed to create directory \"$root\" !"
+    return 1
+  fi
+
+  local folder="$name"
+  local dir="$root/$folder"
+
+  while [ -d "$dir" ]; do
+    (( count++ ))
+    folder="${name}.${count}"
+    dir="$root/$folder"
+  done
+
+  if ! makeDir "$dir"; then
+    error "Failed to create directory \"$dir\" !"
+    return 1
+  fi
+
+  if [ -f "$iso" ]; then
+    if ! mv -f -- "$iso" "$dir/"; then
+      error "Failed to move \"$iso\" to \"$dir\"."
+      failed="Y"
+    fi
+  fi
+
+  while IFS= read -r -d '' file; do
+    if ! mv -n -- "$file" "$dir/"; then
+      error "Failed to move \"$file\" to \"$dir\"."
+      failed="Y"
+    fi
+  done < <(
+    find "$STORAGE" -maxdepth 1 -type f \
+      \( -iname 'data.*' -or -iname 'windows.*' -or -iname '*.rom' -or -iname '*.vars' \) \
+      -not -iname '*.iso' -print0
+  )
+
+  local find_pid=$!
+
+  if ! wait "$find_pid"; then
+    error "Failed to enumerate files in \"$STORAGE\"."
+    failed="Y"
+  fi
+
+  [ -z "$(ls -A "$dir")" ] && rm -rf "$dir"
+  [ -z "$(ls -A "$root")" ] && rm -rf "$root"
+
+  [ -n "$failed" ] && return 1
+
+  return 0
 }
 
 checkFreeSpace() {
