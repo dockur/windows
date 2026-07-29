@@ -20,15 +20,28 @@ bootStatus() {
   [ ! -s "$QEMU_PTY" ] && return 1
 
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+    local line last recent
+
+    line=$(grep -nE '^Booting from (Hard Disk|DVD/CD)' "$QEMU_PTY" | tail -1)
+    [ -z "$line" ] && return 1
+
+    last="${line#*:}"
+    recent=$(tail -n +"${line%%:*}" "$QEMU_PTY")
+
+    if [[ "$last" == "Booting from DVD/CD"* ]]; then
+      return 0
+    fi
+
+    grep -Fq "Loading FreeLoader..." <<< "$recent" && return 0
+
     grep -Fq \
       -e "No bootable device." \
       -e "BOOTMGR is missing" \
       -e "Boot failed: not a bootable disk" \
       -e "Boot failed: could not read the boot disk" \
-      "$QEMU_PTY" && return 2
+      <<< "$recent" && return 1
 
-    grep -Eq '^Booting from (Hard|DVD/CD)' "$QEMU_PTY"
-    return $?
+    return 0
   fi
 
   grep -Fq "UEFI Interactive Shell" "$QEMU_PTY" && return 2
@@ -64,6 +77,7 @@ waitForBoot() {
     fi
 
     case "$status" in
+  
       0) echo
 
         if [[ "${DISPLAY,,}" == "web" ]] && ! disabled "${WEB:-Y}"; then
@@ -74,7 +88,9 @@ waitForBoot() {
 
         echo && return 0 ;;
 
-      2) error "$(app) could not boot, aborting..."
+      2) echo
+
+         error "$(app) could not boot, aborting..."
          terminateQemu
          return 0 ;;
 
