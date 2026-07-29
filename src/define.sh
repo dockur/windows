@@ -976,6 +976,18 @@ getVersion() {
   return 0
 }
 
+skipVersion() {
+
+  local id="$1"
+
+  case "${id,,}" in
+    "win9"* | "winxp"* | "win2k"* | "win2003"* | "reactos" )
+      return 0 ;;
+  esac
+
+  return 1
+}
+
 switchEdition() {
 
   local -n id="$1"
