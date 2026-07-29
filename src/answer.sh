@@ -464,6 +464,31 @@ enableLog() {
   return 0
 }
 
+shiftDiskID() {
+
+  local asset="$1"
+  local disk_type="${2,,}"
+
+  case "$disk_type" in
+    "scsi" | "virtio-scsi" | "blk" | "virtio-blk" ) ;;
+    * ) return 0 ;;
+  esac
+
+  [ -s "$asset" ] || return 1
+
+  # Only adjust files that explicitly target Disk 0.
+  grep -Fq '<DiskID>0</DiskID>' "$asset" || return 0
+
+  # Leave multi-disk configurations untouched.
+  if grep -Eq '<DiskID>[[:space:]]*[1-9][0-9]*[[:space:]]*</DiskID>' "$asset"; then
+    return 0
+  fi
+
+  sed -i 's#<DiskID>0</DiskID>#<DiskID>1</DiskID>#g' "$asset" || return 1
+
+  return 0
+}
+
 markGeneratedXML() {
 
   local file="$1"
