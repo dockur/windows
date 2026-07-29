@@ -1151,21 +1151,14 @@ updateImage() {
 
     removeGeneratedXML "$asset" || return 1
 
-    if [ -n "${CUSTOM_XML:-}" ]; then
-
-      if ! xmllint --nonet --noout "$answer"; then
-        error "The custom answer file is not valid XML!"
-        return 1
-      fi
-
-    else
-
+    if [ -z "${CUSTOM_XML:-}" ]; then
       if ! updateXML "$answer" "$language"; then
         error "Failed to update answer file: $answer"
         return 1
       fi
-
     fi
+
+    validateGeneratedXML "$answer" || return 1
 
     if ! wimlib-imagex update "$wim" "$idx" --command "add $answer /$xml" > /dev/null; then
       MANUAL="Y"
