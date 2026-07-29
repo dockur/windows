@@ -240,6 +240,13 @@ startInstall() {
 
   skipInstall "$BOOT" && return 1
 
+  local setup="$STORAGE/setup.img"
+
+  if ! rm -f -- "$setup" "${setup}.tmp"; then
+    error "Failed to remove setup image \"$setup\" !"
+    exit 50
+  fi
+
   if hasDisk; then
     if ! backup ""; then
       warn "the backup was incomplete, continuing with installation..."
@@ -1398,9 +1405,30 @@ if ! prepareImage "$ISO" "$DIR"; then
   exit 66
 fi
 
+SETUP_DIR="$TMP/setup"
+SETUP_IMAGE="$STORAGE/setup.img"
+SETUP_XML=""
+
+if ! enabled "$MANUAL" && ! skipVersion "${DETECTED,,}"; then
+  SETUP_XML="$TMP/setup.xml"
+
+  if ! cp -L -- "$XML" "$SETUP_XML"; then
+    error "Failed to preserve answer file: $XML"
+    abortInstall "$DIR" "$ISO" && return 0
+    exit 63
+  fi
+fi
+
 if ! updateImage "$DIR" "$XML" "$LANGUAGE"; then
   abortInstall "$DIR" "$ISO" && return 0
   exit 63
+fi
+
+if ! skipVersion "${DETECTED,,}"; then
+  if ! stageSetup "$SETUP_XML" "$LANGUAGE" "$SETUP_DIR"; then
+    abortInstall "$DIR" "$ISO" && return 0
+    exit 63
+  fi
 fi
 
 if ! removeImage "$ISO"; then
@@ -1409,6 +1437,12 @@ fi
 
 if ! buildImage "$DIR"; then
   exit 65
+fi
+
+if ! skipVersion "${DETECTED,,}"; then
+  if ! createSetupImage "$SETUP_DIR" "$SETUP_IMAGE"; then
+    exit 63
+  fi
 fi
 
 if ! finishInstall "$BOOT" "N"; then
