@@ -599,6 +599,10 @@ createSetupImage() {
     return 1
   fi
 
+  if ! setOwner "$image"; then
+    warn "Failed to set the owner for \"$image\" !"
+  fi
+
   return 0
 }
 
