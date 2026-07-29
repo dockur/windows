@@ -84,29 +84,6 @@ getCompatibleVersions() {
   fi
 }
 
-hasAnswerFile() {
-
-  local id="$1"
-  local file="/run/assets/$id.xml"
-
-  [ -s "$file" ] && return 0
-
-  if [[ "${id,,}" == *"-eval" ]]; then
-    file="/run/assets/${id%-eval}.xml"
-    [ -s "$file" ] && return 0
-  fi
-
-  # Editions without a dedicated template can use the generic template.
-  case "${id,,}" in
-    "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* | "win20"* )
-      file="/run/assets/${id%%-*}.xml"
-      [ -s "$file" ] && return 0
-      ;;
-  esac
-
-  return 1
-}
-
 getVersionPriority() {
 
   local id="${1,,}"
