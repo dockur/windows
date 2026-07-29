@@ -944,6 +944,162 @@ addDriver() {
   return 0
 }
 
+stageSetup() {
+
+  local asset="$1"
+  local language="$2"
+  local stage="$3"
+  local drivers="$TMP/setup-drivers"
+  local answer="$stage/Autounattend.xml"
+  local selected="$drivers/selected"
+  local winpe="$stage/\$WinPEDriver\$"
+  local system="$stage/\$OEM\$/\$\$/Drivers"
+  local oem="$stage/\$OEM\$/\$1/OEM"
+  local folder="/oem"
+  local version="$DETECTED"
+  local file driver
+
+  skipVersion "${DETECTED,,}" && return 0
+  enabled "$MANUAL" && return 0
+
+  if [ ! -f "$asset" ] || [ ! -s "$asset" ]; then
+    error "Failed to find answer file: $asset"
+    return 1
+  fi
+
+  local msg="Staging Windows setup files..."
+  info "$msg" && html "$msg"
+
+  if ! rm -rf -- "$stage" "$drivers"; then
+    error "Failed to remove previous setup files!"
+    return 1
+  fi
+
+  if ! mkdir -p "$stage" "$drivers" "$selected" "$winpe" "$system"; then
+    error "Failed to create setup directories!"
+    return 1
+  fi
+
+  if ! cp -L -- "$asset" "$answer"; then
+    error "Failed to stage answer file: $asset"
+    return 1
+  fi
+
+  removeGeneratedXML "$asset" || return 1
+
+  if [ -n "${CUSTOM_XML:-}" ]; then
+
+    if ! xmllint --nonet --noout "$answer"; then
+      error "The custom answer file is not valid XML!"
+      return 1
+    fi
+
+  else
+
+    if ! updateXML "$answer" "$language"; then
+      error "Failed to update answer file: $answer"
+      return 1
+    fi
+
+  fi
+
+  if [ -z "$version" ]; then
+    version="win11x64"
+    warn "Windows version unknown, falling back to Windows 11 drivers..."
+  fi
+
+  if ! bsdtar -xf /var/drivers.txz -C "$drivers"; then
+    error "Failed to extract drivers!"
+    return 1
+  fi
+
+  local driver_list=(
+    qxl
+    viofs
+    sriov
+    smbus
+    qxldod
+    viorng
+    viostor
+    viomem
+    NetKVM
+    Balloon
+    vioscsi
+    pvpanic
+    vioinput
+    viogpudo
+    vioserial
+    qemupciserial
+  )
+
+  for driver in "${driver_list[@]}"; do
+    addDriver "$version" "$drivers" "selected" "$driver" || return 1
+  done
+
+  if ! cp -Lr "$selected/." "$system"; then
+    error "Failed to stage Windows drivers!"
+    return 1
+  fi
+
+  if ! cp -Lr "$selected/." "$winpe"; then
+    error "Failed to stage WinPE drivers!"
+    return 1
+  fi
+
+  case "${version,,}" in
+    "win11x64"* | "win2025"* )
+      # Workaround VirtIO GPU driver bug
+      rm -rf "$winpe/viogpudo" || return 1
+      ;;
+  esac
+
+  [ ! -d "$folder" ] && folder="/OEM"
+  [ ! -d "$folder" ] && folder="$STORAGE/oem"
+  [ ! -d "$folder" ] && folder="$STORAGE/OEM"
+  [ ! -d "$folder" ] && folder=""
+
+  if [ -n "$folder" ] || [ -n "$COMMAND" ]; then
+
+    mkdir -p "$oem" || return 1
+
+    if [ -n "$folder" ]; then
+      cp -Lr "$folder/." "$oem" || return 1
+    fi
+
+    file=$(find "$oem" -maxdepth 1 -type f -iname install.bat -print -quit) || return 1
+
+    if [ -s "$file" ]; then
+      normalizeBatch "$file" || return 1
+    fi
+
+    if [ -n "$COMMAND" ]; then
+
+      [ -z "$file" ] && file="$oem/install.bat"
+
+      if [ -s "$file" ]; then
+        printf '\n' >> "$file" || return 1
+      fi
+
+      printf '%s\n' "$COMMAND" >> "$file" || return 1
+
+    fi
+
+    if [ -s "$file" ]; then
+
+      if ! unix2dos -q "$file"; then
+        error "Failed to convert $file to DOS format!"
+        return 1
+      fi
+
+      checkBatch "$file"
+    fi
+
+  fi
+
+  rm -rf "$drivers" || return 1
+  return 0
+}
+
 addDrivers() {
 
   local src="$1"
