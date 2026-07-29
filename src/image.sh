@@ -1202,102 +1202,19 @@ extractBootImage() {
   local iso="$1"
   local dir="$2"
   local desc="$3"
-
-  local tmp="$TMP/boot-images"
-  local log="$TMP/xorriso-boot.log"
-  local rc size offset image=""
-  local msg="using legacy extraction..."
-  local expected_size=$((BOOT_LOAD_SIZE * 512))
-  local max_extract_size=$((64 * 1024 * 1024))
-  local boot_info
-  local -a images=()
+  local offset info
 
   ETFS="boot.img"
+
   [ -s "$dir/$ETFS" ] && return 0
-
   rm -f "$dir/$ETFS" || return 1
-  rm -rf "$tmp" || return 1
-  rm -f "$log" || return 1
 
-  if command -v prlimit >/dev/null 2>&1; then
-    LC_ALL=C prlimit \
-      "--fsize=$max_extract_size:$max_extract_size" \
-      xorriso \
-        -signal_handling sig_dfl \
-        -no_rc \
-        -osirrox on \
-        -error_behavior file_extraction delete \
-        -indev "$iso" \
-        -extract_boot_images "$tmp" >/dev/null 2>"$log"
-    rc=$?
-
-    if (( rc == 0 )); then
-      mapfile -t images < <(
-        find "$tmp" \
-          -maxdepth 1 \
-          -type f \
-          -name 'eltorito_img*_bios.img' \
-          -print
-      )
-
-      if (( ${#images[@]} == 1 )); then
-        image="${images[0]}"
-
-        if [ ! -s "$image" ]; then
-          warn "The extracted BIOS boot image is empty, $msg"
-        elif ! size=$(stat -c%s "$image"); then
-          warn "Failed to determine the BIOS boot image size, $msg"
-        elif (( size != expected_size )); then
-          info "The extracted BIOS boot image has an unexpected size, $msg"
-        else
-          if ! mv -f "$image" "$dir/$ETFS"; then
-            rm -rf "$tmp" || true
-            rm -f "$log" || true
-            error "Failed to save boot image from $desc ISO!"
-            return 1
-          fi
-
-          rm -rf "$tmp" || return 1
-          rm -f "$log" || return 1
-          return 0
-        fi
-
-      elif (( ${#images[@]} > 1 )); then
-        warn "Multiple BIOS boot images were found, $msg"
-      else
-        warn "No BIOS boot image was found, $msg"
-      fi
-
-    elif (( rc == 153 )); then
-      info "The extracted BIOS boot image exceeded the size limit, $msg"
-
-    else
-      if (( rc == 1 )) && [ -s "$log" ]; then
-        cat "$log" >&2 || true
-      fi
-
-      if (( rc > 128 )); then
-        rm -rf "$tmp" || true
-        rm -f "$log" || true
-        exit "$rc"
-      fi
-
-      warn "Failed to extract the BIOS boot image, $msg"
-    fi
-
-  else
-    warn "The prlimit utility is unavailable, $msg"
-  fi
-
-  rm -rf "$tmp" || true
-  rm -f "$log" || true
-
-  if ! boot_info=$(isoinfo -d -i "$iso"); then
+  if ! info=$(isoinfo -d -i "$iso"); then
     error "Failed to read boot image information from $desc ISO!"
     return 1
   fi
 
-  offset=$(awk '/Bootoff / { print $NF; exit }' <<< "$boot_info")
+  offset=$(awk '/Bootoff / { print $NF; exit }' <<< "$info")
 
   if [ -z "$offset" ]; then
     error "Failed to determine boot image offset from $desc ISO!"
@@ -1316,6 +1233,7 @@ extractBootImage() {
       "count=$BOOT_LOAD_SIZE" \
       "skip=$((offset * 4))" \
       status=none; then
+
     rm -f "$dir/$ETFS" || true
     error "Failed to extract boot image from $desc ISO!"
     return 1
