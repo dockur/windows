@@ -433,7 +433,7 @@ detectVersion() {
   local -a bases=()
   local -a groups=()
   local -a versions=()
-  local -a edition_order=()
+  local -a selection_order=()
   local -A image_indexes=()
 
   printf -v "$result_name" '%s' ""
@@ -454,7 +454,7 @@ detectVersion() {
       ;;
   esac
 
-  getEditionOrder "${bases[0]}" edition_order || return 1
+  getEditionOrder "${bases[0]}" selection_order || return 1
 
   selectEdition \
     versions \
@@ -465,7 +465,7 @@ detectVersion() {
     "$result_name" \
     "$index_name" \
     "$normalize_name" \
-    edition_order && return 0
+    selection_order && return 0
 
   local result="${versions[0]}"
   local key="${result,,}"
