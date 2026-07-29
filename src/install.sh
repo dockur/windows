@@ -944,6 +944,123 @@ addDriver() {
   return 0
 }
 
+addDrivers() {
+
+  local src="$1"
+  local tmp="$2"
+  local version="$3"
+  local file="${4:-}"
+  local index="${5:-}"
+  local drivers="$tmp/drivers"
+
+  rm -rf "$drivers"
+  mkdir -p "$drivers"
+
+  local msg="Adding drivers to setup files..."
+  [ -n "$file" ] && msg="Adding drivers to image..."
+  info "$msg" && html "$msg"
+
+  if [ -z "$version" ]; then
+    version="win11x64"
+    warn "Windows version unknown, falling back to Windows 11 drivers..."
+  fi
+
+  if ! bsdtar -xf /var/drivers.txz -C "$drivers"; then
+    error "Failed to extract drivers from archive!" && return 1
+  fi
+
+  local target="\$WinPEDriver\$"
+  local dest="$drivers/$target"
+  mkdir -p "$dest" || return 1
+
+  if [ -n "$file" ]; then
+
+    if [ -z "$index" ]; then
+      error "No boot image index specified!"
+      return 1
+    fi
+
+    wimlib-imagex update "$file" "$index" --command "delete --force --recursive /$target" >/dev/null || true
+
+  fi
+
+  local driver
+  local driver_list=( qxl viofs sriov smbus qxldod viorng viostor viomem NetKVM Balloon vioscsi pvpanic vioinput viogpudo vioserial qemupciserial )
+
+  for driver in "${driver_list[@]}"; do
+    addDriver "$version" "$drivers" "$target" "$driver" || return 1
+  done
+
+  local dst="$src/\$OEM\$/\$\$/Drivers"
+  mkdir -p "$dst" || return 1
+  cp -Lr "$dest/." "$dst" || return 1
+
+  case "${version,,}" in
+    "win11x64"* | "win2025"* )
+      # Workaround Virtio GPU driver bug
+      rm -rf "$dest/viogpudo"
+      ;;
+  esac
+
+  if [ -n "$file" ]; then
+
+    if ! wimlib-imagex update "$file" "$index" --command "add $dest /$target" >/dev/null; then
+      return 1
+    fi
+
+  else
+
+    local winpe="$src/$target"
+    rm -rf "$winpe" || return 1
+    mkdir -p "$winpe" || return 1
+    cp -Lr "$dest/." "$winpe" || return 1
+
+  fi
+
+  rm -rf "$drivers"
+  return 0
+}
+
+getImageSize() {
+
+  local stage="$1"
+  local mib=$((1024 * 1024))
+  local minimum=$((64 * mib))
+  local payload required size large_file
+
+  if [ ! -d "$stage" ]; then
+    error "Failed to find setup directory: $stage"
+    return 1
+  fi
+
+  large_file=$(find "$stage" \
+    -type f \
+    -size +4294967295c \
+    -print \
+    -quit) || return 1
+
+  if [ -n "$large_file" ]; then
+    error "Setup file exceeds the FAT32 limit: $large_file"
+    return 1
+  fi
+
+  if ! read -r payload _ < <(
+    du -sb --apparent-size -- "$stage"
+  ); then
+    error "Failed to calculate setup size!"
+    return 1
+  fi
+
+  required=$((payload + ((payload + 3) / 4) + (32 * mib)))
+  size="$minimum"
+
+  while ((size < required)); do
+    size=$((size * 2))
+  done
+
+  printf '%s\n' "$size"
+}
+
 stageAnswer() {
 
   local asset="$1"
@@ -1025,83 +1142,6 @@ stageSetup() {
     return 1
   fi
 
-  return 0
-}
-
-addDrivers() {
-
-  local src="$1"
-  local tmp="$2"
-  local version="$3"
-  local file="${4:-}"
-  local index="${5:-}"
-  local drivers="$tmp/drivers"
-
-  rm -rf "$drivers"
-  mkdir -p "$drivers"
-
-  local msg="Adding drivers to setup files..."
-  [ -n "$file" ] && msg="Adding drivers to image..."
-  info "$msg" && html "$msg"
-
-  if [ -z "$version" ]; then
-    version="win11x64"
-    warn "Windows version unknown, falling back to Windows 11 drivers..."
-  fi
-
-  if ! bsdtar -xf /var/drivers.txz -C "$drivers"; then
-    error "Failed to extract drivers from archive!" && return 1
-  fi
-
-  local target="\$WinPEDriver\$"
-  local dest="$drivers/$target"
-  mkdir -p "$dest" || return 1
-
-  if [ -n "$file" ]; then
-
-    if [ -z "$index" ]; then
-      error "No boot image index specified!"
-      return 1
-    fi
-
-    wimlib-imagex update "$file" "$index" --command "delete --force --recursive /$target" >/dev/null || true
-
-  fi
-
-  local driver
-  local driver_list=( qxl viofs sriov smbus qxldod viorng viostor viomem NetKVM Balloon vioscsi pvpanic vioinput viogpudo vioserial qemupciserial )
-
-  for driver in "${driver_list[@]}"; do
-    addDriver "$version" "$drivers" "$target" "$driver" || return 1
-  done
-
-  local dst="$src/\$OEM\$/\$\$/Drivers"
-  mkdir -p "$dst" || return 1
-  cp -Lr "$dest/." "$dst" || return 1
-
-  case "${version,,}" in
-    "win11x64"* | "win2025"* )
-      # Workaround Virtio GPU driver bug
-      rm -rf "$dest/viogpudo"
-      ;;
-  esac
-
-  if [ -n "$file" ]; then
-
-    if ! wimlib-imagex update "$file" "$index" --command "add $dest /$target" >/dev/null; then
-      return 1
-    fi
-
-  else
-
-    local winpe="$src/$target"
-    rm -rf "$winpe" || return 1
-    mkdir -p "$winpe" || return 1
-    cp -Lr "$dest/." "$winpe" || return 1
-
-  fi
-
-  rm -rf "$drivers"
   return 0
 }
 
