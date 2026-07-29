@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-: "${SAMBA:="Y"}"           # Enable Samba
-: "${SAMBA_DEBUG:="N"}"     # Disable debug
-: "${SAMBA_READONLY:=""}"   # Disable writes
+: "${SAMBA:="Y"}"            # Enable Samba
+: "${SAMBA_DEBUG:="N"}"      # Disable debug
+: "${SAMBA_READONLY:="N"}"   # Disable writes
 : "${SAMBA_CONFIG:="/etc/samba/smb.conf"}"
 
 DDN_PID="/var/run/wsdd.pid"
@@ -110,7 +110,11 @@ addShare() {
     empty="Y"
   fi
 
-  if enabled "${SAMBA_READONLY:-N}"; then
+  if [[ "$dir" == "$tmp" ]]; then
+
+    readonly="Y"
+
+  elif enabled "$SAMBA_READONLY"; then
 
     readonly="Y"
 
