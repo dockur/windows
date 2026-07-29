@@ -489,6 +489,54 @@ shiftDiskID() {
   return 0
 }
 
+stageAnswer() {
+
+  local asset="$1"
+  local language="$2"
+  local stage="$3"
+  local answer="$stage/Autounattend.xml"
+
+  if enabled "$MANUAL"; then
+    removeGeneratedXML "$asset" || return 1
+    return 0
+  fi
+
+  if [ ! -f "$asset" ] || [ ! -s "$asset" ]; then
+    error "Failed to find answer file: $asset"
+    return 1
+  fi
+
+  if ! cp -L -- "$asset" "$answer"; then
+    error "Failed to stage answer file: $asset"
+    return 1
+  fi
+
+  removeGeneratedXML "$asset" || return 1
+
+  if [ -n "${CUSTOM_XML:-}" ]; then
+
+    if ! xmllint --nonet --noout "$answer"; then
+      error "The custom answer file is not valid XML!"
+      return 1
+    fi
+
+  else
+
+    if ! updateXML "$answer" "$language"; then
+      error "Failed to update answer file: $answer"
+      return 1
+    fi
+
+  fi
+
+  if ! setConfiguration "$answer"; then
+    error "Failed to enable the Windows configuration set!"
+    return 1
+  fi
+
+  return 0
+}
+
 markGeneratedXML() {
 
   local file="$1"
