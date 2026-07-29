@@ -518,6 +518,90 @@ skipVersion() {
   return 1
 }
 
+createSetupImage() {
+
+  local stage="$1"
+  local image="$2"
+  local tmp="${image}.tmp"
+  local size sectors entry find_pid
+  local entries=()
+
+  if ! size=$(getImageSize "$stage"); then
+    return 1
+  fi
+
+  sectors=$((size / 512))
+
+  local msg="Creating $((size / 1024 / 1024)) MB setup image..."
+  info "$msg" && html "$msg"
+
+  rm -f -- "$tmp" || return 1
+
+  if ! mformat \
+    -i "$tmp" \
+    -C \
+    -F \
+    -T "$sectors" \
+    -v "DOCKUR" \
+    ::; then
+    rm -f -- "$tmp"
+    error "Failed to format setup image!"
+    return 1
+  fi
+
+  mapfile -d '' entries < <(
+    find "$stage" -mindepth 1 -maxdepth 1 -print0
+  )
+
+  find_pid=$!
+
+  if ! wait "$find_pid"; then
+    rm -f -- "$tmp"
+    error "Failed to enumerate setup files!"
+    return 1
+  fi
+
+  for entry in "${entries[@]}"; do
+    if ! mcopy -Q -s -i "$tmp" "$entry" ::; then
+      rm -f -- "$tmp"
+      error "Failed to copy setup file: $entry"
+      return 1
+    fi
+  done
+
+  if ! mdir -i "$tmp" :: >/dev/null; then
+    rm -f -- "$tmp"
+    error "Failed to verify setup image!"
+    return 1
+  fi
+
+  if ! enabled "$MANUAL"; then
+
+    local answer="$stage/Autounattend.xml"
+
+    if [ ! -f "$answer" ] || [ ! -s "$answer" ]; then
+      rm -f -- "$tmp"
+      error "Failed to find staged answer file: $answer"
+      return 1
+    fi
+
+    if ! mtype -i "$tmp" ::/Autounattend.xml | cmp -s - "$answer"; then
+      rm -f -- "$tmp"
+      error "Failed to verify staged answer file!"
+      return 1
+    fi
+
+  fi
+
+  if ! mv -f -- "$tmp" "$image"; then
+    rm -f -- "$tmp"
+    error "Failed to save setup image: $image"
+    return 1
+  fi
+
+  return 0
+}
+
 detectLegacy() {
 
   local dir="$1"
