@@ -1250,8 +1250,6 @@ installWindows() {
     return 0
   fi
 
-  local boot="$BOOT"
-
   if [ ! -s "$ISO" ] || [ ! -f "$ISO" ]; then
     if ! downloadImage "$ISO" "$VERSION" "$LANGUAGE"; then
       rm -f "$ISO" 2> /dev/null || :
@@ -1262,6 +1260,7 @@ installWindows() {
   local rebuild=""
   local resolved=""
   local extracted=""
+  local boot="$BOOT"
   local dir="$TMP/unpack"
 
   if resolveImage "$VERSION"; then
