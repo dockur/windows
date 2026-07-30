@@ -166,7 +166,7 @@ skipInstall() {
   local previousBase="$2"
   local boot="$STORAGE/windows.boot"
 
-  if [ -n "$previous_base" ]; then
+  if [ -n "$previousBase" ]; then
     if [[ "${STORAGE,,}/${previousBase,,}" != "${iso,,}" ]]; then
 
       if ! hasDisk; then
@@ -185,7 +185,7 @@ skipInstall() {
       if [[ "${iso,,}" == "${STORAGE,,}/windows."* ]]; then
         method="your custom .iso file was changed"
       else
-        if [[ "${previous_base,,}" != "windows."* ]]; then
+        if [[ "${previousBase,,}" != "windows."* ]]; then
           method="the VERSION variable was changed"
         else
           method="your custom .iso file was removed"
