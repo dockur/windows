@@ -101,7 +101,7 @@ waitForBoot() {
     sleep 0.25
   done
 
-  ! isAlive "$pid" && return 0
+  isAlive "$pid" || return 0
   [ -f "$QEMU_END" ] && return 0
 
   error "Timeout while waiting for QEMU to boot the machine, aborting..."
@@ -164,7 +164,7 @@ markWindowsBooted() {
   fi
 
   # Remove CD-ROM ISO after install
-  ! ready && return 0
+  ready || return 0
 
   if ! touch "$file"; then
     warn "failed to create Windows installation marker!"
@@ -288,7 +288,7 @@ gracefulShutdown() {
   finish "$code"
 }
 
-! enabled "$SHUTDOWN" && return 0
+enabled "$SHUTDOWN" || return 0
 [ -n "${QEMU_TIMEOUT:-}" ] && TIMEOUT="$QEMU_TIMEOUT"
 
 if interactive; then

@@ -452,10 +452,10 @@ detectCustom() {
 
   CUSTOM=""
 
-  ! findFile "custom.iso" && return 1
+  findFile "custom.iso" || return 1
   [ -n "$CUSTOM" ] && return 0
 
-  ! findFile "boot.iso" && return 1
+  findFile "boot.iso" || return 1
   [ -n "$CUSTOM" ] && return 0
 
   return 0
