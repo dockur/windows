@@ -681,6 +681,8 @@ setMachine() {
   local desc="$4"
   local legacy=""
 
+  ETFS="boot/etfsboot.com
+
   case "${id,,}" in
     "win2k"* )   legacy="2k" ;;
     "winxp"* )   legacy="xp" ;;
