@@ -1,21 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-getXMLArchitecture() {
-
-  local asset="$1"
-  local arch
-
-  arch=$(sed -n -E \
-    '0,/processorArchitecture="/s/.*processorArchitecture="([^"]+)".*/\1/p' \
-    "$asset") || return 1
-
-  [ -n "$arch" ] || return 1
-
-  printf '%s' "$arch"
-  return 0
-}
-
 hasAnswerFile() {
 
   local id="$1"
@@ -70,7 +55,7 @@ stageAnswer() {
     fi
   fi
 
-  if ! shiftDiskID "$answer" "${DISK_TYPE:-}"; then
+  if ! updateDiskID "$answer" "${DISK_TYPE:-}"; then
     error "Failed to adjust the Windows installation disk!"
     return 1
   fi
@@ -1043,6 +1028,21 @@ updateDiskID() {
 
   sed -i 's#<DiskID>0</DiskID>#<DiskID>1</DiskID>#g' "$asset" || return 1
 
+  return 0
+}
+
+getXMLArchitecture() {
+
+  local asset="$1"
+  local arch
+
+  arch=$(sed -n -E \
+    '0,/processorArchitecture="/s/.*processorArchitecture="([^"]+)".*/\1/p' \
+    "$asset") || return 1
+
+  [ -n "$arch" ] || return 1
+
+  printf '%s' "$arch"
   return 0
 }
 
