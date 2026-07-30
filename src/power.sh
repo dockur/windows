@@ -66,10 +66,25 @@ waitForBoot() {
 
   local pid="$1"
   local timeout="${2:-30}"
+  local keyDelay keySent=0
   local deadline=$((SECONDS + timeout))
   local screen="visit http://127.0.0.1:$WEB_PORT/ to view the screen..."
 
   while isAlive "$pid"; do
+
+    if (( ! keySent )) && needsBootKey; then
+
+      if keyDelay=$(bootKeyDelay); then
+        if sendKey f24 "$keyDelay"; then
+          keySent=1
+        else
+          (( SECONDS >= deadline )) && break
+          sleep 0.25
+          continue
+        fi
+      fi
+
+    fi
 
     if bootStatus; then
       local status=0
@@ -78,7 +93,7 @@ waitForBoot() {
     fi
 
     case "$status" in
-  
+
       0) echo
 
         if [[ "${DISPLAY,,}" == "web" ]] && ! disabled "${WEB:-Y}"; then
@@ -91,9 +106,9 @@ waitForBoot() {
 
       2) echo
 
-         error "$(app) could not boot, aborting..."
-         terminateQemu
-         return 0 ;;
+        error "$(app) could not boot, aborting..."
+        terminateQemu
+        return 0 ;;
 
     esac
 
@@ -154,6 +169,49 @@ ready() {
     <<< "$last" && return 0
 
   return 1
+}
+
+sendKey() {
+
+  local key="$1"
+  local delay="${2:-0}"
+  local hold="${3:-100}"
+
+  [ ! -S "$ACPI_SOCKET" ] && return 1
+  [[ "$delay" != "0" ]] && sleep "$delay"
+
+  printf 'sendkey %s %s\n' "$key" "$hold" |
+    nc -q 1 -w 1 -U "$ACPI_SOCKET" &>/dev/null
+}
+
+needsBootKey() {
+
+  [ ! -s "$BOOT" ] && return 1
+  [[ "${BOOT,,}" != *".iso" ]] && return 1
+  [ -f "$STORAGE/windows.boot" ] && return 1
+  
+  return 0
+}
+
+bootKeyDelay() {
+
+  [ ! -s "$QEMU_PTY" ] && return 1
+
+  if grep -Fq "Press any key to" "$QEMU_PTY"; then
+    echo 0
+    return 0
+  fi
+
+  if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+    grep -Fq "Booting from DVD/CD" "$QEMU_PTY" || return 1
+  else
+    grep -Eq \
+      'BdsDxe: starting Boot[[:xdigit:]]{4} "UEFI QEMU .*DVD-ROM' \
+      "$QEMU_PTY" || return 1
+  fi
+
+  echo 0.5
+  return 0
 }
 
 markWindowsBooted() {
