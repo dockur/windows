@@ -21,24 +21,22 @@ bootStatus() {
   [ ! -s "$QEMU_PTY" ] && return 1
 
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
-    local content line last recent
+    local line last recent
 
-    content=$(tr -d '\r' < "$QEMU_PTY")
+    line=$(grep -nE '^Booting from (Hard Disk|DVD/CD)' "$QEMU_PTY" | tail -1)
+    [ -z "$line" ] && return 1
+
+    last="${line#*:}"
+    recent=$(tail -n +"${line%%:*}" "$QEMU_PTY")
+
+    grep -Fq "Loading FreeLoader..." <<< "$recent" && return 0
 
     if grep -Fq \
       -e "No bootable device." \
       -e "BOOTMGR is missing" \
-      <<< "$content"; then
+      <<< "$recent"; then
       return 2
     fi
-
-    line=$(grep -nE 'Booting from (Hard Disk|DVD/CD)' <<< "$content" | tail -1)
-    [ -z "$line" ] && return 1
-
-    last="${line#*:}"
-    recent=$(tail -n +"${line%%:*}" <<< "$content")
-
-    grep -Fq "Loading FreeLoader..." <<< "$recent" && return 0
 
     if grep -Fq \
       -e "Boot failed: not a bootable disk" \
