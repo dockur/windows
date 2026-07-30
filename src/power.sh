@@ -42,31 +42,48 @@ bootStatus() {
       -e "Boot failed: could not read the boot disk" \
       <<< "$recent" && return 1
 
-    return 0
+    return 3
   fi
 
-  grep -Fq "UEFI Interactive Shell" "$QEMU_PTY" && return 2
+  local line last recent
 
-  local last
-  last=$(grep -E \
+  line=$(grep -nE \
     'BdsDxe: starting Boot[[:xdigit:]]{4} ' \
     "$QEMU_PTY" | tail -1)
 
-  [ -z "$last" ] && return 1
+  [ -z "$line" ] && return 1
+
+  last="${line#*:}"
+  recent=$(tail -n +"${line%%:*}" "$QEMU_PTY")
+
+  if [[ "$last" == *'"Windows Boot Manager"'* ]]; then
+    return 0
+  fi
 
   grep -Eq \
-    -e '"Windows Boot Manager"' \
+    'BdsDxe: failed to start Boot[[:xdigit:]]{4} "UEFI QEMU .*DVD-ROM.*: Time out' \
+    <<< "$recent" && return 2
+
+  grep -Fq "UEFI Interactive Shell" <<< "$recent" && return 2
+
+  grep -Eq \
     -e '"UEFI QEMU .*DVD-ROM' \
     -e 'CDROM\(' \
     -e 'USB\(' \
-    <<< "$last"
+    <<< "$last" && return 4
+
+  return 1
 }
 
 waitForBoot() {
 
   local pid="$1"
   local timeout="${2:-30}"
-  local keyDelay keySent=0
+  local keySent=0
+  local pendingType=0
+  local pendingLine=""
+  local pendingDeadline=0
+  local keyDelay status marker
   local deadline=$((SECONDS + timeout))
   local screen="visit http://127.0.0.1:$WEB_PORT/ to view the screen..."
 
@@ -75,21 +92,17 @@ waitForBoot() {
     if (( ! keySent )) && needsBootKey; then
 
       if keyDelay=$(bootKeyDelay); then
-        if sendKey f24 "$keyDelay"; then
+        if sendKey f11 "$keyDelay" 500; then
           keySent=1
-        else
-          (( SECONDS >= deadline )) && break
-          sleep 0.25
-          continue
         fi
       fi
 
     fi
 
     if bootStatus; then
-      local status=0
+      status=0
     else
-      local status=$?
+      status=$?
     fi
 
     case "$status" in
@@ -109,6 +122,41 @@ waitForBoot() {
         error "$(app) could not boot, aborting..."
         terminateQemu
         return 0 ;;
+
+      3 | 4)
+
+        marker=$(getBootMarker)
+
+        if [[ "$marker" != "$pendingLine" ]] || (( status != pendingType )); then
+          pendingLine="$marker"
+          pendingType=$status
+
+          if (( status == 3 )); then
+            pendingDeadline=$((SECONDS + 1))
+          else
+            pendingDeadline=$((SECONDS + 6))
+          fi
+        fi
+
+        if (( pendingDeadline > 0 && SECONDS >= pendingDeadline )); then
+          echo
+
+          if [[ "${DISPLAY,,}" == "web" ]] && ! disabled "${WEB:-Y}"; then
+            info "$(app) started successfully, $screen"
+          else
+            info "$(app) started successfully."
+          fi
+
+          echo && return 0
+        fi
+        ;;
+
+      *)
+
+        pendingType=0
+        pendingLine=""
+        pendingDeadline=0
+        ;;
 
     esac
 
@@ -176,12 +224,36 @@ sendKey() {
   local key="$1"
   local delay="${2:-0}"
   local hold="${3:-100}"
+  local output
 
   [ ! -S "$ACPI_SOCKET" ] && return 1
   [[ "$delay" != "0" ]] && sleep "$delay"
 
-  printf 'sendkey %s %s\n' "$key" "$hold" |
-    nc -q 1 -w 1 -U "$ACPI_SOCKET" &>/dev/null
+  if ! output=$(
+    printf 'sendkey %s %s\n' "$key" "$hold" |
+      nc -q 1 -w 1 -U "$ACPI_SOCKET" 2>&1
+  ); then
+    return 1
+  fi
+
+  if grep -Eqi \
+    -e 'unknown command' \
+    -e 'unknown key' \
+    -e 'invalid parameter' \
+    -e 'invalid key' \
+    -e '^error:' \
+    <<< "$output"; then
+
+    warn "failed to send boot key through QEMU monitor!"
+
+    if enabled "${DEBUG:-}"; then
+      echo "$output"
+    fi
+
+    return 1
+  fi
+
+  return 0
 }
 
 needsBootKey() {
@@ -189,7 +261,7 @@ needsBootKey() {
   [ ! -s "$BOOT" ] && return 1
   [[ "${BOOT,,}" != *".iso" ]] && return 1
   [ -f "$STORAGE/windows.boot" ] && return 1
-  
+
   return 0
 }
 
@@ -211,6 +283,20 @@ bootKeyDelay() {
   fi
 
   echo 0.5
+  return 0
+}
+
+getBootMarker() {
+
+  if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+    grep -nE '^Booting from (Hard Disk|DVD/CD)' "$QEMU_PTY" | tail -1
+    return 0
+  fi
+
+  grep -nE \
+    'BdsDxe: starting Boot[[:xdigit:]]{4} ' \
+    "$QEMU_PTY" | tail -1
+
   return 0
 }
 
