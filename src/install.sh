@@ -9,8 +9,6 @@ startInstall() {
 
   html "Starting $APP..."
 
-  local previous_base
-
   if [ -z "$CUSTOM" ]; then
 
     local file="${VERSION//\//}.iso"
@@ -63,12 +61,13 @@ startInstall() {
     exit 50
   fi
 
-  if ! previous_base=$(readState "base"); then
+  local previousBase
+  if ! previousBase=$(readState "base"); then
     error "Failed to read the previous installation state!"
     exit 50
   fi
 
-  skipInstall "$BOOT" "$previous_base" && return 1
+  skipInstall "$BOOT" "$previousBase" && return 1
 
   if [ -z "$previous_base" ] && hasDisk; then
     if ! backup ""; then
@@ -164,23 +163,24 @@ abortInstall() {
 skipInstall() {
 
   local iso="$1"
-  local previous_base="$2"
-  local method
+  local previousBase="$2"
   local boot="$STORAGE/windows.boot"
 
   if [ -n "$previous_base" ]; then
-    if [[ "${STORAGE,,}/${previous_base,,}" != "${iso,,}" ]]; then
+    if [[ "${STORAGE,,}/${previousBase,,}" != "${iso,,}" ]]; then
 
       if ! hasDisk; then
 
-        if ! rm -f -- "$STORAGE/$previous_base"; then
-          error "Failed to remove ISO file \"$STORAGE/$previous_base\" !"
+        if ! rm -f -- "$STORAGE/$previousBase"; then
+          error "Failed to remove ISO file \"$STORAGE/$previousBase\" !"
           exit 50
         fi
 
         return 1
 
       fi
+
+      local method
 
       if [[ "${iso,,}" == "${STORAGE,,}/windows."* ]]; then
         method="your custom .iso file was changed"
@@ -200,7 +200,7 @@ skipInstall() {
 
       info "Detected that $method, a backup of your previous installation will be saved..."
 
-      if ! backup "$STORAGE/$previous_base"; then
+      if ! backup "$STORAGE/$previousBase"; then
         warn "the backup was incomplete, continuing with installation..."
       fi
 
