@@ -715,14 +715,9 @@ setMachine() {
     fi
   fi
 
-  case "${id,,}" in
-
-    "win9"* | "win2k"* | "winxp"* | "win2003"* | \
-    "winvista"* | "win7"* | "win2008"* | "reactos" )
-
-      writeState "mode" "windows_legacy" || return 1 ;;
-
-  esac
+  if isLegacy "$id"; then
+    writeState "mode" "windows_legacy" || return 1
+  fi
 
   restoreBootMode || return 1
 
@@ -1347,7 +1342,7 @@ installWindows() {
   local setup_dir="$TMP/setup"
   local setup_image="$STORAGE/setup.img"
 
-  if ! skipVersion "${DETECTED,,}" &&
+  if ! isLegacy "${DETECTED,,}" &&
     [[ "${ISO,,}" != *".esd" ]] &&
     ! enabled "${UNPACK:-}"; then
 
