@@ -68,7 +68,7 @@ installWindows() {
     return 0
   fi
 
-  if [[ "${DETECTED,,}" == "reactos" ]]; then
+  if bootDirect "$DETECTED"; then
     abortInstall "$dir" "$ISO" "$boot" || return 83
     return 0
   fi
@@ -486,6 +486,8 @@ needsExtraction() {
 
   local id="$1"
   local iso="$2"
+
+  bootDirect "$id" && return 1
 
   skipVersion "$id" ||
     [[ "${iso,,}" == *".esd" ]] ||
