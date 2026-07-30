@@ -487,17 +487,6 @@ needsExtraction() {
     enabled "${UNPACK:-}"
 }
 
-canUseSetupImage() {
-
-  local id="$1"
-  local iso="$2"
-
-  ! isLegacy "$id" &&
-    [[ "${iso,,}" != *".esd" ]] &&
-    ! enabled "${UNPACK:-}"
-}
-
-
 checkFreeSpace() {
 
   local dir="$1"
