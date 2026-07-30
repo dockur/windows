@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-ETFS="boot/etfsboot.com"
-EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
-
 startInstall() {
 
   html "Starting $APP..."
@@ -799,6 +796,8 @@ prepareImage() {
     error "Failed to extract boot image from ISO image \"${iso}\"!"
     return 1
   fi
+
+  EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 
   [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] &&
     [ -f "$dir/$EFISYS" ] && [ -s "$dir/$EFISYS" ] && return 0
