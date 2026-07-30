@@ -1261,35 +1261,36 @@ bootWindows() {
 
 installWindows() {
 
-  ! parseVersion && exit 58
-  ! parseLanguage && exit 56
-  ! detectCustom && exit 59
+  parseVersion || exit 58
+  parseLanguage || exit 56
+  detectCustom || exit 59
 
   if ! startInstall; then
-    bootWindows && return 0
-    exit 68
+    bootWindows || exit 68
+    return 0
   fi
 
-  local source_boot="$BOOT"
+  local boot="$BOOT"
 
   if [ ! -s "$ISO" ] || [ ! -f "$ISO" ]; then
     if ! downloadImage "$ISO" "$VERSION" "$LANGUAGE"; then
-      rm -f "$ISO" 2> /dev/null || true
+      rm -f "$ISO" 2> /dev/null || :
       exit 61
     fi
   fi
 
+  local XML=""
+  local desc=""
+  local rebuild=""
   local resolved=""
   local extracted=""
-  local REBUILD="Y"
-  local XML="" desc
   local dir="$TMP/unpack"
 
   if resolveImage "$VERSION"; then
 
     if ! setImage; then
-      abortInstall "$dir" "$ISO" "$source_boot" && return 0
-      exit 60
+      abortInstall "$dir" "$ISO" "$boot" || exit 60
+      return 0
     fi
 
     resolved="Y"
@@ -1297,26 +1298,24 @@ installWindows() {
   else
 
     if ! extractImage "$ISO" "$dir" "$VERSION"; then
-      rm -f "$ISO" 2> /dev/null || true
+      rm -f "$ISO" 2> /dev/null || :
       exit 62
     fi
 
     extracted="Y"
 
     if ! detectImage "$dir"; then
-      abortInstall "$dir" "$ISO" "$source_boot" && return 0
-      exit 60
+      abortInstall "$dir" "$ISO" "$boot" || exit 60
+      return 0
     fi
 
   fi
 
   if [ -n "$resolved" ]; then
-    if skipVersion "${DETECTED,,}" ||
-      [[ "${ISO,,}" == *".esd" ]] ||
-      enabled "${UNPACK:-}"; then
+    if skipVersion "${DETECTED,,}" || [[ "${ISO,,}" == *".esd" ]] || enabled "${UNPACK:-}"; then
 
       if ! extractImage "$ISO" "$dir" "$VERSION"; then
-        rm -f "$ISO" 2> /dev/null || true
+        rm -f "$ISO" 2> /dev/null || :
         exit 62
       fi
 
@@ -1325,78 +1324,67 @@ installWindows() {
   fi
 
   if ! desc=$(printVariant "$DETECTED" "$DETECTED"); then
-    abortInstall "$dir" "$ISO" "$source_boot" && return 0
-    exit 66
+    abortInstall "$dir" "$ISO" "$boot" || exit 66
+    return 0
   fi
 
   if ! setMachine "$DETECTED" "$ISO" "$dir" "$desc"; then
-    abortInstall "$dir" "$ISO" "$source_boot" && return 0
-    exit 66
+    abortInstall "$dir" "$ISO" "$boot" || exit 66
+    return 0
   fi
 
   if ! restoreMachineState; then
-    abortInstall "$dir" "$ISO" "$source_boot" && return 0
-    exit 66
+    abortInstall "$dir" "$ISO" "$boot" || exit 66
+    return 0
   fi
 
   local setup_dir="$TMP/setup"
   local setup_image="$STORAGE/setup.img"
 
-  if ! isLegacy "${DETECTED,,}" &&
-    [[ "${ISO,,}" != *".esd" ]] &&
-    ! enabled "${UNPACK:-}"; then
+  if ! isLegacy "${DETECTED,,}" && [[ "${ISO,,}" != *".esd" ]] && ! enabled "${UNPACK:-}"; then
 
     if ! stageSetup "$XML" "$LANGUAGE" "$setup_dir"; then
-      abortInstall "$dir" "$ISO" "$source_boot" && return 0
-      exit 63
+      abortInstall "$dir" "$ISO" "$boot" || exit 63
+      return 0
     fi
 
     if ! createSetupImage "$setup_dir" "$setup_image"; then
-      abortInstall "$dir" "$ISO" "$source_boot" && return 0
-      exit 63
+      abortInstall "$dir" "$ISO" "$boot" || exit 63
+      return 0
     fi
 
-    REBUILD="N"
+    rebuild="N"
   fi
 
-  if disabled "$REBUILD"; then
+  if disabled "$rebuild"; then
 
-    if ! useOriginalImage "$ISO"; then
-      exit 65
-    fi
+    useOriginalImage "$ISO" || exit 65
 
   else
 
     if [ -z "$extracted" ]; then
       if ! extractImage "$ISO" "$dir" "$VERSION"; then
-        rm -f "$ISO" 2> /dev/null || true
+        rm -f "$ISO" 2> /dev/null || :
         exit 62
       fi
     fi
 
     if ! prepareImage "$ISO" "$dir"; then
-      abortInstall "$dir" "$ISO" "$source_boot" && return 0
-      exit 66
+      abortInstall "$dir" "$ISO" "$boot" || exit 66
+      return 0
     fi
 
     if ! updateImage "$dir" "$XML" "$LANGUAGE"; then
-      abortInstall "$dir" "$ISO" "$source_boot" && return 0
-      exit 63
+      abortInstall "$dir" "$ISO" "$boot" || exit 63
+      return 0
     fi
 
-    if ! removeImage "$ISO"; then
-      exit 64
-    fi
-
-    if ! buildImage "$dir"; then
-      exit 65
-    fi
+    removeImage "$ISO" || exit 64
+    buildImage "$dir" || exit 65
 
   fi
 
-  if ! finishInstall "$BOOT" "N" "$source_boot"; then
-    exit 69
-  fi
+  finishInstall "$BOOT" "N" "$boot" || exit 69
 
   return 0
 }
