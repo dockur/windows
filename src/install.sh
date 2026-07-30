@@ -1286,15 +1286,13 @@ installWindows() {
     return 0
   fi
 
-  if hasImage "$ISO"; then
+  if ! hasImage "$ISO"; then
     if ! downloadImage "$ISO" "$VERSION" "$LANGUAGE"; then
-      removeIso && exit 61
+      removeIso "$ISO" && exit 61
     fi
   fi
 
-  local rebuild=""
-  local resolved=""
-  local extracted=""
+  local extracted=0
   local boot="$BOOT"
   local dir="$TMP/unpack"
 
@@ -1305,32 +1303,27 @@ installWindows() {
       return 0
     fi
 
-    resolved="Y"
+    if needsExtraction "$DETECTED" "$ISO"; then
+      if ! extractImage "$ISO" "$dir" "$VERSION"; then
+        removeIso "$ISO" && exit 62
+      fi
+
+      extracted=1
+    fi
 
   else
 
     if ! extractImage "$ISO" "$dir" "$VERSION"; then
-      removeIso && exit 62
+      removeIso "$ISO" && exit 62
     fi
 
-    extracted="Y"
+    extracted=1
 
     if ! detectImage "$dir"; then
       abortInstall "$dir" "$ISO" "$boot" || exit 60
       return 0
     fi
 
-  fi
-
-  if [ -n "$resolved" ]; then
-    if needsExtraction "$DETECTED" "$ISO"; then
-
-      if ! extractImage "$ISO" "$dir" "$VERSION"; then
-        removeIso && exit 62
-      fi
-
-      extracted="Y"
-    fi
   fi
 
   local desc
@@ -1361,18 +1354,13 @@ installWindows() {
       return 0
     fi
 
-    rebuild="N"
-  fi
-
-  if disabled "$rebuild"; then
-
     useOriginalImage "$ISO" || exit 65
 
   else
 
-    if [ -z "$extracted" ]; then
+    if (( ! extracted )); then
       if ! extractImage "$ISO" "$dir" "$VERSION"; then
-        removeIso &&  exit 62
+        removeIso "$ISO" && exit 62
       fi
     fi
 
