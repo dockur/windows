@@ -156,6 +156,26 @@ abortInstall() {
   return 1
 }
 
+useOriginalImage() {
+
+  local iso="$1"
+
+  if [ -n "$CUSTOM" ]; then
+    BOOT="$iso"
+    REMOVE="N"
+    return 0
+  fi
+
+  if [[ "$iso" != "$BOOT" ]]; then
+    if ! mv -f -- "$iso" "$BOOT"; then
+      error "Failed to move ISO file: $iso"
+      return 1
+    fi
+  fi
+
+  return 0
+}
+
 skipInstall() {
 
   local iso="$1"
