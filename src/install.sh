@@ -68,6 +68,11 @@ installWindows() {
     return 0
   fi
 
+  if [[ "${DETECTED,,}" == "reactos" ]]; then
+    abortInstall "$dir" "$ISO" "$boot" || return 83
+    return 0
+  fi
+
   if canUseSetupImage "$DETECTED" "$ISO"; then
 
     if ! stageSetup "$XML" "$LANGUAGE" "$TMP/setup"; then
