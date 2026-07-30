@@ -120,7 +120,7 @@ abortInstall() {
   [[ "${iso,,}" == *".esd" ]] && exit 60
   enabled "${UNPACK:-}" && exit 60
 
-  if [[ "${PLATFORM,,}" == "x64" ]]; then
+  if [[ "${PLATFORM,,}" == "x64" ]] && [ -d "$dir" ]; then
 
     efi=$(find "$dir" -maxdepth 1 -type d -iname efi -print -quit)
     efi32=$(find "$dir" -maxdepth 3 -type f \
