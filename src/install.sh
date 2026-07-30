@@ -9,6 +9,8 @@ startInstall() {
 
   html "Starting $APP..."
 
+  local previous_base
+
   if [ -z "$CUSTOM" ]; then
 
     local file="${VERSION//\//}.iso"
@@ -54,8 +56,6 @@ startInstall() {
     exit 50
   fi
 
-  skipInstall "$BOOT" && return 1
-
   local setup="$STORAGE/setup.img"
 
   if ! rm -f -- "$setup" "${setup}.tmp"; then
@@ -63,7 +63,14 @@ startInstall() {
     exit 50
   fi
 
-  if hasDisk; then
+  if ! previous_base=$(readState "base"); then
+    error "Failed to read the previous installation state!"
+    exit 50
+  fi
+
+  skipInstall "$BOOT" "$previous_base" && return 1
+
+  if [ -z "$previous_base" ] && hasDisk; then
     if ! backup ""; then
       warn "the backup was incomplete, continuing with installation..."
     fi
@@ -115,6 +122,7 @@ abortInstall() {
 
   local dir="$1"
   local iso="$2"
+  local source_boot="$3"
   local efi efi32 efi64
 
   [[ "${iso,,}" == *".esd" ]] && exit 60
@@ -149,25 +157,44 @@ abortInstall() {
     fi
   fi
 
-  finishInstall "$BOOT" "Y" && return 0
+  finishInstall "$BOOT" "Y" "$source_boot" && return 0
   return 1
+}
+
+useOriginalImage() {
+
+  local iso="$1"
+
+  if [ -n "$CUSTOM" ]; then
+    BOOT="$iso"
+    REMOVE="N"
+    return 0
+  fi
+
+  if [[ "$iso" != "$BOOT" ]]; then
+    if ! mv -f -- "$iso" "$BOOT"; then
+      error "Failed to move ISO file: $iso"
+      return 1
+    fi
+  fi
+
+  return 0
 }
 
 skipInstall() {
 
   local iso="$1"
-  local method magic previous
+  local previous_base="$2"
+  local method
   local boot="$STORAGE/windows.boot"
 
-  previous=$(readState "base") || return 1
-
-  if [ -n "$previous" ]; then
-    if [[ "${STORAGE,,}/${previous,,}" != "${iso,,}" ]]; then
+  if [ -n "$previous_base" ]; then
+    if [[ "${STORAGE,,}/${previous_base,,}" != "${iso,,}" ]]; then
 
       if ! hasDisk; then
 
-        if ! rm -f -- "$STORAGE/$previous"; then
-          error "Failed to remove ISO file \"$STORAGE/$previous\" !"
+        if ! rm -f -- "$STORAGE/$previous_base"; then
+          error "Failed to remove ISO file \"$STORAGE/$previous_base\" !"
           exit 50
         fi
 
@@ -178,7 +205,7 @@ skipInstall() {
       if [[ "${iso,,}" == "${STORAGE,,}/windows."* ]]; then
         method="your custom .iso file was changed"
       else
-        if [[ "${previous,,}" != "windows."* ]]; then
+        if [[ "${previous_base,,}" != "windows."* ]]; then
           method="the VERSION variable was changed"
         else
           method="your custom .iso file was removed"
@@ -193,7 +220,7 @@ skipInstall() {
 
       info "Detected that $method, a backup of your previous installation will be saved..."
 
-      if ! backup "$STORAGE/$previous"; then
+      if ! backup "$STORAGE/$previous_base"; then
         warn "the backup was incomplete, continuing with installation..."
       fi
 
@@ -204,29 +231,14 @@ skipInstall() {
 
   [ -f "$boot" ] && hasData && return 0
 
-  [ ! -f "$iso" ] && return 1
-  [ ! -s "$iso" ] && return 1
-
-  # Check if the ISO was already processed by our script
-  magic=$(dd if="$iso" bs=1 count=1 status=none | tr -d '\000')
-  magic="$(printf '%s' "$magic" | od -A n -t x1 -v | tr -d ' \n')"
-  local byte="16"
-  enabled "$MANUAL" && byte="17"
-
-  if [[ "$magic" != "$byte" ]]; then
-
-    info "The ISO will be processed again because the configuration was changed..."
-    return 1
-
-  fi
-
-  return 0
+  return 1
 }
 
 finishInstall() {
 
   local iso="$1"
   local aborted="$2"
+  local source_boot="$3"
   local base
 
   if [ ! -s "$iso" ] || [ ! -f "$iso" ]; then
@@ -239,15 +251,6 @@ finishInstall() {
     fi
   fi
 
-  if [[ "$aborted" != [Yy1]* ]]; then
-    # Mark ISO as prepared via magic byte
-    local byte="16"
-    enabled "$MANUAL" && byte="17"
-    if ! printf '%b' "\x$byte" | dd of="$iso" bs=1 seek=0 count=1 conv=notrunc status=none; then
-      warn "failed to set magic byte in ISO file: $iso"
-    fi
-  fi
-
   local file="$STORAGE/windows.ver"
   cp -f /etc/version "$file" || return 1
 
@@ -255,9 +258,9 @@ finishInstall() {
     warn "Failed to set the owner for \"$file\" !"
   fi
 
-  if [[ "$iso" == "$STORAGE/"* ]]; then
+  if [[ "$source_boot" == "$STORAGE/"* ]]; then
     if [[ "$aborted" != [Yy1]* ]] || [ -z "$CUSTOM" ]; then
-      base=$(basename "$iso")
+      base=$(basename "$source_boot")
       writeState "base" "$base" || return 1
     fi
   fi
@@ -699,21 +702,17 @@ setMachine() {
   local desc="$4"
   local legacy=""
 
-  if ! disabled "$REBUILD"; then
+  case "${id,,}" in
+    "win2k"* )   legacy="2k" ;;
+    "winxp"* )   legacy="xp" ;;
+    "win2003"* ) legacy="2k3" ;;
+  esac
 
-    case "${id,,}" in
-      "win2k"* )   legacy="2k" ;;
-      "winxp"* )   legacy="xp" ;;
-      "win2003"* ) legacy="2k3" ;;
-    esac
-
-    if [ -n "$legacy" ]; then
-      if ! legacyInstall "$iso" "$dir" "$desc" "$legacy"; then
-        error "Failed to prepare $desc ISO!"
-        return 1
-      fi
+  if [ -n "$legacy" ]; then
+    if ! legacyInstall "$iso" "$dir" "$desc" "$legacy"; then
+      error "Failed to prepare $desc ISO!"
+      return 1
     fi
-
   fi
 
   case "${id,,}" in
@@ -759,7 +758,6 @@ setMachine() {
     "reactos" )
 
       [ -z "${REMOVE:-}" ] && REMOVE="N"
-      [ -z "${REBUILD:-}" ] && REBUILD="N"
 
       writeState "old" "pc" || return 1
       writeState "type" "auto" || return 1
@@ -810,12 +808,6 @@ prepareImage() {
   local desc missing
 
   desc=$(printVariant "$DETECTED" "$DETECTED")
-
-  # Adjust QEMU machine configuration for legacy versions
-  setMachine "$DETECTED" "$iso" "$dir" "$desc" || return 1
-  restoreMachineState || return 1
-
-  disabled "$REBUILD" && return 0
 
   if [[ "${BOOT_MODE,,}" == "windows_legacy" &&
     "${DETECTED,,}" != "win9"* ]]; then
@@ -1075,11 +1067,6 @@ updateImage() {
   local dat="${xml//.xml/.dat}"
   local desc path src wim name info
 
-  if disabled "$REBUILD"; then
-    info "Skipping modifications to the installation image..."
-    return 1
-  fi
-
   skipVersion "${DETECTED,,}" && return 0
 
   if [ ! -s "$asset" ] || [ ! -f "$asset" ]; then
@@ -1277,81 +1264,150 @@ bootWindows() {
 
 ######################################
 
-! parseVersion && exit 58
-! parseLanguage && exit 56
-! detectCustom && exit 59
+installWindows() {
 
-if ! startInstall; then
-  bootWindows && return 0
-  exit 68
-fi
+  ! parseVersion && exit 58
+  ! parseLanguage && exit 56
+  ! detectCustom && exit 59
 
-if [ ! -s "$ISO" ] || [ ! -f "$ISO" ]; then
-  if ! downloadImage "$ISO" "$VERSION" "$LANGUAGE"; then
-    rm -f "$ISO" 2> /dev/null || true
-    exit 61
+  if ! startInstall; then
+    bootWindows && return 0
+    exit 68
   fi
-fi
 
-DIR="$TMP/unpack"
+  local source_boot="$BOOT"
 
-if ! extractImage "$ISO" "$DIR" "$VERSION"; then
-  rm -f "$ISO" 2> /dev/null || true
-  exit 62
-fi
-
-if ! detectImage "$DIR" "$VERSION"; then
-  abortInstall "$DIR" "$ISO" && return 0
-  exit 60
-fi
-
-if ! prepareImage "$ISO" "$DIR"; then
-  abortInstall "$DIR" "$ISO" && return 0
-  exit 66
-fi
-
-SETUP_DIR="$TMP/setup"
-SETUP_IMAGE="$STORAGE/setup.img"
-SETUP_XML=""
-
-if ! enabled "$MANUAL" && ! skipVersion "${DETECTED,,}"; then
-  SETUP_XML="$TMP/setup.xml"
-
-  if ! cp -L -- "$XML" "$SETUP_XML"; then
-    error "Failed to preserve answer file: $XML"
-    abortInstall "$DIR" "$ISO" && return 0
-    exit 63
+  if [ ! -s "$ISO" ] || [ ! -f "$ISO" ]; then
+    if ! downloadImage "$ISO" "$VERSION" "$LANGUAGE"; then
+      rm -f "$ISO" 2> /dev/null || true
+      exit 61
+    fi
   fi
-fi
 
-if ! updateImage "$DIR" "$XML" "$LANGUAGE"; then
-  abortInstall "$DIR" "$ISO" && return 0
-  exit 63
-fi
+  local resolved=""
+  local extracted=""
+  local REBUILD="Y"
+  local XML="" desc
+  local dir="$TMP/unpack"
 
-if ! skipVersion "${DETECTED,,}"; then
-  if ! stageSetup "$SETUP_XML" "$LANGUAGE" "$SETUP_DIR"; then
-    abortInstall "$DIR" "$ISO" && return 0
-    exit 63
+  if resolveImage "$VERSION"; then
+
+    if ! setImage; then
+      abortInstall "$dir" "$ISO" "$source_boot" && return 0
+      exit 60
+    fi
+
+    resolved="Y"
+
+  else
+
+    if ! extractImage "$ISO" "$dir" "$VERSION"; then
+      rm -f "$ISO" 2> /dev/null || true
+      exit 62
+    fi
+
+    extracted="Y"
+
+    if ! detectImage "$dir"; then
+      abortInstall "$dir" "$ISO" "$source_boot" && return 0
+      exit 60
+    fi
+
   fi
-fi
 
-if ! removeImage "$ISO"; then
-  exit 64
-fi
+  if [ -n "$resolved" ]; then
+    if skipVersion "${DETECTED,,}" ||
+      [[ "${ISO,,}" == *".esd" ]] ||
+      enabled "${UNPACK:-}"; then
 
-if ! buildImage "$DIR"; then
-  exit 65
-fi
+      if ! extractImage "$ISO" "$dir" "$VERSION"; then
+        rm -f "$ISO" 2> /dev/null || true
+        exit 62
+      fi
 
-if ! skipVersion "${DETECTED,,}"; then
-  if ! createSetupImage "$SETUP_DIR" "$SETUP_IMAGE"; then
-    exit 63
+      extracted="Y"
+    fi
   fi
-fi
 
-if ! finishInstall "$BOOT" "N"; then
-  exit 69
-fi
+  if ! desc=$(printVariant "$DETECTED" "$DETECTED"); then
+    abortInstall "$dir" "$ISO" "$source_boot" && return 0
+    exit 66
+  fi
+
+  if ! setMachine "$DETECTED" "$ISO" "$dir" "$desc"; then
+    abortInstall "$dir" "$ISO" "$source_boot" && return 0
+    exit 66
+  fi
+
+  if ! restoreMachineState; then
+    abortInstall "$dir" "$ISO" "$source_boot" && return 0
+    exit 66
+  fi
+
+  local setup_dir="$TMP/setup"
+  local setup_image="$STORAGE/setup.img"
+
+  if ! skipVersion "${DETECTED,,}" &&
+    [[ "${ISO,,}" != *".esd" ]] &&
+    ! enabled "${UNPACK:-}"; then
+
+    if ! stageSetup "$XML" "$LANGUAGE" "$setup_dir"; then
+      abortInstall "$dir" "$ISO" "$source_boot" && return 0
+      exit 63
+    fi
+
+    if ! createSetupImage "$setup_dir" "$setup_image"; then
+      abortInstall "$dir" "$ISO" "$source_boot" && return 0
+      exit 63
+    fi
+
+    REBUILD="N"
+  fi
+
+  if disabled "$REBUILD"; then
+
+    if ! useOriginalImage "$ISO"; then
+      exit 65
+    fi
+
+  else
+
+    if [ -z "$extracted" ]; then
+      if ! extractImage "$ISO" "$dir" "$VERSION"; then
+        rm -f "$ISO" 2> /dev/null || true
+        exit 62
+      fi
+    fi
+
+    if ! prepareImage "$ISO" "$dir"; then
+      abortInstall "$dir" "$ISO" "$source_boot" && return 0
+      exit 66
+    fi
+
+    if ! updateImage "$dir" "$XML" "$LANGUAGE"; then
+      abortInstall "$dir" "$ISO" "$source_boot" && return 0
+      exit 63
+    fi
+
+    if ! removeImage "$ISO"; then
+      exit 64
+    fi
+
+    if ! buildImage "$dir"; then
+      exit 65
+    fi
+
+  fi
+
+  if ! finishInstall "$BOOT" "N" "$source_boot"; then
+    exit 69
+  fi
+
+  return 0
+}
+
+######################################
+
+installWindows
 
 return 0
