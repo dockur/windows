@@ -1,129 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-validateResolution() {
-
-  local name="$1"
-  local value="$2"
-  local minimum="$3"
-
-  if [[ ! "$value" =~ ^[0-9]+$ ]] || [ "${#value}" -gt 5 ]; then
-    error "The $name variable must be between $minimum and 16384!"
-    return 1
-  fi
-
-  local number=$((10#$value))
-
-  if [ "$number" -lt "$minimum" ] || [ "$number" -gt 16384 ]; then
-    error "The $name variable must be between $minimum and 16384!"
-    return 1
-  fi
-
-  return 0
-}
-
-validateProductKey() {
-
-  local value="$1"
-
-  [ -z "$value" ] && return 0
-
-  if [[ ! "$value" =~ ^[A-Za-z0-9]{5}(-[A-Za-z0-9]{5}){4}$ ]]; then
-    error "The KEY variable must contain a valid 25-character product key!"
-    return 1
-  fi
-
-  return 0
-}
-
-validateComputerName() {
-
-  local value="$1"
-
-  [ -z "$value" ] && return 0
-
-  if [ "${#value}" -gt 15 ]; then
-    error "The HOST variable cannot contain more than 15 characters!"
-    return 1
-  fi
-
-  if [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$ ]]; then
-    error "The HOST variable may only contain letters, digits, and hyphens, and cannot start or end with a hyphen!"
-    return 1
-  fi
-
-  if [[ "$value" =~ ^[0-9]+$ ]]; then
-    error "The HOST variable cannot contain only digits!"
-    return 1
-  fi
-
-  return 0
-}
-
-validateWorkgroup() {
-
-  local value="$1"
-  local safe
-
-  [ -z "$value" ] && return 0
-
-  if [ "${#value}" -gt 15 ]; then
-    error "The WORKGROUP variable cannot contain more than 15 characters!"
-    return 1
-  fi
-
-  safe=$(printf '%s' "$value" | tr -d '"/\\[]:;|=,+*?<>') || return 1
-
-  if [[ "$safe" != "$value" ]]; then
-    error "The WORKGROUP variable contains characters that are not valid in a NetBIOS name!"
-    return 1
-  fi
-
-  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
-    error "The WORKGROUP variable cannot consist only of spaces or periods!"
-    return 1
-  fi
-
-  return 0
-}
-
-validateMembership() {
-
-  if [ -n "$DOMAIN" ] && [ -n "$WORKGROUP" ]; then
-    error "The DOMAIN and WORKGROUP variables cannot be used together!"
-    return 1
-  fi
-
-  if [ -n "$DOMAIN_OU" ] && [ -z "$DOMAIN" ]; then
-    error "The DOMAIN_OU variable requires DOMAIN to be specified!"
-    return 1
-  fi
-
-  validateWorkgroup "$WORKGROUP" || return 1
-  return 0
-}
-
-validatePassword() {
-
-  local value="$1"
-  local desc="${2:-}"
-  local suffix=""
-
-  [ -n "$desc" ] && suffix=" for $desc"
-
-  if [ "${#value}" -gt 127 ]; then
-    error "The PASSWORD variable cannot contain more than 127 characters$suffix!"
-    return 1
-  fi
-
-  if [[ "$value" =~ [[:cntrl:]] ]]; then
-    error "The PASSWORD variable cannot contain control characters$suffix!"
-    return 1
-  fi
-
-  return 0
-}
-
 escapeXMLSed() {
 
   local s
@@ -134,108 +11,6 @@ escapeXMLSed() {
   s=${s//|/\\|}
 
   printf '%s' "$s"
-  return 0
-}
-
-validateUsername() {
-
-  local value="$1"
-  local type="$2"
-  local maximum length_suffix invalid_message
-
-  case "$type" in
-    "local" )
-      [ -z "$value" ] && return 0
-
-      maximum=20
-      length_suffix=""
-      invalid_message="The USERNAME variable contains characters that are not supported by Windows local accounts!"
-      ;;
-
-    "domain" )
-      if [ -z "$value" ]; then
-        error "The USERNAME variable does not contain a valid domain account name!"
-        return 1
-      fi
-
-      maximum=256
-      length_suffix=" for a domain account"
-      invalid_message="The domain account name contains characters that are not supported by Windows unattended setup!"
-      ;;
-
-    * )
-      return 1
-      ;;
-  esac
-
-  if [ "${#value}" -gt "$maximum" ]; then
-    error "The USERNAME variable cannot contain more than $maximum characters$length_suffix!"
-    return 1
-  fi
-
-  if [[ "$value" =~ [[:cntrl:]] ]]; then
-    error "The USERNAME variable cannot contain control characters!"
-    return 1
-  fi
-
-  case "$value" in
-    *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* | *'%'* | *'@'* )
-      error "$invalid_message"
-      return 1
-      ;;
-  esac
-
-  if [[ "$value" == *"." ]]; then
-    error "The USERNAME variable cannot end with a period!"
-    return 1
-  fi
-
-  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
-    error "The USERNAME variable cannot consist only of spaces or periods!"
-    return 1
-  fi
-
-  case "${value^^}" in
-    "NONE" )
-      error "The USERNAME value \"NONE\" is reserved by Windows!"
-      return 1
-      ;;
-
-    "ADMINISTRATOR" | "GUEST" | "DEFAULTACCOUNT" | "WDAGUTILITYACCOUNT" | "WSIACCOUNT" )
-      [[ "$type" == "domain" ]] && return 0
-
-      error "The USERNAME value \"$value\" is reserved for a built-in Windows account!"
-      return 1
-      ;;
-  esac
-
-  return 0
-}
-
-validateDomainName() {
-
-  local value="$1"
-  local name="${2:-DOMAIN}"
-
-  if [ -z "$value" ]; then
-    error "The $name variable must contain a valid domain name!"
-    return 1
-  fi
-
-  if [[ "$value" == *"://"* ]]; then
-    error "The $name variable must contain a domain name, not a URL!"
-    return 1
-  fi
-
-  if [ "${#value}" -gt 255 ] ||
-    [[ "$value" =~ [[:cntrl:]] ]] ||
-    [[ "$value" =~ [[:space:]] ]] ||
-    [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$ ]]; then
-
-    error "The $name variable does not contain a valid domain name!"
-    return 1
-  fi
-
   return 0
 }
 
@@ -251,163 +26,6 @@ getXMLArchitecture() {
   [ -n "$arch" ] || return 1
 
   printf '%s' "$arch"
-  return 0
-}
-
-updateWorkgroup() {
-
-  local asset="$1"
-  local workgroup arch tmp
-
-  workgroup=$(escapeXML "$2") || return 1
-  arch=$(getXMLArchitecture "$asset") || return 1
-
-  grep -q 'Microsoft-Windows-UnattendedJoin' "$asset" && return 1
-
-  tmp=$(mktemp -d) || return 1
-  local result="$tmp/answer.xml"
-
-  if ! WORKGROUP_XML="$workgroup" ARCH_XML="$arch" awk '
-      /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
-
-      section == "specialize" && !workgroup_added &&
-        /^[[:space:]]*<\/settings>[[:space:]]*$/ {
-        print "    <component name=\"Microsoft-Windows-UnattendedJoin\" processorArchitecture=\"" ENVIRON["ARCH_XML"] "\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">\n" \
-              "      <Identification>\n" \
-              "        <JoinWorkgroup>" ENVIRON["WORKGROUP_XML"] "</JoinWorkgroup>\n" \
-              "      </Identification>\n" \
-              "    </component>"
-        workgroup_added = 1
-      }
-
-      { print }
-
-      /^[[:space:]]*<\/settings>[[:space:]]*$/ { section = "" }
-      END { exit !workgroup_added }
-    ' "$asset" > "$result" ||
-    ! mv -f "$result" "$asset"; then
-
-    rm -rf "$tmp" || true
-    return 1
-  fi
-
-  rm -rf "$tmp" || return 1
-  return 0
-}
-
-updateDomain() {
-
-  local asset="$1"
-  local domain account auth pass
-  local ou arch tmp
-
-  domain=$(escapeXML "$2") || return 1
-  account=$(escapeXML "$3") || return 1
-  auth=$(escapeXML "$4") || return 1
-  pass=$(escapeXML "$5") || return 1
-  ou=$(escapeXML "$6") || return 1
-  arch=$(getXMLArchitecture "$asset") || return 1
-
-  local cred_domain="$domain"
-
-  case "$4" in
-    *@* ) cred_domain="" ;;
-  esac
-
-  grep -Eq 'Microsoft-Windows-UnattendedJoin|<DomainAccounts([[:space:]/>])' "$asset" && return 1
-
-  tmp=$(mktemp -d) || return 1
-  local result="$tmp/answer.xml"
-
-  if ! DOMAIN_XML="$domain" ACCOUNT_XML="$account" \
-    AUTH_XML="$auth" PASS_XML="$pass" \
-    CRED_DOMAIN="$cred_domain" OU_XML="$ou" \
-    ARCH_XML="$arch" \
-    awk '
-      /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
-      /<settings[^>]*pass="oobeSystem"[^>]*>/ { section = "oobeSystem" }
-      section == "oobeSystem" && /<UserAccounts([[:space:]>])/ { in_accounts = 1 }
-      section == "oobeSystem" && /<AutoLogon([[:space:]>])/ { in_autologon = 1 }
-
-      section == "oobeSystem" && in_accounts && !accounts_added &&
-        /<AdministratorPassword([[:space:]>])/ {
-        print "        <DomainAccounts>\n" \
-              "          <DomainAccountList wcm:action=\"add\">\n" \
-              "            <DomainAccount wcm:action=\"add\">\n" \
-              "              <Name>" ENVIRON["ACCOUNT_XML"] "</Name>\n" \
-              "              <Group>Administrators</Group>\n" \
-              "            </DomainAccount>\n" \
-              "            <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>\n" \
-              "          </DomainAccountList>\n" \
-              "        </DomainAccounts>"
-        accounts_added = 1
-      }
-
-      section == "oobeSystem" && in_autologon &&
-        /^[[:space:]]*<Username>.*<\/Username>[[:space:]]*$/ {
-        print "        <Username>" ENVIRON["ACCOUNT_XML"] "</Username>\n" \
-              "        <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>"
-        autologon_added = 1
-        next
-      }
-
-      section == "oobeSystem" && in_autologon &&
-        /^[[:space:]]*<Domain([[:space:]/>])/ { next }
-
-      section == "oobeSystem" && in_autologon &&
-        /^[[:space:]]*<Value>.*<\/Value>[[:space:]]*$/ {
-        print "          <Value>" ENVIRON["PASS_XML"] "</Value>"
-        password_added = 1
-        next
-      }
-
-      section == "oobeSystem" && in_autologon &&
-        /^[[:space:]]*<PlainText([[:space:]/>])/ {
-        print "          <PlainText>true</PlainText>"
-        plaintext_added = 1
-        next
-      }
-
-      section == "specialize" && !join_added &&
-        /^[[:space:]]*<\/settings>[[:space:]]*$/ {
-        print "    <component name=\"Microsoft-Windows-UnattendedJoin\" processorArchitecture=\"" ENVIRON["ARCH_XML"] "\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">\n" \
-              "      <Identification>\n" \
-              "        <Credentials>"
-
-        if (ENVIRON["CRED_DOMAIN"] != "") {
-          print "          <Domain>" ENVIRON["CRED_DOMAIN"] "</Domain>"
-        }
-
-        print "          <Username>" ENVIRON["AUTH_XML"] "</Username>\n" \
-              "          <Password>" ENVIRON["PASS_XML"] "</Password>\n" \
-              "        </Credentials>\n" \
-              "        <JoinDomain>" ENVIRON["DOMAIN_XML"] "</JoinDomain>"
-
-        if (ENVIRON["OU_XML"] != "") {
-          print "        <MachineObjectOU>" ENVIRON["OU_XML"] "</MachineObjectOU>"
-        }
-
-        print "      </Identification>\n" \
-              "    </component>"
-
-        join_added = 1
-      }
-
-      { print }
-
-      section == "oobeSystem" && /<\/AutoLogon>/ { in_autologon = 0 }
-      section == "oobeSystem" && /<\/UserAccounts>/ { in_accounts = 0 }
-      /^[[:space:]]*<\/settings>[[:space:]]*$/ { section = "" }
-
-      END { exit !(join_added && accounts_added && autologon_added && password_added && plaintext_added) }
-    ' "$asset" > "$result" ||
-    ! mv -f "$result" "$asset"; then
-
-    rm -rf "$tmp" || true
-    return 1
-  fi
-
-  rm -rf "$tmp" || return 1
   return 0
 }
 
@@ -797,69 +415,6 @@ setXML() {
   return 0
 }
 
-validateXMLSettings() {
-
-  validateResolution "WIDTH" "$WIDTH" 320 || return 1
-  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
-  validateMembership || return 1
-  validateComputerName "${HOST:-}" || return 1
-  validateProductKey "${KEY:-}" || return 1
-  validatePassword "${PASSWORD:-}" || return 1
-
-  return 0
-}
-
-updateDisplayXML() {
-
-  local asset="$1"
-  local app host
-
-  app=$(escapeXMLSed "$APP for $ENGINE") || return 1
-
-  sed -i "s|>Windows for Docker<|>$app<|g" "$asset" || return 1
-  sed -i -E "s|<VerticalResolution>[^<]*</VerticalResolution>|<VerticalResolution>$HEIGHT</VerticalResolution>|g" "$asset" || return 1
-  sed -i -E "s|<HorizontalResolution>[^<]*</HorizontalResolution>|<HorizontalResolution>$WIDTH</HorizontalResolution>|g" "$asset" || return 1
-
-  [ -n "${HOST:-}" ] || return 0
-
-  host=$(escapeXMLSed "$HOST") || return 1
-  sed -i -E "s|<ComputerName>[^<]*</ComputerName>|<ComputerName>$host</ComputerName>|g" "$asset" || return 1
-
-  return 0
-}
-
-updateLocaleXML() {
-
-  local asset="$1"
-  local language="$2"
-  local culture region keyboard value
-
-  culture=$(getLanguage "$language" "culture") || return 1
-
-  if [ -n "$culture" ] && [[ "${culture,,}" != "en-us" ]]; then
-    value=$(escapeXMLSed "$culture") || return 1
-    sed -i "s|<UILanguage>en-US</UILanguage>|<UILanguage>$value</UILanguage>|g" "$asset" || return 1
-  fi
-
-  region="${REGION:-$culture}"
-
-  if [ -n "$region" ] && [[ "${region,,}" != "en-us" ]]; then
-    value=$(escapeXMLSed "$region") || return 1
-    sed -i "s|<UserLocale>en-US</UserLocale>|<UserLocale>$value</UserLocale>|g" "$asset" || return 1
-    sed -i "s|<SystemLocale>en-US</SystemLocale>|<SystemLocale>$value</SystemLocale>|g" "$asset" || return 1
-  fi
-
-  keyboard="${KEYBOARD:-$culture}"
-
-  if [ -n "$keyboard" ] && [[ "${keyboard,,}" != "en-us" ]]; then
-    value=$(escapeXMLSed "$keyboard") || return 1
-    sed -i "s|<InputLocale>en-US</InputLocale>|<InputLocale>$value</InputLocale>|g" "$asset" || return 1
-    sed -i "s|<InputLocale>0409:00000409</InputLocale>|<InputLocale>$value</InputLocale>|g" "$asset" || return 1
-  fi
-
-  return 0
-}
-
 prepareDomainAccount() {
 
   local domain="$1"
@@ -923,6 +478,563 @@ prepareDomainAccount() {
   if [[ "$PASSWORD" == "admin" ]]; then
     error "The PASSWORD variable must be changed from its default value when joining a domain!"
     return 1
+  fi
+
+  return 0
+}
+
+removeSharedFolderXML() {
+
+  local asset="$1"
+
+  if ! disabled "${SHORTCUT:-}" &&
+    ! disabled "${SAMBA:-}"; then
+    return 0
+  fi
+
+  if ! sed -i -E '
+    /<SynchronousCommand([[:space:]>])/ {
+      :command
+      N
+      /<\/SynchronousCommand>/!b command
+      /<Description>Create desktop shortcut to shared folder<\/Description>/d
+      /<Description>Map shared folder<\/Description>/d
+    }
+  ' "$asset"; then
+
+    error "Failed to remove shared folder shortcuts from answer file!"
+    return 1
+  fi
+
+  return 0
+}
+
+setConfigurationXML() {
+
+  local asset="$1"
+  local section
+
+  [ -s "$asset" ] || return 1
+
+  section=$(sed -n -E '
+    /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/ {
+      /<component[^>]*name="Microsoft-Windows-Setup"[^>]*>/,/<\/component>/p
+    }
+  ' "$asset") || return 1
+
+  [ -n "$section" ] || return 1
+
+  if grep -Fq '<UseConfigurationSet>' <<< "$section"; then
+
+    sed -i -E '
+      /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/ {
+        /<component[^>]*name="Microsoft-Windows-Setup"[^>]*>/,/<\/component>/ {
+          s#<UseConfigurationSet>[^<]*</UseConfigurationSet>#<UseConfigurationSet>true</UseConfigurationSet>#g
+        }
+      }
+    ' "$asset" || return 1
+
+    return 0
+  fi
+
+  if ! grep -Fq '<UserData>' <<< "$section"; then
+    return 1
+  fi
+
+  sed -i -E '
+    /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/ {
+      /<component[^>]*name="Microsoft-Windows-Setup"[^>]*>/,/<\/component>/ {
+        s#^([[:space:]]*)<UserData>#\1<UseConfigurationSet>true</UseConfigurationSet>\n\1<UserData>#
+      }
+    }
+  ' "$asset" || return 1
+
+  return 0
+}
+
+updateXML() {
+
+  local asset="$1"
+  local language="$2"
+  local domain="${DOMAIN:-}"
+  local workgroup="${WORKGROUP:-}"
+  local account=""
+  local auth=""
+
+  [ -z "${WIDTH:-}" ] && WIDTH="1280"
+  [ -z "${HEIGHT:-}" ] && HEIGHT="720"
+
+  validateXMLSettings || return 1
+  updateDisplayXML "$asset" || return 1
+  updateLocaleXML "$asset" "$language" || return 1
+
+  if [ -n "$domain" ]; then
+    prepareDomainAccount "$domain" account auth || return 1
+  else
+    updateLocalAccountXML "$asset" || return 1
+  fi
+
+  sed -i -E \
+    "s|<PlainText>[^<]*</PlainText>|<PlainText>false</PlainText>|g" \
+    "$asset" || return 1
+
+  updateMembershipXML \
+    "$asset" \
+    "$domain" \
+    "$workgroup" \
+    "$account" \
+    "$auth" || return 1
+
+  updateAutologinXML "$asset" || return 1
+  enableLog "$asset" || return 1
+  updateEditionXML "$asset" || return 1
+  updateProductKeyXML "$asset" || return 1
+  removeSharedFolderXML "$asset" || return 1
+  validateGeneratedXML "$asset" || return 1
+
+  return 0
+}
+
+validateResolution() {
+
+  local name="$1"
+  local value="$2"
+  local minimum="$3"
+
+  if [[ ! "$value" =~ ^[0-9]+$ ]] || [ "${#value}" -gt 5 ]; then
+    error "The $name variable must be between $minimum and 16384!"
+    return 1
+  fi
+
+  local number=$((10#$value))
+
+  if [ "$number" -lt "$minimum" ] || [ "$number" -gt 16384 ]; then
+    error "The $name variable must be between $minimum and 16384!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateProductKey() {
+
+  local value="$1"
+
+  [ -z "$value" ] && return 0
+
+  if [[ ! "$value" =~ ^[A-Za-z0-9]{5}(-[A-Za-z0-9]{5}){4}$ ]]; then
+    error "The KEY variable must contain a valid 25-character product key!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateComputerName() {
+
+  local value="$1"
+
+  [ -z "$value" ] && return 0
+
+  if [ "${#value}" -gt 15 ]; then
+    error "The HOST variable cannot contain more than 15 characters!"
+    return 1
+  fi
+
+  if [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$ ]]; then
+    error "The HOST variable may only contain letters, digits, and hyphens, and cannot start or end with a hyphen!"
+    return 1
+  fi
+
+  if [[ "$value" =~ ^[0-9]+$ ]]; then
+    error "The HOST variable cannot contain only digits!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateWorkgroup() {
+
+  local value="$1"
+  local safe
+
+  [ -z "$value" ] && return 0
+
+  if [ "${#value}" -gt 15 ]; then
+    error "The WORKGROUP variable cannot contain more than 15 characters!"
+    return 1
+  fi
+
+  safe=$(printf '%s' "$value" | tr -d '"/\\[]:;|=,+*?<>') || return 1
+
+  if [[ "$safe" != "$value" ]]; then
+    error "The WORKGROUP variable contains characters that are not valid in a NetBIOS name!"
+    return 1
+  fi
+
+  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
+    error "The WORKGROUP variable cannot consist only of spaces or periods!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateMembership() {
+
+  if [ -n "$DOMAIN" ] && [ -n "$WORKGROUP" ]; then
+    error "The DOMAIN and WORKGROUP variables cannot be used together!"
+    return 1
+  fi
+
+  if [ -n "$DOMAIN_OU" ] && [ -z "$DOMAIN" ]; then
+    error "The DOMAIN_OU variable requires DOMAIN to be specified!"
+    return 1
+  fi
+
+  validateWorkgroup "$WORKGROUP" || return 1
+  return 0
+}
+
+validatePassword() {
+
+  local value="$1"
+  local desc="${2:-}"
+  local suffix=""
+
+  [ -n "$desc" ] && suffix=" for $desc"
+
+  if [ "${#value}" -gt 127 ]; then
+    error "The PASSWORD variable cannot contain more than 127 characters$suffix!"
+    return 1
+  fi
+
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    error "The PASSWORD variable cannot contain control characters$suffix!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateUsername() {
+
+  local value="$1"
+  local type="$2"
+  local maximum length_suffix invalid_message
+
+  case "$type" in
+    "local" )
+      [ -z "$value" ] && return 0
+
+      maximum=20
+      length_suffix=""
+      invalid_message="The USERNAME variable contains characters that are not supported by Windows local accounts!"
+      ;;
+
+    "domain" )
+      if [ -z "$value" ]; then
+        error "The USERNAME variable does not contain a valid domain account name!"
+        return 1
+      fi
+
+      maximum=256
+      length_suffix=" for a domain account"
+      invalid_message="The domain account name contains characters that are not supported by Windows unattended setup!"
+      ;;
+
+    * )
+      return 1
+      ;;
+  esac
+
+  if [ "${#value}" -gt "$maximum" ]; then
+    error "The USERNAME variable cannot contain more than $maximum characters$length_suffix!"
+    return 1
+  fi
+
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    error "The USERNAME variable cannot contain control characters!"
+    return 1
+  fi
+
+  case "$value" in
+    *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* | *'%'* | *'@'* )
+      error "$invalid_message"
+      return 1
+      ;;
+  esac
+
+  if [[ "$value" == *"." ]]; then
+    error "The USERNAME variable cannot end with a period!"
+    return 1
+  fi
+
+  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
+    error "The USERNAME variable cannot consist only of spaces or periods!"
+    return 1
+  fi
+
+  case "${value^^}" in
+    "NONE" )
+      error "The USERNAME value \"NONE\" is reserved by Windows!"
+      return 1
+      ;;
+
+    "ADMINISTRATOR" | "GUEST" | "DEFAULTACCOUNT" | "WDAGUTILITYACCOUNT" | "WSIACCOUNT" )
+      [[ "$type" == "domain" ]] && return 0
+
+      error "The USERNAME value \"$value\" is reserved for a built-in Windows account!"
+      return 1
+      ;;
+  esac
+
+  return 0
+}
+
+validateDomainName() {
+
+  local value="$1"
+  local name="${2:-DOMAIN}"
+
+  if [ -z "$value" ]; then
+    error "The $name variable must contain a valid domain name!"
+    return 1
+  fi
+
+  if [[ "$value" == *"://"* ]]; then
+    error "The $name variable must contain a domain name, not a URL!"
+    return 1
+  fi
+
+  if [ "${#value}" -gt 255 ] ||
+    [[ "$value" =~ [[:cntrl:]] ]] ||
+    [[ "$value" =~ [[:space:]] ]] ||
+    [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$ ]]; then
+
+    error "The $name variable does not contain a valid domain name!"
+    return 1
+  fi
+
+  return 0
+}
+
+updateWorkgroup() {
+
+  local asset="$1"
+  local workgroup arch tmp
+
+  workgroup=$(escapeXML "$2") || return 1
+  arch=$(getXMLArchitecture "$asset") || return 1
+
+  grep -q 'Microsoft-Windows-UnattendedJoin' "$asset" && return 1
+
+  tmp=$(mktemp -d) || return 1
+  local result="$tmp/answer.xml"
+
+  if ! WORKGROUP_XML="$workgroup" ARCH_XML="$arch" awk '
+      /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
+
+      section == "specialize" && !workgroup_added &&
+        /^[[:space:]]*<\/settings>[[:space:]]*$/ {
+        print "    <component name=\"Microsoft-Windows-UnattendedJoin\" processorArchitecture=\"" ENVIRON["ARCH_XML"] "\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">\n" \
+              "      <Identification>\n" \
+              "        <JoinWorkgroup>" ENVIRON["WORKGROUP_XML"] "</JoinWorkgroup>\n" \
+              "      </Identification>\n" \
+              "    </component>"
+        workgroup_added = 1
+      }
+
+      { print }
+
+      /^[[:space:]]*<\/settings>[[:space:]]*$/ { section = "" }
+      END { exit !workgroup_added }
+    ' "$asset" > "$result" ||
+    ! mv -f "$result" "$asset"; then
+
+    rm -rf "$tmp" || true
+    return 1
+  fi
+
+  rm -rf "$tmp" || return 1
+  return 0
+}
+
+updateDomain() {
+
+  local asset="$1"
+  local domain account auth pass
+  local ou arch tmp
+
+  domain=$(escapeXML "$2") || return 1
+  account=$(escapeXML "$3") || return 1
+  auth=$(escapeXML "$4") || return 1
+  pass=$(escapeXML "$5") || return 1
+  ou=$(escapeXML "$6") || return 1
+  arch=$(getXMLArchitecture "$asset") || return 1
+
+  local cred_domain="$domain"
+
+  case "$4" in
+    *@* ) cred_domain="" ;;
+  esac
+
+  grep -Eq 'Microsoft-Windows-UnattendedJoin|<DomainAccounts([[:space:]/>])' "$asset" && return 1
+
+  tmp=$(mktemp -d) || return 1
+  local result="$tmp/answer.xml"
+
+  if ! DOMAIN_XML="$domain" ACCOUNT_XML="$account" \
+    AUTH_XML="$auth" PASS_XML="$pass" \
+    CRED_DOMAIN="$cred_domain" OU_XML="$ou" \
+    ARCH_XML="$arch" \
+    awk '
+      /<settings[^>]*pass="specialize"[^>]*>/ { section = "specialize" }
+      /<settings[^>]*pass="oobeSystem"[^>]*>/ { section = "oobeSystem" }
+      section == "oobeSystem" && /<UserAccounts([[:space:]>])/ { in_accounts = 1 }
+      section == "oobeSystem" && /<AutoLogon([[:space:]>])/ { in_autologon = 1 }
+
+      section == "oobeSystem" && in_accounts && !accounts_added &&
+        /<AdministratorPassword([[:space:]>])/ {
+        print "        <DomainAccounts>\n" \
+              "          <DomainAccountList wcm:action=\"add\">\n" \
+              "            <DomainAccount wcm:action=\"add\">\n" \
+              "              <Name>" ENVIRON["ACCOUNT_XML"] "</Name>\n" \
+              "              <Group>Administrators</Group>\n" \
+              "            </DomainAccount>\n" \
+              "            <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>\n" \
+              "          </DomainAccountList>\n" \
+              "        </DomainAccounts>"
+        accounts_added = 1
+      }
+
+      section == "oobeSystem" && in_autologon &&
+        /^[[:space:]]*<Username>.*<\/Username>[[:space:]]*$/ {
+        print "        <Username>" ENVIRON["ACCOUNT_XML"] "</Username>\n" \
+              "        <Domain>" ENVIRON["DOMAIN_XML"] "</Domain>"
+        autologon_added = 1
+        next
+      }
+
+      section == "oobeSystem" && in_autologon &&
+        /^[[:space:]]*<Domain([[:space:]/>])/ { next }
+
+      section == "oobeSystem" && in_autologon &&
+        /^[[:space:]]*<Value>.*<\/Value>[[:space:]]*$/ {
+        print "          <Value>" ENVIRON["PASS_XML"] "</Value>"
+        password_added = 1
+        next
+      }
+
+      section == "oobeSystem" && in_autologon &&
+        /^[[:space:]]*<PlainText([[:space:]/>])/ {
+        print "          <PlainText>true</PlainText>"
+        plaintext_added = 1
+        next
+      }
+
+      section == "specialize" && !join_added &&
+        /^[[:space:]]*<\/settings>[[:space:]]*$/ {
+        print "    <component name=\"Microsoft-Windows-UnattendedJoin\" processorArchitecture=\"" ENVIRON["ARCH_XML"] "\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">\n" \
+              "      <Identification>\n" \
+              "        <Credentials>"
+
+        if (ENVIRON["CRED_DOMAIN"] != "") {
+          print "          <Domain>" ENVIRON["CRED_DOMAIN"] "</Domain>"
+        }
+
+        print "          <Username>" ENVIRON["AUTH_XML"] "</Username>\n" \
+              "          <Password>" ENVIRON["PASS_XML"] "</Password>\n" \
+              "        </Credentials>\n" \
+              "        <JoinDomain>" ENVIRON["DOMAIN_XML"] "</JoinDomain>"
+
+        if (ENVIRON["OU_XML"] != "") {
+          print "        <MachineObjectOU>" ENVIRON["OU_XML"] "</MachineObjectOU>"
+        }
+
+        print "      </Identification>\n" \
+              "    </component>"
+
+        join_added = 1
+      }
+
+      { print }
+
+      section == "oobeSystem" && /<\/AutoLogon>/ { in_autologon = 0 }
+      section == "oobeSystem" && /<\/UserAccounts>/ { in_accounts = 0 }
+      /^[[:space:]]*<\/settings>[[:space:]]*$/ { section = "" }
+
+      END { exit !(join_added && accounts_added && autologon_added && password_added && plaintext_added) }
+    ' "$asset" > "$result" ||
+    ! mv -f "$result" "$asset"; then
+
+    rm -rf "$tmp" || true
+    return 1
+  fi
+
+  rm -rf "$tmp" || return 1
+  return 0
+}
+
+validateXMLSettings() {
+
+  validateResolution "WIDTH" "$WIDTH" 320 || return 1
+  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
+  validateMembership || return 1
+  validateComputerName "${HOST:-}" || return 1
+  validateProductKey "${KEY:-}" || return 1
+  validatePassword "${PASSWORD:-}" || return 1
+
+  return 0
+}
+
+updateDisplayXML() {
+
+  local asset="$1"
+  local app host
+
+  app=$(escapeXMLSed "$APP for $ENGINE") || return 1
+
+  sed -i "s|>Windows for Docker<|>$app<|g" "$asset" || return 1
+  sed -i -E "s|<VerticalResolution>[^<]*</VerticalResolution>|<VerticalResolution>$HEIGHT</VerticalResolution>|g" "$asset" || return 1
+  sed -i -E "s|<HorizontalResolution>[^<]*</HorizontalResolution>|<HorizontalResolution>$WIDTH</HorizontalResolution>|g" "$asset" || return 1
+
+  [ -n "${HOST:-}" ] || return 0
+
+  host=$(escapeXMLSed "$HOST") || return 1
+  sed -i -E "s|<ComputerName>[^<]*</ComputerName>|<ComputerName>$host</ComputerName>|g" "$asset" || return 1
+
+  return 0
+}
+
+updateLocaleXML() {
+
+  local asset="$1"
+  local language="$2"
+  local culture region keyboard value
+
+  culture=$(getLanguage "$language" "culture") || return 1
+
+  if [ -n "$culture" ] && [[ "${culture,,}" != "en-us" ]]; then
+    value=$(escapeXMLSed "$culture") || return 1
+    sed -i "s|<UILanguage>en-US</UILanguage>|<UILanguage>$value</UILanguage>|g" "$asset" || return 1
+  fi
+
+  region="${REGION:-$culture}"
+
+  if [ -n "$region" ] && [[ "${region,,}" != "en-us" ]]; then
+    value=$(escapeXMLSed "$region") || return 1
+    sed -i "s|<UserLocale>en-US</UserLocale>|<UserLocale>$value</UserLocale>|g" "$asset" || return 1
+    sed -i "s|<SystemLocale>en-US</SystemLocale>|<SystemLocale>$value</SystemLocale>|g" "$asset" || return 1
+  fi
+
+  keyboard="${KEYBOARD:-$culture}"
+
+  if [ -n "$keyboard" ] && [[ "${keyboard,,}" != "en-us" ]]; then
+    value=$(escapeXMLSed "$keyboard") || return 1
+    sed -i "s|<InputLocale>en-US</InputLocale>|<InputLocale>$value</InputLocale>|g" "$asset" || return 1
+    sed -i "s|<InputLocale>0409:00000409</InputLocale>|<InputLocale>$value</InputLocale>|g" "$asset" || return 1
   fi
 
   return 0
@@ -1057,75 +1169,6 @@ updateProductKeyXML() {
   return 0
 }
 
-removeSharedFolderXML() {
-
-  local asset="$1"
-
-  if ! disabled "${SHORTCUT:-}" &&
-    ! disabled "${SAMBA:-}"; then
-    return 0
-  fi
-
-  if ! sed -i -E '
-    /<SynchronousCommand([[:space:]>])/ {
-      :command
-      N
-      /<\/SynchronousCommand>/!b command
-      /<Description>Create desktop shortcut to shared folder<\/Description>/d
-      /<Description>Map shared folder<\/Description>/d
-    }
-  ' "$asset"; then
-
-    error "Failed to remove shared folder shortcuts from answer file!"
-    return 1
-  fi
-
-  return 0
-}
-
-setConfigurationXML() {
-
-  local asset="$1"
-  local section
-
-  [ -s "$asset" ] || return 1
-
-  section=$(sed -n -E '
-    /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/ {
-      /<component[^>]*name="Microsoft-Windows-Setup"[^>]*>/,/<\/component>/p
-    }
-  ' "$asset") || return 1
-
-  [ -n "$section" ] || return 1
-
-  if grep -Fq '<UseConfigurationSet>' <<< "$section"; then
-
-    sed -i -E '
-      /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/ {
-        /<component[^>]*name="Microsoft-Windows-Setup"[^>]*>/,/<\/component>/ {
-          s#<UseConfigurationSet>[^<]*</UseConfigurationSet>#<UseConfigurationSet>true</UseConfigurationSet>#g
-        }
-      }
-    ' "$asset" || return 1
-
-    return 0
-  fi
-
-  if ! grep -Fq '<UserData>' <<< "$section"; then
-    return 1
-  fi
-
-  sed -i -E '
-    /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/ {
-      /<component[^>]*name="Microsoft-Windows-Setup"[^>]*>/,/<\/component>/ {
-        s#^([[:space:]]*)<UserData>#\1<UseConfigurationSet>true</UseConfigurationSet>\n\1<UserData>#
-      }
-    }
-  ' "$asset" || return 1
-
-  return 0
-}
-
 validateGeneratedXML() {
 
   local asset="$1"
@@ -1136,65 +1179,6 @@ validateGeneratedXML() {
   fi
 
   return 0
-}
-
-updateXML() {
-
-  local asset="$1"
-  local language="$2"
-  local domain="${DOMAIN:-}"
-  local workgroup="${WORKGROUP:-}"
-  local account=""
-  local auth=""
-
-  [ -z "${WIDTH:-}" ] && WIDTH="1280"
-  [ -z "${HEIGHT:-}" ] && HEIGHT="720"
-
-  validateXMLSettings || return 1
-  updateDisplayXML "$asset" || return 1
-  updateLocaleXML "$asset" "$language" || return 1
-
-  if [ -n "$domain" ]; then
-    prepareDomainAccount "$domain" account auth || return 1
-  else
-    updateLocalAccountXML "$asset" || return 1
-  fi
-
-  sed -i -E \
-    "s|<PlainText>[^<]*</PlainText>|<PlainText>false</PlainText>|g" \
-    "$asset" || return 1
-
-  updateMembershipXML \
-    "$asset" \
-    "$domain" \
-    "$workgroup" \
-    "$account" \
-    "$auth" || return 1
-
-  updateAutologinXML "$asset" || return 1
-  enableLog "$asset" || return 1
-  updateEditionXML "$asset" || return 1
-  updateProductKeyXML "$asset" || return 1
-  removeSharedFolderXML "$asset" || return 1
-  validateGeneratedXML "$asset" || return 1
-
-  return 0
-}
-
-escapeSIFValue() {
-
-  local s="$1"
-
-  s=${s//%/%%}
-  s=${s//\"/\"\"}
-
-  printf '%s' "$s"
-  return 0
-}
-
-escapeRegistryValue() {
-
-  printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
 }
 
 validateLegacyText() {
@@ -1269,6 +1253,22 @@ validateLegacyUsername() {
   esac
 
   return 0
+}
+
+escapeSIFValue() {
+
+  local s="$1"
+
+  s=${s//%/%%}
+  s=${s//\"/\"\"}
+
+  printf '%s' "$s"
+  return 0
+}
+
+escapeRegistryValue() {
+
+  printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
 }
 
 extractDrivers() {
