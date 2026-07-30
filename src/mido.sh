@@ -389,30 +389,30 @@ downloadWindowsEval() {
     "iot" )
       case "${PLATFORM,,}" in
         "x64" )
-          link=$(printf '%s\n' "$links" | sed -n '1p') ;;
+          link=$(printf '%s\n' "$links" | head -n 1) ;;
         "arm64" )
-          link=$(printf '%s\n' "$links" | sed -n '2p') ;;
+          link=$(printf '%s\n' "$links" | head -n 2 | tail -n 1) ;;
       esac ;;
     "ltsc" )
       case "${PLATFORM,,}" in
         "x64" )
-          link=$(printf '%s\n' "$links" | sed -n '2p') ;;
+          link=$(printf '%s\n' "$links" | head -n 2 | tail -n 1) ;;
       esac ;;
     "enterprise" )
       case "${PLATFORM,,}" in
         "x64" )
           if [[ "$winVer" != "windows-10"* ]]; then
-            link=$(printf '%s\n' "$links" | sed -n '1p')
+            link=$(printf '%s\n' "$links" | head -n 1)
           else
-            link=$(printf '%s\n' "$links" | sed -n '2p')
+            link=$(printf '%s\n' "$links" | head -n 2 | tail -n 1)
           fi ;;
         "arm64" )
-          link=$(printf '%s\n' "$links" | sed -n '2p') ;;
+          link=$(printf '%s\n' "$links" | head -n 2 | tail -n 1) ;;
       esac ;;
     "server" )
       case "${PLATFORM,,}" in
         "x64" )
-          link=$(printf '%s\n' "$links" | sed -n '1p') ;;
+          link=$(printf '%s\n' "$links" | head -n 1) ;;
       esac ;;
     * )
       error "Invalid type specified, value \"$type\" is not recognized!" && return 1 ;;
