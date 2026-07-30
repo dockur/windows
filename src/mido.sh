@@ -96,7 +96,7 @@ downloadWindowsLink() {
   local skuId skuJson
   local linkJson link
   local ovData ovTime session
-  local ovToken="" ovTicks="" 
+  local ovToken="" ovTicks=""
   local profile="606624d44113"
 
   # uuidgen: For MacOS (installed by default) and other systems (e.g. with no /proc) that don't have a kernel interface for generating random UUIDs
@@ -179,7 +179,7 @@ downloadWindowsLink() {
     --max-filesize 100K \
     -- "$skuUrl" || return 1
 
-  { skuId=$(echo "$skuJson" | jq --arg LANG "$language" -r '.Skus[] | select(.Language==$LANG).Id') 2>/dev/null; local rc=$?; } || :
+  { skuId=$(printf '%s\n' "$skuJson" | jq --arg LANG "$language" -r 'first(.Skus[]? | select(.Language == $LANG) | .Id) // empty') 2>/dev/null; local rc=$?; } || :
 
   if [ -z "$skuId" ] || [[ "${skuId,,}" == "null" ]] || (( rc != 0 )); then
     language=$(getLanguage "$lang" "desc")
@@ -207,17 +207,17 @@ downloadWindowsLink() {
     return 1
   fi
 
-  if echo "$linkJson" | grep -q "Sentinel marked this request as rejected."; then
+  if grep -Fq "Sentinel marked this request as rejected." <<< "$linkJson"; then
     error "Microsoft blocked the automated download request based on your IP address."
     return 1
   fi
 
-  if echo "$linkJson" | grep -q "We are unable to complete your request at this time."; then
+  if grep -Fq "We are unable to complete your request at this time." <<< "$linkJson"; then
     error "Microsoft blocked the automated download request."
     return 1
   fi
 
-  { link=$(echo "$linkJson" | jq --argjson TYPE "$type" -r '.ProductDownloadOptions[] | select(.DownloadType==$TYPE).Uri') 2>/dev/null; rc=$?; } || :
+  { link=$(printf '%s\n' "$linkJson" | jq --argjson TYPE "$type" -r 'first(.ProductDownloadOptions[]? | select(.DownloadType == $TYPE) | .Uri) // empty') 2>/dev/null; rc=$?; } || :
 
   if [ -z "$link" ] || [[ "${link,,}" == "null" ]] || (( rc != 0 )); then
     error "Microsoft server gave us no download link to our request for an automated download!"
@@ -285,7 +285,12 @@ downloadWindows() {
     -- "$url" || return 1
 
   enabled "$DEBUG" && echo -n "Getting Product edition ID: "
-  productId=$(echo "$page" | grep -Eo '<option value="[0-9]+">Windows' | cut -d '"' -f 2 | head -n 1 | tr -cd '0-9' | head -c 16)
+  productId=$(printf '%s' "$page" |
+    tr '\r\n' '  ' |
+    grep -Eio "<option[^>]*value=[\"'][0-9]+[\"'][^>]*>[[:space:]]*Windows[^<]*" |
+    sed -nE "s/.*value=[\"']([0-9]+)[\"'].*/\1/p" |
+    sed -n '1p' |
+    cut -c 1-16 || true)
   enabled "$DEBUG" && echo "$productId"
 
   if [ -z "$productId" ]; then
@@ -362,13 +367,14 @@ downloadWindowsEval() {
 
   enabled "$DEBUG" && echo "Getting download link.."
 
-  local filter="https://go.microsoft.com/fwlink/?linkid=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country,,}"
+  # Normalize HTML-encoded query separators before extracting fwlinks.
+  page=${page//&amp;/&}
+  page=${page//&#38;/&}
 
-  if ! echo "$page" | grep -io "$filter" > /dev/null; then
-    filter="https://go.microsoft.com/fwlink/p/?linkid=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country,,}"
-  fi
-
-  links=$(echo "$page" | grep -io "$filter") || {
+  links=$(printf '%s\n' "$page" |
+    grep -Eio "https://go\.microsoft\.com/fwlink(/p)?/\?[^\"'<>[:space:]]+" |
+    grep -Ei '(^|[?&])culture='"${culture,,}"'(&|$)' |
+    grep -Ei '(^|[?&])country='"${country,,}"'(&|$)') || {
     # This should only happen if there's been some change to the download endpoint web address
     if [[ "${lang,,}" == "en" || "${lang,,}" == "en-"* ]]; then
       error "Windows server download page gave us no download link!"
@@ -383,30 +389,30 @@ downloadWindowsEval() {
     "iot" )
       case "${PLATFORM,,}" in
         "x64" )
-          link=$(echo "$links" | head -n 1) ;;
+          link=$(printf '%s\n' "$links" | sed -n '1p') ;;
         "arm64" )
-          link=$(echo "$links" | head -n 2 | tail -n 1) ;;
+          link=$(printf '%s\n' "$links" | sed -n '2p') ;;
       esac ;;
     "ltsc" )
       case "${PLATFORM,,}" in
         "x64" )
-          link=$(echo "$links" | head -n 2 | tail -n 1) ;;
+          link=$(printf '%s\n' "$links" | sed -n '2p') ;;
       esac ;;
     "enterprise" )
       case "${PLATFORM,,}" in
         "x64" )
           if [[ "$winVer" != "windows-10"* ]]; then
-            link=$(echo "$links" | head -n 1)
+            link=$(printf '%s\n' "$links" | sed -n '1p')
           else
-            link=$(echo "$links" | head -n 2 | tail -n 1)
+            link=$(printf '%s\n' "$links" | sed -n '2p')
           fi ;;
         "arm64" )
-          link=$(echo "$links" | head -n 2 | tail -n 1) ;;
+          link=$(printf '%s\n' "$links" | sed -n '2p') ;;
       esac ;;
     "server" )
       case "${PLATFORM,,}" in
         "x64" )
-          link=$(echo "$links" | head -n 1) ;;
+          link=$(printf '%s\n' "$links" | sed -n '1p') ;;
       esac ;;
     * )
       error "Invalid type specified, value \"$type\" is not recognized!" && return 1 ;;
