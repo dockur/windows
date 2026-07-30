@@ -537,7 +537,7 @@ createSetupImage() {
 
   sectors=$((size / 512))
 
-  local msg="Creating $((size / 1024 / 1024)) MB setup image..."
+  local msg="Creating driver image..."
   info "$msg" && html "$msg"
 
   rm -f -- "$tmp" || return 1
