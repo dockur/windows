@@ -323,6 +323,22 @@ detectCustom() {
   return 0
 }
 
+hasImage() {
+
+  local file="$1"
+
+  [ -f "$file" ] && [ -s "$file" ]
+}
+
+removeIso() {
+
+  local iso="$1"
+
+  rm -f -- "$iso" 2>/dev/null || :
+
+  return 0
+}
+
 needsExtraction() {
 
   local id="$1"
@@ -1270,10 +1286,9 @@ installWindows() {
     return 0
   fi
 
-  if [ ! -s "$ISO" ] || [ ! -f "$ISO" ]; then
+  if hasImage "$ISO"; then
     if ! downloadImage "$ISO" "$VERSION" "$LANGUAGE"; then
-      rm -f "$ISO" 2> /dev/null || :
-      exit 61
+      removeIso && exit 61
     fi
   fi
 
@@ -1295,8 +1310,7 @@ installWindows() {
   else
 
     if ! extractImage "$ISO" "$dir" "$VERSION"; then
-      rm -f "$ISO" 2> /dev/null || :
-      exit 62
+      removeIso && exit 62
     fi
 
     extracted="Y"
@@ -1312,8 +1326,7 @@ installWindows() {
     if needsExtraction "$DETECTED" "$ISO"; then
 
       if ! extractImage "$ISO" "$dir" "$VERSION"; then
-        rm -f "$ISO" 2> /dev/null || :
-        exit 62
+        removeIso && exit 62
       fi
 
       extracted="Y"
@@ -1359,8 +1372,7 @@ installWindows() {
 
     if [ -z "$extracted" ]; then
       if ! extractImage "$ISO" "$dir" "$VERSION"; then
-        rm -f "$ISO" 2> /dev/null || :
-        exit 62
+        removeIso &&  exit 62
       fi
     fi
 
