@@ -69,7 +69,7 @@ startInstall() {
 
   skipInstall "$BOOT" "$previousBase" && return 1
 
-  if [ -z "$previous_base" ] && hasDisk; then
+  if [ -z "$previousBase" ] && hasDisk; then
     if ! backup ""; then
       warn "the backup was incomplete, continuing with installation..."
     fi
