@@ -104,7 +104,7 @@ waitForBoot() {
     if (( ! keySent )) && needsBootKey; then
 
       if keyDelay=$(bootKeyDelay); then
-        if sendKey f11 "$keyDelay" 500; then
+        if sendKey spc "$keyDelay" 500; then
           keySent=1
         fi
       fi
@@ -271,13 +271,20 @@ sendKey() {
   return 0
 }
 
+supportsBootKey() {
+
+  local id="$1"
+
+  [[ "${id,,}" == "win"* ]]
+}
+
 needsBootKey() {
 
   [ ! -s "$BOOT" ] && return 1
   [[ "${BOOT,,}" != *".iso" ]] && return 1
   [ -f "$STORAGE/windows.boot" ] && return 1
 
-  return 0
+  supportsBootKey "$DETECTED"
 }
 
 bootKeyDelay() {
