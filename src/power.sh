@@ -29,20 +29,32 @@ bootStatus() {
     last="${line#*:}"
     recent=$(tail -n +"${line%%:*}" "$QEMU_PTY")
 
-    if [[ "$last" == "Booting from DVD/CD"* ]]; then
-      return 0
-    fi
-
     grep -Fq "Loading FreeLoader..." <<< "$recent" && return 0
 
-    grep -Fq \
+    if grep -Fq \
       -e "No bootable device." \
       -e "BOOTMGR is missing" \
-      -e "Boot failed: not a bootable disk" \
-      -e "Boot failed: could not read the boot disk" \
-      <<< "$recent" && return 1
+      <<< "$recent"; then
+      return 2
+    fi
 
-    return 3
+    if grep -Fq \
+      -e "Boot failed: not a bootable disk" \
+      -e "Boot failed: Could not read from CDROM" \
+      -e "Boot failed: could not read the boot disk" \
+      <<< "$recent"; then
+      return 5
+    fi
+
+    if [[ "$last" == "Booting from Hard Disk"* ]]; then
+      return 3
+    fi
+
+    if [[ "$last" == "Booting from DVD/CD"* ]]; then
+      return 4
+    fi
+
+    return 1
   fi
 
   local line last recent
@@ -131,11 +143,7 @@ waitForBoot() {
           pendingLine="$marker"
           pendingType=$status
 
-          if (( status == 3 )); then
-            pendingDeadline=$((SECONDS + 1))
-          else
-            pendingDeadline=$((SECONDS + 6))
-          fi
+          pendingDeadline=$((SECONDS + 6))
         fi
 
         if (( pendingDeadline > 0 && SECONDS >= pendingDeadline )); then
@@ -149,6 +157,13 @@ waitForBoot() {
 
           echo && return 0
         fi
+        ;;
+
+      5)
+
+        pendingType=0
+        pendingLine=""
+        pendingDeadline=0
         ;;
 
       *)
