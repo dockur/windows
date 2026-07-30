@@ -83,31 +83,21 @@ curlRequest() {
   return 0
 }
 
-downloadWindows() {
+downloadWindowsLink() {
 
-  local id="$1"
-  local lang="$2"
-  local desc="$3"
+  local productId="$1"
+  local url="$2"
+  local agent="$3"
+  local language="$4"
+  local lang="$5"
+  local desc="$6"
+  local type="$7"
 
   local ovToken="" ovTicks="" ovTime
   local skuId skuJson
   local linkJson link
-  local language ovData
-  local session agent
-  local type winVer
-  local page productId
+  local ovData session
   local profile="606624d44113"
-
-  agent=$(getAgent)
-  language=$(getLanguage "$lang" "name")
-
-  case "${id,,}" in
-    "win11x64" ) winVer="11" && type="1" ;;
-    "win11arm64" ) winVer="11arm64" && type="2" ;;
-    * ) error "Invalid VERSION specified, value \"$id\" is not recognized!" && return 1 ;;
-  esac
-
-  local url="https://www.microsoft.com/en-us/software-download/windows$winVer"
 
   # uuidgen: For MacOS (installed by default) and other systems (e.g. with no /proc) that don't have a kernel interface for generating random UUIDs
   if ! session=$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random); then
@@ -119,23 +109,6 @@ downloadWindows() {
 
   if [ -z "$session" ]; then
     error "Failed to generate session ID!"
-    return 1
-  fi
-
-  # Get product edition ID for latest release of given Windows version
-  enabled "$DEBUG" && echo "Parsing download page: ${url}"
-
-  curlRequest page "Microsoft" "$agent" \
-    --header "Accept:" \
-    --max-filesize 1M \
-    -- "$url" || return 1
-
-  enabled "$DEBUG" && echo -n "Getting Product edition ID: "
-  productId=$(echo "$page" | grep -Eo '<option value="[0-9]+">Windows' | cut -d '"' -f 2 | head -n 1 | tr -cd '0-9' | head -c 16)
-  enabled "$DEBUG" && echo "$productId"
-
-  if [ -z "$productId" ]; then
-    error "Product edition ID not found!"
     return 1
   fi
 
@@ -254,6 +227,72 @@ downloadWindows() {
 
   MIDO_URL="$link"
   return 0
+}
+
+downloadWindows() {
+
+  local id="$1"
+  local lang="$2"
+  local desc="$3"
+
+  local agent language
+  local page productId
+  local type winVer
+
+  agent=$(getAgent)
+  language=$(getLanguage "$lang" "name")
+
+  case "${id,,}" in
+    "win10x64" )
+      productId="2618"
+      winVer="10"
+      type="1"
+      ;;
+    "win11x64" )
+      productId="3321"
+      winVer="11"
+      type="1"
+      ;;
+    "win11arm64" )
+      productId="3324"
+      winVer="11arm64"
+      type="2"
+      ;;
+    * )
+      error "Invalid VERSION specified, value \"$id\" is not recognized!"
+      return 1
+      ;;
+  esac
+
+  local url="https://www.microsoft.com/en-us/software-download/windows$winVer"
+  [[ "${id,,}" == "win10"* ]] && url+="ISO"
+
+  enabled "$DEBUG" && echo "Using Product edition ID: $productId"
+
+  if downloadWindowsLink "$productId" "$url" "$agent" "$language" "$lang" "$desc" "$type"; then
+    return 0
+  fi
+
+  sleep 1
+
+  info "Microsoft download request failed, retrying with the current Product edition ID..."
+  enabled "$DEBUG" && echo "Parsing download page: ${url}"
+
+  curlRequest page "Microsoft" "$agent" \
+    --header "Accept:" \
+    --max-filesize 1M \
+    -- "$url" || return 1
+
+  enabled "$DEBUG" && echo -n "Getting Product edition ID: "
+  productId=$(echo "$page" | grep -Eo '<option value="[0-9]+">Windows' | cut -d '"' -f 2 | head -n 1 | tr -cd '0-9' | head -c 16)
+  enabled "$DEBUG" && echo "$productId"
+
+  if [ -z "$productId" ]; then
+    error "Product edition ID not found!"
+    return 1
+  fi
+
+  downloadWindowsLink "$productId" "$url" "$agent" "$language" "$lang" "$desc" "$type"
 }
 
 downloadWindowsEval() {
@@ -547,6 +586,7 @@ getWindows() {
   esac
 
   case "${version,,}" in
+    "win10x64" ) ;;
     "win11${PLATFORM,,}" ) ;;
     "win11${PLATFORM,,}-enterprise"* ) ;;
     * )
@@ -558,7 +598,7 @@ getWindows() {
   esac
 
   case "${version,,}" in
-    "win11${PLATFORM,,}" )
+    "win10x64" | "win11${PLATFORM,,}" )
 
       if downloadWindows "$version" "$lang" "$edition"; then
         MIDO_SOURCE="$version"
