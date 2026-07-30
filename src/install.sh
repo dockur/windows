@@ -1259,7 +1259,6 @@ installWindows() {
     fi
   fi
 
-  local desc=""
   local rebuild=""
   local resolved=""
   local extracted=""
@@ -1302,6 +1301,7 @@ installWindows() {
     fi
   fi
 
+  local desc
   if ! desc=$(printVariant "$DETECTED" "$DETECTED"); then
     abortInstall "$dir" "$ISO" "$boot" || exit 66
     return 0
@@ -1317,17 +1317,14 @@ installWindows() {
     return 0
   fi
 
-  local setup_dir="$TMP/setup"
-  local setup_image="$STORAGE/setup.img"
-
   if ! isLegacy "${DETECTED,,}" && [[ "${ISO,,}" != *".esd" ]] && ! enabled "${UNPACK:-}"; then
 
-    if ! stageSetup "$XML" "$LANGUAGE" "$setup_dir"; then
+    if ! stageSetup "$XML" "$LANGUAGE" "$TMP/setup"; then
       abortInstall "$dir" "$ISO" "$boot" || exit 63
       return 0
     fi
 
-    if ! createSetupImage "$setup_dir" "$setup_image"; then
+    if ! createSetupImage "$TMP/setup" "$STORAGE/setup.img"; then
       abortInstall "$dir" "$ISO" "$boot" || exit 63
       return 0
     fi
