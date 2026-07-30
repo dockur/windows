@@ -122,7 +122,7 @@ abortInstall() {
 
   local dir="$1"
   local iso="$2"
-  local source_boot="$3"
+  local boot="$3"
   local efi efi32 efi64
 
   [[ "${iso,,}" == *".esd" ]] && exit 60
@@ -157,28 +157,8 @@ abortInstall() {
     fi
   fi
 
-  finishInstall "$BOOT" "Y" "$source_boot" && return 0
+  finishInstall "$BOOT" "Y" "$boot" && return 0
   return 1
-}
-
-useOriginalImage() {
-
-  local iso="$1"
-
-  if [ -n "$CUSTOM" ]; then
-    BOOT="$iso"
-    REMOVE="N"
-    return 0
-  fi
-
-  if [[ "$iso" != "$BOOT" ]]; then
-    if ! mv -f -- "$iso" "$BOOT"; then
-      error "Failed to move ISO file: $iso"
-      return 1
-    fi
-  fi
-
-  return 0
 }
 
 skipInstall() {
@@ -238,7 +218,7 @@ finishInstall() {
 
   local iso="$1"
   local aborted="$2"
-  local source_boot="$3"
+  local boot="$3"
   local base
 
   if [ ! -s "$iso" ] || [ ! -f "$iso" ]; then
@@ -258,9 +238,9 @@ finishInstall() {
     warn "Failed to set the owner for \"$file\" !"
   fi
 
-  if [[ "$source_boot" == "$STORAGE/"* ]]; then
+  if [[ "$boot" == "$STORAGE/"* ]]; then
     if [[ "$aborted" != [Yy1]* ]] || [ -z "$CUSTOM" ]; then
-      base=$(basename "$source_boot")
+      base=$(basename "$boot")
       writeState "base" "$base" || return 1
     fi
   fi
