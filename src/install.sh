@@ -1279,6 +1279,18 @@ updateImage() {
   return 0
 }
 
+removeImage() {
+
+  local iso="$1"
+
+  [ ! -f "$iso" ] && return 0
+  [ -n "$CUSTOM" ] && return 0
+
+  rm -f "$iso" 2> /dev/null || warn "failed to remove $iso !"
+
+  return 0
+}
+
 backup () {
 
   local iso="$1"
@@ -1338,18 +1350,6 @@ backup () {
   [ -z "$(ls -A "$root")" ] && rm -rf "$root"
 
   [ -n "$failed" ] && return 1
-
-  return 0
-}
-
-removeImage() {
-
-  local iso="$1"
-
-  [ ! -f "$iso" ] && return 0
-  [ -n "$CUSTOM" ] && return 0
-
-  rm -f "$iso" 2> /dev/null || warn "failed to remove $iso !"
 
   return 0
 }
