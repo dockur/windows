@@ -523,6 +523,17 @@ getImageSize() {
   printf '%s\n' "$size"
 }
 
+bootDirect() {
+
+  local id="$1"
+
+  case "${id,,}" in
+    "reactos" ) return 0 ;;
+  esac
+
+  return 1
+}
+
 canUseSetupImage() {
 
   local id="$1"
@@ -766,9 +777,14 @@ resolveImage() {
   FB="falling back to manual installation!"
 
   [ -z "$DETECTED" ] || return 0
-  [ -z "$CUSTOM" ] || return 1
   [ -z "${REUSED_ISO:-}" ] || return 1
   [[ "${version,,}" != "http"* ]] || return 1
+
+  if [ -n "$CUSTOM" ]; then
+    bootDirect "$version" || return 1
+    DETECTED="$version"
+    return 0
+  fi
 
   local file="/run/assets/$version.xml"
 
