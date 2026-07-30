@@ -2,7 +2,6 @@
 set -Eeuo pipefail
 
 ETFS="boot/etfsboot.com"
-FB="falling back to manual installation!"
 EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 
 startInstall() {
@@ -1259,7 +1258,6 @@ installWindows() {
     fi
   fi
 
-  local XML=""
   local desc=""
   local rebuild=""
   local resolved=""
