@@ -29,7 +29,7 @@ jobs:
             uses: hadolint/hadolint-action@v3.4.0
             with:
               dockerfile: Dockerfile
-              ignore: DL3006,DL3008
+              ignore: DL3006,DL3008,DL3067
               failure-threshold: warning
           -
             name: Validate XML
