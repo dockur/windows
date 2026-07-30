@@ -1,6 +1,124 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+installWindows() {
+
+  parseVersion || return 58
+  parseLanguage || return 62
+  detectCustom || return 64
+
+  if ! startInstall; then
+    bootWindows || return 66
+    return 0
+  fi
+
+  if ! hasImage "$ISO"; then
+    if ! downloadImage "$ISO" "$VERSION" "$LANGUAGE"; then
+      removeIso "$ISO" && return 68
+    fi
+  fi
+
+  local extracted=0
+  local boot="$BOOT"
+  local dir="$TMP/unpack"
+
+  if resolveImage "$VERSION"; then
+
+    if ! setImage; then
+      abortInstall "$dir" "$ISO" "$boot" || return 70
+      return 0
+    fi
+
+    if needsExtraction "$DETECTED" "$ISO"; then
+      if ! extractImage "$ISO" "$dir" "$VERSION"; then
+        removeIso "$ISO" && return 72
+      fi
+
+      extracted=1
+    fi
+
+  else
+
+    if ! extractImage "$ISO" "$dir" "$VERSION"; then
+      removeIso "$ISO" && return 74
+    fi
+
+    extracted=1
+
+    if ! detectImage "$dir"; then
+      abortInstall "$dir" "$ISO" "$boot" || return 76
+      return 0
+    fi
+
+  fi
+
+  local desc
+  if ! desc=$(printVariant "$DETECTED" "$DETECTED"); then
+    abortInstall "$dir" "$ISO" "$boot" || return 78
+    return 0
+  fi
+
+  if ! setMachine "$DETECTED" "$ISO" "$dir" "$desc"; then
+    abortInstall "$dir" "$ISO" "$boot" || return 80
+    return 0
+  fi
+
+  if ! restoreMachineState; then
+    abortInstall "$dir" "$ISO" "$boot" || return 82
+    return 0
+  fi
+
+  if canUseSetupImage "$DETECTED" "$ISO"; then
+
+    if ! stageSetup "$XML" "$LANGUAGE" "$TMP/setup"; then
+      abortInstall "$dir" "$ISO" "$boot" || return 84
+      return 0
+    fi
+
+    if ! createSetupImage "$TMP/setup" "$STORAGE/setup.img"; then
+      abortInstall "$dir" "$ISO" "$boot" || return 86
+      return 0
+    fi
+
+    useOriginalImage "$ISO" || return 88
+
+  else
+
+    if (( ! extracted )); then
+      if ! extractImage "$ISO" "$dir" "$VERSION"; then
+        removeIso "$ISO" && return 90
+      fi
+    fi
+
+    if ! prepareImage "$ISO" "$dir"; then
+      abortInstall "$dir" "$ISO" "$boot" || return 92
+      return 0
+    fi
+
+    if ! updateImage "$dir" "$XML" "$LANGUAGE"; then
+      abortInstall "$dir" "$ISO" "$boot" || return 94
+      return 0
+    fi
+
+    removeImage "$ISO" || return 96
+    buildImage "$dir" || return 98
+
+  fi
+
+  finishInstall "$BOOT" "N" "$boot" || return 100
+
+  return 0
+}
+
+bootWindows() {
+
+  restoreMachineState || return 1
+  restoreBootMode || return 1
+  restoreMachine || return 1
+
+  return 0
+}
+
 startInstall() {
 
   html "Starting $APP..."
@@ -379,68 +497,6 @@ canUseSetupImage() {
     ! enabled "${UNPACK:-}"
 }
 
-backup () {
-
-  local iso="$1"
-  local count=1
-  local name="unknown"
-  local root="$STORAGE/backups"
-  local file previous failed=""
-
-  previous=$(readState "base") || return 1
-  [ -n "$previous" ] && name="${previous%.*}"
-
-  if ! makeDir "$root"; then
-    error "Failed to create directory \"$root\" !"
-    return 1
-  fi
-
-  local folder="$name"
-  local dir="$root/$folder"
-
-  while [ -d "$dir" ]; do
-    (( count++ ))
-    folder="${name}.${count}"
-    dir="$root/$folder"
-  done
-
-  if ! makeDir "$dir"; then
-    error "Failed to create directory \"$dir\" !"
-    return 1
-  fi
-
-  if [ -f "$iso" ]; then
-    if ! mv -f -- "$iso" "$dir/"; then
-      error "Failed to move \"$iso\" to \"$dir\"."
-      failed="Y"
-    fi
-  fi
-
-  while IFS= read -r -d '' file; do
-    if ! mv -n -- "$file" "$dir/"; then
-      error "Failed to move \"$file\" to \"$dir\"."
-      failed="Y"
-    fi
-  done < <(
-    find "$STORAGE" -maxdepth 1 -type f \
-      \( -iname 'data.*' -or -iname 'windows.*' -or -iname '*.rom' -or -iname '*.vars' \) \
-      -not -iname '*.iso' -print0
-  )
-
-  local find_pid=$!
-
-  if ! wait "$find_pid"; then
-    error "Failed to enumerate files in \"$STORAGE\"."
-    failed="Y"
-  fi
-
-  [ -z "$(ls -A "$dir")" ] && rm -rf "$dir"
-  [ -z "$(ls -A "$root")" ] && rm -rf "$root"
-
-  [ -n "$failed" ] && return 1
-
-  return 0
-}
 
 checkFreeSpace() {
 
@@ -1223,6 +1279,69 @@ updateImage() {
   return 0
 }
 
+backup () {
+
+  local iso="$1"
+  local count=1
+  local name="unknown"
+  local root="$STORAGE/backups"
+  local file previous failed=""
+
+  previous=$(readState "base") || return 1
+  [ -n "$previous" ] && name="${previous%.*}"
+
+  if ! makeDir "$root"; then
+    error "Failed to create directory \"$root\" !"
+    return 1
+  fi
+
+  local folder="$name"
+  local dir="$root/$folder"
+
+  while [ -d "$dir" ]; do
+    (( count++ ))
+    folder="${name}.${count}"
+    dir="$root/$folder"
+  done
+
+  if ! makeDir "$dir"; then
+    error "Failed to create directory \"$dir\" !"
+    return 1
+  fi
+
+  if [ -f "$iso" ]; then
+    if ! mv -f -- "$iso" "$dir/"; then
+      error "Failed to move \"$iso\" to \"$dir\"."
+      failed="Y"
+    fi
+  fi
+
+  while IFS= read -r -d '' file; do
+    if ! mv -n -- "$file" "$dir/"; then
+      error "Failed to move \"$file\" to \"$dir\"."
+      failed="Y"
+    fi
+  done < <(
+    find "$STORAGE" -maxdepth 1 -type f \
+      \( -iname 'data.*' -or -iname 'windows.*' -or -iname '*.rom' -or -iname '*.vars' \) \
+      -not -iname '*.iso' -print0
+  )
+
+  local find_pid=$!
+
+  if ! wait "$find_pid"; then
+    error "Failed to enumerate files in \"$STORAGE\"."
+    failed="Y"
+  fi
+
+  [ -z "$(ls -A "$dir")" ] && rm -rf "$dir"
+  [ -z "$(ls -A "$root")" ] && rm -rf "$root"
+
+  [ -n "$failed" ] && return 1
+
+  return 0
+}
+
 removeImage() {
 
   local iso="$1"
@@ -1283,128 +1402,6 @@ restoreMachineState() {
 
   return 0
 }
-
-bootWindows() {
-
-  restoreMachineState || return 1
-  restoreBootMode || return 1
-  restoreMachine || return 1
-
-  return 0
-}
-
-######################################
-
-installWindows() {
-
-  parseVersion || return 58
-  parseLanguage || return 62
-  detectCustom || return 64
-
-  if ! startInstall; then
-    bootWindows || return 66
-    return 0
-  fi
-
-  if ! hasImage "$ISO"; then
-    if ! downloadImage "$ISO" "$VERSION" "$LANGUAGE"; then
-      removeIso "$ISO" && return 68
-    fi
-  fi
-
-  local extracted=0
-  local boot="$BOOT"
-  local dir="$TMP/unpack"
-
-  if resolveImage "$VERSION"; then
-
-    if ! setImage; then
-      abortInstall "$dir" "$ISO" "$boot" || return 70
-      return 0
-    fi
-
-    if needsExtraction "$DETECTED" "$ISO"; then
-      if ! extractImage "$ISO" "$dir" "$VERSION"; then
-        removeIso "$ISO" && return 72
-      fi
-
-      extracted=1
-    fi
-
-  else
-
-    if ! extractImage "$ISO" "$dir" "$VERSION"; then
-      removeIso "$ISO" && return 74
-    fi
-
-    extracted=1
-
-    if ! detectImage "$dir"; then
-      abortInstall "$dir" "$ISO" "$boot" || return 76
-      return 0
-    fi
-
-  fi
-
-  local desc
-  if ! desc=$(printVariant "$DETECTED" "$DETECTED"); then
-    abortInstall "$dir" "$ISO" "$boot" || return 78
-    return 0
-  fi
-
-  if ! setMachine "$DETECTED" "$ISO" "$dir" "$desc"; then
-    abortInstall "$dir" "$ISO" "$boot" || return 80
-    return 0
-  fi
-
-  if ! restoreMachineState; then
-    abortInstall "$dir" "$ISO" "$boot" || return 82
-    return 0
-  fi
-
-  if canUseSetupImage "$DETECTED" "$ISO"; then
-
-    if ! stageSetup "$XML" "$LANGUAGE" "$TMP/setup"; then
-      abortInstall "$dir" "$ISO" "$boot" || return 84
-      return 0
-    fi
-
-    if ! createSetupImage "$TMP/setup" "$STORAGE/setup.img"; then
-      abortInstall "$dir" "$ISO" "$boot" || return 86
-      return 0
-    fi
-
-    useOriginalImage "$ISO" || return 88
-
-  else
-
-    if (( ! extracted )); then
-      if ! extractImage "$ISO" "$dir" "$VERSION"; then
-        removeIso "$ISO" && return 90
-      fi
-    fi
-
-    if ! prepareImage "$ISO" "$dir"; then
-      abortInstall "$dir" "$ISO" "$boot" || return 92
-      return 0
-    fi
-
-    if ! updateImage "$dir" "$XML" "$LANGUAGE"; then
-      abortInstall "$dir" "$ISO" "$boot" || return 94
-      return 0
-    fi
-
-    removeImage "$ISO" || return 96
-    buildImage "$dir" || return 98
-
-  fi
-
-  finishInstall "$BOOT" "N" "$boot" || return 100
-
-  return 0
-}
-
-######################################
 
 installWindows
 
