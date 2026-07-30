@@ -1,19 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-escapeXMLSed() {
-
-  local s
-
-  s=$(escapeXML "$1") || return 1
-  s=${s//\\/\\\\}
-  s=${s//&/\\&}
-  s=${s//|/\\|}
-
-  printf '%s' "$s"
-  return 0
-}
-
 getXMLArchitecture() {
 
   local asset="$1"
@@ -26,84 +13,6 @@ getXMLArchitecture() {
   [ -n "$arch" ] || return 1
 
   printf '%s' "$arch"
-  return 0
-}
-
-removeLocalAccountXML() {
-
-  local asset="$1"
-
-  if ! sed -i -E \
-    -e '/^[[:space:]]*<LocalAccounts([[:space:]>])/,/^[[:space:]]*<\/LocalAccounts>[[:space:]]*$/d' \
-    -e '/^[[:space:]]*<AdministratorPassword([[:space:]>])/,/^[[:space:]]*<\/AdministratorPassword>[[:space:]]*$/d' \
-    "$asset"; then
-
-    error "Failed to remove local account configuration from answer file!"
-    return 1
-  fi
-
-  if ! sed -i -E '
-    /<SynchronousCommand([[:space:]>])/ {
-      :command
-      N
-      /<\/SynchronousCommand>/!b command
-      /<Description>Password Never Expires<\/Description>/d
-    }
-  ' "$asset"; then
-
-    error "Failed to remove local account commands from answer file!"
-    return 1
-  fi
-
-  return 0
-}
-
-enableLog() {
-
-  local file="$1"
-  local old='C:\OEM\install.bat"</CommandLine>'
-  local msg="failed to enable install logging in the answer file!"
-
-  enabled "${LOG:-}" || return 0
-  [ -f "$file" ] || return 1
-
-  if ! grep -Fq "$old" "$file"; then
-    enabled "$DEBUG" && warn "$msg"
-    return 0
-  fi
-
-  if ! sed -i \
-    's|C:\\OEM\\install\.bat"</CommandLine>|C:\\OEM\\install.bat \&gt; C:\\OEM\\install.log 2\&gt;\&amp;1"</CommandLine>|' \
-    "$file"; then
-
-    warn "$msg"
-  fi
-
-  return 0
-}
-
-shiftDiskID() {
-
-  local asset="$1"
-  local disk_type="${2,,}"
-
-  case "$disk_type" in
-    "" | "scsi" | "virtio-scsi" | "blk" | "virtio-blk" ) ;;
-    * ) return 0 ;;
-  esac
-
-  [ -s "$asset" ] || return 1
-
-  # Only adjust files that explicitly target Disk 0.
-  grep -Fq '<DiskID>0</DiskID>' "$asset" || return 0
-
-  # Leave multi-disk configurations untouched.
-  if grep -Eq '<DiskID>[[:space:]]*[1-9][0-9]*[[:space:]]*</DiskID>' "$asset"; then
-    return 0
-  fi
-
-  sed -i 's#<DiskID>0</DiskID>#<DiskID>1</DiskID>#g' "$asset" || return 1
-
   return 0
 }
 
@@ -415,143 +324,6 @@ setXML() {
   return 0
 }
 
-prepareDomainAccount() {
-
-  local domain="$1"
-  local -n account_ref="$2"
-  local -n auth_ref="$3"
-  local qualifier=""
-
-  auth_ref="${USERNAME:-}"
-  account_ref=""
-
-  if [ -z "$auth_ref" ]; then
-    error "The USERNAME variable must be specified when joining a domain!"
-    return 1
-  fi
-
-  if [ -z "${PASSWORD:-}" ]; then
-    error "The PASSWORD variable must be specified when joining a domain!"
-    return 1
-  fi
-
-  validateDomainName "$domain" || return 1
-
-  if [[ "$auth_ref" == *\\* ]]; then
-    error "The USERNAME variable must use either \"user\" or \"user@domain\" format!"
-    return 1
-  fi
-
-  case "$auth_ref" in
-    *@* )
-      account_ref="${auth_ref%%@*}"
-      qualifier="${auth_ref#*@}"
-
-      if [ -z "$account_ref" ] ||
-        [ -z "$qualifier" ] ||
-        [[ "$qualifier" == *@* ]]; then
-
-        error "The USERNAME variable does not contain a valid domain account name!"
-        return 1
-      fi
-
-      validateDomainName "$qualifier" "USERNAME" || return 1
-
-      if [[ "${qualifier,,}" != "${domain,,}" ]]; then
-        error "The domain in the USERNAME variable must match the DOMAIN variable!"
-        return 1
-      fi
-      ;;
-
-    * )
-      account_ref="$auth_ref"
-      ;;
-  esac
-
-  validateUsername "$account_ref" "domain" || return 1
-
-  if [[ "${account_ref,,}" == "docker" ]]; then
-    error "The USERNAME variable must be changed from its default value when joining a domain!"
-    return 1
-  fi
-
-  if [[ "$PASSWORD" == "admin" ]]; then
-    error "The PASSWORD variable must be changed from its default value when joining a domain!"
-    return 1
-  fi
-
-  return 0
-}
-
-removeSharedFolderXML() {
-
-  local asset="$1"
-
-  if ! disabled "${SHORTCUT:-}" &&
-    ! disabled "${SAMBA:-}"; then
-    return 0
-  fi
-
-  if ! sed -i -E '
-    /<SynchronousCommand([[:space:]>])/ {
-      :command
-      N
-      /<\/SynchronousCommand>/!b command
-      /<Description>Create desktop shortcut to shared folder<\/Description>/d
-      /<Description>Map shared folder<\/Description>/d
-    }
-  ' "$asset"; then
-
-    error "Failed to remove shared folder shortcuts from answer file!"
-    return 1
-  fi
-
-  return 0
-}
-
-setConfigurationXML() {
-
-  local asset="$1"
-  local section
-
-  [ -s "$asset" ] || return 1
-
-  section=$(sed -n -E '
-    /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/ {
-      /<component[^>]*name="Microsoft-Windows-Setup"[^>]*>/,/<\/component>/p
-    }
-  ' "$asset") || return 1
-
-  [ -n "$section" ] || return 1
-
-  if grep -Fq '<UseConfigurationSet>' <<< "$section"; then
-
-    sed -i -E '
-      /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/ {
-        /<component[^>]*name="Microsoft-Windows-Setup"[^>]*>/,/<\/component>/ {
-          s#<UseConfigurationSet>[^<]*</UseConfigurationSet>#<UseConfigurationSet>true</UseConfigurationSet>#g
-        }
-      }
-    ' "$asset" || return 1
-
-    return 0
-  fi
-
-  if ! grep -Fq '<UserData>' <<< "$section"; then
-    return 1
-  fi
-
-  sed -i -E '
-    /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/ {
-      /<component[^>]*name="Microsoft-Windows-Setup"[^>]*>/,/<\/component>/ {
-        s#^([[:space:]]*)<UserData>#\1<UseConfigurationSet>true</UseConfigurationSet>\n\1<UserData>#
-      }
-    }
-  ' "$asset" || return 1
-
-  return 0
-}
-
 updateXML() {
 
   local asset="$1"
@@ -591,6 +363,30 @@ updateXML() {
   updateProductKeyXML "$asset" || return 1
   removeSharedFolderXML "$asset" || return 1
   validateGeneratedXML "$asset" || return 1
+
+  return 0
+}
+
+validateGeneratedXML() {
+
+  local asset="$1"
+
+  if ! xmllint --nonet --noout "$asset"; then
+    error "The generated answer file is not valid XML!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateXMLSettings() {
+
+  validateResolution "WIDTH" "$WIDTH" 320 || return 1
+  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
+  validateMembership || return 1
+  validateComputerName "${HOST:-}" || return 1
+  validateProductKey "${KEY:-}" || return 1
+  validatePassword "${PASSWORD:-}" || return 1
 
   return 0
 }
@@ -977,14 +773,70 @@ updateDomain() {
   return 0
 }
 
-validateXMLSettings() {
+prepareDomainAccount() {
 
-  validateResolution "WIDTH" "$WIDTH" 320 || return 1
-  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
-  validateMembership || return 1
-  validateComputerName "${HOST:-}" || return 1
-  validateProductKey "${KEY:-}" || return 1
-  validatePassword "${PASSWORD:-}" || return 1
+  local domain="$1"
+  local -n account_ref="$2"
+  local -n auth_ref="$3"
+  local qualifier=""
+
+  auth_ref="${USERNAME:-}"
+  account_ref=""
+
+  if [ -z "$auth_ref" ]; then
+    error "The USERNAME variable must be specified when joining a domain!"
+    return 1
+  fi
+
+  if [ -z "${PASSWORD:-}" ]; then
+    error "The PASSWORD variable must be specified when joining a domain!"
+    return 1
+  fi
+
+  validateDomainName "$domain" || return 1
+
+  if [[ "$auth_ref" == *\\* ]]; then
+    error "The USERNAME variable must use either \"user\" or \"user@domain\" format!"
+    return 1
+  fi
+
+  case "$auth_ref" in
+    *@* )
+      account_ref="${auth_ref%%@*}"
+      qualifier="${auth_ref#*@}"
+
+      if [ -z "$account_ref" ] ||
+        [ -z "$qualifier" ] ||
+        [[ "$qualifier" == *@* ]]; then
+
+        error "The USERNAME variable does not contain a valid domain account name!"
+        return 1
+      fi
+
+      validateDomainName "$qualifier" "USERNAME" || return 1
+
+      if [[ "${qualifier,,}" != "${domain,,}" ]]; then
+        error "The domain in the USERNAME variable must match the DOMAIN variable!"
+        return 1
+      fi
+      ;;
+
+    * )
+      account_ref="$auth_ref"
+      ;;
+  esac
+
+  validateUsername "$account_ref" "domain" || return 1
+
+  if [[ "${account_ref,,}" == "docker" ]]; then
+    error "The USERNAME variable must be changed from its default value when joining a domain!"
+    return 1
+  fi
+
+  if [[ "$PASSWORD" == "admin" ]]; then
+    error "The PASSWORD variable must be changed from its default value when joining a domain!"
+    return 1
+  fi
 
   return 0
 }
@@ -1169,13 +1021,148 @@ updateProductKeyXML() {
   return 0
 }
 
-validateGeneratedXML() {
+updateDiskID() {
+
+  local asset="$1"
+  local disk_type="${2,,}"
+
+  case "$disk_type" in
+    "" | "scsi" | "virtio-scsi" | "blk" | "virtio-blk" ) ;;
+    * ) return 0 ;;
+  esac
+
+  [ -s "$asset" ] || return 1
+
+  # Only adjust files that explicitly target Disk 0.
+  grep -Fq '<DiskID>0</DiskID>' "$asset" || return 0
+
+  # Leave multi-disk configurations untouched.
+  if grep -Eq '<DiskID>[[:space:]]*[1-9][0-9]*[[:space:]]*</DiskID>' "$asset"; then
+    return 0
+  fi
+
+  sed -i 's#<DiskID>0</DiskID>#<DiskID>1</DiskID>#g' "$asset" || return 1
+
+  return 0
+}
+
+setConfigurationXML() {
+
+  local asset="$1"
+  local section
+
+  [ -s "$asset" ] || return 1
+
+  section=$(sed -n -E '
+    /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/ {
+      /<component[^>]*name="Microsoft-Windows-Setup"[^>]*>/,/<\/component>/p
+    }
+  ' "$asset") || return 1
+
+  [ -n "$section" ] || return 1
+
+  if grep -Fq '<UseConfigurationSet>' <<< "$section"; then
+
+    sed -i -E '
+      /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/ {
+        /<component[^>]*name="Microsoft-Windows-Setup"[^>]*>/,/<\/component>/ {
+          s#<UseConfigurationSet>[^<]*</UseConfigurationSet>#<UseConfigurationSet>true</UseConfigurationSet>#g
+        }
+      }
+    ' "$asset" || return 1
+
+    return 0
+  fi
+
+  if ! grep -Fq '<UserData>' <<< "$section"; then
+    return 1
+  fi
+
+  sed -i -E '
+    /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/ {
+      /<component[^>]*name="Microsoft-Windows-Setup"[^>]*>/,/<\/component>/ {
+        s#^([[:space:]]*)<UserData>#\1<UseConfigurationSet>true</UseConfigurationSet>\n\1<UserData>#
+      }
+    }
+  ' "$asset" || return 1
+
+  return 0
+}
+
+removeSharedFolderXML() {
 
   local asset="$1"
 
-  if ! xmllint --nonet --noout "$asset"; then
-    error "The generated answer file is not valid XML!"
+  if ! disabled "${SHORTCUT:-}" &&
+    ! disabled "${SAMBA:-}"; then
+    return 0
+  fi
+
+  if ! sed -i -E '
+    /<SynchronousCommand([[:space:]>])/ {
+      :command
+      N
+      /<\/SynchronousCommand>/!b command
+      /<Description>Create desktop shortcut to shared folder<\/Description>/d
+      /<Description>Map shared folder<\/Description>/d
+    }
+  ' "$asset"; then
+
+    error "Failed to remove shared folder shortcuts from answer file!"
     return 1
+  fi
+
+  return 0
+}
+
+removeLocalAccountXML() {
+
+  local asset="$1"
+
+  if ! sed -i -E \
+    -e '/^[[:space:]]*<LocalAccounts([[:space:]>])/,/^[[:space:]]*<\/LocalAccounts>[[:space:]]*$/d' \
+    -e '/^[[:space:]]*<AdministratorPassword([[:space:]>])/,/^[[:space:]]*<\/AdministratorPassword>[[:space:]]*$/d' \
+    "$asset"; then
+
+    error "Failed to remove local account configuration from answer file!"
+    return 1
+  fi
+
+  if ! sed -i -E '
+    /<SynchronousCommand([[:space:]>])/ {
+      :command
+      N
+      /<\/SynchronousCommand>/!b command
+      /<Description>Password Never Expires<\/Description>/d
+    }
+  ' "$asset"; then
+
+    error "Failed to remove local account commands from answer file!"
+    return 1
+  fi
+
+  return 0
+}
+
+enableLog() {
+
+  local file="$1"
+  local old='C:\OEM\install.bat"</CommandLine>'
+  local msg="failed to enable install logging in the answer file!"
+
+  enabled "${LOG:-}" || return 0
+  [ -f "$file" ] || return 1
+
+  if ! grep -Fq "$old" "$file"; then
+    enabled "$DEBUG" && warn "$msg"
+    return 0
+  fi
+
+  if ! sed -i \
+    's|C:\\OEM\\install\.bat"</CommandLine>|C:\\OEM\\install.bat \&gt; C:\\OEM\\install.log 2\&gt;\&amp;1"</CommandLine>|' \
+    "$file"; then
+
+    warn "$msg"
   fi
 
   return 0
@@ -1252,6 +1239,19 @@ validateLegacyUsername() {
       return 1 ;;
   esac
 
+  return 0
+}
+
+escapeXMLSed() {
+
+  local s
+
+  s=$(escapeXML "$1") || return 1
+  s=${s//\\/\\\\}
+  s=${s//&/\\&}
+  s=${s//|/\\|}
+
+  printf '%s' "$s"
   return 0
 }
 
