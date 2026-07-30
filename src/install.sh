@@ -323,6 +323,26 @@ detectCustom() {
   return 0
 }
 
+needsExtraction() {
+
+  local id="$1"
+  local iso="$2"
+
+  skipVersion "$id" ||
+    [[ "${iso,,}" == *".esd" ]] ||
+    enabled "${UNPACK:-}"
+}
+
+canUseSetupImage() {
+
+  local id="$1"
+  local iso="$2"
+
+  ! isLegacy "$id" &&
+    [[ "${iso,,}" != *".esd" ]] &&
+    ! enabled "${UNPACK:-}"
+}
+
 backup () {
 
   local iso="$1"
@@ -1289,7 +1309,7 @@ installWindows() {
   fi
 
   if [ -n "$resolved" ]; then
-    if skipVersion "${DETECTED,,}" || [[ "${ISO,,}" == *".esd" ]] || enabled "${UNPACK:-}"; then
+    if needsExtraction "$DETECTED" "$ISO"; then
 
       if ! extractImage "$ISO" "$dir" "$VERSION"; then
         rm -f "$ISO" 2> /dev/null || :
@@ -1316,7 +1336,7 @@ installWindows() {
     return 0
   fi
 
-  if ! isLegacy "${DETECTED,,}" && [[ "${ISO,,}" != *".esd" ]] && ! enabled "${UNPACK:-}"; then
+  if canUseSetupImage "$DETECTED" "$ISO"; then
 
     if ! stageSetup "$XML" "$LANGUAGE" "$TMP/setup"; then
       abortInstall "$dir" "$ISO" "$boot" || exit 63
