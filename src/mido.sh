@@ -93,10 +93,10 @@ downloadWindowsLink() {
   local desc="$6"
   local type="$7"
 
-  local ovToken="" ovTicks="" ovTime
   local skuId skuJson
   local linkJson link
-  local ovData session
+  local ovData ovTime session
+  local ovToken="" ovTicks="" 
   local profile="606624d44113"
 
   # uuidgen: For MacOS (installed by default) and other systems (e.g. with no /proc) that don't have a kernel interface for generating random UUIDs
@@ -275,7 +275,8 @@ downloadWindows() {
 
   sleep 1
 
-  info "Microsoft download request failed, retrying with the current Product edition ID..."
+  local msg="retrying using a different method..."
+  info "Microsoft download request failed, $msg"
   enabled "$DEBUG" && echo "Parsing download page: ${url}"
 
   curlRequest page "Microsoft" "$agent" \
@@ -288,11 +289,15 @@ downloadWindows() {
   enabled "$DEBUG" && echo "$productId"
 
   if [ -z "$productId" ]; then
-    error "Product edition ID not found!"
+    info "Failed to fetch the Product edition ID from the download page, $msg"
     return 1
   fi
 
-  downloadWindowsLink "$productId" "$url" "$agent" "$language" "$lang" "$desc" "$type"
+  if ! downloadWindowsLink "$productId" "$url" "$agent" "$language" "$lang" "$desc" "$type"; then
+    return 1
+  fi
+
+  return 0
 }
 
 downloadWindowsEval() {
