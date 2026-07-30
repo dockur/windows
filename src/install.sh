@@ -1297,18 +1297,18 @@ bootWindows() {
 
 installWindows() {
 
-  parseVersion || exit 58
-  parseLanguage || exit 56
-  detectCustom || exit 59
+  parseVersion || return 58
+  parseLanguage || return 62
+  detectCustom || return 64
 
   if ! startInstall; then
-    bootWindows || exit 68
+    bootWindows || return 66
     return 0
   fi
 
   if ! hasImage "$ISO"; then
     if ! downloadImage "$ISO" "$VERSION" "$LANGUAGE"; then
-      removeIso "$ISO" && exit 61
+      removeIso "$ISO" && return 68
     fi
   fi
 
@@ -1319,13 +1319,13 @@ installWindows() {
   if resolveImage "$VERSION"; then
 
     if ! setImage; then
-      abortInstall "$dir" "$ISO" "$boot" || exit 60
+      abortInstall "$dir" "$ISO" "$boot" || return 70
       return 0
     fi
 
     if needsExtraction "$DETECTED" "$ISO"; then
       if ! extractImage "$ISO" "$dir" "$VERSION"; then
-        removeIso "$ISO" && exit 62
+        removeIso "$ISO" && return 72
       fi
 
       extracted=1
@@ -1334,13 +1334,13 @@ installWindows() {
   else
 
     if ! extractImage "$ISO" "$dir" "$VERSION"; then
-      removeIso "$ISO" && exit 62
+      removeIso "$ISO" && return 74
     fi
 
     extracted=1
 
     if ! detectImage "$dir"; then
-      abortInstall "$dir" "$ISO" "$boot" || exit 60
+      abortInstall "$dir" "$ISO" "$boot" || return 76
       return 0
     fi
 
@@ -1348,58 +1348,58 @@ installWindows() {
 
   local desc
   if ! desc=$(printVariant "$DETECTED" "$DETECTED"); then
-    abortInstall "$dir" "$ISO" "$boot" || exit 66
+    abortInstall "$dir" "$ISO" "$boot" || return 78
     return 0
   fi
 
   if ! setMachine "$DETECTED" "$ISO" "$dir" "$desc"; then
-    abortInstall "$dir" "$ISO" "$boot" || exit 66
+    abortInstall "$dir" "$ISO" "$boot" || return 80
     return 0
   fi
 
   if ! restoreMachineState; then
-    abortInstall "$dir" "$ISO" "$boot" || exit 66
+    abortInstall "$dir" "$ISO" "$boot" || return 82
     return 0
   fi
 
   if canUseSetupImage "$DETECTED" "$ISO"; then
 
     if ! stageSetup "$XML" "$LANGUAGE" "$TMP/setup"; then
-      abortInstall "$dir" "$ISO" "$boot" || exit 63
+      abortInstall "$dir" "$ISO" "$boot" || return 84
       return 0
     fi
 
     if ! createSetupImage "$TMP/setup" "$STORAGE/setup.img"; then
-      abortInstall "$dir" "$ISO" "$boot" || exit 63
+      abortInstall "$dir" "$ISO" "$boot" || return 86
       return 0
     fi
 
-    useOriginalImage "$ISO" || exit 65
+    useOriginalImage "$ISO" || return 88
 
   else
 
     if (( ! extracted )); then
       if ! extractImage "$ISO" "$dir" "$VERSION"; then
-        removeIso "$ISO" && exit 62
+        removeIso "$ISO" && return 90
       fi
     fi
 
     if ! prepareImage "$ISO" "$dir"; then
-      abortInstall "$dir" "$ISO" "$boot" || exit 66
+      abortInstall "$dir" "$ISO" "$boot" || return 92
       return 0
     fi
 
     if ! updateImage "$dir" "$XML" "$LANGUAGE"; then
-      abortInstall "$dir" "$ISO" "$boot" || exit 63
+      abortInstall "$dir" "$ISO" "$boot" || return 94
       return 0
     fi
 
-    removeImage "$ISO" || exit 64
-    buildImage "$dir" || exit 65
+    removeImage "$ISO" || return 96
+    buildImage "$dir" || return 98
 
   fi
 
-  finishInstall "$BOOT" "N" "$boot" || exit 69
+  finishInstall "$BOOT" "N" "$boot" || return 100
 
   return 0
 }
