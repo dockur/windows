@@ -523,6 +523,20 @@ getImageSize() {
   printf '%s\n' "$size"
 }
 
+canUseSetupImage() {
+
+  local id="$1"
+  local iso="$2"
+
+  case "${id,,}" in
+    "win9"* | "winxp"* | "win2k"* | "win2003"* | "reactos" )
+      return 1 ;;
+  esac
+
+  [[ "${iso,,}" != *".esd" ]] &&
+    ! enabled "${UNPACK:-}"
+}
+
 createSetupImage() {
 
   local stage="$1"
