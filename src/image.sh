@@ -749,6 +749,7 @@ resolveImage() {
   local version="$1"
 
   XML=""
+  FB="falling back to manual installation!"
 
   [ -z "$DETECTED" ] || return 0
   [ -z "$CUSTOM" ] || return 1
