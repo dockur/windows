@@ -84,7 +84,7 @@ jobs:
             platform: x64
 
     name: ${{ matrix.name }}
-    uses: ./.github/workflows/install.yml
+    uses: ./.github/workflows/settings.yml
     with:
       name: ${{ matrix.name }}
       version: ${{ matrix.version }}
@@ -129,7 +129,7 @@ jobs:
             platform: x64
 
     name: ${{ matrix.name }}
-    uses: ./.github/workflows/install.yml
+    uses: ./.github/workflows/settings.yml
     with:
       name: ${{ matrix.name }}
       version: ${{ matrix.version }}
@@ -197,7 +197,7 @@ jobs:
             platform: x64
 
     name: ${{ matrix.name }}
-    uses: ./.github/workflows/install.yml
+    uses: ./.github/workflows/settings.yml
     with:
       name: ${{ matrix.name }}
       version: ${{ matrix.version }}
@@ -230,7 +230,7 @@ jobs:
             platform: x64
 
     name: ${{ matrix.name }}
-    uses: ./.github/workflows/install.yml
+    uses: ./.github/workflows/settings.yml
     with:
       name: ${{ matrix.name }}
       version: ${{ matrix.version }}

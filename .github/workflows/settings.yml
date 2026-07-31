@@ -1,0 +1,63 @@
+name: Validation settings
+
+on:
+  workflow_call:
+    inputs:
+      name:
+        description: Display name for the Windows version
+        required: true
+        type: string
+
+      version:
+        description: VERSION value passed to the container
+        required: true
+        type: string
+
+      callback:
+        description: Guest script type
+        required: false
+        default: powershell
+        type: string
+
+      expected_caption:
+        description: Text expected in the Windows caption
+        required: true
+        type: string
+
+      expected_edition:
+        description: Expected Windows EditionID
+        required: false
+        default: ""
+        type: string
+
+      minimum_build:
+        description: Minimum acceptable Windows build number
+        required: true
+        type: number
+
+      platform:
+        description: Expected Windows platform
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    name: ${{ inputs.name }}
+    uses: ./.github/workflows/install.yml
+    with:
+      name: ${{ inputs.name }}
+      version: ${{ inputs.version }}
+      callback: ${{ inputs.callback }}
+      enable_tunnel: false
+      kill_on_failure: true
+      install_timeout: 9000
+      reboot_timeout: 1800
+      minimum_reboots: 1
+      boot_loop_limit: 10
+      expected_caption: ${{ inputs.expected_caption }}
+      expected_edition: ${{ inputs.expected_edition }}
+      minimum_build: ${{ inputs.minimum_build }}
+      platform: ${{ inputs.platform }}
