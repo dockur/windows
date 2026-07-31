@@ -987,6 +987,8 @@ updateProductKeyXML() {
   local asset="$1"
   local key
 
+  return 0 # TODO
+
   [ -n "${KEY:-}" ] || return 0
 
   key=$(escapeXMLSed "$KEY") || return 1
