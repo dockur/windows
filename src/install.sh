@@ -1088,9 +1088,12 @@ addDrivers() {
   else
 
     local winpe="$src/$target"
-    rm -rf "$winpe" || return 1
-    mkdir -p "$winpe" || return 1
+    local repository="$src/Drivers"
+
+    rm -rf "$winpe" "$repository" || return 1
+    mkdir -p "$winpe" "$repository" || return 1
     cp -Lr "$dest/." "$winpe" || return 1
+    cp -Lr "$dest/." "$repository" || return 1
 
   fi
 
