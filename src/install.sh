@@ -398,11 +398,6 @@ finishInstall() {
         [[ "${DETECTED,,}" == "win11"* ]] && secure="Y"
       fi
 
-      # Enable secure boot on multi-socket systems to workaround freeze
-      if [ -n "$SOCKETS" ] && [[ "$SOCKETS" != "1" ]]; then
-        secure="Y"
-      fi
-
       if [ -n "$secure" ]; then
         BOOT_MODE="windows_secure"
         writeState "mode" "$BOOT_MODE" || return 1
