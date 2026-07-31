@@ -246,7 +246,7 @@ jobs:
             "$RUNNER_TEMP/oem" \
             "$RUNNER_TEMP/storage"
 
-          printf '%s\n' "$token" > "$RUNNER_TEMP/data/readme.txt"
+          printf '%s\n' "$token" > "$RUNNER_TEMP/data/validation.token"
 
           cat > "$RUNNER_TEMP/oem/sync-log.bat" <<'BATCH'
           @echo off
@@ -333,7 +333,7 @@ jobs:
 
                   $share = (
                       Get-Content `
-                          -LiteralPath "\\host.lan\Data\readme.txt" `
+                          -LiteralPath "\\host.lan\Data\validation.token" `
                           -Raw
                   ).Trim()
 
@@ -530,7 +530,7 @@ jobs:
             If Err.Number = 0 Then
               edition = ReadRegistry(shell, "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\EditionID")
               platform = GetPlatform(shell)
-              share = ReadTextFile(filesystem, "\\host.lan\Data\readme.txt")
+              share = ReadTextFile(filesystem, "\\host.lan\Data\validation.token")
             End If
 
             If Err.Number = 0 Then
@@ -670,6 +670,11 @@ jobs:
             --volume "$RUNNER_TEMP/oem:/oem:ro" \
             --volume "$RUNNER_TEMP/storage:/storage" \
             "$IMAGE"
+
+          echo
+          echo "Container mounts:"
+          docker inspect "$CONTAINER" \
+            --format '{{range .Mounts}}{{println .Source "->" .Destination}}{{end}}'
 
       - name: Start noVNC tunnel
         if: ${{ inputs.enable_tunnel }}
@@ -978,7 +983,7 @@ jobs:
               fi
 
               if [[ "$share" != "$EXPECTED_TOKEN" ]]; then
-                echo "Failed to read \\\\host.lan\\Data\\readme.txt."
+                echo "Failed to read \\\\host.lan\\Data\\validation.token."
                 echo "Expected contents:"
                 echo "  $EXPECTED_TOKEN"
                 echo "Received:"
