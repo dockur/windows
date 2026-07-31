@@ -70,7 +70,7 @@ on:
       kill_on_failure:
         description: Stop the workflow when an installation failure is detected
         required: false
-        default: true
+        default: false
         type: boolean
 
       expected_caption:
@@ -774,7 +774,7 @@ jobs:
 
           trap stop_logs EXIT
 
-          failure_checks_disabled=1
+          failure_checks_disabled=0
 
           handle_failure() {
             local message="$1"
