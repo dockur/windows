@@ -227,7 +227,6 @@ jobs:
         shell: bash
         env:
           CALLBACK: ${{ inputs.callback }}
-          KILL_ON_FAILURE: ${{ inputs.kill_on_failure }}
         run: |
           set -Eeuo pipefail
 
@@ -239,12 +238,6 @@ jobs:
               exit 1
               ;;
           esac
-
-          watchdog_command=""
-
-          if [[ "$KILL_ON_FAILURE" == "true" ]]; then
-            watchdog_command='start "" /B cscript.exe //B //NoLogo C:\OEM\watchdog.vbs'
-          fi
 
           token="$(cat /proc/sys/kernel/random/uuid)"
 
@@ -275,21 +268,6 @@ jobs:
           goto sync
           BATCH
 
-          cat > "$RUNNER_TEMP/oem/shutdown.vbs" <<'VBSCRIPT'
-          On Error Resume Next
-
-          Dim service
-          Dim systems
-          Dim system
-
-          Set service = GetObject("winmgmts:{impersonationLevel=impersonate,(Shutdown)}!\\.\root\cimv2")
-          Set systems = service.ExecQuery("SELECT * FROM Win32_OperatingSystem")
-
-          For Each system In systems
-            system.Win32Shutdown 12
-          Next
-          VBSCRIPT
-
           cat > "$RUNNER_TEMP/oem/watchdog.vbs" <<'VBSCRIPT'
           Option Explicit
 
@@ -298,10 +276,6 @@ jobs:
           Dim filesystem
           Dim file
           Dim shell
-          Dim service
-          Dim systems
-          Dim system
-          Dim result
 
           WScript.Sleep 180000
 
@@ -320,23 +294,8 @@ jobs:
           Set file = filesystem.CreateTextFile("C:\OEM\install.done", True)
           file.Close
 
-          result = 1
-
-          Set service = GetObject("winmgmts:{impersonationLevel=impersonate,(Shutdown)}!\\.\root\cimv2")
-          Set systems = service.ExecQuery("SELECT * FROM Win32_OperatingSystem")
-
-          If Err.Number = 0 Then
-            For Each system In systems
-              result = system.Win32Shutdown(12)
-              Exit For
-            Next
-          End If
-
-          If Err.Number <> 0 Or result <> 0 Then
-            Err.Clear
-            Set shell = CreateObject("WScript.Shell")
-            shell.Run "shutdown.exe -s -f -t 0", 0, False
-          End If
+          Set shell = CreateObject("WScript.Shell")
+          shell.Run "cmd.exe /C echo VALIDATION_CALLBACK_FAILED^>COM1", 0, True
           VBSCRIPT
 
           case "$CALLBACK" in
@@ -417,7 +376,7 @@ jobs:
           @echo off
           del /Q C:\OEM\install.done 2>nul
           start "" /B cmd.exe /C C:\OEM\sync-log.bat
-          $watchdog_command
+          start "" /B cscript.exe //B //NoLogo C:\OEM\watchdog.vbs
 
           powershell.exe -NoProfile -ExecutionPolicy Bypass ^
             -File C:\OEM\ready.ps1 ^
@@ -428,8 +387,7 @@ jobs:
           if not "%result%"=="0" (
             echo %date% %time% - Callback failed.>>C:\OEM\install.log
             type nul > C:\OEM\install.done
-            shutdown.exe -s -f -t 0 >nul 2>&1
-            if errorlevel 1 cscript.exe //B //NoLogo C:\OEM\shutdown.vbs
+            echo VALIDATION_CALLBACK_FAILED>COM1
             exit /B %result%
           )
 
@@ -626,7 +584,7 @@ jobs:
           @echo off
           del /Q C:\OEM\install.done 2>nul
           start "" /B cmd.exe /C C:\OEM\sync-log.bat
-          $watchdog_command
+          start "" /B cscript.exe //B //NoLogo C:\OEM\watchdog.vbs
 
           cscript.exe //B //NoLogo C:\OEM\ready.vbs "$token"
 
@@ -635,8 +593,7 @@ jobs:
           if not "%result%"=="0" (
             echo %date% %time% - Callback failed.>>C:\OEM\install.log
             type nul > C:\OEM\install.done
-            shutdown.exe -s -f -t 0 >nul 2>&1
-            if errorlevel 1 cscript.exe //B //NoLogo C:\OEM\shutdown.vbs
+            echo VALIDATION_CALLBACK_FAILED>COM1
             exit /B %result%
           )
 
@@ -825,6 +782,7 @@ jobs:
           trap stop_logs EXIT
 
           failure_checks_disabled=0
+          callback_failure_detected=0
 
           handle_failure() {
             local message="$1"
@@ -863,6 +821,26 @@ jobs:
             fi
 
             container_log="$(docker logs "$CONTAINER" 2>&1 || true)"
+
+            if (( callback_failure_detected == 0 )) &&
+               grep -Fq 'VALIDATION_CALLBACK_FAILED' <<< "$container_log"; then
+              callback_failure_detected=1
+
+              echo
+              echo "------------------------------------------------------------"
+              echo "The guest validation callback failed."
+
+              if [[ "$KILL_ON_FAILURE" == "true" ]]; then
+                echo "Stopping the Windows container..."
+                docker stop "$CONTAINER" > /dev/null
+                exit 1
+              fi
+
+              echo "Automatic termination is disabled by kill_on_failure."
+              echo "The container and noVNC tunnel will remain available."
+              echo "::warning title=Failure detected::The guest validation callback failed."
+              failure_checks_disabled=1
+            fi
 
             if (( failure_checks_disabled == 0 )) &&
                grep -Eqi \
