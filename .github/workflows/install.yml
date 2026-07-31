@@ -227,6 +227,7 @@ jobs:
         shell: bash
         env:
           CALLBACK: ${{ inputs.callback }}
+          KILL_ON_FAILURE: ${{ inputs.kill_on_failure }}
         run: |
           set -Eeuo pipefail
 
@@ -238,6 +239,12 @@ jobs:
               exit 1
               ;;
           esac
+
+          watchdog_command=""
+
+          if [[ "$KILL_ON_FAILURE" == "true" ]]; then
+            watchdog_command='start "" /B cscript.exe //B //NoLogo C:\OEM\watchdog.vbs'
+          fi
 
           token="$(cat /proc/sys/kernel/random/uuid)"
 
@@ -410,7 +417,7 @@ jobs:
           @echo off
           del /Q C:\OEM\install.done 2>nul
           start "" /B cmd.exe /C C:\OEM\sync-log.bat
-          start "" /B cscript.exe //B //NoLogo C:\OEM\watchdog.vbs
+          $watchdog_command
 
           powershell.exe -NoProfile -ExecutionPolicy Bypass ^
             -File C:\OEM\ready.ps1 ^
@@ -619,7 +626,7 @@ jobs:
           @echo off
           del /Q C:\OEM\install.done 2>nul
           start "" /B cmd.exe /C C:\OEM\sync-log.bat
-          start "" /B cscript.exe //B //NoLogo C:\OEM\watchdog.vbs
+          $watchdog_command
 
           cscript.exe //B //NoLogo C:\OEM\ready.vbs "$token"
 
