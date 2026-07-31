@@ -67,11 +67,41 @@ on:
         default: ""
         type: string
 
-      kill_on_failure:
-        description: Stop the workflow when an installation failure is detected
+      enable_tunnel:
+        description: Open a temporary public noVNC tunnel
         required: false
         default: false
         type: boolean
+
+      kill_on_failure:
+        description: Stop the workflow when an installation failure is detected
+        required: false
+        default: true
+        type: boolean
+
+      install_timeout:
+        description: Maximum installation time in seconds
+        required: false
+        default: 9000
+        type: number
+
+      reboot_timeout:
+        description: Maximum time before the first reboot in seconds
+        required: false
+        default: 1800
+        type: number
+
+      minimum_reboots:
+        description: Minimum required reboot count
+        required: false
+        default: 1
+        type: number
+
+      boot_loop_limit:
+        description: Number of repeated boots considered a boot loop
+        required: false
+        default: 10
+        type: number
 
       expected_caption:
         description: Text expected in the Windows caption
@@ -669,7 +699,7 @@ jobs:
             "$IMAGE"
 
       - name: Start noVNC tunnel
-        if: ${{ !inputs.kill_on_failure }}
+        if: ${{ inputs.enable_tunnel }}
         id: tunnel
         shell: bash
         run: |
@@ -721,6 +751,10 @@ jobs:
         shell: bash
         env:
           KILL_ON_FAILURE: ${{ inputs.kill_on_failure }}
+          INSTALL_TIMEOUT: ${{ inputs.install_timeout }}
+          REBOOT_TIMEOUT: ${{ inputs.reboot_timeout }}
+          MINIMUM_REBOOTS: ${{ inputs.minimum_reboots }}
+          BOOT_LOOP_LIMIT: ${{ inputs.boot_loop_limit }}
           EXPECTED_TOKEN: ${{ steps.test.outputs.token }}
           EXPECTED_CAPTION: ${{ inputs.expected_caption }}
           EXPECTED_EDITION: ${{ inputs.expected_edition }}
@@ -791,10 +825,10 @@ jobs:
             return 0
           }
 
-          deadline=$((SECONDS + 9000))
-          reboot_timeout=1800
-          minimum_reboots=1
-          boot_loop_limit=10
+          deadline=$((SECONDS + INSTALL_TIMEOUT))
+          reboot_timeout="$REBOOT_TIMEOUT"
+          minimum_reboots="$MINIMUM_REBOOTS"
+          boot_loop_limit="$BOOT_LOOP_LIMIT"
           first_bios_start=-1
 
           while (( SECONDS < deadline )); do
