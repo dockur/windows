@@ -1200,6 +1200,7 @@ updateImage() {
   local bak="${xml//.xml/.org}"
   local dat="${xml//.xml/.dat}"
   local desc path src wim name info
+  local script=""
 
   skipVersion "${DETECTED,,}" && return 0
 
@@ -1270,10 +1271,19 @@ updateImage() {
       return 1
     fi
 
+    if [ -z "${CUSTOM_XML:-}" ]; then
+      # Keep the patched copy outside the extracted ISO until the answer file
+      # has been added successfully, so manual fallback remains untouched.
+      if ! stageSetupScript "$asset" "$tmp/setup" script; then
+        error "Failed to stage setup script for answer file: $asset"
+        return 1
+      fi
+    fi
+
     removeGeneratedXML "$asset" || return 1
 
     if [ -z "${CUSTOM_XML:-}" ]; then
-      if ! updateXML "$answer" "$language"; then
+      if ! updateXML "$answer" "$language" "$script"; then
         error "Failed to update answer file: $answer"
         return 1
       fi
@@ -1285,6 +1295,11 @@ updateImage() {
       MANUAL="Y"
       warn "failed to add answer file ($name) to ISO image, $FB"
     else
+      if ! installSetupScript "$script" "$src"; then
+        error "Failed to add setup script to ISO image!"
+        return 1
+      fi
+
       wimlib-imagex update "$wim" "$idx" --command "add $answer /$dat" > /dev/null || true
     fi
 
