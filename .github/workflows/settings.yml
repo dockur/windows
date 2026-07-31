@@ -52,7 +52,7 @@ jobs:
       version: ${{ inputs.version }}
       callback: ${{ inputs.callback }}
       enable_tunnel: true
-      kill_on_failure: true
+      kill_on_failure: false
       install_timeout: 9000
       reboot_timeout: 1800
       minimum_reboots: 1
