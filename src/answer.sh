@@ -65,6 +65,11 @@ stageAnswer() {
     return 1
   fi
 
+  if ! setDriverPathXML "$answer"; then
+    error "Failed to configure the Windows driver path!"
+    return 1
+  fi
+
   validateGeneratedXML "$answer" || return 1
 
   return 0
@@ -1043,6 +1048,43 @@ getXMLArchitecture() {
   [ -n "$arch" ] || return 1
 
   printf '%s' "$arch"
+  return 0
+}
+
+setDriverPathXML() {
+
+  local asset="$1"
+  local arch section
+
+  [ -s "$asset" ] || return 1
+
+  section=$(sed -n -E '
+    /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/p
+  ' "$asset") || return 1
+
+  [ -n "$section" ] || return 1
+
+  if grep -Fq 'name="Microsoft-Windows-PnpCustomizationsWinPE"' <<< "$section"; then
+    return 0
+  fi
+
+  if ! arch=$(getXMLArchitecture "$asset"); then
+    return 1
+  fi
+
+  sed -i -E '
+    0,/<settings[^>]*pass="windowsPE"[^>]*>/ {
+      /<settings[^>]*pass="windowsPE"[^>]*>/a\
+    <component name="Microsoft-Windows-PnpCustomizationsWinPE" processorArchitecture="'"$arch"'" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">\
+      <DriverPaths>\
+        <PathAndCredentials wcm:action="add" wcm:keyValue="1">\
+          <Path>%configsetroot%\\$WinPEDriver$</Path>\
+        </PathAndCredentials>\
+      </DriverPaths>\
+    </component>
+    }
+  ' "$asset" || return 1
+
   return 0
 }
 
