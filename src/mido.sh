@@ -83,31 +83,21 @@ curlRequest() {
   return 0
 }
 
-downloadWindows() {
+downloadWindowsLink() {
 
-  local id="$1"
-  local lang="$2"
-  local desc="$3"
+  local productId="$1"
+  local url="$2"
+  local agent="$3"
+  local language="$4"
+  local lang="$5"
+  local desc="$6"
+  local type="$7"
 
-  local ovToken="" ovTicks="" ovTime
   local skuId skuJson
   local linkJson link
-  local language ovData
-  local session agent
-  local type winVer
-  local page productId
+  local ovData ovTime session
+  local ovToken="" ovTicks=""
   local profile="606624d44113"
-
-  agent=$(getAgent)
-  language=$(getLanguage "$lang" "name")
-
-  case "${id,,}" in
-    "win11x64" ) winVer="11" && type="1" ;;
-    "win11arm64" ) winVer="11arm64" && type="2" ;;
-    * ) error "Invalid VERSION specified, value \"$id\" is not recognized!" && return 1 ;;
-  esac
-
-  local url="https://www.microsoft.com/en-us/software-download/windows$winVer"
 
   # uuidgen: For MacOS (installed by default) and other systems (e.g. with no /proc) that don't have a kernel interface for generating random UUIDs
   if ! session=$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random); then
@@ -119,23 +109,6 @@ downloadWindows() {
 
   if [ -z "$session" ]; then
     error "Failed to generate session ID!"
-    return 1
-  fi
-
-  # Get product edition ID for latest release of given Windows version
-  enabled "$DEBUG" && echo "Parsing download page: ${url}"
-
-  curlRequest page "Microsoft" "$agent" \
-    --header "Accept:" \
-    --max-filesize 1M \
-    -- "$url" || return 1
-
-  enabled "$DEBUG" && echo -n "Getting Product edition ID: "
-  productId=$(echo "$page" | grep -Eo '<option value="[0-9]+">Windows' | cut -d '"' -f 2 | head -n 1 | tr -cd '0-9' | head -c 16)
-  enabled "$DEBUG" && echo "$productId"
-
-  if [ -z "$productId" ]; then
-    error "Product edition ID not found!"
     return 1
   fi
 
@@ -206,7 +179,7 @@ downloadWindows() {
     --max-filesize 100K \
     -- "$skuUrl" || return 1
 
-  { skuId=$(echo "$skuJson" | jq --arg LANG "$language" -r '.Skus[] | select(.Language==$LANG).Id') 2>/dev/null; local rc=$?; } || :
+  { skuId=$(printf '%s\n' "$skuJson" | jq --arg LANG "$language" -r 'first(.Skus[]? | select(.Language == $LANG) | .Id) // empty') 2>/dev/null; local rc=$?; } || :
 
   if [ -z "$skuId" ] || [[ "${skuId,,}" == "null" ]] || (( rc != 0 )); then
     language=$(getLanguage "$lang" "desc")
@@ -234,17 +207,17 @@ downloadWindows() {
     return 1
   fi
 
-  if echo "$linkJson" | grep -q "Sentinel marked this request as rejected."; then
+  if grep -Fq "Sentinel marked this request as rejected." <<< "$linkJson"; then
     error "Microsoft blocked the automated download request based on your IP address."
     return 1
   fi
 
-  if echo "$linkJson" | grep -q "We are unable to complete your request at this time."; then
+  if grep -Fq "We are unable to complete your request at this time." <<< "$linkJson"; then
     error "Microsoft blocked the automated download request."
     return 1
   fi
 
-  { link=$(echo "$linkJson" | jq --argjson TYPE "$type" -r '.ProductDownloadOptions[] | select(.DownloadType==$TYPE).Uri') 2>/dev/null; rc=$?; } || :
+  { link=$(printf '%s\n' "$linkJson" | jq --argjson TYPE "$type" -r 'first(.ProductDownloadOptions[]? | select(.DownloadType == $TYPE) | .Uri) // empty') 2>/dev/null; rc=$?; } || :
 
   if [ -z "$link" ] || [[ "${link,,}" == "null" ]] || (( rc != 0 )); then
     error "Microsoft server gave us no download link to our request for an automated download!"
@@ -253,6 +226,82 @@ downloadWindows() {
   fi
 
   MIDO_URL="$link"
+  return 0
+}
+
+downloadWindows() {
+
+  local id="$1"
+  local lang="$2"
+  local desc="$3"
+
+  local agent language
+  local page productId
+  local type winVer
+
+  agent=$(getAgent)
+  language=$(getLanguage "$lang" "name")
+
+  case "${id,,}" in
+    "win10x64" )
+      productId="2618"
+      winVer="10"
+      type="1"
+      ;;
+    "win11x64" )
+      productId="3321"
+      winVer="11"
+      type="1"
+      ;;
+    "win11arm64" )
+      productId="3324"
+      winVer="11arm64"
+      type="2"
+      ;;
+    * )
+      error "Invalid VERSION specified, value \"$id\" is not recognized!"
+      return 1
+      ;;
+  esac
+
+  local url="https://www.microsoft.com/en-us/software-download/windows$winVer"
+  [[ "${id,,}" == "win10"* ]] && url+="ISO"
+
+  enabled "$DEBUG" && echo "Using Product edition ID: $productId"
+
+  if downloadWindowsLink "$productId" "$url" "$agent" "$language" "$lang" "$desc" "$type"; then
+    return 0
+  fi
+
+  sleep 1
+
+  local msg="retrying using a different method..."
+  info "Microsoft download request failed, $msg"
+  enabled "$DEBUG" && echo "Parsing download page: ${url}"
+
+  curlRequest page "Microsoft" "$agent" \
+    --header "Accept:" \
+    --max-filesize 1M \
+    -- "$url" || return 1
+
+  enabled "$DEBUG" && echo -n "Getting Product edition ID: "
+  productId=$(printf '%s' "$page" |
+    tr '\r\n' '  ' |
+    grep -Eio "<option[^>]*value=[\"'][0-9]+[\"'][^>]*>[[:space:]]*Windows[^<]*" |
+    sed -nE "s/.*value=[\"']([0-9]+)[\"'].*/\1/p" |
+    sed -n '1p' |
+    cut -c 1-16 || true)
+  enabled "$DEBUG" && echo "$productId"
+
+  if [ -z "$productId" ]; then
+    info "Failed to fetch the Product edition ID from the download page, $msg"
+    return 1
+  fi
+
+  if ! downloadWindowsLink "$productId" "$url" "$agent" "$language" "$lang" "$desc" "$type"; then
+    return 1
+  fi
+
   return 0
 }
 
@@ -318,13 +367,14 @@ downloadWindowsEval() {
 
   enabled "$DEBUG" && echo "Getting download link.."
 
-  local filter="https://go.microsoft.com/fwlink/?linkid=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country,,}"
+  # Normalize HTML-encoded query separators before extracting fwlinks.
+  page=${page//&amp;/&}
+  page=${page//&#38;/&}
 
-  if ! echo "$page" | grep -io "$filter" > /dev/null; then
-    filter="https://go.microsoft.com/fwlink/p/?linkid=[0-9]\+&clcid=0x[0-9a-z]\+&culture=${culture,,}&country=${country,,}"
-  fi
-
-  links=$(echo "$page" | grep -io "$filter") || {
+  links=$(printf '%s\n' "$page" |
+    grep -Eio "https://go\.microsoft\.com/fwlink(/p)?/\?[^\"'<>[:space:]]+" |
+    grep -Ei '(^|[?&])culture='"${culture,,}"'(&|$)' |
+    grep -Ei '(^|[?&])country='"${country,,}"'(&|$)') || {
     # This should only happen if there's been some change to the download endpoint web address
     if [[ "${lang,,}" == "en" || "${lang,,}" == "en-"* ]]; then
       error "Windows server download page gave us no download link!"
@@ -339,30 +389,30 @@ downloadWindowsEval() {
     "iot" )
       case "${PLATFORM,,}" in
         "x64" )
-          link=$(echo "$links" | head -n 1) ;;
+          link=$(printf '%s\n' "$links" | head -n 1) ;;
         "arm64" )
-          link=$(echo "$links" | head -n 2 | tail -n 1) ;;
+          link=$(printf '%s\n' "$links" | head -n 2 | tail -n 1) ;;
       esac ;;
     "ltsc" )
       case "${PLATFORM,,}" in
         "x64" )
-          link=$(echo "$links" | head -n 2 | tail -n 1) ;;
+          link=$(printf '%s\n' "$links" | head -n 2 | tail -n 1) ;;
       esac ;;
     "enterprise" )
       case "${PLATFORM,,}" in
         "x64" )
           if [[ "$winVer" != "windows-10"* ]]; then
-            link=$(echo "$links" | head -n 1)
+            link=$(printf '%s\n' "$links" | head -n 1)
           else
-            link=$(echo "$links" | head -n 2 | tail -n 1)
+            link=$(printf '%s\n' "$links" | head -n 2 | tail -n 1)
           fi ;;
         "arm64" )
-          link=$(echo "$links" | head -n 2 | tail -n 1) ;;
+          link=$(printf '%s\n' "$links" | head -n 2 | tail -n 1) ;;
       esac ;;
     "server" )
       case "${PLATFORM,,}" in
         "x64" )
-          link=$(echo "$links" | head -n 1) ;;
+          link=$(printf '%s\n' "$links" | head -n 1) ;;
       esac ;;
     * )
       error "Invalid type specified, value \"$type\" is not recognized!" && return 1 ;;
@@ -547,6 +597,7 @@ getWindows() {
   esac
 
   case "${version,,}" in
+    "win10x64" ) ;;
     "win11${PLATFORM,,}" ) ;;
     "win11${PLATFORM,,}-enterprise"* ) ;;
     * )
@@ -558,7 +609,7 @@ getWindows() {
   esac
 
   case "${version,,}" in
-    "win11${PLATFORM,,}" )
+    "win10x64" | "win11${PLATFORM,,}" )
 
       if downloadWindows "$version" "$lang" "$edition"; then
         MIDO_SOURCE="$version"

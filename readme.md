@@ -67,13 +67,13 @@ docker run -it --rm --name windows -e "VERSION=11" -p 8006:8006 --device=/dev/kv
 kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/master/kubernetes.yml
 ```
 
+##### Desktop applications
+
+For a complete graphical desktop experience, see [WinBoat](https://winboat.app), [WinPodX](https://www.winpodx.org), or [WinApps](https://github.com/winapps-org/winapps). Each of these projects uses this container as its backend.
+
 ##### GitHub Codespaces:
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/dockur/windows)
-
-##### Graphical installer:
-
-[![Download WinBoat](https://github.com/dockur/windows/raw/master/.github/winboat.png)](https://winboat.app)
 
 ## Requirements ⚙️
 
