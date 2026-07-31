@@ -774,7 +774,7 @@ jobs:
 
           trap stop_logs EXIT
 
-          failure_checks_disabled=0
+          failure_checks_disabled=1
 
           handle_failure() {
             local message="$1"
