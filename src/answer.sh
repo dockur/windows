@@ -1,6 +1,385 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+hasAnswerFile() {
+
+  local id="$1"
+  local file="/run/assets/$id.xml"
+
+  [ -s "$file" ] && return 0
+
+  if [[ "${id,,}" == *"-eval" ]]; then
+    file="/run/assets/${id%-eval}.xml"
+    [ -s "$file" ] && return 0
+  fi
+
+  # Editions without a dedicated template can use the generic template.
+  case "${id,,}" in
+    "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* | "win20"* )
+      file="/run/assets/${id%%-*}.xml"
+      [ -s "$file" ] && return 0
+      ;;
+  esac
+
+  return 1
+}
+
+stageAnswer() {
+
+  local asset="$1"
+  local language="$2"
+  local stage="$3"
+  local answer="$stage/Autounattend.xml"
+  local name
+
+  if enabled "$MANUAL"; then
+    removeGeneratedXML "$asset" || return 1
+    return 0
+  fi
+
+  if [ ! -f "$asset" ] || [ ! -s "$asset" ]; then
+    error "Failed to find answer file: $asset"
+    return 1
+  fi
+
+  name=$(basename "$asset") || return 1
+  info "Adding $name for automatic installation..."
+
+  if ! cp -L -- "$asset" "$answer"; then
+    error "Failed to stage answer file: $asset"
+    return 1
+  fi
+
+  removeGeneratedXML "$asset" || return 1
+
+  if [ -z "${CUSTOM_XML:-}" ]; then
+    if ! updateXML "$answer" "$language"; then
+      error "Failed to update answer file: $answer"
+      return 1
+    fi
+  fi
+
+  if ! updateDiskID "$answer" "${DISK_TYPE:-}"; then
+    error "Failed to adjust the Windows installation disk!"
+    return 1
+  fi
+
+  if ! setConfigurationXML "$answer"; then
+    error "Failed to enable the Windows configuration set!"
+    return 1
+  fi
+
+  validateGeneratedXML "$answer" || return 1
+
+  return 0
+}
+
+markGeneratedXML() {
+
+  local file="$1"
+  local marker='<!-- generated-answer-file: do not reuse as a template -->'
+
+  [ -s "$file" ] || return 1
+
+  if head -n 1 "$file" | grep -q '^<?xml'; then
+    sed -i "1a$marker" "$file" || return 1
+  else
+    sed -i "1i$marker" "$file" || return 1
+  fi
+
+  return 0
+}
+
+removeGeneratedXML() {
+
+  local file="$1"
+
+  [ -n "$file" ] || return 0
+  [ -f "$file" ] || return 0
+
+  head -n 5 "$file" |
+    grep -Fqi 'generated-answer-file' || return 0
+
+  if ! rm -f "$file"; then
+    error "Failed to remove generated answer file: $file"
+    return 1
+  fi
+
+  return 0
+}
+
+generateAnswerFile() {
+
+  local id="$1"
+  local source="$2"
+  local target="$3"
+  local index="$4"
+  local type="$5"
+  local remove_selector="$6"
+  local tmp
+
+  if [ -n "$index" ] && [[ ! "$index" =~ ^[1-9][0-9]*$ ]]; then
+    error "Invalid $type image index: $index"
+    return 1
+  fi
+
+  if ! tmp=$(mktemp -p /run/assets ".${id}.XXXXXX"); then
+    error "Failed to create a temporary $type answer file!"
+    return 1
+  fi
+
+  local expressions
+
+  if [ "$type" = "evaluation" ]; then
+    expressions=(
+      -e '/<ProductKey>.*<\/ProductKey>/d'
+      -e '/<ProductKey>/,/<\/ProductKey>/d'
+    )
+  else
+    expressions=(
+      -e '/<InstallFrom>.*<\/InstallFrom>/d'
+      -e '/<ProductKey>.*<\/ProductKey>/d'
+      -e '/<InstallFrom>/,/<\/InstallFrom>/d'
+      -e '/<ProductKey>/,/<\/ProductKey>/d'
+    )
+  fi
+
+  if ! sed "${expressions[@]}" "$source" > "$tmp"; then
+    rm -f "$tmp"
+    error "Failed to generate $type answer file from $source!"
+    return 1
+  fi
+
+  if [ "$type" = "evaluation" ] && [ "$remove_selector" = "Y" ]; then
+    if ! sed -i \
+      -e '/<InstallFrom>.*<\/InstallFrom>/d' \
+      -e '/<InstallFrom>/,/<\/InstallFrom>/d' \
+      "$tmp"; then
+      rm -f "$tmp"
+      error "Failed to replace evaluation image selector!"
+      return 1
+    fi
+  fi
+
+  if [ -n "$index" ] && ! grep -q '<InstallFrom>' "$tmp"; then
+    if ! sed -i \
+      '0,/<InstallTo>/{ /<InstallTo>/i\
+          <InstallFrom>\
+            <MetaData wcm:action="add">\
+              <Key>/IMAGE/INDEX</Key>\
+              <Value>'"$index"'</Value>\
+            </MetaData>\
+          </InstallFrom>
+      }' "$tmp"; then
+      rm -f "$tmp"
+      error "Failed to select $type image index $index!"
+      return 1
+    fi
+  fi
+
+  if ! markGeneratedXML "$tmp"; then
+    rm -f "$tmp"
+    error "Failed to mark generated $type answer file!"
+    return 1
+  fi
+
+  if ! validateGeneratedXML "$tmp"; then
+    rm -f "$tmp"
+    return 1
+  fi
+
+  if ! chmod 644 "$tmp" || ! mv -f "$tmp" "$target"; then
+    rm -f "$tmp"
+    error "Failed to create $type answer file: $target"
+    return 1
+  fi
+
+  return 0
+}
+
+generateEvalXML() {
+
+  # Evaluation templates are generated from their normal counterpart so
+  # both variants remain identical except for evaluation-specific selectors.
+
+  local id="$1"
+  local detected_index="${2:-}"
+
+  [[ "${id,,}" == *"-eval" ]] || return 1
+
+  local normal="${id::-5}"
+  local source="/run/assets/$normal.xml"
+  local target="/run/assets/$id.xml"
+  local index="$detected_index"
+  local remove_selector="N"
+
+  removeGeneratedXML "$source" || return 1
+
+  if [ ! -s "$source" ]; then
+    source="/run/assets/${normal%%-*}.xml"
+    removeGeneratedXML "$source" || return 1
+  fi
+
+  [ -s "$source" ] || return 1
+
+  if [ -n "$detected_index" ]; then
+    remove_selector="Y"
+  else
+    # No WIM was inspected, so retain the known defaults for download routes.
+    case "${id,,}" in
+      *"-ltsc-eval" ) index="1" ;;
+      *"-iot-eval" )  index="2" ;;
+    esac
+  fi
+
+  generateAnswerFile \
+    "$id" "$source" "$target" "$index" "evaluation" "$remove_selector" || return 1
+
+  return 0
+}
+
+generateFallbackXML() {
+
+  # Fallback templates are generated from the generic version so unsupported
+  # editions can use the detected WIM index without inheriting a product key.
+
+  local id="$1"
+  local index="${2:-}"
+  local source="/run/assets/${id%%-*}.xml"
+  local target="/run/assets/$id.xml"
+
+  [ "$source" != "$target" ] || return 1
+
+  removeGeneratedXML "$source" || return 1
+  [ -s "$source" ] || return 1
+
+  generateAnswerFile \
+    "$id" "$source" "$target" "$index" "fallback" "Y" || return 1
+
+  return 0
+}
+
+setXML() {
+
+  local file="$1"
+  local index="${2:-}"
+  local target="/run/assets/$DETECTED.xml"
+
+  local custom_files=(
+    "/custom.xml"
+    "$STORAGE/custom.xml"
+    "/run/assets/custom.xml"
+  )
+
+  CUSTOM_XML=""
+
+  removeGeneratedXML "$target" || return 1
+
+  if [ -d "${custom_files[0]}" ]; then
+    error "The bind ${custom_files[0]} maps to a file that does not exist!"
+    exit 67
+  fi
+
+  for file in "${custom_files[@]}"; do
+    if [ -f "$file" ] && [ -s "$file" ]; then
+      CUSTOM_XML="Y"
+      XML="$file"
+      return 0
+    fi
+  done
+
+  file="$1"
+
+  if [[ "${DETECTED,,}" == *"-eval" ]] &&
+    { [ ! -f "$file" ] || [ ! -s "$file" ]; }; then
+
+    generateEvalXML "$DETECTED" "$index" || return 1
+    file="$target"
+
+  elif [ ! -f "$file" ] || [ ! -s "$file" ]; then
+
+    file="$target"
+
+  elif [[ "$file" != "$target" ]]; then
+
+    generateFallbackXML "$DETECTED" "$index" || return 1
+    file="$target"
+
+  fi
+
+  [ -f "$file" ] && [ -s "$file" ] || return 1
+
+  XML="$file"
+  return 0
+}
+
+updateXML() {
+
+  local asset="$1"
+  local language="$2"
+  local domain="${DOMAIN:-}"
+  local workgroup="${WORKGROUP:-}"
+  local account=""
+  local auth=""
+
+  [ -z "${WIDTH:-}" ] && WIDTH="1280"
+  [ -z "${HEIGHT:-}" ] && HEIGHT="720"
+
+  validateXMLSettings || return 1
+  updateDisplayXML "$asset" || return 1
+  updateLocaleXML "$asset" "$language" || return 1
+
+  if [ -n "$domain" ]; then
+    prepareDomainAccount "$domain" account auth || return 1
+  else
+    updateLocalAccountXML "$asset" || return 1
+  fi
+
+  sed -i -E \
+    "s|<PlainText>[^<]*</PlainText>|<PlainText>false</PlainText>|g" \
+    "$asset" || return 1
+
+  updateMembershipXML \
+    "$asset" \
+    "$domain" \
+    "$workgroup" \
+    "$account" \
+    "$auth" || return 1
+
+  updateAutologinXML "$asset" || return 1
+  enableLog "$asset" || return 1
+  updateEditionXML "$asset" || return 1
+  updateProductKeyXML "$asset" || return 1
+  removeSharedFolderXML "$asset" || return 1
+  validateGeneratedXML "$asset" || return 1
+
+  return 0
+}
+
+validateGeneratedXML() {
+
+  local asset="$1"
+
+  if ! xmllint --nonet --noout "$asset"; then
+    error "The generated answer file is not valid XML!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateXMLSettings() {
+
+  validateResolution "WIDTH" "$WIDTH" 320 || return 1
+  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
+  validateMembership || return 1
+  validateComputerName "${HOST:-}" || return 1
+  validateProductKey "${KEY:-}" || return 1
+  validatePassword "${PASSWORD:-}" || return 1
+
+  return 0
+}
+
 validateResolution() {
 
   local name="$1"
@@ -124,19 +503,6 @@ validatePassword() {
   return 0
 }
 
-escapeXMLSed() {
-
-  local s
-
-  s=$(escapeXML "$1") || return 1
-  s=${s//\\/\\\\}
-  s=${s//&/\\&}
-  s=${s//|/\\|}
-
-  printf '%s' "$s"
-  return 0
-}
-
 validateUsername() {
 
   local value="$1"
@@ -236,21 +602,6 @@ validateDomainName() {
     return 1
   fi
 
-  return 0
-}
-
-getXMLArchitecture() {
-
-  local asset="$1"
-  local arch
-
-  arch=$(sed -n -E \
-    '0,/processorArchitecture="/s/.*processorArchitecture="([^"]+)".*/\1/p' \
-    "$asset") || return 1
-
-  [ -n "$arch" ] || return 1
-
-  printf '%s' "$arch"
   return 0
 }
 
@@ -411,357 +762,6 @@ updateDomain() {
   return 0
 }
 
-removeLocalAccountXML() {
-
-  local asset="$1"
-
-  if ! sed -i -E \
-    -e '/^[[:space:]]*<LocalAccounts([[:space:]>])/,/^[[:space:]]*<\/LocalAccounts>[[:space:]]*$/d' \
-    -e '/^[[:space:]]*<AdministratorPassword([[:space:]>])/,/^[[:space:]]*<\/AdministratorPassword>[[:space:]]*$/d' \
-    "$asset"; then
-
-    error "Failed to remove local account configuration from answer file!"
-    return 1
-  fi
-
-  if ! sed -i -E '
-    /<SynchronousCommand([[:space:]>])/ {
-      :command
-      N
-      /<\/SynchronousCommand>/!b command
-      /<Description>Password Never Expires<\/Description>/d
-    }
-  ' "$asset"; then
-
-    error "Failed to remove local account commands from answer file!"
-    return 1
-  fi
-
-  return 0
-}
-
-enableLog() {
-
-  local file="$1"
-  local old='C:\OEM\install.bat"</CommandLine>'
-  local msg="failed to enable install logging in the answer file!"
-
-  enabled "${LOG:-}" || return 0
-  [ -f "$file" ] || return 1
-
-  if ! grep -Fq "$old" "$file"; then
-    enabled "$DEBUG" && warn "$msg"
-    return 0
-  fi
-
-  if ! sed -i \
-    's|C:\\OEM\\install\.bat"</CommandLine>|C:\\OEM\\install.bat \&gt; C:\\OEM\\install.log 2\&gt;\&amp;1"</CommandLine>|' \
-    "$file"; then
-
-    warn "$msg"
-  fi
-
-  return 0
-}
-
-markGeneratedXML() {
-
-  local file="$1"
-  local marker='<!-- generated-answer-file: do not reuse as a template -->'
-
-  [ -s "$file" ] || return 1
-
-  if head -n 1 "$file" | grep -q '^<?xml'; then
-    sed -i "1a$marker" "$file" || return 1
-  else
-    sed -i "1i$marker" "$file" || return 1
-  fi
-
-  return 0
-}
-
-removeGeneratedXML() {
-
-  local file="$1"
-
-  [ -n "$file" ] || return 0
-  [ -f "$file" ] || return 0
-
-  head -n 5 "$file" |
-    grep -Fqi 'generated-answer-file' || return 0
-
-  if ! rm -f "$file"; then
-    error "Failed to remove generated answer file: $file"
-    return 1
-  fi
-
-  return 0
-}
-
-generateAnswerFile() {
-
-  local id="$1"
-  local source="$2"
-  local target="$3"
-  local index="$4"
-  local type="$5"
-  local remove_selector="$6"
-  local tmp
-
-  if [ -n "$index" ] && [[ ! "$index" =~ ^[1-9][0-9]*$ ]]; then
-    error "Invalid $type image index: $index"
-    return 1
-  fi
-
-  if ! tmp=$(mktemp -p /run/assets ".${id}.XXXXXX"); then
-    error "Failed to create a temporary $type answer file!"
-    return 1
-  fi
-
-  local expressions
-
-  if [ "$type" = "evaluation" ]; then
-    expressions=(
-      -e '/<ProductKey>.*<\/ProductKey>/d'
-      -e '/<ProductKey>/,/<\/ProductKey>/d'
-    )
-  else
-    expressions=(
-      -e '/<InstallFrom>.*<\/InstallFrom>/d'
-      -e '/<ProductKey>.*<\/ProductKey>/d'
-      -e '/<InstallFrom>/,/<\/InstallFrom>/d'
-      -e '/<ProductKey>/,/<\/ProductKey>/d'
-    )
-  fi
-
-  if ! sed "${expressions[@]}" "$source" > "$tmp"; then
-    rm -f "$tmp"
-    error "Failed to generate $type answer file from $source!"
-    return 1
-  fi
-
-  if [ "$type" = "evaluation" ] && [ "$remove_selector" = "Y" ]; then
-    if ! sed -i \
-      -e '/<InstallFrom>.*<\/InstallFrom>/d' \
-      -e '/<InstallFrom>/,/<\/InstallFrom>/d' \
-      "$tmp"; then
-      rm -f "$tmp"
-      error "Failed to replace evaluation image selector!"
-      return 1
-    fi
-  fi
-
-  if [ -n "$index" ] && ! grep -q '<InstallFrom>' "$tmp"; then
-    if ! sed -i \
-      '0,/<InstallTo>/{ /<InstallTo>/i\
-          <InstallFrom>\
-            <MetaData wcm:action="add">\
-              <Key>/IMAGE/INDEX</Key>\
-              <Value>'"$index"'</Value>\
-            </MetaData>\
-          </InstallFrom>
-      }' "$tmp"; then
-      rm -f "$tmp"
-      error "Failed to select $type image index $index!"
-      return 1
-    fi
-  fi
-
-  if ! markGeneratedXML "$tmp" ||
-    ! xmllint --nonet --noout "$tmp"; then
-    rm -f "$tmp"
-    error "Generated $type answer file is invalid!"
-    return 1
-  fi
-
-  if ! chmod 644 "$tmp" || ! mv -f "$tmp" "$target"; then
-    rm -f "$tmp"
-    error "Failed to create $type answer file: $target"
-    return 1
-  fi
-
-  return 0
-}
-
-generateEvalXML() {
-
-  # Evaluation templates are generated from their normal counterpart so
-  # both variants remain identical except for evaluation-specific selectors.
-
-  local id="$1"
-  local detected_index="${2:-}"
-
-  [[ "${id,,}" == *"-eval" ]] || return 1
-
-  local normal="${id::-5}"
-  local source="/run/assets/$normal.xml"
-  local target="/run/assets/$id.xml"
-  local index="$detected_index"
-  local remove_selector="N"
-
-  removeGeneratedXML "$source" || return 1
-
-  if [ ! -s "$source" ]; then
-    source="/run/assets/${normal%%-*}.xml"
-    removeGeneratedXML "$source" || return 1
-  fi
-
-  [ -s "$source" ] || return 1
-
-  if [ -n "$detected_index" ]; then
-    remove_selector="Y"
-  else
-    # No WIM was inspected, so retain the known defaults for download routes.
-    case "${id,,}" in
-      *"-ltsc-eval" ) index="1" ;;
-      *"-iot-eval" )  index="2" ;;
-    esac
-  fi
-
-  generateAnswerFile \
-    "$id" "$source" "$target" "$index" "evaluation" "$remove_selector" || return 1
-
-  return 0
-}
-
-generateFallbackXML() {
-
-  # Fallback templates are generated from the generic version so unsupported
-  # editions can use the detected WIM index without inheriting a product key.
-
-  local id="$1"
-  local index="${2:-}"
-  local source="/run/assets/${id%%-*}.xml"
-  local target="/run/assets/$id.xml"
-
-  [ "$source" != "$target" ] || return 1
-
-  removeGeneratedXML "$source" || return 1
-  [ -s "$source" ] || return 1
-
-  generateAnswerFile \
-    "$id" "$source" "$target" "$index" "fallback" "Y" || return 1
-
-  return 0
-}
-
-setXML() {
-
-  local file="$1"
-  local index="${2:-}"
-  local target="/run/assets/$DETECTED.xml"
-
-  local custom_files=(
-    "/custom.xml"
-    "$STORAGE/custom.xml"
-    "/run/assets/custom.xml"
-  )
-
-  CUSTOM_XML=""
-
-  removeGeneratedXML "$target" || return 1
-
-  if [ -d "${custom_files[0]}" ]; then
-    error "The bind ${custom_files[0]} maps to a file that does not exist!"
-    exit 67
-  fi
-
-  for file in "${custom_files[@]}"; do
-    if [ -f "$file" ] && [ -s "$file" ]; then
-      CUSTOM_XML="Y"
-      XML="$file"
-      return 0
-    fi
-  done
-
-  file="$1"
-
-  if [[ "${DETECTED,,}" == *"-eval" ]] &&
-    { [ ! -f "$file" ] || [ ! -s "$file" ]; }; then
-
-    generateEvalXML "$DETECTED" "$index" || return 1
-    file="$target"
-
-  elif [ ! -f "$file" ] || [ ! -s "$file" ]; then
-
-    file="$target"
-
-  elif [[ "$file" != "$target" ]]; then
-
-    generateFallbackXML "$DETECTED" "$index" || return 1
-    file="$target"
-
-  fi
-
-  [ -f "$file" ] && [ -s "$file" ] || return 1
-
-  XML="$file"
-  return 0
-}
-
-validateXMLSettings() {
-
-  validateResolution "WIDTH" "$WIDTH" 320 || return 1
-  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
-  validateMembership || return 1
-  validateComputerName "${HOST:-}" || return 1
-  validateProductKey "${KEY:-}" || return 1
-  validatePassword "${PASSWORD:-}" || return 1
-
-  return 0
-}
-
-updateDisplayXML() {
-
-  local asset="$1"
-  local app host
-
-  app=$(escapeXMLSed "$APP for $ENGINE") || return 1
-
-  sed -i "s|>Windows for Docker<|>$app<|g" "$asset" || return 1
-  sed -i -E "s|<VerticalResolution>[^<]*</VerticalResolution>|<VerticalResolution>$HEIGHT</VerticalResolution>|g" "$asset" || return 1
-  sed -i -E "s|<HorizontalResolution>[^<]*</HorizontalResolution>|<HorizontalResolution>$WIDTH</HorizontalResolution>|g" "$asset" || return 1
-
-  [ -n "${HOST:-}" ] || return 0
-
-  host=$(escapeXMLSed "$HOST") || return 1
-  sed -i -E "s|<ComputerName>[^<]*</ComputerName>|<ComputerName>$host</ComputerName>|g" "$asset" || return 1
-
-  return 0
-}
-
-updateLocaleXML() {
-
-  local asset="$1"
-  local language="$2"
-  local culture region keyboard value
-
-  culture=$(getLanguage "$language" "culture") || return 1
-
-  if [ -n "$culture" ] && [[ "${culture,,}" != "en-us" ]]; then
-    value=$(escapeXMLSed "$culture") || return 1
-    sed -i "s|<UILanguage>en-US</UILanguage>|<UILanguage>$value</UILanguage>|g" "$asset" || return 1
-  fi
-
-  region="${REGION:-$culture}"
-
-  if [ -n "$region" ] && [[ "${region,,}" != "en-us" ]]; then
-    value=$(escapeXMLSed "$region") || return 1
-    sed -i "s|<UserLocale>en-US</UserLocale>|<UserLocale>$value</UserLocale>|g" "$asset" || return 1
-    sed -i "s|<SystemLocale>en-US</SystemLocale>|<SystemLocale>$value</SystemLocale>|g" "$asset" || return 1
-  fi
-
-  keyboard="${KEYBOARD:-$culture}"
-
-  if [ -n "$keyboard" ] && [[ "${keyboard,,}" != "en-us" ]]; then
-    value=$(escapeXMLSed "$keyboard") || return 1
-    sed -i "s|<InputLocale>en-US</InputLocale>|<InputLocale>$value</InputLocale>|g" "$asset" || return 1
-    sed -i "s|<InputLocale>0409:00000409</InputLocale>|<InputLocale>$value</InputLocale>|g" "$asset" || return 1
-  fi
-
-  return 0
-}
-
 prepareDomainAccount() {
 
   local domain="$1"
@@ -825,6 +825,57 @@ prepareDomainAccount() {
   if [[ "$PASSWORD" == "admin" ]]; then
     error "The PASSWORD variable must be changed from its default value when joining a domain!"
     return 1
+  fi
+
+  return 0
+}
+
+updateDisplayXML() {
+
+  local asset="$1"
+  local app host
+
+  app=$(escapeXMLSed "$APP for $ENGINE") || return 1
+
+  sed -i "s|>Windows for Docker<|>$app<|g" "$asset" || return 1
+  sed -i -E "s|<VerticalResolution>[^<]*</VerticalResolution>|<VerticalResolution>$HEIGHT</VerticalResolution>|g" "$asset" || return 1
+  sed -i -E "s|<HorizontalResolution>[^<]*</HorizontalResolution>|<HorizontalResolution>$WIDTH</HorizontalResolution>|g" "$asset" || return 1
+
+  [ -n "${HOST:-}" ] || return 0
+
+  host=$(escapeXMLSed "$HOST") || return 1
+  sed -i -E "s|<ComputerName>[^<]*</ComputerName>|<ComputerName>$host</ComputerName>|g" "$asset" || return 1
+
+  return 0
+}
+
+updateLocaleXML() {
+
+  local asset="$1"
+  local language="$2"
+  local culture region keyboard value
+
+  culture=$(getLanguage "$language" "culture") || return 1
+
+  if [ -n "$culture" ] && [[ "${culture,,}" != "en-us" ]]; then
+    value=$(escapeXMLSed "$culture") || return 1
+    sed -i "s|<UILanguage>en-US</UILanguage>|<UILanguage>$value</UILanguage>|g" "$asset" || return 1
+  fi
+
+  region="${REGION:-$culture}"
+
+  if [ -n "$region" ] && [[ "${region,,}" != "en-us" ]]; then
+    value=$(escapeXMLSed "$region") || return 1
+    sed -i "s|<UserLocale>en-US</UserLocale>|<UserLocale>$value</UserLocale>|g" "$asset" || return 1
+    sed -i "s|<SystemLocale>en-US</SystemLocale>|<SystemLocale>$value</SystemLocale>|g" "$asset" || return 1
+  fi
+
+  keyboard="${KEYBOARD:-$culture}"
+
+  if [ -n "$keyboard" ] && [[ "${keyboard,,}" != "en-us" ]]; then
+    value=$(escapeXMLSed "$keyboard") || return 1
+    sed -i "s|<InputLocale>en-US</InputLocale>|<InputLocale>$value</InputLocale>|g" "$asset" || return 1
+    sed -i "s|<InputLocale>0409:00000409</InputLocale>|<InputLocale>$value</InputLocale>|g" "$asset" || return 1
   fi
 
   return 0
@@ -940,6 +991,8 @@ updateProductKeyXML() {
   local asset="$1"
   local key
 
+  return 0 # TODO
+
   [ -n "${KEY:-}" ] || return 0
 
   key=$(escapeXMLSed "$KEY") || return 1
@@ -955,6 +1008,89 @@ updateProductKeyXML() {
   sed -i \
     "s|</UserData>|  <ProductKey>\n          <Key>$key</Key>\n          <WillShowUI>OnError</WillShowUI>\n        </ProductKey>\n      </UserData>|g" \
     "$asset" || return 1
+
+  return 0
+}
+
+updateDiskID() {
+
+  local asset="$1"
+  local disk_type="${2,,}"
+
+  case "$disk_type" in
+    "" | "scsi" | "virtio-scsi" | "blk" | "virtio-blk" ) ;;
+    * ) return 0 ;;
+  esac
+
+  [ -s "$asset" ] || return 1
+
+  # Only adjust files that explicitly target Disk 0.
+  grep -Fq '<DiskID>0</DiskID>' "$asset" || return 0
+
+  # Leave multi-disk configurations untouched.
+  if grep -Eq '<DiskID>[[:space:]]*[1-9][0-9]*[[:space:]]*</DiskID>' "$asset"; then
+    return 0
+  fi
+
+  sed -i 's#<DiskID>0</DiskID>#<DiskID>1</DiskID>#g' "$asset" || return 1
+
+  return 0
+}
+
+getXMLArchitecture() {
+
+  local asset="$1"
+  local arch
+
+  arch=$(sed -n -E \
+    '0,/processorArchitecture="/s/.*processorArchitecture="([^"]+)".*/\1/p' \
+    "$asset") || return 1
+
+  [ -n "$arch" ] || return 1
+
+  printf '%s' "$arch"
+  return 0
+}
+
+setConfigurationXML() {
+
+  local asset="$1"
+  local section
+
+  [ -s "$asset" ] || return 1
+
+  section=$(sed -n -E '
+    /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/ {
+      /<component[^>]*name="Microsoft-Windows-Setup"[^>]*>/,/<\/component>/p
+    }
+  ' "$asset") || return 1
+
+  [ -n "$section" ] || return 1
+
+  if grep -Fq '<UseConfigurationSet>' <<< "$section"; then
+
+    sed -i -E '
+      /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/ {
+        /<component[^>]*name="Microsoft-Windows-Setup"[^>]*>/,/<\/component>/ {
+          s#<UseConfigurationSet>[^<]*</UseConfigurationSet>#<UseConfigurationSet>true</UseConfigurationSet>#g
+        }
+      }
+    ' "$asset" || return 1
+
+    return 0
+  fi
+
+  if ! grep -Fq '<UserData>' <<< "$section"; then
+    return 1
+  fi
+
+  sed -i -E '
+    /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/ {
+      /<component[^>]*name="Microsoft-Windows-Setup"[^>]*>/,/<\/component>/ {
+        s#^([[:space:]]*)<UserData>#\1<UseConfigurationSet>true</UseConfigurationSet>\n\1<UserData>#
+      }
+    }
+  ' "$asset" || return 1
 
   return 0
 }
@@ -985,75 +1121,57 @@ removeSharedFolderXML() {
   return 0
 }
 
-validateGeneratedXML() {
+removeLocalAccountXML() {
 
   local asset="$1"
 
-  if ! xmllint --nonet --noout "$asset"; then
-    error "The generated answer file is not valid XML!"
+  if ! sed -i -E \
+    -e '/^[[:space:]]*<LocalAccounts([[:space:]>])/,/^[[:space:]]*<\/LocalAccounts>[[:space:]]*$/d' \
+    -e '/^[[:space:]]*<AdministratorPassword([[:space:]>])/,/^[[:space:]]*<\/AdministratorPassword>[[:space:]]*$/d' \
+    "$asset"; then
+
+    error "Failed to remove local account configuration from answer file!"
+    return 1
+  fi
+
+  if ! sed -i -E '
+    /<SynchronousCommand([[:space:]>])/ {
+      :command
+      N
+      /<\/SynchronousCommand>/!b command
+      /<Description>Password Never Expires<\/Description>/d
+    }
+  ' "$asset"; then
+
+    error "Failed to remove local account commands from answer file!"
     return 1
   fi
 
   return 0
 }
 
-updateXML() {
+enableLog() {
 
-  local asset="$1"
-  local language="$2"
-  local domain="${DOMAIN:-}"
-  local workgroup="${WORKGROUP:-}"
-  local account=""
-  local auth=""
+  local file="$1"
+  local old='C:\OEM\install.bat"</CommandLine>'
+  local msg="failed to enable install logging in the answer file!"
 
-  [ -z "${WIDTH:-}" ] && WIDTH="1280"
-  [ -z "${HEIGHT:-}" ] && HEIGHT="720"
+  enabled "${LOG:-}" || return 0
+  [ -f "$file" ] || return 1
 
-  validateXMLSettings || return 1
-  updateDisplayXML "$asset" || return 1
-  updateLocaleXML "$asset" "$language" || return 1
-
-  if [ -n "$domain" ]; then
-    prepareDomainAccount "$domain" account auth || return 1
-  else
-    updateLocalAccountXML "$asset" || return 1
+  if ! grep -Fq "$old" "$file"; then
+    enabled "$DEBUG" && warn "$msg"
+    return 0
   fi
 
-  sed -i -E \
-    "s|<PlainText>[^<]*</PlainText>|<PlainText>false</PlainText>|g" \
-    "$asset" || return 1
+  if ! sed -i \
+    's|C:\\OEM\\install\.bat"</CommandLine>|C:\\OEM\\install.bat \&gt; C:\\OEM\\install.log 2\&gt;\&amp;1"</CommandLine>|' \
+    "$file"; then
 
-  updateMembershipXML \
-    "$asset" \
-    "$domain" \
-    "$workgroup" \
-    "$account" \
-    "$auth" || return 1
-
-  updateAutologinXML "$asset" || return 1
-  enableLog "$asset" || return 1
-  updateEditionXML "$asset" || return 1
-  updateProductKeyXML "$asset" || return 1
-  removeSharedFolderXML "$asset" || return 1
-  validateGeneratedXML "$asset" || return 1
+    warn "$msg"
+  fi
 
   return 0
-}
-
-escapeSIFValue() {
-
-  local s="$1"
-
-  s=${s//%/%%}
-  s=${s//\"/\"\"}
-
-  printf '%s' "$s"
-  return 0
-}
-
-escapeRegistryValue() {
-
-  printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
 }
 
 validateLegacyText() {
@@ -1130,7 +1248,36 @@ validateLegacyUsername() {
   return 0
 }
 
-extractLegacyDrivers() {
+escapeXMLSed() {
+
+  local s
+
+  s=$(escapeXML "$1") || return 1
+  s=${s//\\/\\\\}
+  s=${s//&/\\&}
+  s=${s//|/\\|}
+
+  printf '%s' "$s"
+  return 0
+}
+
+escapeSIFValue() {
+
+  local s="$1"
+
+  s=${s//%/%%}
+  s=${s//\"/\"\"}
+
+  printf '%s' "$s"
+  return 0
+}
+
+escapeRegistryValue() {
+
+  printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
+}
+
+extractDrivers() {
 
   local drivers="$1"
 
@@ -1145,7 +1292,7 @@ extractLegacyDrivers() {
   return 0
 }
 
-copyLegacyStorageDriver() {
+copyStorageDriver() {
 
   local dir="$1"
   local target="$2"
@@ -1169,7 +1316,7 @@ copyLegacyStorageDriver() {
   return 0
 }
 
-addLegacyNetworkDriver() {
+addNetworkDriver() {
 
   local dir="$1"
   local driver="$2"
@@ -1190,7 +1337,7 @@ addLegacyNetworkDriver() {
   return 0
 }
 
-patchLegacyStorageDriver() {
+patchStorageDriver() {
 
   local file="$1"
   local arch="$2"
@@ -1205,7 +1352,7 @@ patchLegacyStorageDriver() {
   return 0
 }
 
-addLegacySataDriver() {
+addSataDriver() {
 
   local dir="$1"
   local target="$2"
@@ -1249,9 +1396,9 @@ addLegacyDrivers() {
 
   info "$msg" && html "$msg"
 
-  extractLegacyDrivers "$drivers" || return 1
-  copyLegacyStorageDriver "$dir" "$target" "$driver" "$arch" "$drivers" || return 1
-  addLegacyNetworkDriver "$dir" "$driver" "$arch" "$drivers" || return 1
+  extractDrivers "$drivers" || return 1
+  copyStorageDriver "$dir" "$target" "$driver" "$arch" "$drivers" || return 1
+  addNetworkDriver "$dir" "$driver" "$arch" "$drivers" || return 1
 
   file=$(find "$target" -maxdepth 1 -type f -iname TXTSETUP.SIF -print -quit) || return 1
 
@@ -1260,8 +1407,8 @@ addLegacyDrivers() {
     return 1
   fi
 
-  patchLegacyStorageDriver "$file" "$arch" || return 1
-  addLegacySataDriver "$dir" "$target" "$arch" "$drivers" "$file" || return 1
+  patchStorageDriver "$file" "$arch" || return 1
+  addSataDriver "$dir" "$target" "$arch" "$drivers" "$file" || return 1
 
   rm -rf "$drivers" || return 1
 

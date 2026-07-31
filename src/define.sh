@@ -11,7 +11,6 @@ set -Eeuo pipefail
 : "${EDITION:=""}"
 : "${MANUAL:=""}"
 : "${REMOVE:=""}"
-: "${REBUILD:=""}"
 : "${VERSION:=""}"
 : "${COMMAND:=""}"
 : "${DETECTED:=""}"
@@ -974,6 +973,31 @@ getVersion() {
 
   echo "$id"
   return 0
+}
+
+skipVersion() {
+
+  local id="$1"
+
+  case "${id,,}" in
+    "win9"* | "winxp"* | "win2k"* | "win2003"* | "reactos" )
+      return 0 ;;
+  esac
+
+  return 1
+}
+
+isLegacy() {
+
+  local id="$1"
+
+  case "${id,,}" in
+    "win9"* | "win2k"* | "winxp"* | "win2003"* | \
+    "winvista"* | "win7"* | "win2008"* | "reactos" )
+      return 0 ;;
+  esac
+
+  return 1
 }
 
 switchEdition() {

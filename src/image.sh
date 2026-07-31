@@ -84,29 +84,6 @@ getCompatibleVersions() {
   fi
 }
 
-hasAnswerFile() {
-
-  local id="$1"
-  local file="/run/assets/$id.xml"
-
-  [ -s "$file" ] && return 0
-
-  if [[ "${id,,}" == *"-eval" ]]; then
-    file="/run/assets/${id%-eval}.xml"
-    [ -s "$file" ] && return 0
-  fi
-
-  # Editions without a dedicated template can use the generic template.
-  case "${id,,}" in
-    "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* | "win20"* )
-      file="/run/assets/${id%%-*}.xml"
-      [ -s "$file" ] && return 0
-      ;;
-  esac
-
-  return 1
-}
-
 getVersionPriority() {
 
   local id="${1,,}"
@@ -433,7 +410,7 @@ detectVersion() {
   local -a bases=()
   local -a groups=()
   local -a versions=()
-  local -a edition_order=()
+  local -a selection_order=()
   local -A image_indexes=()
 
   printf -v "$result_name" '%s' ""
@@ -454,7 +431,7 @@ detectVersion() {
       ;;
   esac
 
-  getEditionOrder "${bases[0]}" edition_order || return 1
+  getEditionOrder "${bases[0]}" selection_order || return 1
 
   selectEdition \
     versions \
@@ -465,7 +442,7 @@ detectVersion() {
     "$result_name" \
     "$index_name" \
     "$normalize_name" \
-    edition_order && return 0
+    selection_order && return 0
 
   local result="${versions[0]}"
   local key="${result,,}"
@@ -506,16 +483,228 @@ detectLanguage() {
   return 0
 }
 
-skipVersion() {
+getImageSize() {
+
+  local stage="$1"
+  local folder="${2:-}"
+  local mib=$((1024 * 1024))
+  local minimum=$((64 * mib))
+  local size bytes path
+  local required large_file
+  local payload=0 paths=("$stage")
+
+  if [ ! -d "$stage" ]; then
+    error "Failed to find setup directory: $stage"
+    return 1
+  fi
+
+  [ -n "$folder" ] && paths+=("$folder")
+
+  large_file=$(find -L "${paths[@]}" \
+    -type f \
+    -size +4294967295c \
+    -print \
+    -quit) || return 1
+
+  if [ -n "$large_file" ]; then
+    error "Setup file exceeds the FAT32 limit: $large_file"
+    return 1
+  fi
+
+  for path in "${paths[@]}"; do
+    if ! read -r bytes _ < <(
+      du -Llsb --apparent-size -- "$path"
+    ); then
+      error "Failed to calculate setup size!"
+      return 1
+    fi
+
+    payload=$((payload + bytes))
+  done
+
+  required=$((payload + ((payload + 3) / 4) + (32 * mib)))
+  size="$minimum"
+
+  while ((size < required)); do
+    size=$((size * 2))
+  done
+
+  printf '%s\n' "$size"
+}
+
+bootDirect() {
 
   local id="$1"
 
   case "${id,,}" in
-    "win9"* | "winxp"* | "win2k"* | "win2003"* | "reactos" )
-      return 0 ;;
+    "reactos" ) return 0 ;;
   esac
 
   return 1
+}
+
+canUseSetupImage() {
+
+  local id="$1"
+  local iso="$2"
+
+  case "${id,,}" in
+    "win9"* | "winxp"* | "win2k"* | "win2003"* | "reactos" )
+      return 1 ;;
+  esac
+
+  [[ "${iso,,}" != *".esd" ]] &&
+    ! enabled "${UNPACK:-}"
+}
+
+createImageDirectory() {
+
+  local image="$1"
+  local directory="$2"
+
+  if mdir -i "$image" "$directory" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  mmd -i "$image" "$directory" >/dev/null
+}
+
+createSetupImage() {
+
+  local stage="$1"
+  local image="$2"
+  local tmp="${image}.tmp"
+  local target="::/\$OEM\$/\$1/OEM"
+  local install="$stage/.overlay-install.bat"
+  local folder size sectors entry find_pid
+  local entries=()
+
+  folder=$(getOemFolder) || return 1
+
+  if ! size=$(getImageSize "$stage" "$folder"); then
+    return 1
+  fi
+
+  sectors=$((size / 512))
+
+  local msg="Writing overlay image..."
+  info "$msg" && html "$msg"
+
+  rm -f -- "$tmp" || return 1
+
+  if ! mformat \
+    -i "$tmp" \
+    -C \
+    -F \
+    -T "$sectors" \
+    -v "SETUP" \
+    ::; then
+    rm -f -- "$tmp"
+    error "Failed to format setup image!"
+    return 1
+  fi
+
+  mapfile -d '' entries < <(
+    find "$stage" \
+      -mindepth 1 \
+      -maxdepth 1 \
+      ! -name '.overlay-install.bat' \
+      -print0
+  )
+
+  find_pid=$!
+
+  if ! wait "$find_pid"; then
+    rm -f -- "$tmp"
+    error "Failed to enumerate image files!"
+    return 1
+  fi
+
+  for entry in "${entries[@]}"; do
+    if ! mcopy -Q -s -i "$tmp" "$entry" ::; then
+      rm -f -- "$tmp"
+      error "Failed to copy image file: $entry"
+      return 1
+    fi
+  done
+
+  if [ -n "$folder" ] || [ -f "$install" ]; then
+    if ! createImageDirectory "$tmp" "::/\$OEM\$" ||
+      ! createImageDirectory "$tmp" "::/\$OEM\$/\$1" ||
+      ! createImageDirectory "$tmp" "$target"; then
+      rm -f -- "$tmp"
+      error "Failed to create OEM directory in setup image!"
+      return 1
+    fi
+  fi
+
+  if [ -n "$folder" ]; then
+
+    mapfile -d '' entries < <(
+      find "$folder" -mindepth 1 -maxdepth 1 -print0
+    )
+
+    find_pid=$!
+
+    if ! wait "$find_pid"; then
+      rm -f -- "$tmp"
+      error "Failed to enumerate OEM files!"
+      return 1
+    fi
+
+    for entry in "${entries[@]}"; do
+      if ! mcopy -Q -s -o -i "$tmp" "$entry" "$target"; then
+        rm -f -- "$tmp"
+        error "Failed to copy OEM file: $entry"
+        return 1
+      fi
+    done
+
+  fi
+
+  if [ -f "$install" ]; then
+    if ! mcopy -Q -o -i "$tmp" "$install" "$target/install.bat"; then
+      rm -f -- "$tmp"
+      error "Failed to replace install.bat in setup image!"
+      return 1
+    fi
+  fi
+
+  if ! mdir -i "$tmp" :: >/dev/null; then
+    rm -f -- "$tmp"
+    error "Failed to verify image!"
+    return 1
+  fi
+
+  if ! enabled "$MANUAL"; then
+
+    local answer="$stage/Autounattend.xml"
+
+    if [ ! -f "$answer" ] || [ ! -s "$answer" ]; then
+      rm -f -- "$tmp"
+      error "Failed to find staged answer file: $answer"
+      return 1
+    fi
+
+    if ! mtype -i "$tmp" ::/Autounattend.xml | cmp -s - "$answer"; then
+      rm -f -- "$tmp"
+      error "Failed to verify staged answer file!"
+      return 1
+    fi
+
+  fi
+
+  if ! mv -f -- "$tmp" "$image"; then
+    rm -f -- "$tmp"
+    error "Failed to save setup image: $image"
+    return 1
+  fi
+
+  if ! setOwner "$image"; then
+    warn "Failed to set the owner for \"$image\" !"
+  fi
+
+  return 0
 }
 
 detectLegacy() {
@@ -655,10 +844,18 @@ resolveImage() {
 
   local version="$1"
 
+  XML=""
+  FB="falling back to manual installation!"
+
   [ -z "$DETECTED" ] || return 0
-  [ -z "$CUSTOM" ] || return 1
   [ -z "${REUSED_ISO:-}" ] || return 1
   [[ "${version,,}" != "http"* ]] || return 1
+
+  if [ -n "$CUSTOM" ]; then
+    bootDirect "$version" || return 1
+    DETECTED="$version"
+    return 0
+  fi
 
   local file="/run/assets/$version.xml"
 
@@ -836,15 +1033,7 @@ configureImage() {
 detectImage() {
 
   local dir="$1"
-  local version="$2"
   local desc
-
-  XML=""
-
-  if resolveImage "$version"; then
-    setImage || return 1
-    return 0
-  fi
 
   info "Detecting version from ISO image..."
 
@@ -1114,90 +1303,19 @@ extractBootImage() {
   local iso="$1"
   local dir="$2"
   local desc="$3"
-
-  local tmp="$TMP/boot-images"
-  local rc size offset image=""
-  local msg="using legacy extraction..."
-  local expected_size=$((BOOT_LOAD_SIZE * 512))
-  local max_extract_size=$((64 * 1024 * 1024))
-  local boot_info
-  local -a images=()
+  local offset info
 
   ETFS="boot.img"
+
   [ -s "$dir/$ETFS" ] && return 0
-
   rm -f "$dir/$ETFS" || return 1
-  rm -rf "$tmp" || return 1
 
-  if command -v prlimit >/dev/null 2>&1; then
-    LC_ALL=C prlimit \
-      "--fsize=$max_extract_size:$max_extract_size" \
-      xorriso \
-        -no_rc \
-        -osirrox on \
-        -indev "$iso" \
-        -extract_boot_images "$tmp" >/dev/null 2>&1
-    rc=$?
-
-    if (( rc == 0 )); then
-      mapfile -t images < <(
-        find "$tmp" \
-          -maxdepth 1 \
-          -type f \
-          -name 'eltorito_img*_bios.img' \
-          -print
-      )
-
-      if (( ${#images[@]} == 1 )); then
-        image="${images[0]}"
-
-        if [ ! -s "$image" ]; then
-          warn "The extracted BIOS boot image is empty, $msg"
-        elif ! size=$(stat -c%s "$image"); then
-          warn "Failed to determine the BIOS boot image size, $msg"
-        elif (( size != expected_size )); then
-          info "The extracted BIOS boot image has an unexpected size, $msg"
-        else
-          if ! mv -f "$image" "$dir/$ETFS"; then
-            rm -rf "$tmp" || true
-            error "Failed to save boot image from $desc ISO!"
-            return 1
-          fi
-
-          rm -rf "$tmp" || return 1
-          return 0
-        fi
-
-      elif (( ${#images[@]} > 1 )); then
-        warn "Multiple BIOS boot images were found, $msg"
-      else
-        warn "No BIOS boot image was found, $msg"
-      fi
-
-    elif (( rc == 153 )); then
-      info "The extracted BIOS boot image exceeded the size limit, $msg"
-
-    else
-      if (( rc > 128 )); then
-        rm -rf "$tmp" || true
-        exit "$rc"
-      fi
-
-      warn "Failed to extract the BIOS boot image, $msg"
-    fi
-
-  else
-    warn "The prlimit utility is unavailable, $msg"
-  fi
-
-  rm -rf "$tmp" || true
-
-  if ! boot_info=$(isoinfo -d -i "$iso"); then
+  if ! info=$(isoinfo -d -i "$iso"); then
     error "Failed to read boot image information from $desc ISO!"
     return 1
   fi
 
-  offset=$(awk '/Bootoff / { print $NF; exit }' <<< "$boot_info")
+  offset=$(awk '/Bootoff / { print $NF; exit }' <<< "$info")
 
   if [ -z "$offset" ]; then
     error "Failed to determine boot image offset from $desc ISO!"
@@ -1216,6 +1334,7 @@ extractBootImage() {
       "count=$BOOT_LOAD_SIZE" \
       "skip=$((offset * 4))" \
       status=none; then
+
     rm -f "$dir/$ETFS" || true
     error "Failed to extract boot image from $desc ISO!"
     return 1
