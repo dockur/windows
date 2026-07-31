@@ -486,16 +486,21 @@ detectLanguage() {
 getImageSize() {
 
   local stage="$1"
+  local folder="${2:-}"
   local mib=$((1024 * 1024))
   local minimum=$((64 * mib))
-  local payload required size large_file
+  local size bytes path
+  local required large_file
+  local payload=0 paths=("$stage")
 
   if [ ! -d "$stage" ]; then
     error "Failed to find setup directory: $stage"
     return 1
   fi
 
-  large_file=$(find "$stage" \
+  [ -n "$folder" ] && paths+=("$folder")
+
+  large_file=$(find -L "${paths[@]}" \
     -type f \
     -size +4294967295c \
     -print \
@@ -506,12 +511,16 @@ getImageSize() {
     return 1
   fi
 
-  if ! read -r payload _ < <(
-    du -sb --apparent-size -- "$stage"
-  ); then
-    error "Failed to calculate setup size!"
-    return 1
-  fi
+  for path in "${paths[@]}"; do
+    if ! read -r bytes _ < <(
+      du -Llsb --apparent-size -- "$path"
+    ); then
+      error "Failed to calculate setup size!"
+      return 1
+    fi
+
+    payload=$((payload + bytes))
+  done
 
   required=$((payload + ((payload + 3) / 4) + (32 * mib)))
   size="$minimum"
@@ -548,21 +557,37 @@ canUseSetupImage() {
     ! enabled "${UNPACK:-}"
 }
 
+createImageDirectory() {
+
+  local image="$1"
+  local directory="$2"
+
+  if mdir -i "$image" "$directory" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  mmd -i "$image" "$directory" >/dev/null
+}
+
 createSetupImage() {
 
   local stage="$1"
   local image="$2"
   local tmp="${image}.tmp"
-  local size sectors entry find_pid
+  local target="::/\$OEM\$/\$1/OEM"
+  local install="$stage/.overlay-install.bat"
+  local folder size sectors entry find_pid
   local entries=()
 
-  if ! size=$(getImageSize "$stage"); then
+  folder=$(getOemFolder) || return 1
+
+  if ! size=$(getImageSize "$stage" "$folder"); then
     return 1
   fi
 
   sectors=$((size / 512))
 
-  local msg="Creating image for setup files..."
+  local msg="Writing overlay image..."
   info "$msg" && html "$msg"
 
   rm -f -- "$tmp" || return 1
@@ -580,28 +605,74 @@ createSetupImage() {
   fi
 
   mapfile -d '' entries < <(
-    find "$stage" -mindepth 1 -maxdepth 1 -print0
+    find "$stage" \
+      -mindepth 1 \
+      -maxdepth 1 \
+      ! -name '.overlay-install.bat' \
+      -print0
   )
 
   find_pid=$!
 
   if ! wait "$find_pid"; then
     rm -f -- "$tmp"
-    error "Failed to enumerate setup files!"
+    error "Failed to enumerate image files!"
     return 1
   fi
 
   for entry in "${entries[@]}"; do
     if ! mcopy -Q -s -i "$tmp" "$entry" ::; then
       rm -f -- "$tmp"
-      error "Failed to copy setup file: $entry"
+      error "Failed to copy image file: $entry"
       return 1
     fi
   done
 
+  if [ -n "$folder" ] || [ -f "$install" ]; then
+    if ! createImageDirectory "$tmp" "::/\$OEM\$" ||
+      ! createImageDirectory "$tmp" "::/\$OEM\$/\$1" ||
+      ! createImageDirectory "$tmp" "$target"; then
+      rm -f -- "$tmp"
+      error "Failed to create OEM directory in setup image!"
+      return 1
+    fi
+  fi
+
+  if [ -n "$folder" ]; then
+
+    mapfile -d '' entries < <(
+      find "$folder" -mindepth 1 -maxdepth 1 -print0
+    )
+
+    find_pid=$!
+
+    if ! wait "$find_pid"; then
+      rm -f -- "$tmp"
+      error "Failed to enumerate OEM files!"
+      return 1
+    fi
+
+    for entry in "${entries[@]}"; do
+      if ! mcopy -Q -s -o -i "$tmp" "$entry" "$target"; then
+        rm -f -- "$tmp"
+        error "Failed to copy OEM file: $entry"
+        return 1
+      fi
+    done
+
+  fi
+
+  if [ -f "$install" ]; then
+    if ! mcopy -Q -o -i "$tmp" "$install" "$target/install.bat"; then
+      rm -f -- "$tmp"
+      error "Failed to replace install.bat in setup image!"
+      return 1
+    fi
+  fi
+
   if ! mdir -i "$tmp" :: >/dev/null; then
     rm -f -- "$tmp"
-    error "Failed to verify setup image!"
+    error "Failed to verify image!"
     return 1
   fi
 
