@@ -337,20 +337,64 @@ jobs:
                           -Raw
                   ).Trim()
 
+                  $shareTest = "\\host.lan\Data\validation-write-$Token.tmp"
+                  $shareValue = "write-test-$Token"
+                  $encoding = New-Object System.Text.UTF8Encoding($false)
+
+                  try {
+                      [System.IO.File]::WriteAllText(
+                          $shareTest,
+                          $shareValue,
+                          $encoding
+                      )
+
+                      if (
+                          [System.IO.File]::ReadAllText($shareTest) -ne
+                          $shareValue
+                      ) {
+                          throw "Shared-folder readback verification failed."
+                      }
+                  }
+                  finally {
+                      if (Test-Path -LiteralPath $shareTest) {
+                          Remove-Item -LiteralPath $shareTest -Force
+                      }
+                  }
+
+                  $addresses = [System.Net.Dns]::GetHostAddresses(
+                      "www.msftconnecttest.com"
+                  )
+
+                  if ($addresses.Count -eq 0) {
+                      throw "Internet DNS lookup returned no addresses."
+                  }
+
+                  $internet = (
+                      Invoke-WebRequest `
+                          -Uri "http://www.msftconnecttest.com/connecttest.txt" `
+                          -UseBasicParsing `
+                          -TimeoutSec 30
+                  ).Content.Trim()
+
+                  if ($internet -ne "Microsoft Connect Test") {
+                      throw "Internet HTTP test returned unexpected content."
+                  }
+
                   $result = @{
-                      token    = $Token
-                      caption  = [string]$windows.Caption
-                      edition  = [string]$registry.EditionID
-                      version  = [string]$windows.Version
-                      build    = [string]$windows.BuildNumber
-                      platform = $platform
-                      share    = $share
+                      token       = $Token
+                      caption     = [string]$windows.Caption
+                      edition     = [string]$registry.EditionID
+                      version     = [string]$windows.Version
+                      build       = [string]$windows.BuildNumber
+                      platform    = $platform
+                      share       = $share
+                      share_write = "ok"
+                      internet    = "ok"
                   }
 
                   $json = $result | ConvertTo-Json -Compress
                   $temporary = "\\host.lan\Data\windows.tmp"
                   $destination = "\\host.lan\Data\windows.json"
-                  $encoding = New-Object System.Text.UTF8Encoding($false)
 
                   [System.IO.File]::WriteAllText(
                       $temporary,
@@ -462,6 +506,57 @@ jobs:
             ReadTextFile = value
           End Function
 
+          Function TestSharedFolder(filesystem, token)
+            Dim path
+            Dim expected
+            Dim file
+            Dim actual
+
+            path = "\\host.lan\Data\validation-write-" & token & ".tmp"
+            expected = "write-test-" & token
+
+            Set file = filesystem.CreateTextFile(path, True)
+            file.Write expected
+            file.Close
+
+            Set file = filesystem.OpenTextFile(path, ForReading, False)
+            actual = file.ReadAll
+            file.Close
+
+            If actual <> expected Then
+              Err.Raise vbObjectError + 1, "TestSharedFolder", _
+                "Shared-folder readback verification failed."
+            End If
+
+            filesystem.DeleteFile path, True
+            TestSharedFolder = "ok"
+          End Function
+
+          Function TestInternet()
+            Dim request
+            Dim response
+
+            Set request = CreateObject("WinHttp.WinHttpRequest.5.1")
+            request.SetTimeouts 30000, 30000, 30000, 30000
+            request.Open "GET", "http://www.msftncsi.com/ncsi.txt", False
+            request.Send
+
+            If request.Status <> 200 Then
+              Err.Raise vbObjectError + 2, "TestInternet", _
+                "Internet HTTP test returned status " & CStr(request.Status) & "."
+            End If
+
+            response = Replace(request.ResponseText, vbCr, "")
+            response = Replace(response, vbLf, "")
+
+            If response <> "Microsoft NCSI" Then
+              Err.Raise vbObjectError + 3, "TestInternet", _
+                "Internet HTTP test returned unexpected content."
+            End If
+
+            TestInternet = "ok"
+          End Function
+
           Function GetPlatform(shell)
             Dim architecture
 
@@ -492,6 +587,8 @@ jobs:
           Dim build
           Dim platform
           Dim share
+          Dim shareWrite
+          Dim internet
 
           Dim json
           Dim temporary
@@ -531,6 +628,8 @@ jobs:
               edition = ReadRegistry(shell, "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\EditionID")
               platform = GetPlatform(shell)
               share = ReadTextFile(filesystem, "\\host.lan\Data\validation.token")
+              shareWrite = TestSharedFolder(filesystem, token)
+              internet = TestInternet()
             End If
 
             If Err.Number = 0 Then
@@ -542,7 +641,9 @@ jobs:
                 """version"":""" & EscapeJson(version) & """," & _
                 """build"":""" & EscapeJson(build) & """," & _
                 """platform"":""" & EscapeJson(platform) & """," & _
-                """share"":""" & EscapeJson(share) & """" & _
+                """share"":""" & EscapeJson(share) & """," & _
+                """share_write"":""" & EscapeJson(shareWrite) & """," & _
+                """internet"":""" & EscapeJson(internet) & """" & _
                 "}"
 
               Set file = filesystem.OpenTextFile(temporary, ForWriting, True)
@@ -976,6 +1077,8 @@ jobs:
               build="$(jq -r '.build // empty' <<< "$response")"
               platform="$(jq -r '.platform // empty' <<< "$response")"
               share="$(jq -r '.share // empty' <<< "$response")"
+              share_write="$(jq -r '.share_write // empty' <<< "$response")"
+              internet="$(jq -r '.internet // empty' <<< "$response")"
 
               if [[ "$token" != "$EXPECTED_TOKEN" ]]; then
                 echo "The response token does not match."
@@ -988,6 +1091,16 @@ jobs:
                 echo "  $EXPECTED_TOKEN"
                 echo "Received:"
                 echo "  ${share:-empty}"
+                exit 1
+              fi
+
+              if [[ "$share_write" != "ok" ]]; then
+                echo "The shared folder write test did not succeed."
+                exit 1
+              fi
+
+              if [[ "$internet" != "ok" ]]; then
+                echo "The guest internet connection test did not succeed."
                 exit 1
               fi
 
@@ -1041,7 +1154,8 @@ jobs:
               echo "Version: $version"
               echo "Build: $build"
               echo "Platform: $platform"
-              echo "Shared file: accessible"
+              echo "Shared folder: readable and writable"
+              echo "Internet connection: accessible"
               exit 0
             fi
 
