@@ -870,7 +870,7 @@ verifyFile() {
   local hash
 
   [ -z "$check" ] && return 0
-  enabled "$VERIFY" || return 0
+  ! enabled "$VERIFY" && return 0
   [[ "${#check}" == "40" ]] && algo="SHA1"
 
   local msg="Verifying downloaded ISO..."
