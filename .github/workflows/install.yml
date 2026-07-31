@@ -279,7 +279,7 @@ jobs:
           Set systems = service.ExecQuery("SELECT * FROM Win32_OperatingSystem")
 
           For Each system In systems
-            system.Win32Shutdown 5
+            system.Win32Shutdown 12
           Next
           VBSCRIPT
 
@@ -294,6 +294,7 @@ jobs:
           Dim service
           Dim systems
           Dim system
+          Dim result
 
           WScript.Sleep 180000
 
@@ -312,15 +313,23 @@ jobs:
           Set file = filesystem.CreateTextFile("C:\OEM\install.done", True)
           file.Close
 
-          Set shell = CreateObject("WScript.Shell")
-          shell.Run "shutdown.exe -s -f -t 0", 0, False
+          result = 1
 
           Set service = GetObject("winmgmts:{impersonationLevel=impersonate,(Shutdown)}!\\.\root\cimv2")
           Set systems = service.ExecQuery("SELECT * FROM Win32_OperatingSystem")
 
-          For Each system In systems
-            system.Win32Shutdown 5
-          Next
+          If Err.Number = 0 Then
+            For Each system In systems
+              result = system.Win32Shutdown(12)
+              Exit For
+            Next
+          End If
+
+          If Err.Number <> 0 Or result <> 0 Then
+            Err.Clear
+            Set shell = CreateObject("WScript.Shell")
+            shell.Run "shutdown.exe -s -f -t 0", 0, False
+          End If
           VBSCRIPT
 
           case "$CALLBACK" in
