@@ -247,6 +247,7 @@ jobs:
             "$RUNNER_TEMP/storage"
 
           printf '%s\n' "$token" > "$RUNNER_TEMP/data/validation.token"
+          printf '%s\n' "$token" > "$RUNNER_TEMP/oem/validation.token"
 
           cat > "$RUNNER_TEMP/oem/sync-log.bat" <<'BATCH'
           @echo off
@@ -337,6 +338,12 @@ jobs:
                           -Raw
                   ).Trim()
 
+                  $oemFile = (
+                      Get-Content `
+                          -LiteralPath "C:\OEM\validation.token" `
+                          -Raw
+                  ).Trim()
+
                   $shareTest = "\\host.lan\Data\validation-write-$Token.tmp"
                   $shareValue = "write-test-$Token"
                   $encoding = New-Object System.Text.UTF8Encoding($false)
@@ -387,6 +394,7 @@ jobs:
                       version     = [string]$windows.Version
                       build       = [string]$windows.BuildNumber
                       platform    = $platform
+                      oem_file    = $oemFile
                       share       = $share
                       share_write = "ok"
                       internet    = "ok"
@@ -422,9 +430,8 @@ jobs:
           start "" /B cmd.exe /C C:\OEM\sync-log.bat
           start "" /B cscript.exe //B //NoLogo C:\OEM\watchdog.vbs
 
-          powershell.exe -NoProfile -ExecutionPolicy Bypass ^
-            -File C:\OEM\ready.ps1 ^
-            -Token "$token"
+          rem Deliberately fail to validate COM1 error reporting.
+          cmd.exe /C exit 1
 
           set "result=%errorlevel%"
 
@@ -586,6 +593,7 @@ jobs:
           Dim version
           Dim build
           Dim platform
+          Dim oemFile
           Dim share
           Dim shareWrite
           Dim internet
@@ -627,6 +635,7 @@ jobs:
             If Err.Number = 0 Then
               edition = ReadRegistry(shell, "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\EditionID")
               platform = GetPlatform(shell)
+              oemFile = ReadTextFile(filesystem, "C:\OEM\validation.token")
               share = ReadTextFile(filesystem, "\\host.lan\Data\validation.token")
               shareWrite = TestSharedFolder(filesystem, token)
               internet = TestInternet()
@@ -641,6 +650,7 @@ jobs:
                 """version"":""" & EscapeJson(version) & """," & _
                 """build"":""" & EscapeJson(build) & """," & _
                 """platform"":""" & EscapeJson(platform) & """," & _
+                """oem_file"":""" & EscapeJson(oemFile) & """," & _
                 """share"":""" & EscapeJson(share) & """," & _
                 """share_write"":""" & EscapeJson(shareWrite) & """," & _
                 """internet"":""" & EscapeJson(internet) & """" & _
@@ -687,7 +697,8 @@ jobs:
           start "" /B cmd.exe /C C:\OEM\sync-log.bat
           start "" /B cscript.exe //B //NoLogo C:\OEM\watchdog.vbs
 
-          cscript.exe //B //NoLogo C:\OEM\ready.vbs "$token"
+          rem Deliberately fail to validate COM1 error reporting.
+          cmd.exe /C exit 1
 
           set "result=%errorlevel%"
 
@@ -1076,12 +1087,22 @@ jobs:
               version="$(jq -r '.version // empty' <<< "$response")"
               build="$(jq -r '.build // empty' <<< "$response")"
               platform="$(jq -r '.platform // empty' <<< "$response")"
+              oem_file="$(jq -r '.oem_file // empty' <<< "$response")"
               share="$(jq -r '.share // empty' <<< "$response")"
               share_write="$(jq -r '.share_write // empty' <<< "$response")"
               internet="$(jq -r '.internet // empty' <<< "$response")"
 
               if [[ "$token" != "$EXPECTED_TOKEN" ]]; then
                 echo "The response token does not match."
+                exit 1
+              fi
+
+              if [[ "$oem_file" != "$EXPECTED_TOKEN" ]]; then
+                echo "Failed to read C:\\OEM\\validation.token."
+                echo "Expected contents:"
+                echo "  $EXPECTED_TOKEN"
+                echo "Received:"
+                echo "  ${oem_file:-empty}"
                 exit 1
               fi
 
@@ -1154,6 +1175,7 @@ jobs:
               echo "Version: $version"
               echo "Build: $build"
               echo "Platform: $platform"
+              echo "OEM files: copied successfully"
               echo "Shared folder: readable and writable"
               echo "Internet connection: accessible"
               exit 0
