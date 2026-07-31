@@ -65,11 +65,6 @@ stageAnswer() {
     return 1
   fi
 
-  if ! setDriverPathsXML "$answer"; then
-    error "Failed to configure the Windows driver paths!"
-    return 1
-  fi
-
   validateGeneratedXML "$answer" || return 1
 
   return 0
@@ -1048,99 +1043,6 @@ getXMLArchitecture() {
   [ -n "$arch" ] || return 1
 
   printf '%s' "$arch"
-  return 0
-}
-
-setDriverPathsXML() {
-
-  local asset="$1"
-  local arch tmp result
-
-  [ -s "$asset" ] || return 1
-  arch=$(getXMLArchitecture "$asset") || return 1
-
-  tmp=$(mktemp -d) || return 1
-  result="$tmp/answer.xml"
-
-  if ! ARCH_XML="$arch" awk '
-      function winpe_component() {
-        print "    <component name=\"Microsoft-Windows-PnpCustomizationsWinPE\" processorArchitecture=\"" ENVIRON["ARCH_XML"] "\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">"
-        print "      <DriverPaths>"
-        print "        <PathAndCredentials wcm:action=\"add\" wcm:keyValue=\"1\">"
-        print "          <Path>%configsetroot%\\Drivers</Path>"
-        print "        </PathAndCredentials>"
-        print "      </DriverPaths>"
-        print "    </component>"
-      }
-
-      function offline_component() {
-        print "    <component name=\"Microsoft-Windows-PnpCustomizationsNonWinPE\" processorArchitecture=\"" ENVIRON["ARCH_XML"] "\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">"
-        print "      <DriverPaths>"
-        print "        <PathAndCredentials wcm:action=\"add\" wcm:keyValue=\"1\">"
-        print "          <Path>%configsetroot%\\Drivers</Path>"
-        print "        </PathAndCredentials>"
-        print "      </DriverPaths>"
-        print "    </component>"
-      }
-
-      /<settings[^>]*pass="windowsPE"[^>]*>/ {
-        section = "windowsPE"
-        found_windowspe = 1
-      }
-
-      /<settings[^>]*pass="offlineServicing"[^>]*>/ {
-        section = "offlineServicing"
-        found_offline = 1
-      }
-
-      section == "windowsPE" &&
-        /name="Microsoft-Windows-PnpCustomizationsWinPE"/ {
-        has_winpe = 1
-      }
-
-      section == "offlineServicing" &&
-        /name="Microsoft-Windows-PnpCustomizationsNonWinPE"/ {
-        has_offline = 1
-      }
-
-      /^[[:space:]]*<settings[^>]*pass="specialize"[^>]*>/ && !found_offline {
-        print "  <settings pass=\"offlineServicing\">"
-        offline_component()
-        print "  </settings>"
-        found_offline = 1
-        added_offline = 1
-      }
-
-      section == "windowsPE" && /^[[:space:]]*<\/settings>[[:space:]]*$/ && !has_winpe {
-        winpe_component()
-        added_winpe = 1
-      }
-
-      section == "offlineServicing" && /^[[:space:]]*<\/settings>[[:space:]]*$/ && !has_offline {
-        offline_component()
-        added_offline = 1
-      }
-
-      { print }
-
-      /^[[:space:]]*<\/settings>[[:space:]]*$/ {
-        section = ""
-      }
-
-      END {
-        if (!found_windowspe || (!has_winpe && !added_winpe) ||
-            (!has_offline && !added_offline)) {
-          exit 1
-        }
-      }
-    ' "$asset" > "$result" ||
-    ! mv -f "$result" "$asset"; then
-
-    rm -rf "$tmp" || true
-    return 1
-  fi
-
-  rm -rf "$tmp" || return 1
   return 0
 }
 
