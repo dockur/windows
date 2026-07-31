@@ -121,7 +121,7 @@
         <Manufacturer>Dockur</Manufacturer>
         <Model>Windows for Docker</Model>
         <SupportHours>24/7</SupportHours>
-        <SupportPhone />
+        <SupportPhone/>
         <SupportProvider>Dockur</SupportProvider>
         <SupportURL>https://github.com/dockur/windows/issues</SupportURL>
       </OEMInformation>
@@ -164,13 +164,138 @@
         </RunSynchronousCommand>
         <RunSynchronousCommand wcm:action="add">
           <Order>2</Order>
-          <Path>cmd.exe /c start "" /b /wait pnputil -i -a "C:\Windows\Drivers\viogpudo\viogpudo.inf"</Path>
-          <Description>Install VirtIO display driver</Description>
+          <Path>cmd.exe /d /c &gt;C:\SetupComplete.cmd echo @echo off</Path>
+          <Description>Initialize SetupComplete script</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>3</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo setlocal</Path>
+          <Description>Initialize local environment</Description>
         </RunSynchronousCommand>
         <RunSynchronousCommand wcm:action="add">
           <Order>4</Order>
-          <Path>cmd.exe /c start "" /b /wait "C:\Windows\Drivers\Balloon\blnsvr.exe" -i</Path>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo if exist "C:\Windows\Setup\Scripts\setup.complete" exit /b 0</Path>
+          <Description>Skip completed machine setup</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>5</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo type nul ^&gt; "C:\Windows\Setup\Scripts\setup.started"</Path>
+          <Description>Mark machine setup as started</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>6</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo reg.exe add "HKLM\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" /v "AllowInsecureGuestAuth" /t REG_DWORD /d 1 /f</Path>
+          <Description>Allow guest access to network shares</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>7</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo reg.exe add "HKLM\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" /v "RequireSecuritySignature" /t REG_DWORD /d 0 /f</Path>
+          <Description>Disable SMB signing requirement</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>8</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device" /v "DevicePasswordLessBuildVersion" /t REG_DWORD /d 0 /f</Path>
+          <Description>Enable option for passwordless sign-in</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>9</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo POWERCFG -H OFF</Path>
+          <Description>Disable hibernation</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>10</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo POWERCFG -X -monitor-timeout-ac 0</Path>
+          <Description>Disable monitor blanking</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>11</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v "HideFirstRunExperience" /t REG_DWORD /d 1 /f</Path>
+          <Description>Disable first-run experience in Edge</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>12</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Power" /v "HibernateFileSizePercent" /t REG_DWORD /d 0 /f</Path>
+          <Description>Zero hibernation file</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>13</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Power" /v "HibernateEnabled" /t REG_DWORD /d 0 /f</Path>
+          <Description>Disable hibernation in registry</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>14</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo POWERCFG -X -standby-timeout-ac 0</Path>
+          <Description>Disable sleep</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>15</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services" /v "fAllowUnlistedRemotePrograms" /t REG_DWORD /d 1 /f</Path>
+          <Description>Enable RemoteApp to launch unlisted programs</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>16</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Terminal Server\TSAppAllowList" /v "fDisabledAllowList" /t REG_DWORD /d 1 /f</Path>
+          <Description>Disable RemoteApp allowlist</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>17</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v "NoAutoUpdate" /t REG_DWORD /d 1 /f</Path>
+          <Description>Turn off Windows Update auto download</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>18</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo netsh advfirewall firewall set rule group="@FirewallAPI.dll,-32752" new enable=Yes</Path>
+          <Description>Enable Network Discovery</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>19</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo netsh advfirewall firewall set rule group="@FirewallAPI.dll,-28502" new enable=Yes</Path>
+          <Description>Enable File Sharing</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>20</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo rd /q C:\Windows.old</Path>
+          <Description>Remove empty Windows.old folder</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>21</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo sc.exe query BalloonService ^&gt;nul 2^&gt;^&amp;1</Path>
+          <Description>Check VirtIO Balloon service</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>22</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo if errorlevel 1 "C:\Windows\Drivers\Balloon\blnsvr.exe" -i</Path>
           <Description>Install VirtIO Balloon service</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>23</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo pnputil.exe -i -a "C:\Windows\Drivers\viogpudo\viogpudo.inf"</Path>
+          <Description>Install VirtIO display driver</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>24</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo rem PRODUCT_KEY_PLACEHOLDER</Path>
+          <Description>Reserve product key installation</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>25</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo type nul ^&gt; "C:\Windows\Setup\Scripts\setup.complete"</Path>
+          <Description>Mark machine setup as complete</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>26</Order>
+          <Path>cmd.exe /d /c &gt;&gt;C:\SetupComplete.cmd echo exit /b 0</Path>
+          <Description>Finish SetupComplete script</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>27</Order>
+          <Path>cmd.exe /d /c if not exist "C:\Windows\Setup\Scripts" mkdir "C:\Windows\Setup\Scripts"</Path>
+          <Description>Create Windows setup scripts directory</Description>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>28</Order>
+          <Path>cmd.exe /d /c move /y C:\SetupComplete.cmd "C:\Windows\Setup\Scripts\SetupComplete.cmd"</Path>
+          <Description>Install SetupComplete script</Description>
         </RunSynchronousCommand>
       </RunSynchronous>
     </component>
@@ -250,121 +375,51 @@
       <FirstLogonCommands>
         <SynchronousCommand wcm:action="add">
           <Order>1</Order>
-          <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" /v "AllowInsecureGuestAuth" /t REG_DWORD /d 1 /f</CommandLine>
-          <Description>Allow guest access to network shares</Description>
+          <CommandLine>cmd.exe /d /c if not exist "%WINDIR%\Setup\Scripts\setup.complete" call "%WINDIR%\Setup\Scripts\SetupComplete.cmd"</CommandLine>
+          <Description>Complete machine setup if required</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
           <Order>2</Order>
-          <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" /v "RequireSecuritySignature" /t REG_DWORD /d 0 /f</CommandLine>
-          <Description>Disable SMB signing requirement</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>4</Order>
-          <CommandLine>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device" /v "DevicePasswordLessBuildVersion" /t REG_DWORD /d 0 /f</CommandLine>
-          <Description>Enable option for passwordless sign-in</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>5</Order>
           <CommandLine>powershell.exe -ExecutionPolicy Unrestricted -NoLogo -NoProfile -NonInteractive set-localuser -name "Docker" -passwordneverexpires 1</CommandLine>
           <Description>Password Never Expires</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>6</Order>
-          <CommandLine>cmd /C POWERCFG -H OFF</CommandLine>
-          <Description>Disable Hibernation</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>7</Order>
-          <CommandLine>cmd /C POWERCFG -X -monitor-timeout-ac 0</CommandLine>
-          <Description>Disable monitor blanking</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>8</Order>
-          <CommandLine>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v "HideFirstRunExperience" /t REG_DWORD /d 1 /f</CommandLine>
-          <Description>Disable first-run experience in Edge</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>9</Order>
+          <Order>3</Order>
           <CommandLine>reg.exe add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "ShowCopilotButton" /t REG_DWORD /d 0 /f</CommandLine>
           <Description>Hide Copilot button</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>10</Order>
+          <Order>4</Order>
           <CommandLine>reg.exe add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "HideFileExt" /t REG_DWORD /d 0 /f</CommandLine>
           <Description>Show file extensions in Explorer</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>11</Order>
-          <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Power" /v "HibernateFileSizePercent" /t REG_DWORD /d 0 /f</CommandLine>
-          <Description>Zero Hibernation File</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>12</Order>
-          <CommandLine>reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Power" /v "HibernateEnabled" /t REG_DWORD /d 0 /f</CommandLine>
-          <Description>Disable Hibernation</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>13</Order>
-          <CommandLine>cmd /C POWERCFG -X -standby-timeout-ac 0</CommandLine>
-          <Description>Disable Sleep</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>14</Order>
-          <CommandLine>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services" /v "fAllowUnlistedRemotePrograms" /t REG_DWORD /d 1 /f</CommandLine>
-          <Description>Enable RemoteAPP to launch unlisted programs</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>15</Order>
-          <CommandLine>reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Terminal Server\TSAppAllowList" /v "fDisabledAllowList" /t REG_DWORD /d 1 /f</CommandLine>
-          <Description>Disable RemoteApp allowlist</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>16</Order>
+          <Order>5</Order>
           <CommandLine>reg.exe add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "ShowTaskViewButton" /t REG_DWORD /d 0 /f</CommandLine>
           <Description>Remove Task View from the Taskbar</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>17</Order>
+          <Order>6</Order>
           <CommandLine>reg.exe add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "TaskbarDa" /t REG_DWORD /d 0 /f</CommandLine>
           <Description>Remove Widgets from the Taskbar</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>18</Order>
+          <Order>7</Order>
           <CommandLine>reg.exe add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "TaskbarMn" /t REG_DWORD /d 0 /f</CommandLine>
           <Description>Remove Chat from the Taskbar</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>19</Order>
-          <CommandLine>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v "NoAutoUpdate" /t REG_DWORD /d 1 /f</CommandLine>
-          <Description>Turn off Windows Update auto download</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>20</Order>
-          <CommandLine>netsh advfirewall firewall set rule group="@FirewallAPI.dll,-32752" new enable=Yes</CommandLine>
-          <Description>Enable Network Discovery</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>21</Order>
-          <CommandLine>netsh advfirewall firewall set rule group="@FirewallAPI.dll,-28502" new enable=Yes</CommandLine>
-          <Description>Enable File Sharing</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>22</Order>
-          <CommandLine>cmd /C rd /q C:\Windows.old</CommandLine>
-          <Description>Remove empty Windows.old folder</Description>
-        </SynchronousCommand>
-        <SynchronousCommand wcm:action="add">
-          <Order>23</Order>
+          <Order>8</Order>
           <CommandLine>cmd /C mklink /d %userprofile%\Desktop\Shared \\host.lan\Data</CommandLine>
           <Description>Create desktop shortcut to shared folder</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>24</Order>
+          <Order>9</Order>
           <CommandLine>cmd /C net use Z: \\host.lan\Data /persistent:yes</CommandLine>
           <Description>Map shared folder</Description>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <Order>25</Order>
+          <Order>10</Order>
           <CommandLine>cmd /C if exist "C:\OEM\install.bat" start "Install" "cmd /C C:\OEM\install.bat"</CommandLine>
           <Description>Execute custom script from the OEM folder if exists</Description>
         </SynchronousCommand>
