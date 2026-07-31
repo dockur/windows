@@ -1211,13 +1211,10 @@ updateProductKey() {
 
   local script="$1"
 
-  if [ -n "$script" ]; then
-    updateSetupVariable "$script" "PRODUCT_KEY" "PRODUCT_KEY" "${KEY:-}" || return 1
-    return 0
-  fi
+  [ -z "$script" ] && return 0
 
-  # Product-key migration for the remaining XML-only templates is handled
-  # when each template receives its own setup script.
+  updateSetupVariable "$script" "PRODUCT_KEY" "PRODUCT_KEY" "${KEY:-}" || return 1
+
   return 0
 }
 
