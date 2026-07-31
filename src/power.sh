@@ -228,7 +228,7 @@ ready() {
     "$QEMU_PTY" | tail -1)
 
   grep -Eq \
-    'BdsDxe: starting Boot[[:xdigit:]]{4} "Windows Boot Manager" from HD\(' \
+    'BdsDxe: starting Boot[[:xdigit:]]{4} "Windows Boot Manager" from .*HD\(' \
     <<< "$last" && return 0
 
   return 1
