@@ -1057,7 +1057,24 @@ addDrivers() {
   fi
 
   local driver
-  local driver_list=( qxl viofs sriov smbus qxldod viorng viostor viomem NetKVM Balloon vioscsi pvpanic vioinput viogpudo vioserial qemupciserial )
+  local driver_list=(
+    qxl
+    viofs
+    sriov
+    smbus
+    qxldod
+    viorng
+    viostor
+    viomem
+    NetKVM
+    Balloon
+    vioscsi
+    pvpanic
+    vioinput
+    viogpudo
+    vioserial
+    qemupciserial
+  )
 
   for driver in "${driver_list[@]}"; do
     addDriver "$version" "$drivers" "$target" "$driver" || return 1
