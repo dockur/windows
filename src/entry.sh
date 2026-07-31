@@ -6,8 +6,6 @@ set -Eeuo pipefail
 : "${BOOT_MODE:="windows"}"
 : "${SUPPORT:="https://github.com/dockur/windows"}"
 
-LOGO="N"
-
 cd /run
 
 . start.sh      # Startup hook
