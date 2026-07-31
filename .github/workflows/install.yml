@@ -67,11 +67,41 @@ on:
         default: ""
         type: string
 
+      enable_tunnel:
+        description: Open a temporary public noVNC tunnel
+        required: false
+        default: false
+        type: boolean
+
       kill_on_failure:
         description: Stop the workflow when an installation failure is detected
         required: false
         default: true
         type: boolean
+
+      install_timeout:
+        description: Maximum installation time in seconds
+        required: false
+        default: 9000
+        type: number
+
+      reboot_timeout:
+        description: Maximum time before the first reboot in seconds
+        required: false
+        default: 1800
+        type: number
+
+      minimum_reboots:
+        description: Minimum required reboot count
+        required: false
+        default: 1
+        type: number
+
+      boot_loop_limit:
+        description: Number of repeated boots considered a boot loop
+        required: false
+        default: 10
+        type: number
 
       expected_caption:
         description: Text expected in the Windows caption
@@ -216,7 +246,7 @@ jobs:
             "$RUNNER_TEMP/oem" \
             "$RUNNER_TEMP/storage"
 
-          printf '%s\n' "$token" > "$RUNNER_TEMP/data/readme.txt"
+          printf '%s\n' "$token" > "$RUNNER_TEMP/data/validation.token"
 
           cat > "$RUNNER_TEMP/oem/sync-log.bat" <<'BATCH'
           @echo off
@@ -238,21 +268,6 @@ jobs:
           goto sync
           BATCH
 
-          cat > "$RUNNER_TEMP/oem/shutdown.vbs" <<'VBSCRIPT'
-          On Error Resume Next
-
-          Dim service
-          Dim systems
-          Dim system
-
-          Set service = GetObject("winmgmts:{impersonationLevel=impersonate,(Shutdown)}!\\.\root\cimv2")
-          Set systems = service.ExecQuery("SELECT * FROM Win32_OperatingSystem")
-
-          For Each system In systems
-            system.Win32Shutdown 5
-          Next
-          VBSCRIPT
-
           cat > "$RUNNER_TEMP/oem/watchdog.vbs" <<'VBSCRIPT'
           Option Explicit
 
@@ -261,9 +276,6 @@ jobs:
           Dim filesystem
           Dim file
           Dim shell
-          Dim service
-          Dim systems
-          Dim system
 
           WScript.Sleep 180000
 
@@ -283,14 +295,7 @@ jobs:
           file.Close
 
           Set shell = CreateObject("WScript.Shell")
-          shell.Run "shutdown.exe -s -f -t 0", 0, False
-
-          Set service = GetObject("winmgmts:{impersonationLevel=impersonate,(Shutdown)}!\\.\root\cimv2")
-          Set systems = service.ExecQuery("SELECT * FROM Win32_OperatingSystem")
-
-          For Each system In systems
-            system.Win32Shutdown 5
-          Next
+          shell.Run "cmd.exe /C echo VALIDATION_CALLBACK_FAILED^>COM1", 0, True
           VBSCRIPT
 
           case "$CALLBACK" in
@@ -328,24 +333,68 @@ jobs:
 
                   $share = (
                       Get-Content `
-                          -LiteralPath "\\host.lan\Data\readme.txt" `
+                          -LiteralPath "\\host.lan\Data\validation.token" `
                           -Raw
                   ).Trim()
 
+                  $shareTest = "\\host.lan\Data\validation-write-$Token.tmp"
+                  $shareValue = "write-test-$Token"
+                  $encoding = New-Object System.Text.UTF8Encoding($false)
+
+                  try {
+                      [System.IO.File]::WriteAllText(
+                          $shareTest,
+                          $shareValue,
+                          $encoding
+                      )
+
+                      if (
+                          [System.IO.File]::ReadAllText($shareTest) -ne
+                          $shareValue
+                      ) {
+                          throw "Shared-folder readback verification failed."
+                      }
+                  }
+                  finally {
+                      if (Test-Path -LiteralPath $shareTest) {
+                          Remove-Item -LiteralPath $shareTest -Force
+                      }
+                  }
+
+                  $addresses = [System.Net.Dns]::GetHostAddresses(
+                      "www.msftconnecttest.com"
+                  )
+
+                  if ($addresses.Count -eq 0) {
+                      throw "Internet DNS lookup returned no addresses."
+                  }
+
+                  $internet = (
+                      Invoke-WebRequest `
+                          -Uri "http://www.msftconnecttest.com/connecttest.txt" `
+                          -UseBasicParsing `
+                          -TimeoutSec 30
+                  ).Content.Trim()
+
+                  if ($internet -ne "Microsoft Connect Test") {
+                      throw "Internet HTTP test returned unexpected content."
+                  }
+
                   $result = @{
-                      token    = $Token
-                      caption  = [string]$windows.Caption
-                      edition  = [string]$registry.EditionID
-                      version  = [string]$windows.Version
-                      build    = [string]$windows.BuildNumber
-                      platform = $platform
-                      share    = $share
+                      token       = $Token
+                      caption     = [string]$windows.Caption
+                      edition     = [string]$registry.EditionID
+                      version     = [string]$windows.Version
+                      build       = [string]$windows.BuildNumber
+                      platform    = $platform
+                      share       = $share
+                      share_write = "ok"
+                      internet    = "ok"
                   }
 
                   $json = $result | ConvertTo-Json -Compress
                   $temporary = "\\host.lan\Data\windows.tmp"
                   $destination = "\\host.lan\Data\windows.json"
-                  $encoding = New-Object System.Text.UTF8Encoding($false)
 
                   [System.IO.File]::WriteAllText(
                       $temporary,
@@ -382,8 +431,7 @@ jobs:
           if not "%result%"=="0" (
             echo %date% %time% - Callback failed.>>C:\OEM\install.log
             type nul > C:\OEM\install.done
-            shutdown.exe -s -f -t 0 >nul 2>&1
-            if errorlevel 1 cscript.exe //B //NoLogo C:\OEM\shutdown.vbs
+            echo VALIDATION_CALLBACK_FAILED>COM1
             exit /B %result%
           )
 
@@ -458,6 +506,57 @@ jobs:
             ReadTextFile = value
           End Function
 
+          Function TestSharedFolder(filesystem, token)
+            Dim path
+            Dim expected
+            Dim file
+            Dim actual
+
+            path = "\\host.lan\Data\validation-write-" & token & ".tmp"
+            expected = "write-test-" & token
+
+            Set file = filesystem.CreateTextFile(path, True)
+            file.Write expected
+            file.Close
+
+            Set file = filesystem.OpenTextFile(path, ForReading, False)
+            actual = file.ReadAll
+            file.Close
+
+            If actual <> expected Then
+              Err.Raise vbObjectError + 1, "TestSharedFolder", _
+                "Shared-folder readback verification failed."
+            End If
+
+            filesystem.DeleteFile path, True
+            TestSharedFolder = "ok"
+          End Function
+
+          Function TestInternet()
+            Dim request
+            Dim response
+
+            Set request = CreateObject("WinHttp.WinHttpRequest.5.1")
+            request.SetTimeouts 30000, 30000, 30000, 30000
+            request.Open "GET", "http://www.msftncsi.com/ncsi.txt", False
+            request.Send
+
+            If request.Status <> 200 Then
+              Err.Raise vbObjectError + 2, "TestInternet", _
+                "Internet HTTP test returned status " & CStr(request.Status) & "."
+            End If
+
+            response = Replace(request.ResponseText, vbCr, "")
+            response = Replace(response, vbLf, "")
+
+            If response <> "Microsoft NCSI" Then
+              Err.Raise vbObjectError + 3, "TestInternet", _
+                "Internet HTTP test returned unexpected content."
+            End If
+
+            TestInternet = "ok"
+          End Function
+
           Function GetPlatform(shell)
             Dim architecture
 
@@ -488,6 +587,8 @@ jobs:
           Dim build
           Dim platform
           Dim share
+          Dim shareWrite
+          Dim internet
 
           Dim json
           Dim temporary
@@ -526,7 +627,9 @@ jobs:
             If Err.Number = 0 Then
               edition = ReadRegistry(shell, "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\EditionID")
               platform = GetPlatform(shell)
-              share = ReadTextFile(filesystem, "\\host.lan\Data\readme.txt")
+              share = ReadTextFile(filesystem, "\\host.lan\Data\validation.token")
+              shareWrite = TestSharedFolder(filesystem, token)
+              internet = TestInternet()
             End If
 
             If Err.Number = 0 Then
@@ -538,7 +641,9 @@ jobs:
                 """version"":""" & EscapeJson(version) & """," & _
                 """build"":""" & EscapeJson(build) & """," & _
                 """platform"":""" & EscapeJson(platform) & """," & _
-                """share"":""" & EscapeJson(share) & """" & _
+                """share"":""" & EscapeJson(share) & """," & _
+                """share_write"":""" & EscapeJson(shareWrite) & """," & _
+                """internet"":""" & EscapeJson(internet) & """" & _
                 "}"
 
               Set file = filesystem.OpenTextFile(temporary, ForWriting, True)
@@ -589,8 +694,7 @@ jobs:
           if not "%result%"=="0" (
             echo %date% %time% - Callback failed.>>C:\OEM\install.log
             type nul > C:\OEM\install.done
-            shutdown.exe -s -f -t 0 >nul 2>&1
-            if errorlevel 1 cscript.exe //B //NoLogo C:\OEM\shutdown.vbs
+            echo VALIDATION_CALLBACK_FAILED>COM1
             exit /B %result%
           )
 
@@ -668,8 +772,13 @@ jobs:
             --volume "$RUNNER_TEMP/storage:/storage" \
             "$IMAGE"
 
+          echo
+          echo "Container mounts:"
+          docker inspect "$CONTAINER" \
+            --format '{{range .Mounts}}{{println .Source "->" .Destination}}{{end}}'
+
       - name: Start noVNC tunnel
-        if: ${{ !inputs.kill_on_failure }}
+        if: ${{ inputs.enable_tunnel }}
         id: tunnel
         shell: bash
         run: |
@@ -721,6 +830,10 @@ jobs:
         shell: bash
         env:
           KILL_ON_FAILURE: ${{ inputs.kill_on_failure }}
+          INSTALL_TIMEOUT: ${{ inputs.install_timeout }}
+          REBOOT_TIMEOUT: ${{ inputs.reboot_timeout }}
+          MINIMUM_REBOOTS: ${{ inputs.minimum_reboots }}
+          BOOT_LOOP_LIMIT: ${{ inputs.boot_loop_limit }}
           EXPECTED_TOKEN: ${{ steps.test.outputs.token }}
           EXPECTED_CAPTION: ${{ inputs.expected_caption }}
           EXPECTED_EDITION: ${{ inputs.expected_edition }}
@@ -775,6 +888,7 @@ jobs:
           trap stop_logs EXIT
 
           failure_checks_disabled=0
+          callback_failure_detected=0
 
           handle_failure() {
             local message="$1"
@@ -791,10 +905,10 @@ jobs:
             return 0
           }
 
-          deadline=$((SECONDS + 9000))
-          reboot_timeout=1800
-          minimum_reboots=1
-          boot_loop_limit=10
+          deadline=$((SECONDS + INSTALL_TIMEOUT))
+          reboot_timeout="$REBOOT_TIMEOUT"
+          minimum_reboots="$MINIMUM_REBOOTS"
+          boot_loop_limit="$BOOT_LOOP_LIMIT"
           first_bios_start=-1
 
           while (( SECONDS < deadline )); do
@@ -813,6 +927,26 @@ jobs:
             fi
 
             container_log="$(docker logs "$CONTAINER" 2>&1 || true)"
+
+            if (( callback_failure_detected == 0 )) &&
+               grep -Fq 'VALIDATION_CALLBACK_FAILED' <<< "$container_log"; then
+              callback_failure_detected=1
+
+              echo
+              echo "------------------------------------------------------------"
+              echo "The guest validation callback failed."
+
+              if [[ "$KILL_ON_FAILURE" == "true" ]]; then
+                echo "Stopping the Windows container..."
+                docker stop "$CONTAINER" > /dev/null
+                exit 1
+              fi
+
+              echo "Automatic termination is disabled by kill_on_failure."
+              echo "The container and noVNC tunnel will remain available."
+              echo "::warning title=Failure detected::The guest validation callback failed."
+              failure_checks_disabled=1
+            fi
 
             if (( failure_checks_disabled == 0 )) &&
                grep -Eqi \
@@ -943,6 +1077,8 @@ jobs:
               build="$(jq -r '.build // empty' <<< "$response")"
               platform="$(jq -r '.platform // empty' <<< "$response")"
               share="$(jq -r '.share // empty' <<< "$response")"
+              share_write="$(jq -r '.share_write // empty' <<< "$response")"
+              internet="$(jq -r '.internet // empty' <<< "$response")"
 
               if [[ "$token" != "$EXPECTED_TOKEN" ]]; then
                 echo "The response token does not match."
@@ -950,11 +1086,21 @@ jobs:
               fi
 
               if [[ "$share" != "$EXPECTED_TOKEN" ]]; then
-                echo "Failed to read \\\\host.lan\\Data\\readme.txt."
+                echo "Failed to read \\\\host.lan\\Data\\validation.token."
                 echo "Expected contents:"
                 echo "  $EXPECTED_TOKEN"
                 echo "Received:"
                 echo "  ${share:-empty}"
+                exit 1
+              fi
+
+              if [[ "$share_write" != "ok" ]]; then
+                echo "The shared folder write test did not succeed."
+                exit 1
+              fi
+
+              if [[ "$internet" != "ok" ]]; then
+                echo "The guest internet connection test did not succeed."
                 exit 1
               fi
 
@@ -1008,7 +1154,8 @@ jobs:
               echo "Version: $version"
               echo "Build: $build"
               echo "Platform: $platform"
-              echo "Shared file: accessible"
+              echo "Shared folder: readable and writable"
+              echo "Internet connection: accessible"
               exit 0
             fi
 
