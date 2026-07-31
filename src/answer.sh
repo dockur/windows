@@ -65,8 +65,8 @@ stageAnswer() {
     return 1
   fi
 
-  if ! setDriverPathXML "$answer"; then
-    error "Failed to configure the Windows driver path!"
+  if ! setDriverPathsXML "$answer"; then
+    error "Failed to configure the Windows driver paths!"
     return 1
   fi
 
@@ -1051,40 +1051,96 @@ getXMLArchitecture() {
   return 0
 }
 
-setDriverPathXML() {
+setDriverPathsXML() {
 
   local asset="$1"
-  local arch section
+  local arch tmp result
 
   [ -s "$asset" ] || return 1
+  arch=$(getXMLArchitecture "$asset") || return 1
 
-  section=$(sed -n -E '
-    /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/p
-  ' "$asset") || return 1
+  tmp=$(mktemp -d) || return 1
+  result="$tmp/answer.xml"
 
-  [ -n "$section" ] || return 1
+  if ! ARCH_XML="$arch" awk '
+      function winpe_component() {
+        print "    <component name=\"Microsoft-Windows-PnpCustomizationsWinPE\" processorArchitecture=\"" ENVIRON["ARCH_XML"] "\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">"
+        print "      <DriverPaths>"
+        print "        <PathAndCredentials wcm:action=\"add\" wcm:keyValue=\"1\">"
+        print "          <Path>%configsetroot%\\Drivers</Path>"
+        print "        </PathAndCredentials>"
+        print "      </DriverPaths>"
+        print "    </component>"
+      }
 
-  if grep -Fq 'name="Microsoft-Windows-PnpCustomizationsWinPE"' <<< "$section"; then
-    return 0
-  fi
+      function offline_component() {
+        print "    <component name=\"Microsoft-Windows-PnpCustomizationsNonWinPE\" processorArchitecture=\"" ENVIRON["ARCH_XML"] "\" publicKeyToken=\"31bf3856ad364e35\" language=\"neutral\" versionScope=\"nonSxS\">"
+        print "      <DriverPaths>"
+        print "        <PathAndCredentials wcm:action=\"add\" wcm:keyValue=\"1\">"
+        print "          <Path>%configsetroot%\\Drivers</Path>"
+        print "        </PathAndCredentials>"
+        print "      </DriverPaths>"
+        print "    </component>"
+      }
 
-  if ! arch=$(getXMLArchitecture "$asset"); then
+      /<settings[^>]*pass="windowsPE"[^>]*>/ {
+        section = "windowsPE"
+        found_windowspe = 1
+      }
+
+      /<settings[^>]*pass="offlineServicing"[^>]*>/ {
+        section = "offlineServicing"
+        found_offline = 1
+      }
+
+      section == "windowsPE" &&
+        /name="Microsoft-Windows-PnpCustomizationsWinPE"/ {
+        has_winpe = 1
+      }
+
+      section == "offlineServicing" &&
+        /name="Microsoft-Windows-PnpCustomizationsNonWinPE"/ {
+        has_offline = 1
+      }
+
+      /^[[:space:]]*<settings[^>]*pass="specialize"[^>]*>/ && !found_offline {
+        print "  <settings pass=\"offlineServicing\">"
+        offline_component()
+        print "  </settings>"
+        found_offline = 1
+        added_offline = 1
+      }
+
+      section == "windowsPE" && /^[[:space:]]*<\/settings>[[:space:]]*$/ && !has_winpe {
+        winpe_component()
+        added_winpe = 1
+      }
+
+      section == "offlineServicing" && /^[[:space:]]*<\/settings>[[:space:]]*$/ && !has_offline {
+        offline_component()
+        added_offline = 1
+      }
+
+      { print }
+
+      /^[[:space:]]*<\/settings>[[:space:]]*$/ {
+        section = ""
+      }
+
+      END {
+        if (!found_windowspe || (!has_winpe && !added_winpe) ||
+            (!has_offline && !added_offline)) {
+          exit 1
+        }
+      }
+    ' "$asset" > "$result" ||
+    ! mv -f "$result" "$asset"; then
+
+    rm -rf "$tmp" || true
     return 1
   fi
 
-  sed -i -E '
-    0,/<settings[^>]*pass="windowsPE"[^>]*>/ {
-      /<settings[^>]*pass="windowsPE"[^>]*>/a\
-    <component name="Microsoft-Windows-PnpCustomizationsWinPE" processorArchitecture="'"$arch"'" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">\
-      <DriverPaths>\
-        <PathAndCredentials wcm:action="add" wcm:keyValue="1">\
-          <Path>%configsetroot%\\$WinPEDriver$</Path>\
-        </PathAndCredentials>\
-      </DriverPaths>\
-    </component>
-    }
-  ' "$asset" || return 1
-
+  rm -rf "$tmp" || return 1
   return 0
 }
 
