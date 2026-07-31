@@ -538,7 +538,7 @@ canUseSetupImage() {
 
   local id="$1"
   local iso="$2"
-return 1 #DEBUG
+
   case "${id,,}" in
     "win9"* | "winxp"* | "win2k"* | "win2003"* | "reactos" )
       return 1 ;;
