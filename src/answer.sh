@@ -30,6 +30,7 @@ stageAnswer() {
   local language="$2"
   local stage="$3"
   local answer="$stage/Autounattend.xml"
+  local name
 
   if enabled "$MANUAL"; then
     removeGeneratedXML "$asset" || return 1
@@ -40,6 +41,9 @@ stageAnswer() {
     error "Failed to find answer file: $asset"
     return 1
   fi
+
+  name=$(basename "$asset") || return 1
+  info "Adding $name for automatic installation..."
 
   if ! cp -L -- "$asset" "$answer"; then
     error "Failed to stage answer file: $asset"
