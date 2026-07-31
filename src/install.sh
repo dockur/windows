@@ -391,14 +391,14 @@ finishInstall() {
 
     else
 
-      local secure=""
+      local secure=0
 
       # Enable secure boot + TPM on manual installs as Win11 requires
       if enabled "$MANUAL" || [[ "$aborted" == [Yy1]* ]]; then
-        [[ "${DETECTED,,}" == "win11"* ]] && secure="Y"
+        [[ "${DETECTED,,}" == "win11"* ]] && secure=1
       fi
 
-      if [ -n "$secure" ]; then
+      if (( secure )); then
         BOOT_MODE="windows_secure"
         writeState "mode" "$BOOT_MODE" || return 1
       fi
