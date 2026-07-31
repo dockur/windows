@@ -24,212 +24,6 @@ hasAnswerFile() {
   return 1
 }
 
-findSetupScript() {
-
-  local asset="$1"
-  local dir name id normal candidate
-  local candidates=()
-
-  [ -z "${CUSTOM_XML:-}" ] || return 0
-  [ -s "$asset" ] || return 0
-
-  # Only migrated answer files receive a setup script. This allows the
-  # remaining XML templates to keep using their existing embedded commands.
-  grep -Fqi 'SetupComplete.cmd' "$asset" || return 0
-
-  dir=$(dirname "$asset") || return 1
-  name=$(basename "$asset") || return 1
-  id="${name%.*}"
-  normal="$id"
-
-  candidates+=("$dir/$id.cmd")
-
-  if [[ "${normal,,}" == *"-eval" ]]; then
-    normal="${normal::-5}"
-    candidates+=("$dir/$normal.cmd")
-  fi
-
-  # Generated edition-specific answer files inherit the script belonging to
-  # their generic source template.
-  case "${normal,,}" in
-    "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* | "win20"* )
-      candidates+=("$dir/${normal%%-*}.cmd")
-      ;;
-  esac
-
-  for candidate in "${candidates[@]}"; do
-    if [ -f "$candidate" ] && [ -s "$candidate" ]; then
-      printf '%s' "$candidate"
-      return 0
-    fi
-  done
-
-  error "Failed to find setup script for answer file: $asset"
-  return 1
-}
-
-validateSetupScript() {
-
-  local file="$1"
-  local block begin_count end_count
-  local blocks=(
-    LOCAL_ACCOUNT
-    PRODUCT_KEY
-    SHARED_FOLDER
-    OEM_SCRIPT
-  )
-
-  [ -s "$file" ] || return 1
-
-  for block in "${blocks[@]}"; do
-    begin_count=$(grep -Fxc -- "rem BEGIN $block" "$file" || true)
-    end_count=$(grep -Fxc -- "rem END $block" "$file" || true)
-
-    if [ "$begin_count" -ne 1 ] || [ "$end_count" -ne 1 ]; then
-      error "Invalid $block markers in setup script: $file"
-      return 1
-    fi
-  done
-
-  return 0
-}
-
-stageSetupScript() {
-
-  local asset="$1"
-  local stage="$2"
-  local result_name="$3"
-  local source target
-
-  printf -v "$result_name" '%s' ""
-
-  source=$(findSetupScript "$asset") || return 1
-  [ -n "$source" ] || return 0
-
-  target="$stage/\$OEM\$/\$\$/Setup/Scripts/SetupComplete.cmd"
-
-  if ! mkdir -p "$(dirname "$target")"; then
-    error "Failed to create setup script directory!"
-    return 1
-  fi
-
-  if ! cp -L -- "$source" "$target"; then
-    error "Failed to stage setup script: $source"
-    return 1
-  fi
-
-  # Work on a normalized copy so marker updates are independent of the line
-  # endings stored in Git. The staged result is converted back to CRLF later.
-  sed -i 's/\r$//' "$target" || return 1
-  validateSetupScript "$target" || return 1
-
-  printf -v "$result_name" '%s' "$target"
-  return 0
-}
-
-installSetupScript() {
-
-  local script="$1"
-  local root="$2"
-  local target
-
-  [ -n "$script" ] || return 0
-  [ -s "$script" ] || return 1
-
-  target="$root/\$OEM\$/\$\$/Setup/Scripts/SetupComplete.cmd"
-
-  if ! mkdir -p "$(dirname "$target")"; then
-    error "Failed to create setup script directory!"
-    return 1
-  fi
-
-  if ! cp -f -- "$script" "$target"; then
-    error "Failed to add setup script to Windows image!"
-    return 1
-  fi
-
-  return 0
-}
-
-escapeSetupSed() {
-
-  local value="$1"
-
-  value=${value//\\/\\\\}
-  value=${value//&/\\&}
-  value=${value//|/\\|}
-
-  printf '%s' "$value"
-  return 0
-}
-
-updateSetupVariable() {
-
-  local file="$1"
-  local block="$2"
-  local variable="$3"
-  local value="$4"
-  local escaped count
-
-  [ -s "$file" ] || return 1
-
-  count=$(sed -n "/^rem BEGIN $block$/,/^rem END $block$/p" "$file" |
-    grep -Ec "^set \"$variable=[^\"]*\"$" || true)
-
-  if [ "$count" -ne 1 ]; then
-    error "Failed to locate $variable in the $block block of setup script: $file"
-    return 1
-  fi
-
-  escaped=$(escapeSetupSed "$value") || return 1
-
-  if ! sed -i -E \
-    "/^rem BEGIN $block$/,/^rem END $block$/ s|^set \"$variable=[^\"]*\"$|set \"$variable=$escaped\"|" \
-    "$file"; then
-
-    error "Failed to update $variable in setup script: $file"
-    return 1
-  fi
-
-  return 0
-}
-
-removeSetupBlock() {
-
-  local file="$1"
-  local block="$2"
-
-  [ -s "$file" ] || return 1
-
-  if ! grep -Fqx -- "rem BEGIN $block" "$file" ||
-    ! grep -Fqx -- "rem END $block" "$file"; then
-    error "Failed to locate the $block block in setup script: $file"
-    return 1
-  fi
-
-  if ! sed -i "/^rem BEGIN $block$/,/^rem END $block$/d" "$file"; then
-    error "Failed to remove the $block block from setup script: $file"
-    return 1
-  fi
-
-  return 0
-}
-
-finalizeSetupScript() {
-
-  local file="$1"
-
-  [ -n "$file" ] || return 0
-  [ -s "$file" ] || return 1
-
-  if ! unix2dos -q "$file"; then
-    error "Failed to convert setup script to DOS format: $file"
-    return 1
-  fi
-
-  return 0
-}
-
 stageAnswer() {
 
   local asset="$1"
@@ -572,6 +366,186 @@ updateXML() {
   return 0
 }
 
+findSetupScript() {
+
+  local asset="$1"
+  local dir name id normal candidate
+  local candidates=()
+
+  [ -z "${CUSTOM_XML:-}" ] || return 0
+  [ -s "$asset" ] || return 0
+
+  # Only migrated answer files receive a setup script. This allows the
+  # remaining XML templates to keep using their existing embedded commands.
+  grep -Fqi 'SetupComplete.cmd' "$asset" || return 0
+
+  dir=$(dirname "$asset") || return 1
+  name=$(basename "$asset") || return 1
+  id="${name%.*}"
+  normal="$id"
+
+  candidates+=("$dir/$id.cmd")
+
+  if [[ "${normal,,}" == *"-eval" ]]; then
+    normal="${normal::-5}"
+    candidates+=("$dir/$normal.cmd")
+  fi
+
+  # Generated edition-specific answer files inherit the script belonging to
+  # their generic source template.
+  case "${normal,,}" in
+    "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* | "win20"* )
+      candidates+=("$dir/${normal%%-*}.cmd")
+      ;;
+  esac
+
+  for candidate in "${candidates[@]}"; do
+    if [ -f "$candidate" ] && [ -s "$candidate" ]; then
+      printf '%s' "$candidate"
+      return 0
+    fi
+  done
+
+  error "Failed to find setup script for answer file: $asset"
+  return 1
+}
+
+stageSetupScript() {
+
+  local asset="$1"
+  local stage="$2"
+  local result_name="$3"
+  local source target
+
+  printf -v "$result_name" '%s' ""
+
+  source=$(findSetupScript "$asset") || return 1
+  [ -n "$source" ] || return 0
+
+  target="$stage/\$OEM\$/\$\$/Setup/Scripts/SetupComplete.cmd"
+
+  if ! mkdir -p "$(dirname "$target")"; then
+    error "Failed to create setup script directory!"
+    return 1
+  fi
+
+  if ! cp -L -- "$source" "$target"; then
+    error "Failed to stage setup script: $source"
+    return 1
+  fi
+
+  # Work on a normalized copy so marker updates are independent of the line
+  # endings stored in Git. The staged result is converted back to CRLF later.
+  sed -i 's/\r$//' "$target" || return 1
+  validateSetupScript "$target" || return 1
+
+  printf -v "$result_name" '%s' "$target"
+  return 0
+}
+
+installSetupScript() {
+
+  local script="$1"
+  local root="$2"
+  local target
+
+  [ -n "$script" ] || return 0
+  [ -s "$script" ] || return 1
+
+  target="$root/\$OEM\$/\$\$/Setup/Scripts/SetupComplete.cmd"
+
+  if ! mkdir -p "$(dirname "$target")"; then
+    error "Failed to create setup script directory!"
+    return 1
+  fi
+
+  if ! cp -f -- "$script" "$target"; then
+    error "Failed to add setup script to Windows image!"
+    return 1
+  fi
+
+  return 0
+}
+
+updateSetupVariable() {
+
+  local file="$1"
+  local block="$2"
+  local variable="$3"
+  local value="$4"
+  local escaped count
+
+  [ -s "$file" ] || return 1
+
+  count=$(sed -n "/^rem BEGIN $block$/,/^rem END $block$/p" "$file" |
+    grep -Ec "^set \"$variable=[^\"]*\"$" || true)
+
+  if [ "$count" -ne 1 ]; then
+    error "Failed to locate $variable in the $block block of setup script: $file"
+    return 1
+  fi
+
+  escaped=$(escapeSetupSed "$value") || return 1
+
+  if ! sed -i -E \
+    "/^rem BEGIN $block$/,/^rem END $block$/ s|^set \"$variable=[^\"]*\"$|set \"$variable=$escaped\"|" \
+    "$file"; then
+
+    error "Failed to update $variable in setup script: $file"
+    return 1
+  fi
+
+  return 0
+}
+
+removeSetupBlock() {
+
+  local file="$1"
+  local block="$2"
+
+  [ -s "$file" ] || return 1
+
+  if ! grep -Fqx -- "rem BEGIN $block" "$file" ||
+    ! grep -Fqx -- "rem END $block" "$file"; then
+    error "Failed to locate the $block block in setup script: $file"
+    return 1
+  fi
+
+  if ! sed -i "/^rem BEGIN $block$/,/^rem END $block$/d" "$file"; then
+    error "Failed to remove the $block block from setup script: $file"
+    return 1
+  fi
+
+  return 0
+}
+
+finalizeSetupScript() {
+
+  local file="$1"
+
+  [ -n "$file" ] || return 0
+  [ -s "$file" ] || return 1
+
+  if ! unix2dos -q "$file"; then
+    error "Failed to convert setup script to DOS format: $file"
+    return 1
+  fi
+
+  return 0
+}
+
+escapeSetupSed() {
+
+  local value="$1"
+
+  value=${value//\\/\\\\}
+  value=${value//&/\\&}
+  value=${value//|/\\|}
+
+  printf '%s' "$value"
+  return 0
+}
+
 validateGeneratedXML() {
 
   local asset="$1"
@@ -580,6 +554,32 @@ validateGeneratedXML() {
     error "The generated answer file is not valid XML!"
     return 1
   fi
+
+  return 0
+}
+
+validateSetupScript() {
+
+  local file="$1"
+  local block begin_count end_count
+  local blocks=(
+    LOCAL_ACCOUNT
+    PRODUCT_KEY
+    SHARED_FOLDER
+    OEM_SCRIPT
+  )
+
+  [ -s "$file" ] || return 1
+
+  for block in "${blocks[@]}"; do
+    begin_count=$(grep -Fxc -- "rem BEGIN $block" "$file" || true)
+    end_count=$(grep -Fxc -- "rem END $block" "$file" || true)
+
+    if [ "$begin_count" -ne 1 ] || [ "$end_count" -ne 1 ]; then
+      error "Invalid $block markers in setup script: $file"
+      return 1
+    fi
+  done
 
   return 0
 }
