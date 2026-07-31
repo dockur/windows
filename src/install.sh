@@ -909,29 +909,65 @@ prepareImage() {
   return 1
 }
 
-addFolder() {
+getOemFolder() {
 
-  local src="$1"
-  local folder="/oem" file
-  local dest="$src/\$OEM\$/\$1/OEM"
+  local folder="/oem"
 
   [ ! -d "$folder" ] && folder="/OEM"
   [ ! -d "$folder" ] && folder="$STORAGE/oem"
   [ ! -d "$folder" ] && folder="$STORAGE/OEM"
-  [ ! -d "$folder" ] && folder=""
+  [ -d "$folder" ] && echo "$folder"
+
+  return 0
+}
+
+addFolder() {
+
+  local src="$1"
+  local target="${2:-image}"
+  local log="${3:-Y}"
+  local mode="${4:-copy}"
+  local folder file="" source=""
+  local dest="$src/\$OEM\$/\$1/OEM"
+  local install="$src/.overlay-install.bat"
+
+  folder=$(getOemFolder) || return 1
 
   [ -z "$folder" ] && [ -z "$COMMAND" ] && return 0
 
-  local msg="Adding OEM files to image..."
-  info "$msg" && html "$msg"
-
-  mkdir -p "$dest" || return 1
-
-  if [ -n "$folder" ]; then
-    cp -Lr "$folder/." "$dest" || return 1
+  if enabled "$log"; then
+    local msg="Adding OEM files to $target..."
+    info "$msg" && html "$msg"
   fi
 
-  file=$(find "$dest" -maxdepth 1 -type f -iname install.bat -print -quit) || return 1
+  if [ "$mode" = "overlay" ]; then
+
+    rm -f -- "$install" || return 1
+
+    if [ -n "$folder" ]; then
+      source=$(find -L "$folder" -maxdepth 1 -type f -iname install.bat -print -quit) || return 1
+
+      if [ -n "$source" ]; then
+        if ! cp -L -- "$source" "$install"; then
+          error "Failed to create a writable copy of $source!"
+          return 1
+        fi
+
+        file="$install"
+      fi
+    fi
+
+  else
+
+    mkdir -p "$dest" || return 1
+
+    if [ -n "$folder" ]; then
+      cp -Lr "$folder/." "$dest" || return 1
+    fi
+
+    file=$(find "$dest" -maxdepth 1 -type f -iname install.bat -print -quit) || return 1
+
+  fi
 
   if [ -s "$file" ]; then
     normalizeBatch "$file" || return 1
@@ -939,7 +975,13 @@ addFolder() {
 
   if [ -n "$COMMAND" ]; then
 
-    [ -z "$file" ] && file="$dest/install.bat"
+    if [ -z "$file" ]; then
+      if [ "$mode" = "overlay" ]; then
+        file="$install"
+      else
+        file="$dest/install.bat"
+      fi
+    fi
 
     if [ -s "$file" ]; then
       printf '\n' >> "$file" || return 1
@@ -1023,14 +1065,16 @@ addDrivers() {
   local version="$3"
   local file="${4:-}"
   local index="${5:-}"
+  local log="${6:-Y}"
   local drivers="$tmp/drivers"
 
   rm -rf "$drivers"
   mkdir -p "$drivers"
 
-  local msg="Adding drivers to setup files..."
-  [ -n "$file" ] && msg="Adding drivers to image..."
-  info "$msg" && html "$msg"
+  if enabled "$log"; then
+    local msg="Adding drivers to image..."
+    info "$msg" && html "$msg"
+  fi
 
   if [ -z "$version" ]; then
     version="win11x64"
@@ -1118,30 +1162,30 @@ stageSetup() {
 
   skipVersion "${DETECTED,,}" && return 0
 
-  local msg="Staging Windows setup files..."
+  local msg="Creating overlay image..."
   info "$msg" && html "$msg"
 
   if ! rm -rf -- "$stage"; then
-    error "Failed to remove previous setup files!"
+    error "Failed to remove previous image files!"
     return 1
   fi
 
   if ! mkdir -p "$stage"; then
-    error "Failed to create setup directory!"
+    error "Failed to create image staging directory!"
     return 1
   fi
-
-  stageAnswer "$asset" "$language" "$stage" || return 1
 
   if ! addDrivers "$stage" "$stage" "$DETECTED"; then
     error "Failed to stage Windows drivers!"
     return 1
   fi
 
-  if ! addFolder "$stage"; then
+  if ! addFolder "$stage" "image" "Y" "overlay"; then
     error "Failed to stage OEM folder!"
     return 1
   fi
+
+  stageAnswer "$asset" "$language" "$stage" || return 1
 
   return 0
 }
