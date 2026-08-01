@@ -577,6 +577,8 @@ getWindows() {
   local language edition
 
   MIDO_SOURCE=""
+  MIDO_STATIC="N"
+
   language=$(getLanguage "$lang" "desc")
   edition=$(printEdition "$version" "$desc" "Y")
 
