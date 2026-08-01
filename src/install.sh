@@ -1270,34 +1270,31 @@ updateImage() {
       return 1
     fi
 
-    if [ -z "${CUSTOM_XML:-}" ]; then
-      # Keep the patched copy outside the extracted ISO until the answer file
-      # has been added successfully, so manual fallback remains untouched.
-      if ! stageSetupScript "$asset" "$tmp/setup" script; then
-        error "Failed to stage setup script for answer file: $asset"
-        return 1
-      fi
-    fi
-
     removeGeneratedXML "$asset" || return 1
 
     if [ -z "${CUSTOM_XML:-}" ]; then
-      if ! updateXML "$answer" "$language" "$script"; then
+      if ! updateXML "$answer" "$language"; then
         error "Failed to update answer file: $answer"
         return 1
       fi
     fi
 
+    if ! updateDiskID "$answer" "${DISK_TYPE:-}" "image"; then
+      error "Failed to adjust the Windows installation disk!"
+      exit 85
+    fi
+
     validateGeneratedXML "$answer" || return 1
+
+    if [ -z "${CUSTOM_XML:-}" ]; then
+      prepareSetupScript "$asset" "$tmp/setup" script || exit 84
+    fi
 
     if ! wimlib-imagex update "$wim" "$idx" --command "add $answer /$xml" > /dev/null; then
       MANUAL="Y"
       warn "failed to add answer file ($name) to ISO image, $FB"
     else
-      if ! installSetupScript "$script" "$src"; then
-        error "Failed to add setup script to ISO image!"
-        return 1
-      fi
+      installSetupScript "$script" "$src" || exit 84
 
       wimlib-imagex update "$wim" "$idx" --command "add $answer /$dat" > /dev/null || true
     fi
