@@ -81,8 +81,7 @@ installWindows() {
     fi
 
     if ! createSetupImage "$TMP/setup" "$STORAGE/setup.img"; then
-      abortInstall "$dir" "$ISO" "$boot" || return 86
-      return 0
+      exit 86
     fi
 
     useOriginalImage "$ISO" || return 88
