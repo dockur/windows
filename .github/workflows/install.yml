@@ -754,7 +754,7 @@ jobs:
             --device /dev/net/tun \
             --cap-add NET_ADMIN \
             --stop-timeout 120 \
-            --env "VGA=std" \         
+            --env "VGA=std" \
             --env "MACHINE=$MACHINE" \
             --env "VERSION=$VERSION" \
             --env "RAM_SIZE=half" \
