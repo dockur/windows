@@ -23,7 +23,7 @@ reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\PasswordLess\Devi
 
 rem BEGIN LOCAL_ACCOUNT
 rem Prevent the local user password from expiring.
-wmic useraccount where name="Docker" set PasswordExpires=false
+powershell.exe -ExecutionPolicy Unrestricted -NoLogo -NoProfile -NonInteractive set-localuser -name "Docker" -passwordneverexpires 1
 rem END LOCAL_ACCOUNT
 
 rem Disable hibernation.
