@@ -14,7 +14,7 @@
     <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DiskConfiguration>
         <Disk wcm:action="add">
-          <DiskID>0</DiskID>
+          <DiskID>1</DiskID>
           <WillWipeDisk>true</WillWipeDisk>
           <CreatePartitions>
             <!-- System partition (ESP) -->
