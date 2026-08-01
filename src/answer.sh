@@ -398,10 +398,11 @@ updateSetupScript() {
     id="${id%.*}"
 
     case "${id,,}" in
-      "win11"* | "win2025"* )
+      "win10"* | "win11"* | \
+      "win2016"* | "win2019"* | "win2022"* | "win2025"* )
         printf -v content '%s\n%s' \
           'rem Prevent the local user password from expiring.' \
-          "powershell.exe -ExecutionPolicy Unrestricted -NoLogo -NoProfile -NonInteractive set-localuser -name \"$user\" -passwordneverexpires 1"
+          "powershell.exe -ExecutionPolicy Unrestricted -NoLogo -NoProfile -NonInteractive Set-LocalUser -Name \"$user\" -PasswordNeverExpires 1"
         ;;
       * )
         printf -v content '%s\n%s' \
