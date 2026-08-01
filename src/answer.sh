@@ -324,7 +324,7 @@ updateXML() {
 
   local asset="$1"
   local language="$2"
-  local script="${3:-}"
+  local script="$3"
   local domain="${DOMAIN:-}"
   local workgroup="${WORKGROUP:-}"
   local account=""
@@ -333,6 +333,8 @@ updateXML() {
   [ -z "${WIDTH:-}" ] && WIDTH="1280"
   [ -z "${HEIGHT:-}" ] && HEIGHT="720"
 
+  [ -s "$script" ] || return 1
+
   validateXMLSettings || return 1
   updateDisplayXML "$asset" || return 1
   updateLocaleXML "$asset" "$language" || return 1
@@ -340,14 +342,14 @@ updateXML() {
   if [ -n "$domain" ]; then
     prepareDomainAccount "$domain" account auth || return 1
   else
-    updateLocalAccountXML "$asset" "$script" || return 1
+    updateLocalAccount "$asset" "$script" || return 1
   fi
 
   sed -i -E \
     "s|<PlainText>[^<]*</PlainText>|<PlainText>false</PlainText>|g" \
     "$asset" || return 1
 
-  updateMembershipXML \
+  updateMembership \
     "$asset" \
     "$domain" \
     "$workgroup" \
@@ -356,10 +358,10 @@ updateXML() {
     "$script" || return 1
 
   updateAutologinXML "$asset" || return 1
-  enableLog "$asset" "$script" || return 1
+  enableLog "$script" || return 1
   updateEditionXML "$asset" || return 1
   updateProductKey "$script" || return 1
-  removeSharedFolderXML "$asset" "$script" || return 1
+  removeSharedFolder "$script" || return 1
   finalizeSetupScript "$script" || return 1
   validateGeneratedXML "$asset" || return 1
 
@@ -373,11 +375,7 @@ findSetupScript() {
   local candidates=()
 
   [ -z "${CUSTOM_XML:-}" ] || return 0
-  [ -s "$asset" ] || return 0
-
-  # Only migrated answer files receive a setup script. This allows the
-  # remaining XML templates to keep using their existing embedded commands.
-  grep -Fqi 'SetupComplete.cmd' "$asset" || return 0
+  [ -s "$asset" ] || return 1
 
   dir=$(dirname "$asset") || return 1
   name=$(basename "$asset") || return 1
@@ -467,31 +465,59 @@ installSetupScript() {
   return 0
 }
 
-updateSetupVariable() {
+replaceSetupBlock() {
 
   local file="$1"
   local block="$2"
-  local variable="$3"
-  local value="$4"
-  local escaped count
+  local content="$3"
+  local begin="rem BEGIN $block"
+  local end="rem END $block"
+  local line inside=0 tmp
 
-  [ -s "$file" ] || return 1
+  validateSetupBlock "$file" "$block" || return 1
 
-  count=$(sed -n "/^rem BEGIN $block$/,/^rem END $block$/p" "$file" |
-    grep -Ec "^set \"$variable=[^\"]*\"$" || true)
-
-  if [ "$count" -ne 1 ]; then
-    error "Failed to locate $variable in the $block block of setup script: $file"
+  if ! tmp=$(mktemp "${file}.XXXXXX"); then
+    error "Failed to create temporary setup script!"
     return 1
   fi
 
-  escaped=$(escapeSetupSed "$value") || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
 
-  if ! sed -i -E \
-    "/^rem BEGIN $block$/,/^rem END $block$/ s|^set \"$variable=[^\"]*\"$|set \"$variable=$escaped\"|" \
-    "$file"; then
+    if [ "$line" = "$begin" ]; then
+      printf '%s\n' "$line" >> "$tmp" || {
+        rm -f "$tmp"
+        return 1
+      }
+      printf '%s\n' "$content" >> "$tmp" || {
+        rm -f "$tmp"
+        return 1
+      }
+      inside=1
+      continue
+    fi
 
-    error "Failed to update $variable in setup script: $file"
+    if [ "$line" = "$end" ]; then
+      inside=0
+      printf '%s\n' "$line" >> "$tmp" || {
+        rm -f "$tmp"
+        return 1
+      }
+      continue
+    fi
+
+    if (( ! inside )); then
+      printf '%s\n' "$line" >> "$tmp" || {
+        rm -f "$tmp"
+        return 1
+      }
+    fi
+
+  done < "$file"
+
+  if ! chmod --reference="$file" "$tmp" ||
+    ! mv -f -- "$tmp" "$file"; then
+    rm -f "$tmp"
+    error "Failed to replace the $block block in setup script: $file"
     return 1
   fi
 
@@ -502,16 +528,41 @@ removeSetupBlock() {
 
   local file="$1"
   local block="$2"
+  local begin="rem BEGIN $block"
+  local end="rem END $block"
+  local line inside=0 tmp
 
-  [ -s "$file" ] || return 1
+  validateSetupBlock "$file" "$block" || return 1
 
-  if ! grep -Fqx -- "rem BEGIN $block" "$file" ||
-    ! grep -Fqx -- "rem END $block" "$file"; then
-    error "Failed to locate the $block block in setup script: $file"
+  if ! tmp=$(mktemp "${file}.XXXXXX"); then
+    error "Failed to create temporary setup script!"
     return 1
   fi
 
-  if ! sed -i "/^rem BEGIN $block$/,/^rem END $block$/d" "$file"; then
+  while IFS= read -r line || [ -n "$line" ]; do
+
+    if [ "$line" = "$begin" ]; then
+      inside=1
+      continue
+    fi
+
+    if [ "$line" = "$end" ]; then
+      inside=0
+      continue
+    fi
+
+    if (( ! inside )); then
+      printf '%s\n' "$line" >> "$tmp" || {
+        rm -f "$tmp"
+        return 1
+      }
+    fi
+
+  done < "$file"
+
+  if ! chmod --reference="$file" "$tmp" ||
+    ! mv -f -- "$tmp" "$file"; then
+    rm -f "$tmp"
     error "Failed to remove the $block block from setup script: $file"
     return 1
   fi
@@ -534,18 +585,6 @@ finalizeSetupScript() {
   return 0
 }
 
-escapeSetupSed() {
-
-  local value="$1"
-
-  value=${value//\\/\\\\}
-  value=${value//&/\\&}
-  value=${value//|/\\|}
-
-  printf '%s' "$value"
-  return 0
-}
-
 validateGeneratedXML() {
 
   local asset="$1"
@@ -561,7 +600,7 @@ validateGeneratedXML() {
 validateSetupScript() {
 
   local file="$1"
-  local block begin_count end_count
+  local block
   local blocks=(
     LOCAL_ACCOUNT
     PRODUCT_KEY
@@ -572,14 +611,37 @@ validateSetupScript() {
   [ -s "$file" ] || return 1
 
   for block in "${blocks[@]}"; do
-    begin_count=$(grep -Fxc -- "rem BEGIN $block" "$file" || true)
-    end_count=$(grep -Fxc -- "rem END $block" "$file" || true)
-
-    if [ "$begin_count" -ne 1 ] || [ "$end_count" -ne 1 ]; then
-      error "Invalid $block markers in setup script: $file"
-      return 1
-    fi
+    validateSetupBlock "$file" "$block" || return 1
   done
+
+  return 0
+}
+
+validateSetupBlock() {
+
+  local file="$1"
+  local block="$2"
+  local begin="rem BEGIN $block"
+  local end="rem END $block"
+  local begin_count end_count begin_line end_line
+
+  [ -s "$file" ] || return 1
+
+  begin_count=$(grep -Fxc -- "$begin" "$file" || true)
+  end_count=$(grep -Fxc -- "$end" "$file" || true)
+
+  if [ "$begin_count" -ne 1 ] || [ "$end_count" -ne 1 ]; then
+    error "Invalid $block markers in setup script: $file"
+    return 1
+  fi
+
+  begin_line=$(grep -nFx -- "$begin" "$file" | cut -d: -f1) || return 1
+  end_line=$(grep -nFx -- "$end" "$file" | cut -d: -f1) || return 1
+
+  if [ "$begin_line" -ge "$end_line" ]; then
+    error "Invalid $block marker order in setup script: $file"
+    return 1
+  fi
 
   return 0
 }
@@ -1097,24 +1159,22 @@ updateLocaleXML() {
   return 0
 }
 
-updateLocalAccountXML() {
+updateLocalAccount() {
 
   local asset="$1"
-  local script="${2:-}"
+  local script="$2"
   local user="${USERNAME:-}"
   local pass="${PASSWORD:-admin}"
-  local user_xml pw admin
+  local user_xml pw admin content
 
   validateUsername "$user" "local" || return 1
 
   if [ -n "$user" ]; then
     user_xml=$(escapeXMLSed "$user") || return 1
-    if [ -n "$script" ]; then
-      updateSetupVariable "$script" "LOCAL_ACCOUNT" "LOCAL_USER" "$user" || return 1
-    else
-      sed -i "s|-name \"Docker\"|-name \"\$env:USERNAME\"|g" "$asset" || return 1
-      sed -i 's|where name="Docker"|where name="%USERNAME%"|g' "$asset" || return 1
-    fi
+    printf -v content '%s\n%s' \
+      'rem Prevent the local user password from expiring.' \
+      "powershell.exe -ExecutionPolicy Unrestricted -NoLogo -NoProfile -NonInteractive set-localuser -name \"$user\" -passwordneverexpires 1"
+    replaceSetupBlock "$script" "LOCAL_ACCOUNT" "$content" || return 1
     sed -i "s|<Name>Docker</Name>|<Name>$user_xml</Name>|g" "$asset" || return 1
     sed -i "s|<FullName>Docker</FullName>|<FullName>$user_xml</FullName>|g" "$asset" || return 1
     sed -i "s|<Username>Docker</Username>|<Username>$user_xml</Username>|g" "$asset" || return 1
@@ -1139,14 +1199,14 @@ updateLocalAccountXML() {
   return 0
 }
 
-updateMembershipXML() {
+updateMembership() {
 
   local asset="$1"
   local domain="$2"
   local workgroup="$3"
   local account="$4"
   local auth="$5"
-  local script="${6:-}"
+  local script="$6"
 
   if [ -n "$domain" ]; then
 
@@ -1162,7 +1222,7 @@ updateMembershipXML() {
       return 0
     fi
 
-    removeLocalAccountXML "$asset" "$script" || return 1
+    removeLocalAccount "$asset" "$script" || return 1
     return 0
   fi
 
@@ -1210,10 +1270,19 @@ updateEditionXML() {
 updateProductKey() {
 
   local script="$1"
+  local key="${KEY:-}"
+  local content
 
-  [ -z "$script" ] && return 0
+  if [ -z "$key" ]; then
+    removeSetupBlock "$script" "PRODUCT_KEY" || return 1
+    return 0
+  fi
 
-  updateSetupVariable "$script" "PRODUCT_KEY" "PRODUCT_KEY" "${KEY:-}" || return 1
+  printf -v content '%s\n%s' \
+    'rem Install the product key without activating Windows immediately.' \
+    "cscript.exe //B //Nologo \"%SystemRoot%\\System32\\slmgr.vbs\" /ipk \"$key\""
+
+  replaceSetupBlock "$script" "PRODUCT_KEY" "$content" || return 1
 
   return 0
 }
@@ -1301,42 +1370,24 @@ setConfigurationXML() {
   return 0
 }
 
-removeSharedFolderXML() {
+removeSharedFolder() {
 
-  local asset="$1"
-  local script="${2:-}"
+  local script="$1"
 
   if ! disabled "${SHORTCUT:-}" &&
     ! disabled "${SAMBA:-}"; then
     return 0
   fi
 
-  if [ -n "$script" ]; then
-    removeSetupBlock "$script" "SHARED_FOLDER" || return 1
-    return 0
-  fi
-
-  if ! sed -i -E '
-    /<SynchronousCommand([[:space:]>])/ {
-      :command
-      N
-      /<\/SynchronousCommand>/!b command
-      /<Description>Create desktop shortcut to shared folder<\/Description>/d
-      /<Description>Map shared folder<\/Description>/d
-    }
-  ' "$asset"; then
-
-    error "Failed to remove shared folder shortcuts from answer file!"
-    return 1
-  fi
+  removeSetupBlock "$script" "SHARED_FOLDER" || return 1
 
   return 0
 }
 
-removeLocalAccountXML() {
+removeLocalAccount() {
 
   local asset="$1"
-  local script="${2:-}"
+  local script="$2"
 
   if ! sed -i -E \
     -e '/^[[:space:]]*<LocalAccounts([[:space:]>])/,/^[[:space:]]*<\/LocalAccounts>[[:space:]]*$/d' \
@@ -1347,59 +1398,23 @@ removeLocalAccountXML() {
     return 1
   fi
 
-  if [ -n "$script" ]; then
-    removeSetupBlock "$script" "LOCAL_ACCOUNT" || return 1
-    return 0
-  fi
-
-  if ! sed -i -E '
-    /<SynchronousCommand([[:space:]>])/ {
-      :command
-      N
-      /<\/SynchronousCommand>/!b command
-      /<Description>Password Never Expires<\/Description>/d
-    }
-  ' "$asset"; then
-
-    error "Failed to remove local account commands from answer file!"
-    return 1
-  fi
+  removeSetupBlock "$script" "LOCAL_ACCOUNT" || return 1
 
   return 0
 }
 
 enableLog() {
 
-  local file="$1"
-  local script="${2:-}"
-  local old='C:\OEM\install.bat"</CommandLine>'
-  local msg="failed to enable install logging in the answer file!"
+  local script="$1"
+  local content
 
   enabled "${LOG:-}" || return 0
 
-  if [ -n "$script" ]; then
-    updateSetupVariable \
-      "$script" \
-      "OEM_SCRIPT" \
-      "OEM_REDIRECT" \
-      " > C:\OEM\install.log 2>&1" || return 1
+  printf -v content '%s\n%s' \
+    'rem Launch the custom script asynchronously in a separate visible window.' \
+    'if exist "C:\OEM\install.bat" start "Install" cmd.exe /d /c ""C:\OEM\install.bat" > "C:\OEM\install.log" 2>&1"'
 
-    return 0
-  fi
-
-  [ -f "$file" ] || return 1
-
-  if ! grep -Fq "$old" "$file"; then
-    enabled "$DEBUG" && warn "$msg"
-    return 0
-  fi
-
-  if ! sed -i \
-    's|C:\\OEM\\install\.bat"</CommandLine>|C:\\OEM\\install.bat \&gt; C:\\OEM\\install.log 2\&gt;\&amp;1"</CommandLine>|' \
-    "$file"; then
-
-    warn "$msg"
-  fi
+  replaceSetupBlock "$script" "OEM_SCRIPT" "$content" || return 1
 
   return 0
 }
