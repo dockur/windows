@@ -71,6 +71,9 @@ rem Install the product key without activating Windows immediately.
 cscript.exe //B //Nologo "%SystemRoot%\System32\slmgr.vbs" /ipk "XXX"
 rem END PRODUCT_KEY
 
+rem Install the VirtIO display driver last to avoid disrupting earlier setup work.
+pnputil.exe -i -a "%SystemRoot%\Drivers\viogpudo\viogpudo.inf"
+
 type nul > "%SETUP_COMPLETE%"
 exit /b 0
 
