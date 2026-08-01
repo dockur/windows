@@ -778,25 +778,36 @@ setMachine() {
   local iso="$2"
   local dir="$3"
   local desc="$4"
-  local legacy=""
 
   ETFS="boot/etfsboot.com"
 
+  local version=""
   case "${id,,}" in
-    "win2k"* )   legacy="2k" ;;
-    "winxp"* )   legacy="xp" ;;
-    "win2003"* ) legacy="2k3" ;;
+    "win2k"* )   version="2k" ;;
+    "winxp"* )   version="xp" ;;
+    "win2003"* ) version="2k3" ;;
   esac
 
-  if [ -n "$legacy" ]; then
-    if ! legacyInstall "$iso" "$dir" "$desc" "$legacy"; then
+  if [ -n "$version" ]; then
+
+    if ! legacyInstall "$iso" "$dir" "$desc" "$version"; then
       error "Failed to prepare $desc ISO!"
       return 1
     fi
+
   fi
 
   if isLegacy "$id"; then
+
     writeState "mode" "windows_legacy" || return 1
+
+    case "${id,,}" in 
+      "win9"* | "win2k"* | "reactos" )
+        writeState "vga" "cirrus" || return 1 ;;
+      * )
+        writeState "vga" "std" || return 1 ;;
+    esac
+
   fi
 
   restoreBootMode || return 1
@@ -805,16 +816,14 @@ setMachine() {
 
     "win9"* )
 
-      writeState "usb" "no" || return 1
+      writeState "usb" "N" || return 1
       writeState "net" "pcnet" || return 1
       writeState "type" "auto" || return 1
-      writeState "vga" "cirrus" || return 1
       writeState "old" "pc-i440fx-2.4" || return 1 ;;
 
     "win2k"* )
 
       writeState "old" "pc" || return 1
-      writeState "vga" "cirrus" || return 1
       writeState "type" "auto" || return 1
       writeState "net" "rtl8139" || return 1
       writeState "usb" "pci-ohci" || return 1 ;;
@@ -831,7 +840,6 @@ setMachine() {
 
       writeState "old" "pc" || return 1
       writeState "type" "auto" || return 1
-      writeState "vga" "cirrus" || return 1
       writeState "net" "rtl8139" || return 1
       writeState "usb" "pci-ohci" || return 1 ;;
 
