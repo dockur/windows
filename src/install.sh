@@ -1129,7 +1129,7 @@ addDrivers() {
 
   # Install the VirtIO display driver explicitly from SetupComplete.cmd so it
   # cannot disrupt Windows Setup by loading through the WinPE driver path.
-  rm -rf "$dest/viogpudo"
+  isLegacy || rm -rf "$dest/viogpudo"
 
   if [ -n "$file" ]; then
 
