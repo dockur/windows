@@ -61,7 +61,10 @@ rem Install the VirtIO Balloon service once.
 sc.exe query BalloonService >nul 2>&1
 if errorlevel 1 "%SystemRoot%\Drivers\Balloon\blnsvr.exe" -i
 
-rem PRODUCT_KEY_PLACEHOLDER
+rem BEGIN PRODUCT_KEY
+rem Install the product key without activating Windows immediately.
+cscript.exe //B //Nologo "%SystemRoot%\System32\slmgr.vbs" /ipk "XXX"
+rem END PRODUCT_KEY
 
 rem Install the VirtIO display driver last to avoid disrupting earlier setup work.
 pnputil.exe -i -a "%SystemRoot%\Drivers\viogpudo\viogpudo.inf"
