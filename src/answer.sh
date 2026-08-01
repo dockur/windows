@@ -68,7 +68,7 @@ stageAnswer() {
 
   if ! updateDiskID "$answer" "${DISK_TYPE:-}"; then
     error "Failed to adjust the Windows installation disk!"
-    return 1
+    exit 88
   fi
 
   if ! setConfigurationXML "$answer"; then
