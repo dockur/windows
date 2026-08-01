@@ -76,6 +76,10 @@ bootStatus() {
     'BdsDxe: failed to start Boot[[:xdigit:]]{4} "UEFI QEMU .*DVD-ROM.*: Time out' \
     <<< "$recent" && return 2
 
+  grep -Fq \
+    "BdsDxe: No bootable option or device was found." \
+    <<< "$recent" && return 2
+
   grep -Fq "UEFI Interactive Shell" <<< "$recent" && return 2
 
   grep -Eq \
@@ -104,9 +108,17 @@ waitForBoot() {
     if (( ! keySent )) && needsBootKey; then
 
       if keyDelay=$(bootKeyDelay); then
-        if sendKey spc "$keyDelay" 500; then
-          keySent=1
+
+        if [[ "$keyDelay" == "0" ]]; then
+          if sendKey spc 0 500; then
+            keySent=1
+          fi
+        else
+          if sendKey spc "$keyDelay" 250 4 0.75; then
+            keySent=1
+          fi
         fi
+
       fi
 
     fi
@@ -239,14 +251,23 @@ sendKey() {
   local key="$1"
   local delay="${2:-0}"
   local hold="${3:-100}"
-  local output
+  local repeat="${4:-1}"
+  local interval="${5:-0}"
+  local i output
 
   [ ! -S "$ACPI_SOCKET" ] && return 1
   [[ "$delay" != "0" ]] && sleep "$delay"
 
   if ! output=$(
-    printf 'sendkey %s %s\n' "$key" "$hold" |
-      nc -q 1 -w 1 -U "$ACPI_SOCKET" 2>&1
+    {
+      for ((i = 1; i <= repeat; i++)); do
+        printf 'sendkey %s %s\n' "$key" "$hold"
+
+        if (( i < repeat )); then
+          sleep "$interval"
+        fi
+      done
+    } | nc -q 1 -w 1 -U "$ACPI_SOCKET" 2>&1
   ); then
     return 1
   fi
