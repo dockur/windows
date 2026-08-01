@@ -1127,12 +1127,9 @@ addDrivers() {
   mkdir -p "$dst" || return 1
   cp -Lr "$dest/." "$dst" || return 1
 
-  case "${version,,}" in
-    "win11x64"* | "win2025"* )
-      # Workaround Virtio GPU driver bug
-      rm -rf "$dest/viogpudo"
-      ;;
-  esac
+  # Install the VirtIO display driver explicitly from SetupComplete.cmd so it
+  # cannot disrupt Windows Setup by loading through the WinPE driver path.
+  rm -rf "$dest/viogpudo"
 
   if [ -n "$file" ]; then
 
