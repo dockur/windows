@@ -369,7 +369,7 @@ prepareSetupScript() {
   stageSetupScript "$asset" "$stage" staged || return 1
   [ -n "$staged" ] || return 0
 
-  updateSetupScript "$staged" || return 1
+  updateSetupScript "$staged" "$asset" || return 1
   finalizeSetupScript "$staged" || return 1
 
   printf -v "$result_name" '%s' "$staged"
@@ -379,9 +379,10 @@ prepareSetupScript() {
 updateSetupScript() {
 
   local script="$1"
+  local asset="$2"
   local domain="${DOMAIN:-}"
   local user="${USERNAME:-}"
-  local content
+  local content id
 
   if [ ! -s "$script" ]; then
     error "Failed to find staged setup script: $script"
@@ -392,9 +393,23 @@ updateSetupScript() {
     removeSetupBlock "$script" "LOCAL_ACCOUNT" || return 1
   elif [ -n "$user" ]; then
     validateUsername "$user" "local" || return 1
-    printf -v content '%s\n%s' \
-      'rem Prevent the local user password from expiring.' \
-      "powershell.exe -ExecutionPolicy Unrestricted -NoLogo -NoProfile -NonInteractive set-localuser -name \"$user\" -passwordneverexpires 1"
+
+    id=$(basename "$asset") || return 1
+    id="${id%.*}"
+
+    case "${id,,}" in
+      "win11"* | "win2025"* )
+        printf -v content '%s\n%s' \
+          'rem Prevent the local user password from expiring.' \
+          "powershell.exe -ExecutionPolicy Unrestricted -NoLogo -NoProfile -NonInteractive set-localuser -name \"$user\" -passwordneverexpires 1"
+        ;;
+      * )
+        printf -v content '%s\n%s' \
+          'rem Prevent the local user password from expiring.' \
+          "wmic useraccount where name=\"$user\" set PasswordExpires=false"
+        ;;
+    esac
+
     replaceSetupBlock "$script" "LOCAL_ACCOUNT" "$content" || return 1
   fi
 
