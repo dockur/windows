@@ -69,7 +69,7 @@
             </MetaData>
           </InstallFrom>
           <InstallTo>
-            <DiskID>0</DiskID>
+            <DiskID>1</DiskID>
             <PartitionID>3</PartitionID>
           </InstallTo>
           <WillShowUI>OnError</WillShowUI>
