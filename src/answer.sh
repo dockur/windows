@@ -333,7 +333,10 @@ updateXML() {
   [ -z "${WIDTH:-}" ] && WIDTH="1280"
   [ -z "${HEIGHT:-}" ] && HEIGHT="720"
 
-  [ -s "$script" ] || return 1
+  if [ ! -s "$script" ]; then
+    error "Failed to find staged setup script: $script"
+    exit 84
+  fi
 
   validateXMLSettings || return 1
   updateDisplayXML "$asset" || return 1
@@ -417,25 +420,29 @@ stageSetupScript() {
 
   printf -v "$result_name" '%s' ""
 
-  source=$(findSetupScript "$asset") || return 1
+  source=$(findSetupScript "$asset") || exit 84
   [ -n "$source" ] || return 0
 
   target="$stage/\$OEM\$/\$\$/Setup/Scripts/SetupComplete.cmd"
 
   if ! mkdir -p "$(dirname "$target")"; then
     error "Failed to create setup script directory!"
-    return 1
+    exit 84
   fi
 
   if ! cp -L -- "$source" "$target"; then
     error "Failed to stage setup script: $source"
-    return 1
+    exit 84
   fi
 
   # Work on a normalized copy so marker updates are independent of the line
   # endings stored in Git. The staged result is converted back to CRLF later.
-  sed -i 's/\r$//' "$target" || return 1
-  validateSetupScript "$target" || return 1
+  if ! sed -i 's/\r$//' "$target"; then
+    error "Failed to normalize setup script: $target"
+    exit 84
+  fi
+
+  validateSetupScript "$target" || exit 84
 
   printf -v "$result_name" '%s' "$target"
   return 0
@@ -448,18 +455,22 @@ installSetupScript() {
   local target
 
   [ -n "$script" ] || return 0
-  [ -s "$script" ] || return 1
+
+  if [ ! -s "$script" ]; then
+    error "Failed to find staged setup script: $script"
+    exit 84
+  fi
 
   target="$root/\$OEM\$/\$\$/Setup/Scripts/SetupComplete.cmd"
 
   if ! mkdir -p "$(dirname "$target")"; then
     error "Failed to create setup script directory!"
-    return 1
+    exit 84
   fi
 
   if ! cp -f -- "$script" "$target"; then
     error "Failed to add setup script to Windows image!"
-    return 1
+    exit 84
   fi
 
   return 0
@@ -474,11 +485,11 @@ replaceSetupBlock() {
   local end="rem END $block"
   local line inside=0 tmp
 
-  validateSetupBlock "$file" "$block" || return 1
+  validateSetupBlock "$file" "$block" || exit 84
 
   if ! tmp=$(mktemp "${file}.XXXXXX"); then
     error "Failed to create temporary setup script!"
-    return 1
+    exit 84
   fi
 
   while IFS= read -r line || [ -n "$line" ]; do
@@ -486,11 +497,11 @@ replaceSetupBlock() {
     if [ "$line" = "$begin" ]; then
       printf '%s\n' "$line" >> "$tmp" || {
         rm -f "$tmp"
-        return 1
+        exit 84
       }
       printf '%s\n' "$content" >> "$tmp" || {
         rm -f "$tmp"
-        return 1
+        exit 84
       }
       inside=1
       continue
@@ -500,7 +511,7 @@ replaceSetupBlock() {
       inside=0
       printf '%s\n' "$line" >> "$tmp" || {
         rm -f "$tmp"
-        return 1
+        exit 84
       }
       continue
     fi
@@ -508,7 +519,7 @@ replaceSetupBlock() {
     if (( ! inside )); then
       printf '%s\n' "$line" >> "$tmp" || {
         rm -f "$tmp"
-        return 1
+        exit 84
       }
     fi
 
@@ -518,7 +529,7 @@ replaceSetupBlock() {
     ! mv -f -- "$tmp" "$file"; then
     rm -f "$tmp"
     error "Failed to replace the $block block in setup script: $file"
-    return 1
+    exit 84
   fi
 
   return 0
@@ -532,11 +543,11 @@ removeSetupBlock() {
   local end="rem END $block"
   local line inside=0 tmp
 
-  validateSetupBlock "$file" "$block" || return 1
+  validateSetupBlock "$file" "$block" || exit 84
 
   if ! tmp=$(mktemp "${file}.XXXXXX"); then
     error "Failed to create temporary setup script!"
-    return 1
+    exit 84
   fi
 
   while IFS= read -r line || [ -n "$line" ]; do
@@ -554,7 +565,7 @@ removeSetupBlock() {
     if (( ! inside )); then
       printf '%s\n' "$line" >> "$tmp" || {
         rm -f "$tmp"
-        return 1
+        exit 84
       }
     fi
 
@@ -564,7 +575,7 @@ removeSetupBlock() {
     ! mv -f -- "$tmp" "$file"; then
     rm -f "$tmp"
     error "Failed to remove the $block block from setup script: $file"
-    return 1
+    exit 84
   fi
 
   return 0
@@ -575,11 +586,14 @@ finalizeSetupScript() {
   local file="$1"
 
   [ -n "$file" ] || return 0
-  [ -s "$file" ] || return 1
+  if [ ! -s "$file" ]; then
+    error "Failed to find staged setup script: $file"
+    exit 84
+  fi
 
   if ! unix2dos -q "$file"; then
     error "Failed to convert setup script to DOS format: $file"
-    return 1
+    exit 84
   fi
 
   return 0
