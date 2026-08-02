@@ -247,34 +247,60 @@ jobs:
             "$RUNNER_TEMP/storage"
 
           printf '%s\n' "$token" > "$RUNNER_TEMP/data/validation.token"
+          printf '%s\n' "$token" > "$RUNNER_TEMP/oem/validation.token"
 
           cat > "$RUNNER_TEMP/oem/sync-log.bat" <<'BATCH'
           @echo off
           setlocal
 
+          set "mode=%~1"
+          set "lock=C:\OEM\sync-log.lock"
+          set /A retries=0 >nul
+
           :sync
-          if exist C:\OEM\install.log (
-            copy /Y C:\OEM\install.log \\host.lan\Data\install.tmp >nul 2>&1
+          call :sync_file
 
-            if not errorlevel 1 (
-              move /Y \\host.lan\Data\install.tmp \\host.lan\Data\install.log >nul 2>&1
-            )
-          )
+          if /I not "%mode%"=="once" goto continuous
+          if not errorlevel 1 exit /B 0
 
-          if /I "%~1"=="once" exit /B
+          set /A retries+=1 >nul
+          if %retries% GEQ 30 exit /B 1
+
+          ping 127.0.0.1 -n 2 >nul
+          goto sync
+
+          :continuous
           if exist C:\OEM\install.done exit /B
 
           ping 127.0.0.1 -n 6 >nul
           goto sync
+
+          :sync_file
+          if not exist C:\OEM\install.log exit /B 1
+
+          2>nul mkdir "%lock%"
+          if errorlevel 1 exit /B 1
+
+          copy /Y C:\OEM\install.log \\host.lan\Data\install.tmp >nul 2>&1
+          if errorlevel 1 goto sync_failed
+
+          move /Y \\host.lan\Data\install.tmp \\host.lan\Data\install.log >nul 2>&1
+          if errorlevel 1 goto sync_failed
+
+          rmdir "%lock%" >nul 2>&1
+          exit /B 0
+
+          :sync_failed
+          rmdir "%lock%" >nul 2>&1
+          exit /B 1
           BATCH
 
           cat > "$RUNNER_TEMP/oem/watchdog.vbs" <<'VBSCRIPT'
           Option Explicit
 
-          Const ForAppending = 8
-
           Dim filesystem
           Dim file
+          Dim result
           Dim shell
 
           WScript.Sleep 180000
@@ -287,14 +313,18 @@ jobs:
 
           On Error Resume Next
 
-          Set file = filesystem.OpenTextFile("C:\OEM\install.log", ForAppending, True)
-          file.WriteLine Now & " - Callback failed for 3 minutes."
-          file.Close
+          WScript.Echo Now & " - Callback failed for 3 minutes."
+
+          Set shell = CreateObject("WScript.Shell")
+          result = shell.Run("cmd.exe /C C:\OEM\sync-log.bat once", 0, True)
 
           Set file = filesystem.CreateTextFile("C:\OEM\install.done", True)
           file.Close
 
-          Set shell = CreateObject("WScript.Shell")
+          If result <> 0 Then
+            shell.Run "cmd.exe /C echo VALIDATION_LOG_SYNC_FAILED^>COM1", 0, True
+          End If
+
           shell.Run "cmd.exe /C echo VALIDATION_CALLBACK_FAILED^>COM1", 0, True
           VBSCRIPT
 
@@ -361,6 +391,12 @@ jobs:
                       }
                   }
 
+                  $oemFile = (
+                      Get-Content `
+                          -LiteralPath "C:\OEM\validation.token" `
+                          -Raw
+                  ).Trim()
+
                   $addresses = [System.Net.Dns]::GetHostAddresses(
                       "www.msftconnecttest.com"
                   )
@@ -387,25 +423,21 @@ jobs:
                       version     = [string]$windows.Version
                       build       = [string]$windows.BuildNumber
                       platform    = $platform
+                      oem_file    = $oemFile
                       share       = $share
                       share_write = "ok"
                       internet    = "ok"
                   }
 
                   $json = $result | ConvertTo-Json -Compress
-                  $temporary = "\\host.lan\Data\windows.tmp"
-                  $destination = "\\host.lan\Data\windows.json"
+                  $serialResult = "C:\OEM\validation.result"
+                  $serialValue = "VALIDATION_RESULT=$json`r`n"
 
                   [System.IO.File]::WriteAllText(
-                      $temporary,
-                      $json,
+                      $serialResult,
+                      $serialValue,
                       $encoding
                   )
-
-                  Move-Item `
-                      -LiteralPath $temporary `
-                      -Destination $destination `
-                      -Force
 
                   break
               }
@@ -419,6 +451,8 @@ jobs:
               cat > "$RUNNER_TEMP/oem/install.bat" <<EOF
           @echo off
           del /Q C:\OEM\install.done 2>nul
+          del /Q C:\OEM\validation.result 2>nul
+          rmdir /S /Q C:\OEM\sync-log.lock 2>nul
           start "" /B cmd.exe /C C:\OEM\sync-log.bat
           start "" /B cscript.exe //B //NoLogo C:\OEM\watchdog.vbs
 
@@ -429,14 +463,30 @@ jobs:
           set "result=%errorlevel%"
 
           if not "%result%"=="0" (
-            echo %date% %time% - Callback failed.>>C:\OEM\install.log
+            echo %date% %time% - Callback failed.
+            call C:\OEM\sync-log.bat once
+            if errorlevel 1 echo VALIDATION_LOG_SYNC_FAILED>COM1
             type nul > C:\OEM\install.done
             echo VALIDATION_CALLBACK_FAILED>COM1
             exit /B %result%
           )
 
-          type nul > C:\OEM\install.done
           call C:\OEM\sync-log.bat once
+
+          if errorlevel 1 (
+            type nul > C:\OEM\install.done
+            echo VALIDATION_LOG_SYNC_FAILED>COM1
+            echo VALIDATION_CALLBACK_FAILED>COM1
+            exit /B 1
+          )
+
+          type C:\OEM\validation.result > COM1
+
+          if errorlevel 1 (
+            exit /B 1
+          )
+
+          type nul > C:\OEM\install.done
           exit /B %result%
           EOF
               ;;
@@ -586,18 +636,15 @@ jobs:
           Dim version
           Dim build
           Dim platform
+          Dim oemFile
           Dim share
           Dim shareWrite
           Dim internet
 
           Dim json
-          Dim temporary
-          Dim destination
+          Dim errorMessage
           Dim file
           Dim success
-
-          temporary = "\\host.lan\Data\windows.tmp"
-          destination = "\\host.lan\Data\windows.json"
 
           Do
             success = False
@@ -627,6 +674,7 @@ jobs:
             If Err.Number = 0 Then
               edition = ReadRegistry(shell, "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\EditionID")
               platform = GetPlatform(shell)
+              oemFile = ReadTextFile(filesystem, "C:\OEM\validation.token")
               share = ReadTextFile(filesystem, "\\host.lan\Data\validation.token")
               shareWrite = TestSharedFolder(filesystem, token)
               internet = TestInternet()
@@ -641,33 +689,28 @@ jobs:
                 """version"":""" & EscapeJson(version) & """," & _
                 """build"":""" & EscapeJson(build) & """," & _
                 """platform"":""" & EscapeJson(platform) & """," & _
+                """oem_file"":""" & EscapeJson(oemFile) & """," & _
                 """share"":""" & EscapeJson(share) & """," & _
                 """share_write"":""" & EscapeJson(shareWrite) & """," & _
                 """internet"":""" & EscapeJson(internet) & """" & _
                 "}"
 
-              Set file = filesystem.OpenTextFile(temporary, ForWriting, True)
-              file.Write json
+              Set file = filesystem.OpenTextFile("C:\OEM\validation.result", ForWriting, True)
+              file.WriteLine "VALIDATION_RESULT=" & json
               file.Close
-            End If
-
-            If Err.Number = 0 Then
-              If filesystem.FileExists(destination) Then
-                filesystem.DeleteFile destination, True
-              End If
-
-              filesystem.MoveFile temporary, destination
             End If
 
             If Err.Number = 0 Then
               success = True
             Else
-              WScript.Echo _
+              errorMessage = _
                 Now & _
                 " - Callback retry: 0x" & _
                 Hex(Err.Number) & _
                 " - " & _
                 Err.Description
+
+              WScript.Echo errorMessage
             End If
 
             Err.Clear
@@ -684,6 +727,8 @@ jobs:
               cat > "$RUNNER_TEMP/oem/install.bat" <<EOF
           @echo off
           del /Q C:\OEM\install.done 2>nul
+          del /Q C:\OEM\validation.result 2>nul
+          rmdir /S /Q C:\OEM\sync-log.lock 2>nul
           start "" /B cmd.exe /C C:\OEM\sync-log.bat
           start "" /B cscript.exe //B //NoLogo C:\OEM\watchdog.vbs
 
@@ -692,14 +737,30 @@ jobs:
           set "result=%errorlevel%"
 
           if not "%result%"=="0" (
-            echo %date% %time% - Callback failed.>>C:\OEM\install.log
+            echo %date% %time% - Callback failed.
+            call C:\OEM\sync-log.bat once
+            if errorlevel 1 echo VALIDATION_LOG_SYNC_FAILED>COM1
             type nul > C:\OEM\install.done
             echo VALIDATION_CALLBACK_FAILED>COM1
             exit /B %result%
           )
 
-          type nul > C:\OEM\install.done
           call C:\OEM\sync-log.bat once
+
+          if errorlevel 1 (
+            type nul > C:\OEM\install.done
+            echo VALIDATION_LOG_SYNC_FAILED>COM1
+            echo VALIDATION_CALLBACK_FAILED>COM1
+            exit /B 1
+          )
+
+          type C:\OEM\validation.result > COM1
+
+          if errorlevel 1 (
+            exit /B 1
+          )
+
+          type nul > C:\OEM\install.done
           exit /B %result%
           EOF
               ;;
@@ -855,26 +916,40 @@ jobs:
 
           logs_pid="$!"
           guest_log="$RUNNER_TEMP/data/install.log"
+          guest_log_offset="$RUNNER_TEMP/install-log.offset"
+          guest_log_snapshot="$RUNNER_TEMP/install-log.snapshot"
 
-          (
-            offset=0
-            snapshot="$RUNNER_TEMP/install-log.snapshot"
+          printf '0\n' > "$guest_log_offset"
 
-            while true; do
-              if cp "$guest_log" "$snapshot" 2>/dev/null; then
-                size="$(stat -c %s "$snapshot" 2>/dev/null || echo 0)"
+          print_guest_log() {
+            local offset
+            local size
 
-                if (( size < offset )); then
-                  offset=0
-                fi
+            offset="$(cat "$guest_log_offset" 2>/dev/null || echo 0)"
 
-                if (( size > offset )); then
-                  tail -c "+$((offset + 1))" "$snapshot" 2>/dev/null |
-                    sed -u 's/^/[install.bat] /' || true
-                  offset="$size"
-                fi
+            if ! [[ "$offset" =~ ^[0-9]+$ ]]; then
+              offset=0
+            fi
+
+            if cp "$guest_log" "$guest_log_snapshot" 2>/dev/null; then
+              size="$(stat -c %s "$guest_log_snapshot" 2>/dev/null || echo 0)"
+
+              if (( size < offset )); then
+                offset=0
               fi
 
+              if (( size > offset )); then
+                tail -c "+$((offset + 1))" "$guest_log_snapshot" 2>/dev/null |
+                  sed -u 's/^/[install.bat] /' || true
+              fi
+
+              printf '%s\n' "$size" > "$guest_log_offset"
+            fi
+          }
+
+          (
+            while true; do
+              print_guest_log
               sleep 2
             done
           ) &
@@ -884,6 +959,7 @@ jobs:
           stop_logs() {
             kill "$logs_pid" "$guest_logs_pid" 2>/dev/null || true
             wait "$logs_pid" "$guest_logs_pid" 2>/dev/null || true
+            print_guest_log
           }
 
           trap stop_logs EXIT
@@ -936,6 +1012,10 @@ jobs:
               echo
               echo "------------------------------------------------------------"
               echo "The guest validation callback failed."
+
+              if grep -Fq 'VALIDATION_LOG_SYNC_FAILED' <<< "$container_log"; then
+                echo "The final install.log synchronization also failed."
+              fi
 
               if [[ "$KILL_ON_FAILURE" == "true" ]]; then
                 echo "Stopping the Windows container..."
@@ -1051,11 +1131,12 @@ jobs:
               exit 1
             fi
 
-            response=""
-
-            if [[ -s "$RUNNER_TEMP/data/windows.json" ]]; then
-              response="$(cat "$RUNNER_TEMP/data/windows.json")"
-            fi
+            response="$(
+              grep -F 'VALIDATION_RESULT=' <<< "$container_log" |
+                tail -n 1 |
+                sed 's/^.*VALIDATION_RESULT=//' |
+                tr -d '\r' || true
+            )"
 
             if [[ -n "$response" ]]; then
               stop_logs
@@ -1077,12 +1158,22 @@ jobs:
               version="$(jq -r '.version // empty' <<< "$response")"
               build="$(jq -r '.build // empty' <<< "$response")"
               platform="$(jq -r '.platform // empty' <<< "$response")"
+              oem_file="$(jq -r '.oem_file // empty' <<< "$response")"
               share="$(jq -r '.share // empty' <<< "$response")"
               share_write="$(jq -r '.share_write // empty' <<< "$response")"
               internet="$(jq -r '.internet // empty' <<< "$response")"
 
               if [[ "$token" != "$EXPECTED_TOKEN" ]]; then
                 echo "The response token does not match."
+                exit 1
+              fi
+
+              if [[ "$oem_file" != "$EXPECTED_TOKEN" ]]; then
+                echo "Failed to read C:\\OEM\\validation.token."
+                echo "Expected contents:"
+                echo "  $EXPECTED_TOKEN"
+                echo "Received:"
+                echo "  ${oem_file:-empty}"
                 exit 1
               fi
 
@@ -1155,6 +1246,7 @@ jobs:
               echo "Version: $version"
               echo "Build: $build"
               echo "Platform: $platform"
+              echo "OEM files: copied successfully"
               echo "Shared folder: readable and writable"
               echo "Internet connection: accessible"
               exit 0
