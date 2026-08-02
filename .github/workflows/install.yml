@@ -815,7 +815,6 @@ jobs:
             --device /dev/net/tun \
             --cap-add NET_ADMIN \
             --stop-timeout 120 \
-            --env "ARGUMENTS=-fw_cfg opt/org.tianocore/UninstallMemAttrProtocol,string=y" \
             --env "MACHINE=$MACHINE" \
             --env "VERSION=$VERSION" \
             --env "RAM_SIZE=half" \
