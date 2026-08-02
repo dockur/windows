@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-installWindows() {
+startWindows() {
 
   parseVersion || return 58
   parseLanguage || return 62
@@ -119,6 +119,7 @@ bootWindows() {
   restoreMachineState || return 1
   restoreBootMode || return 1
   restoreMachine || return 1
+  reserveSambaPorts || return 1
 
   return 0
 }
@@ -404,6 +405,8 @@ finishInstall() {
 
     fi
   fi
+
+  reserveSambaPorts || return 1
 
   rm -rf "$TMP"
   return 0
@@ -1356,6 +1359,19 @@ removeImage() {
   return 0
 }
 
+reserveSambaPorts() {
+
+  disabled "${SAMBA:-Y}" && return 0
+  disabled "${NETWORK:-Y}" && return 0
+  enabled "${DHCP:-N}" && return 0
+
+  # NAT can fall back to user-mode networking after this point,
+  # so always protect the Samba listeners for non-DHCP networking.
+  HOST_PORTS="${HOST_PORTS:+$HOST_PORTS,}139/tcp,445/tcp"
+
+  return 0
+}
+
 backup () {
 
   local iso="$1"
@@ -1468,6 +1484,6 @@ restoreMachineState() {
   return 0
 }
 
-installWindows
+startWindows
 
 return 0
