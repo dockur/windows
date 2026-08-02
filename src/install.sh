@@ -441,7 +441,10 @@ findFile() {
 
   local size
   size="$(stat -c%s "$file")"
-  [ -z "$size" ] || [[ "$size" == "0" ]] && return 0
+
+  if [ -z "$size" ] || [[ "$size" == "0" ]]; then
+    return 0
+  fi
 
   ISO="$file"
   CUSTOM="$file"
