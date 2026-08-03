@@ -35,6 +35,7 @@ getCompatibleVersions() {
 checkPlatform() {
 
   local xml="$1"
+
   local platform compat
 
   platform=$(getPlatform "$xml")
@@ -59,6 +60,7 @@ checkPlatform() {
 getPlatform() {
 
   local xml="$1"
+
   local output platform="x64"
   local x86 x64 arm64 count=0 value
   local -a counts=()
@@ -110,6 +112,7 @@ getVersionPriority() {
 
   local id="${1,,}"
   local base="${2,,}"
+
   local entry priority patterns pattern
   local result="other" score best_score=-1
   local -a order=()
@@ -749,6 +752,7 @@ createSetupImage() {
 detectLegacy() {
 
   local dir="$1"
+
   local marker
 
   [[ "${PLATFORM,,}" == "x64" ]] || return 1
@@ -868,6 +872,7 @@ detectLegacy() {
 detectReactOS() {
 
   local dir="$1"
+
   local marker
 
   marker=$(find "$dir" -maxdepth 2 -type f \
@@ -940,6 +945,7 @@ setImage() {
 findIsoImage() {
 
   local iso="$1"
+
   local path
 
   # Prefer install.wim when both payload forms are present.
@@ -1203,6 +1209,7 @@ parseWimHeader() {
 findImage() {
 
   local dir="$1"
+
   local sources result
 
   sources=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
@@ -1226,6 +1233,7 @@ findImage() {
 readImageInfo() {
 
   local wim="$1"
+
   local result
 
   result=$(wimlib-imagex info -xml "$wim" | iconv -f UTF-16LE -t UTF-8) || {
@@ -1293,6 +1301,7 @@ describeImage() {
 
   local info_xml="$1"
   local index="$2"
+
   local result
 
   result=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 1
@@ -1343,6 +1352,7 @@ configureImage() {
 detectImageInfo() {
 
   local image_info="$1"
+
   local desc suggested index
 
   checkPlatform "$image_info" || exit 67
@@ -1376,6 +1386,7 @@ detectImageInfo() {
 detectIsoImage() {
 
   local iso="$1"
+
   local image header image_info
 
   # Return 1 when direct ISO inspection is unavailable so the caller may fall
@@ -1394,6 +1405,7 @@ detectIsoImage() {
 detectImage() {
 
   local dir="$1"
+
   local desc
 
   info "Detecting version from ISO image..."
@@ -1417,6 +1429,7 @@ detectImage() {
 normalizeBatch() {
 
   local file="$1"
+
   local bom tmp encoding
 
   [ ! -s "$file" ] && return 0
@@ -1458,6 +1471,7 @@ reportBatchMatches() {
   local pattern="$3"
   local message="$4"
   local suggestion="$5"
+
   local matches line
 
   matches=$(grep -Pin "$pattern" "$file" || true)
@@ -1478,6 +1492,7 @@ reportBatchMatches() {
 checkBatch() {
 
   local file="$1"
+
   local tmp output
   local matches line
   local enabled_rules
@@ -1587,6 +1602,7 @@ getBootLoadSize() {
   local iso="$1"
   local dir="$2"
   local desc="$3"
+
   local boot_info size value
 
   case "${DETECTED,,}" in
@@ -1649,6 +1665,7 @@ extractBootImage() {
   local iso="$1"
   local dir="$2"
   local desc="$3"
+
   local offset info
 
   ETFS="boot.img"
@@ -1694,6 +1711,7 @@ extractBootImage() {
 buildImage() {
 
   local dir="$1"
+
   local failed=""
   local cat="BOOT.CAT"
   local log="/run/shm/iso.log"
