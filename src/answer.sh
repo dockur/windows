@@ -1387,12 +1387,16 @@ updateDiskID() {
   current="$ids"
   [ "$current" = "$target" ] && return 0
 
-  if [ "$current" != "1" ]; then
-    error "The answer file must use DiskID 1 as its template value: $asset"
-    return 1
-  fi
+  case "$current" in
+    "0" | "1" ) ;;
+    * )
+      error "Unsupported DiskID $current in answer file: $asset"
+      return 1
+      ;;
+  esac
 
-  if ! sed -i 's#<DiskID>1</DiskID>#<DiskID>0</DiskID>#g' "$asset"; then
+  if ! sed -i -E \
+    "s#<DiskID>[[:space:]]*${current}[[:space:]]*</DiskID>#<DiskID>$target</DiskID>#g" \    "$asset"; then
     error "Failed to update DiskID in answer file: $asset"
     return 1
   fi
@@ -1418,42 +1422,90 @@ getXMLArchitecture() {
 setConfigurationXML() {
 
   local asset="$1"
-  local section
+  local setup='/*[local-name()="unattend"]/*[local-name()="settings" and @pass="windowsPE"]/*[local-name()="component" and @name="Microsoft-Windows-Setup"]'
+  local config="$setup/*[local-name()=\"UseConfigurationSet\"]"
+  local userdata="$setup/*[local-name()=\"UserData\"]"
+  local setup_count config_count userdata_count tmp
 
   [ -s "$asset" ] || return 1
 
-  section=$(sed -n -E '
-    /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/ {
-      /<component[^>]*name="Microsoft-Windows-Setup"[^>]*>/,/<\/component>/p
-    }
-  ' "$asset") || return 1
+  setup_count=$(xmlstarlet sel -t -v "count($setup)" "$asset") || return 1
 
-  [ -n "$section" ] || return 1
-
-  if grep -Fq '<UseConfigurationSet>' <<< "$section"; then
-
-    sed -i -E '
-      /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/ {
-        /<component[^>]*name="Microsoft-Windows-Setup"[^>]*>/,/<\/component>/ {
-          s#<UseConfigurationSet>[^<]*</UseConfigurationSet>#<UseConfigurationSet>true</UseConfigurationSet>#g
-        }
-      }
-    ' "$asset" || return 1
-
-    return 0
-  fi
-
-  if ! grep -Fq '<UserData>' <<< "$section"; then
+  if [ "$setup_count" != "1" ]; then
+    error "Failed to find a unique Microsoft-Windows-Setup component: $asset"
     return 1
   fi
 
-  sed -i -E '
-    /<settings[^>]*pass="windowsPE"[^>]*>/,/<\/settings>/ {
-      /<component[^>]*name="Microsoft-Windows-Setup"[^>]*>/,/<\/component>/ {
-        s#^([[:space:]]*)<UserData>#\1<UseConfigurationSet>true</UseConfigurationSet>\n\1<UserData>#
-      }
+  config_count=$(xmlstarlet sel -t -v "count($config)" "$asset") || return 1
+
+  if [ "$config_count" -gt 1 ]; then
+    error "Multiple UseConfigurationSet entries found in answer file: $asset"
+    return 1
+  fi
+
+  if ! tmp=$(mktemp "${asset}.XXXXXX"); then
+    error "Failed to create a temporary answer file!"
+    return 1
+  fi
+
+  if [ "$config_count" -eq 1 ]; then
+
+    if ! xmlstarlet ed \
+      -u "$config" \
+      -v "true" \
+      "$asset" > "$tmp"; then
+
+      rm -f "$tmp"
+      error "Failed to enable the Windows configuration set!"
+      return 1
+    fi
+
+  else
+
+    userdata_count=$(xmlstarlet sel -t -v "count($userdata)" "$asset") || {
+      rm -f "$tmp"
+      return 1
     }
-  ' "$asset" || return 1
+
+    if [ "$userdata_count" -gt 0 ]; then
+
+      if ! xmlstarlet ed \
+        -i "${userdata}[1]" \
+        -t elem \
+        -n "UseConfigurationSet" \
+        -v "true" \
+        "$asset" > "$tmp"; then
+
+        rm -f "$tmp"
+        error "Failed to insert UseConfigurationSet into answer file!"
+        return 1
+      fi
+
+    else
+
+      if ! xmlstarlet ed \
+        -s "$setup" \
+        -t elem \
+        -n "UseConfigurationSet" \
+        -v "true" \
+        "$asset" > "$tmp"; then
+
+        rm -f "$tmp"
+        error "Failed to append UseConfigurationSet to answer file!"
+        return 1
+      fi
+
+    fi
+
+  fi
+
+  if ! chmod --reference="$asset" "$tmp" ||
+    ! mv -f "$tmp" "$asset"; then
+
+    rm -f "$tmp"
+    error "Failed to replace the updated answer file!"
+    return 1
+  fi
 
   return 0
 }

@@ -88,26 +88,20 @@ getVersionPriority() {
 
   local id="${1,,}"
   local base="${2,,}"
-  local order_name="EDITION_ORDER"
   local entry priority patterns pattern
   local result="other" score best_score=-1
+  local -a order=()
 
   id="${id%-eval}"
 
-  case "$base" in
-    "win20"* )
-      order_name="SERVER_EDITION_ORDER"
-      ;;
-  esac
-
-  local -n order_ref="$order_name"
+  getEditionOrder "$base" order || return 1
 
   local edition="${id#"$base"}"
   edition="${edition#-}"
 
   # Use the most specific matching pattern. This prevents broad patterns
   # such as enterprise-* from taking precedence over enterprise-iot-*.
-  for entry in "${order_ref[@]}"; do
+  for entry in "${order[@]}"; do
 
     IFS='|' read -r _ priority patterns <<< "$entry"
 
@@ -891,6 +885,386 @@ setImage() {
   return 0
 }
 
+findIsoImage() {
+
+  local iso="$1"
+  local result_name="$2"
+  local path
+
+  printf -v "$result_name" '%s' ""
+
+  for path in \
+    /sources/install.wim \
+    /sources/install.esd; do
+
+    if udfread stat \
+        --ignore-case \
+        "$iso" \
+        "$path" \
+        >/dev/null 2>&1; then
+
+      printf -v "$result_name" '%s' "$path"
+      return 0
+    fi
+
+  done
+
+  return 1
+}
+
+readWimHeader() {
+
+  local iso="$1"
+  local image="$2"
+  local result_name="$3"
+
+  local header="$TMP/wim-header.bin"
+  local size signature
+
+  printf -v "$result_name" '%s' ""
+
+  if ! rm -f -- "$header"; then
+    return 1
+  fi
+
+  if ! udfread range \
+      --ignore-case \
+      -o "$header" \
+      "$iso" \
+      "$image" \
+      0 \
+      208 \
+      >/dev/null 2>&1; then
+
+    rm -f -- "$header"
+    return 1
+  fi
+
+  if ! size=$(stat -c%s -- "$header"); then
+    rm -f -- "$header"
+    return 1
+  fi
+
+  if (( size != 208 )); then
+    rm -f -- "$header"
+    return 1
+  fi
+
+  if ! signature=$(od -An -N8 -tx1 "$header" | tr -d ' \n'); then
+    rm -f -- "$header"
+    return 1
+  fi
+
+  if [[ "$signature" != "4d5357494d000000" ]]; then
+    rm -f -- "$header"
+    return 1
+  fi
+
+  printf -v "$result_name" '%s' "$header"
+  return 0
+}
+
+readIsoImageInfo() {
+
+  local iso="$1"
+  local image="$2"
+  local header="$3"
+  local result_name="$4"
+
+  local raw result root xml_count
+  local header_size version
+  local part_number total_parts image_count
+  local xml_offset xml_size xml_original xml_flags
+  local -a bytes=()
+
+  printf -v "$result_name" '%s' ""
+
+  if [ ! -f "$header" ]; then
+    return 1
+  fi
+
+  if ! raw=$(od -An -v -N208 -tu1 -- "$header"); then
+    return 1
+  fi
+
+  read -r -a bytes <<< "${raw//$'\n'/ }"
+
+  if (( ${#bytes[@]} != 208 )); then
+    return 1
+  fi
+
+  # Validate the MSWIM\0\0\0 signature.
+  if (( bytes[0] != 77 ||
+        bytes[1] != 83 ||
+        bytes[2] != 87 ||
+        bytes[3] != 73 ||
+        bytes[4] != 77 ||
+        bytes[5] != 0 ||
+        bytes[6] != 0 ||
+        bytes[7] != 0 )); then
+    return 1
+  fi
+
+  # Header size at offset 0x08.
+  header_size=$(( \
+    bytes[8] |
+    bytes[9] << 8 |
+    bytes[10] << 16 |
+    bytes[11] << 24
+  ))
+
+  if (( header_size != 208 )); then
+    return 1
+  fi
+
+  # WIM version at offset 0x0c.
+  version=$(( \
+    bytes[12] |
+    bytes[13] << 8 |
+    bytes[14] << 16 |
+    bytes[15] << 24
+  ))
+
+  if (( version != 0x10d00 &&
+        version != 0x0e00 )); then
+    return 1
+  fi
+
+  # Split-WIM information at offsets 0x28 and 0x2a.
+  part_number=$(( \
+    bytes[40] |
+    bytes[41] << 8
+  ))
+
+  total_parts=$(( \
+    bytes[42] |
+    bytes[43] << 8
+  ))
+
+  if (( part_number == 0 ||
+        total_parts == 0 ||
+        part_number > total_parts )); then
+    return 1
+  fi
+
+  # Image count at offset 0x2c.
+  image_count=$(( \
+    bytes[44] |
+    bytes[45] << 8 |
+    bytes[46] << 16 |
+    bytes[47] << 24
+  ))
+
+  if (( image_count == 0 ||
+        image_count > 65535 )); then
+    return 1
+  fi
+
+  if ! parseWimHeader \
+      "$iso" \
+      "$image" \
+      "$header" \
+      xml_offset \
+      xml_size \
+      xml_original \
+      xml_flags; then
+    return 1
+  fi
+
+  if [[ ! "$xml_offset" =~ ^[0-9]+$ ||
+    ! "$xml_size" =~ ^[0-9]+$ ||
+    ! "$xml_original" =~ ^[0-9]+$ ||
+    ! "$xml_flags" =~ ^[0-9]+$ ]]; then
+    return 1
+  fi
+
+  if (( xml_size == 0 ||
+        xml_original == 0 ||
+        xml_size != xml_original ||
+        xml_size % 2 != 0 )); then
+    return 1
+  fi
+
+  # These resource forms cannot be decoded as a direct UTF-16LE byte range:
+  #
+  # 0x04: compressed
+  # 0x08: spanned
+  # 0x10: solid
+  #
+  # The metadata flag 0x02 is expected and deliberately allowed.
+  if (( xml_flags & 0x1c )); then
+    return 1
+  fi
+
+  result=$(
+    udfread range \
+      --ignore-case \
+      "$iso" \
+      "$image" \
+      "$xml_offset" \
+      "$xml_size" \
+      2>/dev/null |
+      iconv -f UTF-16LE -t UTF-8 2>/dev/null
+  ) || {
+    local rc=$?
+
+    if (( rc >= 129 )); then
+      exit "$rc"
+    fi
+
+    return 1
+  }
+
+  [ -n "$result" ] || return 1
+
+  root=$(
+    xmllint \
+      --nonet \
+      --xpath 'name(/*)' \
+      - \
+      2>/dev/null <<< "$result"
+  ) || return 1
+
+  if [ "$root" != "WIM" ]; then
+    return 1
+  fi
+
+  xml_count=$(
+    xmllint \
+      --nonet \
+      --xpath 'count(/WIM/IMAGE)' \
+      - \
+      2>/dev/null <<< "$result"
+  ) || return 1
+
+  if [[ ! "$xml_count" =~ ^[0-9]+$ ]]; then
+    return 1
+  fi
+
+  if (( xml_count != image_count )); then
+    return 1
+  fi
+
+  printf -v "$result_name" '%s' "$result"
+  return 0
+}
+
+parseWimHeader() {
+
+  local iso="$1"
+  local image="$2"
+  local header="$3"
+  local offset_name="$4"
+  local size_name="$5"
+  local original_name="$6"
+  local flags_name="$7"
+
+  local -n offset_ref="$offset_name"
+  local -n size_ref="$size_name"
+  local -n original_ref="$original_name"
+  local -n flags_ref="$flags_name"
+
+  local details image_size raw
+  local header_size=0
+  local parsed_size=0
+  local parsed_offset=0
+  local parsed_original=0
+  local parsed_flags=0
+  local -a bytes=()
+
+  offset_ref=""
+  size_ref=""
+  original_ref=""
+  flags_ref=""
+
+  if [ ! -f "$header" ] || [ ! -s "$header" ]; then
+    return 1
+  fi
+
+  if ! raw=$(od -An -v -j8 -N88 -tu1 -- "$header"); then
+    return 1
+  fi
+
+  read -r -a bytes <<< "${raw//$'\n'/ }"
+
+  if (( ${#bytes[@]} != 88 )); then
+    return 1
+  fi
+
+  local i
+
+  # The WIM header size is a 32-bit little-endian value at offset 0x08.
+  for ((i=3; i>=0; i--)); do
+    header_size=$((header_size * 256 + bytes[i]))
+  done
+
+  if (( header_size != 208 )); then
+    return 1
+  fi
+
+  # The XML resource descriptor starts at offset 0x48. Its first seven bytes
+  # contain the stored size and its eighth byte contains the resource flags.
+  for ((i=70; i>=64; i--)); do
+    parsed_size=$((parsed_size * 256 + bytes[i]))
+  done
+
+  parsed_flags="${bytes[71]}"
+
+  # The XML resource offset is an unsigned 64-bit little-endian value at 0x50.
+  if (( bytes[79] >= 128 )); then
+    return 1
+  fi
+
+  for ((i=79; i>=72; i--)); do
+    parsed_offset=$((parsed_offset * 256 + bytes[i]))
+  done
+
+  # The uncompressed XML size is an unsigned 64-bit value at offset 0x58.
+  if (( bytes[87] >= 128 )); then
+    return 1
+  fi
+
+  for ((i=87; i>=80; i--)); do
+    parsed_original=$((parsed_original * 256 + bytes[i]))
+  done
+
+  if (( parsed_size <= 0 ||
+        parsed_offset < header_size ||
+        parsed_original <= 0 )); then
+    return 1
+  fi
+
+  if ! details=$(udfread stat \
+      --ignore-case \
+      "$iso" \
+      "$image" \
+      2>/dev/null); then
+    return 1
+  fi
+
+  image_size=$(
+    sed -n \
+      's/^Size: \([0-9][0-9]*\) bytes$/\1/p' \
+      <<< "$details"
+  )
+
+  if [[ ! "$image_size" =~ ^[0-9]+$ ]]; then
+    return 1
+  fi
+
+  if (( parsed_offset > image_size ||
+        parsed_size > image_size - parsed_offset )); then
+    return 1
+  fi
+
+  offset_ref="$parsed_offset"
+  size_ref="$parsed_size"
+  original_ref="$parsed_original"
+  flags_ref="$parsed_flags"
+
+  return 0
+}
+
 findImage() {
 
   local dir="$1"
@@ -1030,6 +1404,57 @@ configureImage() {
   return 0
 }
 
+detectImageInfo() {
+
+  local image_info="$1"
+  local desc suggested index
+
+  checkPlatform "$image_info" || exit 67
+
+  suggested=$(getSuggestion) || return 1
+
+  detectVersion \
+    "$image_info" \
+    "$suggested" \
+    DETECTED \
+    index || return 1
+
+  validateEdition || return 1
+
+  if [ -z "$DETECTED" ]; then
+    unknownImage || return 1
+    return 0
+  fi
+
+  describeImage "$image_info" "$index" desc || return 1
+  info "Detected: $desc"
+
+  configureImage "$index" "$desc" || return 1
+
+  return 0
+}
+
+detectIsoImage() {
+
+  local iso="$1"
+  local image header image_info
+
+  findIsoImage "$iso" image || return 1
+  readWimHeader "$iso" "$image" header || return 1
+
+  readIsoImageInfo \
+    "$iso" \
+    "$image" \
+    "$header" \
+    image_info || return 1
+
+  info "Detecting version from ISO image..."
+
+  detectImageInfo "$image_info" || return 2
+
+  return 0
+}
+
 detectImage() {
 
   local dir="$1"
@@ -1049,26 +1474,7 @@ detectImage() {
   local image_info
   readImageInfo "$wim" image_info || return 1
 
-  checkPlatform "$image_info" || exit 67
-
-  local suggested
-  suggested=$(getSuggestion) || return 1
-
-  local index
-  detectVersion "$image_info" "$suggested" DETECTED index || return 1
-  validateEdition || return 1
-
-  if [ -z "$DETECTED" ]; then
-    unknownImage || return 1
-    return 0
-  fi
-
-  describeImage "$image_info" "$index" desc || return 1
-  info "Detected: $desc"
-
-  configureImage "$index" "$desc" || return 1
-
-  return 0
+  detectImageInfo "$image_info"
 }
 
 normalizeBatch() {
