@@ -195,16 +195,11 @@ generateAnswerFile() {
       if ! xmlstarlet ed -L \
         -N "u=$ns" \
         -N "wcm=$wcm" \
-        -i "($install_to)[1]" \
-          -t elem -n 'InstallFrom' \
-        -s "$os_image/*[local-name()='InstallFrom']" \
-          -t elem -n 'MetaData' \
-        -i "$os_image/*[local-name()='InstallFrom']/*[local-name()='MetaData']" \
-          -t attr -n 'wcm:action' -v 'add' \
-        -s "$os_image/*[local-name()='InstallFrom']/*[local-name()='MetaData']" \
-          -t elem -n 'Key' -v '/IMAGE/INDEX' \
-        -s "$os_image/*[local-name()='InstallFrom']/*[local-name()='MetaData']" \
-          -t elem -n 'Value' -v "$index" \
+        -i "($install_to)[1]" -t elem -n 'InstallFrom' \
+        -s "$os_image/*[local-name()='InstallFrom']" -t elem -n 'MetaData' \
+        -i "$os_image/*[local-name()='InstallFrom']/*[local-name()='MetaData']" -t attr -n 'wcm:action' -v 'add' \
+        -s "$os_image/*[local-name()='InstallFrom']/*[local-name()='MetaData']" -t elem -n 'Key' -v '/IMAGE/INDEX' \
+        -s "$os_image/*[local-name()='InstallFrom']/*[local-name()='MetaData']" -t elem -n 'Value' -v "$index" \
         "$tmp"; then
 
         rm -f "$tmp"
@@ -1037,20 +1032,13 @@ ensureUnattendedJoin() {
 
     xmlstarlet ed -L \
       -N "u=$ns" \
-      -s "$specialize" \
-        -t elem -n 'component' \
-      -i "$created" \
-        -t attr -n 'name' -v 'Microsoft-Windows-UnattendedJoin' \
-      -i "$created" \
-        -t attr -n 'processorArchitecture' -v "$arch" \
-      -i "$created" \
-        -t attr -n 'publicKeyToken' -v '31bf3856ad364e35' \
-      -i "$created" \
-        -t attr -n 'language' -v 'neutral' \
-      -i "$created" \
-        -t attr -n 'versionScope' -v 'nonSxS' \
-      -s "$created" \
-        -t elem -n 'Identification' \
+      -s "$specialize" -t elem -n 'component' \
+      -i "$created" -t attr -n 'name' -v 'Microsoft-Windows-UnattendedJoin' \
+      -i "$created" -t attr -n 'processorArchitecture' -v "$arch" \
+      -i "$created" -t attr -n 'publicKeyToken' -v '31bf3856ad364e35' \
+      -i "$created" -t attr -n 'language' -v 'neutral' \
+      -i "$created" -t attr -n 'versionScope' -v 'nonSxS' \
+      -s "$created" -t elem -n 'Identification' \
       "$asset" || return 1
 
     return 0
@@ -1058,24 +1046,15 @@ ensureUnattendedJoin() {
 
   xmlstarlet ed -L \
     -N "u=$ns" \
-    -i "${component}[not(@processorArchitecture)]" \
-      -t attr -n 'processorArchitecture' -v "$arch" \
-    -u "$component/@processorArchitecture" \
-      -v "$arch" \
-    -i "${component}[not(@publicKeyToken)]" \
-      -t attr -n 'publicKeyToken' -v '31bf3856ad364e35' \
-    -u "$component/@publicKeyToken" \
-      -v '31bf3856ad364e35' \
-    -i "${component}[not(@language)]" \
-      -t attr -n 'language' -v 'neutral' \
-    -u "$component/@language" \
-      -v 'neutral' \
-    -i "${component}[not(@versionScope)]" \
-      -t attr -n 'versionScope' -v 'nonSxS' \
-    -u "$component/@versionScope" \
-      -v 'nonSxS' \
-    -s "${component}[not(u:Identification)]" \
-      -t elem -n 'Identification' \
+    -i "${component}[not(@processorArchitecture)]" -t attr -n 'processorArchitecture' -v "$arch" \
+    -u "$component/@processorArchitecture" -v "$arch" \
+    -i "${component}[not(@publicKeyToken)]" -t attr -n 'publicKeyToken' -v '31bf3856ad364e35' \
+    -u "$component/@publicKeyToken" -v '31bf3856ad364e35' \
+    -i "${component}[not(@language)]" -t attr -n 'language' -v 'neutral' \
+    -u "$component/@language" -v 'neutral' \
+    -i "${component}[not(@versionScope)]" -t attr -n 'versionScope' -v 'nonSxS' \
+    -u "$component/@versionScope" -v 'nonSxS' \
+    -s "${component}[not(u:Identification)]" -t elem -n 'Identification' \
     "$asset" || return 1
 
   return 0
@@ -1205,8 +1184,7 @@ configureDomainJoin() {
     -L
     -N "u=$ns"
     -d "$identification/u:Credentials | $identification/u:JoinDomain | $identification/u:JoinWorkgroup | $identification/u:MachineObjectOU"
-    -s "$identification"
-      -t elem -n 'Credentials'
+    -s "$identification" -t elem -n 'Credentials'
   )
 
   ensureUnattendedJoin "$asset" "$arch" || return 1
@@ -1219,24 +1197,19 @@ configureDomainJoin() {
 
   if [ -n "$cred_domain" ]; then
     args+=(
-      -s "$credentials"
-        -t elem -n 'Domain'
+      -s "$credentials" -t elem -n 'Domain'
     )
   fi
 
   args+=(
-    -s "$credentials"
-      -t elem -n 'Username'
-    -s "$credentials"
-      -t elem -n 'Password'
-    -s "$identification"
-      -t elem -n 'JoinDomain'
+    -s "$credentials" -t elem -n 'Username'
+    -s "$credentials" -t elem -n 'Password'
+    -s "$identification" -t elem -n 'JoinDomain'
   )
 
   if [ -n "$ou" ]; then
     args+=(
-      -s "$identification"
-        -t elem -n 'MachineObjectOU'
+      -s "$identification" -t elem -n 'MachineObjectOU'
     )
   fi
 
@@ -1245,25 +1218,20 @@ configureDomainJoin() {
   local -a values=(
     -L
     -N "u=$ns"
-    -u "$credentials/*[local-name()='Username']"
-      -v "$auth"
-    -u "$credentials/*[local-name()='Password']"
-      -v "$pass"
-    -u "$identification/*[local-name()='JoinDomain']"
-      -v "$domain"
+    -u "$credentials/*[local-name()='Username']" -v "$auth"
+    -u "$credentials/*[local-name()='Password']" -v "$pass"
+    -u "$identification/*[local-name()='JoinDomain']" -v "$domain"
   )
 
   if [ -n "$cred_domain" ]; then
     values+=(
-      -u "$credentials/*[local-name()='Domain']"
-        -v "$cred_domain"
+      -u "$credentials/*[local-name()='Domain']" -v "$cred_domain"
     )
   fi
 
   if [ -n "$ou" ]; then
     values+=(
-      -u "$identification/*[local-name()='MachineObjectOU']"
-        -v "$ou"
+      -u "$identification/*[local-name()='MachineObjectOU']" -v "$ou"
     )
   fi
 
@@ -1292,13 +1260,11 @@ updateWorkgroup() {
     ! xmlstarlet ed -L \
       -N "u=$ns" \
       -d "$identification/u:Credentials | $identification/u:JoinDomain | $identification/u:JoinWorkgroup | $identification/u:MachineObjectOU" \
-      -s "$identification" \
-        -t elem -n 'JoinWorkgroup' \
+      -s "$identification" -t elem -n 'JoinWorkgroup' \
       "$tmp" ||
     ! xmlstarlet ed -L \
       -N "u=$ns" \
-      -u "$join" \
-        -v "$workgroup" \
+      -u "$join" -v "$workgroup" \
       "$tmp" ||
     ! replaceXMLAsset "$asset" "$tmp"; then
 
@@ -1414,18 +1380,14 @@ updateDisplayXML() {
   local -a args=(
     -L
     -N "u=$ns"
-    -u "$setup/u:UserData/u:Organization | $specialize/u:OEMInformation/u:Model | $specialize/u:OEMName | $specialize/u:RegisteredOwner | $oobe/u:RegisteredOwner"
-      -v "$app"
-    -u "$oobe/u:Display/u:VerticalResolution"
-      -v "$HEIGHT"
-    -u "$oobe/u:Display/u:HorizontalResolution"
-      -v "$WIDTH"
+    -u "$setup/u:UserData/u:Organization | $specialize/u:OEMInformation/u:Model | $specialize/u:OEMName | $specialize/u:RegisteredOwner | $oobe/u:RegisteredOwner" -v "$app"
+    -u "$oobe/u:Display/u:VerticalResolution" -v "$HEIGHT"
+    -u "$oobe/u:Display/u:HorizontalResolution" -v "$WIDTH"
   )
 
   if [ -n "${HOST:-}" ]; then
     args+=(
-      -u "$specialize/u:ComputerName"
-        -v "$HOST"
+      -u "$specialize/u:ComputerName" -v "$HOST"
     )
   fi
 
@@ -1447,8 +1409,7 @@ updateLocaleXML() {
 
   if [ -n "$culture" ]; then
     args+=(
-      -u "$international//u:UILanguage"
-        -v "$culture"
+      -u "$international//u:UILanguage" -v "$culture"
     )
   fi
 
@@ -1456,8 +1417,7 @@ updateLocaleXML() {
 
   if [ -n "$region" ]; then
     args+=(
-      -u "$international/u:UserLocale | $international/u:SystemLocale"
-        -v "$region"
+      -u "$international/u:UserLocale | $international/u:SystemLocale" -v "$region"
     )
   fi
 
@@ -1465,8 +1425,7 @@ updateLocaleXML() {
 
   if [ -n "$keyboard" ]; then
     args+=(
-      -u "$international/u:InputLocale"
-        -v "$keyboard"
+      -u "$international/u:InputLocale" -v "$keyboard"
     )
   fi
 
@@ -1680,56 +1639,38 @@ updateLocalAccount() {
   local -a args=(
     -L
     -N "u=$ns"
-    -s "${account}[not(*[local-name()='Password'])]"
-      -t elem -n 'Password'
-    -s "${password}[not(*[local-name()='Value'])]"
-      -t elem -n 'Value'
-    -s "${password}[not(*[local-name()='PlainText'])]"
-      -t elem -n 'PlainText'
-    -u "$password/*[local-name()='Value']"
-      -v "$pw"
-    -u "$password/*[local-name()='PlainText']"
-      -v 'false'
+    -s "${account}[not(*[local-name()='Password'])]" -t elem -n 'Password'
+    -s "${password}[not(*[local-name()='Value'])]" -t elem -n 'Value'
+    -s "${password}[not(*[local-name()='PlainText'])]" -t elem -n 'PlainText'
+    -u "$password/*[local-name()='Value']" -v "$pw"
+    -u "$password/*[local-name()='PlainText']" -v 'false'
   )
 
   if [ -n "$user" ]; then
     args+=(
-      -u "$account/u:Name"
-        -v "$user"
-      -u "$setup/u:UserData/u:FullName"
-        -v "$user"
+      -u "$account/u:Name" -v "$user"
+      -u "$setup/u:UserData/u:FullName" -v "$user"
     )
   fi
 
   if [ "$admin_count" = "1" ]; then
     args+=(
-      -s "${administrator}[not(*[local-name()='Value'])]"
-        -t elem -n 'Value'
-      -s "${administrator}[not(*[local-name()='PlainText'])]"
-        -t elem -n 'PlainText'
-      -u "$admin_value"
-        -v "$admin"
-      -u "$admin_plain"
-        -v 'false'
+      -s "${administrator}[not(*[local-name()='Value'])]" -t elem -n 'Value'
+      -s "${administrator}[not(*[local-name()='PlainText'])]" -t elem -n 'PlainText'
+      -u "$admin_value" -v "$admin"
+      -u "$admin_plain" -v 'false'
     )
   fi
 
   if [ "$autologon_count" = "1" ]; then
     args+=(
-      -s "${autologon}[not(*[local-name()='Username'])]"
-        -t elem -n 'Username'
-      -s "${autologon}[not(*[local-name()='Password'])]"
-        -t elem -n 'Password'
-      -s "${auto_password}[not(*[local-name()='Value'])]"
-        -t elem -n 'Value'
-      -s "${auto_password}[not(*[local-name()='PlainText'])]"
-        -t elem -n 'PlainText'
-      -u "$autologon/*[local-name()='Username']"
-        -v "$target_user"
-      -u "$auto_value"
-        -v "$pw"
-      -u "$auto_plain"
-        -v 'false'
+      -s "${autologon}[not(*[local-name()='Username'])]" -t elem -n 'Username'
+      -s "${autologon}[not(*[local-name()='Password'])]" -t elem -n 'Password'
+      -s "${auto_password}[not(*[local-name()='Value'])]" -t elem -n 'Value'
+      -s "${auto_password}[not(*[local-name()='PlainText'])]" -t elem -n 'PlainText'
+      -u "$autologon/*[local-name()='Username']" -v "$target_user"
+      -u "$auto_value" -v "$pw"
+      -u "$auto_plain" -v 'false'
     )
   fi
 
@@ -1846,8 +1787,7 @@ updateEditionXML() {
 
     xmlstarlet ed -L \
       -N "u=$ns" \
-      -u "($selector)[$position]" \
-      -v "$replacement" \
+      -u "($selector)[$position]" -v "$replacement" \
       "$asset" || return 1
   done <<< "$records"
 
@@ -1944,8 +1884,7 @@ updateDiskID() {
 
   if ! xmlstarlet ed -L \
     -N "u=$ns" \
-    -u "${disk_ids}[normalize-space(.)='$current']" \
-    -v "$target" \
+    -u "${disk_ids}[normalize-space(.)='$current']" -v "$target" \
     "$asset"; then
 
     error "Failed to update DiskID in answer file: $asset"
