@@ -1228,7 +1228,7 @@ downloadImage() {
   if switched=$(switchEdition "$version"); then
 
     version="$switched"
-  
+
     if ! enabled "${DETECTED_ORG:-}"; then
       DETECTED="${SUGGEST:-$version}"
     fi
