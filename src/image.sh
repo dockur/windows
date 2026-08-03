@@ -61,21 +61,40 @@ checkPlatform() {
 getPlatform() {
 
   local xml="$1"
-  local platform="x64"
-  local x86 x64 arm64 count=0
+  local output platform="x64"
+  local x86 x64 arm64 count=0 value
+  local -a counts=()
 
-  x86=$(getWimCount "$xml" \
-    '/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="0"]') || return 1
+  if ! output=$(xmlstarlet sel \
+    -T -t \
+    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="0"])' -n \
+    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="9"])' -n \
+    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="12"])' -n \
+    - 2>/dev/null <<< "$xml"); then
+    return 1
+  fi
 
-  x64=$(getWimCount "$xml" \
-    '/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="9"]') || return 1
+  mapfile -t counts <<< "$output"
 
-  arm64=$(getWimCount "$xml" \
-    '/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="12"]') || return 1
+  if (( ${#counts[@]} != 3 )); then
+    error "Failed to read architecture counts from WIM metadata!"
+    return 1
+  fi
 
-  (( x86 > 0 )) && ((count++))
-  (( x64 > 0 )) && ((count++))
-  (( arm64 > 0 )) && ((count++))
+  for value in "${counts[@]}"; do
+    if [[ ! "$value" =~ ^[0-9]+$ ]]; then
+      error "Invalid architecture count in WIM metadata: '$value'"
+      return 1
+    fi
+  done
+
+  x86="${counts[0]}"
+  x64="${counts[1]}"
+  arm64="${counts[2]}"
+
+  (( x86 > 0 )) && ((count += 1))
+  (( x64 > 0 )) && ((count += 1))
+  (( arm64 > 0 )) && ((count += 1))
 
   if (( count > 1 )); then
     platform="mixed"
@@ -151,10 +170,11 @@ getVersions() {
   local -n indexes_ref="$indexes_name"
   local -n versions_ref="$versions_name"
 
-  local platform image_count position image_path
+  local platform image_count records record_count=0
   local image_index display product image edition_id
-  local install_type flags candidate candidate_id 
+  local install_type flags candidate candidate_id
   local candidate_base evaluation key name structured
+  local separator=$'\x1f'
 
   bases_ref=()
   groups_ref=()
@@ -162,37 +182,41 @@ getVersions() {
   versions_ref=()
 
   platform=$(getPlatform "$xml") || return 1
-  image_count=$(getWimCount "$xml" '/WIM/IMAGE') || return 1
+
+  image_count=$(xmlstarlet sel \
+    -T -t \
+    -v 'count(/WIM/IMAGE)' \
+    - 2>/dev/null <<< "$xml") || return 1
 
   if [[ ! "$image_count" =~ ^[0-9]+$ ]]; then
     error "Invalid image count in WIM metadata: '$image_count'"
     return 1
   fi
 
-  for (( position=1; position<=image_count; position++ )); do
+  (( image_count > 0 )) || return 0
 
-    image_path="/WIM/IMAGE[$position]"
+  # Keep one compact record per image. XML 1.0 cannot contain U+001F, so it
+  # can safely separate fields while all edition logic remains in Bash.
+  if ! records=$(xmlstarlet sel \
+    -T -t \
+    -m '/WIM/IMAGE' \
+      -v 'normalize-space(@INDEX)' -o "$separator" \
+      -v 'normalize-space(DISPLAYNAME)' -o "$separator" \
+      -v 'normalize-space(WINDOWS/PRODUCTNAME)' -o "$separator" \
+      -v 'normalize-space(NAME)' -o "$separator" \
+      -v 'normalize-space(WINDOWS/EDITIONID)' -o "$separator" \
+      -v 'normalize-space(WINDOWS/INSTALLATIONTYPE)' -o "$separator" \
+      -v 'normalize-space(FLAGS)' \
+      -n \
+    - 2>/dev/null <<< "$xml"); then
+    error "Failed to read image records from WIM metadata!"
+    return 1
+  fi
 
-    image_index=$(getWimValue "$xml" \
-      "$image_path/@INDEX") || return 1
+  while IFS="$separator" read -r \
+    image_index display product image edition_id install_type flags; do
 
-    display=$(getWimValue "$xml" \
-      "$image_path/DISPLAYNAME") || return 1
-
-    product=$(getWimValue "$xml" \
-      "$image_path/WINDOWS/PRODUCTNAME") || return 1
-
-    image=$(getWimValue "$xml" \
-      "$image_path/NAME") || return 1
-
-    edition_id=$(getWimValue "$xml" \
-      "$image_path/WINDOWS/EDITIONID") || return 1
-
-    install_type=$(getWimValue "$xml" \
-      "$image_path/WINDOWS/INSTALLATIONTYPE") || return 1
-
-    flags=$(getWimValue "$xml" \
-      "$image_path/FLAGS") || return 1
+    ((record_count += 1))
 
     [ -n "$image_index" ] || continue
 
@@ -215,7 +239,7 @@ getVersions() {
       candidate_id=$(getVersion "$candidate" "$platform")
 
       [ -n "$candidate_base" ] && [ -n "$candidate_id" ] && break
-  
+
     done
 
     if [ -z "$candidate_base" ] || [ -z "$candidate_id" ]; then
@@ -282,7 +306,12 @@ getVersions() {
     bases_ref+=( "$candidate_base" )
     groups_ref+=( "$(getVersionPriority "$candidate_id" "$candidate_base")" )
 
-  done
+  done <<< "$records"
+
+  if (( record_count != image_count )); then
+    error "Expected $image_count image records in WIM metadata, found $record_count!"
+    return 1
+  fi
 
   return 0
 }
@@ -295,12 +324,12 @@ selectVersion() {
   local result_name="$4"
   local index_name="$5"
 
+  local -a candidates=()
   local -n version_list="$versions_name"
   local -n index_map="$indexes_name"
   local -n preference_list="$preferred_name"
   local -n selected_version="$result_name"
   local -n selected_image_index="$index_name"
-  local -a candidates=()
   local wanted candidate match
 
   for wanted in "${preference_list[@]}"; do
@@ -341,9 +370,10 @@ selectEdition() {
   local -n edition_bases="$bases_name"
   local -n edition_groups="$groups_name"
   local -n edition_order="$order_name"
+
+  local base edition entry suffix priority i
   local -a preferred=()
   local -A seen=()
-  local base edition entry suffix priority i
 
   if [ -n "$EDITION" ]; then
 
@@ -966,33 +996,6 @@ findIsoImage() {
   return 1
 }
 
-getWimCount() {
-
-  local xml="$1"
-  local xpath="$2"
-
-  xmlstarlet sel \
-    -T -t \
-    -v "count($xpath)" \
-    - 2>/dev/null <<< "$xml"
-}
-
-getWimValue() {
-
-  local xml="$1"
-  local xpath="$2"
-  local value
-
-  # XMLStarlet returns status 1 for missing or empty nodes. Prefix the result
-  # with a constant so valid empty values still return status 0, then remove it.
-  value=$(xmlstarlet sel \
-    -T -t \
-    -v "concat('x', normalize-space($xpath))" \
-    - 2>/dev/null <<< "$xml") || return 1
-
-  printf '%s' "${value#x}"
-}
-
 readWimHeader() {
 
   local iso="$1"
@@ -1239,18 +1242,18 @@ parseWimHeader() {
   local -n original_ref="$original_name"
   local -n flags_ref="$flags_name"
 
+  local -a bytes=()
   local header_size=0
   local parsed_size=0
   local parsed_offset=0
   local parsed_original=0
   local parsed_flags=0
-  local -a bytes=()
   local details image_size raw
 
-  offset_ref=""
   size_ref=""
-  original_ref=""
   flags_ref=""
+  offset_ref=""
+  original_ref=""
 
   if [ ! -f "$header" ] || [ ! -s "$header" ]; then
     return 1
@@ -1332,10 +1335,10 @@ parseWimHeader() {
     return 1
   fi
 
-  offset_ref="$parsed_offset"
   size_ref="$parsed_size"
-  original_ref="$parsed_original"
   flags_ref="$parsed_flags"
+  offset_ref="$parsed_offset"
+  original_ref="$parsed_original"
 
   return 0
 }
