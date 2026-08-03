@@ -4,6 +4,7 @@ set -Eeuo pipefail
 hasAnswerFile() {
 
   local id="$1"
+
   local file="/run/assets/$id.xml"
 
   [ -s "$file" ] && return 0
@@ -29,6 +30,7 @@ stageAnswer() {
   local asset="$1"
   local language="$2"
   local stage="$3"
+
   local answer="$stage/Autounattend.xml"
   local script="" name
 
@@ -83,6 +85,7 @@ stageAnswer() {
 markGeneratedXML() {
 
   local file="$1"
+
   local marker='<!-- generated-answer-file: do not reuse as a template -->'
 
   [ -s "$file" ] || return 1
@@ -275,6 +278,7 @@ generateFallbackXML() {
 
   local id="$1"
   local index="${2:-}"
+
   local source="/run/assets/${id%%-*}.xml"
   local target="/run/assets/$id.xml"
 
@@ -292,6 +296,7 @@ setXML() {
 
   local file="$1"
   local index="${2:-}"
+
   local target="/run/assets/$DETECTED.xml"
 
   local custom_files=("/custom.xml" "$STORAGE/custom.xml" "/run/assets/custom.xml")
@@ -346,6 +351,7 @@ updateXML() {
 
   local asset="$1"
   local language="$2"
+
   local domain="${DOMAIN:-}"
   local workgroup="${WORKGROUP:-}"
   local account=""
@@ -384,6 +390,7 @@ prepareSetupScript() {
 
   local asset="$1"
   local stage="$2"
+
   local staged=""
 
   staged=$(stageSetupScript "$asset" "$stage") || return 1
@@ -400,6 +407,7 @@ updateSetupScript() {
 
   local script="$1"
   local asset="$2"
+
   local domain="${DOMAIN:-}"
   local user="${USERNAME:-}"
   local content id
@@ -446,6 +454,7 @@ updateSetupScript() {
 findSetupScript() {
 
   local asset="$1"
+
   local dir name id normal candidate
   local candidates=()
 
@@ -487,6 +496,7 @@ stageSetupScript() {
 
   local asset="$1"
   local stage="$2"
+
   local source target
 
   source=$(findSetupScript "$asset") || return 1
@@ -521,6 +531,7 @@ installSetupScript() {
 
   local script="$1"
   local root="$2"
+
   local target
 
   [ -n "$script" ] || return 0
@@ -551,6 +562,7 @@ rewriteSetupBlock() {
   local block="$2"
   local action="$3"
   local content="${4:-}"
+
   local begin="rem BEGIN $block"
   local end="rem END $block"
   local line inside=0 tmp
@@ -659,6 +671,7 @@ validateGeneratedXML() {
 validateSetupScript() {
 
   local file="$1"
+
   local block
   local blocks=(LOCAL_ACCOUNT PRODUCT_KEY SHARED_FOLDER OEM_SCRIPT)
 
@@ -675,6 +688,7 @@ validateSetupBlock() {
 
   local file="$1"
   local block="$2"
+
   local begin="rem BEGIN $block"
   local end="rem END $block"
   local begin_count end_count begin_line end_line
@@ -774,6 +788,7 @@ validateComputerName() {
 validateWorkgroup() {
 
   local value="$1"
+
   local safe
 
   [ -z "$value" ] && return 0
@@ -818,6 +833,7 @@ validatePassword() {
 
   local value="$1"
   local desc="${2:-}"
+
   local suffix=""
 
   [ -n "$desc" ] && suffix=" for $desc"
@@ -839,6 +855,7 @@ validateUsername() {
 
   local value="$1"
   local type="$2"
+
   local maximum length_suffix invalid_message
 
   case "$type" in
@@ -941,6 +958,7 @@ getXMLNodeCount() {
 
   local asset="$1"
   local xpath="$2"
+
   local ns="urn:schemas-microsoft-com:unattend"
 
   xmlstarlet sel -N "u=$ns" -T -t -v "count($xpath)" "$asset"
@@ -949,6 +967,7 @@ getXMLNodeCount() {
 copyXMLAsset() {
 
   local asset="$1"
+
   local copy
 
   if ! copy=$(mktemp "${asset}.XXXXXX") ||
@@ -1234,6 +1253,7 @@ updateDomain() {
   local auth="$4"
   local pass="$5"
   local ou="$6"
+
   local arch tmp
 
   arch=$(getXMLArchitecture "$asset") || return 1
@@ -1255,6 +1275,7 @@ updateDomain() {
 prepareDomainAccount() {
 
   local domain="$1"
+
   local account=""
   local auth="${USERNAME:-}"
   local qualifier=""
@@ -1323,6 +1344,7 @@ prepareDomainAccount() {
 updateDisplayXML() {
 
   local asset="$1"
+
   local ns="urn:schemas-microsoft-com:unattend"
   local setup='/u:unattend/u:settings[@pass="windowsPE"]/u:component[@name="Microsoft-Windows-Setup"]'
   local specialize='/u:unattend/u:settings[@pass="specialize"]/u:component[@name="Microsoft-Windows-Shell-Setup"]'
@@ -1349,6 +1371,7 @@ updateLocaleXML() {
 
   local asset="$1"
   local language="$2"
+
   local ns="urn:schemas-microsoft-com:unattend"
   local international='/u:unattend/u:settings/u:component[@name="Microsoft-Windows-International-Core" or @name="Microsoft-Windows-International-Core-WinPE"]'
   local culture region keyboard
@@ -1505,6 +1528,7 @@ encodeUnattendPassword() {
 updateLocalAccount() {
 
   local asset="$1"
+
   local user="${USERNAME:-}"
   local pass="${PASSWORD:-admin}"
   local ns="urn:schemas-microsoft-com:unattend"
@@ -1645,6 +1669,7 @@ updateMembership() {
 updateAutologinXML() {
 
   local asset="$1"
+
   local ns="urn:schemas-microsoft-com:unattend"
   local shell='/u:unattend/u:settings[@pass="oobeSystem"]/u:component[@name="Microsoft-Windows-Shell-Setup"]'
 
@@ -1658,6 +1683,7 @@ updateAutologinXML() {
 updateEditionXML() {
 
   local asset="$1"
+
   local ns="urn:schemas-microsoft-com:unattend"
   local upper='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
   local lower='abcdefghijklmnopqrstuvwxyz'
@@ -1707,6 +1733,7 @@ updateEditionXML() {
 updateProductKey() {
 
   local script="$1"
+
   local key="${KEY:-}"
   local content
 
@@ -1729,6 +1756,7 @@ updateDiskID() {
   local asset="$1"
   local disk_type="${2,,}"
   local mode="${3:-setup}"
+
   local target="0"
   local ns="urn:schemas-microsoft-com:unattend"
   local setup='/u:unattend/u:settings[@pass="windowsPE"]/u:component[@name="Microsoft-Windows-Setup"]'
@@ -1799,6 +1827,7 @@ updateDiskID() {
 getXMLArchitecture() {
 
   local asset="$1"
+
   local ns="urn:schemas-microsoft-com:unattend"
   local arch
   # Prefer architecture declarations from Windows PE setup components and skip
@@ -1825,6 +1854,7 @@ getXMLArchitecture() {
 setConfigurationXML() {
 
   local asset="$1"
+
   local setup='/*[local-name()="unattend"]/*[local-name()="settings" and @pass="windowsPE"]/*[local-name()="component" and @name="Microsoft-Windows-Setup"]'
   local config="$setup/*[local-name()=\"UseConfigurationSet\"]"
   local setup_count config_count config_value result_count tmp
@@ -1970,6 +2000,7 @@ removeSharedFolder() {
 removeLocalAccount() {
 
   local asset="$1"
+
   local ns="urn:schemas-microsoft-com:unattend"
   local accounts='/u:unattend/u:settings[@pass="oobeSystem"]/u:component[@name="Microsoft-Windows-Shell-Setup"]/u:UserAccounts'
 
@@ -1986,9 +2017,10 @@ removeLocalAccount() {
 removeEmbeddedProductKeys() {
 
   local asset="$1"
+
   local product_keys='//u:ProductKey'
   local separator=$'\x1f' delete_xpath=""
-  local ns="urn:schemas-microsoft-com:unattend"  
+  local ns="urn:schemas-microsoft-com:unattend"
   local records position child_key direct_key
 
   records=$(xmlstarlet sel \
@@ -2020,6 +2052,7 @@ removeEmbeddedProductKeys() {
 enableLog() {
 
   local script="$1"
+
   local content
 
   enabled "${LOG:-}" || return 0
@@ -2038,6 +2071,7 @@ validateLegacyText() {
   local name="$1"
   local value="$2"
   local desc="${3:-}"
+
   local suffix=""
 
   [ -n "$desc" ] && suffix=" for $desc"
@@ -2059,6 +2093,7 @@ validateLegacyUsername() {
 
   local value="$1"
   local desc="${2:-}"
+
   local suffix=""
 
   [ -n "$desc" ] && suffix=" for $desc"
@@ -2145,6 +2180,7 @@ copyStorageDriver() {
   local driver="$3"
   local arch="$4"
   local drivers="$5"
+
   local destination="$dir/\$OEM\$/\$1/Drivers/viostor"
 
   if [ ! -f "$drivers/viostor/$driver/$arch/viostor.sys" ]; then
@@ -2168,6 +2204,7 @@ addNetworkDriver() {
   local driver="$2"
   local arch="$3"
   local drivers="$4"
+
   local destination="$dir/\$OEM\$/\$1/Drivers/NetKVM"
 
   if [ ! -f "$drivers/NetKVM/$driver/$arch/netkvm.sys" ]; then
@@ -2207,6 +2244,7 @@ addSataDriver() {
   local arch="$3"
   local drivers="$4"
   local file="$5"
+
   local destination="$dir/\$OEM\$/\$1/Drivers/sata"
 
   if [ ! -d "$drivers/sata/xp/$arch" ]; then
@@ -2239,6 +2277,7 @@ addLegacyDrivers() {
   local driver="$3"
   local arch="$4"
   local drivers="$5"
+
   local file
   local msg="Adding drivers to image..."
 
@@ -2269,6 +2308,7 @@ setLegacyKey() {
   local driver="$2"
   local arch="$3"
   local desc="$4"
+
   local setup pid key file
 
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini -print -quit) || return 1
@@ -2614,6 +2654,7 @@ writeVBS() {
 disableAutoReboot() {
 
   local target="$1"
+
   local file
 
   file=$(find \
@@ -2649,6 +2690,7 @@ legacyInstall() {
   local dir="$2"
   local desc="$3"
   local driver="$4"
+
   local shortcut="Y"
   local drivers="/tmp/drivers"
 
