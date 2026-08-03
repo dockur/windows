@@ -29,6 +29,8 @@ configureNetwork() {
 
     hostname="host.lan"
 
+    # User-mode networking has no host bridge to bind to, so expose Samba only
+    # through loopback and let QEMU's forwarding provide guest access.
     if isUserMode; then
       interfaces="lo"
     else
@@ -41,6 +43,7 @@ configureNetwork() {
 
   fi
 
+  # NetBIOS names are limited to 15 visible characters.
   netbios="${hostname%%.*}"
   netbios="${netbios:0:15}"
 
@@ -110,6 +113,8 @@ addShare() {
     empty="Y"
   fi
 
+  # The generated fallback share contains only instructions and must never be
+  # writable from the guest.
   if [[ "$dir" == "$tmp" ]]; then
 
     readonly="Y"
@@ -118,6 +123,8 @@ addShare() {
 
     readonly="Y"
 
+  # Test actual write access instead of relying on mount flags or mode bits,
+  # which may not reflect bind-mount and host filesystem restrictions.
   elif probe=$(mktemp "$dir/.samba-write-test.XXXXXX" 2>/dev/null); then
 
     writable="Y"
@@ -127,6 +134,8 @@ addShare() {
       return 1
     fi
 
+  # Empty bind mounts are safe to initialize with shared-directory permissions.
+  # Retry the write probe afterward because the original mode may have blocked it.
   elif [[ "$empty" == "Y" ]] && chmod 2777 "$dir" 2>/dev/null; then
 
     if probe=$(mktemp "$dir/.samba-write-test.XXXXXX" 2>/dev/null); then
@@ -146,6 +155,7 @@ addShare() {
 
     if [[ "$empty" == "Y" ]]; then
 
+      # Keep newly created content in the shared group through the setgid bit.
       if ! chmod 2777 "$dir"; then
         error "Failed to set permissions for directory $dir" && return 1
       fi
@@ -155,6 +165,8 @@ addShare() {
         return 1
       fi
 
+      # Docker commonly creates a missing bind source as root. Transfer an empty
+      # directory to the default non-root owner used for shared content.
       if [[ "$owner" == "0" ]]; then
         if ! chown "1000:1000" "$dir"; then
           error "Failed to set ownership for directory $dir" && return 1
@@ -165,6 +177,7 @@ addShare() {
 
   elif [[ "$readonly" != "Y" ]]; then
 
+    # Preserve access to non-writable mounts by exporting them read-only.
     readonly="Y"
 
   fi
@@ -207,13 +220,20 @@ writeConfig() {
     echo "    security = user"
     echo "    guest account = nobody"
     echo "    map to guest = Bad User"
+
+    # Retain SMB1 negotiation for legacy Windows guests.
     echo "    server min protocol = NT1"
+
+    # Allow bind-mounted shares to follow symlinks outside their share root.
     echo "    follow symlinks = yes"
     echo "    wide links = yes"
     echo "    unix extensions = no"
     echo "    inherit owner = yes"
     echo "    create mask = 0666"
     echo "    directory mask = 02777"
+
+    # Perform guest filesystem access as root so bind mounts with differing host
+    # ownership remain usable; share-level read-only checks still apply.
     echo "    force user = root"
     echo "    force group = root"
     echo "    force create mode = 0666"
@@ -241,6 +261,8 @@ selectPrimaryShare() {
     return 1
   fi
 
+  # Prefer explicit root-level bind mounts, then storage-local compatibility
+  # paths. When none exist, publish an instructional read-only share.
   share="/shared"
   [ ! -d "$share" ] && [ -d "$STORAGE/shared" ] && share="$STORAGE/shared"
   [ ! -d "$share" ] && [ -d "/data" ] && share="/data"
@@ -256,6 +278,8 @@ addOptionalShare() {
   local ref="/shared$index"
   local name="Data$index"
 
+  # Optional shares are best-effort and must not prevent the primary share or
+  # Samba service from starting.
   if [ -d "$ref" ]; then
     addShare "$ref" "$ref" "$name" "Shared" "$SAMBA_CONFIG" || :
   elif [ -d "/data$index" ]; then
@@ -267,13 +291,13 @@ addOptionalShare() {
 
 prepareSambaDirs() {
 
-  # Create directories if missing
   mkdir -p \
     /var/lib/samba/sysvol \
     /var/lib/samba/private \
     /var/lib/samba/bind-dns || return 1
 
-  # Try to repair Samba permissions
+  # Runtime directories may retain restrictive modes from earlier daemon runs
+  # or package defaults, so repair only the known Samba lock and core paths.
   [ -d /run/samba/msg.lock ] && chmod -R 0755 /run/samba/msg.lock 2>/dev/null || :
   [ -d /var/log/samba/cores ] && chmod -R 0700 /var/log/samba/cores 2>/dev/null || :
   [ -d /var/cache/samba/msg.lock ] && chmod -R 0755 /var/cache/samba/msg.lock 2>/dev/null || :
@@ -300,6 +324,8 @@ startDaemon() {
 
   rm -f "$log" || :
 
+  # Keep initialization alive after a daemon startup failure so its log can be
+  # streamed and the actual Samba error remains visible to the user.
   if ! "$@"; then
     SAMBA_DEBUG="Y"
     error "Failed to start $name daemon!"
@@ -319,7 +345,6 @@ startSamba() {
 
 startNetbios() {
 
-  # Enable NetBIOS on Windows 7 and lower
   enabled "$DEBUG" && echo "Starting NetBIOS daemon..."
 
   startDaemon "NetBIOS" "/var/log/samba/log.nmbd" \
@@ -330,9 +355,10 @@ startNetbios() {
 
 startWsddn() {
 
-  # Enable Web Service Discovery on Vista and up
   enabled "$DEBUG" && echo "Starting wsddn daemon..."
 
+  # wsddn accepts one interface, while Samba may bind to an additional
+  # user-supplied interface as well.
   startDaemon "wsddn" "/var/log/wsddn.log" \
     wsddn -i "${interfaces%%,*}" -H "$hostname" \
       --unixd --log-file=/var/log/wsddn.log --pid-file="$DDN_PID"
@@ -347,7 +373,6 @@ enabled "$DEBUG" && echo "Starting Samba daemon..."
 
 writeConfig || return 0
 
-# Add shared folders
 selectPrimaryShare || return 0
 
 addShare "$share" "/shared" "Data" "Shared" "$SAMBA_CONFIG" || return 0
@@ -357,8 +382,13 @@ addOptionalShare "3" || :
 prepareSambaDirs || return 0
 
 startSamba || return 0
+
+# User-mode networking does not expose a LAN interface where discovery
+# broadcasts would be useful.
 isUserMode && return 0
 
+# Older Windows versions discover shares through NetBIOS, while modern Windows
+# uses Web Services Discovery.
 if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
   startNetbios || :
 else
