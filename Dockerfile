@@ -6,6 +6,8 @@ FROM scratch AS build-amd64
 COPY --from=qemux/qemu:7.43 / /
 
 ARG TARGETARCH
+
+ARG VERSION_UDF="1.2.0"
 ARG VERSION_WSDD="1.26"
 ARG VERSION_VIRTIO="1.9.58"
 ARG VERSION_BLINTER="1.0.112"
@@ -34,9 +36,13 @@ RUN <<EOF
     --no-cache-dir \
     "Blinter==${VERSION_BLINTER}"
 
-  # Install wsdd
+  # Install wsddn package
   wget "https://github.com/gershnik/wsdd-native/releases/download/v${VERSION_WSDD}/wsddn_${VERSION_WSDD}_${TARGETARCH}.deb" -O /tmp/wsddn.deb -q --timeout=10
   dpkg -i /tmp/wsddn.deb
+
+  # Install UDFread package
+  wget "https://github.com/qemus/udfread/releases/download/v${VERSION_UDF}/udfread_${VERSION_UDF}_${TARGETARCH}.deb" -O /tmp/udfread.deb -q --timeout=10
+  dpkg -i /tmp/udfread.deb
 
   apt-get clean
   rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
