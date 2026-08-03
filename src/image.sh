@@ -977,10 +977,7 @@ setImage() {
 findIsoImage() {
 
   local iso="$1"
-  local result_name="$2"
   local path
-
-  printf -v "$result_name" '%s' ""
 
   # Prefer install.wim when both payload forms are present.
   for path in \
@@ -993,7 +990,7 @@ findIsoImage() {
         "$path" \
         >/dev/null 2>&1; then
 
-      printf -v "$result_name" '%s' "$path"
+      printf '%s' "$path"
       return 0
     fi
 
@@ -1040,15 +1037,12 @@ readIsoImageInfo() {
   local iso="$1"
   local image="$2"
   local header="$3"
-  local result_name="$4"
 
   local raw result root xml_count
   local header_size version
   local part_number total_parts image_count
   local xml_offset xml_size xml_original xml_flags
   local -a bytes=()
-
-  printf -v "$result_name" '%s' ""
 
   [ -f "$header" ] || return 1
   raw=$(od -An -v -N208 -tu1 -- "$header") || return 1
@@ -1167,8 +1161,7 @@ readIsoImageInfo() {
   [[ "$xml_count" =~ ^[0-9]+$ ]] || return 1
   (( xml_count == image_count )) || return 1
 
-  printf -v "$result_name" '%s' "$result"
-
+  printf '%s' "$result"
   return 0
 }
 
@@ -1314,7 +1307,6 @@ findImage() {
 readImageInfo() {
 
   local wim="$1"
-  local result_name="$2"
   local result
 
   result=$(wimlib-imagex info -xml "$wim" |
@@ -1329,7 +1321,7 @@ readImageInfo() {
     return 1
   }
 
-  printf -v "$result_name" '%s' "$result"
+  printf '%s' "$result"
   return 0
 }
 
@@ -1384,7 +1376,6 @@ describeImage() {
 
   local info_xml="$1"
   local index="$2"
-  local result_name="$3"
   local result
 
   result=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 1
@@ -1396,7 +1387,7 @@ describeImage() {
     result+=" ($language)"
   fi
 
-  printf -v "$result_name" '%s' "$result"
+  printf '%s' "$result"
   return 0
 }
 
@@ -1455,7 +1446,7 @@ detectImageInfo() {
     return 0
   fi
 
-  describeImage "$image_info" "$index" desc || return 1
+  desc=$(describeImage "$image_info" "$index") || return 1
   info "Detected: $desc"
 
   configureImage "$index" "$desc" || return 1
@@ -1471,9 +1462,9 @@ detectIsoImage() {
   # Return 1 when direct ISO inspection is unavailable so the caller may fall
   # back to extraction; return 2 when metadata was read but configuration failed.
 
-  findIsoImage "$iso" image || return 1
+  image=$(findIsoImage "$iso") || return 1
   header=$(readWimHeader "$iso" "$image") || return 1
-  readIsoImageInfo "$iso" "$image" "$header" image_info || return 1
+  image_info=$(readIsoImageInfo "$iso" "$image" "$header") || return 1
 
   info "Detecting version from ISO image..."
   detectImageInfo "$image_info" || return 2
@@ -1499,7 +1490,7 @@ detectImage() {
   wim=$(findImage "$dir") || return 1
 
   local image_info
-  readImageInfo "$wim" image_info || return 1
+  image_info=$(readImageInfo "$wim") || return 1
 
   detectImageInfo "$image_info"
 }
