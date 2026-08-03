@@ -157,7 +157,7 @@ generateAnswerFile() {
   )
 
   if [ "$type" != "evaluation" ] || [ "$remove_selector" = "Y" ]; then
-    args+=( -d "$install_from" )
+    args+=(-d "$install_from")
   fi
 
   if ! xmlstarlet ed "${args[@]}" "$tmp"; then
@@ -264,8 +264,7 @@ generateEvalXML() {
     esac
   fi
 
-  generateAnswerFile \
-    "$id" "$source" "$target" "$index" "evaluation" "$remove_selector" || return 1
+  generateAnswerFile "$id" "$source" "$target" "$index" "evaluation" "$remove_selector" || return 1
 
   return 0
 }
@@ -285,8 +284,7 @@ generateFallbackXML() {
   removeGeneratedXML "$source" || return 1
   [ -s "$source" ] || return 1
 
-  generateAnswerFile \
-    "$id" "$source" "$target" "$index" "fallback" "Y" || return 1
+  generateAnswerFile "$id" "$source" "$target" "$index" "fallback" "Y" || return 1
 
   return 0
 }
@@ -297,11 +295,7 @@ setXML() {
   local index="${2:-}"
   local target="/run/assets/$DETECTED.xml"
 
-  local custom_files=(
-    "/custom.xml"
-    "$STORAGE/custom.xml"
-    "/run/assets/custom.xml"
-  )
+  local custom_files=("/custom.xml" "$STORAGE/custom.xml" "/run/assets/custom.xml")
 
   CUSTOM_XML=""
 
@@ -378,12 +372,7 @@ updateXML() {
   fi
 
 
-  updateMembership \
-    "$asset" \
-    "$domain" \
-    "$workgroup" \
-    "$account" \
-    "$auth" || return 1
+  updateMembership "$asset" "$domain" "$workgroup" "$account" "$auth" || return 1
 
   updateAutologinXML "$asset" || return 1
   updateEditionXML "$asset" || return 1
@@ -433,8 +422,7 @@ updateSetupScript() {
     # the equivalent WMIC command.
 
     case "${id,,}" in
-      "win10"* | "win11"* | \
-      "win2016"* | "win2019"* | "win2022"* | "win2025"* )
+      "win10"* | "win11"* | "win2016"* | "win2019"* | "win2022"* | "win2025"* )
         printf -v content '%s\n%s' \
           'rem Prevent the local user password from expiring.' \
           "powershell.exe -ExecutionPolicy Unrestricted -NoLogo -NoProfile -NonInteractive Set-LocalUser -Name \"$user\" -PasswordNeverExpires 1"
@@ -673,12 +661,7 @@ validateSetupScript() {
 
   local file="$1"
   local block
-  local blocks=(
-    LOCAL_ACCOUNT
-    PRODUCT_KEY
-    SHARED_FOLDER
-    OEM_SCRIPT
-  )
+  local blocks=(LOCAL_ACCOUNT PRODUCT_KEY SHARED_FOLDER OEM_SCRIPT)
 
   [ -s "$file" ] || return 1
 
@@ -961,11 +944,7 @@ getXMLNodeCount() {
   local xpath="$2"
   local ns="urn:schemas-microsoft-com:unattend"
 
-  xmlstarlet sel \
-    -N "u=$ns" \
-    -T -t \
-    -v "count($xpath)" \
-    "$asset"
+  xmlstarlet sel -N "u=$ns" -T -t -v "count($xpath)" "$asset"
 }
 
 copyXMLAsset() {
@@ -1014,12 +993,9 @@ ensureUnattendedJoin() {
     -N "u=$ns" \
     -T -t \
     -v "count($specialize)" -o '|' \
-    -v "count($component)" -o '|' \
-    -v "count($identification)" \
-    "$asset") || return 1
+    -v "count($component)" -o '|' -v "count($identification)" "$asset") || return 1
 
-  IFS='|' read -r \
-    settings_count component_count identification_count <<< "$counts"
+  IFS='|' read -r settings_count component_count identification_count <<< "$counts"
 
   [ "$settings_count" = "1" ] || return 1
   (( component_count <= 1 )) || return 1
@@ -1038,8 +1014,7 @@ ensureUnattendedJoin() {
       -i "$created" -t attr -n 'publicKeyToken' -v '31bf3856ad364e35' \
       -i "$created" -t attr -n 'language' -v 'neutral' \
       -i "$created" -t attr -n 'versionScope' -v 'nonSxS' \
-      -s "$created" -t elem -n 'Identification' \
-      "$asset" || return 1
+      -s "$created" -t elem -n 'Identification' "$asset" || return 1
 
     return 0
   fi
@@ -1054,8 +1029,7 @@ ensureUnattendedJoin() {
     -u "$component/@language" -v 'neutral' \
     -i "${component}[not(@versionScope)]" -t attr -n 'versionScope' -v 'nonSxS' \
     -u "$component/@versionScope" -v 'nonSxS' \
-    -s "${component}[not(u:Identification)]" -t elem -n 'Identification' \
-    "$asset" || return 1
+    -s "${component}[not(u:Identification)]" -t elem -n 'Identification' "$asset" || return 1
 
   return 0
 }
@@ -1081,12 +1055,9 @@ configureDomainAccounts() {
     -T -t \
     -v "count($shell)" -o '|' \
     -v "count($accounts)" -o '|' \
-    -v "count($administrator)" -o '|' \
-    -v "count($autologon)" \
-    "$asset") || return 1
+    -v "count($administrator)" -o '|' -v "count($autologon)" "$asset") || return 1
 
-  IFS='|' read -r \
-    shell_count accounts_count administrator_count autologon_count <<< "$counts"
+  IFS='|' read -r shell_count accounts_count administrator_count autologon_count <<< "$counts"
 
   [ "$shell_count" = "1" ] || return 1
   (( accounts_count <= 1 )) || return 1
@@ -1097,15 +1068,9 @@ configureDomainAccounts() {
     child_count=$(getXMLNodeCount "$asset" "$shell/*") || return 1
 
     if [ "$child_count" = "0" ]; then
-      xmlstarlet ed -L \
-        -N "u=$ns" \
-        -s "$shell" -t elem -n 'UserAccounts' \
-        "$asset" || return 1
+      xmlstarlet ed -L -N "u=$ns" -s "$shell" -t elem -n 'UserAccounts' "$asset" || return 1
     else
-      xmlstarlet ed -L \
-        -N "u=$ns" \
-        -i "$shell/*[1]" -t elem -n 'UserAccounts' \
-        "$asset" || return 1
+      xmlstarlet ed -L -N "u=$ns" -i "$shell/*[1]" -t elem -n 'UserAccounts' "$asset" || return 1
     fi
   fi
 
@@ -1158,8 +1123,7 @@ configureDomainAccounts() {
     -u "$account_list/*[local-name()='Domain']" -v "$domain" \
     -u "$created_autologon/*[local-name()='Username']" -v "$account" \
     -u "$created_autologon/*[local-name()='Domain']" -v "$domain" \
-    -u "$auto_password/*[local-name()='Value']" -v "$pass" \
-    "$asset" || return 1
+    -u "$auto_password/*[local-name()='Value']" -v "$pass" "$asset" || return 1
 
   return 0
 }
@@ -1196,9 +1160,7 @@ configureDomainJoin() {
   esac
 
   if [ -n "$cred_domain" ]; then
-    args+=(
-      -s "$credentials" -t elem -n 'Domain'
-    )
+    args+=(-s "$credentials" -t elem -n 'Domain')
   fi
 
   args+=(
@@ -1208,9 +1170,7 @@ configureDomainJoin() {
   )
 
   if [ -n "$ou" ]; then
-    args+=(
-      -s "$identification" -t elem -n 'MachineObjectOU'
-    )
+    args+=(-s "$identification" -t elem -n 'MachineObjectOU')
   fi
 
   xmlstarlet ed "${args[@]}" "$asset" || return 1
@@ -1224,15 +1184,11 @@ configureDomainJoin() {
   )
 
   if [ -n "$cred_domain" ]; then
-    values+=(
-      -u "$credentials/*[local-name()='Domain']" -v "$cred_domain"
-    )
+    values+=(-u "$credentials/*[local-name()='Domain']" -v "$cred_domain")
   fi
 
   if [ -n "$ou" ]; then
-    values+=(
-      -u "$identification/*[local-name()='MachineObjectOU']" -v "$ou"
-    )
+    values+=(-u "$identification/*[local-name()='MachineObjectOU']" -v "$ou")
   fi
 
   xmlstarlet ed "${values[@]}" "$asset" || return 1
@@ -1260,12 +1216,8 @@ updateWorkgroup() {
     ! xmlstarlet ed -L \
       -N "u=$ns" \
       -d "$identification/u:Credentials | $identification/u:JoinDomain | $identification/u:JoinWorkgroup | $identification/u:MachineObjectOU" \
-      -s "$identification" -t elem -n 'JoinWorkgroup' \
-      "$tmp" ||
-    ! xmlstarlet ed -L \
-      -N "u=$ns" \
-      -u "$join" -v "$workgroup" \
-      "$tmp" ||
+      -s "$identification" -t elem -n 'JoinWorkgroup' "$tmp" ||
+    ! xmlstarlet ed -L -N "u=$ns" -u "$join" -v "$workgroup" "$tmp" ||
     ! replaceXMLAsset "$asset" "$tmp"; then
 
     rm -f "$tmp"
@@ -1386,9 +1338,7 @@ updateDisplayXML() {
   )
 
   if [ -n "${HOST:-}" ]; then
-    args+=(
-      -u "$specialize/u:ComputerName" -v "$HOST"
-    )
+    args+=(-u "$specialize/u:ComputerName" -v "$HOST")
   fi
 
   xmlstarlet ed "${args[@]}" "$asset" || return 1
@@ -1403,30 +1353,24 @@ updateLocaleXML() {
   local ns="urn:schemas-microsoft-com:unattend"
   local international='/u:unattend/u:settings/u:component[@name="Microsoft-Windows-International-Core" or @name="Microsoft-Windows-International-Core-WinPE"]'
   local culture region keyboard
-  local -a args=( -L -N "u=$ns" )
+  local -a args=(-L -N "u=$ns")
 
   culture=$(getLanguage "$language" "culture") || return 1
 
   if [ -n "$culture" ]; then
-    args+=(
-      -u "$international//u:UILanguage" -v "$culture"
-    )
+    args+=(-u "$international//u:UILanguage" -v "$culture")
   fi
 
   region="${REGION:-$culture}"
 
   if [ -n "$region" ]; then
-    args+=(
-      -u "$international/u:UserLocale | $international/u:SystemLocale" -v "$region"
-    )
+    args+=(-u "$international/u:UserLocale | $international/u:SystemLocale" -v "$region")
   fi
 
   keyboard="${KEYBOARD:-$culture}"
 
   if [ -n "$keyboard" ]; then
-    args+=(
-      -u "$international/u:InputLocale" -v "$keyboard"
-    )
+    args+=(-u "$international/u:InputLocale" -v "$keyboard")
   fi
 
   if (( ${#args[@]} > 3 )); then
@@ -1458,12 +1402,9 @@ findPrimaryLocalAccount() {
     -T -t \
     -v "count($shell)" -o '|' \
     -v "count($local_accounts)" -o '|' \
-    -v "count($administrator)" -o '|' \
-    -v "count($autologon)" \
-    "$asset") || return 1
+    -v "count($administrator)" -o '|' -v "count($autologon)" "$asset") || return 1
 
-  IFS='|' read -r \
-    shell_count local_count found_admin found_autologon <<< "$counts"
+  IFS='|' read -r shell_count local_count found_admin found_autologon <<< "$counts"
 
   [ "$shell_count" = "1" ] || return 1
   (( local_count > 0 )) || return 1
@@ -1474,10 +1415,7 @@ findPrimaryLocalAccount() {
 
   if [ "$found_autologon" = "1" ]; then
     auto_user=$(xmlstarlet sel \
-      -N "u=$ns" \
-      -T -t \
-      -v "normalize-space(string($autologon/u:Username))" \
-      "$asset") || return 1
+      -N "u=$ns" -T -t -v "normalize-space(string($autologon/u:Username))" "$asset") || return 1
   fi
 
   records=$(xmlstarlet sel \
@@ -1486,8 +1424,7 @@ findPrimaryLocalAccount() {
     -m "$local_accounts" \
     -v 'position()' -o "$separator" \
     -v 'normalize-space(string(u:Name))' -o "$separator" \
-    -v 'normalize-space(string(u:Group))' -n \
-    "$asset") || return 1
+    -v 'normalize-space(string(u:Group))' -n "$asset") || return 1
 
   while IFS="$separator" read -r position name group; do
 
@@ -1529,18 +1466,12 @@ findPrimaryLocalAccount() {
   fi
 
   selected_user=$(xmlstarlet sel \
-    -N "u=$ns" \
-    -T -t \
-    -v "normalize-space(string(${local_accounts}[${selected}]/u:Name))" \
-    "$asset") || return 1
+    -N "u=$ns" -T -t -v "normalize-space(string(${local_accounts}[${selected}]/u:Name))" "$asset") || return 1
 
   [ -n "$selected_user" ] || return 1
 
   printf '%s\n' \
-    "$selected" \
-    "$selected_user" \
-    "$found_admin" \
-    "$found_autologon"
+    "$selected" "$selected_user" "$found_admin" "$found_autologon"
 
   return 0
 }
@@ -1617,10 +1548,7 @@ updateLocalAccount() {
       "$password/*[local-name()='PlainText']" \
       "$admin_value" \
       "$admin_plain" \
-      "$autologon/*[local-name()='Username']" \
-      "$auto_password" \
-      "$auto_value" \
-      "$auto_plain"; then
+      "$autologon/*[local-name()='Username']" "$auto_password" "$auto_value" "$auto_plain"; then
 
     rm -f "$tmp"
     return 1
@@ -1696,13 +1624,7 @@ updateMembership() {
 
     # Domain customization is optional: if the template cannot be transformed,
     # retain its local-account path and allow installation to continue.
-    if ! updateDomain \
-      "$asset" \
-      "$domain" \
-      "$account" \
-      "$auth" \
-      "$PASSWORD" \
-      "${DOMAIN_OU:-}"; then
+    if ! updateDomain "$asset" "$domain" "$account" "$auth" "$PASSWORD" "${DOMAIN_OU:-}"; then
 
       warn "failed to add domain configuration to answer file!"
       return 0
@@ -1729,10 +1651,7 @@ updateAutologinXML() {
 
   disabled "${AUTOLOGIN:-}" || return 0
 
-  xmlstarlet ed -L \
-    -N "u=$ns" \
-    -d "$shell/u:AutoLogon" \
-    "$asset" || return 1
+  xmlstarlet ed -L -N "u=$ns" -d "$shell/u:AutoLogon" "$asset" || return 1
 
   return 0
 }
@@ -1761,12 +1680,7 @@ updateEditionXML() {
   edition="${edition^^}"
 
   records=$(xmlstarlet sel \
-    -N "u=$ns" \
-    -T -t \
-    -m "$selector" \
-    -v 'position()' -o "$separator" \
-    -v 'string(.)' -n \
-    "$asset") || return 1
+    -N "u=$ns" -T -t -m "$selector" -v 'position()' -o "$separator" -v 'string(.)' -n "$asset") || return 1
 
   while IFS="$separator" read -r position value; do
     [ -n "$position" ] || continue
@@ -1785,10 +1699,7 @@ updateEditionXML() {
       continue
     fi
 
-    xmlstarlet ed -L \
-      -N "u=$ns" \
-      -u "($selector)[$position]" -v "$replacement" \
-      "$asset" || return 1
+    xmlstarlet ed -L -N "u=$ns" -u "($selector)[$position]" -v "$replacement" "$asset" || return 1
   done <<< "$records"
 
   return 0
@@ -1847,12 +1758,7 @@ updateDiskID() {
 
   [ "$count" != "0" ] || return 0
 
-  values=$(xmlstarlet sel \
-    -N "u=$ns" \
-    -T -t \
-    -m "$disk_ids" \
-    -v 'normalize-space(.)' -n \
-    "$asset") || {
+  values=$(xmlstarlet sel -N "u=$ns" -T -t -m "$disk_ids" -v 'normalize-space(.)' -n "$asset") || {
     error "Failed to read DiskID values from answer file: $asset"
     return 1
   }
@@ -1882,10 +1788,7 @@ updateDiskID() {
       ;;
   esac
 
-  if ! xmlstarlet ed -L \
-    -N "u=$ns" \
-    -u "${disk_ids}[normalize-space(.)='$current']" -v "$target" \
-    "$asset"; then
+  if ! xmlstarlet ed -L -N "u=$ns" -u "${disk_ids}[normalize-space(.)='$current']" -v "$target" "$asset"; then
 
     error "Failed to update DiskID in answer file: $asset"
     return 1
@@ -1909,11 +1812,7 @@ getXMLArchitecture() {
   local path
 
   for path in "${paths[@]}"; do
-    arch=$(xmlstarlet sel \
-      -N "u=$ns" \
-      -T -t \
-      -v "normalize-space(string(($path)[1]))" \
-      "$asset") || arch=""
+    arch=$(xmlstarlet sel -N "u=$ns" -T -t -v "normalize-space(string(($path)[1]))" "$asset") || arch=""
 
     [ -n "$arch" ] || continue
     [[ "${arch,,}" != "wow64" ]] || continue
@@ -1949,9 +1848,7 @@ setConfigurationXML() {
 
   if [ "$config_count" = "1" ]; then
     config_value=$(xmlstarlet sel \
-      -T -t \
-      -v "translate(normalize-space(string($config)), 'TRUE', 'true')" \
-      "$asset") || return 1
+      -T -t -v "translate(normalize-space(string($config)), 'TRUE', 'true')" "$asset") || return 1
 
     [ "$config_value" != "true" ] || return 0
   fi
@@ -2036,8 +1933,7 @@ XSL
     return 1
   fi
 
-  result_count=$(getXMLNodeCount \
-    "$result" "${config}[normalize-space(.)='true']") || {
+  result_count=$(getXMLNodeCount "$result" "${config}[normalize-space(.)='true']") || {
     rm -rf "$tmp"
     return 1
   }
@@ -2079,9 +1975,7 @@ removeLocalAccount() {
   local accounts='/u:unattend/u:settings[@pass="oobeSystem"]/u:component[@name="Microsoft-Windows-Shell-Setup"]/u:UserAccounts'
 
   if ! xmlstarlet ed -L \
-    -N "u=$ns" \
-    -d "$accounts/u:LocalAccounts | $accounts/u:AdministratorPassword" \
-    "$asset"; then
+    -N "u=$ns" -d "$accounts/u:LocalAccounts | $accounts/u:AdministratorPassword" "$asset"; then
 
     error "Failed to remove local account configuration from answer file!"
     return 1
@@ -2477,17 +2371,13 @@ writeSIF() {
       '    Hibernation="No"' \
       '' \
       '[GuiUnattended]' \
-      '    OEMSkipRegional=1' \
-      '    OemSkipWelcome=1' \
-      "    AdminPassword=\"$sifPassword\"" \
-      '    TimeZone=0'
+      '    OEMSkipRegional=1' '    OemSkipWelcome=1' "    AdminPassword=\"$sifPassword\"" '    TimeZone=0'
 
     if disabled "$AUTOLOGIN"; then
       printf '%s\n' '    AutoLogon=No'
     else
       printf '%s\n' \
-        '    AutoLogon=Yes' \
-        '    AutoLogonCount=65432'
+        '    AutoLogon=Yes' '    AutoLogonCount=65432'
     fi
 
     printf '%s\n' \
@@ -2514,23 +2404,14 @@ writeSIF() {
       '' \
       '[URL]' \
       '    Home_Page = http://www.google.com' \
-      '    Search_Page = http://www.google.com' \
-      '' \
-      '[TerminalServices]' \
-      '    AllowConnections=1' \
-      ''
+      '    Search_Page = http://www.google.com' '' '[TerminalServices]' '    AllowConnections=1' ''
   } | unix2dos > "$target/WINNT.SIF" || return 1
 
   if [[ "$driver" == "2k3" ]]; then
     {
       printf '%s\n' \
         '[Components]' \
-        '    TerminalServer=On' \
-        '' \
-        '[LicenseFilePrintData]' \
-        '    AutoMode=PerServer' \
-        '    AutoUsers=5' \
-        ''
+        '    TerminalServer=On' '' '[LicenseFilePrintData]' '    AutoMode=PerServer' '    AutoUsers=5' ''
     } | unix2dos >> "$target/WINNT.SIF" || return 1
   fi
 
@@ -2572,17 +2453,13 @@ writeRegistry() {
       '' \
       '[HKEY_CURRENT_USER\Software\Microsoft\Internet Connection Wizard]' \
       '"Completed"="1"' \
-      '"Desktopchanged"="1"' \
-      '' \
-      '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]'
+      '"Desktopchanged"="1"' '' '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]'
 
     if disabled "$AUTOLOGIN"; then
       printf '%s\n' '"AutoAdminLogon"="0"'
     else
       printf '%s\n' \
-        '"AutoAdminLogon"="1"' \
-        "\"DefaultUserName\"=\"$regUsername\"" \
-        "\"DefaultPassword\"=\"$regPassword\""
+        '"AutoAdminLogon"="1"' "\"DefaultUserName\"=\"$regUsername\"" "\"DefaultPassword\"=\"$regPassword\""
     fi
 
     printf '%s\n' \
@@ -2619,9 +2496,7 @@ appendRegistry() {
   if [[ "$driver" == "2k" ]]; then
     {
       printf '%s\n' \
-        '[HKEY_USERS\.DEFAULT\Software\Microsoft\Windows\CurrentVersion\Runonce]' \
-        '"^SetupICWDesktop"=-' \
-        ''
+        '[HKEY_USERS\.DEFAULT\Software\Microsoft\Windows\CurrentVersion\Runonce]' '"^SetupICWDesktop"=-' ''
     } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
   fi
 
@@ -2632,8 +2507,7 @@ appendRegistry() {
         '@=dword:00000000' \
         '' \
         '[HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\ServerOOBE\SecurityOOBE]' \
-        '"DontLaunchSecurityOOBE"=dword:00000000' \
-        ''
+        '"DontLaunchSecurityOOBE"=dword:00000000' ''
     } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
   fi
 
@@ -2687,31 +2561,18 @@ writeVBS() {
       '    If Left(sid, 9) = "S-1-5-21-" And Right(sid, 4) = "-500" Then' \
       '      LocalAdminADsPath = DomainItem.ADsPath' \
       '      Exit For' \
-      '    End If' \
-      '  End If' \
-      'Next' \
-      '' \
-      "Call Domain.MoveHere(LocalAdminADsPath, \"$username\")" \
-      ''
+      '    End If' '  End If' 'Next' '' "Call Domain.MoveHere(LocalAdminADsPath, \"$username\")" ''
 
     if enabled "$shortcut"; then
       printf '%s\n' \
         'Set oLink = WshShell.CreateShortcut(WshShell.SpecialFolders("Desktop") & "\Shared.lnk")' \
-        'With oLink' \
-        '  .TargetPath = "\\host.lan\Data"' \
-        '  .Save' \
-        'End With' \
-        'Set oLink = Nothing' \
-        ''
+        'With oLink' '  .TargetPath = "\\host.lan\Data"' '  .Save' 'End With' 'Set oLink = Nothing' ''
     fi
   } | unix2dos > "$dir/\$OEM\$/install.vbs" || return 1
 
   {
     printf '%s\n' \
-      '[COMMANDS]' \
-      '"REGEDIT /s install.reg"' \
-      '"Wscript install.vbs"' \
-      ''
+      '[COMMANDS]' '"REGEDIT /s install.reg"' '"Wscript install.vbs"' ''
   } | unix2dos > "$dir/\$OEM\$/cmdlines.txt" || return 1
 
   return 0
@@ -2723,11 +2584,7 @@ disableAutoReboot() {
   local file
 
   file=$(find \
-    "$target" \
-    -maxdepth 1 \
-    -type f \
-    -iname HIVESYS.INF \
-    -print -quit
+    "$target" -maxdepth 1 -type f -iname HIVESYS.INF -print -quit
   ) || return 1
 
   if [ -z "$file" ]; then
@@ -2737,9 +2594,7 @@ disableAutoReboot() {
 
   # Keep setup crashes visible instead of immediately rebooting into an
   # opaque installation loop.
-  if grep -Fqi \
-    'HKLM,"SYSTEM\CurrentControlSet\Control\CrashControl","AutoReboot"' \
-    "$file"; then
+  if grep -Fqi 'HKLM,"SYSTEM\CurrentControlSet\Control\CrashControl","AutoReboot"' "$file"; then
 
     sed -i -E \
       's|^(HKLM,"SYSTEM\\CurrentControlSet\\Control\\CrashControl","AutoReboot",[^,]*,)[^[:space:]]*|\1 0|I' \
@@ -2817,11 +2672,7 @@ legacyInstall() {
 
   if [ -d "$oem_dir" ]; then
     install=$(find \
-      "$oem_dir" \
-      -maxdepth 1 \
-      -type f \
-      -iname install.bat \
-      -print -quit
+      "$oem_dir" -maxdepth 1 -type f -iname install.bat -print -quit
     ) || return 1
   fi
 
@@ -2863,19 +2714,9 @@ legacyInstall() {
   writeSIF \
     "$target" \
     "$driver" \
-    "$product" \
-    "$sifHost" \
-    "$sifUsername" \
-    "$sifPassword" \
-    "$sifOrganization" \
-    "$sifWorkgroup" || return 1
+    "$product" "$sifHost" "$sifUsername" "$sifPassword" "$sifOrganization" "$sifWorkgroup" || return 1
 
-  writeRegistry \
-    "$dir" \
-    "$shortcut" \
-    "$oem" \
-    "$regUsername" \
-    "$regPassword" || return 1
+  writeRegistry "$dir" "$shortcut" "$oem" "$regUsername" "$regPassword" || return 1
 
   appendRegistry "$dir" "$driver" || return 1
   writeVBS "$dir" "$username" "$shortcut" || return 1
