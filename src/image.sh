@@ -1,6 +1,30 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+checkPlatform() {
+
+  local xml="$1"
+  local platform compat
+
+  platform=$(getPlatform "$xml")
+
+  case "${platform,,}" in
+    "x86" ) compat="x64" ;;
+    "x64" ) compat="$platform" ;;
+    "arm64" ) compat="$platform" ;;
+    "mixed" )
+      error "Windows images with mixed architectures are not supported!"
+      return 1
+      ;;
+    * ) compat="${PLATFORM,,}" ;;
+  esac
+
+  [[ "${compat,,}" == "${PLATFORM,,}" ]] && return 0
+
+  error "You cannot boot ${platform^^} images on a $PLATFORM CPU!"
+  return 1
+}
+
 getPlatform() {
 
   local xml="$1"
@@ -30,30 +54,6 @@ getPlatform() {
 
   echo "$platform"
   return 0
-}
-
-checkPlatform() {
-
-  local xml="$1"
-  local platform compat
-
-  platform=$(getPlatform "$xml")
-
-  case "${platform,,}" in
-    "x86" ) compat="x64" ;;
-    "x64" ) compat="$platform" ;;
-    "arm64" ) compat="$platform" ;;
-    "mixed" )
-      error "Windows images with mixed architectures are not supported!"
-      return 1
-      ;;
-    * ) compat="${PLATFORM,,}" ;;
-  esac
-
-  [[ "${compat,,}" == "${PLATFORM,,}" ]] && return 0
-
-  error "You cannot boot ${platform^^} images on a $PLATFORM CPU!"
-  return 1
 }
 
 hasVersion() {
@@ -275,13 +275,12 @@ selectVersion() {
   local preferred_name="$3"
   local result_name="$4"
   local index_name="$5"
+  local wanted candidate match
   local -n version_list="$versions_name"
   local -n index_map="$indexes_name"
   local -n preference_list="$preferred_name"
   local -n selected_version="$result_name"
   local -n selected_image_index="$index_name"
-
-  local wanted candidate match
   local -a candidates=()
 
   for wanted in "${preference_list[@]}"; do
@@ -317,11 +316,11 @@ selectEdition() {
   local index_name="$7"
   local normalize_name="$8"
   local order_name="$9"
+
   local -n edition_versions="$versions_name"
   local -n edition_bases="$bases_name"
   local -n edition_groups="$groups_name"
   local -n edition_order="$order_name"
-
   local base edition entry suffix priority i
   local -a preferred=()
   local -A seen=()
@@ -415,13 +414,12 @@ detectVersion() {
   local result_name="$3"
   local index_name="$4"
 
-  local normalize_name="normalizeEditionID"
-
   local -a bases=()
   local -a groups=()
   local -a versions=()
   local -a selection_order=()
   local -A image_indexes=()
+  local normalize_name="normalizeEditionID"
 
   printf -v "$result_name" '%s' ""
   printf -v "$index_name" '%s' ""
@@ -598,6 +596,7 @@ createSetupImage() {
 
   local stage="$1"
   local image="$2"
+
   local tmp="${image}.tmp"
   local target="::/\$OEM\$/\$1/OEM"
   local install="$stage/.overlay-install.bat"
@@ -949,8 +948,8 @@ readWimHeader() {
   local image="$2"
   local result_name="$3"
 
-  local header="$TMP/wim-header.bin"
   local size signature
+  local header="$TMP/wim-header.bin"
 
   printf -v "$result_name" '%s' ""
 
@@ -1189,13 +1188,13 @@ parseWimHeader() {
   local -n original_ref="$original_name"
   local -n flags_ref="$flags_name"
 
-  local details image_size raw
   local header_size=0
   local parsed_size=0
   local parsed_offset=0
   local parsed_original=0
   local parsed_flags=0
   local -a bytes=()
+  local details image_size raw
 
   offset_ref=""
   size_ref=""
