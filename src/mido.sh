@@ -38,10 +38,9 @@ handleCurlError() {
 
 curlRequest() {
 
-  local output="$1"
-  local server="$2"
-  local agent="$3"
-  shift 3
+  local server="$1"
+  local agent="$2"
+  shift 2
 
   local log reason response
 
@@ -78,10 +77,7 @@ curlRequest() {
 
   rm -f "$log"
 
-  if [ -n "$output" ]; then
-    printf -v "$output" '%s' "$response"
-  fi
-
+  printf '%s' "$response"
   return 0
 }
 
@@ -123,7 +119,7 @@ downloadWindowsLink() {
 
   enabled "$DEBUG" && echo "Getting Session ID: $session"
 
-  curlRequest "" "Microsoft" "$agent" \
+  curlRequest "Microsoft" "$agent" \
     --output /dev/null \
     --header "Accept:" \
     --max-filesize 100K \
@@ -137,10 +133,10 @@ downloadWindowsLink() {
 
   enabled "$DEBUG" && echo -n "Getting OV data: "
 
-  curlRequest ovData "Microsoft" "$agent" \
+  ovData=$(curlRequest "Microsoft" "$agent" \
     --header "Accept:" \
     --max-filesize 1M \
-    -- "$ovUrl" || return 1
+    -- "$ovUrl") || return 1
 
   if [[ $ovData =~ [\?\&]w=([A-Fa-f0-9]+) ]]; then
     ovToken="${BASH_REMATCH[1]}"
@@ -164,7 +160,7 @@ downloadWindowsLink() {
 
   enabled "$DEBUG" && echo "Sending OV reply: $instance"
 
-  curlRequest "" "Microsoft" "$agent" \
+  curlRequest "Microsoft" "$agent" \
     --output /dev/null \
     --header "Accept:" \
     --max-filesize 100K \
@@ -174,11 +170,11 @@ downloadWindowsLink() {
 
   local skuUrl="https://www.microsoft.com/software-download-connector/api/getskuinformationbyproductedition?profile=$profile&ProductEditionId=$productId&SKU=undefined&friendlyFileName=undefined&Locale=en-US&sessionID=$session"
 
-  curlRequest skuJson "Microsoft" "$agent" \
+  skuJson=$(curlRequest "Microsoft" "$agent" \
     --referer "$url" \
     --header "Accept:" \
     --max-filesize 100K \
-    -- "$skuUrl" || return 1
+    -- "$skuUrl") || return 1
 
   # Guard jq under errexit so malformed API data can be handled as a normal
   # missing-result error. The same pattern is reused for the link response.
@@ -198,11 +194,11 @@ downloadWindowsLink() {
 
   local linkUrl="https://www.microsoft.com/software-download-connector/api/GetProductDownloadLinksBySku?profile=$profile&ProductEditionId=undefined&SKU=$skuId&friendlyFileName=undefined&Locale=en-US&sessionID=$session"
 
-  curlRequest linkJson "Microsoft" "$agent" \
+  linkJson=$(curlRequest "Microsoft" "$agent" \
     --referer "$url" \
     --header "Accept:" \
     --max-filesize 100K \
-    -- "$linkUrl" || return 1
+    -- "$linkUrl") || return 1
 
   if ! [ "$linkJson" ]; then
     error "Microsoft servers gave us an empty response to our request for an automated download."
@@ -283,10 +279,10 @@ downloadWindows() {
   info "Microsoft download request failed, $msg"
   enabled "$DEBUG" && echo "Parsing download page: ${url}"
 
-  curlRequest page "Microsoft" "$agent" \
+  page=$(curlRequest "Microsoft" "$agent" \
     --header "Accept:" \
     --max-filesize 1M \
-    -- "$url" || return 1
+    -- "$url") || return 1
 
   enabled "$DEBUG" && echo -n "Getting Product edition ID: "
   productId=$(printf '%s' "$page" |
@@ -358,10 +354,10 @@ downloadWindowsEval() {
 
   enabled "$DEBUG" && echo "Parsing download page: ${url}"
 
-  curlRequest page "Microsoft" "$agent" \
+  page=$(curlRequest "Microsoft" "$agent" \
     --location \
     --max-filesize 1M \
-    -- "$url" || return 1
+    -- "$url") || return 1
 
   if ! [ "$page" ]; then
     error "Windows server download page gave us an empty response"
@@ -429,12 +425,12 @@ downloadWindowsEval() {
   # Resolve the fwlink now so later logging and platform validation use the
   # actual ISO URL rather than Microsoft's generic redirect.
 
-  curlRequest link "Microsoft" "$agent" \
+  link=$(curlRequest "Microsoft" "$agent" \
     --location \
     --output /dev/null \
     --write-out "%{url_effective}" \
     --head \
-    -- "$link" || return 1
+    -- "$link") || return 1
 
   local lower="${link,,}"
   local separator='(^|[[:space:]_./-])'
