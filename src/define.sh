@@ -959,6 +959,19 @@ isLegacy() {
   return 1
 }
 
+bootDirect() {
+
+  local id="$1"
+
+  # ReactOS must boot from its original media and does not use the Windows
+  # setup-overlay or rebuilt-image paths.
+  case "${id,,}" in
+    "reactos" ) return 0 ;;
+  esac
+
+  return 1
+}
+
 switchEdition() {
 
   local version="$1"
