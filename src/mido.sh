@@ -1246,8 +1246,8 @@ downloadImage() {
   # normal edition since none of our mirrors provide those.
   if switched=$(switchEdition "$version"); then
 
+    validDownload "$switched" || return 1
     version="$switched"
-    validDownload "$version" || return 1    
 
     if ! enabled "${DETECTED_ORG:-}"; then
       DETECTED="${SUGGEST:-$version}"
