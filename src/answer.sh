@@ -74,7 +74,7 @@ stageAnswer() {
   validateGeneratedXML "$answer" || return 1
 
   if [ -z "${CUSTOM_XML:-}" ]; then
-    prepareSetupScript "$asset" "$stage" script || exit 84
+    script=$(prepareSetupScript "$asset" "$stage") || exit 84
   fi
 
   return 0
@@ -395,18 +395,15 @@ prepareSetupScript() {
 
   local asset="$1"
   local stage="$2"
-  local result_name="$3"
   local staged=""
 
-  printf -v "$result_name" '%s' ""
-
-  stageSetupScript "$asset" "$stage" staged || return 1
+  staged=$(stageSetupScript "$asset" "$stage") || return 1
   [ -n "$staged" ] || return 0
 
   updateSetupScript "$staged" "$asset" || return 1
   finalizeSetupScript "$staged" || return 1
 
-  printf -v "$result_name" '%s' "$staged"
+  printf '%s' "$staged"
   return 0
 }
 
@@ -502,10 +499,7 @@ stageSetupScript() {
 
   local asset="$1"
   local stage="$2"
-  local result_name="$3"
   local source target
-
-  printf -v "$result_name" '%s' ""
 
   source=$(findSetupScript "$asset") || return 1
   [ -n "$source" ] || return 0
@@ -531,7 +525,7 @@ stageSetupScript() {
 
   validateSetupScript "$target" || return 1
 
-  printf -v "$result_name" '%s' "$target"
+  printf '%s' "$target"
   return 0
 }
 
@@ -976,11 +970,7 @@ getXMLNodeCount() {
 copyXMLAsset() {
 
   local asset="$1"
-  local result_name="$2"
   local copy
-  local -n result_ref="$result_name"
-
-  result_ref=""
 
   if ! copy=$(mktemp "${asset}.XXXXXX") ||
     ! cp -p -- "$asset" "$copy"; then
@@ -989,7 +979,7 @@ copyXMLAsset() {
     return 1
   fi
 
-  result_ref="$copy"
+  printf '%s' "$copy"
   return 0
 }
 
@@ -1318,7 +1308,7 @@ updateWorkgroup() {
   arch=$(getXMLArchitecture "$asset") || return 1
   # Apply all membership changes to a copy and publish it only after the old
   # domain, credential, OU, and workgroup nodes have been replaced successfully.
-  copyXMLAsset "$asset" tmp || return 1
+  tmp=$(copyXMLAsset "$asset") || return 1
 
   if ! ensureUnattendedJoin "$tmp" "$arch" ||
     ! xmlstarlet ed -L \
@@ -1354,7 +1344,7 @@ updateDomain() {
   arch=$(getXMLArchitecture "$asset") || return 1
   # Account and join settings are separate XML transformations, so update a
   # copy to keep the original answer file intact if either transformation fails.
-  copyXMLAsset "$asset" tmp || return 1
+  tmp=$(copyXMLAsset "$asset") || return 1
 
   if ! configureDomainAccounts "$tmp" "$domain" "$account" "$pass" ||
     ! configureDomainJoin "$tmp" "$domain" "$auth" "$pass" "$ou" "$arch" ||
@@ -1690,7 +1680,7 @@ updateLocalAccount() {
 
   # Update the selected local account, Administrator password, and AutoLogon
   # credentials atomically so they cannot become inconsistent.
-  copyXMLAsset "$asset" tmp || return 1
+  tmp=$(copyXMLAsset "$asset") || return 1
 
   if ! validateUniqueXMLNodes "$tmp" \
       "$password" \
