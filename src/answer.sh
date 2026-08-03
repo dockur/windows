@@ -1062,23 +1062,23 @@ ensureUnattendedJoin() {
 
   xmlstarlet ed -L \
     -N "u=$ns" \
-    -i "$component[not(@processorArchitecture)]" \
+    -i "${component}[not(@processorArchitecture)]" \
       -t attr -n 'processorArchitecture' -v "$arch" \
     -u "$component/@processorArchitecture" \
       -v "$arch" \
-    -i "$component[not(@publicKeyToken)]" \
+    -i "${component}[not(@publicKeyToken)]" \
       -t attr -n 'publicKeyToken' -v '31bf3856ad364e35' \
     -u "$component/@publicKeyToken" \
       -v '31bf3856ad364e35' \
-    -i "$component[not(@language)]" \
+    -i "${component}[not(@language)]" \
       -t attr -n 'language' -v 'neutral' \
     -u "$component/@language" \
       -v 'neutral' \
-    -i "$component[not(@versionScope)]" \
+    -i "${component}[not(@versionScope)]" \
       -t attr -n 'versionScope' -v 'nonSxS' \
     -u "$component/@versionScope" \
       -v 'nonSxS' \
-    -s "$component[not(u:Identification)]" \
+    -s "${component}[not(u:Identification)]" \
       -t elem -n 'Identification' \
     "$asset" || return 1
 
@@ -1619,7 +1619,7 @@ findPrimaryLocalAccount() {
   selected_user=$(xmlstarlet sel \
     -N "u=$ns" \
     -T -t \
-    -v "normalize-space(string($local_accounts[$selected]/u:Name))" \
+    -v "normalize-space(string(${local_accounts}[${selected}]/u:Name))" \
     "$asset") || return 1
 
   [ -n "$selected_user" ] || return 1
@@ -1678,7 +1678,7 @@ updateLocalAccount() {
   findPrimaryLocalAccount \
     "$asset" primary current_user admin_count autologon_count || return 1
 
-  local account="$local_accounts[$primary]"
+  local account="${local_accounts}[${primary}]"
   local password="$account/*[local-name()='Password']"
   local admin_value="$administrator/*[local-name()='Value']"
   local admin_plain="$administrator/*[local-name()='PlainText']"
@@ -1720,11 +1720,11 @@ updateLocalAccount() {
   local -a args=(
     -L
     -N "u=$ns"
-    -s "$account[not(*[local-name()='Password'])]"
+    -s "${account}[not(*[local-name()='Password'])]"
       -t elem -n 'Password'
-    -s "$password[not(*[local-name()='Value'])]"
+    -s "${password}[not(*[local-name()='Value'])]"
       -t elem -n 'Value'
-    -s "$password[not(*[local-name()='PlainText'])]"
+    -s "${password}[not(*[local-name()='PlainText'])]"
       -t elem -n 'PlainText'
     -u "$password/*[local-name()='Value']"
       -v "$pw"
@@ -1743,9 +1743,9 @@ updateLocalAccount() {
 
   if [ "$admin_count" = "1" ]; then
     args+=(
-      -s "$administrator[not(*[local-name()='Value'])]"
+      -s "${administrator}[not(*[local-name()='Value'])]"
         -t elem -n 'Value'
-      -s "$administrator[not(*[local-name()='PlainText'])]"
+      -s "${administrator}[not(*[local-name()='PlainText'])]"
         -t elem -n 'PlainText'
       -u "$admin_value"
         -v "$admin"
@@ -1756,13 +1756,13 @@ updateLocalAccount() {
 
   if [ "$autologon_count" = "1" ]; then
     args+=(
-      -s "$autologon[not(*[local-name()='Username'])]"
+      -s "${autologon}[not(*[local-name()='Username'])]"
         -t elem -n 'Username'
-      -s "$autologon[not(*[local-name()='Password'])]"
+      -s "${autologon}[not(*[local-name()='Password'])]"
         -t elem -n 'Password'
-      -s "$auto_password[not(*[local-name()='Value'])]"
+      -s "${auto_password}[not(*[local-name()='Value'])]"
         -t elem -n 'Value'
-      -s "$auto_password[not(*[local-name()='PlainText'])]"
+      -s "${auto_password}[not(*[local-name()='PlainText'])]"
         -t elem -n 'PlainText'
       -u "$autologon/*[local-name()='Username']"
         -v "$target_user"
@@ -1984,7 +1984,7 @@ updateDiskID() {
 
   if ! xmlstarlet ed -L \
     -N "u=$ns" \
-    -u "$disk_ids[normalize-space(.)='$current']" \
+    -u "${disk_ids}[normalize-space(.)='$current']" \
     -v "$target" \
     "$asset"; then
 
@@ -2138,7 +2138,7 @@ XSL
   fi
 
   result_count=$(getXMLNodeCount \
-    "$result" "$config[normalize-space(.)='true']") || {
+    "$result" "${config}[normalize-space(.)='true']") || {
     rm -rf "$tmp"
     return 1
   }
