@@ -362,6 +362,8 @@ updateXML() {
   local workgroup="${WORKGROUP:-}"
   local account=""
   local auth=""
+  local result
+  local -a values=()
 
   [ -z "${WIDTH:-}" ] && WIDTH="1280"
   [ -z "${HEIGHT:-}" ] && HEIGHT="720"
@@ -371,7 +373,11 @@ updateXML() {
   updateLocaleXML "$asset" "$language" || return 1
 
   if [ -n "$domain" ]; then
-    prepareDomainAccount "$domain" account auth || return 1
+    result=$(prepareDomainAccount "$domain") || return 1
+    mapfile -t values <<< "$result"
+    (( ${#values[@]} == 2 )) || return 1
+    account="${values[0]}"
+    auth="${values[1]}"
   else
     updateLocalAccount "$asset" || return 1
   fi
@@ -1360,14 +1366,11 @@ updateDomain() {
 prepareDomainAccount() {
 
   local domain="$1"
-  local -n account_ref="$2"
-  local -n auth_ref="$3"
+  local account=""
+  local auth="${USERNAME:-}"
   local qualifier=""
 
-  auth_ref="${USERNAME:-}"
-  account_ref=""
-
-  if [ -z "$auth_ref" ]; then
+  if [ -z "$auth" ]; then
     error "The USERNAME variable must be specified when joining a domain!"
     return 1
   fi
@@ -1381,17 +1384,17 @@ prepareDomainAccount() {
 
   # Accept user or user@domain. DOMAIN\user is rejected because unattended
   # setup stores the domain separately from the credential username.
-  if [[ "$auth_ref" == *\\* ]]; then
+  if [[ "$auth" == *\\* ]]; then
     error "The USERNAME variable must use either \"user\" or \"user@domain\" format!"
     return 1
   fi
 
-  case "$auth_ref" in
+  case "$auth" in
     *@* )
-      account_ref="${auth_ref%%@*}"
-      qualifier="${auth_ref#*@}"
+      account="${auth%%@*}"
+      qualifier="${auth#*@}"
 
-      if [ -z "$account_ref" ] ||
+      if [ -z "$account" ] ||
         [ -z "$qualifier" ] ||
         [[ "$qualifier" == *@* ]]; then
 
@@ -1408,13 +1411,13 @@ prepareDomainAccount() {
       ;;
 
     * )
-      account_ref="$auth_ref"
+      account="$auth"
       ;;
   esac
 
-  validateUsername "$account_ref" "domain" || return 1
+  validateUsername "$account" "domain" || return 1
 
-  if [[ "${account_ref,,}" == "docker" ]]; then
+  if [[ "${account,,}" == "docker" ]]; then
     error "The USERNAME variable must be changed from its default value when joining a domain!"
     return 1
   fi
@@ -1424,6 +1427,7 @@ prepareDomainAccount() {
     return 1
   fi
 
+  printf '%s\n' "$account" "$auth"
   return 0
 }
 
@@ -1504,10 +1508,6 @@ updateLocaleXML() {
 findPrimaryLocalAccount() {
 
   local asset="$1"
-  local result_name="$2"
-  local user_name="$3"
-  local admin_name="$4"
-  local autologon_name="$5"
 
   local ns="urn:schemas-microsoft-com:unattend"
   local shell='/u:unattend/u:settings[@pass="oobeSystem"]/u:component[@name="Microsoft-Windows-Shell-Setup"]'
@@ -1519,17 +1519,8 @@ findPrimaryLocalAccount() {
   local selected=0 separator=$'\x1f'
 
   local -a groups=()
-  local -n user_ref="$user_name"
-  local -n admin_ref="$admin_name"
-  local -n result_ref="$result_name"
-  local -n autologon_ref="$autologon_name"
   local counts records auto_user selected_user position name group
   local shell_count local_count found_admin found_autologon token
-
-  user_ref=""
-  admin_ref=""
-  result_ref=""
-  autologon_ref=""
 
   counts=$(xmlstarlet sel \
     -N "u=$ns" \
@@ -1614,10 +1605,11 @@ findPrimaryLocalAccount() {
 
   [ -n "$selected_user" ] || return 1
 
-  result_ref="$selected"
-  user_ref="$selected_user"
-  admin_ref="$found_admin"
-  autologon_ref="$found_autologon"
+  printf '%s\n' \
+    "$selected" \
+    "$selected_user" \
+    "$found_admin" \
+    "$found_autologon"
 
   return 0
 }
@@ -1660,13 +1652,19 @@ updateLocalAccount() {
   local local_accounts="$shell/u:UserAccounts/u:LocalAccounts/u:LocalAccount"
   local administrator="$shell/u:UserAccounts/u:AdministratorPassword"
   local autologon="$shell/u:AutoLogon"
-  local primary admin_count autologon_count
-  local current_user target_user pw admin tmp
+  local primary admin_count autologon_count tmp
+  local current_user target_user pw admin result
+  local -a values=()
 
   validateUsername "$user" "local" || return 1
 
-  findPrimaryLocalAccount \
-    "$asset" primary current_user admin_count autologon_count || return 1
+  result=$(findPrimaryLocalAccount "$asset") || return 1
+  mapfile -t values <<< "$result"
+  (( ${#values[@]} == 4 )) || return 1
+  primary="${values[0]}"
+  current_user="${values[1]}"
+  admin_count="${values[2]}"
+  autologon_count="${values[3]}"
 
   local account="${local_accounts}[${primary}]"
   local password="$account/*[local-name()='Password']"
