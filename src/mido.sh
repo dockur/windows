@@ -744,7 +744,7 @@ getESD() {
   local file culture
   local language edition catalog
   local xmlFile="products.xml"
-  local log
+  local log rc=0
 
   file=$(getCatalog "$version" "file")
   catalog=$(getCatalog "$version" "url")
@@ -774,7 +774,7 @@ getESD() {
   {
     LC_ALL=C wget "$catalog" -O "$dir/$file" --no-verbose --timeout=30 \
       --no-http-keep-alive --output-file="$log"
-    local rc=$?
+    rc=$?
   } || :
 
   if (( rc != 0 )); then
@@ -820,48 +820,75 @@ getESD() {
 
   fi
 
-  if [ ! -f "$dir/$xmlFile" ] || [ ! -s "$dir/$xmlFile" ]; then
+  if [ ! -s "$dir/$xmlFile" ]; then
     error "Failed to find $xmlFile in $file!"
     return 1
   fi
 
-  local upper='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-  local lower='abcdefghijklmnopqrstuvwxyz'
-  local files="//*[local-name()='File'][translate(normalize-space(*[local-name()='Architecture']), '$upper', '$lower')='${PLATFORM,,}']"
+  local file_match=0
+  local language_match=0
+  local separator=$'\x1f'
+  local records architecture
+  local file_edition file_culture
+  local file_path file_sum file_size
 
-  if [ -n "$edition" ]; then
-    files+="[translate(normalize-space(*[local-name()='Edition']), '$upper', '$lower')='${edition,,}']"
-  fi
+  ESD=""
+  ESD_SUM=""
+  ESD_SIZE=""
 
-  local localized="$files[translate(normalize-space(*[local-name()='LanguageCode']), '$upper', '$lower')='${culture,,}']"
-  local selected="($localized)[1]"
-  local result separator=$'\x1f'
-  local file_count language_count
-
-  if ! result=$(xmlstarlet sel \
+  if ! records=$(xmlstarlet sel \
     -T -t \
-    -v "count($files)" -o "$separator" \
-    -v "count($localized)" -o "$separator" \
-    -v "string($selected/*[local-name()='FilePath'])" -o "$separator" \
-    -v "normalize-space(string($selected/*[local-name()='Sha1']))" -o "$separator" \
-    -v "normalize-space(string($selected/*[local-name()='Size']))" \
+    -m "//*[local-name()='File']" \
+      -v "normalize-space(*[local-name()='Architecture'])" \
+      -o "$separator" \
+      -v "normalize-space(*[local-name()='Edition'])" \
+      -o "$separator" \
+      -v "normalize-space(*[local-name()='LanguageCode'])" \
+      -o "$separator" \
+      -v "normalize-space(*[local-name()='FilePath'])" \
+      -o "$separator" \
+      -v "normalize-space(*[local-name()='Sha1'])" \
+      -o "$separator" \
+      -v "normalize-space(*[local-name()='Size'])" \
+      -n \
     "$dir/$xmlFile" 2>/dev/null); then
 
     error "Failed to parse $xmlFile!"
     return 1
   fi
 
-  IFS="$separator" read -r \
-    file_count language_count ESD ESD_SUM ESD_SIZE <<< "$result"
+  while IFS="$separator" read -r \
+    architecture file_edition file_culture \
+    file_path file_sum file_size; do
 
-  if [ "$file_count" = "0" ]; then
+    [ -n "$architecture$file_path$file_sum$file_size$file_culture$file_edition" ] || continue
+
+    [ "${architecture,,}" = "${PLATFORM,,}" ] || continue
+
+    if [ -n "$edition" ] &&
+      [ "${file_edition,,}" != "${edition,,}" ]; then
+      continue
+    fi
+
+    file_match=1
+
+    [ "${file_culture,,}" = "${culture,,}" ] || continue
+
+    language_match=1
+    ESD="$file_path"
+    ESD_SUM="$file_sum"
+    ESD_SIZE="$file_size"
+    break
+
+  done <<< "$records"
+
+  if (( ! file_match )); then
     desc=$(printEdition "$version" "$desc" "Y")
-    language=$(getLanguage "$lang" "desc")
     error "No download link available for $desc!"
     return 1
   fi
 
-  if [ "$language_count" = "0" ]; then
+  if (( ! language_match )); then
     desc=$(printEdition "$version" "$desc" "Y")
     language=$(getLanguage "$lang" "desc")
     error "No download in the $language language available for $desc!"
