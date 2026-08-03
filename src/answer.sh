@@ -552,14 +552,20 @@ installSetupScript() {
   return 0
 }
 
-replaceSetupBlock() {
+rewriteSetupBlock() {
 
   local file="$1"
   local block="$2"
-  local content="$3"
+  local action="$3"
+  local content="${4:-}"
   local begin="rem BEGIN $block"
   local end="rem END $block"
   local line inside=0 tmp
+
+  case "$action" in
+    "replace" | "remove" ) ;;
+    * ) return 1 ;;
+  esac
 
   validateSetupBlock "$file" "$block" || return 1
 
@@ -571,21 +577,28 @@ replaceSetupBlock() {
   while IFS= read -r line || [ -n "$line" ]; do
 
     if [ "$line" = "$begin" ]; then
-      if ! printf '%s\n' "$line" >> "$tmp" ||
-        ! printf '%s\n' "$content" >> "$tmp"; then
-        rm -f "$tmp"
-        return 1
+      if [ "$action" = "replace" ]; then
+        if ! printf '%s\n' "$line" >> "$tmp" ||
+          ! printf '%s\n' "$content" >> "$tmp"; then
+          rm -f "$tmp"
+          return 1
+        fi
       fi
+
       inside=1
       continue
     fi
 
     if [ "$line" = "$end" ]; then
       inside=0
-      if ! printf '%s\n' "$line" >> "$tmp"; then
-        rm -f "$tmp"
-        return 1
+
+      if [ "$action" = "replace" ]; then
+        if ! printf '%s\n' "$line" >> "$tmp"; then
+          rm -f "$tmp"
+          return 1
+        fi
       fi
+
       continue
     fi
 
@@ -601,57 +614,21 @@ replaceSetupBlock() {
   if ! chmod --reference="$file" "$tmp" ||
     ! mv -f -- "$tmp" "$file"; then
     rm -f "$tmp"
-    error "Failed to replace the $block block in setup script: $file"
+    error "Failed to $action the $block block in setup script: $file"
     return 1
   fi
 
   return 0
 }
 
+replaceSetupBlock() {
+
+  rewriteSetupBlock "$1" "$2" "replace" "$3"
+}
+
 removeSetupBlock() {
 
-  local file="$1"
-  local block="$2"
-  local begin="rem BEGIN $block"
-  local end="rem END $block"
-  local line inside=0 tmp
-
-  validateSetupBlock "$file" "$block" || return 1
-
-  if ! tmp=$(mktemp "${file}.XXXXXX"); then
-    error "Failed to create temporary setup script!"
-    return 1
-  fi
-
-  while IFS= read -r line || [ -n "$line" ]; do
-
-    if [ "$line" = "$begin" ]; then
-      inside=1
-      continue
-    fi
-
-    if [ "$line" = "$end" ]; then
-      inside=0
-      continue
-    fi
-
-    if (( ! inside )); then
-      if ! printf '%s\n' "$line" >> "$tmp"; then
-        rm -f "$tmp"
-        return 1
-      fi
-    fi
-
-  done < "$file"
-
-  if ! chmod --reference="$file" "$tmp" ||
-    ! mv -f -- "$tmp" "$file"; then
-    rm -f "$tmp"
-    error "Failed to remove the $block block from setup script: $file"
-    return 1
-  fi
-
-  return 0
+  rewriteSetupBlock "$1" "$2" "remove"
 }
 
 finalizeSetupScript() {
@@ -1510,8 +1487,9 @@ findPrimaryLocalAccount() {
 
   local asset="$1"
   local result_name="$2"
-  local admin_name="$3"
-  local autologon_name="$4"
+  local user_name="$3"
+  local admin_name="$4"
+  local autologon_name="$5"
 
   local ns="urn:schemas-microsoft-com:unattend"
   local shell='/u:unattend/u:settings[@pass="oobeSystem"]/u:component[@name="Microsoft-Windows-Shell-Setup"]'
@@ -1523,14 +1501,16 @@ findPrimaryLocalAccount() {
   local selected=0 separator=$'\x1f'
 
   local -a groups=()
-  local -n result_ref="$result_name"
+  local -n user_ref="$user_name"
   local -n admin_ref="$admin_name"
+  local -n result_ref="$result_name"
   local -n autologon_ref="$autologon_name"
   local counts records auto_user current_user position name group
   local shell_count local_count found_admin found_autologon token
 
-  result_ref=""
+  user_ref=""
   admin_ref=""
+  result_ref=""
   autologon_ref=""
 
   counts=$(xmlstarlet sel \
@@ -1615,6 +1595,7 @@ findPrimaryLocalAccount() {
   [ -n "$current_user" ] || return 1
 
   result_ref="$selected"
+  user_ref="$current_user"
   admin_ref="$found_admin"
   autologon_ref="$found_autologon"
 
@@ -1636,6 +1617,16 @@ validateUniqueXMLNodes() {
   return 0
 }
 
+encodeUnattendPassword() {
+
+  local password="$1"
+  local suffix="$2"
+
+  printf '%s' "${password}${suffix}" |
+    iconv -f utf-8 -t utf-16le |
+    base64 -w 0
+}
+
 updateLocalAccount() {
 
   local asset="$1"
@@ -1653,7 +1644,7 @@ updateLocalAccount() {
   validateUsername "$user" "local" || return 1
 
   findPrimaryLocalAccount \
-    "$asset" primary admin_count autologon_count || return 1
+    "$asset" primary current_user admin_count autologon_count || return 1
 
   local account="$local_accounts[$primary]"
   local password="$account/*[local-name()='Password']"
@@ -1663,13 +1654,6 @@ updateLocalAccount() {
   local auto_value="$auto_password/*[local-name()='Value']"
   local auto_plain="$auto_password/*[local-name()='PlainText']"
 
-  current_user=$(xmlstarlet sel \
-    -N "u=$ns" \
-    -T -t \
-    -v "normalize-space(string($account/u:Name))" \
-    "$asset") || return 1
-
-  [ -n "$current_user" ] || return 1
   target_user="${user:-$current_user}"
 
   copyXMLAsset "$asset" tmp || return 1
@@ -1689,16 +1673,12 @@ updateLocalAccount() {
     return 1
   fi
 
-  pw=$(printf '%s' "${pass}Password" |
-    iconv -f utf-8 -t utf-16le |
-    base64 -w 0) || {
+  pw=$(encodeUnattendPassword "$pass" "Password") || {
     rm -f "$tmp"
     return 1
   }
 
-  admin=$(printf '%s' "${pass}AdministratorPassword" |
-    iconv -f utf-8 -t utf-16le |
-    base64 -w 0) || {
+  admin=$(encodeUnattendPassword "$pass" "AdministratorPassword") || {
     rm -f "$tmp"
     return 1
   }
