@@ -650,6 +650,8 @@ getWindows() {
   MIDO_URL=$(getMido "$version" "$lang" "")
   [ -z "$MIDO_URL" ] && return 1
 
+  MIDO_STATIC="Y"
+
   if [[ "${version,,}" == "win2008r2"* ]]; then
     MIDO_SOURCE="win2008r2-eval"
     return 0
