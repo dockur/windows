@@ -985,7 +985,6 @@ parseWimHeader() {
   local parsed_offset=0
   local parsed_original=0
   local parsed_flags=0
-
   local -a bytes=()
 
   offset_ref=""
@@ -997,17 +996,18 @@ parseWimHeader() {
     return 1
   fi
 
-  if ! raw=$(od -An -j8 -N88 -tu1 -- "$header"); then
+  if ! raw=$(od -An -v -j8 -N88 -tu1 -- "$header"); then
     return 1
   fi
 
-  read -r -a bytes <<< "$raw"
+  read -r -a bytes <<< "${raw//$'\n'/ }"
 
   if (( ${#bytes[@]} != 88 )); then
     return 1
   fi
 
   local i
+
   # The WIM header size is a 32-bit little-endian value at offset 0x08.
   for ((i=3; i>=0; i--)); do
     header_size=$((header_size * 256 + bytes[i]))
