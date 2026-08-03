@@ -918,6 +918,58 @@ findIsoImage() {
   return 1
 }
 
+readWimHeader() {
+
+  local iso="$1"
+  local image="$2"
+  local result_name="$3"
+
+  local header="$TMP/wim-header.bin"
+  local size signature
+
+  printf -v "$result_name" '%s' ""
+
+  if ! rm -f -- "$header"; then
+    return 1
+  fi
+
+  if ! udfread range \
+      --ignore-case \
+      -o "$header" \
+      "$iso" \
+      "$image" \
+      0 \
+      208 \
+      >/dev/null 2>&1; then
+
+    rm -f -- "$header"
+    return 1
+  fi
+
+  if ! size=$(stat -c%s -- "$header"); then
+    rm -f -- "$header"
+    return 1
+  fi
+
+  if (( size != 208 )); then
+    rm -f -- "$header"
+    return 1
+  fi
+
+  if ! signature=$(od -An -N8 -tx1 "$header" | tr -d ' \n'); then
+    rm -f -- "$header"
+    return 1
+  fi
+
+  if [[ "$signature" != "4d5357494d000000" ]]; then
+    rm -f -- "$header"
+    return 1
+  fi
+
+  printf -v "$result_name" '%s' "$header"
+  return 0
+}
+
 findImage() {
 
   local dir="$1"
