@@ -122,6 +122,7 @@ generateAnswerFile() {
   local index="$4"
   local type="$5"
   local remove_selector="$6"
+
   local ns="urn:schemas-microsoft-com:unattend"
   local wcm="http://schemas.microsoft.com/WMIConfig/2002/State"
   local setup='/u:unattend/u:settings[@pass="windowsPE"]/u:component[@name="Microsoft-Windows-Setup"]'
@@ -148,22 +149,20 @@ generateAnswerFile() {
     return 1
   fi
 
-  local -a args=(
-    -L
-    -N "u=$ns"
-    # Product keys can appear in more than one unattend component.
-    # Generated fallback and evaluation files must not retain any of them.
-    -d '//u:ProductKey'
-  )
-
-  if [ "$type" != "evaluation" ] || [ "$remove_selector" = "Y" ]; then
-    args+=(-d "$install_from")
+  # Keep empty ProductKey structures because some Windows installers require
+  # the node to exist, but remove a concrete key that could select another edition.
+  if ! removeEmbeddedProductKeys "$tmp"; then
+    rm -f "$tmp"
+    error "Failed to remove the embedded $type product key!"
+    return 1
   fi
 
-  if ! xmlstarlet ed "${args[@]}" "$tmp"; then
-    rm -f "$tmp"
-    error "Failed to generate $type answer file from $source!"
-    return 1
+  if [ "$type" != "evaluation" ] || [ "$remove_selector" = "Y" ]; then
+    if ! xmlstarlet ed -L -N "u=$ns" -d "$install_from" "$tmp"; then
+      rm -f "$tmp"
+      error "Failed to generate $type answer file from $source!"
+      return 1
+    fi
   fi
 
   if [ -n "$index" ]; then
@@ -1981,6 +1980,40 @@ removeLocalAccount() {
     return 1
   fi
 
+  return 0
+}
+
+removeEmbeddedProductKeys() {
+
+  local asset="$1"
+  local product_keys='//u:ProductKey'
+  local separator=$'\x1f' delete_xpath=""
+  local ns="urn:schemas-microsoft-com:unattend"  
+  local records position child_key direct_key
+
+  records=$(xmlstarlet sel \
+    -N "u=$ns" -T -t \
+    -m "$product_keys" \
+    -v 'position()' -o "$separator" \
+    -v 'normalize-space(string((u:Key[normalize-space(.)])[1]))' -o "$separator" \
+    -v 'normalize-space(string(text()[normalize-space()][1]))' -n \
+    "$asset") || return 1
+
+  while IFS="$separator" read -r position child_key direct_key; do
+    [ -n "$position" ] || continue
+
+    if [[ ! "$child_key" =~ ^[A-Za-z0-9]{5}(-[A-Za-z0-9]{5}){4}$ ]] &&
+      [[ ! "$direct_key" =~ ^[A-Za-z0-9]{5}(-[A-Za-z0-9]{5}){4}$ ]]; then
+      continue
+    fi
+
+    [ -z "$delete_xpath" ] || delete_xpath+=" | "
+    delete_xpath+="($product_keys)[$position]"
+  done <<< "$records"
+
+  [ -n "$delete_xpath" ] || return 0
+
+  xmlstarlet ed -L -N "u=$ns" -d "$delete_xpath" "$asset" || return 1
   return 0
 }
 
