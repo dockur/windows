@@ -740,7 +740,13 @@ getXmlTag() {
   local tag="$1"
   local file="$2"
 
-  xmllint --nonet --xpath "//$tag" "$file" 2>/dev/null | sed -E -e "s/<[\/]?$tag>//g" || true
+  [[ "$tag" =~ ^[A-Za-z_][A-Za-z0-9_.-]*$ ]] || return 0
+
+  xmlstarlet sel \
+    -t \
+    -m "//*[local-name()='$tag']" \
+    -c 'node()' \
+    "$file" 2>/dev/null || true
 
   return 0
 }
@@ -751,11 +757,9 @@ getESD() {
   local version="$2"
   local lang="$3"
   local desc="$4"
-  local file result culture
+  local file culture
   local language edition catalog
   local xmlFile="products.xml"
-  local esdFile="esd_edition.xml"
-  local filterFile="products_filter.xml"
   local log
 
   file=$(getCatalog "$version" "file")
@@ -837,56 +841,67 @@ getESD() {
     return 1
   fi
 
-  local query='//File[Architecture="'${PLATFORM,,}'"]'"${edition}"''
-  result=$(xmllint --nonet --xpath "${query}" "$dir/$xmlFile" 2>/dev/null || true)
+  local files="//File[Architecture=\"${PLATFORM,,}\"]${edition}"
+  local file_count language_count
 
-  if [ -z "$result" ]; then
+  file_count=$(xmlstarlet sel \
+    -T -t \
+    -v "count($files)" \
+    "$dir/$xmlFile" 2>/dev/null) || file_count="0"
 
-    query='//File[Architecture="'${PLATFORM^^}'"]'"${edition}"''
-    result=$(xmllint --nonet --xpath "${query}" "$dir/$xmlFile" 2>/dev/null || true)
-
-    if [ -z "$result" ]; then
-      desc=$(printEdition "$version" "$desc" "Y")
-      language=$(getLanguage "$lang" "desc")
-      error "No download link available for $desc!"
-      return 1
-    fi
-
+  if [ "$file_count" = "0" ]; then
+    files="//File[Architecture=\"${PLATFORM^^}\"]${edition}"
+    file_count=$(xmlstarlet sel \
+      -T -t \
+      -v "count($files)" \
+      "$dir/$xmlFile" 2>/dev/null) || file_count="0"
   fi
 
-  echo -e '<Catalog>' > "$dir/$filterFile"
-  echo "$result" >> "$dir/$filterFile"
-  echo -e '</Catalog>'>> "$dir/$filterFile"
+  if [ "$file_count" = "0" ]; then
+    desc=$(printEdition "$version" "$desc" "Y")
+    language=$(getLanguage "$lang" "desc")
+    error "No download link available for $desc!"
+    return 1
+  fi
 
-  result=$(xmllint --nonet --xpath "//File[LanguageCode=\"${culture,,}\"]" "$dir/$filterFile" 2>/dev/null || true)
+  local localized="$files[LanguageCode=\"${culture,,}\"]"
+  local selected="($localized)[1]"
 
-  if [ -z "$result" ]; then
+  language_count=$(xmlstarlet sel \
+    -T -t \
+    -v "count($localized)" \
+    "$dir/$xmlFile" 2>/dev/null) || language_count="0"
+
+  if [ "$language_count" = "0" ]; then
     desc=$(printEdition "$version" "$desc" "Y")
     language=$(getLanguage "$lang" "desc")
     error "No download in the $language language available for $desc!"
     return 1
   fi
 
-  echo "$result" > "$dir/$esdFile"
+  local result separator=$'\x1f'
 
-  ESD=$(getXmlTag "FilePath" "$dir/$esdFile")
+  result=$(xmlstarlet sel \
+    -t \
+    -c "$selected/FilePath/text()" -o "$separator" \
+    -c "$selected/Sha1/text()" -o "$separator" \
+    -c "$selected/Size/text()" \
+    "$dir/$xmlFile" 2>/dev/null) || result="${separator}${separator}"
+
+  IFS="$separator" read -r ESD ESD_SUM ESD_SIZE <<< "$result"
 
   if [ -z "$ESD" ]; then
-    error "Failed to find ESD URL in $esdFile!"
+    error "Failed to find ESD URL!"
     return 1
   fi
-
-  ESD_SUM=$(getXmlTag "Sha1" "$dir/$esdFile")
 
   if [ -z "$ESD_SUM" ]; then
-    error "Failed to find ESD checksum in $esdFile!"
+    error "Failed to find ESD checksum!"
     return 1
   fi
 
-  ESD_SIZE=$(getXmlTag "Size" "$dir/$esdFile")
-
   if [ -z "$ESD_SIZE" ]; then
-    error "Failed to find ESD filesize in $esdFile!"
+    error "Failed to find ESD filesize!"
     return 1
   fi
 
