@@ -1533,7 +1533,7 @@ findPrimaryLocalAccount() {
   local -n admin_ref="$admin_name"
   local -n result_ref="$result_name"
   local -n autologon_ref="$autologon_name"
-  local counts records auto_user current_user position name group
+  local counts records auto_user selected_user position name group
   local shell_count local_count found_admin found_autologon token
 
   user_ref=""
@@ -1616,16 +1616,16 @@ findPrimaryLocalAccount() {
     return 1
   fi
 
-  current_user=$(xmlstarlet sel \
+  selected_user=$(xmlstarlet sel \
     -N "u=$ns" \
     -T -t \
     -v "normalize-space(string($local_accounts[$selected]/u:Name))" \
     "$asset") || return 1
 
-  [ -n "$current_user" ] || return 1
+  [ -n "$selected_user" ] || return 1
 
   result_ref="$selected"
-  user_ref="$current_user"
+  user_ref="$selected_user"
   admin_ref="$found_admin"
   autologon_ref="$found_autologon"
 
