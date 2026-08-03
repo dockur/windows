@@ -1045,31 +1045,21 @@ readIsoImageInfo() {
 
   printf -v "$result_name" '%s' ""
 
-  if [ ! -f "$header" ]; then
-    return 1
-  fi
-
-  if ! raw=$(od -An -v -N208 -tu1 -- "$header"); then
-    return 1
-  fi
+  [ -f "$header" ] || return 1
+  raw=$(od -An -v -N208 -tu1 -- "$header") || return 1
 
   read -r -a bytes <<< "${raw//$'\n'/ }"
-
-  if (( ${#bytes[@]} != 208 )); then
-    return 1
-  fi
+  (( ${#bytes[@]} == 208 )) || return 1
 
   # Validate the MSWIM\0\0\0 signature.
-  if (( bytes[0] != 77 ||
-        bytes[1] != 83 ||
-        bytes[2] != 87 ||
-        bytes[3] != 73 ||
-        bytes[4] != 77 ||
-        bytes[5] != 0 ||
-        bytes[6] != 0 ||
-        bytes[7] != 0 )); then
-    return 1
-  fi
+  (( bytes[0] == 77 &&
+     bytes[1] == 83 &&
+     bytes[2] == 87 &&
+     bytes[3] == 73 &&
+     bytes[4] == 77 &&
+     bytes[5] == 0 &&
+     bytes[6] == 0 &&
+     bytes[7] == 0 )) || return 1
 
   # Header size at offset 0x08.
   header_size=$(( \
@@ -1079,9 +1069,7 @@ readIsoImageInfo() {
     bytes[11] << 24
   ))
 
-  if (( header_size != 208 )); then
-    return 1
-  fi
+  (( header_size == 208 )) || return 1
 
   # WIM version at offset 0x0c.
   version=$(( \
@@ -1091,27 +1079,15 @@ readIsoImageInfo() {
     bytes[15] << 24
   ))
 
-  if (( version != 0x10d00 &&
-        version != 0x0e00 )); then
-    return 1
-  fi
+  (( version == 0x10d00 || version == 0x0e00 )) || return 1
 
   # Split-WIM information at offsets 0x28 and 0x2a.
-  part_number=$(( \
-    bytes[40] |
-    bytes[41] << 8
-  ))
+  part_number=$((bytes[40] | bytes[41] << 8))
+  total_parts=$((bytes[42] | bytes[43] << 8))
 
-  total_parts=$(( \
-    bytes[42] |
-    bytes[43] << 8
-  ))
-
-  if (( part_number == 0 ||
-        total_parts == 0 ||
-        part_number > total_parts )); then
-    return 1
-  fi
+  (( part_number > 0 &&
+     total_parts > 0 &&
+     part_number <= total_parts )) || return 1
 
   # Image count at offset 0x2c.
   image_count=$(( \
@@ -1121,35 +1097,26 @@ readIsoImageInfo() {
     bytes[47] << 24
   ))
 
-  if (( image_count == 0 ||
-        image_count > 65535 )); then
-    return 1
-  fi
+  (( image_count > 0 && image_count <= 65535 )) || return 1
 
-  if ! parseWimHeader \
-      "$iso" \
-      "$image" \
-      "$header" \
-      xml_offset \
-      xml_size \
-      xml_original \
-      xml_flags; then
-    return 1
-  fi
+  parseWimHeader \
+    "$iso" \
+    "$image" \
+    "$header" \
+    xml_offset \
+    xml_size \
+    xml_original \
+    xml_flags || return 1
 
-  if [[ ! "$xml_offset" =~ ^[0-9]+$ ||
-    ! "$xml_size" =~ ^[0-9]+$ ||
-    ! "$xml_original" =~ ^[0-9]+$ ||
-    ! "$xml_flags" =~ ^[0-9]+$ ]]; then
-    return 1
-  fi
+  [[ "$xml_offset" =~ ^[0-9]+$ &&
+     "$xml_size" =~ ^[0-9]+$ &&
+     "$xml_original" =~ ^[0-9]+$ &&
+     "$xml_flags" =~ ^[0-9]+$ ]] || return 1
 
-  if (( xml_size == 0 ||
-        xml_original == 0 ||
-        xml_size != xml_original ||
-        xml_size % 2 != 0 )); then
-    return 1
-  fi
+  (( xml_size > 0 &&
+     xml_original > 0 &&
+     xml_size == xml_original &&
+     xml_size % 2 == 0 )) || return 1
 
   # These resource forms cannot be decoded as a direct UTF-16LE byte range:
   #
@@ -1158,9 +1125,7 @@ readIsoImageInfo() {
   # 0x10: solid
   #
   # The metadata flag 0x02 is expected and deliberately allowed.
-  if (( xml_flags & 0x1c )); then
-    return 1
-  fi
+  (( !(xml_flags & 0x1c) )) || return 1
 
   result=$(
     udfread range \
@@ -1193,19 +1158,12 @@ readIsoImageInfo() {
 
   IFS="$separator" read -r root xml_count <<< "$metadata"
 
-  if [ "$root" != "WIM" ]; then
-    return 1
-  fi
-
-  if [[ ! "$xml_count" =~ ^[0-9]+$ ]]; then
-    return 1
-  fi
-
-  if (( xml_count != image_count )); then
-    return 1
-  fi
+  [ "$root" = "WIM" ] || return 1
+  [[ "$xml_count" =~ ^[0-9]+$ ]] || return 1
+  (( xml_count == image_count )) || return 1
 
   printf -v "$result_name" '%s' "$result"
+
   return 0
 }
 
