@@ -657,8 +657,7 @@ extractESD() {
       -v 'normalize-space(/WIM/IMAGE[@INDEX="1"]/HARDLINKBYTES)' -n \
       -v 'normalize-space(/WIM/IMAGE[@INDEX="3"]/TOTALBYTES)' -n \
       -v 'normalize-space(/WIM/IMAGE[@INDEX="3"]/HARDLINKBYTES)' -n \
-      -m '/WIM/IMAGE[number(@INDEX) >= 4]' \
-      -v '@INDEX' -o $'\t' -v 'DESCRIPTION' -n \
+      -m '/WIM/IMAGE[number(@INDEX) >= 4]' -v '@INDEX' -o $'\t' -v 'DESCRIPTION' -n \
       <<< "$xml" 2>/dev/null); then
     error "Cannot read ESD file information!"
     return 1
