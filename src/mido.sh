@@ -1114,6 +1114,7 @@ fallbackEnglish() {
 
   local culture web_msg
   local msg="No working download method was found for $desc, falling back to English..."
+
   info "$msg"
 
   # Preserve the requested regional format and keyboard layout.
@@ -1150,8 +1151,8 @@ downloadImage() {
     desc=$(fromFile "$base")
     web_desc="$desc"
 
-    tryDownload "$iso" "$version" "" "" "" "$desc" "$seconds" "$web_desc" && return 0
-    return 1
+    tryDownload "$iso" "$version" "" "" "" "$desc" "$seconds" "$web_desc" || return 1
+    return 0
   fi
 
   if ! validVersion "$version" "en"; then
@@ -1167,12 +1168,14 @@ downloadImage() {
     language=$(getLanguage "$lang" "desc")
 
     if ! validVersion "$version" "$lang"; then
+
       desc=$(printEdition "$version" "$desc" "Y")
       web_desc=$(printEdition "$version" "$web_desc")
       desc+=" in $language"
 
-      fallbackEnglish "$iso" "$version" "$lang" "$desc" "$web_desc" && return 0
-      return 1
+      fallbackEnglish "$iso" "$version" "$lang" "$desc" "$web_desc" || return 1
+      return 0
+
     fi
 
     desc+=" in $language"
@@ -1221,7 +1224,7 @@ downloadImage() {
   fi
 
   # If an evaluation version was requested, switch to the 
-  # normal edition since none of the mirrors provide those.
+  # normal edition since none of our mirrors provide those.
   if switched=$(switchEdition "$version"); then
 
     version="$switched"
@@ -1270,7 +1273,7 @@ downloadImage() {
     fi
   fi
 
-  for ((i=1;i<=MIRRORS;i++)); do
+  for ((i=1; i<=MIRRORS; i++)); do
 
     url=$(getLink "$i" "$version" "$lang")
 
@@ -1287,12 +1290,12 @@ downloadImage() {
       tryDownload "$iso" "$url" "$sum" "$size" "$lang" "$desc" "$seconds" "$web_desc" && return 0
 
     fi
+
   done
 
   if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
-    if fallbackEnglish "$iso" "$requested" "$lang" "$desc" "$web_desc"; then
-      return 0
-    fi
+    fallbackEnglish "$iso" "$requested" "$lang" "$desc" "$web_desc" || return 1
+    return 0
   fi
 
   if [[ "$tried" == "n" ]]; then
