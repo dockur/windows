@@ -735,16 +735,114 @@ getCatalog() {
   return 0
 }
 
+parseESD() {
+
+  local xml="$1"
+  local version="$2"
+  local lang="$3"
+  local desc="$4"
+  local edition="$5"
+  local culture="$6"
+
+  local file_match=0
+  local language_match=0
+  local separator=$'\x1f'
+  local xmlFile="${xml##*/}"
+  local file_edition file_culture
+  local file_path file_sum file_size
+  local records architecture language
+
+  ESD=""
+  ESD_SUM=""
+  ESD_SIZE=""
+
+  if ! records=$(xmlstarlet sel \
+    -T -t \
+    -m "//*[local-name()='File']" \
+      -v "normalize-space(*[local-name()='Architecture'])" \
+      -o "$separator" \
+      -v "normalize-space(*[local-name()='Edition'])" \
+      -o "$separator" \
+      -v "normalize-space(*[local-name()='LanguageCode'])" \
+      -o "$separator" \
+      -v "normalize-space(*[local-name()='FilePath'])" \
+      -o "$separator" \
+      -v "normalize-space(*[local-name()='Sha1'])" \
+      -o "$separator" \
+      -v "normalize-space(*[local-name()='Size'])" \
+      -n \
+    "$xml" 2>/dev/null); then
+
+    error "Failed to parse $xmlFile!"
+    return 1
+  fi
+
+  while IFS="$separator" read -r \
+    architecture file_edition file_culture \
+    file_path file_sum file_size; do
+
+    [ -n "$architecture$file_path$file_sum$file_size$file_culture$file_edition" ] || continue
+
+    [ "${architecture,,}" = "${PLATFORM,,}" ] || continue
+
+    if [ -n "$edition" ] &&
+      [ "${file_edition,,}" != "${edition,,}" ]; then
+      continue
+    fi
+
+    file_match=1
+
+    [ "${file_culture,,}" = "${culture,,}" ] || continue
+
+    language_match=1
+    ESD="$file_path"
+    ESD_SUM="$file_sum"
+    ESD_SIZE="$file_size"
+    break
+
+  done <<< "$records"
+
+  if (( ! file_match )); then
+    desc=$(printEdition "$version" "$desc" "Y")
+    error "No download link available for $desc!"
+    return 1
+  fi
+
+  if (( ! language_match )); then
+    desc=$(printEdition "$version" "$desc" "Y")
+    language=$(getLanguage "$lang" "desc")
+    error "No download in the $language language available for $desc!"
+    return 1
+  fi
+
+  if [ -z "$ESD" ]; then
+    error "Failed to find ESD URL in $xmlFile!"
+    return 1
+  fi
+
+  if [ -z "$ESD_SUM" ]; then
+    error "Failed to find ESD checksum in $xmlFile!"
+    return 1
+  fi
+
+  if [ -z "$ESD_SIZE" ]; then
+    error "Failed to find ESD filesize in $xmlFile!"
+    return 1
+  fi
+
+  return 0
+}
+
 getESD() {
 
   local dir="$1"
   local version="$2"
   local lang="$3"
   local desc="$4"
-  local file culture
-  local language edition catalog
+
+  local file culture log
+  local edition catalog rc=0
   local xmlFile="products.xml"
-  local log rc=0
 
   file=$(getCatalog "$version" "file")
   catalog=$(getCatalog "$version" "url")
@@ -825,88 +923,8 @@ getESD() {
     return 1
   fi
 
-  local file_match=0
-  local language_match=0
-  local separator=$'\x1f'
-  local records architecture
-  local file_edition file_culture
-  local file_path file_sum file_size
-
-  ESD=""
-  ESD_SUM=""
-  ESD_SIZE=""
-
-  if ! records=$(xmlstarlet sel \
-    -T -t \
-    -m "//*[local-name()='File']" \
-      -v "normalize-space(*[local-name()='Architecture'])" \
-      -o "$separator" \
-      -v "normalize-space(*[local-name()='Edition'])" \
-      -o "$separator" \
-      -v "normalize-space(*[local-name()='LanguageCode'])" \
-      -o "$separator" \
-      -v "normalize-space(*[local-name()='FilePath'])" \
-      -o "$separator" \
-      -v "normalize-space(*[local-name()='Sha1'])" \
-      -o "$separator" \
-      -v "normalize-space(*[local-name()='Size'])" \
-      -n \
-    "$dir/$xmlFile" 2>/dev/null); then
-
-    error "Failed to parse $xmlFile!"
-    return 1
-  fi
-
-  while IFS="$separator" read -r \
-    architecture file_edition file_culture \
-    file_path file_sum file_size; do
-
-    [ -n "$architecture$file_path$file_sum$file_size$file_culture$file_edition" ] || continue
-
-    [ "${architecture,,}" = "${PLATFORM,,}" ] || continue
-
-    if [ -n "$edition" ] &&
-      [ "${file_edition,,}" != "${edition,,}" ]; then
-      continue
-    fi
-
-    file_match=1
-
-    [ "${file_culture,,}" = "${culture,,}" ] || continue
-
-    language_match=1
-    ESD="$file_path"
-    ESD_SUM="$file_sum"
-    ESD_SIZE="$file_size"
-    break
-
-  done <<< "$records"
-
-  if (( ! file_match )); then
-    desc=$(printEdition "$version" "$desc" "Y")
-    error "No download link available for $desc!"
-    return 1
-  fi
-
-  if (( ! language_match )); then
-    desc=$(printEdition "$version" "$desc" "Y")
-    language=$(getLanguage "$lang" "desc")
-    error "No download in the $language language available for $desc!"
-    return 1
-  fi
-
-  if [ -z "$ESD" ]; then
-    error "Failed to find ESD URL in $xmlFile!"
-    return 1
-  fi
-
-  if [ -z "$ESD_SUM" ]; then
-    error "Failed to find ESD checksum in $xmlFile!"
-    return 1
-  fi
-
-  if [ -z "$ESD_SIZE" ]; then
-    error "Failed to find ESD filesize in $xmlFile!"
+  if ! parseESD \
+    "$dir/$xmlFile" "$version" "$lang" "$desc" "$edition" "$culture"; then
     return 1
   fi
 
