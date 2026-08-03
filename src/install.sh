@@ -39,16 +39,30 @@ startWindows() {
 
   else
 
-    if ! extractImage "$ISO" "$dir" "$VERSION"; then
-      removeIso "$ISO" && return 74
-    fi
+    local detect_rc=0
+    detectIsoImage "$ISO" || detect_rc=$?
 
-    extracted=1
+    case "$detect_rc" in
 
-    if ! detectImage "$dir"; then
-      abortInstall "$dir" "$ISO" "$boot" || return 76
-      return 0
-    fi
+      0 ) ;;
+      1 )
+  
+        if ! extractImage "$ISO" "$dir" "$VERSION"; then
+          removeIso "$ISO" && return 74
+        fi
+
+        extracted=1
+
+        if ! detectImage "$dir"; then
+          abortInstall "$dir" "$ISO" "$boot" || return 76
+          return 0
+        fi ;;
+
+      * )
+        abortInstall "$dir" "$ISO" "$boot" || return 76
+        return 0 ;;
+
+    esac
 
   fi
 
