@@ -122,6 +122,10 @@ generateAnswerFile() {
   local remove_selector="$6"
   local ns="urn:schemas-microsoft-com:unattend"
   local wcm="http://schemas.microsoft.com/WMIConfig/2002/State"
+  local setup='/u:unattend/u:settings[@pass="windowsPE"]/u:component[@name="Microsoft-Windows-Setup"]'
+  local os_image="$setup/u:ImageInstall/u:OSImage"
+  local install_from="$os_image/u:InstallFrom"
+  local install_to="$os_image/u:InstallTo"
   local directory install_count install_to_count tmp
 
   if [ -n "$index" ] && [[ ! "$index" =~ ^[1-9][0-9]*$ ]]; then
@@ -145,11 +149,13 @@ generateAnswerFile() {
   local -a args=(
     -L
     -N "u=$ns"
+    # Product keys can appear in more than one unattend component.
+    # Generated fallback and evaluation files must not retain any of them.
     -d '//u:ProductKey'
   )
 
   if [ "$type" != "evaluation" ] || [ "$remove_selector" = "Y" ]; then
-    args+=( -d '//u:InstallFrom' )
+    args+=( -d "$install_from" )
   fi
 
   if ! xmlstarlet ed "${args[@]}" "$tmp"; then
@@ -162,40 +168,46 @@ generateAnswerFile() {
     install_count=$(xmlstarlet sel \
       -N "u=$ns" \
       -T -t \
-      -v 'count(//u:ImageInstall/u:OSImage/u:InstallFrom)' \
+      -v "count($install_from)" \
       "$tmp") || {
       rm -f "$tmp"
       return 1
     }
 
+    if (( install_count > 1 )); then
+      rm -f "$tmp"
+      error "Multiple $type image selectors were found!"
+      return 1
+    fi
+
     if [ "$install_count" = "0" ]; then
       install_to_count=$(xmlstarlet sel \
         -N "u=$ns" \
         -T -t \
-        -v 'count(//u:ImageInstall/u:OSImage/u:InstallTo)' \
+        -v "count($install_to)" \
         "$tmp") || {
         rm -f "$tmp"
         return 1
       }
 
-      if [ "$install_to_count" = "0" ]; then
+      if [ "$install_to_count" != "1" ]; then
         rm -f "$tmp"
-        error "Failed to select $type image index $index!"
+        error "Failed to find a unique $type installation target!"
         return 1
       fi
 
       if ! xmlstarlet ed -L \
         -N "u=$ns" \
         -N "wcm=$wcm" \
-        -i '(//u:ImageInstall/u:OSImage/u:InstallTo)[1]' \
+        -i "($install_to)[1]" \
           -t elem -n 'InstallFrom' \
-        -s '//u:ImageInstall/u:OSImage/*[local-name()="InstallFrom"]' \
+        -s "$os_image/*[local-name()='InstallFrom']" \
           -t elem -n 'MetaData' \
-        -i '//u:ImageInstall/u:OSImage/*[local-name()="InstallFrom"]/*[local-name()="MetaData"]' \
+        -i "$os_image/*[local-name()='InstallFrom']/*[local-name()='MetaData']" \
           -t attr -n 'wcm:action' -v 'add' \
-        -s '//u:ImageInstall/u:OSImage/*[local-name()="InstallFrom"]/*[local-name()="MetaData"]' \
+        -s "$os_image/*[local-name()='InstallFrom']/*[local-name()='MetaData']" \
           -t elem -n 'Key' -v '/IMAGE/INDEX' \
-        -s '//u:ImageInstall/u:OSImage/*[local-name()="InstallFrom"]/*[local-name()="MetaData"]' \
+        -s "$os_image/*[local-name()='InstallFrom']/*[local-name()='MetaData']" \
           -t elem -n 'Value' -v "$index" \
         "$tmp"; then
 
@@ -364,11 +376,6 @@ updateXML() {
     updateLocalAccount "$asset" || return 1
   fi
 
-  xmlstarlet ed -L \
-    -N 'u=urn:schemas-microsoft-com:unattend' \
-    -u '//u:PlainText' \
-    -v 'false' \
-    "$asset" || return 1
 
   updateMembership \
     "$asset" \
@@ -975,54 +982,113 @@ updateWorkgroup() {
 
   local asset="$1"
   local workgroup="$2"
-  local workgroup_xml
   local ns="urn:schemas-microsoft-com:unattend"
   local specialize='/u:unattend/u:settings[@pass="specialize"]'
-  local component="$specialize/*[local-name()=\"component\" and @name=\"__QEMUS_UNATTENDED_JOIN__\"]"
-  local arch counts settings_count join_count unnamed_count tmp
+  local component="$specialize/u:component[@name='Microsoft-Windows-UnattendedJoin']"
+  local identification="$component/u:Identification"
+  local arch counts settings_count join_count identification_count tmp
 
-  workgroup_xml=$(escapeXML "$workgroup") || return 1
   arch=$(getXMLArchitecture "$asset") || return 1
 
   counts=$(xmlstarlet sel \
     -N "u=$ns" \
     -T -t \
     -v "count($specialize)" -o '|' \
-    -v 'count(//u:component[@name="Microsoft-Windows-UnattendedJoin"])' -o '|' \
-    -v "count($specialize/u:component[not(@name)])" \
+    -v "count($component)" \
     "$asset") || return 1
 
-  IFS='|' read -r settings_count join_count unnamed_count <<< "$counts"
+  IFS='|' read -r settings_count join_count <<< "$counts"
 
   [ "$settings_count" = "1" ] || return 1
-  [ "$join_count" = "0" ] || return 1
-  [ "$unnamed_count" = "0" ] || return 1
+  (( join_count <= 1 )) || return 1
 
-  if ! tmp=$(mktemp "${asset}.XXXXXX"); then
+  if ! tmp=$(mktemp "${asset}.XXXXXX") ||
+    ! cp -p -- "$asset" "$tmp"; then
+
+    rm -f "${tmp:-}"
     return 1
   fi
 
-  if ! xmlstarlet ed \
+  if [ "$join_count" = "0" ]; then
+    if ! xmlstarlet ed -L \
+      -N "u=$ns" \
+      -s "$specialize" \
+        -t elem -n 'component' \
+      -i "$specialize/*[local-name()='component' and not(@name)][last()]" \
+        -t attr -n 'name' -v 'Microsoft-Windows-UnattendedJoin' \
+      "$tmp"; then
+
+      rm -f "$tmp"
+      return 1
+    fi
+  fi
+
+  if ! xmlstarlet ed -L \
     -N "u=$ns" \
-    -s "$specialize" \
-      -t elem -n 'component' \
-    -i "$specialize/*[local-name()='component' and not(@name)][last()]" \
-      -t attr -n 'name' -v '__QEMUS_UNATTENDED_JOIN__' \
-    -i "$component" \
+    -i "$component[not(@processorArchitecture)]" \
       -t attr -n 'processorArchitecture' -v "$arch" \
-    -i "$component" \
+    -u "$component/@processorArchitecture" \
+      -v "$arch" \
+    -i "$component[not(@publicKeyToken)]" \
       -t attr -n 'publicKeyToken' -v '31bf3856ad364e35' \
-    -i "$component" \
+    -u "$component/@publicKeyToken" \
+      -v '31bf3856ad364e35' \
+    -i "$component[not(@language)]" \
       -t attr -n 'language' -v 'neutral' \
-    -i "$component" \
+    -u "$component/@language" \
+      -v 'neutral' \
+    -i "$component[not(@versionScope)]" \
       -t attr -n 'versionScope' -v 'nonSxS' \
-    -s "$component" \
-      -t elem -n 'Identification' \
-    -s "$component/*[local-name()='Identification']" \
-      -t elem -n 'JoinWorkgroup' -v "$workgroup_xml" \
-    -u "$component/@name" \
-      -v 'Microsoft-Windows-UnattendedJoin' \
-    "$asset" > "$tmp"; then
+    -u "$component/@versionScope" \
+      -v 'nonSxS' \
+    "$tmp"; then
+
+    rm -f "$tmp"
+    return 1
+  fi
+
+  identification_count=$(xmlstarlet sel \
+    -N "u=$ns" \
+    -T -t \
+    -v "count($identification)" \
+    "$tmp") || {
+    rm -f "$tmp"
+    return 1
+  }
+
+  (( identification_count <= 1 )) || {
+    rm -f "$tmp"
+    return 1
+  }
+
+  if [ "$identification_count" = "0" ]; then
+    if ! xmlstarlet ed -L \
+      -N "u=$ns" \
+      -s "$component" \
+        -t elem -n 'Identification' \
+      "$tmp"; then
+
+      rm -f "$tmp"
+      return 1
+    fi
+  fi
+
+  if ! xmlstarlet ed -L \
+    -N "u=$ns" \
+    -d "$identification/u:Credentials | $identification/u:JoinDomain | $identification/u:JoinWorkgroup | $identification/u:MachineObjectOU" \
+    -s "$identification" \
+      -t elem -n 'JoinWorkgroup' \
+    "$tmp"; then
+
+    rm -f "$tmp"
+    return 1
+  fi
+
+  if ! xmlstarlet ed -L \
+    -N "u=$ns" \
+    -u "$identification/u:JoinWorkgroup" \
+      -v "$workgroup" \
+    "$tmp"; then
 
     rm -f "$tmp"
     return 1
@@ -1051,145 +1117,325 @@ updateDomain() {
   local specialize='/u:unattend/u:settings[@pass="specialize"]'
   local shell='/u:unattend/u:settings[@pass="oobeSystem"]/u:component[@name="Microsoft-Windows-Shell-Setup"]'
   local accounts="$shell/u:UserAccounts"
+  local administrator="$accounts/u:AdministratorPassword"
   local autologon="$shell/u:AutoLogon"
-  local domain_accounts="$accounts/*[local-name()=\"DomainAccounts\"]"
-  local account_list="$domain_accounts/*[local-name()=\"DomainAccountList\"]"
-  local domain_account="$account_list/*[local-name()=\"DomainAccount\"]"
-  local component="$specialize/*[local-name()=\"component\" and @name=\"__QEMUS_UNATTENDED_JOIN__\"]"
-  local identification="$component/*[local-name()=\"Identification\"]"
-  local credentials="$identification/*[local-name()=\"Credentials\"]"
+  local domain_accounts="$accounts/u:DomainAccounts"
+  local account_list="$domain_accounts/u:DomainAccountList"
+  local domain_account="$account_list/u:DomainAccount"
+  local component="$specialize/u:component[@name='Microsoft-Windows-UnattendedJoin']"
+  local identification="$component/u:Identification"
+  local credentials="$identification/u:Credentials"
   local cred_domain="$domain"
-  local domain_xml account_xml auth_xml pass_xml ou_xml cred_domain_xml
-  local arch counts tmp
-  local settings_count join_count unnamed_count shell_count
-  local accounts_count domain_count admin_count autologon_count
-  local username_count value_count plaintext_count
+  local arch counts tmp child_count identification_count
+  local settings_count join_count shell_count accounts_count
+  local administrator_count autologon_count
 
-  domain_xml=$(escapeXML "$domain") || return 1
-  account_xml=$(escapeXML "$account") || return 1
-  auth_xml=$(escapeXML "$auth") || return 1
-  pass_xml=$(escapeXML "$pass") || return 1
-  ou_xml=$(escapeXML "$ou") || return 1
   arch=$(getXMLArchitecture "$asset") || return 1
 
   case "$auth" in
     *@* ) cred_domain="" ;;
   esac
 
-  cred_domain_xml=$(escapeXML "$cred_domain") || return 1
-
   counts=$(xmlstarlet sel \
     -N "u=$ns" \
     -T -t \
     -v "count($specialize)" -o '|' \
-    -v 'count(//u:component[@name="Microsoft-Windows-UnattendedJoin"])' -o '|' \
-    -v "count($specialize/u:component[not(@name)])" -o '|' \
+    -v "count($component)" -o '|' \
     -v "count($shell)" -o '|' \
     -v "count($accounts)" -o '|' \
-    -v "count($accounts/u:DomainAccounts)" -o '|' \
-    -v "count($accounts/u:AdministratorPassword)" -o '|' \
-    -v "count($autologon)" -o '|' \
-    -v "count($autologon/u:Username)" -o '|' \
-    -v "count($autologon/u:Password/u:Value)" -o '|' \
-    -v "count($autologon/u:Password/u:PlainText)" \
+    -v "count($administrator)" -o '|' \
+    -v "count($autologon)" \
     "$asset") || return 1
 
   IFS='|' read -r \
-    settings_count join_count unnamed_count shell_count \
-    accounts_count domain_count admin_count autologon_count \
-    username_count value_count plaintext_count <<< "$counts"
+    settings_count join_count shell_count accounts_count \
+    administrator_count autologon_count <<< "$counts"
 
   [ "$settings_count" = "1" ] || return 1
-  [ "$join_count" = "0" ] || return 1
-  [ "$unnamed_count" = "0" ] || return 1
+  (( join_count <= 1 )) || return 1
   [ "$shell_count" = "1" ] || return 1
-  [ "$accounts_count" = "1" ] || return 1
-  [ "$domain_count" = "0" ] || return 1
-  [ "$admin_count" = "1" ] || return 1
-  [ "$autologon_count" = "1" ] || return 1
-  [ "$username_count" = "1" ] || return 1
-  [ "$value_count" = "1" ] || return 1
-  [ "$plaintext_count" = "1" ] || return 1
+  (( accounts_count <= 1 )) || return 1
+  (( administrator_count <= 1 )) || return 1
+  (( autologon_count <= 1 )) || return 1
 
-  if ! tmp=$(mktemp "${asset}.XXXXXX"); then
+  if ! tmp=$(mktemp "${asset}.XXXXXX") ||
+    ! cp -p -- "$asset" "$tmp"; then
+
+    rm -f "${tmp:-}"
     return 1
   fi
 
-  local -a args=(
-    -N "u=$ns"
-    -N "wcm=$wcm"
-    -i "$accounts/u:AdministratorPassword"
-      -t elem -n 'DomainAccounts'
-    -s "$domain_accounts"
-      -t elem -n 'DomainAccountList'
-    -i "$account_list"
-      -t attr -n 'wcm:action' -v 'add'
-    -s "$account_list"
-      -t elem -n 'DomainAccount'
-    -i "$domain_account"
-      -t attr -n 'wcm:action' -v 'add'
-    -s "$domain_account"
-      -t elem -n 'Name' -v "$account_xml"
-    -s "$domain_account"
-      -t elem -n 'Group' -v 'Administrators'
-    -s "$account_list"
-      -t elem -n 'Domain' -v "$domain_xml"
-    -d "$autologon/u:Domain"
-    -u "$autologon/u:Username"
-      -v "$account"
-    -a "$autologon/u:Username"
-      -t elem -n 'Domain' -v "$domain_xml"
-    -u "$autologon/u:Password/u:Value"
-      -v "$pass"
-    -u "$autologon/u:Password/u:PlainText"
-      -v 'true'
-    -s "$specialize"
-      -t elem -n 'component'
-    -i "$specialize/*[local-name()='component' and not(@name)][last()]"
-      -t attr -n 'name' -v '__QEMUS_UNATTENDED_JOIN__'
-    -i "$component"
-      -t attr -n 'processorArchitecture' -v "$arch"
-    -i "$component"
-      -t attr -n 'publicKeyToken' -v '31bf3856ad364e35'
-    -i "$component"
-      -t attr -n 'language' -v 'neutral'
-    -i "$component"
-      -t attr -n 'versionScope' -v 'nonSxS'
-    -s "$component"
-      -t elem -n 'Identification'
-    -s "$identification"
-      -t elem -n 'Credentials'
-  )
+  if [ "$accounts_count" = "0" ]; then
+    child_count=$(xmlstarlet sel \
+      -N "u=$ns" \
+      -T -t \
+      -v "count($shell/*)" \
+      "$tmp") || {
+      rm -f "$tmp"
+      return 1
+    }
+
+    if [ "$child_count" = "0" ]; then
+      xmlstarlet ed -L \
+        -N "u=$ns" \
+        -s "$shell" \
+          -t elem -n 'UserAccounts' \
+        "$tmp" || {
+        rm -f "$tmp"
+        return 1
+      }
+    else
+      xmlstarlet ed -L \
+        -N "u=$ns" \
+        -i "$shell/*[1]" \
+          -t elem -n 'UserAccounts' \
+        "$tmp" || {
+        rm -f "$tmp"
+        return 1
+      }
+    fi
+  fi
+
+  # Replace the domain-account mapping and AutoLogon block as complete
+  # project-owned structures. Other UserAccounts settings are preserved until
+  # the local-account entries are removed after this function succeeds.
+  if ! xmlstarlet ed -L \
+    -N "u=$ns" \
+    -d "$domain_accounts | $autologon" \
+    "$tmp"; then
+
+    rm -f "$tmp"
+    return 1
+  fi
+
+  if [ "$administrator_count" = "0" ]; then
+    if ! xmlstarlet ed -L \
+      -N "u=$ns" \
+      -s "$accounts" \
+        -t elem -n 'DomainAccounts' \
+      "$tmp"; then
+
+      rm -f "$tmp"
+      return 1
+    fi
+  else
+    if ! xmlstarlet ed -L \
+      -N "u=$ns" \
+      -i "($administrator)[1]" \
+        -t elem -n 'DomainAccounts' \
+      "$tmp"; then
+
+      rm -f "$tmp"
+      return 1
+    fi
+  fi
+
+  if ! xmlstarlet ed -L \
+    -N "u=$ns" \
+    -N "wcm=$wcm" \
+    -s "$domain_accounts" \
+      -t elem -n 'DomainAccountList' \
+    -i "$domain_accounts/*[local-name()='DomainAccountList']" \
+      -t attr -n 'wcm:action' -v 'add' \
+    -s "$domain_accounts/*[local-name()='DomainAccountList']" \
+      -t elem -n 'DomainAccount' \
+    -i "$domain_accounts/*[local-name()='DomainAccountList']/*[local-name()='DomainAccount']" \
+      -t attr -n 'wcm:action' -v 'add' \
+    -s "$domain_accounts/*[local-name()='DomainAccountList']/*[local-name()='DomainAccount']" \
+      -t elem -n 'Name' \
+    -s "$domain_accounts/*[local-name()='DomainAccountList']/*[local-name()='DomainAccount']" \
+      -t elem -n 'Group' -v 'Administrators' \
+    -s "$domain_accounts/*[local-name()='DomainAccountList']" \
+      -t elem -n 'Domain' \
+    -a "$accounts" \
+      -t elem -n 'AutoLogon' \
+    "$tmp"; then
+
+    rm -f "$tmp"
+    return 1
+  fi
+
+  if ! xmlstarlet ed -L \
+    -N "u=$ns" \
+    -s "$autologon" \
+      -t elem -n 'Username' \
+    -s "$autologon" \
+      -t elem -n 'Domain' \
+    -s "$autologon" \
+      -t elem -n 'Enabled' -v 'true' \
+    -s "$autologon" \
+      -t elem -n 'LogonCount' -v '65432' \
+    -s "$autologon" \
+      -t elem -n 'Password' \
+    "$tmp"; then
+
+    rm -f "$tmp"
+    return 1
+  fi
+
+  if ! xmlstarlet ed -L \
+    -N "u=$ns" \
+    -s "$autologon/u:Password" \
+      -t elem -n 'Value' \
+    -s "$autologon/u:Password" \
+      -t elem -n 'PlainText' -v 'true' \
+    "$tmp"; then
+
+    rm -f "$tmp"
+    return 1
+  fi
+
+  if ! xmlstarlet ed -L \
+    -N "u=$ns" \
+    -u "$domain_account/u:Name" \
+      -v "$account" \
+    -u "$account_list/u:Domain" \
+      -v "$domain" \
+    -u "$autologon/u:Username" \
+      -v "$account" \
+    -u "$autologon/u:Domain" \
+      -v "$domain" \
+    -u "$autologon/u:Password/u:Value" \
+      -v "$pass" \
+    "$tmp"; then
+
+    rm -f "$tmp"
+    return 1
+  fi
+
+  if [ "$join_count" = "0" ]; then
+    if ! xmlstarlet ed -L \
+      -N "u=$ns" \
+      -s "$specialize" \
+        -t elem -n 'component' \
+      -i "$specialize/*[local-name()='component' and not(@name)][last()]" \
+        -t attr -n 'name' -v 'Microsoft-Windows-UnattendedJoin' \
+      "$tmp"; then
+
+      rm -f "$tmp"
+      return 1
+    fi
+  fi
+
+  if ! xmlstarlet ed -L \
+    -N "u=$ns" \
+    -i "$component[not(@processorArchitecture)]" \
+      -t attr -n 'processorArchitecture' -v "$arch" \
+    -u "$component/@processorArchitecture" \
+      -v "$arch" \
+    -i "$component[not(@publicKeyToken)]" \
+      -t attr -n 'publicKeyToken' -v '31bf3856ad364e35' \
+    -u "$component/@publicKeyToken" \
+      -v '31bf3856ad364e35' \
+    -i "$component[not(@language)]" \
+      -t attr -n 'language' -v 'neutral' \
+    -u "$component/@language" \
+      -v 'neutral' \
+    -i "$component[not(@versionScope)]" \
+      -t attr -n 'versionScope' -v 'nonSxS' \
+    -u "$component/@versionScope" \
+      -v 'nonSxS' \
+    "$tmp"; then
+
+    rm -f "$tmp"
+    return 1
+  fi
+
+  identification_count=$(xmlstarlet sel \
+    -N "u=$ns" \
+    -T -t \
+    -v "count($identification)" \
+    "$tmp") || {
+    rm -f "$tmp"
+    return 1
+  }
+
+  (( identification_count <= 1 )) || {
+    rm -f "$tmp"
+    return 1
+  }
+
+  if [ "$identification_count" = "0" ]; then
+    if ! xmlstarlet ed -L \
+      -N "u=$ns" \
+      -s "$component" \
+        -t elem -n 'Identification' \
+      "$tmp"; then
+
+      rm -f "$tmp"
+      return 1
+    fi
+  fi
+
+  # Replace only settings owned by the requested domain join. Preserve any
+  # unrelated Identification settings present in a custom answer file.
+  if ! xmlstarlet ed -L \
+    -N "u=$ns" \
+    -d "$identification/u:Credentials | $identification/u:JoinDomain | $identification/u:JoinWorkgroup | $identification/u:MachineObjectOU" \
+    -s "$identification" \
+      -t elem -n 'Credentials' \
+    "$tmp"; then
+
+    rm -f "$tmp"
+    return 1
+  fi
+
+  local -a join_args=( -L -N "u=$ns" )
 
   if [ -n "$cred_domain" ]; then
-    args+=(
+    join_args+=(
       -s "$credentials"
-        -t elem -n 'Domain' -v "$cred_domain_xml"
+        -t elem -n 'Domain'
     )
   fi
 
-  args+=(
+  join_args+=(
     -s "$credentials"
-      -t elem -n 'Username' -v "$auth_xml"
+      -t elem -n 'Username'
     -s "$credentials"
-      -t elem -n 'Password' -v "$pass_xml"
+      -t elem -n 'Password'
     -s "$identification"
-      -t elem -n 'JoinDomain' -v "$domain_xml"
+      -t elem -n 'JoinDomain'
   )
 
   if [ -n "$ou" ]; then
-    args+=(
+    join_args+=(
       -s "$identification"
-        -t elem -n 'MachineObjectOU' -v "$ou_xml"
+        -t elem -n 'MachineObjectOU'
     )
   fi
 
-  args+=(
-    -u "$component/@name"
-      -v 'Microsoft-Windows-UnattendedJoin'
+  if ! xmlstarlet ed "${join_args[@]}" "$tmp"; then
+    rm -f "$tmp"
+    return 1
+  fi
+
+  local -a join_values=(
+    -L
+    -N "u=$ns"
+    -u "$credentials/u:Username"
+      -v "$auth"
+    -u "$credentials/u:Password"
+      -v "$pass"
+    -u "$identification/u:JoinDomain"
+      -v "$domain"
   )
 
-  if ! xmlstarlet ed "${args[@]}" "$asset" > "$tmp"; then
+  if [ -n "$cred_domain" ]; then
+    join_values+=(
+      -u "$credentials/u:Domain"
+        -v "$cred_domain"
+    )
+  fi
+
+  if [ -n "$ou" ]; then
+    join_values+=(
+      -u "$identification/u:MachineObjectOU"
+        -v "$ou"
+    )
+  fi
+
+  if ! xmlstarlet ed "${join_values[@]}" "$tmp"; then
     rm -f "$tmp"
     return 1
   fi
@@ -1276,21 +1522,24 @@ updateDisplayXML() {
 
   local asset="$1"
   local ns="urn:schemas-microsoft-com:unattend"
+  local setup='/u:unattend/u:settings[@pass="windowsPE"]/u:component[@name="Microsoft-Windows-Setup"]'
+  local specialize='/u:unattend/u:settings[@pass="specialize"]/u:component[@name="Microsoft-Windows-Shell-Setup"]'
+  local oobe='/u:unattend/u:settings[@pass="oobeSystem"]/u:component[@name="Microsoft-Windows-Shell-Setup"]'
   local app="$APP for $ENGINE"
   local -a args=(
     -L
     -N "u=$ns"
-    -u '//u:*[text()="Windows for Docker"]'
+    -u "$setup/u:UserData/u:Organization | $specialize/u:OEMInformation/u:Model | $specialize/u:OEMName | $specialize/u:RegisteredOwner | $oobe/u:RegisteredOwner"
       -v "$app"
-    -u '//u:VerticalResolution'
+    -u "$oobe/u:Display/u:VerticalResolution"
       -v "$HEIGHT"
-    -u '//u:HorizontalResolution'
+    -u "$oobe/u:Display/u:HorizontalResolution"
       -v "$WIDTH"
   )
 
   if [ -n "${HOST:-}" ]; then
     args+=(
-      -u '//u:ComputerName'
+      -u "$specialize/u:ComputerName"
         -v "$HOST"
     )
   fi
@@ -1305,34 +1554,33 @@ updateLocaleXML() {
   local asset="$1"
   local language="$2"
   local ns="urn:schemas-microsoft-com:unattend"
+  local international='/u:unattend/u:settings/u:component[@name="Microsoft-Windows-International-Core" or @name="Microsoft-Windows-International-Core-WinPE"]'
   local culture region keyboard
   local -a args=( -L -N "u=$ns" )
 
   culture=$(getLanguage "$language" "culture") || return 1
 
-  if [ -n "$culture" ] && [[ "${culture,,}" != "en-us" ]]; then
+  if [ -n "$culture" ]; then
     args+=(
-      -u '//u:UILanguage[text()="en-US"]'
+      -u "$international//u:UILanguage"
         -v "$culture"
     )
   fi
 
   region="${REGION:-$culture}"
 
-  if [ -n "$region" ] && [[ "${region,,}" != "en-us" ]]; then
+  if [ -n "$region" ]; then
     args+=(
-      -u '//u:UserLocale[text()="en-US"]'
-        -v "$region"
-      -u '//u:SystemLocale[text()="en-US"]'
+      -u "$international/u:UserLocale | $international/u:SystemLocale"
         -v "$region"
     )
   fi
 
   keyboard="${KEYBOARD:-$culture}"
 
-  if [ -n "$keyboard" ] && [[ "${keyboard,,}" != "en-us" ]]; then
+  if [ -n "$keyboard" ]; then
     args+=(
-      -u '//u:InputLocale[text()="en-US" or text()="0409:00000409"]'
+      -u "$international/u:InputLocale"
         -v "$keyboard"
     )
   fi
@@ -1350,39 +1598,311 @@ updateLocalAccount() {
   local user="${USERNAME:-}"
   local pass="${PASSWORD:-admin}"
   local ns="urn:schemas-microsoft-com:unattend"
-  local pw admin
+  local setup='/u:unattend/u:settings[@pass="windowsPE"]/u:component[@name="Microsoft-Windows-Setup"]'
+  local shell='/u:unattend/u:settings[@pass="oobeSystem"]/u:component[@name="Microsoft-Windows-Shell-Setup"]'
+  local local_accounts="$shell/u:UserAccounts/u:LocalAccounts/u:LocalAccount"
+  local administrator="$shell/u:UserAccounts/u:AdministratorPassword"
+  local autologon="$shell/u:AutoLogon"
+  local counts records auto_user
+  local shell_count local_count admin_count autologon_count
+  local primary=0 matches=0 position name group token
+  local separator=$'\x1f'
+  local tmp current_user target_user pw admin
+  local -a groups=()
 
   validateUsername "$user" "local" || return 1
 
+  counts=$(xmlstarlet sel \
+    -N "u=$ns" \
+    -T -t \
+    -v "count($shell)" -o '|' \
+    -v "count($local_accounts)" -o '|' \
+    -v "count($administrator)" -o '|' \
+    -v "count($autologon)" \
+    "$asset") || return 1
+
+  IFS='|' read -r shell_count local_count admin_count autologon_count <<< "$counts"
+
+  [ "$shell_count" = "1" ] || return 1
+  (( local_count > 0 )) || return 1
+  (( admin_count <= 1 )) || return 1
+  (( autologon_count <= 1 )) || return 1
+
+  records=$(xmlstarlet sel \
+    -N "u=$ns" \
+    -T -t \
+    -m "$local_accounts" \
+    -v 'position()' -o "$separator" \
+    -v 'normalize-space(string(u:Name))' -o "$separator" \
+    -v 'normalize-space(string(u:Group))' -n \
+    "$asset") || return 1
+
+  if [ "$autologon_count" = "1" ]; then
+    auto_user=$(xmlstarlet sel \
+      -N "u=$ns" \
+      -T -t \
+      -v "normalize-space(string($autologon/u:Username))" \
+      "$asset") || return 1
+
+    if [ -n "$auto_user" ]; then
+      while IFS="$separator" read -r position name group; do
+        [[ "${name,,}" == "${auto_user,,}" ]] || continue
+        primary="$position"
+        ((matches+=1))
+      done <<< "$records"
+
+      if (( matches > 1 )); then
+        error "Multiple local accounts match the automatic-logon username!"
+        return 1
+      fi
+    fi
+  fi
+
+  if [ "$primary" = "0" ] && [ "$local_count" = "1" ]; then
+    primary=1
+  fi
+
+  # If a custom answer file contains several accounts without a usable
+  # AutoLogon reference, select the unique account assigned to Administrators.
+  if [ "$primary" = "0" ]; then
+    matches=0
+
+    while IFS="$separator" read -r position name group; do
+      IFS=';,' read -r -a groups <<< "$group"
+
+      for token in "${groups[@]}"; do
+        token="${token#"${token%%[![:space:]]*}"}"
+        token="${token%"${token##*[![:space:]]}"}"
+        [[ "${token,,}" == "administrators" ]] || continue
+        primary="$position"
+        ((matches+=1))
+        break
+      done
+    done <<< "$records"
+
+    if (( matches != 1 )); then
+      error "Failed to identify the primary local account in the answer file!"
+      return 1
+    fi
+  fi
+
+  local account="$local_accounts[$primary]"
+  local password="$account/u:Password"
+
+  current_user=$(xmlstarlet sel \
+    -N "u=$ns" \
+    -T -t \
+    -v "normalize-space(string($account/u:Name))" \
+    "$asset") || return 1
+
+  [ -n "$current_user" ] || return 1
+  target_user="${user:-$current_user}"
+
+  if ! tmp=$(mktemp "${asset}.XXXXXX") ||
+    ! cp -p -- "$asset" "$tmp"; then
+
+    rm -f "${tmp:-}"
+    return 1
+  fi
+
+  local account_password_count account_value_count account_plain_count
+  local admin_value_count admin_plain_count
+  local auto_name_count auto_password_count auto_value_count auto_plain_count
+
+  counts=$(xmlstarlet sel \
+    -N "u=$ns" \
+    -T -t \
+    -v "count($password)" -o '|' \
+    -v "count($password/u:Value)" -o '|' \
+    -v "count($password/u:PlainText)" -o '|' \
+    -v "count($administrator/u:Value)" -o '|' \
+    -v "count($administrator/u:PlainText)" -o '|' \
+    -v "count($autologon/u:Username)" -o '|' \
+    -v "count($autologon/u:Password)" -o '|' \
+    -v "count($autologon/u:Password/u:Value)" -o '|' \
+    -v "count($autologon/u:Password/u:PlainText)" \
+    "$tmp") || {
+    rm -f "$tmp"
+    return 1
+  }
+
+  IFS='|' read -r \
+    account_password_count account_value_count account_plain_count \
+    admin_value_count admin_plain_count auto_name_count \
+    auto_password_count auto_value_count auto_plain_count <<< "$counts"
+
+  (( account_password_count <= 1 )) || { rm -f "$tmp"; return 1; }
+  (( account_value_count <= 1 )) || { rm -f "$tmp"; return 1; }
+  (( account_plain_count <= 1 )) || { rm -f "$tmp"; return 1; }
+  (( admin_value_count <= 1 )) || { rm -f "$tmp"; return 1; }
+  (( admin_plain_count <= 1 )) || { rm -f "$tmp"; return 1; }
+  (( auto_name_count <= 1 )) || { rm -f "$tmp"; return 1; }
+  (( auto_password_count <= 1 )) || { rm -f "$tmp"; return 1; }
+  (( auto_value_count <= 1 )) || { rm -f "$tmp"; return 1; }
+  (( auto_plain_count <= 1 )) || { rm -f "$tmp"; return 1; }
+
+  if [ "$account_password_count" = "0" ]; then
+    xmlstarlet ed -L \
+      -N "u=$ns" \
+      -s "$account" \
+        -t elem -n 'Password' \
+      "$tmp" || {
+      rm -f "$tmp"
+      return 1
+    }
+  fi
+
+  if [ "$account_value_count" = "0" ]; then
+    xmlstarlet ed -L \
+      -N "u=$ns" \
+      -s "$password" \
+        -t elem -n 'Value' \
+      "$tmp" || {
+      rm -f "$tmp"
+      return 1
+    }
+  fi
+
+  if [ "$account_plain_count" = "0" ]; then
+    xmlstarlet ed -L \
+      -N "u=$ns" \
+      -s "$password" \
+        -t elem -n 'PlainText' \
+      "$tmp" || {
+      rm -f "$tmp"
+      return 1
+    }
+  fi
+
+  if [ "$admin_count" = "1" ]; then
+    if [ "$admin_value_count" = "0" ]; then
+      xmlstarlet ed -L \
+        -N "u=$ns" \
+        -s "$administrator" \
+          -t elem -n 'Value' \
+        "$tmp" || {
+        rm -f "$tmp"
+        return 1
+      }
+    fi
+
+    if [ "$admin_plain_count" = "0" ]; then
+      xmlstarlet ed -L \
+        -N "u=$ns" \
+        -s "$administrator" \
+          -t elem -n 'PlainText' \
+        "$tmp" || {
+        rm -f "$tmp"
+        return 1
+      }
+    fi
+  fi
+
+  if [ "$autologon_count" = "1" ]; then
+    if [ "$auto_name_count" = "0" ]; then
+      xmlstarlet ed -L \
+        -N "u=$ns" \
+        -s "$autologon" \
+          -t elem -n 'Username' \
+        "$tmp" || {
+        rm -f "$tmp"
+        return 1
+      }
+    fi
+
+    if [ "$auto_password_count" = "0" ]; then
+      xmlstarlet ed -L \
+        -N "u=$ns" \
+        -s "$autologon" \
+          -t elem -n 'Password' \
+        "$tmp" || {
+        rm -f "$tmp"
+        return 1
+      }
+    fi
+
+    if [ "$auto_value_count" = "0" ]; then
+      xmlstarlet ed -L \
+        -N "u=$ns" \
+        -s "$autologon/u:Password" \
+          -t elem -n 'Value' \
+        "$tmp" || {
+        rm -f "$tmp"
+        return 1
+      }
+    fi
+
+    if [ "$auto_plain_count" = "0" ]; then
+      xmlstarlet ed -L \
+        -N "u=$ns" \
+        -s "$autologon/u:Password" \
+          -t elem -n 'PlainText' \
+        "$tmp" || {
+        rm -f "$tmp"
+        return 1
+      }
+    fi
+  fi
+
   pw=$(printf '%s' "${pass}Password" |
     iconv -f utf-8 -t utf-16le |
-    base64 -w 0) || return 1
+    base64 -w 0) || {
+    rm -f "$tmp"
+    return 1
+  }
 
   admin=$(printf '%s' "${pass}AdministratorPassword" |
     iconv -f utf-8 -t utf-16le |
-    base64 -w 0) || return 1
+    base64 -w 0) || {
+    rm -f "$tmp"
+    return 1
+  }
 
-  local -a args=( -L -N "u=$ns" )
+  local -a args=(
+    -L
+    -N "u=$ns"
+    -u "$password/u:Value"
+      -v "$pw"
+    -u "$password/u:PlainText"
+      -v 'false'
+  )
 
   if [ -n "$user" ]; then
     args+=(
-      -u '//u:Name[text()="Docker"]'
+      -u "$account/u:Name"
         -v "$user"
-      -u '//u:FullName[text()="Docker"]'
-        -v "$user"
-      -u '//u:Username[text()="Docker"]'
+      -u "$setup/u:UserData/u:FullName"
         -v "$user"
     )
   fi
 
-  args+=(
-    -u '//u:Password/u:Value'
-      -v "$pw"
-    -u '//u:AdministratorPassword/u:Value'
-      -v "$admin"
-  )
+  if [ "$admin_count" = "1" ]; then
+    args+=(
+      -u "$administrator/u:Value"
+        -v "$admin"
+      -u "$administrator/u:PlainText"
+        -v 'false'
+    )
+  fi
 
-  xmlstarlet ed "${args[@]}" "$asset" || return 1
+  if [ "$autologon_count" = "1" ]; then
+    args+=(
+      -u "$autologon/u:Username"
+        -v "$target_user"
+      -u "$autologon/u:Password/u:Value"
+        -v "$pw"
+      -u "$autologon/u:Password/u:PlainText"
+        -v 'false'
+    )
+  fi
+
+  if ! xmlstarlet ed "${args[@]}" "$tmp" ||
+    ! chmod --reference="$asset" "$tmp" ||
+    ! mv -f "$tmp" "$asset"; then
+
+    rm -f "$tmp"
+    return 1
+  fi
 
   return 0
 }
@@ -1426,12 +1946,13 @@ updateAutologinXML() {
 
   local asset="$1"
   local ns="urn:schemas-microsoft-com:unattend"
+  local shell='/u:unattend/u:settings[@pass="oobeSystem"]/u:component[@name="Microsoft-Windows-Shell-Setup"]'
 
   disabled "${AUTOLOGIN:-}" || return 0
 
   xmlstarlet ed -L \
     -N "u=$ns" \
-    -d '//u:AutoLogon' \
+    -d "$shell/u:AutoLogon" \
     "$asset" || return 1
 
   return 0
@@ -1441,22 +1962,60 @@ updateEditionXML() {
 
   local asset="$1"
   local ns="urn:schemas-microsoft-com:unattend"
-  local edition xpath expression
+  local upper='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  local lower='abcdefghijklmnopqrstuvwxyz'
+  local setup='/u:unattend/u:settings[@pass="windowsPE"]/u:component[@name="Microsoft-Windows-Setup"]'
+  local selector="$setup/u:ImageInstall/u:OSImage/u:InstallFrom/u:MetaData[translate(normalize-space(u:Key), '$lower', '$upper')='/IMAGE/NAME']/u:Value"
+  local edition count records position value prefix replacement
+  local separator=$'\x1f'
 
   [ -n "${EDITION:-}" ] || return 0
+
+  count=$(xmlstarlet sel \
+    -N "u=$ns" \
+    -T -t \
+    -v "count($selector)" \
+    "$asset") || return 1
+
+  # Client and index-based answer files do not contain an /IMAGE/NAME
+  # selector. In that case there is nothing to update.
+  [ "$count" != "0" ] || return 0
 
   edition=$(normalizeServerEdition "$EDITION") || return 1
   edition="${edition//-/}"
   edition="${edition^^}"
 
-  xpath='//u:InstallFrom/u:MetaData[u:Key="/IMAGE/NAME"]/u:Value[substring(., string-length(.) - string-length("SERVERSTANDARD") + 1) = "SERVERSTANDARD"]'
-  expression="concat(substring-before(., 'SERVERSTANDARD'), 'SERVER$edition', substring-after(., 'SERVERSTANDARD'))"
-
-  xmlstarlet ed -L \
+  records=$(xmlstarlet sel \
     -N "u=$ns" \
-    -u "$xpath" \
-    -x "$expression" \
-    "$asset" || return 1
+    -T -t \
+    -m "$selector" \
+    -v 'position()' -o "$separator" \
+    -v 'string(.)' -n \
+    "$asset") || return 1
+
+  while IFS="$separator" read -r position value; do
+    [ -n "$position" ] || continue
+
+    # Only Windows Server templates use EDITION as a mutable answer-file
+    # selector. Products such as Hyper-V Server have fixed SERVER* flags that
+    # must not be rewritten.
+    [[ "${value,,}" == *"windows server"* ]] || continue
+
+    if [[ "$value" =~ ^(.*[[:space:]])SERVER[A-Za-z0-9_-]+[[:space:]]*$ ]]; then
+      prefix="${BASH_REMATCH[1]}"
+      replacement="${prefix}SERVER$edition"
+    elif [[ "$value" =~ ^SERVER[A-Za-z0-9_-]+[[:space:]]*$ ]]; then
+      replacement="SERVER$edition"
+    else
+      continue
+    fi
+
+    xmlstarlet ed -L \
+      -N "u=$ns" \
+      -u "($selector)[$position]" \
+      -v "$replacement" \
+      "$asset" || return 1
+  done <<< "$records"
 
   return 0
 }
@@ -1487,7 +2046,10 @@ updateDiskID() {
   local disk_type="${2,,}"
   local mode="${3:-setup}"
   local target="0"
-  local value current
+  local ns="urn:schemas-microsoft-com:unattend"
+  local setup='/u:unattend/u:settings[@pass="windowsPE"]/u:component[@name="Microsoft-Windows-Setup"]'
+  local disk_ids="$setup//u:DiskID"
+  local count values value current
   local -a ids=()
 
   [ -s "$asset" ] || return 1
@@ -1502,19 +2064,35 @@ updateDiskID() {
     * ) return 1 ;;
   esac
 
-  while IFS= read -r value; do
-    [[ "$value" =~ ^[0-9]+$ ]] || continue
-    ids+=( "$value" )
-  done < <(
-    xmlstarlet sel \
-      -T -t \
-      -m '//*[local-name()="DiskID"]' \
-      -v 'normalize-space(.)' -n \
-      "$asset"
-  )
+  count=$(xmlstarlet sel \
+    -N "u=$ns" \
+    -T -t \
+    -v "count($disk_ids)" \
+    "$asset") || {
+    error "Failed to read DiskID values from answer file: $asset"
+    return 1
+  }
 
-  # Some custom answer files do not contain a disk configuration.
-  (( ${#ids[@]} > 0 )) || return 0
+  [ "$count" != "0" ] || return 0
+
+  values=$(xmlstarlet sel \
+    -N "u=$ns" \
+    -T -t \
+    -m "$disk_ids" \
+    -v 'normalize-space(.)' -n \
+    "$asset") || {
+    error "Failed to read DiskID values from answer file: $asset"
+    return 1
+  }
+
+  while IFS= read -r value; do
+    if [[ ! "$value" =~ ^[0-9]+$ ]]; then
+      error "Invalid DiskID value in answer file: $asset"
+      return 1
+    fi
+
+    ids+=( "$value" )
+  done <<< "$values"
 
   mapfile -t ids < <(printf '%s\n' "${ids[@]}" | sort -u)
 
@@ -1533,7 +2111,8 @@ updateDiskID() {
   esac
 
   if ! xmlstarlet ed -L \
-    -u "//*[local-name()='DiskID' and normalize-space(.)='$current']" \
+    -N "u=$ns" \
+    -u "$disk_ids[normalize-space(.)='$current']" \
     -v "$target" \
     "$asset"; then
 
@@ -1547,17 +2126,29 @@ updateDiskID() {
 getXMLArchitecture() {
 
   local asset="$1"
+  local ns="urn:schemas-microsoft-com:unattend"
   local arch
+  local -a paths=(
+    '/u:unattend/u:settings[@pass="windowsPE"]/u:component[@name="Microsoft-Windows-Setup"]/@processorArchitecture'
+    '/u:unattend/u:settings[@pass="windowsPE"]/u:component[@name="Microsoft-Windows-International-Core-WinPE"]/@processorArchitecture'
+    '/u:unattend/u:settings/u:component[translate(@processorArchitecture, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz") != "wow64"]/@processorArchitecture'
+  )
+  local path
 
-  arch=$(xmlstarlet sel \
-    -T -t \
-    -v 'string((//*[local-name()="component"]/@processorArchitecture)[1])' \
-    "$asset") || return 1
+  for path in "${paths[@]}"; do
+    arch=$(xmlstarlet sel \
+      -N "u=$ns" \
+      -T -t \
+      -v "normalize-space(string(($path)[1]))" \
+      "$asset") || arch=""
 
-  [ -n "$arch" ] || return 1
+    [ -n "$arch" ] || continue
+    [[ "${arch,,}" != "wow64" ]] || continue
+    printf '%s' "$arch"
+    return 0
+  done
 
-  printf '%s' "$arch"
-  return 0
+  return 1
 }
 
 setConfigurationXML() {
@@ -1565,7 +2156,7 @@ setConfigurationXML() {
   local asset="$1"
   local setup='/*[local-name()="unattend"]/*[local-name()="settings" and @pass="windowsPE"]/*[local-name()="component" and @name="Microsoft-Windows-Setup"]'
   local config="$setup/*[local-name()=\"UseConfigurationSet\"]"
-  local setup_count config_count result_count tmp
+  local setup_count config_count config_value result_count tmp
 
   [ -s "$asset" ] || return 1
 
@@ -1581,6 +2172,15 @@ setConfigurationXML() {
   if [ "$config_count" -gt 1 ]; then
     error "Multiple UseConfigurationSet entries found in answer file: $asset"
     return 1
+  fi
+
+  if [ "$config_count" = "1" ]; then
+    config_value=$(xmlstarlet sel \
+      -T -t \
+      -v "translate(normalize-space(string($config)), 'TRUE', 'true')" \
+      "$asset") || return 1
+
+    [ "$config_value" != "true" ] || return 0
   fi
 
   if ! tmp=$(mktemp -d); then
@@ -1705,10 +2305,11 @@ removeLocalAccount() {
 
   local asset="$1"
   local ns="urn:schemas-microsoft-com:unattend"
+  local accounts='/u:unattend/u:settings[@pass="oobeSystem"]/u:component[@name="Microsoft-Windows-Shell-Setup"]/u:UserAccounts'
 
   if ! xmlstarlet ed -L \
     -N "u=$ns" \
-    -d '//u:LocalAccounts | //u:AdministratorPassword' \
+    -d "$accounts/u:LocalAccounts | $accounts/u:AdministratorPassword" \
     "$asset"; then
 
     error "Failed to remove local account configuration from answer file!"
