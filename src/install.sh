@@ -3,19 +3,19 @@ set -Eeuo pipefail
 
 startWindows() {
 
-  parseVersion || return 58
-  parseLanguage || return 62
-  detectCustom || return 64
+  parseVersion || exit 58
+  parseLanguage || exit 62
+  detectCustom || exit 64
 
   if ! startInstall; then
-    bootWindows || return 66
+    bootWindows || exit 66
     return 0
   fi
 
   if ! hasImage "$ISO"; then
     if ! downloadImage "$ISO" "$VERSION" "$LANGUAGE"; then
       removeIso "$ISO" || :
-      return 68
+      exit 68
     fi
   fi
 
@@ -23,16 +23,16 @@ startWindows() {
   local dir="$TMP/unpack"
   local handled=0 extracted=0
 
-  selectWindowsImage "$ISO" "$dir" "$boot" || return $?
+  selectWindowsImage "$ISO" "$dir" "$boot" || exit $?
   (( handled )) && return 0
 
-  configureMachine "$ISO" "$dir" "$boot" || return $?
+  configureMachine "$ISO" "$dir" "$boot" || exit $?
   (( handled )) && return 0
 
-  prepareWindowsImage "$ISO" "$dir" "$boot" || return $?
+  prepareWindowsImage "$ISO" "$dir" "$boot" || exit $?
   (( handled )) && return 0
 
-  finishInstall "$BOOT" "N" "$boot" || return 100
+  finishInstall "$BOOT" "N" "$boot" || exit 100
 
   return 0
 }
