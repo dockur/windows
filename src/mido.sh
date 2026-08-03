@@ -1059,6 +1059,11 @@ tryDownload() {
 
   local total minimum="104857600"
 
+  if [ -z "$iso" ] || [ -z "$url" ]; then
+    error "Invalid download parameters!"
+    return 1
+  fi
+  
   # Compressed archives can legitimately be much smaller than the ISO they
   # contain, so use a lower sanity threshold until extraction.
   if isCompressed "$url"; then
@@ -1134,6 +1139,23 @@ fallbackEnglish() {
   downloadImage "$iso" "$version" "$LANGUAGE"
 }
 
+validDownload() {
+
+  local version="$1"
+
+  if [ -z "$version" ]; then
+    error "Cannot download a Windows image without a version!"
+    return 1
+  fi
+
+  if ! validVersion "$version" "en"; then
+    error "Invalid VERSION specified, value \"$version\" is not recognized!"
+    return 1
+  fi
+
+  return 0
+}
+
 downloadImage() {
 
   local iso="$1"
@@ -1155,10 +1177,7 @@ downloadImage() {
     return 0
   fi
 
-  if ! validVersion "$version" "en"; then
-    error "Invalid VERSION specified, value \"$version\" is not recognized!"
-    return 1
-  fi
+  validDownload "$version" || return 1
 
   desc=$(printVariant "$version" "" "Y")
   web_desc=$(printVariant "$version" "")
@@ -1228,6 +1247,7 @@ downloadImage() {
   if switched=$(switchEdition "$version"); then
 
     version="$switched"
+    validDownload "$version" || return 1    
 
     if ! enabled "${DETECTED_ORG:-}"; then
       DETECTED="${SUGGEST:-$version}"
