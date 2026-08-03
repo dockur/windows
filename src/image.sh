@@ -5,11 +5,16 @@ getPlatform() {
 
   local xml="$1"
   local platform="x64"
-  local x86 x64 arm64 count=0
+  local counts x86 x64 arm64 count=0
 
-  x86=$(xmllint --nonet --xpath 'count(/WIM/IMAGE/WINDOWS/ARCH[text()="0"])' - 2>/dev/null <<< "$xml") || x86=0
-  x64=$(xmllint --nonet --xpath 'count(/WIM/IMAGE/WINDOWS/ARCH[text()="9"])' - 2>/dev/null <<< "$xml") || x64=0
-  arm64=$(xmllint --nonet --xpath 'count(/WIM/IMAGE/WINDOWS/ARCH[text()="12"])' - 2>/dev/null <<< "$xml") || arm64=0
+  counts=$(xmlstarlet sel \
+    -T -t \
+    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[text()="0"])' -o '|' \
+    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[text()="9"])' -o '|' \
+    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[text()="12"])' \
+    - 2>/dev/null <<< "$xml") || counts="0|0|0"
+
+  IFS='|' read -r x86 x64 arm64 <<< "$counts"
 
   (( x86 > 0 )) && ((count++))
   (( x64 > 0 )) && ((count++))
@@ -145,10 +150,11 @@ getVersions() {
   local -n groups_ref="$groups_name"
   local -n indexes_ref="$indexes_name"
 
-  local count image image_index
+  local records image image_index
   local display product platform
   local edition_id install_type
-  local candidate flags i
+  local candidate flags
+  local separator=$'\x1f'
 
   versions_ref=()
   bases_ref=()
@@ -156,17 +162,21 @@ getVersions() {
   indexes_ref=()
 
   platform=$(getPlatform "$xml") || return 1
-  count=$(xmllint --nonet --xpath 'count(/WIM/IMAGE)' - 2>/dev/null <<< "$xml") || return 0
 
-  for ((i=1; i<=count; i++)); do
+  records=$(xmlstarlet sel \
+    -T -t \
+    -m '/WIM/IMAGE' \
+    -v '@INDEX' -o "$separator" \
+    -v 'DISPLAYNAME' -o "$separator" \
+    -v 'WINDOWS/PRODUCTNAME' -o "$separator" \
+    -v 'NAME' -o "$separator" \
+    -v 'WINDOWS/EDITIONID' -o "$separator" \
+    -v 'WINDOWS/INSTALLATIONTYPE' -o "$separator" \
+    -v 'FLAGS' -n \
+    - 2>/dev/null <<< "$xml") || return 0
 
-    image_index=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/@INDEX)" - 2>/dev/null <<< "$xml") || continue
-    display=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/DISPLAYNAME)" - 2>/dev/null <<< "$xml") || display=""
-    product=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/WINDOWS/PRODUCTNAME)" - 2>/dev/null <<< "$xml") || product=""
-    image=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/NAME)" - 2>/dev/null <<< "$xml") || image=""
-    edition_id=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/WINDOWS/EDITIONID)" - 2>/dev/null <<< "$xml") || edition_id=""
-    install_type=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/WINDOWS/INSTALLATIONTYPE)" - 2>/dev/null <<< "$xml") || install_type=""
-    flags=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/FLAGS)" - 2>/dev/null <<< "$xml") || flags=""
+  while IFS="$separator" read -r \
+    image_index display product image edition_id install_type flags; do
 
     [ -n "$image_index" ] || continue
     local candidate_id=""
@@ -243,11 +253,11 @@ getVersions() {
     fi
 
     indexes_ref["$key"]="$image_index"
-    versions_ref+=("$candidate_id")
-    bases_ref+=("$candidate_base")
-    groups_ref+=("$(getVersionPriority "$candidate_id" "$candidate_base")")
+    versions_ref+=( "$candidate_id" )
+    bases_ref+=( "$candidate_base" )
+    groups_ref+=( "$(getVersionPriority "$candidate_id" "$candidate_base")" )
 
-  done
+  done <<< "$records"
 
   return 0
 }
@@ -459,7 +469,10 @@ detectLanguage() {
     xpath='string((/WIM/IMAGE/WINDOWS/LANGUAGES/DEFAULT | /WIM/IMAGE/WINDOWS/LANGUAGES/FALLBACK/DEFAULT)[1])'
   fi
 
-  lang=$(xmllint --nonet --xpath "$xpath" - 2>/dev/null <<< "$xml") || lang=""
+  lang=$(xmlstarlet sel \
+    -T -t \
+    -v "$xpath" \
+    - 2>/dev/null <<< "$xml") || lang=""
 
   if [ -z "$lang" ]; then
     warn "Language could not be detected from ISO!"
@@ -1117,25 +1130,19 @@ readIsoImageInfo() {
 
   [ -n "$result" ] || return 1
 
-  root=$(
-    xmllint \
-      --nonet \
-      --xpath 'name(/*)' \
-      - \
-      2>/dev/null <<< "$result"
-  ) || return 1
+  local metadata separator=$'\x1f'
+
+  metadata=$(xmlstarlet sel \
+    -T -t \
+    -v 'name(/*)' -o "$separator" \
+    -v 'count(/WIM/IMAGE)' \
+    - 2>/dev/null <<< "$result") || return 1
+
+  IFS="$separator" read -r root xml_count <<< "$metadata"
 
   if [ "$root" != "WIM" ]; then
     return 1
   fi
-
-  xml_count=$(
-    xmllint \
-      --nonet \
-      --xpath 'count(/WIM/IMAGE)' \
-      - \
-      2>/dev/null <<< "$result"
-  ) || return 1
 
   if [[ ! "$xml_count" =~ ^[0-9]+$ ]]; then
     return 1
