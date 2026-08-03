@@ -1,61 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-checkPlatform() {
-
-  local xml="$1"
-  local platform compat
-
-  platform=$(getPlatform "$xml")
-
-  case "${platform,,}" in
-    "x86" ) compat="x64" ;;
-    "x64" ) compat="$platform" ;;
-    "arm64" ) compat="$platform" ;;
-    "mixed" )
-      error "Windows images with mixed architectures are not supported!"
-      return 1
-      ;;
-    * ) compat="${PLATFORM,,}" ;;
-  esac
-
-  [[ "${compat,,}" == "${PLATFORM,,}" ]] && return 0
-
-  error "You cannot boot ${platform^^} images on a $PLATFORM CPU!"
-  return 1
-}
-
-getPlatform() {
-
-  local xml="$1"
-  local platform="x64"
-  local counts x86 x64 arm64 count=0
-
-  counts=$(xmlstarlet sel \
-    -T -t \
-    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="0"])' -o '|' \
-    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="9"])' -o '|' \
-    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="12"])' \
-    - 2>/dev/null <<< "$xml") || return 1
-
-  IFS='|' read -r x86 x64 arm64 <<< "$counts"
-
-  (( x86 > 0 )) && ((count++))
-  (( x64 > 0 )) && ((count++))
-  (( arm64 > 0 )) && ((count++))
-
-  if (( count > 1 )); then
-    platform="mixed"
-  elif (( x86 > 0 )); then
-    platform="x86"
-  elif (( arm64 > 0 )); then
-    platform="arm64"
-  fi
-
-  echo "$platform"
-  return 0
-}
-
 hasVersion() {
 
   local wanted="$1"
@@ -87,6 +32,61 @@ getCompatibleVersions() {
   else
     result_ref+=("$wanted-eval")
   fi
+}
+
+checkPlatform() {
+
+  local xml="$1"
+  local platform compat
+
+  platform=$(getPlatform "$xml")
+
+  case "${platform,,}" in
+    "x86" ) compat="x64" ;;
+    "x64" ) compat="$platform" ;;
+    "arm64" ) compat="$platform" ;;
+    "mixed" )
+      error "Windows images with mixed architectures are not supported!"
+      return 1
+      ;;
+    * ) compat="${PLATFORM,,}" ;;
+  esac
+
+  [[ "${compat,,}" == "${PLATFORM,,}" ]] && return 0
+
+  error "You cannot boot ${platform^^} images on a $PLATFORM CPU!"
+  return 1
+}
+
+getPlatform() {
+
+  local xml="$1"
+  local platform="x64"
+  local x86 x64 arm64 count=0
+
+  x86=$(getWimCount "$xml" \
+    '/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="0"]') || return 1
+
+  x64=$(getWimCount "$xml" \
+    '/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="9"]') || return 1
+
+  arm64=$(getWimCount "$xml" \
+    '/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="12"]') || return 1
+
+  (( x86 > 0 )) && ((count++))
+  (( x64 > 0 )) && ((count++))
+  (( arm64 > 0 )) && ((count++))
+
+  if (( count > 1 )); then
+    platform="mixed"
+  elif (( x86 > 0 )); then
+    platform="x86"
+  elif (( arm64 > 0 )); then
+    platform="arm64"
+  fi
+
+  echo "$platform"
+  return 0
 }
 
 getVersionPriority() {
@@ -145,38 +145,54 @@ getVersions() {
   local bases_name="$3"
   local groups_name="$4"
   local indexes_name="$5"
-  local -n versions_ref="$versions_name"
+
   local -n bases_ref="$bases_name"
   local -n groups_ref="$groups_name"
   local -n indexes_ref="$indexes_name"
+  local -n versions_ref="$versions_name"
 
-  local records image image_index
-  local display product platform
-  local edition_id install_type
-  local candidate flags
-  local separator=$'\x1f'
+  local platform image_count position image_path
+  local image_index display product image edition_id
+  local install_type flags candidate candidate_id 
+  local candidate_base evaluation key name structured
 
-  versions_ref=()
   bases_ref=()
   groups_ref=()
   indexes_ref=()
+  versions_ref=()
 
   platform=$(getPlatform "$xml") || return 1
+  image_count=$(getWimCount "$xml" '/WIM/IMAGE') || return 1
 
-  records=$(xmlstarlet sel \
-    -T -t \
-    -m '/WIM/IMAGE' \
-    -v 'normalize-space(@INDEX)' -o "$separator" \
-    -v 'normalize-space(DISPLAYNAME)' -o "$separator" \
-    -v 'normalize-space(WINDOWS/PRODUCTNAME)' -o "$separator" \
-    -v 'normalize-space(NAME)' -o "$separator" \
-    -v 'normalize-space(WINDOWS/EDITIONID)' -o "$separator" \
-    -v 'normalize-space(WINDOWS/INSTALLATIONTYPE)' -o "$separator" \
-    -v 'normalize-space(FLAGS)' -n \
-    - 2>/dev/null <<< "$xml") || return 1
+  if [[ ! "$image_count" =~ ^[0-9]+$ ]]; then
+    error "Invalid image count in WIM metadata: '$image_count'"
+    return 1
+  fi
 
-  while IFS="$separator" read -r \
-    image_index display product image edition_id install_type flags; do
+  for (( position=1; position<=image_count; position++ )); do
+
+    image_path="/WIM/IMAGE[$position]"
+
+    image_index=$(getWimValue "$xml" \
+      "$image_path/@INDEX") || return 1
+
+    display=$(getWimValue "$xml" \
+      "$image_path/DISPLAYNAME") || return 1
+
+    product=$(getWimValue "$xml" \
+      "$image_path/WINDOWS/PRODUCTNAME") || return 1
+
+    image=$(getWimValue "$xml" \
+      "$image_path/NAME") || return 1
+
+    edition_id=$(getWimValue "$xml" \
+      "$image_path/WINDOWS/EDITIONID") || return 1
+
+    install_type=$(getWimValue "$xml" \
+      "$image_path/WINDOWS/INSTALLATIONTYPE") || return 1
+
+    flags=$(getWimValue "$xml" \
+      "$image_path/FLAGS") || return 1
 
     [ -n "$image_index" ] || continue
 
@@ -185,8 +201,8 @@ getVersions() {
       continue
     fi
 
-    local candidate_id=""
-    local candidate_base=""
+    candidate_id=""
+    candidate_base=""
 
     # NAME normally contains the most precise edition identifier (including
     # Server Core), while DISPLAYNAME is the best fallback for other images.
@@ -199,15 +215,16 @@ getVersions() {
       candidate_id=$(getVersion "$candidate" "$platform")
 
       [ -n "$candidate_base" ] && [ -n "$candidate_id" ] && break
+  
     done
 
     if [ -z "$candidate_base" ] || [ -z "$candidate_id" ]; then
-      local name="${display:-${image:-$product}}"
+      name="${display:-${image:-$product}}"
       [ -n "$name" ] && warn "Unknown image name: '$name'"
       continue
     fi
 
-    local evaluation=""
+    evaluation=""
 
     if [[ "${image,,}" == *"evaluation"* ||
       "${display,,}" == *"evaluation"* ||
@@ -222,20 +239,22 @@ getVersions() {
       candidate_id+="$evaluation"
     fi
 
-    local key="${candidate_id,,}"
+    key="${candidate_id,,}"
 
     # Some client media use the same friendly name-derived ID for distinct
     # editions. Preserve the established unsuffixed Pro ID, and use the
     # structured edition metadata only to disambiguate a collision.
     if [[ -v "indexes_ref[$key]" ]]; then
-      local structured=""
+      structured=""
 
       case "${candidate_base,,}" in
         "winvista"* | "win7"* | "win8"* | "win10"* | "win11"* )
-          structured=$(normalizeEditionID "${edition_id:-${flags:-}}" "$candidate_base") || return 1
+          structured=$(normalizeEditionID \
+            "${edition_id:-${flags:-}}" "$candidate_base") || return 1
           ;;
         "win20"* )
-          structured=$(normalizeServerEditionID "${flags:-$edition_id}") || return 1
+          structured=$(normalizeServerEditionID \
+            "${flags:-$edition_id}") || return 1
 
           # Some media use the same EDITIONID for Core and Desktop images.
           # INSTALLATIONTYPE provides the structural distinction without
@@ -263,7 +282,7 @@ getVersions() {
     bases_ref+=( "$candidate_base" )
     groups_ref+=( "$(getVersionPriority "$candidate_id" "$candidate_base")" )
 
-  done <<< "$records"
+  done
 
   return 0
 }
@@ -275,13 +294,14 @@ selectVersion() {
   local preferred_name="$3"
   local result_name="$4"
   local index_name="$5"
-  local wanted candidate match
+
   local -n version_list="$versions_name"
   local -n index_map="$indexes_name"
   local -n preference_list="$preferred_name"
   local -n selected_version="$result_name"
   local -n selected_image_index="$index_name"
   local -a candidates=()
+  local wanted candidate match
 
   for wanted in "${preference_list[@]}"; do
 
@@ -321,9 +341,9 @@ selectEdition() {
   local -n edition_bases="$bases_name"
   local -n edition_groups="$groups_name"
   local -n edition_order="$order_name"
-  local base edition entry suffix priority i
   local -a preferred=()
   local -A seen=()
+  local base edition entry suffix priority i
 
   if [ -n "$EDITION" ]; then
 
@@ -419,7 +439,6 @@ detectVersion() {
   local -a versions=()
   local -a selection_order=()
   local -A image_indexes=()
-  local normalize_name="normalizeEditionID"
 
   printf -v "$result_name" '%s' ""
   printf -v "$index_name" '%s' ""
@@ -432,6 +451,8 @@ detectVersion() {
     image_indexes || return 1
 
   [ "${#versions[@]}" -eq 0 ] && return 0
+
+  local normalize_name="normalizeEditionID"
 
   case "${bases[0],,}" in
     "win20"* )
@@ -510,10 +531,11 @@ getImageSize() {
 
   local stage="$1"
   local folder="${2:-}"
-  local mib=$((1024 * 1024))
-  local minimum=$((64 * mib))
+
   local size bytes path
   local required large_file
+  local mib=$((1024 * 1024))
+  local minimum=$((64 * mib))
   local payload=0 paths=("$stage")
 
   if [ ! -d "$stage" ]; then
@@ -535,6 +557,7 @@ getImageSize() {
   fi
 
   for path in "${paths[@]}"; do
+
     if ! read -r bytes _ < <(
       du -Llsb --apparent-size -- "$path"
     ); then
@@ -543,10 +566,11 @@ getImageSize() {
     fi
 
     payload=$((payload + bytes))
+
   done
 
-  required=$((payload + ((payload + 3) / 4) + (32 * mib)))
   size="$minimum"
+  required=$((payload + ((payload + 3) / 4) + (32 * mib)))
 
   while ((size < required)); do
     size=$((size * 2))
@@ -940,6 +964,33 @@ findIsoImage() {
   done
 
   return 1
+}
+
+getWimCount() {
+
+  local xml="$1"
+  local xpath="$2"
+
+  xmlstarlet sel \
+    -T -t \
+    -v "count($xpath)" \
+    - 2>/dev/null <<< "$xml"
+}
+
+getWimValue() {
+
+  local xml="$1"
+  local xpath="$2"
+  local value
+
+  # XMLStarlet returns status 1 for missing or empty nodes. Prefix the result
+  # with a constant so valid empty values still return status 0, then remove it.
+  value=$(xmlstarlet sel \
+    -T -t \
+    -v "concat('x', normalize-space($xpath))" \
+    - 2>/dev/null <<< "$xml") || return 1
+
+  printf '%s' "${value#x}"
 }
 
 readWimHeader() {
