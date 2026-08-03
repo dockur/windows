@@ -728,25 +728,9 @@ getCatalog() {
     "url" ) echo "$url" ;;
     "file" ) echo "$file" ;;
     "name" ) echo "$name" ;;
-    "edition" ) echo '[Edition="'"${edition}"'"]' ;;
+    "edition" ) echo "$edition" ;;
     *) echo "";;
   esac
-
-  return 0
-}
-
-getXmlTag() {
-
-  local tag="$1"
-  local file="$2"
-
-  [[ "$tag" =~ ^[A-Za-z_][A-Za-z0-9_.-]*$ ]] || return 0
-
-  xmlstarlet sel \
-    -t \
-    -m "//*[local-name()='$tag']" \
-    -c 'node()' \
-    "$file" 2>/dev/null || true
 
   return 0
 }
@@ -836,72 +820,143 @@ getESD() {
 
   fi
 
-  if [ ! -f "$dir/$xmlFile" ] || [ ! -s "$dir/$xmlFile" ]; then
+  local xml="$dir/$xmlFile"
+
+  if [ ! -s "$xml" ]; then
     error "Failed to find $xmlFile in $file!"
     return 1
   fi
 
-  local files="//File[Architecture=\"${PLATFORM,,}\"]${edition}"
-  local file_count language_count
+  local files="//*[local-name()='File']"
+  local values="$dir/.catalog-values"
+  local -a architectures=()
+  local -a editions=()
+  local -a cultures=()
+  local -a paths=()
+  local -a sums=()
+  local -a sizes=()
 
-  file_count=$(xmlstarlet sel \
-    -T -t \
-    -v "count($files)" \
-    "$dir/$xmlFile" 2>/dev/null) || file_count="0"
+  if ! xmlstarlet sel -T -t \
+    -m "$files" \
+    -v "normalize-space(*[local-name()='Architecture'])" -n \
+    "$xml" > "$values"; then
+    error "Failed to parse $xmlFile!"
+    return 1
+  fi
+  mapfile -t architectures < "$values"
 
-  if [ "$file_count" = "0" ]; then
-    files="//File[Architecture=\"${PLATFORM^^}\"]${edition}"
-    file_count=$(xmlstarlet sel \
-      -T -t \
-      -v "count($files)" \
-      "$dir/$xmlFile" 2>/dev/null) || file_count="0"
+  if ! xmlstarlet sel -T -t \
+    -m "$files" \
+    -v "normalize-space(*[local-name()='Edition'])" -n \
+    "$xml" > "$values"; then
+    error "Failed to parse $xmlFile!"
+    return 1
+  fi
+  mapfile -t editions < "$values"
+
+  if ! xmlstarlet sel -T -t \
+    -m "$files" \
+    -v "normalize-space(*[local-name()='LanguageCode'])" -n \
+    "$xml" > "$values"; then
+    error "Failed to parse $xmlFile!"
+    return 1
+  fi
+  mapfile -t cultures < "$values"
+
+  if ! xmlstarlet sel -T -t \
+    -m "$files" \
+    -v "string(*[local-name()='FilePath'])" -n \
+    "$xml" > "$values"; then
+    error "Failed to parse $xmlFile!"
+    return 1
+  fi
+  mapfile -t paths < "$values"
+
+  if ! xmlstarlet sel -T -t \
+    -m "$files" \
+    -v "normalize-space(*[local-name()='Sha1'])" -n \
+    "$xml" > "$values"; then
+    error "Failed to parse $xmlFile!"
+    return 1
+  fi
+  mapfile -t sums < "$values"
+
+  if ! xmlstarlet sel -T -t \
+    -m "$files" \
+    -v "normalize-space(*[local-name()='Size'])" -n \
+    "$xml" > "$values"; then
+    error "Failed to parse $xmlFile!"
+    return 1
+  fi
+  mapfile -t sizes < "$values"
+
+  rm -f "$values"
+
+  local count="${#architectures[@]}"
+
+  if [ "${#editions[@]}" -ne "$count" ] ||
+    [ "${#cultures[@]}" -ne "$count" ] ||
+    [ "${#paths[@]}" -ne "$count" ] ||
+    [ "${#sums[@]}" -ne "$count" ] ||
+    [ "${#sizes[@]}" -ne "$count" ]; then
+    error "Failed to read consistent records from $xmlFile!"
+    return 1
   fi
 
-  if [ "$file_count" = "0" ]; then
+  local index
+  local file_match=0
+  local language_match=0
+
+  ESD=""
+  ESD_SUM=""
+  ESD_SIZE=""
+
+  for index in "${!architectures[@]}"; do
+
+    [ "${architectures[$index],,}" = "${PLATFORM,,}" ] || continue
+
+    if [ -n "$edition" ] &&
+      [ "${editions[$index],,}" != "${edition,,}" ]; then
+      continue
+    fi
+
+    file_match=1
+
+    [ "${cultures[$index],,}" = "${culture,,}" ] || continue
+
+    language_match=1
+    ESD="${paths[$index]}"
+    ESD_SUM="${sums[$index]}"
+    ESD_SIZE="${sizes[$index]}"
+    break
+
+  done
+
+  if (( ! file_match )); then
     desc=$(printEdition "$version" "$desc" "Y")
-    language=$(getLanguage "$lang" "desc")
     error "No download link available for $desc!"
     return 1
   fi
 
-  local localized="$files[LanguageCode=\"${culture,,}\"]"
-  local selected="($localized)[1]"
-
-  language_count=$(xmlstarlet sel \
-    -T -t \
-    -v "count($localized)" \
-    "$dir/$xmlFile" 2>/dev/null) || language_count="0"
-
-  if [ "$language_count" = "0" ]; then
+  if (( ! language_match )); then
     desc=$(printEdition "$version" "$desc" "Y")
     language=$(getLanguage "$lang" "desc")
     error "No download in the $language language available for $desc!"
     return 1
   fi
 
-  local result separator=$'\x1f'
-
-  result=$(xmlstarlet sel \
-    -t \
-    -c "$selected/FilePath/text()" -o "$separator" \
-    -c "$selected/Sha1/text()" -o "$separator" \
-    -c "$selected/Size/text()" \
-    "$dir/$xmlFile" 2>/dev/null) || result="${separator}${separator}"
-
-  IFS="$separator" read -r ESD ESD_SUM ESD_SIZE <<< "$result"
-
   if [ -z "$ESD" ]; then
-    error "Failed to find ESD URL!"
+    error "Failed to find ESD URL in $xmlFile!"
     return 1
   fi
 
   if [ -z "$ESD_SUM" ]; then
-    error "Failed to find ESD checksum!"
+    error "Failed to find ESD checksum in $xmlFile!"
     return 1
   fi
 
   if [ -z "$ESD_SIZE" ]; then
-    error "Failed to find ESD filesize!"
+    error "Failed to find ESD filesize in $xmlFile!"
     return 1
   fi
 
