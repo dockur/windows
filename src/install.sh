@@ -14,24 +14,24 @@ startWindows() {
 
   if ! hasImage "$ISO"; then
     if ! downloadImage "$ISO" "$VERSION" "$LANGUAGE"; then
-      removeIso "$ISO" && return 68
+      removeIso "$ISO" || :
+      return 68
     fi
   fi
 
-  proceed=0
-  extracted=0
-
+  local handled=0
+  local extracted=0
   local boot="$BOOT"
   local dir="$TMP/unpack"
 
   selectWindowsImage "$ISO" "$dir" "$boot" || return $?
-  (( proceed )) || return 0
+  (( handled )) && return 0
 
   configureMachine "$ISO" "$dir" "$boot" || return $?
-  (( proceed )) || return 0
+  (( handled )) && return 0
 
   prepareWindowsImage "$ISO" "$dir" "$boot" || return $?
-  (( proceed )) || return 0
+  (( handled )) && return 0
 
   finishInstall "$BOOT" "N" "$boot" || return 100
 
@@ -183,43 +183,6 @@ prepareWindowsImage() {
   return 0
 }
 
-startWindows() {
-
-  parseVersion || return 58
-  parseLanguage || return 62
-  detectCustom || return 64
-
-  if ! startInstall; then
-    bootWindows || return 66
-    return 0
-  fi
-
-  if ! hasImage "$ISO"; then
-    if ! downloadImage "$ISO" "$VERSION" "$LANGUAGE"; then
-      removeIso "$ISO" || :
-      return 68
-    fi
-  fi
-
-  local handled=0
-  local extracted=0
-  local boot="$BOOT"
-  local dir="$TMP/unpack"
-
-  selectWindowsImage "$ISO" "$dir" "$boot" || return $?
-  (( handled )) && return 0
-
-  configureWindowsMachine "$ISO" "$dir" "$boot" || return $?
-  (( handled )) && return 0
-
-  prepareWindowsImage "$ISO" "$dir" "$boot" || return $?
-  (( handled )) && return 0
-
-  finishInstall "$BOOT" "N" "$boot" || return 100
-
-  return 0
-}
-
 bootWindows() {
 
   restoreMachineState || return 1
@@ -310,6 +273,8 @@ startInstall() {
     ISO=$(basename "$BOOT")
     ISO="$TMP/$ISO"
 
+    # Work from the temporary directory so the persistent source path can
+    # later contain either the preserved ISO or the rebuilt installation image.
     if [ -f "$BOOT" ] && [ -s "$BOOT" ]; then
       if ! mv -f -- "$BOOT" "$ISO"; then
         error "Failed to move ISO file from \"$BOOT\" to \"$ISO\" !"
@@ -349,9 +314,13 @@ abortInstall() {
   local boot="$3"
   local efi efi32 efi64
 
+  # Standalone ESD files and nested archives are not directly bootable media,
+  # so they cannot use the manual-install fallback.
   [[ "${iso,,}" == *".esd" ]] && exit 60
   enabled "${UNPACK:-}" && exit 60
 
+  # When automatic preparation fails, inspect extracted media to determine
+  # whether it can still be booted manually using legacy firmware.
   if [[ "${PLATFORM,,}" == "x64" ]] && [ -d "$dir" ]; then
 
     efi=$(find "$dir" -maxdepth 1 -type d -iname efi -print -quit)
@@ -370,6 +339,8 @@ abortInstall() {
 
   fi
 
+  # Preserve custom media in place. Downloaded or reused media must be moved
+  # back to persistent storage before the manual fallback is started.
   if [ -n "$CUSTOM" ]; then
     BOOT="$iso"
     REMOVE="N"
@@ -412,6 +383,8 @@ skipInstall() {
   local boot="$STORAGE/windows.boot"
 
   if [ -n "$previousBase" ]; then
+    # A changed source invalidates an unfinished installation. Back up an
+    # existing installation, but discard stale media when no disk exists yet.
     if [[ "${STORAGE,,}/${previousBase,,}" != "${iso,,}" ]]; then
 
       if ! hasDisk; then
@@ -554,6 +527,8 @@ findFile() {
 
   ISO="$file"
   CUSTOM="$file"
+  # Include the custom ISO size in its persistent name so replacing a
+  # bind-mounted ISO is detected as a different installation source.
   BOOT="$STORAGE/windows.$size.iso"
 
   return 0
@@ -593,6 +568,8 @@ needsExtraction() {
   local id="$1"
   local iso="$2"
 
+  # Direct-boot media does not need rebuilding. Legacy/skipped versions,
+  # standalone ESD downloads, and nested archives require full extraction.
   bootDirect "$id" && return 1
 
   skipVersion "$id" ||
@@ -671,6 +648,9 @@ extractESD() {
     return 1
   fi
 
+  # Microsoft download ESDs use images 1-3 for setup media, WinPE, and Windows
+  # Setup; images 4 and higher contain installable editions. Read all metadata
+  # once because repeatedly inspecting a solid-compressed ESD is expensive.
   if ! metadata=$(xmlstarlet sel -t \
       -v 'count(/WIM/IMAGE)' -n \
       -v 'normalize-space(/WIM/IMAGE[@INDEX="1"]/TOTALBYTES)' -n \
@@ -870,6 +850,8 @@ extractImage() {
 
   else
 
+    # UNPACK archives contain another ISO. Extract the nested ISO, then
+    # preserve it as the actual source media for subsequent processing.
     file=$(find "$dir" -maxdepth 1 -type f -iname "*.iso" -print -quit)
 
     if [ -z "$file" ]; then
@@ -1011,6 +993,7 @@ prepareImage() {
 
   desc=$(printVariant "$DETECTED" "$DETECTED")
 
+  # Legacy rebuilt media must retain the source ISO's El Torito boot-load size.
   if [[ "${BOOT_MODE,,}" == "windows_legacy" &&
     "${DETECTED,,}" != "win9"* ]]; then
     getBootLoadSize "$iso" "$dir" "$desc" || return 1
@@ -1028,6 +1011,7 @@ prepareImage() {
 
   EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 
+  # A modern rebuilt ISO requires both its BIOS and no-prompt UEFI boot images.
   [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] &&
     [ -f "$dir/$EFISYS" ] && [ -s "$dir/$EFISYS" ] && return 0
 
@@ -1071,6 +1055,8 @@ addFolder() {
     info "$msg" && html "$msg"
   fi
 
+  # Setup-image mode cannot modify the original ISO, so create a temporary
+  # writable copy of install.bat for the overlay image.
   if [ "$mode" = "overlay" ]; then
 
     rm -f -- "$install" || return 1
@@ -1359,6 +1345,7 @@ updateImage() {
     return 1
   fi
 
+  # Windows Setup normally resides in boot image 2; single-image media uses 1.
   local idx="1"
 
   if ! info=$(wimlib-imagex info -xml "$wim" | iconv -f UTF-16LE -t UTF-8); then
@@ -1379,6 +1366,8 @@ updateImage() {
     error "Failed to add OEM folder to image!"
   fi
 
+  # Preserve an original answer file only once. The .dat marker identifies an
+  # image where our generated answer file has already been installed.
   if wimlib-imagex extract "$wim" "$idx" "/$xml" "--dest-dir=$tmp" >/dev/null 2>&1; then
     if ! wimlib-imagex extract "$wim" "$idx" "/$dat" "--dest-dir=$tmp" >/dev/null 2>&1; then
       if ! wimlib-imagex extract "$wim" "$idx" "/$bak" "--dest-dir=$tmp" >/dev/null 2>&1; then
@@ -1432,6 +1421,8 @@ updateImage() {
 
   fi
 
+  # Manual mode removes generated automation and restores the original answer
+  # file when one was backed up earlier.
   if enabled "$MANUAL"; then
 
     removeGeneratedXML "$asset" || return 1
@@ -1446,6 +1437,8 @@ updateImage() {
 
   fi
 
+  # Prevent a root-level answer file from overriding the selected automatic or
+  # manual behavior when Windows Setup first boots.
   name="$xml"
   enabled "$MANUAL" && name="$bak"
   path=$(find "$dir" -maxdepth 1 -type f -iname "$name" -print -quit) || return 1
@@ -1541,6 +1534,8 @@ backup () {
       -not -iname '*.iso' -print0
   )
 
+  # Wait for the process-substitution find command so enumeration failures are
+  # detected rather than being mistaken for a successful backup.
   local find_pid=$!
 
   if ! wait "$find_pid"; then
@@ -1565,6 +1560,8 @@ restoreBootMode() {
 
   [ -n "$mode" ] || return 0
 
+  # A saved legacy mode always wins. A saved modern mode only replaces the
+  # default mode and never an explicit user-selected boot configuration.
   if [[ "${mode,,}" == "windows_legacy" ]]; then
     BOOT_MODE="$mode"
     return 0
@@ -1580,6 +1577,8 @@ restoreBootMode() {
 
 restoreMachine() {
 
+  # Restore the saved machine only when q35 is still the default; an explicit
+  # user-selected machine must remain untouched.
   [[ "${PLATFORM,,}" != "x64" ]] && return 0
   [[ "${MACHINE,,}" != "q35" ]] && return 0
 
