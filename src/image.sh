@@ -1,113 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-hasVersion() {
-
-  local wanted="$1"
-  shift
-
-  local actual
-
-  for actual in "$@"; do
-    [[ "${actual,,}" == "${wanted,,}" ]] || continue
-    echo "$actual"
-    return 0
-  done
-
-  return 1
-}
-
-getCompatibleVersions() {
-
-  local wanted="$1"
-
-  printf '%s\n' "$wanted"
-
-  # Treat normal and Evaluation variants of the same edition as compatible.
-  # The exact requested variant is always checked first.
-  if [[ "${wanted,,}" == *"-eval" ]]; then
-    printf '%s\n' "${wanted%-eval}"
-  else
-    printf '%s\n' "$wanted-eval"
-  fi
-}
-
-checkPlatform() {
-
-  local xml="$1"
-
-  local platform compat
-
-  platform=$(getPlatform "$xml")
-
-  case "${platform,,}" in
-    "x86" ) compat="x64" ;;
-    "x64" ) compat="$platform" ;;
-    "arm64" ) compat="$platform" ;;
-    "mixed" )
-      error "Windows images with mixed architectures are not supported!"
-      return 1
-      ;;
-    * ) compat="${PLATFORM,,}" ;;
-  esac
-
-  [[ "${compat,,}" == "${PLATFORM,,}" ]] && return 0
-
-  error "You cannot boot ${platform^^} images on a $PLATFORM CPU!"
-  return 1
-}
-
-getPlatform() {
-
-  local xml="$1"
-
-  local output platform="x64"
-  local x86 x64 arm64 count=0 value
-  local -a counts=()
-
-  if ! output=$(xmlstarlet sel \
-    -T -t \
-    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="0"])' -n \
-    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="9"])' -n \
-    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="12"])' -n \
-    - 2>/dev/null <<< "$xml"); then
-    return 1
-  fi
-
-  mapfile -t counts <<< "$output"
-
-  if (( ${#counts[@]} != 3 )); then
-    error "Failed to read architecture counts from WIM metadata!"
-    return 1
-  fi
-
-  for value in "${counts[@]}"; do
-    if [[ ! "$value" =~ ^[0-9]+$ ]]; then
-      error "Invalid architecture count in WIM metadata: '$value'"
-      return 1
-    fi
-  done
-
-  x86="${counts[0]}"
-  x64="${counts[1]}"
-  arm64="${counts[2]}"
-
-  (( x86 > 0 )) && ((count += 1))
-  (( x64 > 0 )) && ((count += 1))
-  (( arm64 > 0 )) && ((count += 1))
-
-  if (( count > 1 )); then
-    platform="mixed"
-  elif (( x86 > 0 )); then
-    platform="x86"
-  elif (( arm64 > 0 )); then
-    platform="arm64"
-  fi
-
-  echo "$platform"
-  return 0
-}
-
 getVersionPriority() {
 
   local id="${1,,}"
@@ -571,17 +464,110 @@ getImageSize() {
   printf '%s\n' "$size"
 }
 
-bootDirect() {
+hasVersion() {
 
-  local id="$1"
+  local wanted="$1"
+  shift
 
-  # ReactOS must boot from its original media and does not use the Windows
-  # setup-overlay or rebuilt-image paths.
-  case "${id,,}" in
-    "reactos" ) return 0 ;;
-  esac
+  local actual
+
+  for actual in "$@"; do
+    [[ "${actual,,}" == "${wanted,,}" ]] || continue
+    echo "$actual"
+    return 0
+  done
 
   return 1
+}
+
+getCompatibleVersions() {
+
+  local wanted="$1"
+
+  printf '%s\n' "$wanted"
+
+  # Treat normal and Evaluation variants of the same edition as compatible.
+  # The exact requested variant is always checked first.
+  if [[ "${wanted,,}" == *"-eval" ]]; then
+    printf '%s\n' "${wanted%-eval}"
+  else
+    printf '%s\n' "$wanted-eval"
+  fi
+}
+
+checkPlatform() {
+
+  local xml="$1"
+  local platform compat
+
+  platform=$(getPlatform "$xml") || return 1
+
+  case "${platform,,}" in
+    "x86" ) compat="x64" ;;
+    "x64" ) compat="$platform" ;;
+    "arm64" ) compat="$platform" ;;
+    "mixed" )
+      error "Windows images with mixed architectures are not supported!"
+      return 1
+      ;;
+    * ) compat="${PLATFORM,,}" ;;
+  esac
+
+  [[ "${compat,,}" == "${PLATFORM,,}" ]] && return 0
+
+  error "You cannot boot ${platform^^} images on a $PLATFORM CPU!"
+  return 1
+}
+
+getPlatform() {
+
+  local xml="$1"
+
+  local output platform="x64"
+  local x86 x64 arm64 count=0 value
+  local -a counts=()
+
+  if ! output=$(xmlstarlet sel \
+    -T -t \
+    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="0"])' -n \
+    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="9"])' -n \
+    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="12"])' -n \
+    - 2>/dev/null <<< "$xml"); then
+    return 1
+  fi
+
+  mapfile -t counts <<< "$output"
+
+  if (( ${#counts[@]} != 3 )); then
+    error "Failed to read architecture counts from WIM metadata!"
+    return 1
+  fi
+
+  for value in "${counts[@]}"; do
+    if [[ ! "$value" =~ ^[0-9]+$ ]]; then
+      error "Invalid architecture count in WIM metadata: '$value'"
+      return 1
+    fi
+  done
+
+  x86="${counts[0]}"
+  x64="${counts[1]}"
+  arm64="${counts[2]}"
+
+  (( x86 > 0 )) && ((count += 1))
+  (( x64 > 0 )) && ((count += 1))
+  (( arm64 > 0 )) && ((count += 1))
+
+  if (( count > 1 )); then
+    platform="mixed"
+  elif (( x86 > 0 )); then
+    platform="x86"
+  elif (( arm64 > 0 )); then
+    platform="arm64"
+  fi
+
+  echo "$platform"
+  return 0
 }
 
 canUseSetupImage() {
@@ -1079,15 +1065,8 @@ readIsoImageInfo() {
   # The metadata flag 0x02 is expected and deliberately allowed.
   (( !(xml_flags & 0x1c) )) || return 1
 
-  result=$(
-    udfread range \
-      --ignore-case \
-      "$iso" \
-      "$image" \
-      "$xml_offset" \
-      "$xml_size" \
-      2>/dev/null |
-      iconv -f UTF-16LE -t UTF-8 2>/dev/null
+  result=$(udfread range --ignore-case "$iso" "$image" "$xml_offset" "$xml_size" \
+           2>/dev/null | iconv -f UTF-16LE -t UTF-8 2>/dev/null
   ) || {
     local rc=$?
 
