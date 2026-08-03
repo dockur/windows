@@ -820,125 +820,48 @@ getESD() {
 
   fi
 
-  local xml="$dir/$xmlFile"
-
-  if [ ! -s "$xml" ]; then
+  if [ ! -f "$dir/$xmlFile" ] || [ ! -s "$dir/$xmlFile" ]; then
     error "Failed to find $xmlFile in $file!"
     return 1
   fi
 
-  local files="//*[local-name()='File']"
-  local values="$dir/.catalog-values"
-  local -a architectures=()
-  local -a editions=()
-  local -a cultures=()
-  local -a paths=()
-  local -a sums=()
-  local -a sizes=()
+  local upper='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  local lower='abcdefghijklmnopqrstuvwxyz'
+  local files="//*[local-name()='File'][translate(normalize-space(*[local-name()='Architecture']), '$upper', '$lower')='${PLATFORM,,}']"
 
-  if ! xmlstarlet sel -T -t \
-    -m "$files" \
-    -v "normalize-space(*[local-name()='Architecture'])" -n \
-    "$xml" > "$values"; then
+  if [ -n "$edition" ]; then
+    files+="[translate(normalize-space(*[local-name()='Edition']), '$upper', '$lower')='${edition,,}']"
+  fi
+
+  local localized="$files[translate(normalize-space(*[local-name()='LanguageCode']), '$upper', '$lower')='${culture,,}']"
+  local selected="($localized)[1]"
+  local result separator=$'\x1f'
+  local file_count language_count
+
+  if ! result=$(xmlstarlet sel \
+    -T -t \
+    -v "count($files)" -o "$separator" \
+    -v "count($localized)" -o "$separator" \
+    -v "string($selected/*[local-name()='FilePath'])" -o "$separator" \
+    -v "normalize-space(string($selected/*[local-name()='Sha1']))" -o "$separator" \
+    -v "normalize-space(string($selected/*[local-name()='Size']))" \
+    "$dir/$xmlFile" 2>/dev/null); then
+
     error "Failed to parse $xmlFile!"
     return 1
   fi
-  mapfile -t architectures < "$values"
 
-  if ! xmlstarlet sel -T -t \
-    -m "$files" \
-    -v "normalize-space(*[local-name()='Edition'])" -n \
-    "$xml" > "$values"; then
-    error "Failed to parse $xmlFile!"
-    return 1
-  fi
-  mapfile -t editions < "$values"
+  IFS="$separator" read -r \
+    file_count language_count ESD ESD_SUM ESD_SIZE <<< "$result"
 
-  if ! xmlstarlet sel -T -t \
-    -m "$files" \
-    -v "normalize-space(*[local-name()='LanguageCode'])" -n \
-    "$xml" > "$values"; then
-    error "Failed to parse $xmlFile!"
-    return 1
-  fi
-  mapfile -t cultures < "$values"
-
-  if ! xmlstarlet sel -T -t \
-    -m "$files" \
-    -v "string(*[local-name()='FilePath'])" -n \
-    "$xml" > "$values"; then
-    error "Failed to parse $xmlFile!"
-    return 1
-  fi
-  mapfile -t paths < "$values"
-
-  if ! xmlstarlet sel -T -t \
-    -m "$files" \
-    -v "normalize-space(*[local-name()='Sha1'])" -n \
-    "$xml" > "$values"; then
-    error "Failed to parse $xmlFile!"
-    return 1
-  fi
-  mapfile -t sums < "$values"
-
-  if ! xmlstarlet sel -T -t \
-    -m "$files" \
-    -v "normalize-space(*[local-name()='Size'])" -n \
-    "$xml" > "$values"; then
-    error "Failed to parse $xmlFile!"
-    return 1
-  fi
-  mapfile -t sizes < "$values"
-
-  rm -f "$values"
-
-  local count="${#architectures[@]}"
-
-  if [ "${#editions[@]}" -ne "$count" ] ||
-    [ "${#cultures[@]}" -ne "$count" ] ||
-    [ "${#paths[@]}" -ne "$count" ] ||
-    [ "${#sums[@]}" -ne "$count" ] ||
-    [ "${#sizes[@]}" -ne "$count" ]; then
-    error "Failed to read consistent records from $xmlFile!"
-    return 1
-  fi
-
-  local index
-  local file_match=0
-  local language_match=0
-
-  ESD=""
-  ESD_SUM=""
-  ESD_SIZE=""
-
-  for index in "${!architectures[@]}"; do
-
-    [ "${architectures[$index],,}" = "${PLATFORM,,}" ] || continue
-
-    if [ -n "$edition" ] &&
-      [ "${editions[$index],,}" != "${edition,,}" ]; then
-      continue
-    fi
-
-    file_match=1
-
-    [ "${cultures[$index],,}" = "${culture,,}" ] || continue
-
-    language_match=1
-    ESD="${paths[$index]}"
-    ESD_SUM="${sums[$index]}"
-    ESD_SIZE="${sizes[$index]}"
-    break
-
-  done
-
-  if (( ! file_match )); then
+  if [ "$file_count" = "0" ]; then
     desc=$(printEdition "$version" "$desc" "Y")
+    language=$(getLanguage "$lang" "desc")
     error "No download link available for $desc!"
     return 1
   fi
 
-  if (( ! language_match )); then
+  if [ "$language_count" = "0" ]; then
     desc=$(printEdition "$version" "$desc" "Y")
     language=$(getLanguage "$lang" "desc")
     error "No download in the $language language available for $desc!"
