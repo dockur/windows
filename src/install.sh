@@ -526,16 +526,6 @@ checkFreeSpace() {
   return 0
 }
 
-getEsdField() {
-
-  local list="$1"
-  local index="$2"
-
-  sed -n "${index}p" <<< "$list" | tr -cd '0-9'
-
-  return 0
-}
-
 extractESD() {
 
   local iso="$1"
@@ -543,11 +533,15 @@ extractESD() {
   local version="$3"
   local desc="$4"
 
-  local info count totals links
   local bootTotal bootLinks
   local wimTotal wimLinks
   local installSize size
   local edition imgEdition
+  local bootWim installWim
+  local bootSize wimSize
+  local index line ret
+  local xml metadata count
+  local -a fields
 
   local minSize=100000000
   local freeSpace=9606127360
@@ -579,12 +573,28 @@ extractESD() {
 
   checkFreeSpace "$dir" "$freeSpace" || return 1
 
-  info=$(wimlib-imagex info "$iso") || {
+  if ! xml=$(wimlib-imagex info "$iso" --xml 2>/dev/null |
+      iconv -f UTF-16LE -t UTF-8 2>/dev/null); then
     error "Cannot read ESD file information!"
     return 1
-  }
+  fi
 
-  count=$(awk '/Image Count:/ {print $3}' <<< "$info")
+  if ! metadata=$(xmlstarlet sel -t \
+      -v 'count(/WIM/IMAGE)' -n \
+      -v 'normalize-space(/WIM/IMAGE[@INDEX="1"]/TOTALBYTES)' -n \
+      -v 'normalize-space(/WIM/IMAGE[@INDEX="1"]/HARDLINKBYTES)' -n \
+      -v 'normalize-space(/WIM/IMAGE[@INDEX="3"]/TOTALBYTES)' -n \
+      -v 'normalize-space(/WIM/IMAGE[@INDEX="3"]/HARDLINKBYTES)' -n \
+      -m '/WIM/IMAGE[number(@INDEX) >= 4]' \
+      -v '@INDEX' -o $'\t' -v 'DESCRIPTION' -n \
+      <<< "$xml" 2>/dev/null); then
+    error "Cannot read ESD file information!"
+    return 1
+  fi
+
+  mapfile -t fields <<< "$metadata"
+
+  count="${fields[0]:-}"
   if [[ ! "$count" =~ ^[0-9]+$ ]]; then
     error "Cannot read the image count in ESD file!"
     return 1
@@ -595,34 +605,33 @@ extractESD() {
     return 1
   fi
 
-  totals=$(grep "Total Bytes:" <<< "$info" || true)
-  links=$(grep "Hard Link Bytes:" <<< "$info" || true)
+  bootTotal="${fields[1]:-}"
+  bootLinks="${fields[2]:-}"
 
-  bootTotal=$(getEsdField "$totals" 1)
-  bootLinks=$(getEsdField "$links" 1)
-
-  if [[ ! "$bootTotal" =~ ^[0-9]+$ ]] || [[ ! "$bootLinks" =~ ^[0-9]+$ ]]; then
+  if [[ ! "$bootTotal" =~ ^[0-9]+$ ]] ||
+      [[ ! "$bootLinks" =~ ^[0-9]+$ ]]; then
     error "Cannot read bootdisk size from ESD file!"
     return 1
   fi
 
-  local bootSize=$(( bootTotal - bootLinks ))
+  bootSize=$(( bootTotal - bootLinks ))
 
-  wimTotal=$(getEsdField "$totals" 3)
-  wimLinks=$(getEsdField "$links" 3)
+  wimTotal="${fields[3]:-}"
+  wimLinks="${fields[4]:-}"
 
-  if [[ ! "$wimTotal" =~ ^[0-9]+$ ]] || [[ ! "$wimLinks" =~ ^[0-9]+$ ]]; then
+  if [[ ! "$wimTotal" =~ ^[0-9]+$ ]] ||
+      [[ ! "$wimLinks" =~ ^[0-9]+$ ]]; then
     error "Cannot read boot.wim size from ESD file!"
     return 1
   fi
 
-  local wimSize=$(( wimTotal - wimLinks + bootPad ))
+  wimSize=$(( wimTotal - wimLinks + bootPad ))
 
   /run/progress.sh "$dir" "$bootSize" "$msg ([P])..." &
 
-  local index="1"
+  index="1"
   wimlib-imagex apply "$iso" "$index" "$dir" --quiet 2>/dev/null || {
-    local ret=$?
+    ret=$?
     fKill "progress.sh"
     error "Extracting $desc bootdisk failed ($ret)"
     return 1
@@ -630,8 +639,8 @@ extractESD() {
 
   fKill "progress.sh"
 
-  local bootWim="$dir/sources/boot.wim"
-  local installWim="$dir/sources/install.wim"
+  bootWim="$dir/sources/boot.wim"
+  installWim="$dir/sources/install.wim"
 
   msg="Extracting $desc environment"
   info "$msg..." && html "$msg..."
@@ -639,8 +648,9 @@ extractESD() {
   index="2"
   /run/progress.sh "$bootWim" "$wimSize" "$msg ([P])..." &
 
-  wimlib-imagex export "$iso" "$index" "$bootWim" --compress=none --quiet || {
-    local ret=$?
+  wimlib-imagex export "$iso" "$index" "$bootWim" \
+    --compress=none --quiet || {
+    ret=$?
     fKill "progress.sh"
     error "Adding WinPE failed ($ret)"
     return 1
@@ -654,8 +664,9 @@ extractESD() {
   index="3"
   /run/progress.sh "$bootWim" "$wimSize" "$msg ([P])..." &
 
-  wimlib-imagex export "$iso" "$index" "$bootWim" --compress=none --boot --quiet || {
-    local ret=$?
+  wimlib-imagex export "$iso" "$index" "$bootWim" \
+    --compress=none --boot --quiet || {
+    ret=$?
     fKill "progress.sh"
     error "Adding Windows Setup failed ($ret)"
     return 1
@@ -678,18 +689,19 @@ extractESD() {
     return 1
   fi
 
-  for (( index=4; index<=count; index++ )); do
+  for line in "${fields[@]:5}"; do
 
-    imgEdition=$(wimlib-imagex info "$iso" "$index" | grep '^Description:' | sed 's/Description:[ \t]*//')
+    IFS=$'\t' read -r index imgEdition <<< "$line"
+
+    [[ ! "$index" =~ ^[0-9]+$ ]] && continue
     [[ "${imgEdition,,}" != "${edition,,}" ]] && continue
 
-    installSize=$(stat -c%s "$iso")
-    installSize=$(( installSize + installPad ))
+    installSize=$(( size + installPad ))
 
     /run/progress.sh "$installWim" "$installSize" "$msg ([P])..." &
 
     wimlib-imagex export "$iso" "$index" "$installWim" --quiet || {
-      local ret=$?
+      ret=$?
       fKill "progress.sh"
       error "Addition of $index to the $desc image failed ($ret)"
       return 1
