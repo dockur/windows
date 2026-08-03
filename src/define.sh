@@ -1023,16 +1023,11 @@ isLegacy() {
 
 switchEdition() {
 
-  local -n se_id="$1"
+  local version="$1"
 
-  [[ "${se_id,,}" == *"-eval" ]] || return 1
+  [[ "${version,,}" == *"-eval" ]] || return 1
 
-  se_id="${se_id::-5}"
-
-  if ! enabled "${DETECTED_ORG:-}"; then
-    DETECTED="${SUGGEST:-$se_id}"
-  fi
-
+  echo "${version::-5}"
   return 0
 }
 
