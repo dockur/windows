@@ -165,11 +165,7 @@ generateAnswerFile() {
   fi
 
   if [ -n "$index" ]; then
-    install_count=$(xmlstarlet sel \
-      -N "u=$ns" \
-      -T -t \
-      -v "count($install_from)" \
-      "$tmp") || {
+    install_count=$(getXMLNodeCount "$tmp" "$install_from") || {
       rm -f "$tmp"
       return 1
     }
@@ -181,11 +177,7 @@ generateAnswerFile() {
     fi
 
     if [ "$install_count" = "0" ]; then
-      install_to_count=$(xmlstarlet sel \
-        -N "u=$ns" \
-        -T -t \
-        -v "count($install_to)" \
-        "$tmp") || {
+      install_to_count=$(getXMLNodeCount "$tmp" "$install_to") || {
         rm -f "$tmp"
         return 1
       }
@@ -1841,11 +1833,7 @@ updateEditionXML() {
 
   [ -n "${EDITION:-}" ] || return 0
 
-  count=$(xmlstarlet sel \
-    -N "u=$ns" \
-    -T -t \
-    -v "count($selector)" \
-    "$asset") || return 1
+  count=$(getXMLNodeCount "$asset" "$selector") || return 1
 
   # Client and index-based answer files do not contain an /IMAGE/NAME
   # selector. In that case there is nothing to update.
@@ -1934,11 +1922,7 @@ updateDiskID() {
     * ) return 1 ;;
   esac
 
-  count=$(xmlstarlet sel \
-    -N "u=$ns" \
-    -T -t \
-    -v "count($disk_ids)" \
-    "$asset") || {
+  count=$(getXMLNodeCount "$asset" "$disk_ids") || {
     error "Failed to read DiskID values from answer file: $asset"
     return 1
   }
@@ -2030,14 +2014,14 @@ setConfigurationXML() {
 
   [ -s "$asset" ] || return 1
 
-  setup_count=$(xmlstarlet sel -T -t -v "count($setup)" "$asset") || return 1
+  setup_count=$(getXMLNodeCount "$asset" "$setup") || return 1
 
   if [ "$setup_count" != "1" ]; then
     error "Failed to find a unique Microsoft-Windows-Setup component: $asset"
     return 1
   fi
 
-  config_count=$(xmlstarlet sel -T -t -v "count($config)" "$asset") || return 1
+  config_count=$(getXMLNodeCount "$asset" "$config") || return 1
 
   if [ "$config_count" -gt 1 ]; then
     error "Multiple UseConfigurationSet entries found in answer file: $asset"
@@ -2131,10 +2115,8 @@ XSL
     return 1
   fi
 
-  result_count=$(xmlstarlet sel \
-    -T -t \
-    -v "count($config[normalize-space(.)='true'])" \
-    "$result") || {
+  result_count=$(getXMLNodeCount \
+    "$result" "$config[normalize-space(.)='true']") || {
     rm -rf "$tmp"
     return 1
   }
@@ -2145,9 +2127,7 @@ XSL
     return 1
   fi
 
-  if ! chmod --reference="$asset" "$result" ||
-    ! mv -f "$result" "$asset"; then
-
+  if ! replaceXMLAsset "$asset" "$result"; then
     rm -rf "$tmp"
     error "Failed to replace the updated answer file!"
     return 1
