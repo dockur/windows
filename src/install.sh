@@ -98,7 +98,7 @@ selectWindowsImage() {
   return 0
 }
 
-configureWindowsMachine() {
+configureMachine() {
 
   local iso="$1"
   local dir="$2"
