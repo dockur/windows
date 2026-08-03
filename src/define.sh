@@ -934,7 +934,7 @@ getVersion() {
   return 0
 }
 
-skipVersion() {
+isNT5() {
 
   local id="$1"
 
@@ -959,14 +959,13 @@ isLegacy() {
   return 1
 }
 
-bootDirect() {
+supportsUnattended() {
 
   local id="$1"
 
-  # ReactOS must boot from its original media and does not use the Windows
-  # setup-overlay or rebuilt-image paths.
   case "${id,,}" in
-    "reactos" ) return 0 ;;
+    "win9"* | "reactos" )
+      return 0 ;;
   esac
 
   return 1
