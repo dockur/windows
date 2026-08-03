@@ -72,7 +72,7 @@ stageAnswer() {
     error "Failed to enable the Windows configuration set!"
     return 1
   fi
-
+ 
   validateGeneratedXML "$answer" || return 1
 
   if [ -z "${CUSTOM_XML:-}" ]; then
