@@ -907,7 +907,7 @@ setMachine() {
 
     writeState "mode" "windows_legacy" || return 1
 
-    case "${id,,}" in 
+    case "${id,,}" in
       "win9"* | "win2k"* | "reactos" )
         writeState "vga" "cirrus" || return 1 ;;
       * )
