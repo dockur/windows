@@ -88,26 +88,20 @@ getVersionPriority() {
 
   local id="${1,,}"
   local base="${2,,}"
-  local order_name="EDITION_ORDER"
   local entry priority patterns pattern
   local result="other" score best_score=-1
+  local -a order=()
 
   id="${id%-eval}"
 
-  case "$base" in
-    "win20"* )
-      order_name="SERVER_EDITION_ORDER"
-      ;;
-  esac
-
-  local -n order_ref="$order_name"
+  getEditionOrder "$base" order || return 1
 
   local edition="${id#"$base"}"
   edition="${edition#-}"
 
   # Use the most specific matching pattern. This prevents broad patterns
   # such as enterprise-* from taking precedence over enterprise-iot-*.
-  for entry in "${order_ref[@]}"; do
+  for entry in "${order[@]}"; do
 
     IFS='|' read -r _ priority patterns <<< "$entry"
 
