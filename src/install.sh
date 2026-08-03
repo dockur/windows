@@ -18,79 +18,139 @@ startWindows() {
     fi
   fi
 
-  local extracted=0
+  proceed=0
+  extracted=0
+
   local boot="$BOOT"
   local dir="$TMP/unpack"
 
+  selectWindowsImage "$ISO" "$dir" "$boot" || return $?
+  (( proceed )) || return 0
+
+  configureMachine "$ISO" "$dir" "$boot" || return $?
+  (( proceed )) || return 0
+
+  prepareWindowsImage "$ISO" "$dir" "$boot" || return $?
+  (( proceed )) || return 0
+
+  finishInstall "$BOOT" "N" "$boot" || return 100
+
+  return 0
+}
+
+selectWindowsImage() {
+
+  local iso="$1"
+  local dir="$2"
+  local boot="$3"
+  local detect_rc=0
+
+  proceed=0
+
+  # If VERSION is specified we don't need the image metadata.
   if resolveImage "$VERSION"; then
 
     if ! setImage; then
-      abortInstall "$dir" "$ISO" "$boot" || return 70
+      abortInstall "$dir" "$iso" "$boot" || return 70
       return 0
     fi
 
-    if needsExtraction "$DETECTED" "$ISO"; then
-      if ! extractImage "$ISO" "$dir" "$VERSION"; then
-        removeIso "$ISO" && return 72
-      fi
-
-      extracted=1
+    # Some known image types still require extraction.
+    if ! needsExtraction "$DETECTED" "$iso"; then
+      proceed=1
+      return 0
     fi
 
-  else
+    if ! extractImage "$iso" "$dir" "$VERSION"; then
+      removeIso "$iso" && return 72
+    fi
 
-    local detect_rc=0
-    detectIsoImage "$ISO" || detect_rc=$?
-
-    case "$detect_rc" in
-
-      0 ) ;;
-      1 )
-  
-        if ! extractImage "$ISO" "$dir" "$VERSION"; then
-          removeIso "$ISO" && return 74
-        fi
-
-        extracted=1
-
-        if ! detectImage "$dir"; then
-          abortInstall "$dir" "$ISO" "$boot" || return 76
-          return 0
-        fi ;;
-
-      * )
-        abortInstall "$dir" "$ISO" "$boot" || return 76
-        return 0 ;;
-
-    esac
+    extracted=1
+    proceed=1
+    return 0
 
   fi
 
-  local desc
-  if ! desc=$(printVariant "$DETECTED" "$DETECTED"); then
-    abortInstall "$dir" "$ISO" "$boot" || return 78
+  # Inspect unknown/custom ISOs before falling back to extraction.
+  detectIsoImage "$iso" || detect_rc=$?
+
+  # Detection succeeded, so the original ISO can remain untouched.
+  if (( detect_rc == 0 )); then
+    proceed=1
     return 0
   fi
 
-  if ! setMachine "$DETECTED" "$ISO" "$dir" "$desc"; then
-    abortInstall "$dir" "$ISO" "$boot" || return 80
+  # Only return code 1 means direct inspection was unavailable and extraction
+  # may still recover the image. Other failures indicate unusable media.
+  if (( detect_rc != 1 )); then
+    abortInstall "$dir" "$iso" "$boot" || return 76
+    return 0
+  fi
+
+  if ! extractImage "$iso" "$dir" "$VERSION"; then
+    removeIso "$iso" && return 74
+  fi
+
+  extracted=1
+
+  # The legacy detector operates on the extracted filesystem.
+  if ! detectImage "$dir"; then
+    abortInstall "$dir" "$iso" "$boot" || return 76
+    return 0
+  fi
+
+  proceed=1
+  return 0
+}
+
+configureMachine() {
+
+  local iso="$1"
+  local dir="$2"
+  local boot="$3"
+  local desc
+
+  proceed=0
+
+  if ! desc=$(printVariant "$DETECTED" "$DETECTED"); then
+    abortInstall "$dir" "$iso" "$boot" || return 78
+    return 0
+  fi
+
+  if ! setMachine "$DETECTED" "$iso" "$dir" "$desc"; then
+    abortInstall "$dir" "$iso" "$boot" || return 80
     return 0
   fi
 
   if ! restoreMachineState; then
-    abortInstall "$dir" "$ISO" "$boot" || return 82
+    abortInstall "$dir" "$iso" "$boot" || return 82
     return 0
   fi
 
+  # Some media must boot directly and skip all preparation.
   if bootDirect "$DETECTED"; then
-    abortInstall "$dir" "$ISO" "$boot" || return 83
+    abortInstall "$dir" "$iso" "$boot" || return 83
     return 0
   fi
 
-  if canUseSetupImage "$DETECTED" "$ISO"; then
+  proceed=1
+  return 0
+}
+
+prepareWindowsImage() {
+
+  local iso="$1"
+  local dir="$2"
+  local boot="$3"
+
+  proceed=0
+
+  # Prefer the helper image method whenever Windows Setup can consume the original
+  # ISO directly. This avoids extracting and rebuilding the whole installation media.
+  if canUseSetupImage "$DETECTED" "$iso"; then
 
     if ! stageSetup "$XML" "$LANGUAGE" "$TMP/setup"; then
-      abortInstall "$dir" "$ISO" "$boot" || return 84
+      abortInstall "$dir" "$iso" "$boot" || return 84
       return 0
     fi
 
@@ -98,33 +158,35 @@ startWindows() {
       exit 86
     fi
 
-    useOriginalImage "$ISO" || return 88
+    useOriginalImage "$iso" || return 88
 
-  else
-
-    if (( ! extracted )); then
-      if ! extractImage "$ISO" "$dir" "$VERSION"; then
-        removeIso "$ISO" && return 90
-      fi
-    fi
-
-    if ! prepareImage "$ISO" "$dir"; then
-      abortInstall "$dir" "$ISO" "$boot" || return 92
-      return 0
-    fi
-
-    if ! updateImage "$dir" "$XML" "$LANGUAGE"; then
-      abortInstall "$dir" "$ISO" "$boot" || return 94
-      return 0
-    fi
-
-    removeImage "$ISO" || return 96
-    buildImage "$dir" || return 98
+    proceed=1
+    return 0
 
   fi
 
-  finishInstall "$BOOT" "N" "$boot" || return 100
+  # Fall back to extracting and rebuilding when Setup cannot use the original
+  # ISO directly, such as legacy media or formats requiring in-place changes.
+  if (( ! extracted )); then
+    if ! extractImage "$iso" "$dir" "$VERSION"; then
+      removeIso "$iso" && return 90
+    fi
+  fi
 
+  if ! prepareImage "$iso" "$dir"; then
+    abortInstall "$dir" "$iso" "$boot" || return 92
+    return 0
+  fi
+
+  if ! updateImage "$dir" "$XML" "$LANGUAGE"; then
+    abortInstall "$dir" "$iso" "$boot" || return 94
+    return 0
+  fi
+
+  removeImage "$iso" || return 96
+  buildImage "$dir" || return 98
+
+  proceed=1
   return 0
 }
 
