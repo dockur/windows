@@ -1293,6 +1293,10 @@ downloadImage() {
     fi
   fi
 
+  if [[ "$tried" == "n" ]]; then
+    error "No download method is available for $desc!"
+  fi
+
   return 1
 }
 
