@@ -993,21 +993,20 @@ prepareImage() {
 
   desc=$(printVariant "$DETECTED" "$DETECTED")
 
-  # Legacy rebuilt media must retain the source ISO's El Torito boot-load size.
-  if [[ "${BOOT_MODE,,}" == "windows_legacy" &&
-    "${DETECTED,,}" != "win9"* ]]; then
-    getBootLoadSize "$iso" "$dir" "$desc" || return 1
-  fi
-
-  skipVersion "$DETECTED" && return 0
-
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+
+    # Rebuilt legacy media must retain the El Torito boot image.
+    if [[ "${DETECTED,,}" != "win9"* ]]; then
+      getBootLoadSize "$iso" "$dir" "$desc" || return 1
+    fi
 
     extractBootImage "$iso" "$dir" "$desc" && return 0
 
     error "Failed to extract boot image from ISO image \"${iso}\"!"
     return 1
   fi
+
+  skipVersion "$DETECTED" && return 0
 
   EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 
