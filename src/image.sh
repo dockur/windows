@@ -1,35 +1,41 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-getPlatform() {
+hasVersion() {
 
-  local xml="$1"
-  local platform="x64"
-  local x86 x64 arm64 count=0
+  local wanted="$1"
+  shift
 
-  x86=$(xmllint --nonet --xpath 'count(/WIM/IMAGE/WINDOWS/ARCH[text()="0"])' - 2>/dev/null <<< "$xml") || x86=0
-  x64=$(xmllint --nonet --xpath 'count(/WIM/IMAGE/WINDOWS/ARCH[text()="9"])' - 2>/dev/null <<< "$xml") || x64=0
-  arm64=$(xmllint --nonet --xpath 'count(/WIM/IMAGE/WINDOWS/ARCH[text()="12"])' - 2>/dev/null <<< "$xml") || arm64=0
+  local actual
 
-  (( x86 > 0 )) && ((count++))
-  (( x64 > 0 )) && ((count++))
-  (( arm64 > 0 )) && ((count++))
+  for actual in "$@"; do
+    [[ "${actual,,}" == "${wanted,,}" ]] || continue
+    echo "$actual"
+    return 0
+  done
 
-  if (( count > 1 )); then
-    platform="mixed"
-  elif (( x86 > 0 )); then
-    platform="x86"
-  elif (( arm64 > 0 )); then
-    platform="arm64"
+  return 1
+}
+
+getCompatibleVersions() {
+
+  local wanted="$1"
+
+  printf '%s\n' "$wanted"
+
+  # Treat normal and Evaluation variants of the same edition as compatible.
+  # The exact requested variant is always checked first.
+  if [[ "${wanted,,}" == *"-eval" ]]; then
+    printf '%s\n' "${wanted%-eval}"
+  else
+    printf '%s\n' "$wanted-eval"
   fi
-
-  echo "$platform"
-  return 0
 }
 
 checkPlatform() {
 
   local xml="$1"
+
   local platform compat
 
   platform=$(getPlatform "$xml")
@@ -51,50 +57,69 @@ checkPlatform() {
   return 1
 }
 
-hasVersion() {
+getPlatform() {
 
-  local wanted="$1"
-  shift
+  local xml="$1"
 
-  local actual
+  local output platform="x64"
+  local x86 x64 arm64 count=0 value
+  local -a counts=()
 
-  for actual in "$@"; do
-    [[ "${actual,,}" == "${wanted,,}" ]] || continue
-    echo "$actual"
-    return 0
+  if ! output=$(xmlstarlet sel \
+    -T -t \
+    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="0"])' -n \
+    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="9"])' -n \
+    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="12"])' -n \
+    - 2>/dev/null <<< "$xml"); then
+    return 1
+  fi
+
+  mapfile -t counts <<< "$output"
+
+  if (( ${#counts[@]} != 3 )); then
+    error "Failed to read architecture counts from WIM metadata!"
+    return 1
+  fi
+
+  for value in "${counts[@]}"; do
+    if [[ ! "$value" =~ ^[0-9]+$ ]]; then
+      error "Invalid architecture count in WIM metadata: '$value'"
+      return 1
+    fi
   done
 
-  return 1
-}
+  x86="${counts[0]}"
+  x64="${counts[1]}"
+  arm64="${counts[2]}"
 
-getCompatibleVersions() {
+  (( x86 > 0 )) && ((count += 1))
+  (( x64 > 0 )) && ((count += 1))
+  (( arm64 > 0 )) && ((count += 1))
 
-  local wanted="$1"
-  local result_name="$2"
-  local -n result_ref="$result_name"
-
-  result_ref=("$wanted")
-
-  # Treat normal and Evaluation variants of the same edition as compatible.
-  # The exact requested variant is always checked first.
-  if [[ "${wanted,,}" == *"-eval" ]]; then
-    result_ref+=("${wanted%-eval}")
-  else
-    result_ref+=("$wanted-eval")
+  if (( count > 1 )); then
+    platform="mixed"
+  elif (( x86 > 0 )); then
+    platform="x86"
+  elif (( arm64 > 0 )); then
+    platform="arm64"
   fi
+
+  echo "$platform"
+  return 0
 }
 
 getVersionPriority() {
 
   local id="${1,,}"
   local base="${2,,}"
+
   local entry priority patterns pattern
   local result="other" score best_score=-1
   local -a order=()
 
   id="${id%-eval}"
 
-  getEditionOrder "$base" order || return 1
+  mapfile -t order < <(getEditionOrder "$base")
 
   local edition="${id#"$base"}"
   edition="${edition#-}"
@@ -140,37 +165,65 @@ getVersions() {
   local bases_name="$3"
   local groups_name="$4"
   local indexes_name="$5"
-  local -n versions_ref="$versions_name"
+
   local -n bases_ref="$bases_name"
   local -n groups_ref="$groups_name"
   local -n indexes_ref="$indexes_name"
+  local -n versions_ref="$versions_name"
 
-  local count image image_index
-  local display product platform
-  local edition_id install_type
-  local candidate flags i
+  local platform image_count records record_count=0
+  local image_index display product image edition_id
+  local install_type flags candidate candidate_id
+  local candidate_base evaluation key name structured
+  local separator=$'\x1f'
 
-  versions_ref=()
   bases_ref=()
   groups_ref=()
   indexes_ref=()
+  versions_ref=()
 
   platform=$(getPlatform "$xml") || return 1
-  count=$(xmllint --nonet --xpath 'count(/WIM/IMAGE)' - 2>/dev/null <<< "$xml") || return 0
 
-  for ((i=1; i<=count; i++)); do
+  image_count=$(xmlstarlet sel -T -t -v 'count(/WIM/IMAGE)' - 2>/dev/null <<< "$xml") || return 1
 
-    image_index=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/@INDEX)" - 2>/dev/null <<< "$xml") || continue
-    display=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/DISPLAYNAME)" - 2>/dev/null <<< "$xml") || display=""
-    product=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/WINDOWS/PRODUCTNAME)" - 2>/dev/null <<< "$xml") || product=""
-    image=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/NAME)" - 2>/dev/null <<< "$xml") || image=""
-    edition_id=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/WINDOWS/EDITIONID)" - 2>/dev/null <<< "$xml") || edition_id=""
-    install_type=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/WINDOWS/INSTALLATIONTYPE)" - 2>/dev/null <<< "$xml") || install_type=""
-    flags=$(xmllint --nonet --xpath "string(/WIM/IMAGE[$i]/FLAGS)" - 2>/dev/null <<< "$xml") || flags=""
+  if [[ ! "$image_count" =~ ^[0-9]+$ ]]; then
+    error "Invalid image count in WIM metadata: '$image_count'"
+    return 1
+  fi
+
+  (( image_count > 0 )) || return 0
+
+  # Keep one compact record per image. XML 1.0 cannot contain U+001F, so it
+  # can safely separate fields while all edition logic remains in Bash.
+  if ! records=$(xmlstarlet sel \
+    -T -t \
+    -m '/WIM/IMAGE' \
+      -v 'normalize-space(@INDEX)' -o "$separator" \
+      -v 'normalize-space(DISPLAYNAME)' -o "$separator" \
+      -v 'normalize-space(WINDOWS/PRODUCTNAME)' -o "$separator" \
+      -v 'normalize-space(NAME)' -o "$separator" \
+      -v 'normalize-space(WINDOWS/EDITIONID)' -o "$separator" \
+      -v 'normalize-space(WINDOWS/INSTALLATIONTYPE)' -o "$separator" \
+      -v 'normalize-space(FLAGS)' -n \
+    - 2>/dev/null <<< "$xml"); then
+    error "Failed to read image records from WIM metadata!"
+
+    return 1
+  fi
+
+  while IFS="$separator" read -r image_index display product image edition_id install_type flags; do
+
+    ((record_count += 1))
 
     [ -n "$image_index" ] || continue
-    local candidate_id=""
-    local candidate_base=""
+
+    if [[ ! "$image_index" =~ ^[1-9][0-9]*$ ]]; then
+      warn "Invalid image index in WIM metadata: '$image_index'"
+      continue
+    fi
+
+    candidate_id=""
+    candidate_base=""
 
     # NAME normally contains the most precise edition identifier (including
     # Server Core), while DISPLAYNAME is the best fallback for other images.
@@ -183,36 +236,36 @@ getVersions() {
       candidate_id=$(getVersion "$candidate" "$platform")
 
       [ -n "$candidate_base" ] && [ -n "$candidate_id" ] && break
+
     done
 
     if [ -z "$candidate_base" ] || [ -z "$candidate_id" ]; then
-      local name="${display:-${image:-$product}}"
+
+      name="${display:-${image:-$product}}"
       [ -n "$name" ] && warn "Unknown image name: '$name'"
+
       continue
+
     fi
 
-    local evaluation=""
+    evaluation=""
 
-    if [[ "${image,,}" == *"evaluation"* ||
-      "${display,,}" == *"evaluation"* ||
-      "${product,,}" == *"evaluation"* ||
-      "${edition_id,,}" == *"eval"* ||
-      "${flags,,}" == *"eval"* ]]; then
+    if [[ "${image,,}" == *"evaluation"* || "${display,,}" == *"evaluation"* ||
+      "${product,,}" == *"evaluation"* || "${edition_id,,}" == *"eval"* || "${flags,,}" == *"eval"* ]]; then
       evaluation="-eval"
     fi
 
-    if [ -n "$evaluation" ] &&
-      [[ "${candidate_id,,}" != *"-eval" ]]; then
+    if [ -n "$evaluation" ] && [[ "${candidate_id,,}" != *"-eval" ]]; then
       candidate_id+="$evaluation"
     fi
 
-    local key="${candidate_id,,}"
+    key="${candidate_id,,}"
 
     # Some client media use the same friendly name-derived ID for distinct
     # editions. Preserve the established unsuffixed Pro ID, and use the
     # structured edition metadata only to disambiguate a collision.
     if [[ -v "indexes_ref[$key]" ]]; then
-      local structured=""
+      structured=""
 
       case "${candidate_base,,}" in
         "winvista"* | "win7"* | "win8"* | "win10"* | "win11"* )
@@ -224,8 +277,7 @@ getVersions() {
           # Some media use the same EDITIONID for Core and Desktop images.
           # INSTALLATIONTYPE provides the structural distinction without
           # requiring a hardcoded marketing name.
-          if [[ "${install_type,,}" == *"core"* &&
-            "$structured" != *"-core" ]]; then
+          if [[ "${install_type,,}" == *"core"* && "$structured" != *"-core" ]]; then
             structured+="-core"
           fi
           ;;
@@ -243,11 +295,16 @@ getVersions() {
     fi
 
     indexes_ref["$key"]="$image_index"
-    versions_ref+=("$candidate_id")
-    bases_ref+=("$candidate_base")
-    groups_ref+=("$(getVersionPriority "$candidate_id" "$candidate_base")")
+    versions_ref+=( "$candidate_id" )
+    bases_ref+=( "$candidate_base" )
+    groups_ref+=( "$(getVersionPriority "$candidate_id" "$candidate_base")" )
 
-  done
+  done <<< "$records"
+
+  if (( record_count != image_count )); then
+    error "Expected $image_count image records in WIM metadata, found $record_count!"
+    return 1
+  fi
 
   return 0
 }
@@ -259,19 +316,21 @@ selectVersion() {
   local preferred_name="$3"
   local result_name="$4"
   local index_name="$5"
+
+  local -a candidates=()
   local -n version_list="$versions_name"
   local -n index_map="$indexes_name"
   local -n preference_list="$preferred_name"
   local -n selected_version="$result_name"
   local -n selected_image_index="$index_name"
-
   local wanted candidate match
-  local -a candidates=()
 
+  # A detected edition is only selectable when a matching answer file can
+  # actually be staged for it.
   for wanted in "${preference_list[@]}"; do
 
     [ -n "$wanted" ] || continue
-    getCompatibleVersions "$wanted" candidates
+    mapfile -t candidates < <(getCompatibleVersions "$wanted")
 
     for candidate in "${candidates[@]}"; do
 
@@ -301,15 +360,17 @@ selectEdition() {
   local index_name="$7"
   local normalize_name="$8"
   local order_name="$9"
-  local -n edition_versions="$versions_name"
-  local -n edition_bases="$bases_name"
-  local -n edition_groups="$groups_name"
-  local -n edition_order="$order_name"
 
-  local base edition entry suffix priority i
-  local -a preferred=()
   local -A seen=()
+  local -a preferred=()
+  local -n edition_bases="$bases_name"
+  local -n edition_order="$order_name"
+  local -n edition_groups="$groups_name"
+  local -n edition_versions="$versions_name"
+  local base edition entry suffix priority i
 
+  # Selection precedence is explicit EDITION, source suggestion, canonical
+  # edition order, then noncanonical editions from the same priority groups.
   if [ -n "$EDITION" ]; then
 
     for base in "${edition_bases[@]}"; do
@@ -317,12 +378,7 @@ selectEdition() {
       preferred+=("$base${edition:+-$edition}")
     done
 
-    if selectVersion \
-        "$versions_name" \
-        "$indexes_name" \
-        preferred \
-        "$result_name" \
-        "$index_name"; then
+    if selectVersion "$versions_name" "$indexes_name" preferred "$result_name" "$index_name"; then
       return 0
     fi
 
@@ -333,12 +389,7 @@ selectEdition() {
 
     preferred=("$suggested")
 
-    if selectVersion \
-        "$versions_name" \
-        "$indexes_name" \
-        preferred \
-        "$result_name" \
-        "$index_name"; then
+    if selectVersion "$versions_name" "$indexes_name" preferred "$result_name" "$index_name"; then
       return 0
     fi
 
@@ -357,18 +408,13 @@ selectEdition() {
 
   done
 
-  if selectVersion \
-      "$versions_name" \
-      "$indexes_name" \
-      preferred \
-      "$result_name" \
-      "$index_name"; then
+  if selectVersion "$versions_name" "$indexes_name" preferred "$result_name" "$index_name"; then
     return 0
   fi
 
   # Then try noncanonical editions from the same preference groups.
-  preferred=()
   seen=()
+  preferred=()
 
   for entry in "${edition_order[@]}"; do
 
@@ -384,66 +430,49 @@ selectEdition() {
 
   done
 
-  selectVersion \
-    "$versions_name" \
-    "$indexes_name" \
-    preferred \
-    "$result_name" \
-    "$index_name"
+  selectVersion "$versions_name" "$indexes_name" preferred "$result_name" "$index_name"
 }
 
 detectVersion() {
 
   local xml="$1"
   local suggested="${2:-}"
-  local result_name="$3"
-  local index_name="$4"
-
-  local normalize_name="normalizeEditionID"
 
   local -a bases=()
   local -a groups=()
   local -a versions=()
-  local -a selection_order=()
   local -A image_indexes=()
+  local -a selection_order=()
+  local result="" index=""
 
-  printf -v "$result_name" '%s' ""
-  printf -v "$index_name" '%s' ""
+  getVersions "$xml" versions bases groups image_indexes || return 1
 
-  getVersions \
-    "$xml" \
-    versions \
-    bases \
-    groups \
-    image_indexes || return 1
+  if [ "${#versions[@]}" -eq 0 ]; then
+    printf '%s\n%s\n' "$result" "$index"
+    return 0
+  fi
 
-  [ "${#versions[@]}" -eq 0 ] && return 0
+  local normalize="normalizeEditionID"
 
   case "${bases[0],,}" in
     "win20"* )
-      normalize_name="normalizeServerEditionID"
-      ;;
+      normalize="normalizeServerEditionID" ;;
   esac
 
-  getEditionOrder "${bases[0]}" selection_order || return 1
+  mapfile -t selection_order < <(getEditionOrder "${bases[0]}")
 
-  selectEdition \
-    versions \
-    bases \
-    groups \
-    image_indexes \
-    "$suggested" \
-    "$result_name" \
-    "$index_name" \
-    "$normalize_name" \
-    selection_order && return 0
+  if selectEdition versions bases groups image_indexes "$suggested" result index "$normalize" selection_order; then
+    printf '%s\n%s\n' "$result" "$index"
+    return 0
+  fi
 
-  local result="${versions[0]}"
+  # Keep the first detected image identity when no edition with a usable answer
+  # file was found, so manual and generic fallback handling can still continue.
+  result="${versions[0]}"
   local key="${result,,}"
+  index="${image_indexes[$key]}"
 
-  printf -v "$result_name" '%s' "$result"
-  printf -v "$index_name" '%s' "${image_indexes[$key]}"
-
+  printf '%s\n%s\n' "$result" "$index"
   return 0
 }
 
@@ -451,15 +480,30 @@ detectLanguage() {
 
   local xml="$1"
   local index="${2:-}"
-  local xpath lang culture
 
-  if [[ "$index" =~ ^[0-9]+$ ]]; then
-    xpath="string((/WIM/IMAGE[@INDEX='$index']/WINDOWS/LANGUAGES/DEFAULT | /WIM/IMAGE[@INDEX='$index']/WINDOWS/LANGUAGES/FALLBACK/DEFAULT)[1])"
-  else
-    xpath='string((/WIM/IMAGE/WINDOWS/LANGUAGES/DEFAULT | /WIM/IMAGE/WINDOWS/LANGUAGES/FALLBACK/DEFAULT)[1])'
+  local -a paths=()
+  local lang culture path
+  local image='/WIM/IMAGE'
+
+  if [[ "$index" =~ ^[1-9][0-9]*$ ]]; then
+    image="/WIM/IMAGE[@INDEX='$index']"
   fi
 
-  lang=$(xmllint --nonet --xpath "$xpath" - 2>/dev/null <<< "$xml") || lang=""
+  # Prefer the selected image's default language, then its fallback default,
+  # and finally the first listed language.
+  paths=(
+    "$image/WINDOWS/LANGUAGES/DEFAULT[1]"
+    "$image/WINDOWS/LANGUAGES/FALLBACK/DEFAULT[1]"
+    "$image/WINDOWS/LANGUAGES/LANGUAGE[1]"
+  )
+
+  lang=""
+
+  for path in "${paths[@]}"; do
+    lang=$(xmlstarlet sel -T -t -v "normalize-space(string(($path)[1]))" - 2>/dev/null <<< "$xml") || lang=""
+
+    [ -n "$lang" ] && break
+  done
 
   if [ -z "$lang" ]; then
     warn "Language could not be detected from ISO!"
@@ -481,10 +525,11 @@ getImageSize() {
 
   local stage="$1"
   local folder="${2:-}"
-  local mib=$((1024 * 1024))
-  local minimum=$((64 * mib))
+
   local size bytes path
   local required large_file
+  local mib=$((1024 * 1024))
+  local minimum=$((64 * mib))
   local payload=0 paths=("$stage")
 
   if [ ! -d "$stage" ]; then
@@ -494,11 +539,9 @@ getImageSize() {
 
   [ -n "$folder" ] && paths+=("$folder")
 
-  large_file=$(find -L "${paths[@]}" \
-    -type f \
-    -size +4294967295c \
-    -print \
-    -quit) || return 1
+  # The setup image uses FAT32, so reject files that cannot be represented even
+  # when the image itself has enough free space.
+  large_file=$(find -L "${paths[@]}" -type f -size +4294967295c -print -quit) || return 1
 
   if [ -n "$large_file" ]; then
     error "Setup file exceeds the FAT32 limit: $large_file"
@@ -506,18 +549,20 @@ getImageSize() {
   fi
 
   for path in "${paths[@]}"; do
-    if ! read -r bytes _ < <(
-      du -Llsb --apparent-size -- "$path"
-    ); then
+
+    if ! read -r bytes _ < <(du -Llsb --apparent-size -- "$path"); then
       error "Failed to calculate setup size!"
       return 1
     fi
 
     payload=$((payload + bytes))
+
   done
 
-  required=$((payload + ((payload + 3) / 4) + (32 * mib)))
+  # Reserve generous filesystem and directory overhead, then round up to a
+  # power-of-two image size with a 64 MiB minimum.
   size="$minimum"
+  required=$((payload + ((payload + 3) / 4) + (32 * mib)))
 
   while ((size < required)); do
     size=$((size * 2))
@@ -530,6 +575,8 @@ bootDirect() {
 
   local id="$1"
 
+  # ReactOS must boot from its original media and does not use the Windows
+  # setup-overlay or rebuilt-image paths.
   case "${id,,}" in
     "reactos" ) return 0 ;;
   esac
@@ -542,13 +589,14 @@ canUseSetupImage() {
   local id="$1"
   local iso="$2"
 
+  # Legacy installers and ReactOS require modifying or directly booting their
+  # media. Standalone ESDs and nested archives are not directly bootable ISOs.
   case "${id,,}" in
     "win9"* | "winxp"* | "win2k"* | "win2003"* | "reactos" )
       return 1 ;;
   esac
 
-  [[ "${iso,,}" != *".esd" ]] &&
-    ! enabled "${UNPACK:-}"
+  [[ "${iso,,}" != *".esd" ]] && ! enabled "${UNPACK:-}"
 }
 
 createImageDirectory() {
@@ -556,6 +604,8 @@ createImageDirectory() {
   local image="$1"
   local directory="$2"
 
+  # Treat an existing directory as success; create it only when mdir cannot
+  # already resolve it.
   if mdir -i "$image" "$directory" >/dev/null 2>&1; then
     return 0
   fi
@@ -567,6 +617,7 @@ createSetupImage() {
 
   local stage="$1"
   local image="$2"
+
   local tmp="${image}.tmp"
   local target="::/\$OEM\$/\$1/OEM"
   local install="$stage/.overlay-install.bat"
@@ -584,28 +635,21 @@ createSetupImage() {
   local msg="Writing overlay image..."
   info "$msg" && html "$msg"
 
+  # Build and verify a temporary FAT32 image before replacing the active setup
+  # image, so a partial write never becomes boot media.
   rm -f -- "$tmp" || return 1
 
-  if ! mformat \
-    -i "$tmp" \
-    -C \
-    -F \
-    -T "$sectors" \
-    -v "SETUP" \
-    ::; then
+  if ! mformat -i "$tmp" -C -F -T "$sectors" -v "SETUP" ::; then
     rm -f -- "$tmp"
     error "Failed to format setup image!"
     return 1
   fi
 
   mapfile -d '' entries < <(
-    find "$stage" \
-      -mindepth 1 \
-      -maxdepth 1 \
-      ! -name '.overlay-install.bat' \
-      -print0
+    find "$stage" -mindepth 1 -maxdepth 1 ! -name '.overlay-install.bat' -print0
   )
 
+  # Process substitution hides the find status, so wait for it explicitly.
   find_pid=$!
 
   if ! wait "$find_pid"; then
@@ -623,8 +667,7 @@ createSetupImage() {
   done
 
   if [ -n "$folder" ] || [ -f "$install" ]; then
-    if ! createImageDirectory "$tmp" "::/\$OEM\$" ||
-      ! createImageDirectory "$tmp" "::/\$OEM\$/\$1" ||
+    if ! createImageDirectory "$tmp" "::/\$OEM\$" || ! createImageDirectory "$tmp" "::/\$OEM\$/\$1" ||
       ! createImageDirectory "$tmp" "$target"; then
       rm -f -- "$tmp"
       error "Failed to create OEM directory in setup image!"
@@ -638,6 +681,7 @@ createSetupImage() {
       find "$folder" -mindepth 1 -maxdepth 1 -print0
     )
 
+    # Preserve errors from the second process-substitution find as well.
     find_pid=$!
 
     if ! wait "$find_pid"; then
@@ -656,6 +700,8 @@ createSetupImage() {
 
   fi
 
+  # Copy the generated overlay script last so it replaces an install.bat from
+  # the mounted OEM folder when both are present.
   if [ -f "$install" ]; then
     if ! mcopy -Q -o -i "$tmp" "$install" "$target/install.bat"; then
       rm -f -- "$tmp"
@@ -664,6 +710,7 @@ createSetupImage() {
     fi
   fi
 
+  # Verify that mtools can read the completed filesystem before publishing it.
   if ! mdir -i "$tmp" :: >/dev/null; then
     rm -f -- "$tmp"
     error "Failed to verify image!"
@@ -680,6 +727,7 @@ createSetupImage() {
       return 1
     fi
 
+    # Ensure the answer file survived the FAT32 copy byte-for-byte.
     if ! mtype -i "$tmp" ::/Autounattend.xml | cmp -s - "$answer"; then
       rm -f -- "$tmp"
       error "Failed to verify staged answer file!"
@@ -704,10 +752,13 @@ createSetupImage() {
 detectLegacy() {
 
   local dir="$1"
+
   local marker
 
   [[ "${PLATFORM,,}" == "x64" ]] || return 1
 
+  # Legacy media is identified from setup marker files rather than WIM
+  # metadata. The order is intentional because several releases share markers.
   marker=$(find "$dir" -maxdepth 1 -type d -iname 'ia64' -print -quit) || return 1
 
   if [ -n "$marker" ]; then
@@ -769,6 +820,8 @@ detectLegacy() {
 
   fi
 
+  # WIN51 identifies the NT 5.1/5.2 media family; the companion marker then
+  # distinguishes XP x86, XP x64, and Server 2003.
   marker=$(find "$dir" -maxdepth 1 -iname WIN51 -print -quit) || return 1
   [ -n "$marker" ] || return 1
 
@@ -819,14 +872,11 @@ detectLegacy() {
 detectReactOS() {
 
   local dir="$1"
+
   local marker
 
   marker=$(find "$dir" -maxdepth 2 -type f \
-    \( \
-      -ipath '*/reactos/reactos.inf' -o \
-      -ipath '*/reactos/unattend.inf' \
-    \) \
-    -print -quit) || return 1
+    \( -ipath '*/reactos/reactos.inf' -o -ipath '*/reactos/unattend.inf' \) -print -quit) || return 1
 
   [ -n "$marker" ] || return 1
 
@@ -842,9 +892,13 @@ resolveImage() {
   FB="falling back to manual installation!"
 
   [ -z "$DETECTED" ] || return 0
+
+  # Reused and arbitrary URL media must be inspected because their actual
+  # contents may no longer match the requested VERSION.
   [ -z "${REUSED_ISO:-}" ] || return 1
   [[ "${version,,}" != "http"* ]] || return 1
 
+  # Only direct-boot custom media can safely bypass content detection.
   if [ -n "$CUSTOM" ]; then
     bootDirect "$version" || return 1
     DETECTED="$version"
@@ -858,6 +912,7 @@ resolveImage() {
     return 0
   fi
 
+  # Evaluation media may reuse the normal edition's answer-file template.
   if [[ "${version,,}" == *"-eval" ]]; then
     local source="/run/assets/${version%-eval}.xml"
 
@@ -876,6 +931,8 @@ setImage() {
   setXML "" && return 0
   enabled "$MANUAL" && return 0
 
+  # A missing answer file is a supported manual-install path, not a hard media
+  # failure.
   MANUAL="Y"
 
   local desc
@@ -888,22 +945,15 @@ setImage() {
 findIsoImage() {
 
   local iso="$1"
-  local result_name="$2"
+
   local path
 
-  printf -v "$result_name" '%s' ""
+  # Prefer install.wim when both payload forms are present.
+  for path in /sources/install.wim /sources/install.esd; do
 
-  for path in \
-    /sources/install.wim \
-    /sources/install.esd; do
+    if udfread stat --ignore-case "$iso" "$path" >/dev/null 2>&1; then
 
-    if udfread stat \
-        --ignore-case \
-        "$iso" \
-        "$path" \
-        >/dev/null 2>&1; then
-
-      printf -v "$result_name" '%s' "$path"
+      printf '%s' "$path"
       return 0
     fi
 
@@ -916,51 +966,23 @@ readWimHeader() {
 
   local iso="$1"
   local image="$2"
-  local result_name="$3"
 
-  local header="$TMP/wim-header.bin"
   local size signature
+  local header="$TMP/wim-header.bin"
 
-  printf -v "$result_name" '%s' ""
+  rm -f -- "$header" || return 1
 
-  if ! rm -f -- "$header"; then
-    return 1
-  fi
-
-  if ! udfread range \
-      --ignore-case \
-      -o "$header" \
-      "$iso" \
-      "$image" \
-      0 \
-      208 \
-      >/dev/null 2>&1; then
+  # Read only the fixed WIM header so metadata can be located without
+  # extracting install.wim or install.esd from the ISO.
+  if ! udfread range --ignore-case -o "$header" "$iso" "$image" 0 208 >/dev/null 2>&1 ||
+      ! size=$(stat -c%s -- "$header") || (( size != 208 )) ||
+      ! signature=$(od -An -N8 -tx1 "$header" | tr -d ' \n') || [[ "$signature" != "4d5357494d000000" ]]; then
 
     rm -f -- "$header"
     return 1
   fi
 
-  if ! size=$(stat -c%s -- "$header"); then
-    rm -f -- "$header"
-    return 1
-  fi
-
-  if (( size != 208 )); then
-    rm -f -- "$header"
-    return 1
-  fi
-
-  if ! signature=$(od -An -N8 -tx1 "$header" | tr -d ' \n'); then
-    rm -f -- "$header"
-    return 1
-  fi
-
-  if [[ "$signature" != "4d5357494d000000" ]]; then
-    rm -f -- "$header"
-    return 1
-  fi
-
-  printf -v "$result_name" '%s' "$header"
+  echo "$header"
   return 0
 }
 
@@ -969,41 +991,28 @@ readIsoImageInfo() {
   local iso="$1"
   local image="$2"
   local header="$3"
-  local result_name="$4"
 
   local raw result root xml_count
   local header_size version
   local part_number total_parts image_count
   local xml_offset xml_size xml_original xml_flags
-  local -a bytes=()
+  local -a bytes=() values=()
 
-  printf -v "$result_name" '%s' ""
-
-  if [ ! -f "$header" ]; then
-    return 1
-  fi
-
-  if ! raw=$(od -An -v -N208 -tu1 -- "$header"); then
-    return 1
-  fi
+  [ -f "$header" ] || return 1
+  raw=$(od -An -v -N208 -tu1 -- "$header") || return 1
 
   read -r -a bytes <<< "${raw//$'\n'/ }"
-
-  if (( ${#bytes[@]} != 208 )); then
-    return 1
-  fi
+  (( ${#bytes[@]} == 208 )) || return 1
 
   # Validate the MSWIM\0\0\0 signature.
-  if (( bytes[0] != 77 ||
-        bytes[1] != 83 ||
-        bytes[2] != 87 ||
-        bytes[3] != 73 ||
-        bytes[4] != 77 ||
-        bytes[5] != 0 ||
-        bytes[6] != 0 ||
-        bytes[7] != 0 )); then
-    return 1
-  fi
+  (( bytes[0] == 77 &&
+     bytes[1] == 83 &&
+     bytes[2] == 87 &&
+     bytes[3] == 73 &&
+     bytes[4] == 77 &&
+     bytes[5] == 0 &&
+     bytes[6] == 0 &&
+     bytes[7] == 0 )) || return 1
 
   # Header size at offset 0x08.
   header_size=$(( \
@@ -1013,9 +1022,7 @@ readIsoImageInfo() {
     bytes[11] << 24
   ))
 
-  if (( header_size != 208 )); then
-    return 1
-  fi
+  (( header_size == 208 )) || return 1
 
   # WIM version at offset 0x0c.
   version=$(( \
@@ -1025,27 +1032,15 @@ readIsoImageInfo() {
     bytes[15] << 24
   ))
 
-  if (( version != 0x10d00 &&
-        version != 0x0e00 )); then
-    return 1
-  fi
+  (( version == 0x10d00 || version == 0x0e00 )) || return 1
 
   # Split-WIM information at offsets 0x28 and 0x2a.
-  part_number=$(( \
-    bytes[40] |
-    bytes[41] << 8
-  ))
+  part_number=$((bytes[40] | bytes[41] << 8))
+  total_parts=$((bytes[42] | bytes[43] << 8))
 
-  total_parts=$(( \
-    bytes[42] |
-    bytes[43] << 8
-  ))
-
-  if (( part_number == 0 ||
-        total_parts == 0 ||
-        part_number > total_parts )); then
-    return 1
-  fi
+  (( part_number > 0 &&
+     total_parts > 0 &&
+     part_number <= total_parts )) || return 1
 
   # Image count at offset 0x2c.
   image_count=$(( \
@@ -1055,35 +1050,25 @@ readIsoImageInfo() {
     bytes[47] << 24
   ))
 
-  if (( image_count == 0 ||
-        image_count > 65535 )); then
-    return 1
-  fi
+  (( image_count > 0 && image_count <= 65535 )) || return 1
 
-  if ! parseWimHeader \
-      "$iso" \
-      "$image" \
-      "$header" \
-      xml_offset \
-      xml_size \
-      xml_original \
-      xml_flags; then
-    return 1
-  fi
+  result=$(parseWimHeader "$iso" "$image" "$header") || return 1
+  mapfile -t values <<< "$result"
+  (( ${#values[@]} == 4 )) || return 1
+  xml_offset="${values[0]}"
+  xml_size="${values[1]}"
+  xml_original="${values[2]}"
+  xml_flags="${values[3]}"
 
-  if [[ ! "$xml_offset" =~ ^[0-9]+$ ||
-    ! "$xml_size" =~ ^[0-9]+$ ||
-    ! "$xml_original" =~ ^[0-9]+$ ||
-    ! "$xml_flags" =~ ^[0-9]+$ ]]; then
-    return 1
-  fi
+  [[ "$xml_offset" =~ ^[0-9]+$ &&
+     "$xml_size" =~ ^[0-9]+$ &&
+     "$xml_original" =~ ^[0-9]+$ &&
+     "$xml_flags" =~ ^[0-9]+$ ]] || return 1
 
-  if (( xml_size == 0 ||
-        xml_original == 0 ||
-        xml_size != xml_original ||
-        xml_size % 2 != 0 )); then
-    return 1
-  fi
+  (( xml_size > 0 &&
+     xml_original > 0 &&
+     xml_size == xml_original &&
+     xml_size % 2 == 0 )) || return 1
 
   # These resource forms cannot be decoded as a direct UTF-16LE byte range:
   #
@@ -1092,9 +1077,7 @@ readIsoImageInfo() {
   # 0x10: solid
   #
   # The metadata flag 0x02 is expected and deliberately allowed.
-  if (( xml_flags & 0x1c )); then
-    return 1
-  fi
+  (( !(xml_flags & 0x1c) )) || return 1
 
   result=$(
     udfread range \
@@ -1117,35 +1100,21 @@ readIsoImageInfo() {
 
   [ -n "$result" ] || return 1
 
-  root=$(
-    xmllint \
-      --nonet \
-      --xpath 'name(/*)' \
-      - \
-      2>/dev/null <<< "$result"
-  ) || return 1
+  local metadata separator=$'\x1f'
 
-  if [ "$root" != "WIM" ]; then
-    return 1
-  fi
+  metadata=$(xmlstarlet sel \
+    -T -t \
+    -v 'local-name(/*)' -o "$separator" \
+    -v 'count(/*[local-name()="WIM"]/*[local-name()="IMAGE"])' \
+    - 2>/dev/null <<< "$result") || return 1
 
-  xml_count=$(
-    xmllint \
-      --nonet \
-      --xpath 'count(/WIM/IMAGE)' \
-      - \
-      2>/dev/null <<< "$result"
-  ) || return 1
+  IFS="$separator" read -r root xml_count <<< "$metadata"
 
-  if [[ ! "$xml_count" =~ ^[0-9]+$ ]]; then
-    return 1
-  fi
+  [ "$root" = "WIM" ] || return 1
+  [[ "$xml_count" =~ ^[0-9]+$ ]] || return 1
+  (( xml_count == image_count )) || return 1
 
-  if (( xml_count != image_count )); then
-    return 1
-  fi
-
-  printf -v "$result_name" '%s' "$result"
+  printf '%s' "$result"
   return 0
 }
 
@@ -1154,28 +1123,14 @@ parseWimHeader() {
   local iso="$1"
   local image="$2"
   local header="$3"
-  local offset_name="$4"
-  local size_name="$5"
-  local original_name="$6"
-  local flags_name="$7"
 
-  local -n offset_ref="$offset_name"
-  local -n size_ref="$size_name"
-  local -n original_ref="$original_name"
-  local -n flags_ref="$flags_name"
-
-  local details image_size raw
+  local -a bytes=()
   local header_size=0
   local parsed_size=0
+  local parsed_flags=0
   local parsed_offset=0
   local parsed_original=0
-  local parsed_flags=0
-  local -a bytes=()
-
-  offset_ref=""
-  size_ref=""
-  original_ref=""
-  flags_ref=""
+  local details image_size raw
 
   if [ ! -f "$header" ] || [ ! -s "$header" ]; then
     return 1
@@ -1228,39 +1183,25 @@ parseWimHeader() {
     parsed_original=$((parsed_original * 256 + bytes[i]))
   done
 
-  if (( parsed_size <= 0 ||
-        parsed_offset < header_size ||
-        parsed_original <= 0 )); then
+  if (( parsed_size <= 0 || parsed_offset < header_size || parsed_original <= 0 )); then
     return 1
   fi
 
-  if ! details=$(udfread stat \
-      --ignore-case \
-      "$iso" \
-      "$image" \
-      2>/dev/null); then
+  if ! details=$(udfread stat --ignore-case "$iso" "$image" 2>/dev/null); then
     return 1
   fi
 
-  image_size=$(
-    sed -n \
-      's/^Size: \([0-9][0-9]*\) bytes$/\1/p' \
-      <<< "$details"
-  )
+  image_size=$(sed -n 's/^Size: \([0-9][0-9]*\) bytes$/\1/p' <<< "$details")
 
   if [[ ! "$image_size" =~ ^[0-9]+$ ]]; then
     return 1
   fi
 
-  if (( parsed_offset > image_size ||
-        parsed_size > image_size - parsed_offset )); then
+  if (( parsed_offset > image_size || parsed_size > image_size - parsed_offset )); then
     return 1
   fi
 
-  offset_ref="$parsed_offset"
-  size_ref="$parsed_size"
-  original_ref="$parsed_original"
-  flags_ref="$parsed_flags"
+  printf '%s\n' "$parsed_offset" "$parsed_size" "$parsed_original" "$parsed_flags"
 
   return 0
 }
@@ -1268,36 +1209,34 @@ parseWimHeader() {
 findImage() {
 
   local dir="$1"
-  local result_name="$2"
 
-  local src result
-  src=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
+  local sources result
 
-  if [ ! -d "$src" ]; then
+  sources=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
+
+  if [ ! -d "$sources" ]; then
     warn "failed to locate 'sources' folder in ISO image, $FB"
     return 1
   fi
 
-  result=$(find "$src" -maxdepth 1 -type f \
-    \( -iname install.wim -or -iname install.esd \) -print -quit)
+  result=$(find "$sources" -maxdepth 1 -type f \( -iname install.wim -or -iname install.esd \) -print -quit)
 
   if [ ! -f "$result" ]; then
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
     return 1
   fi
 
-  printf -v "$result_name" '%s' "$result"
+  echo "$result"
   return 0
 }
 
 readImageInfo() {
 
   local wim="$1"
-  local result_name="$2"
+
   local result
 
-  result=$(wimlib-imagex info -xml "$wim" |
-    iconv -f UTF-16LE -t UTF-8) || {
+  result=$(wimlib-imagex info -xml "$wim" | iconv -f UTF-16LE -t UTF-8) || {
     local rc=$?
 
     if (( rc >= 129 )); then
@@ -1308,7 +1247,7 @@ readImageInfo() {
     return 1
   }
 
-  printf -v "$result_name" '%s' "$result"
+  printf '%s' "$result"
   return 0
 }
 
@@ -1317,6 +1256,8 @@ getSuggestion() {
   [ -z "$CUSTOM" ] || return 0
   [ -n "${REUSED_ISO:-}" ] || return 0
 
+  # A reused ISO may still correspond to the originally requested catalog
+  # version, but the suggestion remains only a preference during detection.
   echo "${SUGGEST:-}"
 }
 
@@ -1330,11 +1271,12 @@ validateEdition() {
 
   [ -n "$edition" ] || return 0
 
-  if [[ "${DETECTED,,}" == *"-${edition,,}" ||
-    "${DETECTED,,}" == *"-${edition,,}-eval" ]]; then
+  if [[ "${DETECTED,,}" == *"-${edition,,}" || "${DETECTED,,}" == *"-${edition,,}-eval" ]]; then
     return 0
   fi
 
+  # Discard a stale server-edition override when it conflicts with the image
+  # that was actually detected.
   EDITION=""
   return 0
 }
@@ -1343,6 +1285,8 @@ unknownImage() {
 
   local msg="Failed to determine Windows version from image"
 
+  # Unknown media can continue when a custom answer file or manual mode already
+  # provides the required installation path; otherwise force manual fallback.
   if setXML "" || enabled "$MANUAL"; then
     info "${msg}!"
   else
@@ -1357,7 +1301,7 @@ describeImage() {
 
   local info_xml="$1"
   local index="$2"
-  local result_name="$3"
+
   local result
 
   result=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 1
@@ -1369,7 +1313,7 @@ describeImage() {
     result+=" ($language)"
   fi
 
-  printf -v "$result_name" '%s' "$result"
+  printf '%s' "$result"
   return 0
 }
 
@@ -1378,12 +1322,13 @@ configureImage() {
   local index="$1"
   local desc="$2"
 
+  # Prefer the exact answer file, then a family-level fallback. Manual mode is
+  # the final supported path when neither can be generated.
   setXML "" "$index" && return 0
 
-  if [[ "$DETECTED" == "win81x86"* ||
-    "$DETECTED" == "win10x86"* ]]; then
+  if [[ "$DETECTED" == "win81x86"* || "$DETECTED" == "win10x86"* ]]; then
     error "The 32-bit version of $desc is not supported!"
-    return 1
+    exit 67
   fi
 
   local msg="the answer file for $desc was not found ($DETECTED.xml)"
@@ -1407,17 +1352,21 @@ configureImage() {
 detectImageInfo() {
 
   local image_info="$1"
+
   local desc suggested index
 
   checkPlatform "$image_info" || exit 67
 
   suggested=$(getSuggestion) || return 1
 
-  detectVersion \
-    "$image_info" \
-    "$suggested" \
-    DETECTED \
-    index || return 1
+  local output
+  output=$(detectVersion "$image_info" "$suggested") || return 1
+
+  local -a detected=()
+  mapfile -t detected <<< "$output"
+
+  DETECTED="${detected[0]:-}"
+  index="${detected[1]:-}"
 
   validateEdition || return 1
 
@@ -1426,7 +1375,7 @@ detectImageInfo() {
     return 0
   fi
 
-  describeImage "$image_info" "$index" desc || return 1
+  desc=$(describeImage "$image_info" "$index") || return 1
   info "Detected: $desc"
 
   configureImage "$index" "$desc" || return 1
@@ -1437,19 +1386,17 @@ detectImageInfo() {
 detectIsoImage() {
 
   local iso="$1"
+
   local image header image_info
 
-  findIsoImage "$iso" image || return 1
-  readWimHeader "$iso" "$image" header || return 1
+  # Return 1 when direct ISO inspection is unavailable so the caller may fall
+  # back to extraction; return 2 when metadata was read but configuration failed.
 
-  readIsoImageInfo \
-    "$iso" \
-    "$image" \
-    "$header" \
-    image_info || return 1
+  image=$(findIsoImage "$iso") || return 1
+  header=$(readWimHeader "$iso" "$image") || return 1
+  image_info=$(readIsoImageInfo "$iso" "$image" "$header") || return 1
 
   info "Detecting version from ISO image..."
-
   detectImageInfo "$image_info" || return 2
 
   return 0
@@ -1458,10 +1405,12 @@ detectIsoImage() {
 detectImage() {
 
   local dir="$1"
+
   local desc
 
   info "Detecting version from ISO image..."
 
+  # Marker-based legacy and ReactOS detection must run before looking for a WIM.
   if detectLegacy "$dir" || detectReactOS "$dir"; then
     desc=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 1
     info "Detected: $desc"
@@ -1469,10 +1418,10 @@ detectImage() {
   fi
 
   local wim
-  findImage "$dir" wim || return 1
+  wim=$(findImage "$dir") || return 1
 
   local image_info
-  readImageInfo "$wim" image_info || return 1
+  image_info=$(readImageInfo "$wim") || return 1
 
   detectImageInfo "$image_info"
 }
@@ -1480,12 +1429,15 @@ detectImage() {
 normalizeBatch() {
 
   local file="$1"
+
   local bom tmp encoding
 
   [ ! -s "$file" ] && return 0
 
   bom=$(od -An -N2 -tx1 "$file" | tr -d ' \n') || return 1
 
+  # Convert only BOM-marked UTF-16 files; unmarked ANSI and UTF-8 batch files
+  # are deliberately left unchanged.
   case "$bom" in
     "fffe" ) encoding="UTF-16LE" ;;
     "feff" ) encoding="UTF-16BE" ;;
@@ -1519,6 +1471,7 @@ reportBatchMatches() {
   local pattern="$3"
   local message="$4"
   local suggestion="$5"
+
   local matches line
 
   matches=$(grep -Pin "$pattern" "$file" || true)
@@ -1539,6 +1492,7 @@ reportBatchMatches() {
 checkBatch() {
 
   local file="$1"
+
   local tmp output
   local matches line
   local enabled_rules
@@ -1604,9 +1558,7 @@ EOC
   output="${output#"${output%%[!$'\r\n ']*}"}"
   output="${output%"${output##*[!$'\r\n ']}"}"
 
-  if grep -Eq \
-    '^(ERROR|WARNING|SECURITY) LEVEL ISSUES:$' \
-    <<< "$output"; then
+  if grep -Eq '^(ERROR|WARNING|SECURITY) LEVEL ISSUES:$' <<< "$output"; then
 
     warn "possible issues were detected in $source:"
     printf '\n%s\n\n' "$output" >&2
@@ -1650,11 +1602,14 @@ getBootLoadSize() {
   local iso="$1"
   local dir="$2"
   local desc="$3"
+
   local boot_info size value
 
   case "${DETECTED,,}" in
     "win2k"* | "winxp"* | "win2003"* )
 
+      # NT 5.x media may not expose a reliable catalog sector count, so derive
+      # it directly from the extracted boot image.
       if [ ! -s "$dir/$ETFS" ]; then
         error "Failed to locate file \"$ETFS\" in $desc ISO image!"
         return 1
@@ -1675,6 +1630,7 @@ getBootLoadSize() {
 
     * )
 
+      # Other legacy media use the El Torito Nsect value from the ISO catalog.
       if ! boot_info=$(isoinfo -d -i "$iso"); then
         error "Failed to read boot image information from $desc ISO!"
         return 1
@@ -1709,6 +1665,7 @@ extractBootImage() {
   local iso="$1"
   local dir="$2"
   local desc="$3"
+
   local offset info
 
   ETFS="boot.img"
@@ -1733,13 +1690,9 @@ extractBootImage() {
     return 1
   fi
 
-  if ! dd \
-      "if=$iso" \
-      "of=$dir/$ETFS" \
-      bs=512 \
-      "count=$BOOT_LOAD_SIZE" \
-      "skip=$((offset * 4))" \
-      status=none; then
+  # isoinfo reports the boot offset in 2048-byte sectors, while dd below uses
+  # 512-byte blocks, hence the factor of four.
+  if ! dd "if=$iso" "of=$dir/$ETFS" bs=512 "count=$BOOT_LOAD_SIZE" "skip=$((offset * 4))" status=none; then
 
     rm -f "$dir/$ETFS" || true
     error "Failed to extract boot image from $desc ISO!"
@@ -1758,6 +1711,7 @@ extractBootImage() {
 buildImage() {
 
   local dir="$1"
+
   local failed=""
   local cat="BOOT.CAT"
   local log="/run/shm/iso.log"
@@ -1794,6 +1748,8 @@ buildImage() {
 
   /run/progress.sh "$out" "$size" "$msg ([P])..." &
 
+  # Use separate layouts for modern hybrid media, NT 5.x legacy media, Win9x,
+  # and other legacy releases because their El Torito requirements differ.
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
 
     genisoimage \
@@ -1888,6 +1844,7 @@ buildImage() {
 
   [ -s "$log" ] && err="$(<"$log")"
 
+  # UDF hybrid media intentionally triggers this genisoimage warning.
   if [ -n "$err" ] && [[ "$err" != "$hide" ]]; then
     echo "$err"
   fi

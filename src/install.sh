@@ -14,83 +14,138 @@ startWindows() {
 
   if ! hasImage "$ISO"; then
     if ! downloadImage "$ISO" "$VERSION" "$LANGUAGE"; then
-      removeIso "$ISO" && return 68
+      removeIso "$ISO" || :
+      return 68
     fi
   fi
 
-  local extracted=0
   local boot="$BOOT"
   local dir="$TMP/unpack"
+  local handled=0 extracted=0
 
+  selectWindowsImage "$ISO" "$dir" "$boot" || return $?
+  (( handled )) && return 0
+
+  configureMachine "$ISO" "$dir" "$boot" || return $?
+  (( handled )) && return 0
+
+  prepareWindowsImage "$ISO" "$dir" "$boot" || return $?
+  (( handled )) && return 0
+
+  finishInstall "$BOOT" "N" "$boot" || return 100
+
+  return 0
+}
+
+selectWindowsImage() {
+
+  local iso="$1"
+  local dir="$2"
+  local boot="$3"
+
+  local detect_rc=0
+
+  # Known versions already provide the required image metadata.
   if resolveImage "$VERSION"; then
 
     if ! setImage; then
-      abortInstall "$dir" "$ISO" "$boot" || return 70
+      abortInstall "$dir" "$iso" "$boot" || return 70
+      handled=1
       return 0
     fi
 
-    if needsExtraction "$DETECTED" "$ISO"; then
-      if ! extractImage "$ISO" "$dir" "$VERSION"; then
-        removeIso "$ISO" && return 72
-      fi
-
-      extracted=1
+    if ! needsExtraction "$DETECTED" "$iso"; then
+      return 0
     fi
 
-  else
+    if ! extractImage "$iso" "$dir" "$VERSION"; then
+      removeIso "$iso" || :
+      return 72
+    fi
 
-    local detect_rc=0
-    detectIsoImage "$ISO" || detect_rc=$?
-
-    case "$detect_rc" in
-
-      0 ) ;;
-      1 )
-  
-        if ! extractImage "$ISO" "$dir" "$VERSION"; then
-          removeIso "$ISO" && return 74
-        fi
-
-        extracted=1
-
-        if ! detectImage "$dir"; then
-          abortInstall "$dir" "$ISO" "$boot" || return 76
-          return 0
-        fi ;;
-
-      * )
-        abortInstall "$dir" "$ISO" "$boot" || return 76
-        return 0 ;;
-
-    esac
+    extracted=1
+    return 0
 
   fi
 
-  local desc
-  if ! desc=$(printVariant "$DETECTED" "$DETECTED"); then
-    abortInstall "$dir" "$ISO" "$boot" || return 78
+  # Inspect unknown media directly before falling back to extraction.
+  detectIsoImage "$iso" || detect_rc=$?
+
+  if (( detect_rc == 0 )); then
     return 0
   fi
 
-  if ! setMachine "$DETECTED" "$ISO" "$dir" "$desc"; then
-    abortInstall "$dir" "$ISO" "$boot" || return 80
+  # Only code 1 indicates that extraction may recover detection.
+  if (( detect_rc != 1 )); then
+    abortInstall "$dir" "$iso" "$boot" || return 76
+    handled=1
+    return 0
+  fi
+
+  if ! extractImage "$iso" "$dir" "$VERSION"; then
+    removeIso "$iso" || :
+    return 74
+  fi
+
+  extracted=1
+
+  if detectImage "$dir"; then
+    return 0
+  fi
+
+  abortInstall "$dir" "$iso" "$boot" || return 76
+  handled=1
+  return 0
+}
+
+configureMachine() {
+
+  local iso="$1"
+  local dir="$2"
+  local boot="$3"
+
+  local desc
+
+  if ! desc=$(printVariant "$DETECTED" "$DETECTED"); then
+    abortInstall "$dir" "$iso" "$boot" || return 78
+    handled=1
+    return 0
+  fi
+
+  if ! setMachine "$DETECTED" "$iso" "$dir" "$desc"; then
+    abortInstall "$dir" "$iso" "$boot" || return 80
+    handled=1
     return 0
   fi
 
   if ! restoreMachineState; then
-    abortInstall "$dir" "$ISO" "$boot" || return 82
+    abortInstall "$dir" "$iso" "$boot" || return 82
+    handled=1
     return 0
   fi
 
+  # Direct-boot media skips all unattended installation preparation.
   if bootDirect "$DETECTED"; then
-    abortInstall "$dir" "$ISO" "$boot" || return 83
+    abortInstall "$dir" "$iso" "$boot" || return 83
+    handled=1
     return 0
   fi
 
-  if canUseSetupImage "$DETECTED" "$ISO"; then
+  return 0
+}
+
+prepareWindowsImage() {
+
+  local iso="$1"
+  local dir="$2"
+  local boot="$3"
+
+  # Prefer the original ISO with a small setup image whenever possible.
+  if canUseSetupImage "$DETECTED" "$iso"; then
 
     if ! stageSetup "$XML" "$LANGUAGE" "$TMP/setup"; then
-      abortInstall "$dir" "$ISO" "$boot" || return 84
+      abortInstall "$dir" "$iso" "$boot" || return 84
+      handled=1
       return 0
     fi
 
@@ -98,32 +153,33 @@ startWindows() {
       exit 86
     fi
 
-    useOriginalImage "$ISO" || return 88
-
-  else
-
-    if (( ! extracted )); then
-      if ! extractImage "$ISO" "$dir" "$VERSION"; then
-        removeIso "$ISO" && return 90
-      fi
-    fi
-
-    if ! prepareImage "$ISO" "$dir"; then
-      abortInstall "$dir" "$ISO" "$boot" || return 92
-      return 0
-    fi
-
-    if ! updateImage "$dir" "$XML" "$LANGUAGE"; then
-      abortInstall "$dir" "$ISO" "$boot" || return 94
-      return 0
-    fi
-
-    removeImage "$ISO" || return 96
-    buildImage "$dir" || return 98
+    useOriginalImage "$iso" || return 88
+    return 0
 
   fi
 
-  finishInstall "$BOOT" "N" "$boot" || return 100
+  # Legacy or modifiable media must be extracted, updated, and rebuilt.
+  if (( ! extracted )); then
+    if ! extractImage "$iso" "$dir" "$VERSION"; then
+      removeIso "$iso" || :
+      return 90
+    fi
+  fi
+
+  if ! prepareImage "$iso" "$dir"; then
+    abortInstall "$dir" "$iso" "$boot" || return 92
+    handled=1
+    return 0
+  fi
+
+  if ! updateImage "$dir" "$XML" "$LANGUAGE"; then
+    abortInstall "$dir" "$iso" "$boot" || return 94
+    handled=1
+    return 0
+  fi
+
+  removeImage "$iso" || return 96
+  buildImage "$dir" || return 98
 
   return 0
 }
@@ -218,6 +274,8 @@ startInstall() {
     ISO=$(basename "$BOOT")
     ISO="$TMP/$ISO"
 
+    # Work from the temporary directory so the persistent source path can
+    # later contain either the preserved ISO or the rebuilt installation image.
     if [ -f "$BOOT" ] && [ -s "$BOOT" ]; then
       if ! mv -f -- "$BOOT" "$ISO"; then
         error "Failed to move ISO file from \"$BOOT\" to \"$ISO\" !"
@@ -255,11 +313,16 @@ abortInstall() {
   local dir="$1"
   local iso="$2"
   local boot="$3"
+
   local efi efi32 efi64
 
+  # Standalone ESD files and nested archives are not directly bootable media,
+  # so they cannot use the manual-install fallback.
   [[ "${iso,,}" == *".esd" ]] && exit 60
   enabled "${UNPACK:-}" && exit 60
 
+  # When automatic preparation fails, inspect extracted media to determine
+  # whether it can still be booted manually using legacy firmware.
   if [[ "${PLATFORM,,}" == "x64" ]] && [ -d "$dir" ]; then
 
     efi=$(find "$dir" -maxdepth 1 -type d -iname efi -print -quit)
@@ -278,6 +341,8 @@ abortInstall() {
 
   fi
 
+  # Preserve custom media in place. Downloaded or reused media must be moved
+  # back to persistent storage before the manual fallback is started.
   if [ -n "$CUSTOM" ]; then
     BOOT="$iso"
     REMOVE="N"
@@ -317,9 +382,12 @@ skipInstall() {
 
   local iso="$1"
   local previousBase="$2"
+
   local boot="$STORAGE/windows.boot"
 
   if [ -n "$previousBase" ]; then
+    # A changed source invalidates an unfinished installation. Back up an
+    # existing installation, but discard stale media when no disk exists yet.
     if [[ "${STORAGE,,}/${previousBase,,}" != "${iso,,}" ]]; then
 
       if ! hasDisk; then
@@ -372,6 +440,7 @@ finishInstall() {
   local iso="$1"
   local aborted="$2"
   local boot="$3"
+
   local base
 
   if [ ! -s "$iso" ] || [ ! -f "$iso" ]; then
@@ -428,8 +497,9 @@ finishInstall() {
 
 findFile() {
 
-  local dir file base
   local fname="$1"
+
+  local dir file base
   local boot="$STORAGE/windows.boot"
 
   dir=$(find / -maxdepth 1 -type d -iname "$fname" -print -quit)
@@ -462,6 +532,8 @@ findFile() {
 
   ISO="$file"
   CUSTOM="$file"
+  # Include the custom ISO size in its persistent name so replacing a
+  # bind-mounted ISO is detected as a different installation source.
   BOOT="$STORAGE/windows.$size.iso"
 
   return 0
@@ -501,6 +573,8 @@ needsExtraction() {
   local id="$1"
   local iso="$2"
 
+  # Direct-boot media does not need rebuilding. Legacy/skipped versions,
+  # standalone ESD downloads, and nested archives require full extraction.
   bootDirect "$id" && return 1
 
   skipVersion "$id" ||
@@ -512,6 +586,7 @@ checkFreeSpace() {
 
   local dir="$1"
   local size="$2"
+
   local size_gb space space_gb
 
   size_gb=$(formatBytes "$size")
@@ -526,16 +601,6 @@ checkFreeSpace() {
   return 0
 }
 
-getEsdField() {
-
-  local list="$1"
-  local index="$2"
-
-  sed -n "${index}p" <<< "$list" | tr -cd '0-9'
-
-  return 0
-}
-
 extractESD() {
 
   local iso="$1"
@@ -543,11 +608,11 @@ extractESD() {
   local version="$3"
   local desc="$4"
 
-  local info count totals links
-  local bootTotal bootLinks
-  local wimTotal wimLinks
-  local installSize size
-  local edition imgEdition
+  local bootTotal bootLinks wimTotal wimLinks
+  local installSize size edition imgEdition
+  local bootWim installWim bootSize wimSize
+  local index line ret xml metadata count
+  local -a fields
 
   local minSize=100000000
   local freeSpace=9606127360
@@ -579,12 +644,30 @@ extractESD() {
 
   checkFreeSpace "$dir" "$freeSpace" || return 1
 
-  info=$(wimlib-imagex info "$iso") || {
+  if ! xml=$(wimlib-imagex info "$iso" --xml 2>/dev/null |
+      iconv -f UTF-16LE -t UTF-8 2>/dev/null); then
     error "Cannot read ESD file information!"
     return 1
-  }
+  fi
 
-  count=$(awk '/Image Count:/ {print $3}' <<< "$info")
+  # Microsoft download ESDs use images 1-3 for setup media, WinPE, and Windows
+  # Setup; images 4 and higher contain installable editions. Read all metadata
+  # once because repeatedly inspecting a solid-compressed ESD is expensive.
+  if ! metadata=$(xmlstarlet sel -t \
+      -v 'count(/WIM/IMAGE)' -n \
+      -v 'normalize-space(/WIM/IMAGE[@INDEX="1"]/TOTALBYTES)' -n \
+      -v 'normalize-space(/WIM/IMAGE[@INDEX="1"]/HARDLINKBYTES)' -n \
+      -v 'normalize-space(/WIM/IMAGE[@INDEX="3"]/TOTALBYTES)' -n \
+      -v 'normalize-space(/WIM/IMAGE[@INDEX="3"]/HARDLINKBYTES)' -n \
+      -m '/WIM/IMAGE[number(@INDEX) >= 4]' -v '@INDEX' -o $'\t' -v 'DESCRIPTION' -n \
+      <<< "$xml" 2>/dev/null); then
+    error "Cannot read ESD file information!"
+    return 1
+  fi
+
+  mapfile -t fields <<< "$metadata"
+
+  count="${fields[0]:-}"
   if [[ ! "$count" =~ ^[0-9]+$ ]]; then
     error "Cannot read the image count in ESD file!"
     return 1
@@ -595,34 +678,33 @@ extractESD() {
     return 1
   fi
 
-  totals=$(grep "Total Bytes:" <<< "$info" || true)
-  links=$(grep "Hard Link Bytes:" <<< "$info" || true)
+  bootTotal="${fields[1]:-}"
+  bootLinks="${fields[2]:-}"
 
-  bootTotal=$(getEsdField "$totals" 1)
-  bootLinks=$(getEsdField "$links" 1)
-
-  if [[ ! "$bootTotal" =~ ^[0-9]+$ ]] || [[ ! "$bootLinks" =~ ^[0-9]+$ ]]; then
+  if [[ ! "$bootTotal" =~ ^[0-9]+$ ]] ||
+      [[ ! "$bootLinks" =~ ^[0-9]+$ ]]; then
     error "Cannot read bootdisk size from ESD file!"
     return 1
   fi
 
-  local bootSize=$(( bootTotal - bootLinks ))
+  bootSize=$(( bootTotal - bootLinks ))
 
-  wimTotal=$(getEsdField "$totals" 3)
-  wimLinks=$(getEsdField "$links" 3)
+  wimTotal="${fields[3]:-}"
+  wimLinks="${fields[4]:-}"
 
-  if [[ ! "$wimTotal" =~ ^[0-9]+$ ]] || [[ ! "$wimLinks" =~ ^[0-9]+$ ]]; then
+  if [[ ! "$wimTotal" =~ ^[0-9]+$ ]] ||
+      [[ ! "$wimLinks" =~ ^[0-9]+$ ]]; then
     error "Cannot read boot.wim size from ESD file!"
     return 1
   fi
 
-  local wimSize=$(( wimTotal - wimLinks + bootPad ))
+  wimSize=$(( wimTotal - wimLinks + bootPad ))
 
   /run/progress.sh "$dir" "$bootSize" "$msg ([P])..." &
 
-  local index="1"
+  index="1"
   wimlib-imagex apply "$iso" "$index" "$dir" --quiet 2>/dev/null || {
-    local ret=$?
+    ret=$?
     fKill "progress.sh"
     error "Extracting $desc bootdisk failed ($ret)"
     return 1
@@ -630,8 +712,8 @@ extractESD() {
 
   fKill "progress.sh"
 
-  local bootWim="$dir/sources/boot.wim"
-  local installWim="$dir/sources/install.wim"
+  bootWim="$dir/sources/boot.wim"
+  installWim="$dir/sources/install.wim"
 
   msg="Extracting $desc environment"
   info "$msg..." && html "$msg..."
@@ -639,8 +721,9 @@ extractESD() {
   index="2"
   /run/progress.sh "$bootWim" "$wimSize" "$msg ([P])..." &
 
-  wimlib-imagex export "$iso" "$index" "$bootWim" --compress=none --quiet || {
-    local ret=$?
+  wimlib-imagex export "$iso" "$index" "$bootWim" \
+    --compress=none --quiet || {
+    ret=$?
     fKill "progress.sh"
     error "Adding WinPE failed ($ret)"
     return 1
@@ -654,8 +737,9 @@ extractESD() {
   index="3"
   /run/progress.sh "$bootWim" "$wimSize" "$msg ([P])..." &
 
-  wimlib-imagex export "$iso" "$index" "$bootWim" --compress=none --boot --quiet || {
-    local ret=$?
+  wimlib-imagex export "$iso" "$index" "$bootWim" \
+    --compress=none --boot --quiet || {
+    ret=$?
     fKill "progress.sh"
     error "Adding Windows Setup failed ($ret)"
     return 1
@@ -678,18 +762,19 @@ extractESD() {
     return 1
   fi
 
-  for (( index=4; index<=count; index++ )); do
+  for line in "${fields[@]:5}"; do
 
-    imgEdition=$(wimlib-imagex info "$iso" "$index" | grep '^Description:' | sed 's/Description:[ \t]*//')
+    IFS=$'\t' read -r index imgEdition <<< "$line"
+
+    [[ ! "$index" =~ ^[0-9]+$ ]] && continue
     [[ "${imgEdition,,}" != "${edition,,}" ]] && continue
 
-    installSize=$(stat -c%s "$iso")
-    installSize=$(( installSize + installPad ))
+    installSize=$(( size + installPad ))
 
     /run/progress.sh "$installWim" "$installSize" "$msg ([P])..." &
 
     wimlib-imagex export "$iso" "$index" "$installWim" --quiet || {
-      local ret=$?
+      ret=$?
       fKill "progress.sh"
       error "Addition of $index to the $desc image failed ($ret)"
       return 1
@@ -710,8 +795,9 @@ extractImage() {
   local iso="$1"
   local dir="$2"
   local version="$3"
-  local desc="local ISO"
+
   local file size
+  local desc="local ISO"
 
   if [ -z "$CUSTOM" ]; then
     desc="downloaded ISO"
@@ -766,6 +852,8 @@ extractImage() {
 
   else
 
+    # UNPACK archives contain another ISO. Extract the nested ISO, then
+    # preserve it as the actual source media for subsequent processing.
     file=$(find "$dir" -maxdepth 1 -type f -iname "*.iso" -print -quit)
 
     if [ -z "$file" ]; then
@@ -799,7 +887,11 @@ setMachine() {
   local dir="$3"
   local desc="$4"
 
-  ETFS="boot/etfsboot.com"
+  if [[ "${id,,}" != "win9"* ]]; then
+    ETFS="boot/etfsboot.com"
+  else
+    ETFS="[BOOT]/Boot-1.44M.img"
+  fi
 
   local version=""
   case "${id,,}" in
@@ -821,7 +913,7 @@ setMachine() {
 
     writeState "mode" "windows_legacy" || return 1
 
-    case "${id,,}" in 
+    case "${id,,}" in
       "win9"* | "win2k"* | "reactos" )
         writeState "vga" "cirrus" || return 1 ;;
       * )
@@ -903,12 +995,13 @@ prepareImage() {
 
   local iso="$1"
   local dir="$2"
+
   local desc missing
 
   desc=$(printVariant "$DETECTED" "$DETECTED")
 
-  if [[ "${BOOT_MODE,,}" == "windows_legacy" &&
-    "${DETECTED,,}" != "win9"* ]]; then
+  # Legacy rebuilt media must retain the source ISO's El Torito boot-load size.
+  if [[ "${BOOT_MODE,,}" == "windows_legacy" && "${DETECTED,,}" != "win9"* ]]; then
     getBootLoadSize "$iso" "$dir" "$desc" || return 1
   fi
 
@@ -917,13 +1010,14 @@ prepareImage() {
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
 
     extractBootImage "$iso" "$dir" "$desc" && return 0
-
     error "Failed to extract boot image from ISO image \"${iso}\"!"
+
     return 1
   fi
 
   EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 
+  # A modern rebuilt ISO requires both its BIOS and no-prompt UEFI boot images.
   [ -f "$dir/$ETFS" ] && [ -s "$dir/$ETFS" ] &&
     [ -f "$dir/$EFISYS" ] && [ -s "$dir/$EFISYS" ] && return 0
 
@@ -954,7 +1048,8 @@ addFolder() {
   local target="${2:-image}"
   local log="${3:-Y}"
   local mode="${4:-copy}"
-  local folder file="" source=""
+  
+  local file="" source="" folder
   local dest="$src/\$OEM\$/\$1/OEM"
   local install="$src/.overlay-install.bat"
 
@@ -967,6 +1062,8 @@ addFolder() {
     info "$msg" && html "$msg"
   fi
 
+  # Setup-image mode cannot modify the original ISO, so create a temporary
+  # writable copy of install.bat for the overlay image.
   if [ "$mode" = "overlay" ]; then
 
     rm -f -- "$install" || return 1
@@ -1037,6 +1134,7 @@ addDriver() {
   local path="$2"
   local target="$3"
   local driver="$4"
+
   local folder="" desc
 
   if [ -z "$id" ]; then
@@ -1074,8 +1172,7 @@ addDriver() {
 
   case "${id,,}" in
     "winvista"* )
-      [[ "${driver,,}" == "viorng" ]] && return 0
-      ;;
+      [[ "${driver,,}" == "viorng" ]] && return 0 ;;
   esac
 
   local dest="$path/$target/$driver"
@@ -1093,6 +1190,7 @@ addDrivers() {
   local file="${4:-}"
   local index="${5:-}"
   local log="${6:-Y}"
+
   local drivers="$tmp/drivers"
 
   rm -rf "$drivers"
@@ -1114,6 +1212,7 @@ addDrivers() {
 
   local target="\$WinPEDriver\$"
   local dest="$drivers/$target"
+
   mkdir -p "$dest" || return 1
 
   if [ -n "$file" ]; then
@@ -1221,12 +1320,13 @@ updateImage() {
   local dir="$1"
   local asset="$2"
   local language="$3"
+
+  local script=""
   local tmp="/tmp/install"
   local xml="autounattend.xml"
   local bak="${xml//.xml/.org}"
   local dat="${xml//.xml/.dat}"
-  local desc path src wim name info
-  local script=""
+  local desc path src wim name info 
 
   skipVersion "${DETECTED,,}" && return 0
 
@@ -1255,6 +1355,7 @@ updateImage() {
     return 1
   fi
 
+  # Windows Setup normally resides in boot image 2; single-image media uses 1.
   local idx="1"
 
   if ! info=$(wimlib-imagex info -xml "$wim" | iconv -f UTF-16LE -t UTF-8); then
@@ -1275,6 +1376,8 @@ updateImage() {
     error "Failed to add OEM folder to image!"
   fi
 
+  # Preserve an original answer file only once. The .dat marker identifies an
+  # image where our generated answer file has already been installed.
   if wimlib-imagex extract "$wim" "$idx" "/$xml" "--dest-dir=$tmp" >/dev/null 2>&1; then
     if ! wimlib-imagex extract "$wim" "$idx" "/$dat" "--dest-dir=$tmp" >/dev/null 2>&1; then
       if ! wimlib-imagex extract "$wim" "$idx" "/$bak" "--dest-dir=$tmp" >/dev/null 2>&1; then
@@ -1314,7 +1417,7 @@ updateImage() {
     validateGeneratedXML "$answer" || return 1
 
     if [ -z "${CUSTOM_XML:-}" ]; then
-      prepareSetupScript "$asset" "$tmp/setup" script || exit 84
+      script=$(prepareSetupScript "$asset" "$tmp/setup") || exit 84
     fi
 
     if ! wimlib-imagex update "$wim" "$idx" --command "add $answer /$xml" > /dev/null; then
@@ -1328,6 +1431,8 @@ updateImage() {
 
   fi
 
+  # Manual mode removes generated automation and restores the original answer
+  # file when one was backed up earlier.
   if enabled "$MANUAL"; then
 
     removeGeneratedXML "$asset" || return 1
@@ -1342,6 +1447,8 @@ updateImage() {
 
   fi
 
+  # Prevent a root-level answer file from overriding the selected automatic or
+  # manual behavior when Windows Setup first boots.
   name="$xml"
   enabled "$MANUAL" && name="$bak"
   path=$(find "$dir" -maxdepth 1 -type f -iname "$name" -print -quit) || return 1
@@ -1392,10 +1499,11 @@ reserveSambaPorts() {
 backup () {
 
   local iso="$1"
+
   local count=1
   local name="unknown"
   local root="$STORAGE/backups"
-  local file previous failed=""
+  local failed="" file previous
 
   previous=$(readState "base") || return 1
   [ -n "$previous" ] && name="${previous%.*}"
@@ -1437,6 +1545,8 @@ backup () {
       -not -iname '*.iso' -print0
   )
 
+  # Wait for the process-substitution find command so enumeration failures are
+  # detected rather than being mistaken for a successful backup.
   local find_pid=$!
 
   if ! wait "$find_pid"; then
@@ -1461,6 +1571,8 @@ restoreBootMode() {
 
   [ -n "$mode" ] || return 0
 
+  # A saved legacy mode always wins. A saved modern mode only replaces the
+  # default mode and never an explicit user-selected boot configuration.
   if [[ "${mode,,}" == "windows_legacy" ]]; then
     BOOT_MODE="$mode"
     return 0
@@ -1476,6 +1588,8 @@ restoreBootMode() {
 
 restoreMachine() {
 
+  # Restore the saved machine only when q35 is still the default; an explicit
+  # user-selected machine must remain untouched.
   [[ "${PLATFORM,,}" != "x64" ]] && return 0
   [[ "${MACHINE,,}" != "q35" ]] && return 0
 

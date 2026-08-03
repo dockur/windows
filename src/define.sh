@@ -47,116 +47,79 @@ parseVersion() {
 
   case "${VERSION,,}" in
     "11" | "11p" | "win11" | "pro11" | "win11p" | "windows11" | "windows 11" )
-      VERSION="win11x64"
-      ;;
+      VERSION="win11x64" ;;
     "11e" | "win11e" | "windows11e" | "windows 11e" )
-      VERSION="win11x64-enterprise-eval"
-      ;;
+      VERSION="win11x64-enterprise-eval" ;;
     "11l" | "11ltsc" | "ltsc11" | "win11l" | "win11-ltsc" | "win11x64-ltsc" )
-      VERSION="win11x64-enterprise-ltsc-eval"
-      ;;
+      VERSION="win11x64-enterprise-ltsc-eval" ;;
     "11i" | "11iot" | "iot11" | "win11i" | "win11-iot" | "win11x64-iot" )
-      VERSION="win11x64-enterprise-iot-eval"
-      ;;
+      VERSION="win11x64-enterprise-iot-eval" ;;
     "10" | "10p" | "win10" | "pro10" | "win10p" | "windows10" | "windows 10" )
-      VERSION="win10x64"
-      ;;
+      VERSION="win10x64" ;;
     "10e" | "win10e" | "windows10e" | "windows 10e" )
-      VERSION="win10x64-enterprise-eval"
-      ;;
+      VERSION="win10x64-enterprise-eval" ;;
     "10l" | "10ltsc" | "ltsc10" | "win10l" | "win10-ltsc" | "win10x64-ltsc" )
-      VERSION="win10x64-enterprise-ltsc-eval"
-      ;;
+      VERSION="win10x64-enterprise-ltsc-eval" ;;
     "10i" | "10iot" | "iot10" | "win10i" | "win10-iot" | "win10x64-iot" )
-      VERSION="win10x64-enterprise-iot-eval"
-      ;;
+      VERSION="win10x64-enterprise-iot-eval" ;;
     "8" | "8p" | "81" | "81p" | "pro8" | "8.1" | "win8" | "win8p" | "win81" | "win81p" | "windows 8" )
-      VERSION="win81x64"
-      ;;
+      VERSION="win81x64" ;;
     "8e" | "81e" | "8.1e" | "win8e" | "win81e" | "windows 8e" )
-      VERSION="win81x64-enterprise-eval"
-      ;;
+      VERSION="win81x64-enterprise-eval" ;;
     "7" | "win7" | "windows7" | "windows 7" )
-      VERSION="win7x64"
-      ;;
+      VERSION="win7x64" ;;
     "7u" | "win7u" | "windows7u" | "windows 7u" )
-      VERSION="win7x64-ultimate"
-      ;;
+      VERSION="win7x64-ultimate" ;;
     "7e" | "win7e" | "windows7e" | "windows 7e" )
-      VERSION="win7x64-enterprise"
-      ;;
+      VERSION="win7x64-enterprise" ;;
     "7x86" | "win7x86" | "win732" | "windows7x86" )
-      VERSION="win7x86"
-      ;;
+      VERSION="win7x86" ;;
     "7ux86" | "7u32" | "win7x86-ultimate" )
-      VERSION="win7x86-ultimate"
-      ;;
+      VERSION="win7x86-ultimate" ;;
     "7ex86" | "7e32" | "win7x86-enterprise" )
-      VERSION="win7x86-enterprise"
-      ;;
+      VERSION="win7x86-enterprise" ;;
     "vista" | "vs" | "6" | "winvista" | "windowsvista" | "windows vista" )
-      VERSION="winvistax64"
-      ;;
+      VERSION="winvistax64" ;;
     "vistu" | "vu" | "6u" | "winvistu" )
-      VERSION="winvistax64-ultimate"
-      ;;
+      VERSION="winvistax64-ultimate" ;;
     "viste" | "ve" | "6e" | "winviste" )
-      VERSION="winvistax64-enterprise"
-      ;;
+      VERSION="winvistax64-enterprise" ;;
     "vistax86" | "vista32" | "6x86" | "winvistax86" | "windowsvistax86" )
-      VERSION="winvistax86"
-      ;;
+      VERSION="winvistax86" ;;
     "vux86" | "vu32" | "winvistax86-ultimate" )
-      VERSION="winvistax86-ultimate"
-      ;;
+      VERSION="winvistax86-ultimate" ;;
     "vex86" | "ve32" | "winvistax86-enterprise" )
-      VERSION="winvistax86-enterprise"
-      ;;
+      VERSION="winvistax86-enterprise" ;;
     "xp" | "xp32" | "xpx86" | "5" | "5x86" | "winxp" | "winxp86" | "windowsxp" | "windows xp" )
-      VERSION="winxpx86"
-      ;;
+      VERSION="winxpx86" ;;
     "xp64" | "xpx64" | "5x64" | "winxp64" | "winxpx64" | "windowsxp64" | "windowsxpx64" )
-      VERSION="winxpx64"
-      ;;
+      VERSION="winxpx64" ;;
     "2k" | "2000" | "win2k" | "win2000" | "windows2k" | "windows2000" )
-      VERSION="win2kx86"
-      ;;
+      VERSION="win2kx86" ;;
     "25" | "2025" | "win25" | "win2025" | "windows2025" | "windows 2025" )
-      VERSION="win2025-eval"
-      ;;
+      VERSION="win2025-eval" ;;
     "22" | "2022" | "win22" | "win2022" | "windows2022" | "windows 2022" )
-      VERSION="win2022-eval"
-      ;;
+      VERSION="win2022-eval" ;;
     "19" | "2019" | "win19" | "win2019" | "windows2019" | "windows 2019" )
-      VERSION="win2019-eval"
-      ;;
+      VERSION="win2019-eval" ;;
     "16" | "2016" | "win16" | "win2016" | "windows2016" | "windows 2016" )
-      VERSION="win2016-eval"
-      ;;
+      VERSION="win2016-eval" ;;
     "hv" | "hyperv" | "hyper v" | "hyper-v" | "19hv" | "2019hv" | "win2019hv" )
-      VERSION="win2019-hv"
-      ;;
+      VERSION="win2019-hv" ;;
     "2012" | "2012r2" | "win2012" | "win2012r2" | "windows2012" | "windows 2012" )
-      VERSION="win2012r2-eval"
-      ;;
+      VERSION="win2012r2-eval" ;;
     "2008" | "2008r2" | "win2008" | "win2008r2" | "windows2008" | "windows 2008" )
-      VERSION="win2008r2"
-      ;;
+      VERSION="win2008r2" ;;
     "2003" | "2003r2" | "win2003" | "win2003r2" | "windows2003" | "windows 2003" )
-      VERSION="win2003r2"
-      ;;
+      VERSION="win2003r2" ;;
     "core11" | "core 11" )
-      VERSION="core11"
-      ;;
+      VERSION="core11" ;;
     "tiny11" | "tiny 11" )
-      VERSION="tiny11"
-      ;;
+      VERSION="tiny11" ;;
     "tiny10" | "tiny 10" )
-      VERSION="tiny10"
-      ;;
+      VERSION="tiny10" ;;
     "reactos" | "react os" )
-      VERSION="reactos"
-      ;;
+      VERSION="reactos" ;;
   esac
 
   SUGGEST=$(getSuggestedVersion "$VERSION")
@@ -172,29 +135,21 @@ getSuggestedVersion() {
 
   case "$id" in
     "win10x64" | "win11x64" )
-      echo "$id"
-      ;;
+      echo "$id" ;;
     "win7x64" | "win7x86" | "winvistax64" | "winvistax86" )
-      echo "$id-ultimate"
-      ;;
+      echo "$id-ultimate" ;;
     "tiny10" )
-      echo "win10x64-ltsc"
-      ;;
+      echo "win10x64-ltsc" ;;
     *"-enterprise-ltsc-eval" )
-      echo "${id%-enterprise-ltsc-eval}-ltsc"
-      ;;
+      echo "${id%-enterprise-ltsc-eval}-ltsc" ;;
     *"-enterprise-iot-eval" )
-      echo "${id%-enterprise-iot-eval}-iot"
-      ;;
+      echo "${id%-enterprise-iot-eval}-iot" ;;
     *"-enterprise-ltsc" )
-      echo "${id%-enterprise-ltsc}-ltsc"
-      ;;
+      echo "${id%-enterprise-ltsc}-ltsc" ;;
     *"-enterprise-iot" )
-      echo "${id%-enterprise-iot}-iot"
-      ;;
+      echo "${id%-enterprise-iot}-iot" ;;
     *"-eval" )
-      echo "${id%-eval}"
-      ;;
+      echo "${id%-eval}" ;;
   esac
 
   return 0
@@ -205,11 +160,8 @@ getLanguage() {
   local source="$1"
   local input="${1,,}"
   local ret="$2"
-  local id="$source"
-  local lang=""
-  local desc=""
-  local short=""
-  local culture=""
+
+  local id="$source" lang="" desc="" short="" culture=""
 
   case "$input" in
     "ar" | "ar-"* | "arabic" | "arab" )
@@ -496,14 +448,11 @@ printVariant() {
 
   case "${id,,}" in
     *"-iot" | *"-iot-eval" )
-      desc+=" IoT"
-      ;;
+      desc+=" IoT" ;;
     *"-ltsc" | *"-ltsc-eval" )
-      desc+=" LTSC"
-      ;;
+      desc+=" LTSC" ;;
     *"-enterprise" | *"-enterprise-eval" )
-      desc+=" Enterprise"
-      ;;
+      desc+=" Enterprise" ;;
   esac
 
   if enabled "$show_eval" && [[ "${id,,}" == *"-eval" ]]; then
@@ -540,6 +489,7 @@ printEdition() {
   local id="$1"
   local desc="$2"
   local show_eval="${3:-N}"
+
   local normalized="${id,,}"
   local result edition="" suffix=""
 
@@ -561,20 +511,15 @@ printEdition() {
           esac
           ;;
         "home" )
-          edition="Home"
-          ;;
+          edition="Home" ;;
         "starter" )
-          edition="Starter"
-          ;;
+          edition="Starter" ;;
         "ultimate" )
-          edition="Ultimate"
-          ;;
+          edition="Ultimate" ;;
         "enterprise" )
-          edition="Enterprise"
-          ;;
+          edition="Enterprise" ;;
         "education" )
-          edition="Education"
-          ;;
+          edition="Education" ;;
         "n" )
           case "$normalized" in
             "win7"* ) edition="Professional N" ;;
@@ -582,22 +527,18 @@ printEdition() {
           esac
           ;;
         "iot" | "enterprise-iot" )
-          edition="IoT Enterprise LTSC"
-          ;;
+          edition="IoT Enterprise LTSC" ;;
         "ltsc" | "enterprise-ltsc" )
-          edition="Enterprise LTSC"
-          ;;
+          edition="Enterprise LTSC" ;;
         * )
           edition=$(formatEdition "$suffix")
           ;;
       esac
       ;;
     "winxp"* )
-      edition="Professional"
-      ;;
+      edition="Professional" ;;
     "win2019-hv"* )
-      edition="2019"
-      ;;
+      edition="2019" ;;
     "win20"* )
       [[ "$normalized" == *"-"* ]] && suffix="${normalized#*-}"
 
@@ -625,10 +566,10 @@ printEdition() {
 
 fromFile() {
 
-  local id=""
   local desc="$1"
   local file="${1,,}"
-  local arch="${PLATFORM,,}"
+
+  local id="" arch="${PLATFORM,,}"
 
   file="${file//-/_}"
   file="${file// /_}"
@@ -694,9 +635,10 @@ fromFile() {
 
 fromName() {
 
-  local id=""
   local name="$1"
   local arch="$2"
+
+  local id=""
 
   local add=""
   [[ "$arch" != "x64" ]] && add="$arch"
@@ -723,9 +665,23 @@ fromName() {
   return 0
 }
 
+isClientEdition() {
+
+  case "${1,,}" in
+    "pro" | "professional" | "business" | \
+    "enterprise" | "ultimate" | "education" | \
+    "home" | "homepremium" | "home-premium" | \
+    "homebasic" | "home-basic" | "starter" | "core" )
+      return 0 ;;
+  esac
+
+  return 1
+}
+
 normalizeEdition() {
 
   local source="${1,,}"
+
   local edition
 
   source="${source//evaluation/}"
@@ -745,7 +701,7 @@ normalizeEdition() {
 
 normalizeEditionID() {
 
-  local edition
+  local edition base
   local id="$2"
 
   edition=$(normalizeEdition "$1")
@@ -753,8 +709,21 @@ normalizeEditionID() {
   case "$edition" in
     "pro" | "professional" | "business" )
       edition="" ;;
-    "pro-n" | "pron" | "professional-n" | "professionaln" )
+    "pro-n" | "pron" | "professional-n" | "professionaln" | "business-n" | "businessn" )
       edition="n" ;;
+    * )
+      if ! isClientEdition "$edition"; then
+        case "$edition" in
+          *"-n" ) base="${edition%-n}" ;;
+          *"n" ) base="${edition%n}" ;;
+          * ) base="" ;;
+        esac
+
+        if [ -n "$base" ] && isClientEdition "$base"; then
+          edition="$base-n"
+        fi
+
+      fi ;;
   esac
 
   case "${id,,}" in
@@ -778,6 +747,7 @@ getEditionID() {
 
   local name="${1,,}"
   local id="${2,,}"
+
   local edition
 
   case "$id" in
@@ -813,26 +783,19 @@ normalizeServerEdition() {
 
   case "$edition" in
     "core" | "core-installation" | "server-core-installation" )
-      edition="standard-core"
-      ;;
+      edition="standard-core" ;;
     "desktop-experience" | "server-with-a-gui" | "full-installation" )
-      edition="standard"
-      ;;
+      edition="standard" ;;
     *"-server-core-installation" )
-      edition="${edition%-server-core-installation}-core"
-      ;;
+      edition="${edition%-server-core-installation}-core" ;;
     *"-core-installation" )
-      edition="${edition%-core-installation}-core"
-      ;;
+      edition="${edition%-core-installation}-core" ;;
     *"-desktop-experience" )
-      edition="${edition%-desktop-experience}"
-      ;;
+      edition="${edition%-desktop-experience}" ;;
     *"-server-with-a-gui" )
-      edition="${edition%-server-with-a-gui}"
-      ;;
+      edition="${edition%-server-with-a-gui}" ;;
     *"-full-installation" )
-      edition="${edition%-full-installation}"
-      ;;
+      edition="${edition%-full-installation}" ;;
   esac
 
   edition="${edition#server-}"
@@ -879,6 +842,7 @@ getServerEditionID() {
 
   local name="${1,,}"
   local id="${2,,}"
+
   local edition
 
   case "$id" in
@@ -901,42 +865,36 @@ getServerEditionID() {
 getEditionOrder() {
 
   local id="${1,,}"
-  local result_name="$2"
-  local -n result="$result_name"
-
-  result=()
 
   case "$id" in
     "win20"* )
-      result=(
-        "|default|@default"
-        "-datacenter|datacenter|datacenter datacenter-*"
-        "-datacenter-azure|datacenter|datacenter-azure"
-        "-enterprise|enterprise|enterprise enterprise-*"
-        "-web|web|web web-*"
-        "-foundation|foundation|foundation foundation-*"
-        "-essentials|essentials|essentials essentials-*"
-        "-standard-core|standard-core|standard-core standard-core-*"
-        "-datacenter-core|datacenter-core|datacenter-core datacenter-core-*"
-        "-datacenter-azure-core|datacenter-core|datacenter-azure-core"
-        "-enterprise-core|enterprise-core|enterprise-core enterprise-core-*"
-        "-web-core|web-core|web-core web-core-*"
+      printf '%s\n' \
+        "|default|@default" \
+        "-datacenter|datacenter|datacenter datacenter-*" \
+        "-datacenter-azure|datacenter|datacenter-azure" \
+        "-enterprise|enterprise|enterprise enterprise-*" \
+        "-web|web|web web-*" \
+        "-foundation|foundation|foundation foundation-*" \
+        "-essentials|essentials|essentials essentials-*" \
+        "-standard-core|standard-core|standard-core standard-core-*" \
+        "-datacenter-core|datacenter-core|datacenter-core datacenter-core-*" \
+        "-datacenter-azure-core|datacenter-core|datacenter-azure-core" \
+        "-enterprise-core|enterprise-core|enterprise-core enterprise-core-*" \
+        "-web-core|web-core|web-core web-core-*" \
         "-hv|hv|hv hv-*"
-      )
       ;;
     * )
-      result=(
-        "-enterprise|enterprise|enterprise enterprise-*"
-        "-ultimate|ultimate|ultimate ultimate-*"
-        "|default|@default n pro pro-* professional professional-* business business-*"
-        "-iot|iot|iot iot-* enterprise-iot enterprise-iot-*"
-        "-ltsc|ltsc|ltsc ltsc-* enterprise-ltsc enterprise-ltsc-*"
-        "-education|education|education education-* pro-education pro-education-*"
-        "-home|home|home home-*"
-        "-home-premium|home|home-premium home-premium-*"
-        "-home-basic|home|home-basic home-basic-*"
+      printf '%s\n' \
+        "-enterprise|enterprise|enterprise enterprise-*" \
+        "-ultimate|ultimate|ultimate ultimate-*" \
+        "|default|@default n pro pro-* professional professional-* business business-*" \
+        "-iot|iot|iot iot-* enterprise-iot enterprise-iot-*" \
+        "-ltsc|ltsc|ltsc ltsc-* enterprise-ltsc enterprise-ltsc-*" \
+        "-education|education|education education-* pro-education pro-education-*" \
+        "-home|home|home home-*" \
+        "-home-premium|home|home-premium home-premium-*" \
+        "-home-basic|home|home-basic home-basic-*" \
         "-starter|starter|starter starter-*"
-      )
       ;;
   esac
 
@@ -945,9 +903,10 @@ getEditionOrder() {
 
 getVersion() {
 
-  local id edition
   local name="$1"
   local arch="$2"
+
+  local id edition
   local evaluation=""
 
   id=$(fromName "$name" "$arch")
@@ -1002,16 +961,11 @@ isLegacy() {
 
 switchEdition() {
 
-  local -n id="$1"
+  local version="$1"
 
-  [[ "${id,,}" == *"-eval" ]] || return 1
+  [[ "${version,,}" == *"-eval" ]] || return 1
 
-  id="${id::-5}"
-
-  if ! enabled "${DETECTED_ORG:-}"; then
-    DETECTED="${SUGGEST:-$id}"
-  fi
-
+  echo "${version::-5}"
   return 0
 }
 
@@ -1020,9 +974,8 @@ getMido() {
   local id="$1"
   local lang="$2"
   local ret="$3"
-  local url=""
-  local sum=""
-  local size=""
+
+  local url="" sum="" size=""
 
   [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
 
@@ -1119,9 +1072,8 @@ getLink1() {
   local id="$1"
   local lang="$2"
   local ret="$3"
-  local url=""
-  local sum=""
-  local size=""
+
+  local url="" sum="" size=""
   local host="https://dl.bobpony.com/windows"
 
   [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
@@ -1258,9 +1210,8 @@ getLink2() {
   local id="$1"
   local lang="$2"
   local ret="$3"
-  local url=""
-  local sum=""
-  local size=""
+
+  local url="" sum="" size=""
   local host="https://files.dog/MSDN"
 
   [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
@@ -1352,9 +1303,8 @@ getLink3() {
   local id="$1"
   local lang="$2"
   local ret="$3"
-  local url=""
-  local sum=""
-  local size=""
+
+  local url="" sum="" size=""
   local host="https://iso.reactos.org"
 
   [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
@@ -1381,9 +1331,8 @@ getLink4() {
   local id="$1"
   local lang="$2"
   local ret="$3"
-  local url=""
-  local sum=""
-  local size=""
+
+  local url="" sum="" size=""
   local host="https://archive.org/download"
 
   [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
@@ -1552,11 +1501,12 @@ getLink4() {
 
 getValue() {
 
-  local val=""
   local id="$2"
   local lang="$3"
   local type="$4"
   local func="getLink$1"
+
+  local val=""
 
   if [ "$1" -gt 0 ] && [ "$1" -le "$MIRRORS" ]; then
     val=$($func "$id" "$lang" "$type")
@@ -1585,6 +1535,7 @@ isMido() {
 
   local id="$1"
   local lang="$2"
+
   local sum
 
   disabled "${MIDO:-}" && return 1
@@ -1607,8 +1558,7 @@ isESD() {
     "win10${PLATFORM,,}" | \
     "win11${PLATFORM,,}-enterprise" | \
     "win10${PLATFORM,,}-enterprise" )
-      return 0
-      ;;
+      return 0 ;;
   esac
 
   return 1
@@ -1627,10 +1577,8 @@ validVersion() {
   isESD "$id" "$lang" && return 0
 
   for ((i=1;i<=MIRRORS;i++)); do
-
     url=$(getLink "$i" "$id" "$lang")
     [ -n "$url" ] && return 0
-
   done
 
   return 1

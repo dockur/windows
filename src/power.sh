@@ -23,6 +23,8 @@ bootStatus() {
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
     local line last recent
 
+    # Only inspect output produced after the most recent BIOS boot attempt so
+    # stale failures from an earlier device do not affect the current state.
     line=$(grep -nE '^Booting from (Hard Disk|DVD/CD)' "$QEMU_PTY" | tail -1)
     [ -z "$line" ] && return 1
 
@@ -38,6 +40,9 @@ bootStatus() {
       return 2
     fi
 
+    # These BIOS messages only describe the failed device attempt. QEMU may
+    # immediately continue with another boot target, so clear pending success
+    # instead of treating them as a terminal failure.
     if grep -Fq \
       -e "Boot failed: not a bootable disk" \
       -e "Boot failed: Could not read from CDROM" \
@@ -59,6 +64,8 @@ bootStatus() {
 
   local line last recent
 
+  # OVMF logs every boot option it tries. Track the newest attempt and only
+  # evaluate messages emitted from that point onward.
   line=$(grep -nE \
     'BdsDxe: starting Boot[[:xdigit:]]{4} ' \
     "$QEMU_PTY" | tail -1)
@@ -105,6 +112,8 @@ waitForBoot() {
 
   while isAlive "$pid"; do
 
+    # Send the boot key once, either immediately after the prompt appears or
+    # shortly after firmware starts the DVD when the prompt is not logged.
     if (( ! keySent )) && needsBootKey; then
 
       if keyDelay=$(bootKeyDelay); then
@@ -151,6 +160,9 @@ waitForBoot() {
 
         marker=$(getBootMarker)
 
+        # A firmware boot line alone is not proof that the guest started. Wait
+        # briefly for a more definitive success or failure message, restarting
+        # the grace period whenever firmware begins a different boot attempt.
         if [[ "$marker" != "$pendingLine" ]] || (( status != pendingType )); then
           pendingLine="$marker"
           pendingType=$status
@@ -173,6 +185,8 @@ waitForBoot() {
 
       5)
 
+        # A failed device attempt is transitional because firmware may continue
+        # with another target. Discard any pending success decision.
         pendingType=0
         pendingLine=""
         pendingDeadline=0
@@ -213,6 +227,8 @@ legacyBootReady() {
   last="${line#*:}"
   recent=$(tail -n +"${line%%:*}" "$QEMU_PTY")
 
+  # ACPI shutdown is safe once BIOS has handed control to the hard disk, unless
+  # the same attempt already produced a known boot failure.
   [[ "${last,,}" != "${hard,,}"* ]] && return 1
 
   grep -Fq "Loading FreeLoader..." <<< "$recent" && return 0
@@ -226,6 +242,8 @@ legacyBootReady() {
 
 ready() {
 
+  # The marker means installation completed previously, so shutdown no longer
+  # needs to infer guest readiness from firmware output.
   [ -f "$STORAGE/windows.boot" ] && return 0
   [ ! -s "$QEMU_PTY" ] && return 1
 
@@ -239,6 +257,8 @@ ready() {
     'BdsDxe: starting Boot[[:xdigit:]]{4} ' \
     "$QEMU_PTY" | tail -1)
 
+  # Only a Windows Boot Manager entry loaded from a hard disk proves that setup
+  # has progressed far enough for an ACPI shutdown request to be appropriate.
   grep -Eq \
     'BdsDxe: starting Boot[[:xdigit:]]{4} "Windows Boot Manager" from .*HD\(' \
     <<< "$last" && return 0
@@ -258,6 +278,8 @@ sendKey() {
   [ ! -S "$ACPI_SOCKET" ] && return 1
   [[ "$delay" != "0" ]] && sleep "$delay"
 
+  # Send all repeats through one monitor connection so timing remains stable
+  # and QEMU receives the sequence as one operation.
   if ! output=$(
     {
       for ((i = 1; i <= repeat; i++)); do
@@ -272,6 +294,8 @@ sendKey() {
     return 1
   fi
 
+  # The human monitor may return success at the transport level while reporting
+  # a command error in its text response, so inspect that output explicitly.
   if grep -Eqi \
     -e 'unknown command' \
     -e 'unknown key' \
@@ -312,11 +336,14 @@ bootKeyDelay() {
 
   [ ! -s "$QEMU_PTY" ] && return 1
 
+  # A visible prompt is the safest trigger and should be answered immediately.
   if grep -Fq "Press any key to" "$QEMU_PTY"; then
     echo 0
     return 0
   fi
 
+  # Some firmware or Windows versions do not log the prompt. In that case wait
+  # briefly after the DVD boot attempt and send several short key presses.
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
     grep -Fq "Booting from DVD/CD" "$QEMU_PTY" || return 1
   else
@@ -351,7 +378,8 @@ markWindowsBooted() {
     return 0
   fi
 
-  # Remove CD-ROM ISO after install
+  # Do not remove installation media until firmware output confirms Windows is
+  # now booting from the installed disk rather than from setup media.
   ready || return 0
 
   if ! touch "$file"; then
@@ -376,6 +404,8 @@ finish() {
 
   local reason=$1 failed=0
 
+  # QEMU_END distinguishes an expected shutdown path from an unexpected QEMU
+  # exit carrying the same process status.
   if [ ! -f "$QEMU_END" ] && (( reason != 0 )); then
     failed=1
   fi
@@ -412,6 +442,8 @@ abortDuringSetup() {
 
   local code="$1"
 
+  # Before Windows boots from disk, ACPI may be ignored or interpreted by setup
+  # itself. Terminate QEMU directly instead of waiting for a graceful shutdown.
   if [[ "${DETECTED,,}" != "reactos" ]] || [ -n "${CUSTOM:-}" ]; then
     info "Cannot send ACPI signal during $(app) setup, aborting..."
   else
@@ -432,12 +464,16 @@ gracefulShutdown() {
   local sig="$1"
   local pid code
 
+  # Traps can run in subshells created by pipelines or command substitutions;
+  # only the original shell may coordinate QEMU shutdown.
   [[ $BASHPID != "$TRAP_PID" ]] && return
 
   code=$(signalCode "$sig")
 
   if [ -f "$QEMU_END" ]; then
 
+    # A second Ctrl-C during an active shutdown skips the remaining grace period
+    # and lets the shutdown loop force QEMU down immediately.
     if (( code == 130 && SHUTDOWN_SIGNAL == code )); then
       SHUTDOWN_SKIP=1
       echo && info "Received SIGINT again, forcing shutdown..."
@@ -448,12 +484,16 @@ gracefulShutdown() {
     return
   fi
 
+  # Signal handlers must complete their own error handling and cleanup without
+  # errexit terminating the shell partway through the shutdown sequence.
   set +e
   SHUTDOWN_SIGNAL=$code
 
   touch "$QEMU_END"
   echo && info "Received $sig signal, sending ACPI shutdown signal..."
 
+  # Interactive startup may receive a signal before the PID file appears, so
+  # briefly wait for it there; non-interactive operation fails immediately.
   if ! readQemuPid pid; then
     if ! interactive || ! waitQemuPid pid; then
       warn "QEMU PID file does not exist?"
@@ -479,6 +519,8 @@ gracefulShutdown() {
 enabled "$SHUTDOWN" || return 0
 [ -n "${QEMU_TIMEOUT:-}" ] && TIMEOUT="$QEMU_TIMEOUT"
 
+# Keep Ctrl-C available to interactive users without installing an unnecessary
+# SIGINT handler for background/container execution.
 if interactive; then
   _trap gracefulShutdown SIGINT
 fi
