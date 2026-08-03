@@ -964,6 +964,191 @@ readWimHeader() {
   return 0
 }
 
+readIsoImageInfo() {
+
+  local iso="$1"
+  local image="$2"
+  local header="$3"
+  local result_name="$4"
+
+  local raw result root xml_count
+  local header_size version
+  local part_number total_parts image_count
+  local xml_offset xml_size xml_original xml_flags
+  local -a bytes=()
+
+  printf -v "$result_name" '%s' ""
+
+  if [ ! -f "$header" ]; then
+    return 1
+  fi
+
+  if ! raw=$(od -An -v -N208 -tu1 -- "$header"); then
+    return 1
+  fi
+
+  read -r -a bytes <<< "${raw//$'\n'/ }"
+
+  if (( ${#bytes[@]} != 208 )); then
+    return 1
+  fi
+
+  # Validate the MSWIM\0\0\0 signature.
+  if (( bytes[0] != 77 ||
+        bytes[1] != 83 ||
+        bytes[2] != 87 ||
+        bytes[3] != 73 ||
+        bytes[4] != 77 ||
+        bytes[5] != 0 ||
+        bytes[6] != 0 ||
+        bytes[7] != 0 )); then
+    return 1
+  fi
+
+  # Header size at offset 0x08.
+  header_size=$(
+    (bytes[8]) |
+    (bytes[9] << 8) |
+    (bytes[10] << 16) |
+    (bytes[11] << 24)
+  )
+
+  if (( header_size != 208 )); then
+    return 1
+  fi
+
+  # WIM version at offset 0x0c.
+  version=$(
+    (bytes[12]) |
+    (bytes[13] << 8) |
+    (bytes[14] << 16) |
+    (bytes[15] << 24)
+  )
+
+  if (( version != 0x10d00 &&
+        version != 0x0e00 )); then
+    return 1
+  fi
+
+  # Split-WIM information at offsets 0x28 and 0x2a.
+  part_number=$(
+    (bytes[40]) |
+    (bytes[41] << 8)
+  )
+
+  total_parts=$(
+    (bytes[42]) |
+    (bytes[43] << 8)
+  )
+
+  if (( part_number == 0 ||
+        total_parts == 0 ||
+        part_number > total_parts )); then
+    return 1
+  fi
+
+  # Image count at offset 0x2c.
+  image_count=$(
+    (bytes[44]) |
+    (bytes[45] << 8) |
+    (bytes[46] << 16) |
+    (bytes[47] << 24)
+  )
+
+  if (( image_count == 0 ||
+        image_count > 65535 )); then
+    return 1
+  fi
+
+  if ! parseWimHeader \
+      "$iso" \
+      "$image" \
+      "$header" \
+      xml_offset \
+      xml_size \
+      xml_original \
+      xml_flags; then
+    return 1
+  fi
+
+  if [[ ! "$xml_offset" =~ ^[0-9]+$ ||
+    ! "$xml_size" =~ ^[0-9]+$ ||
+    ! "$xml_original" =~ ^[0-9]+$ ||
+    ! "$xml_flags" =~ ^[0-9]+$ ]]; then
+    return 1
+  fi
+
+  if (( xml_size == 0 ||
+        xml_original == 0 ||
+        xml_size != xml_original ||
+        xml_size % 2 != 0 )); then
+    return 1
+  fi
+
+  # These resource forms cannot be read as a direct UTF-16LE byte range:
+  #
+  # 0x04: compressed
+  # 0x08: spanned
+  # 0x10: solid
+  #
+  # The metadata flag 0x02 is expected and is deliberately allowed.
+  if (( xml_flags & 0x1c )); then
+    return 1
+  fi
+
+  result=$(
+    udfread range \
+      --ignore-case \
+      "$iso" \
+      "$image" \
+      "$xml_offset" \
+      "$xml_size" \
+      2>/dev/null |
+      iconv -f UTF-16LE -t UTF-8 2>/dev/null
+  ) || {
+    local rc=$?
+
+    if (( rc >= 129 )); then
+      exit "$rc"
+    fi
+
+    return 1
+  }
+
+  [ -n "$result" ] || return 1
+
+  root=$(
+    xmllint \
+      --nonet \
+      --xpath 'name(/*)' \
+      - \
+      2>/dev/null <<< "$result"
+  ) || return 1
+
+  if [ "$root" != "WIM" ]; then
+    return 1
+  fi
+
+  xml_count=$(
+    xmllint \
+      --nonet \
+      --xpath 'count(/WIM/IMAGE)' \
+      - \
+      2>/dev/null <<< "$result"
+  ) || return 1
+
+  if [[ ! "$xml_count" =~ ^[0-9]+$ ]]; then
+    return 1
+  fi
+
+  if (( xml_count != image_count )); then
+    return 1
+  fi
+
+  printf -v "$result_name" '%s' "$result"
+  return 0
+}
+
 parseWimHeader() {
 
   local iso="$1"
