@@ -1407,7 +1407,7 @@ updateImage() {
     validateGeneratedXML "$answer" || return 1
 
     if [ -z "${CUSTOM_XML:-}" ]; then
-      prepareSetupScript "$asset" "$tmp/setup" script || exit 84
+      script=$(prepareSetupScript "$asset" "$tmp/setup") || exit 84
     fi
 
     if ! wimlib-imagex update "$wim" "$idx" --command "add $answer /$xml" > /dev/null; then
