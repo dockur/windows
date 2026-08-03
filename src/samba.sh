@@ -22,32 +22,32 @@ configureNetwork() {
 
   if enabled "$DHCP"; then
 
-    hostname="$UPLINK"
-    interfaces="$DEV"
+    SAMBA_HOSTNAME="$UPLINK"
+    SAMBA_INTERFACES="$DEV"
 
   else
 
-    hostname="host.lan"
+    SAMBA_HOSTNAME="host.lan"
 
     # User-mode networking has no host bridge to bind to, so expose Samba only
     # through loopback and let QEMU's forwarding provide guest access.
     if isUserMode; then
-      interfaces="lo"
+      SAMBA_INTERFACES="lo"
     else
-      interfaces="$BRIDGE"
+      SAMBA_INTERFACES="$BRIDGE"
     fi
 
     if [ -n "${SAMBA_INTERFACE:-}" ]; then
-      interfaces+=",$SAMBA_INTERFACE"
+      SAMBA_INTERFACES+=",$SAMBA_INTERFACE"
     fi
 
   fi
 
   # NetBIOS names are limited to 15 visible characters.
-  netbios="${hostname%%.*}"
-  netbios="${netbios:0:15}"
+  SAMBA_NETBIOS="${SAMBA_HOSTNAME%%.*}"
+  SAMBA_NETBIOS="${SAMBA_NETBIOS:0:15}"
 
-  [ -z "$netbios" ] && netbios="host"
+  [ -z "$SAMBA_NETBIOS" ] && SAMBA_NETBIOS="host"
 
   return 0
 }
@@ -213,9 +213,9 @@ writeConfig() {
   if ! {
     echo "[global]"
     echo "    server string = Dockur"
-    echo "    netbios name = $netbios"
+    echo "    netbios name = $SAMBA_NETBIOS"
     echo "    workgroup = WORKGROUP"
-    echo "    interfaces = $interfaces"
+    echo "    interfaces = $SAMBA_INTERFACES"
     echo "    bind interfaces only = yes"
     echo "    security = user"
     echo "    guest account = nobody"
@@ -263,11 +263,11 @@ selectPrimaryShare() {
 
   # Prefer explicit root-level bind mounts, then storage-local compatibility
   # paths. When none exist, publish an instructional read-only share.
-  share="/shared"
-  [ ! -d "$share" ] && [ -d "$STORAGE/shared" ] && share="$STORAGE/shared"
-  [ ! -d "$share" ] && [ -d "/data" ] && share="/data"
-  [ ! -d "$share" ] && [ -d "$STORAGE/data" ] && share="$STORAGE/data"
-  [ ! -d "$share" ] && share="$tmp"
+  SAMBA_SHARE="/shared"
+  [ ! -d "$SAMBA_SHARE" ] && [ -d "$STORAGE/shared" ] && SAMBA_SHARE="$STORAGE/shared"
+  [ ! -d "$SAMBA_SHARE" ] && [ -d "/data" ] && SAMBA_SHARE="/data"
+  [ ! -d "$SAMBA_SHARE" ] && [ -d "$STORAGE/data" ] && SAMBA_SHARE="$STORAGE/data"
+  [ ! -d "$SAMBA_SHARE" ] && SAMBA_SHARE="$tmp"
 
   return 0
 }
@@ -360,7 +360,7 @@ startWsddn() {
   # wsddn accepts one interface, while Samba may bind to an additional
   # user-supplied interface as well.
   startDaemon "wsddn" "/var/log/wsddn.log" \
-    wsddn -i "${interfaces%%,*}" -H "$hostname" \
+    wsddn -i "${SAMBA_INTERFACES%%,*}" -H "$SAMBA_HOSTNAME" \
       --unixd --log-file=/var/log/wsddn.log --pid-file="$DDN_PID"
 
   return 0
@@ -372,10 +372,9 @@ html "Initializing shared folder..."
 enabled "$DEBUG" && echo "Starting Samba daemon..."
 
 writeConfig || return 0
-
 selectPrimaryShare || return 0
 
-addShare "$share" "/shared" "Data" "Shared" "$SAMBA_CONFIG" || return 0
+addShare "$SAMBA_SHARE" "/shared" "Data" "Shared" "$SAMBA_CONFIG" || return 0
 addOptionalShare "2" || :
 addOptionalShare "3" || :
 
