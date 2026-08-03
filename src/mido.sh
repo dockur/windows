@@ -1139,10 +1139,10 @@ downloadImage() {
   local version="$2"
   local lang="$3"
 
-  local requested="$version"
-  local detected="$DETECTED"  
+  local detected="$DETECTED"
+  local requested="$version" switched=""  
   local tried="n" success="n" seconds="5"
-  local i url sum size base language desc web_desc 
+  local i url sum size base language desc web_desc
 
   if [[ "${version,,}" == "http"* ]]; then
 
@@ -1220,9 +1220,11 @@ downloadImage() {
     fi
   fi
 
-  # Some editions share another download route. Update the effective version
-  # before looking up ESD catalogs and mirrors.
-  if version=$(switchEdition "$version"); then
+  # If an evaluation version was requested, switch to the 
+  # normal edition since none of the mirrors provide those.
+  if switched=$(switchEdition "$version"); then
+
+    version="$switched"
   
     if ! enabled "${DETECTED_ORG:-}"; then
       DETECTED="${SUGGEST:-$version}"
