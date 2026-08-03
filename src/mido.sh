@@ -6,6 +6,7 @@ handleCurlError() {
   local code="$1"
   local server="$2"
   local reason="${3:-}"
+
   local signal
 
   if [ -n "$reason" ] && (( code <= 125 )); then
@@ -29,8 +30,7 @@ handleCurlError() {
         SEGV | ABRT) error "Curl crashed with signal $signal." ;;
         "") error "Curl terminated with exit status $code." ;;
         *) error "Curl terminated due to signal $signal." ;;
-      esac
-      ;;
+      esac ;;
   esac
 
   return 1
@@ -91,11 +91,10 @@ downloadWindowsLink() {
   local desc="$6"
   local type="$7"
 
-  local skuId skuJson
-  local linkJson link
-  local ovData ovTime session
   local ovToken="" ovTicks=""
   local profile="606624d44113"
+  local skuId skuJson linkJson
+  local link ovData ovTime session
 
   # Prefer the Linux kernel UUID source, with uuidgen as a portable fallback
   # for macOS and systems without /proc.
@@ -233,9 +232,8 @@ downloadWindows() {
   local lang="$2"
   local desc="$3"
 
-  local agent language
-  local page productId
-  local type winVer
+  local agent language page
+  local productId type winVer
 
   agent=$(getAgent)
   language=$(getLanguage "$lang" "name")
@@ -244,22 +242,18 @@ downloadWindows() {
     "win10x64" )
       productId="2618"
       winVer="10"
-      type="1"
-      ;;
+      type="1" ;;
     "win11x64" )
       productId="3321"
       winVer="11"
-      type="1"
-      ;;
+      type="1" ;;
     "win11arm64" )
       productId="3324"
       winVer="11arm64"
-      type="2"
-      ;;
+      type="2" ;;
     * )
       error "Invalid VERSION specified, value \"$id\" is not recognized!"
-      return 1
-      ;;
+      return 1 ;;
   esac
 
   local url="https://www.microsoft.com/en-us/software-download/windows$winVer"
@@ -310,6 +304,7 @@ downloadWindowsEval() {
   local id="$1"
   local lang="$2"
   local desc="$3"
+
   local culture compare type
   local agent language winVer
 
@@ -500,14 +495,11 @@ getMidoDetected() {
   # Derive the normal answer-file identity from the requested download route.
   case "$default" in
     *"-enterprise-ltsc-eval" )
-      default="${default%-enterprise-ltsc-eval}-ltsc"
-      ;;
+      default="${default%-enterprise-ltsc-eval}-ltsc" ;;
     *"-enterprise-iot-eval" )
-      default="${default%-enterprise-iot-eval}-iot"
-      ;;
+      default="${default%-enterprise-iot-eval}-iot" ;;
     *"-eval" )
-      default="${default%-eval}"
-      ;;
+      default="${default%-eval}" ;;
   esac
 
   # Preserve a genuinely different DETECTED override.
@@ -519,17 +511,13 @@ getMidoDetected() {
   # Select the answer-file identity for the source that actually succeeded.
   case "$source" in
     *"-enterprise-ltsc-eval" )
-      detected="${source%-enterprise-ltsc-eval}-ltsc-eval"
-      ;;
+      detected="${source%-enterprise-ltsc-eval}-ltsc-eval" ;;
     *"-enterprise-iot-eval" )
-      detected="${source%-enterprise-iot-eval}-iot-eval"
-      ;;
+      detected="${source%-enterprise-iot-eval}-iot-eval" ;;
     *"-eval" )
-      detected="$source"
-      ;;
+      detected="$source" ;;
     * )
-      detected="${current:-$default}"
-      ;;
+      detected="${current:-$default}" ;;
   esac
 
   echo "$detected"
@@ -541,19 +529,17 @@ downloadWindowsLtsc() {
   local id="$1"
   local lang="$2"
   local desc="$3"
+
   local alternate alternate_desc
 
   case "${id,,}" in
     "win11${PLATFORM,,}-enterprise-iot-eval" )
-      alternate="win11${PLATFORM,,}-enterprise-ltsc-eval"
-      ;;
+      alternate="win11${PLATFORM,,}-enterprise-ltsc-eval" ;;
     "win11${PLATFORM,,}-enterprise-ltsc-eval" )
-      alternate="win11${PLATFORM,,}-enterprise-iot-eval"
-      ;;
+      alternate="win11${PLATFORM,,}-enterprise-iot-eval" ;;
     * )
       error "Invalid VERSION specified, value \"$id\" is not recognized!"
-      return 1
-      ;;
+      return 1 ;;
   esac
 
   # IoT and LTSC share related evaluation sources and may become unavailable
@@ -582,6 +568,7 @@ getWindows() {
   local lang="$2"
   local desc="$3"
   local web_desc="$4"
+
   local language edition
 
   MIDO_SOURCE=""
@@ -635,8 +622,7 @@ getWindows() {
     "win11${PLATFORM,,}-enterprise-iot-eval" | \
     "win11${PLATFORM,,}-enterprise-ltsc-eval" )
 
-      downloadWindowsLtsc "$version" "$lang" "$edition" && return 0
-      ;;
+      downloadWindowsLtsc "$version" "$lang" "$edition" && return 0 ;;
 
     "win11${PLATFORM,,}-enterprise"* )
 
@@ -657,8 +643,7 @@ getWindows() {
 
     * )
       error "Invalid VERSION specified, value \"$version\" is not recognized!"
-      return 1
-      ;;
+      return 1 ;;
   esac
 
   # Static catalog URLs are the last resort after live Microsoft methods are
@@ -681,11 +666,10 @@ getBuild() {
 
   local id="$1"
   local ret="$2"
-  local url=""
-  local name=""
   local build="$3"
-  local edition=""
+
   local file="catalog.xml"
+  local url="" name="" edition=""
 
   case "${id,,}" in
     "win11${PLATFORM,,}" )
@@ -711,10 +695,9 @@ getCatalog() {
 
   local id="$1"
   local ret="$2"
-  local url=""
-  local name=""
-  local edition=""
+
   local file="catalog.cab"
+  local url="" name="" edition=""
 
   if [[ "${id,,}" == "win11"* ]] && ! isCompatible; then
     # ARMv8.0 cannot run Windows 11 builds 24H2 and up.
@@ -760,13 +743,10 @@ parseESD() {
   local edition="$5"
   local culture="$6"
 
-  local file_match=0
-  local language_match=0
-  local separator=$'\x1f'
-  local xmlFile="${xml##*/}"
-  local file_edition file_culture
-  local file_path file_sum file_size
-  local records architecture language
+  local xmlFile="${xml##*/}"  
+  local file_path file_sum file_size file_edition
+  local file_culture file_match=0 language_match=0
+  local records architecture language separator=$'\x1f'
 
   ESD=""
   ESD_SUM=""
@@ -965,8 +945,7 @@ isCompressed() {
   case "${url,,}" in
     *.7z | *.zip | *.rar | *.tar | *.cab | *.cpio | \
     *.lzh | *.lha | *.xar | */latest-x86-gcc-lin-rel )
-      return 0
-      ;;
+      return 0 ;;
   esac
 
   return 1
@@ -1042,9 +1021,10 @@ downloadFile() {
   local desc="$4"
   local web_desc="$5"
   local connections="${6:-1}"
+
+  local domain dots
   local msg="Downloading $web_desc"
   local console_msg="Downloading $desc"
-  local domain dots
 
   # Keep mirror messages concise by reducing subdomains to the final two
   # labels, while Microsoft downloads retain the generic description.
@@ -1076,6 +1056,7 @@ tryDownload() {
   local desc="$6"
   local seconds="$7"
   local web_desc="$8"
+
   local total minimum="104857600"
 
   # Compressed archives can legitimately be much smaller than the ISO they
@@ -1130,8 +1111,8 @@ fallbackEnglish() {
   local lang="$3"
   local desc="$4"
   local web_desc="$5"
-  local culture web_msg
 
+  local culture web_msg
   local msg="No working download method was found for $desc, falling back to English..."
   info "$msg"
 
@@ -1157,12 +1138,11 @@ downloadImage() {
   local iso="$1"
   local version="$2"
   local lang="$3"
+
   local requested="$version"
-  local tried="n"
-  local success="n"
-  local seconds="5"
-  local detected="$DETECTED"
-  local url sum size base desc web_desc language i
+  local detected="$DETECTED"  
+  local tried="n" success="n" seconds="5"
+  local i url sum size base language desc web_desc 
 
   if [[ "${version,,}" == "http"* ]]; then
 
