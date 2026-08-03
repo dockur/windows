@@ -124,8 +124,7 @@ configureMachine() {
     return 0
   fi
 
-  # Direct-boot media skips all unattended installation preparation.
-  if bootDirect "$DETECTED"; then
+  if ! supportsUnattended "$DETECTED"; then
     abortInstall "$dir" "$iso" "$boot" || return 83
     handled=1
     return 0
