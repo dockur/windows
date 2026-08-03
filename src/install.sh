@@ -258,7 +258,7 @@ startInstall() {
   skipInstall "$BOOT" "$previousBase" && return 1
 
   if [ -z "$previousBase" ] && hasDisk; then
-    if ! backup ""; then
+    if ! backupPrevious ""; then
       warn "the backup was incomplete, continuing with installation..."
     fi
   fi
@@ -420,7 +420,7 @@ skipInstall() {
 
       info "Detected that $method, a backup of your previous installation will be saved..."
 
-      if ! backup "$STORAGE/$previousBase"; then
+      if ! backupPrevious "$STORAGE/$previousBase"; then
         warn "the backup was incomplete, continuing with installation..."
       fi
 
@@ -886,11 +886,7 @@ setMachine() {
   local dir="$3"
   local desc="$4"
 
-  if [[ "${id,,}" != "win9"* ]]; then
-    ETFS="boot/etfsboot.com"
-  else
-    ETFS="[BOOT]/Boot-1.44M.img"
-  fi
+  ETFS="boot/etfsboot.com"
 
   local version=""
   case "${id,,}" in
@@ -1495,7 +1491,7 @@ reserveSambaPorts() {
   return 0
 }
 
-backup () {
+backupPrevious () {
 
   local iso="$1"
 
