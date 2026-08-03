@@ -723,6 +723,19 @@ fromName() {
   return 0
 }
 
+isClientEdition() {
+
+  case "${1,,}" in
+    "pro" | "professional" | "business" | \
+    "enterprise" | "ultimate" | "education" | \
+    "home" | "homepremium" | "home-premium" | \
+    "homebasic" | "home-basic" | "starter" | "core" )
+      return 0 ;;
+  esac
+
+  return 1
+}
+
 normalizeEdition() {
 
   local source="${1,,}"
@@ -745,7 +758,7 @@ normalizeEdition() {
 
 normalizeEditionID() {
 
-  local edition
+  local edition base
   local id="$2"
 
   edition=$(normalizeEdition "$1")
@@ -753,8 +766,22 @@ normalizeEditionID() {
   case "$edition" in
     "pro" | "professional" | "business" )
       edition="" ;;
-    "pro-n" | "pron" | "professional-n" | "professionaln" )
+    "pro-n" | "pron" | "professional-n" | "professionaln" | "business-n" | "businessn" )
       edition="n" ;;
+    * )
+      if ! isClientEdition "$edition"; then
+
+        case "$edition" in
+          *"-n" ) base="${edition%-n}" ;;
+          *"n" ) base="${edition%n}" ;;
+          * ) base="" ;;
+        esac
+
+        if [ -n "$base" ] && isClientEdition "$base"; then
+          edition="$base-n"
+        fi
+
+      fi ;;
   esac
 
   case "${id,,}" in
