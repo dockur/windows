@@ -181,10 +181,7 @@ getVersions() {
 
   platform=$(getPlatform "$xml") || return 1
 
-  image_count=$(xmlstarlet sel \
-    -T -t \
-    -v 'count(/WIM/IMAGE)' \
-    - 2>/dev/null <<< "$xml") || return 1
+  image_count=$(xmlstarlet sel -T -t -v 'count(/WIM/IMAGE)' - 2>/dev/null <<< "$xml") || return 1
 
   if [[ ! "$image_count" =~ ^[0-9]+$ ]]; then
     error "Invalid image count in WIM metadata: '$image_count'"
@@ -211,8 +208,7 @@ getVersions() {
     return 1
   fi
 
-  while IFS="$separator" read -r \
-    image_index display product image edition_id install_type flags; do
+  while IFS="$separator" read -r image_index display product image edition_id install_type flags; do
 
     ((record_count += 1))
 
@@ -251,16 +247,12 @@ getVersions() {
 
     evaluation=""
 
-    if [[ "${image,,}" == *"evaluation"* ||
-      "${display,,}" == *"evaluation"* ||
-      "${product,,}" == *"evaluation"* ||
-      "${edition_id,,}" == *"eval"* ||
-      "${flags,,}" == *"eval"* ]]; then
+    if [[ "${image,,}" == *"evaluation"* || "${display,,}" == *"evaluation"* ||
+      "${product,,}" == *"evaluation"* || "${edition_id,,}" == *"eval"* || "${flags,,}" == *"eval"* ]]; then
       evaluation="-eval"
     fi
 
-    if [ -n "$evaluation" ] &&
-      [[ "${candidate_id,,}" != *"-eval" ]]; then
+    if [ -n "$evaluation" ] && [[ "${candidate_id,,}" != *"-eval" ]]; then
       candidate_id+="$evaluation"
     fi
 
@@ -274,18 +266,15 @@ getVersions() {
 
       case "${candidate_base,,}" in
         "winvista"* | "win7"* | "win8"* | "win10"* | "win11"* )
-          structured=$(normalizeEditionID \
-            "${edition_id:-${flags:-}}" "$candidate_base") || return 1
+          structured=$(normalizeEditionID "${edition_id:-${flags:-}}" "$candidate_base") || return 1
           ;;
         "win20"* )
-          structured=$(normalizeServerEditionID \
-            "${flags:-$edition_id}") || return 1
+          structured=$(normalizeServerEditionID "${flags:-$edition_id}") || return 1
 
           # Some media use the same EDITIONID for Core and Desktop images.
           # INSTALLATIONTYPE provides the structural distinction without
           # requiring a hardcoded marketing name.
-          if [[ "${install_type,,}" == *"core"* &&
-            "$structured" != *"-core" ]]; then
+          if [[ "${install_type,,}" == *"core"* && "$structured" != *"-core" ]]; then
             structured+="-core"
           fi
           ;;
@@ -469,8 +458,7 @@ detectVersion() {
 
   mapfile -t selection_order < <(getEditionOrder "${bases[0]}")
 
-  if selectEdition versions bases groups image_indexes \
-      "$suggested" result index "$normalize" selection_order; then
+  if selectEdition versions bases groups image_indexes "$suggested" result index "$normalize" selection_order; then
     printf '%s\n%s\n' "$result" "$index"
     return 0
   fi
@@ -509,10 +497,7 @@ detectLanguage() {
   lang=""
 
   for path in "${paths[@]}"; do
-    lang=$(xmlstarlet sel \
-      -T -t \
-      -v "normalize-space(string(($path)[1]))" \
-      - 2>/dev/null <<< "$xml") || lang=""
+    lang=$(xmlstarlet sel -T -t -v "normalize-space(string(($path)[1]))" - 2>/dev/null <<< "$xml") || lang=""
 
     [ -n "$lang" ] && break
   done
@@ -553,9 +538,7 @@ getImageSize() {
 
   # The setup image uses FAT32, so reject files that cannot be represented even
   # when the image itself has enough free space.
-  large_file=$(find -L "${paths[@]}" \
-    -type f -size +4294967295c \
-    -print -quit) || return 1
+  large_file=$(find -L "${paths[@]}" -type f -size +4294967295c -print -quit) || return 1
 
   if [ -n "$large_file" ]; then
     error "Setup file exceeds the FAT32 limit: $large_file"
@@ -564,9 +547,7 @@ getImageSize() {
 
   for path in "${paths[@]}"; do
 
-    if ! read -r bytes _ < <(
-      du -Llsb --apparent-size -- "$path"
-    ); then
+    if ! read -r bytes _ < <(du -Llsb --apparent-size -- "$path"); then
       error "Failed to calculate setup size!"
       return 1
     fi
@@ -655,24 +636,14 @@ createSetupImage() {
   # image, so a partial write never becomes boot media.
   rm -f -- "$tmp" || return 1
 
-  if ! mformat \
-    -i "$tmp" \
-    -C \
-    -F \
-    -T "$sectors" \
-    -v "SETUP" \
-    ::; then
+  if ! mformat -i "$tmp" -C -F -T "$sectors" -v "SETUP" ::; then
     rm -f -- "$tmp"
     error "Failed to format setup image!"
     return 1
   fi
 
   mapfile -d '' entries < <(
-    find "$stage" \
-      -mindepth 1 \
-      -maxdepth 1 \
-      ! -name '.overlay-install.bat' \
-      -print0
+    find "$stage" -mindepth 1 -maxdepth 1 ! -name '.overlay-install.bat' -print0
   )
 
   # Process substitution hides the find status, so wait for it explicitly.
@@ -693,8 +664,7 @@ createSetupImage() {
   done
 
   if [ -n "$folder" ] || [ -f "$install" ]; then
-    if ! createImageDirectory "$tmp" "::/\$OEM\$" ||
-      ! createImageDirectory "$tmp" "::/\$OEM\$/\$1" ||
+    if ! createImageDirectory "$tmp" "::/\$OEM\$" || ! createImageDirectory "$tmp" "::/\$OEM\$/\$1" ||
       ! createImageDirectory "$tmp" "$target"; then
       rm -f -- "$tmp"
       error "Failed to create OEM directory in setup image!"
@@ -901,11 +871,7 @@ detectReactOS() {
   local marker
 
   marker=$(find "$dir" -maxdepth 2 -type f \
-    \( \
-      -ipath '*/reactos/reactos.inf' -o \
-      -ipath '*/reactos/unattend.inf' \
-    \) \
-    -print -quit) || return 1
+    \( -ipath '*/reactos/reactos.inf' -o -ipath '*/reactos/unattend.inf' \) -print -quit) || return 1
 
   [ -n "$marker" ] || return 1
 
@@ -977,15 +943,9 @@ findIsoImage() {
   local path
 
   # Prefer install.wim when both payload forms are present.
-  for path in \
-    /sources/install.wim \
-    /sources/install.esd; do
+  for path in /sources/install.wim /sources/install.esd; do
 
-    if udfread stat \
-        --ignore-case \
-        "$iso" \
-        "$path" \
-        >/dev/null 2>&1; then
+    if udfread stat --ignore-case "$iso" "$path" >/dev/null 2>&1; then
 
       printf '%s' "$path"
       return 0
@@ -1008,18 +968,9 @@ readWimHeader() {
 
   # Read only the fixed WIM header so metadata can be located without
   # extracting install.wim or install.esd from the ISO.
-  if ! udfread range \
-      --ignore-case \
-      -o "$header" \
-      "$iso" \
-      "$image" \
-      0 \
-      208 \
-      >/dev/null 2>&1 ||
-      ! size=$(stat -c%s -- "$header") ||
-      (( size != 208 )) ||
-      ! signature=$(od -An -N8 -tx1 "$header" | tr -d ' \n') ||
-      [[ "$signature" != "4d5357494d000000" ]]; then
+  if ! udfread range --ignore-case -o "$header" "$iso" "$image" 0 208 >/dev/null 2>&1 ||
+      ! size=$(stat -c%s -- "$header") || (( size != 208 )) ||
+      ! signature=$(od -An -N8 -tx1 "$header" | tr -d ' \n') || [[ "$signature" != "4d5357494d000000" ]]; then
 
     rm -f -- "$header"
     return 1
@@ -1226,25 +1177,15 @@ parseWimHeader() {
     parsed_original=$((parsed_original * 256 + bytes[i]))
   done
 
-  if (( parsed_size <= 0 ||
-        parsed_offset < header_size ||
-        parsed_original <= 0 )); then
+  if (( parsed_size <= 0 || parsed_offset < header_size || parsed_original <= 0 )); then
     return 1
   fi
 
-  if ! details=$(udfread stat \
-      --ignore-case \
-      "$iso" \
-      "$image" \
-      2>/dev/null); then
+  if ! details=$(udfread stat --ignore-case "$iso" "$image" 2>/dev/null); then
     return 1
   fi
 
-  image_size=$(
-    sed -n \
-      's/^Size: \([0-9][0-9]*\) bytes$/\1/p' \
-      <<< "$details"
-  )
+  image_size=$(sed -n 's/^Size: \([0-9][0-9]*\) bytes$/\1/p' <<< "$details")
 
   if [[ ! "$image_size" =~ ^[0-9]+$ ]]; then
     return 1
@@ -1254,11 +1195,7 @@ parseWimHeader() {
     return 1
   fi
 
-  printf '%s\n' \
-    "$parsed_offset" \
-    "$parsed_size" \
-    "$parsed_original" \
-    "$parsed_flags"
+  printf '%s\n' "$parsed_offset" "$parsed_size" "$parsed_original" "$parsed_flags"
 
   return 0
 }
@@ -1275,8 +1212,7 @@ findImage() {
     return 1
   fi
 
-  result=$(find "$sources" -maxdepth 1 -type f \
-    \( -iname install.wim -or -iname install.esd \) -print -quit)
+  result=$(find "$sources" -maxdepth 1 -type f \( -iname install.wim -or -iname install.esd \) -print -quit)
 
   if [ ! -f "$result" ]; then
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
@@ -1292,8 +1228,7 @@ readImageInfo() {
   local wim="$1"
   local result
 
-  result=$(wimlib-imagex info -xml "$wim" |
-    iconv -f UTF-16LE -t UTF-8) || {
+  result=$(wimlib-imagex info -xml "$wim" | iconv -f UTF-16LE -t UTF-8) || {
     local rc=$?
 
     if (( rc >= 129 )); then
@@ -1328,8 +1263,7 @@ validateEdition() {
 
   [ -n "$edition" ] || return 0
 
-  if [[ "${DETECTED,,}" == *"-${edition,,}" ||
-    "${DETECTED,,}" == *"-${edition,,}-eval" ]]; then
+  if [[ "${DETECTED,,}" == *"-${edition,,}" || "${DETECTED,,}" == *"-${edition,,}-eval" ]]; then
     return 0
   fi
 
@@ -1383,8 +1317,7 @@ configureImage() {
   # the final supported path when neither can be generated.
   setXML "" "$index" && return 0
 
-  if [[ "$DETECTED" == "win81x86"* ||
-    "$DETECTED" == "win10x86"* ]]; then
+  if [[ "$DETECTED" == "win81x86"* || "$DETECTED" == "win10x86"* ]]; then
     error "The 32-bit version of $desc is not supported!"
     exit 67
   fi
@@ -1610,9 +1543,7 @@ EOC
   output="${output#"${output%%[!$'\r\n ']*}"}"
   output="${output%"${output##*[!$'\r\n ']}"}"
 
-  if grep -Eq \
-    '^(ERROR|WARNING|SECURITY) LEVEL ISSUES:$' \
-    <<< "$output"; then
+  if grep -Eq '^(ERROR|WARNING|SECURITY) LEVEL ISSUES:$' <<< "$output"; then
 
     warn "possible issues were detected in $source:"
     printf '\n%s\n\n' "$output" >&2
@@ -1744,13 +1675,7 @@ extractBootImage() {
 
   # isoinfo reports the boot offset in 2048-byte sectors, while dd below uses
   # 512-byte blocks, hence the factor of four.
-  if ! dd \
-      "if=$iso" \
-      "of=$dir/$ETFS" \
-      bs=512 \
-      "count=$BOOT_LOAD_SIZE" \
-      "skip=$((offset * 4))" \
-      status=none; then
+  if ! dd "if=$iso" "of=$dir/$ETFS" bs=512 "count=$BOOT_LOAD_SIZE" "skip=$((offset * 4))" status=none; then
 
     rm -f "$dir/$ETFS" || true
     error "Failed to extract boot image from $desc ISO!"
