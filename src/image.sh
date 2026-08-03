@@ -1040,7 +1040,7 @@ readIsoImageInfo() {
   local header_size version
   local part_number total_parts image_count
   local xml_offset xml_size xml_original xml_flags
-  local -a bytes=()
+  local -a bytes=() values=()
 
   [ -f "$header" ] || return 1
   raw=$(od -An -v -N208 -tu1 -- "$header") || return 1
@@ -1096,14 +1096,13 @@ readIsoImageInfo() {
 
   (( image_count > 0 && image_count <= 65535 )) || return 1
 
-  parseWimHeader \
-    "$iso" \
-    "$image" \
-    "$header" \
-    xml_offset \
-    xml_size \
-    xml_original \
-    xml_flags || return 1
+  result=$(parseWimHeader "$iso" "$image" "$header") || return 1
+  mapfile -t values <<< "$result"
+  (( ${#values[@]} == 4 )) || return 1
+  xml_offset="${values[0]}"
+  xml_size="${values[1]}"
+  xml_original="${values[2]}"
+  xml_flags="${values[3]}"
 
   [[ "$xml_offset" =~ ^[0-9]+$ &&
      "$xml_size" =~ ^[0-9]+$ &&
@@ -1168,15 +1167,6 @@ parseWimHeader() {
   local iso="$1"
   local image="$2"
   local header="$3"
-  local offset_name="$4"
-  local size_name="$5"
-  local original_name="$6"
-  local flags_name="$7"
-
-  local -n offset_ref="$offset_name"
-  local -n size_ref="$size_name"
-  local -n original_ref="$original_name"
-  local -n flags_ref="$flags_name"
 
   local -a bytes=()
   local header_size=0
@@ -1185,11 +1175,6 @@ parseWimHeader() {
   local parsed_offset=0
   local parsed_original=0
   local details image_size raw
-
-  size_ref=""
-  flags_ref=""
-  offset_ref=""
-  original_ref=""
 
   if [ ! -f "$header" ] || [ ! -s "$header" ]; then
     return 1
@@ -1270,10 +1255,11 @@ parseWimHeader() {
     return 1
   fi
 
-  size_ref="$parsed_size"
-  flags_ref="$parsed_flags"
-  offset_ref="$parsed_offset"
-  original_ref="$parsed_original"
+  printf '%s\n' \
+    "$parsed_offset" \
+    "$parsed_size" \
+    "$parsed_original" \
+    "$parsed_flags"
 
   return 0
 }
