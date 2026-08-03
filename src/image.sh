@@ -1004,37 +1004,34 @@ findIsoImage() {
 
 readWimHeader() {
 
-  local rwh_iso="$1"
-  local rwh_image="$2"
-  local rwh_result_name="$3"
+  local iso="$1"
+  local image="$2"
 
-  local rwh_size rwh_signature
-  local rwh_header="$TMP/wim-header.bin"
+  local size signature
+  local header="$TMP/wim-header.bin"
 
-  printf -v "$rwh_result_name" '%s' ""
-
-  rm -f -- "$rwh_header" || return 1
+  rm -f -- "$header" || return 1
 
   # Read only the fixed WIM header so metadata can be located without
   # extracting install.wim or install.esd from the ISO.
   if ! udfread range \
       --ignore-case \
-      -o "$rwh_header" \
-      "$rwh_iso" \
-      "$rwh_image" \
+      -o "$header" \
+      "$iso" \
+      "$image" \
       0 \
       208 \
       >/dev/null 2>&1 ||
-      ! rwh_size=$(stat -c%s -- "$rwh_header") ||
-      (( rwh_size != 208 )) ||
-      ! rwh_signature=$(od -An -N8 -tx1 "$rwh_header" | tr -d ' \n') ||
-      [[ "$rwh_signature" != "4d5357494d000000" ]]; then
+      ! size=$(stat -c%s -- "$header") ||
+      (( size != 208 )) ||
+      ! signature=$(od -An -N8 -tx1 "$header" | tr -d ' \n') ||
+      [[ "$signature" != "4d5357494d000000" ]]; then
 
-    rm -f -- "$rwh_header"
+    rm -f -- "$header"
     return 1
   fi
 
-  printf -v "$rwh_result_name" '%s' "$rwh_header"
+  echo "$header"
   return 0
 }
 
@@ -1292,26 +1289,25 @@ parseWimHeader() {
 
 findImage() {
 
-  local fi_dir="$1"
-  local fi_result_name="$2"
+  local dir="$1"
+  local sources result
 
-  local fi_sources fi_result
-  fi_sources=$(find "$fi_dir" -maxdepth 1 -type d -iname sources -print -quit)
+  sources=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
 
-  if [ ! -d "$fi_sources" ]; then
+  if [ ! -d "$sources" ]; then
     warn "failed to locate 'sources' folder in ISO image, $FB"
     return 1
   fi
 
-  fi_result=$(find "$fi_sources" -maxdepth 1 -type f \
+  result=$(find "$sources" -maxdepth 1 -type f \
     \( -iname install.wim -or -iname install.esd \) -print -quit)
 
-  if [ ! -f "$fi_result" ]; then
+  if [ ! -f "$result" ]; then
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
     return 1
   fi
 
-  printf -v "$fi_result_name" '%s' "$fi_result"
+  echo "$result"
   return 0
 }
 
@@ -1476,7 +1472,7 @@ detectIsoImage() {
   # back to extraction; return 2 when metadata was read but configuration failed.
 
   findIsoImage "$iso" image || return 1
-  readWimHeader "$iso" "$image" header || return 1
+  header=$(readWimHeader "$iso" "$image") || return 1
   readIsoImageInfo "$iso" "$image" "$header" image_info || return 1
 
   info "Detecting version from ISO image..."
@@ -1500,7 +1496,7 @@ detectImage() {
   fi
 
   local wim
-  findImage "$dir" wim || return 1
+  wim=$(findImage "$dir") || return 1
 
   local image_info
   readImageInfo "$wim" image_info || return 1
