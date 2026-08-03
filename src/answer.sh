@@ -1396,8 +1396,7 @@ updateDiskID() {
   esac
 
   if ! sed -i -E \
-    "s#<DiskID>[[:space:]]*$current[[:space:]]*</DiskID>#<DiskID>$target</DiskID>#g" \
-    "$asset"; then
+    "s#<DiskID>[[:space:]]*${current}[[:space:]]*</DiskID>#<DiskID>$target</DiskID>#g" \    "$asset"; then
     error "Failed to update DiskID in answer file: $asset"
     return 1
   fi
@@ -1471,7 +1470,7 @@ setConfigurationXML() {
     if [ "$userdata_count" -gt 0 ]; then
 
       if ! xmlstarlet ed \
-        -i "$userdata[1]" \
+        -i "${userdata}[1]" \
         -t elem \
         -n "UseConfigurationSet" \
         -v "true" \
