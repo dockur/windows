@@ -1006,24 +1006,24 @@ readIsoImageInfo() {
   fi
 
   # Header size at offset 0x08.
-  header_size=$(
-    (bytes[8]) |
-    (bytes[9] << 8) |
-    (bytes[10] << 16) |
-    (bytes[11] << 24)
-  )
+  header_size=$(( \
+    bytes[8] |
+    bytes[9] << 8 |
+    bytes[10] << 16 |
+    bytes[11] << 24
+  ))
 
   if (( header_size != 208 )); then
     return 1
   fi
 
   # WIM version at offset 0x0c.
-  version=$(
-    (bytes[12]) |
-    (bytes[13] << 8) |
-    (bytes[14] << 16) |
-    (bytes[15] << 24)
-  )
+  version=$(( \
+    bytes[12] |
+    bytes[13] << 8 |
+    bytes[14] << 16 |
+    bytes[15] << 24
+  ))
 
   if (( version != 0x10d00 &&
         version != 0x0e00 )); then
@@ -1031,15 +1031,15 @@ readIsoImageInfo() {
   fi
 
   # Split-WIM information at offsets 0x28 and 0x2a.
-  part_number=$(
-    (bytes[40]) |
-    (bytes[41] << 8)
-  )
+  part_number=$(( \
+    bytes[40] |
+    bytes[41] << 8
+  ))
 
-  total_parts=$(
-    (bytes[42]) |
-    (bytes[43] << 8)
-  )
+  total_parts=$(( \
+    bytes[42] |
+    bytes[43] << 8
+  ))
 
   if (( part_number == 0 ||
         total_parts == 0 ||
@@ -1048,12 +1048,12 @@ readIsoImageInfo() {
   fi
 
   # Image count at offset 0x2c.
-  image_count=$(
-    (bytes[44]) |
-    (bytes[45] << 8) |
-    (bytes[46] << 16) |
-    (bytes[47] << 24)
-  )
+  image_count=$(( \
+    bytes[44] |
+    bytes[45] << 8 |
+    bytes[46] << 16 |
+    bytes[47] << 24
+  ))
 
   if (( image_count == 0 ||
         image_count > 65535 )); then
@@ -1085,13 +1085,13 @@ readIsoImageInfo() {
     return 1
   fi
 
-  # These resource forms cannot be read as a direct UTF-16LE byte range:
+  # These resource forms cannot be decoded as a direct UTF-16LE byte range:
   #
   # 0x04: compressed
   # 0x08: spanned
   # 0x10: solid
   #
-  # The metadata flag 0x02 is expected and is deliberately allowed.
+  # The metadata flag 0x02 is expected and deliberately allowed.
   if (( xml_flags & 0x1c )); then
     return 1
   fi
