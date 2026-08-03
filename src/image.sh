@@ -204,8 +204,7 @@ getVersions() {
       -v 'normalize-space(NAME)' -o "$separator" \
       -v 'normalize-space(WINDOWS/EDITIONID)' -o "$separator" \
       -v 'normalize-space(WINDOWS/INSTALLATIONTYPE)' -o "$separator" \
-      -v 'normalize-space(FLAGS)' \
-      -n \
+      -v 'normalize-space(FLAGS)' -n \
     - 2>/dev/null <<< "$xml"); then
     error "Failed to read image records from WIM metadata!"
 
