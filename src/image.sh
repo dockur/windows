@@ -20,17 +20,15 @@ hasVersion() {
 getCompatibleVersions() {
 
   local wanted="$1"
-  local result_name="$2"
-  local -n result_ref="$result_name"
 
-  result_ref=("$wanted")
+  printf '%s\n' "$wanted"
 
   # Treat normal and Evaluation variants of the same edition as compatible.
   # The exact requested variant is always checked first.
   if [[ "${wanted,,}" == *"-eval" ]]; then
-    result_ref+=("${wanted%-eval}")
+    printf '%s\n' "${wanted%-eval}"
   else
-    result_ref+=("$wanted-eval")
+    printf '%s\n' "$wanted-eval"
   fi
 }
 
@@ -341,7 +339,7 @@ selectVersion() {
   for wanted in "${preference_list[@]}"; do
 
     [ -n "$wanted" ] || continue
-    getCompatibleVersions "$wanted" candidates
+    mapfile -t candidates < <(getCompatibleVersions "$wanted")
 
     for candidate in "${candidates[@]}"; do
 
@@ -448,43 +446,43 @@ detectVersion() {
 
   local xml="$1"
   local suggested="${2:-}"
-  local result_name="$3"
-  local index_name="$4"
 
   local -a bases=()
   local -a groups=()
   local -a versions=()
   local -A image_indexes=()
   local -a selection_order=()
-
-  printf -v "$result_name" '%s' ""
-  printf -v "$index_name" '%s' ""
+  local result="" index=""
 
   getVersions "$xml" versions bases groups image_indexes || return 1
 
-  [ "${#versions[@]}" -eq 0 ] && return 0
+  if [ "${#versions[@]}" -eq 0 ]; then
+    printf '%s\n%s\n' "$result" "$index"
+    return 0
+  fi
 
-  local normalize_name="normalizeEditionID"
+  local normalize="normalizeEditionID"
 
   case "${bases[0],,}" in
     "win20"* )
-      normalize_name="normalizeServerEditionID" ;;
+      normalize="normalizeServerEditionID" ;;
   esac
 
   mapfile -t selection_order < <(getEditionOrder "${bases[0]}")
 
-  selectEdition versions bases groups image_indexes \
-    "$suggested" "$result_name" "$index_name" "$normalize_name" \
-    selection_order && return 0
+  if selectEdition versions bases groups image_indexes \
+      "$suggested" result index "$normalize" selection_order; then
+    printf '%s\n%s\n' "$result" "$index"
+    return 0
+  fi
 
   # Keep the first detected image identity when no edition with a usable answer
   # file was found, so manual and generic fallback handling can still continue.
-  local result="${versions[0]}"
+  result="${versions[0]}"
   local key="${result,,}"
+  index="${image_indexes[$key]}"
 
-  printf -v "$result_name" '%s' "$result"
-  printf -v "$index_name" '%s' "${image_indexes[$key]}"
-
+  printf '%s\n%s\n' "$result" "$index"
   return 0
 }
 
@@ -1433,11 +1431,14 @@ detectImageInfo() {
 
   suggested=$(getSuggestion) || return 1
 
-  detectVersion \
-    "$image_info" \
-    "$suggested" \
-    DETECTED \
-    index || return 1
+  local output
+  output=$(detectVersion "$image_info" "$suggested") || return 1
+
+  local -a detected=()
+  mapfile -t detected <<< "$output"
+
+  DETECTED="${detected[0]:-}"
+  index="${detected[1]:-}"
 
   validateEdition || return 1
 
