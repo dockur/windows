@@ -970,6 +970,122 @@ readWimHeader() {
   return 0
 }
 
+parseWimHeader() {
+
+  local iso="$1"
+  local image="$2"
+  local header="$3"
+  local offset_name="$4"
+  local size_name="$5"
+  local original_name="$6"
+  local flags_name="$7"
+
+  local -n offset_ref="$offset_name"
+  local -n size_ref="$size_name"
+  local -n original_ref="$original_name"
+  local -n flags_ref="$flags_name"
+
+  local details image_size raw
+  local header_size=0
+  local parsed_size=0
+  local parsed_offset=0
+  local parsed_original=0
+  local parsed_flags=0
+
+  local -a bytes=()
+
+  offset_ref=""
+  size_ref=""
+  original_ref=""
+  flags_ref=""
+
+  if [ ! -f "$header" ] || [ ! -s "$header" ]; then
+    return 1
+  fi
+
+  if ! raw=$(od -An -j8 -N88 -tu1 -- "$header"); then
+    return 1
+  fi
+
+  read -r -a bytes <<< "$raw"
+
+  if (( ${#bytes[@]} != 88 )); then
+    return 1
+  fi
+
+  local i
+  # The WIM header size is a 32-bit little-endian value at offset 0x08.
+  for ((i=3; i>=0; i--)); do
+    header_size=$((header_size * 256 + bytes[i]))
+  done
+
+  if (( header_size != 208 )); then
+    return 1
+  fi
+
+  # The XML resource descriptor starts at offset 0x48. Its first seven bytes
+  # contain the stored size and its eighth byte contains the resource flags.
+  for ((i=70; i>=64; i--)); do
+    parsed_size=$((parsed_size * 256 + bytes[i]))
+  done
+
+  parsed_flags="${bytes[71]}"
+
+  # The XML resource offset is an unsigned 64-bit little-endian value at 0x50.
+  if (( bytes[79] >= 128 )); then
+    return 1
+  fi
+
+  for ((i=79; i>=72; i--)); do
+    parsed_offset=$((parsed_offset * 256 + bytes[i]))
+  done
+
+  # The uncompressed XML size is an unsigned 64-bit value at offset 0x58.
+  if (( bytes[87] >= 128 )); then
+    return 1
+  fi
+
+  for ((i=87; i>=80; i--)); do
+    parsed_original=$((parsed_original * 256 + bytes[i]))
+  done
+
+  if (( parsed_size <= 0 ||
+        parsed_offset < header_size ||
+        parsed_original <= 0 )); then
+    return 1
+  fi
+
+  if ! details=$(udfread stat \
+      --ignore-case \
+      "$iso" \
+      "$image" \
+      2>/dev/null); then
+    return 1
+  fi
+
+  image_size=$(
+    sed -n \
+      's/^Size: \([0-9][0-9]*\) bytes$/\1/p' \
+      <<< "$details"
+  )
+
+  if [[ ! "$image_size" =~ ^[0-9]+$ ]]; then
+    return 1
+  fi
+
+  if (( parsed_offset > image_size ||
+        parsed_size > image_size - parsed_offset )); then
+    return 1
+  fi
+
+  offset_ref="$parsed_offset"
+  size_ref="$parsed_size"
+  original_ref="$parsed_original"
+  flags_ref="$parsed_flags"
+
+  return 0
+}
+
 findImage() {
 
   local dir="$1"
