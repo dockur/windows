@@ -1474,6 +1474,7 @@ detectIsoImage() {
 
   # Return 1 when direct ISO inspection is unavailable so the caller may fall
   # back to extraction; return 2 when metadata was read but configuration failed.
+
   findIsoImage "$iso" image || return 1
   readWimHeader "$iso" "$image" header || return 1
   readIsoImageInfo "$iso" "$image" "$header" image_info || return 1
