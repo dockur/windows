@@ -45,95 +45,91 @@ selectWindowsImage() {
   local boot="$3"
   local detect_rc=0
 
-  proceed=0
-
-  # If VERSION is specified we don't need the image metadata.
+  # Known versions already provide the required image metadata.
   if resolveImage "$VERSION"; then
 
     if ! setImage; then
       abortInstall "$dir" "$iso" "$boot" || return 70
+      handled=1
       return 0
     fi
 
-    # Some known image types still require extraction.
     if ! needsExtraction "$DETECTED" "$iso"; then
-      proceed=1
       return 0
     fi
 
     if ! extractImage "$iso" "$dir" "$VERSION"; then
-      removeIso "$iso" && return 72
+      removeIso "$iso" || :
+      return 72
     fi
 
     extracted=1
-    proceed=1
     return 0
 
   fi
 
-  # Inspect unknown/custom ISOs before falling back to extraction.
+  # Inspect unknown media directly before falling back to extraction.
   detectIsoImage "$iso" || detect_rc=$?
 
-  # Detection succeeded, so the original ISO can remain untouched.
   if (( detect_rc == 0 )); then
-    proceed=1
     return 0
   fi
 
-  # Only return code 1 means direct inspection was unavailable and extraction
-  # may still recover the image. Other failures indicate unusable media.
+  # Only code 1 indicates that extraction may recover detection.
   if (( detect_rc != 1 )); then
     abortInstall "$dir" "$iso" "$boot" || return 76
+    handled=1
     return 0
   fi
 
   if ! extractImage "$iso" "$dir" "$VERSION"; then
-    removeIso "$iso" && return 74
+    removeIso "$iso" || :
+    return 74
   fi
 
   extracted=1
 
-  # The legacy detector operates on the extracted filesystem.
-  if ! detectImage "$dir"; then
-    abortInstall "$dir" "$iso" "$boot" || return 76
+  if detectImage "$dir"; then
     return 0
   fi
 
-  proceed=1
+  abortInstall "$dir" "$iso" "$boot" || return 76
+  handled=1
   return 0
 }
 
-configureMachine() {
+configureWindowsMachine() {
 
   local iso="$1"
   local dir="$2"
   local boot="$3"
   local desc
 
-  proceed=0
-
   if ! desc=$(printVariant "$DETECTED" "$DETECTED"); then
     abortInstall "$dir" "$iso" "$boot" || return 78
+    handled=1
     return 0
   fi
 
   if ! setMachine "$DETECTED" "$iso" "$dir" "$desc"; then
     abortInstall "$dir" "$iso" "$boot" || return 80
+    handled=1
     return 0
   fi
 
   if ! restoreMachineState; then
     abortInstall "$dir" "$iso" "$boot" || return 82
+    handled=1
     return 0
   fi
 
-  # Some media must boot directly and skip all preparation.
+  # Direct-boot media skips all unattended installation preparation.
   if bootDirect "$DETECTED"; then
     abortInstall "$dir" "$iso" "$boot" || return 83
+    handled=1
     return 0
   fi
 
-  proceed=1
   return 0
 }
 
@@ -143,14 +139,12 @@ prepareWindowsImage() {
   local dir="$2"
   local boot="$3"
 
-  proceed=0
-
-  # Prefer the helper image method whenever Windows Setup can consume the original
-  # ISO directly. This avoids extracting and rebuilding the whole installation media.
+  # Prefer the original ISO with a small setup image whenever possible.
   if canUseSetupImage "$DETECTED" "$iso"; then
 
     if ! stageSetup "$XML" "$LANGUAGE" "$TMP/setup"; then
       abortInstall "$dir" "$iso" "$boot" || return 84
+      handled=1
       return 0
     fi
 
@@ -159,34 +153,70 @@ prepareWindowsImage() {
     fi
 
     useOriginalImage "$iso" || return 88
-
-    proceed=1
     return 0
 
   fi
 
-  # Fall back to extracting and rebuilding when Setup cannot use the original
-  # ISO directly, such as legacy media or formats requiring in-place changes.
+  # Legacy or modifiable media must be extracted, updated, and rebuilt.
   if (( ! extracted )); then
     if ! extractImage "$iso" "$dir" "$VERSION"; then
-      removeIso "$iso" && return 90
+      removeIso "$iso" || :
+      return 90
     fi
   fi
 
   if ! prepareImage "$iso" "$dir"; then
     abortInstall "$dir" "$iso" "$boot" || return 92
+    handled=1
     return 0
   fi
 
   if ! updateImage "$dir" "$XML" "$LANGUAGE"; then
     abortInstall "$dir" "$iso" "$boot" || return 94
+    handled=1
     return 0
   fi
 
   removeImage "$iso" || return 96
   buildImage "$dir" || return 98
 
-  proceed=1
+  return 0
+}
+
+startWindows() {
+
+  parseVersion || return 58
+  parseLanguage || return 62
+  detectCustom || return 64
+
+  if ! startInstall; then
+    bootWindows || return 66
+    return 0
+  fi
+
+  if ! hasImage "$ISO"; then
+    if ! downloadImage "$ISO" "$VERSION" "$LANGUAGE"; then
+      removeIso "$ISO" || :
+      return 68
+    fi
+  fi
+
+  local extracted=0
+  local handled=0
+  local boot="$BOOT"
+  local dir="$TMP/unpack"
+
+  selectWindowsImage "$ISO" "$dir" "$boot" || return $?
+  (( handled )) && return 0
+
+  configureWindowsMachine "$ISO" "$dir" "$boot" || return $?
+  (( handled )) && return 0
+
+  prepareWindowsImage "$ISO" "$dir" "$boot" || return $?
+  (( handled )) && return 0
+
+  finishInstall "$BOOT" "N" "$boot" || return 100
+
   return 0
 }
 
