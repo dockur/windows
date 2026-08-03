@@ -201,8 +201,8 @@ startWindows() {
     fi
   fi
 
-  local extracted=0
   local handled=0
+  local extracted=0
   local boot="$BOOT"
   local dir="$TMP/unpack"
 
