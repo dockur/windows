@@ -1120,14 +1120,12 @@ configureDomainAccounts() {
     if [ "$child_count" = "0" ]; then
       xmlstarlet ed -L \
         -N "u=$ns" \
-        -s "$shell" \
-          -t elem -n 'UserAccounts' \
+        -s "$shell" -t elem -n 'UserAccounts' \
         "$asset" || return 1
     else
       xmlstarlet ed -L \
         -N "u=$ns" \
-        -i "$shell/*[1]" \
-          -t elem -n 'UserAccounts' \
+        -i "$shell/*[1]" -t elem -n 'UserAccounts' \
         "$asset" || return 1
     fi
   fi
@@ -1150,64 +1148,38 @@ configureDomainAccounts() {
   # Insert DomainAccounts before AdministratorPassword when it exists to retain
   # the child order expected by the unattend schema.
   if [ "$administrator_count" = "1" ]; then
-    args+=(
-      -i "($administrator)[1]"
-        -t elem -n 'DomainAccounts'
-    )
+    args+=(-i "($administrator)[1]" -t elem -n 'DomainAccounts')
   else
-    args+=(
-      -s "$accounts"
-        -t elem -n 'DomainAccounts'
-    )
+    args+=(-s "$accounts" -t elem -n 'DomainAccounts')
   fi
 
   args+=(
-    -s "$created_accounts"
-      -t elem -n 'DomainAccountList'
-    -i "$account_list"
-      -t attr -n 'wcm:action' -v 'add'
-    -s "$account_list"
-      -t elem -n 'DomainAccount'
-    -i "$domain_account"
-      -t attr -n 'wcm:action' -v 'add'
-    -s "$domain_account"
-      -t elem -n 'Name'
-    -s "$domain_account"
-      -t elem -n 'Group' -v 'Administrators'
-    -s "$account_list"
-      -t elem -n 'Domain'
-    -a "$accounts"
-      -t elem -n 'AutoLogon'
-    -s "$created_autologon"
-      -t elem -n 'Username'
-    -s "$created_autologon"
-      -t elem -n 'Domain'
-    -s "$created_autologon"
-      -t elem -n 'Enabled' -v 'true'
-    -s "$created_autologon"
-      -t elem -n 'LogonCount' -v '65432'
-    -s "$created_autologon"
-      -t elem -n 'Password'
-    -s "$auto_password"
-      -t elem -n 'Value'
-    -s "$auto_password"
-      -t elem -n 'PlainText' -v 'true'
+    -s "$created_accounts" -t elem -n 'DomainAccountList'
+    -i "$account_list" -t attr -n 'wcm:action' -v 'add'
+    -s "$account_list" -t elem -n 'DomainAccount'
+    -i "$domain_account" -t attr -n 'wcm:action' -v 'add'
+    -s "$domain_account" -t elem -n 'Name'
+    -s "$domain_account" -t elem -n 'Group' -v 'Administrators'
+    -s "$account_list" -t elem -n 'Domain'
+    -a "$accounts" -t elem -n 'AutoLogon'
+    -s "$created_autologon" -t elem -n 'Username'
+    -s "$created_autologon" -t elem -n 'Domain'
+    -s "$created_autologon" -t elem -n 'Enabled' -v 'true'
+    -s "$created_autologon" -t elem -n 'LogonCount' -v '65432'
+    -s "$created_autologon" -t elem -n 'Password'
+    -s "$auto_password" -t elem -n 'Value'
+    -s "$auto_password" -t elem -n 'PlainText' -v 'true'
   )
 
   xmlstarlet ed "${args[@]}" "$asset" || return 1
 
   xmlstarlet ed -L \
     -N "u=$ns" \
-    -u "$domain_account/*[local-name()='Name']" \
-      -v "$account" \
-    -u "$account_list/*[local-name()='Domain']" \
-      -v "$domain" \
-    -u "$created_autologon/*[local-name()='Username']" \
-      -v "$account" \
-    -u "$created_autologon/*[local-name()='Domain']" \
-      -v "$domain" \
-    -u "$auto_password/*[local-name()='Value']" \
-      -v "$pass" \
+    -u "$domain_account/*[local-name()='Name']" -v "$account" \
+    -u "$account_list/*[local-name()='Domain']" -v "$domain" \
+    -u "$created_autologon/*[local-name()='Username']" -v "$account" \
+    -u "$created_autologon/*[local-name()='Domain']" -v "$domain" \
+    -u "$auto_password/*[local-name()='Value']" -v "$pass" \
     "$asset" || return 1
 
   return 0
