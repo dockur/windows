@@ -30,7 +30,7 @@ stageAnswer() {
   local language="$2"
   local stage="$3"
   local answer="$stage/Autounattend.xml"
-  local name
+  local script="" name
 
   if enabled "$MANUAL"; then
     removeGeneratedXML "$asset" || return 1
@@ -59,9 +59,9 @@ stageAnswer() {
     fi
   fi
 
-  if ! updateDiskID "$answer" "${DISK_TYPE:-}"; then
+  if ! updateDiskID "$answer" "${DISK_TYPE:-}" "setup"; then
     error "Failed to adjust the Windows installation disk!"
-    return 1
+    exit 85
   fi
 
   if ! setConfigurationXML "$answer"; then
@@ -70,6 +70,10 @@ stageAnswer() {
   fi
 
   validateGeneratedXML "$answer" || return 1
+
+  if [ -z "${CUSTOM_XML:-}" ]; then
+    prepareSetupScript "$asset" "$stage" script || exit 84
+  fi
 
   return 0
 }
@@ -332,14 +336,14 @@ updateXML() {
   if [ -n "$domain" ]; then
     prepareDomainAccount "$domain" account auth || return 1
   else
-    updateLocalAccountXML "$asset" || return 1
+    updateLocalAccount "$asset" || return 1
   fi
 
   sed -i -E \
     "s|<PlainText>[^<]*</PlainText>|<PlainText>false</PlainText>|g" \
     "$asset" || return 1
 
-  updateMembershipXML \
+  updateMembership \
     "$asset" \
     "$domain" \
     "$workgroup" \
@@ -347,11 +351,297 @@ updateXML() {
     "$auth" || return 1
 
   updateAutologinXML "$asset" || return 1
-  enableLog "$asset" || return 1
   updateEditionXML "$asset" || return 1
-  updateProductKeyXML "$asset" || return 1
-  removeSharedFolderXML "$asset" || return 1
   validateGeneratedXML "$asset" || return 1
+
+  return 0
+}
+
+prepareSetupScript() {
+
+  local asset="$1"
+  local stage="$2"
+  local result_name="$3"
+  local staged=""
+
+  printf -v "$result_name" '%s' ""
+
+  stageSetupScript "$asset" "$stage" staged || return 1
+  [ -n "$staged" ] || return 0
+
+  updateSetupScript "$staged" "$asset" || return 1
+  finalizeSetupScript "$staged" || return 1
+
+  printf -v "$result_name" '%s' "$staged"
+  return 0
+}
+
+updateSetupScript() {
+
+  local script="$1"
+  local asset="$2"
+  local domain="${DOMAIN:-}"
+  local user="${USERNAME:-}"
+  local content id
+
+  if [ ! -s "$script" ]; then
+    error "Failed to find staged setup script: $script"
+    return 1
+  fi
+
+  if [ -n "$domain" ]; then
+    removeSetupBlock "$script" "LOCAL_ACCOUNT" || return 1
+  elif [ -n "$user" ]; then
+    validateUsername "$user" "local" || return 1
+
+    id=$(basename "$asset") || return 1
+    id="${id%.*}"
+
+    case "${id,,}" in
+      "win10"* | "win11"* | \
+      "win2016"* | "win2019"* | "win2022"* | "win2025"* )
+        printf -v content '%s\n%s' \
+          'rem Prevent the local user password from expiring.' \
+          "powershell.exe -ExecutionPolicy Unrestricted -NoLogo -NoProfile -NonInteractive Set-LocalUser -Name \"$user\" -PasswordNeverExpires 1"
+        ;;
+      * )
+        printf -v content '%s\n%s' \
+          'rem Prevent the local user password from expiring.' \
+          "wmic useraccount where name=\"$user\" set PasswordExpires=false"
+        ;;
+    esac
+
+    replaceSetupBlock "$script" "LOCAL_ACCOUNT" "$content" || return 1
+  fi
+
+  enableLog "$script" || return 1
+  updateProductKey "$script" || return 1
+  removeSharedFolder "$script" || return 1
+
+  return 0
+}
+
+findSetupScript() {
+
+  local asset="$1"
+  local dir name id normal candidate
+  local candidates=()
+
+  [ -z "${CUSTOM_XML:-}" ] || return 0
+  [ -n "$asset" ] || return 1
+
+  dir=$(dirname "$asset") || return 1
+  name=$(basename "$asset") || return 1
+  id="${name%.*}"
+  normal="$id"
+
+  candidates+=("$dir/$id.cmd")
+
+  if [[ "${normal,,}" == *"-eval" ]]; then
+    normal="${normal::-5}"
+    candidates+=("$dir/$normal.cmd")
+  fi
+
+  # Generated edition-specific answer files inherit the script belonging to
+  # their generic source template.
+  case "${normal,,}" in
+    "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* | "win20"* )
+      candidates+=("$dir/${normal%%-*}.cmd")
+      ;;
+  esac
+
+  for candidate in "${candidates[@]}"; do
+    if [ -f "$candidate" ] && [ -s "$candidate" ]; then
+      printf '%s' "$candidate"
+      return 0
+    fi
+  done
+
+  error "Failed to find setup script for answer file: $asset"
+  return 1
+}
+
+stageSetupScript() {
+
+  local asset="$1"
+  local stage="$2"
+  local result_name="$3"
+  local source target
+
+  printf -v "$result_name" '%s' ""
+
+  source=$(findSetupScript "$asset") || return 1
+  [ -n "$source" ] || return 0
+
+  target="$stage/\$OEM\$/\$\$/Setup/Scripts/SetupComplete.cmd"
+
+  if ! mkdir -p "$(dirname "$target")"; then
+    error "Failed to create setup script directory!"
+    return 1
+  fi
+
+  if ! cp -L -- "$source" "$target"; then
+    error "Failed to stage setup script: $source"
+    return 1
+  fi
+
+  # Work on a normalized copy so marker updates are independent of the line
+  # endings stored in Git. The staged result is converted back to CRLF later.
+  if ! sed -i 's/\r$//' "$target"; then
+    error "Failed to normalize setup script: $target"
+    return 1
+  fi
+
+  validateSetupScript "$target" || return 1
+
+  printf -v "$result_name" '%s' "$target"
+  return 0
+}
+
+installSetupScript() {
+
+  local script="$1"
+  local root="$2"
+  local target
+
+  [ -n "$script" ] || return 0
+
+  if [ ! -s "$script" ]; then
+    error "Failed to find staged setup script: $script"
+    return 1
+  fi
+
+  target="$root/\$OEM\$/\$\$/Setup/Scripts/SetupComplete.cmd"
+
+  if ! mkdir -p "$(dirname "$target")"; then
+    error "Failed to create setup script directory!"
+    return 1
+  fi
+
+  if ! cp -f -- "$script" "$target"; then
+    error "Failed to add setup script to Windows image!"
+    return 1
+  fi
+
+  return 0
+}
+
+replaceSetupBlock() {
+
+  local file="$1"
+  local block="$2"
+  local content="$3"
+  local begin="rem BEGIN $block"
+  local end="rem END $block"
+  local line inside=0 tmp
+
+  validateSetupBlock "$file" "$block" || return 1
+
+  if ! tmp=$(mktemp "${file}.XXXXXX"); then
+    error "Failed to create temporary setup script!"
+    return 1
+  fi
+
+  while IFS= read -r line || [ -n "$line" ]; do
+
+    if [ "$line" = "$begin" ]; then
+      if ! printf '%s\n' "$line" >> "$tmp" ||
+        ! printf '%s\n' "$content" >> "$tmp"; then
+        rm -f "$tmp"
+        return 1
+      fi
+      inside=1
+      continue
+    fi
+
+    if [ "$line" = "$end" ]; then
+      inside=0
+      if ! printf '%s\n' "$line" >> "$tmp"; then
+        rm -f "$tmp"
+        return 1
+      fi
+      continue
+    fi
+
+    if (( ! inside )); then
+      if ! printf '%s\n' "$line" >> "$tmp"; then
+        rm -f "$tmp"
+        return 1
+      fi
+    fi
+
+  done < "$file"
+
+  if ! chmod --reference="$file" "$tmp" ||
+    ! mv -f -- "$tmp" "$file"; then
+    rm -f "$tmp"
+    error "Failed to replace the $block block in setup script: $file"
+    return 1
+  fi
+
+  return 0
+}
+
+removeSetupBlock() {
+
+  local file="$1"
+  local block="$2"
+  local begin="rem BEGIN $block"
+  local end="rem END $block"
+  local line inside=0 tmp
+
+  validateSetupBlock "$file" "$block" || return 1
+
+  if ! tmp=$(mktemp "${file}.XXXXXX"); then
+    error "Failed to create temporary setup script!"
+    return 1
+  fi
+
+  while IFS= read -r line || [ -n "$line" ]; do
+
+    if [ "$line" = "$begin" ]; then
+      inside=1
+      continue
+    fi
+
+    if [ "$line" = "$end" ]; then
+      inside=0
+      continue
+    fi
+
+    if (( ! inside )); then
+      if ! printf '%s\n' "$line" >> "$tmp"; then
+        rm -f "$tmp"
+        return 1
+      fi
+    fi
+
+  done < "$file"
+
+  if ! chmod --reference="$file" "$tmp" ||
+    ! mv -f -- "$tmp" "$file"; then
+    rm -f "$tmp"
+    error "Failed to remove the $block block from setup script: $file"
+    return 1
+  fi
+
+  return 0
+}
+
+finalizeSetupScript() {
+
+  local file="$1"
+
+  [ -n "$file" ] || return 0
+  if [ ! -s "$file" ]; then
+    error "Failed to find staged setup script: $file"
+    return 1
+  fi
+
+  if ! unix2dos -q "$file"; then
+    error "Failed to convert setup script to DOS format: $file"
+    return 1
+  fi
 
   return 0
 }
@@ -362,6 +652,55 @@ validateGeneratedXML() {
 
   if ! xmllint --nonet --noout "$asset"; then
     error "The generated answer file is not valid XML!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateSetupScript() {
+
+  local file="$1"
+  local block
+  local blocks=(
+    LOCAL_ACCOUNT
+    PRODUCT_KEY
+    SHARED_FOLDER
+    OEM_SCRIPT
+  )
+
+  [ -s "$file" ] || return 1
+
+  for block in "${blocks[@]}"; do
+    validateSetupBlock "$file" "$block" || return 1
+  done
+
+  return 0
+}
+
+validateSetupBlock() {
+
+  local file="$1"
+  local block="$2"
+  local begin="rem BEGIN $block"
+  local end="rem END $block"
+  local begin_count end_count begin_line end_line
+
+  [ -s "$file" ] || return 1
+
+  begin_count=$(grep -Fxc -- "$begin" "$file" || true)
+  end_count=$(grep -Fxc -- "$end" "$file" || true)
+
+  if [ "$begin_count" -ne 1 ] || [ "$end_count" -ne 1 ]; then
+    error "Invalid $block markers in setup script: $file"
+    return 1
+  fi
+
+  begin_line=$(grep -nFx -- "$begin" "$file" | cut -d: -f1) || return 1
+  end_line=$(grep -nFx -- "$end" "$file" | cut -d: -f1) || return 1
+
+  if [ "$begin_line" -ge "$end_line" ]; then
+    error "Invalid $block marker order in setup script: $file"
     return 1
   fi
 
@@ -881,7 +1220,7 @@ updateLocaleXML() {
   return 0
 }
 
-updateLocalAccountXML() {
+updateLocalAccount() {
 
   local asset="$1"
   local user="${USERNAME:-}"
@@ -892,9 +1231,6 @@ updateLocalAccountXML() {
 
   if [ -n "$user" ]; then
     user_xml=$(escapeXMLSed "$user") || return 1
-
-    sed -i "s|-name \"Docker\"|-name \"\$env:USERNAME\"|g" "$asset" || return 1
-    sed -i 's|where name="Docker"|where name="%USERNAME%"|g' "$asset" || return 1
     sed -i "s|<Name>Docker</Name>|<Name>$user_xml</Name>|g" "$asset" || return 1
     sed -i "s|<FullName>Docker</FullName>|<FullName>$user_xml</FullName>|g" "$asset" || return 1
     sed -i "s|<Username>Docker</Username>|<Username>$user_xml</Username>|g" "$asset" || return 1
@@ -919,7 +1255,7 @@ updateLocalAccountXML() {
   return 0
 }
 
-updateMembershipXML() {
+updateMembership() {
 
   local asset="$1"
   local domain="$2"
@@ -941,7 +1277,7 @@ updateMembershipXML() {
       return 0
     fi
 
-    removeLocalAccountXML "$asset" || return 1
+    removeLocalAccount "$asset" || return 1
     return 0
   fi
 
@@ -986,28 +1322,22 @@ updateEditionXML() {
   return 0
 }
 
-updateProductKeyXML() {
+updateProductKey() {
 
-  local asset="$1"
-  local key
+  local script="$1"
+  local key="${KEY:-}"
+  local content
 
-  return 0 # TODO
+  if [ -z "$key" ]; then
+    removeSetupBlock "$script" "PRODUCT_KEY" || return 1
+    return 0
+  fi
 
-  [ -n "${KEY:-}" ] || return 0
+  printf -v content '%s\n%s' \
+    'rem Install the product key without activating Windows immediately.' \
+    "cscript.exe //B //Nologo \"%SystemRoot%\\System32\\slmgr.vbs\" /ipk \"$key\""
 
-  key=$(escapeXMLSed "$KEY") || return 1
-
-  sed -i -E \
-    '/^[[:space:]]*<ProductKey>[[:space:]]*$/,/^[[:space:]]*<\/ProductKey>[[:space:]]*$/d' \
-    "$asset" || return 1
-
-  sed -i -E \
-    "s|<ProductKey>[^<]*</ProductKey>|<ProductKey>$key</ProductKey>|g" \
-    "$asset" || return 1
-
-  sed -i \
-    "s|</UserData>|  <ProductKey>\n          <Key>$key</Key>\n          <WillShowUI>OnError</WillShowUI>\n        </ProductKey>\n      </UserData>|g" \
-    "$asset" || return 1
+  replaceSetupBlock "$script" "PRODUCT_KEY" "$content" || return 1
 
   return 0
 }
@@ -1016,23 +1346,56 @@ updateDiskID() {
 
   local asset="$1"
   local disk_type="${2,,}"
-
-  case "$disk_type" in
-    "" | "scsi" | "virtio-scsi" | "blk" | "virtio-blk" ) ;;
-    * ) return 0 ;;
-  esac
+  local mode="${3:-setup}"
+  local target="0"
+  local matches ids current count rc
 
   [ -s "$asset" ] || return 1
 
-  # Only adjust files that explicitly target Disk 0.
-  grep -Fq '<DiskID>0</DiskID>' "$asset" || return 0
+  case "$mode" in
+    "setup" )
+      case "$disk_type" in
+        "" | "scsi" | "virtio-scsi" | "blk" | "virtio-blk" ) target="1" ;;
+      esac
+      ;;
+    "image" ) ;;
+    * ) return 1 ;;
+  esac
 
-  # Leave multi-disk configurations untouched.
-  if grep -Eq '<DiskID>[[:space:]]*[1-9][0-9]*[[:space:]]*</DiskID>' "$asset"; then
-    return 0
+  matches=$(grep -oE '<DiskID>[[:space:]]*[0-9]+[[:space:]]*</DiskID>' "$asset") || {
+    rc=$?
+    if [ "$rc" -eq 1 ]; then
+      matches=""
+    else
+      error "Failed to read DiskID values from answer file: $asset"
+      return 1
+    fi
+  }
+
+  # Some custom answer files do not contain a disk configuration.
+  [ -n "$matches" ] || return 0
+
+  ids=$(printf '%s\n' "$matches" |
+    sed -E 's#.*<DiskID>[[:space:]]*([0-9]+)[[:space:]]*</DiskID>.*#\1#' |
+    sort -u) || return 1
+
+  count=$(printf '%s\n' "$ids" | wc -l) || return 1
+
+  # Leave explicit multi-disk configurations untouched.
+  [ "$count" -eq 1 ] || return 0
+
+  current="$ids"
+  [ "$current" = "$target" ] && return 0
+
+  if [ "$current" != "1" ]; then
+    error "The answer file must use DiskID 1 as its template value: $asset"
+    return 1
   fi
 
-  sed -i 's#<DiskID>0</DiskID>#<DiskID>1</DiskID>#g' "$asset" || return 1
+  if ! sed -i 's#<DiskID>1</DiskID>#<DiskID>0</DiskID>#g' "$asset"; then
+    error "Failed to update DiskID in answer file: $asset"
+    return 1
+  fi
 
   return 0
 }
@@ -1095,33 +1458,21 @@ setConfigurationXML() {
   return 0
 }
 
-removeSharedFolderXML() {
+removeSharedFolder() {
 
-  local asset="$1"
+  local script="$1"
 
   if ! disabled "${SHORTCUT:-}" &&
     ! disabled "${SAMBA:-}"; then
     return 0
   fi
 
-  if ! sed -i -E '
-    /<SynchronousCommand([[:space:]>])/ {
-      :command
-      N
-      /<\/SynchronousCommand>/!b command
-      /<Description>Create desktop shortcut to shared folder<\/Description>/d
-      /<Description>Map shared folder<\/Description>/d
-    }
-  ' "$asset"; then
-
-    error "Failed to remove shared folder shortcuts from answer file!"
-    return 1
-  fi
+  removeSetupBlock "$script" "SHARED_FOLDER" || return 1
 
   return 0
 }
 
-removeLocalAccountXML() {
+removeLocalAccount() {
 
   local asset="$1"
 
@@ -1134,42 +1485,21 @@ removeLocalAccountXML() {
     return 1
   fi
 
-  if ! sed -i -E '
-    /<SynchronousCommand([[:space:]>])/ {
-      :command
-      N
-      /<\/SynchronousCommand>/!b command
-      /<Description>Password Never Expires<\/Description>/d
-    }
-  ' "$asset"; then
-
-    error "Failed to remove local account commands from answer file!"
-    return 1
-  fi
-
   return 0
 }
 
 enableLog() {
 
-  local file="$1"
-  local old='C:\OEM\install.bat"</CommandLine>'
-  local msg="failed to enable install logging in the answer file!"
+  local script="$1"
+  local content
 
   enabled "${LOG:-}" || return 0
-  [ -f "$file" ] || return 1
 
-  if ! grep -Fq "$old" "$file"; then
-    enabled "$DEBUG" && warn "$msg"
-    return 0
-  fi
+  printf -v content '%s\n%s' \
+    'rem Launch the custom script asynchronously in a separate visible window.' \
+    'if exist "C:\OEM\install.bat" start "Install" cmd.exe /d /c ""C:\OEM\install.bat" > "C:\OEM\install.log" 2>&1"'
 
-  if ! sed -i \
-    's|C:\\OEM\\install\.bat"</CommandLine>|C:\\OEM\\install.bat \&gt; C:\\OEM\\install.log 2\&gt;\&amp;1"</CommandLine>|' \
-    "$file"; then
-
-    warn "$msg"
-  fi
+  replaceSetupBlock "$script" "OEM_SCRIPT" "$content" || return 1
 
   return 0
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-installWindows() {
+startWindows() {
 
   parseVersion || return 58
   parseLanguage || return 62
@@ -81,8 +81,7 @@ installWindows() {
     fi
 
     if ! createSetupImage "$TMP/setup" "$STORAGE/setup.img"; then
-      abortInstall "$dir" "$ISO" "$boot" || return 86
-      return 0
+      exit 86
     fi
 
     useOriginalImage "$ISO" || return 88
@@ -120,6 +119,7 @@ bootWindows() {
   restoreMachineState || return 1
   restoreBootMode || return 1
   restoreMachine || return 1
+  reserveSambaPorts || return 1
 
   return 0
 }
@@ -406,6 +406,8 @@ finishInstall() {
     fi
   fi
 
+  reserveSambaPorts || return 1
+
   rm -rf "$TMP"
   return 0
 }
@@ -439,7 +441,10 @@ findFile() {
 
   local size
   size="$(stat -c%s "$file")"
-  [ -z "$size" ] || [[ "$size" == "0" ]] && return 0
+
+  if [ -z "$size" ] || [[ "$size" == "0" ]]; then
+    return 0
+  fi
 
   ISO="$file"
   CUSTOM="$file"
@@ -779,25 +784,36 @@ setMachine() {
   local iso="$2"
   local dir="$3"
   local desc="$4"
-  local legacy=""
 
   ETFS="boot/etfsboot.com"
 
+  local version=""
   case "${id,,}" in
-    "win2k"* )   legacy="2k" ;;
-    "winxp"* )   legacy="xp" ;;
-    "win2003"* ) legacy="2k3" ;;
+    "win2k"* )   version="2k" ;;
+    "winxp"* )   version="xp" ;;
+    "win2003"* ) version="2k3" ;;
   esac
 
-  if [ -n "$legacy" ]; then
-    if ! legacyInstall "$iso" "$dir" "$desc" "$legacy"; then
+  if [ -n "$version" ]; then
+
+    if ! legacyInstall "$iso" "$dir" "$desc" "$version"; then
       error "Failed to prepare $desc ISO!"
       return 1
     fi
+
   fi
 
   if isLegacy "$id"; then
+
     writeState "mode" "windows_legacy" || return 1
+
+    case "${id,,}" in 
+      "win9"* | "win2k"* | "reactos" )
+        writeState "vga" "cirrus" || return 1 ;;
+      * )
+        writeState "vga" "std" || return 1 ;;
+    esac
+
   fi
 
   restoreBootMode || return 1
@@ -806,16 +822,14 @@ setMachine() {
 
     "win9"* )
 
-      writeState "usb" "no" || return 1
+      writeState "usb" "N" || return 1
       writeState "net" "pcnet" || return 1
       writeState "type" "auto" || return 1
-      writeState "vga" "cirrus" || return 1
       writeState "old" "pc-i440fx-2.4" || return 1 ;;
 
     "win2k"* )
 
       writeState "old" "pc" || return 1
-      writeState "vga" "cirrus" || return 1
       writeState "type" "auto" || return 1
       writeState "net" "rtl8139" || return 1
       writeState "usb" "pci-ohci" || return 1 ;;
@@ -832,7 +846,6 @@ setMachine() {
 
       writeState "old" "pc" || return 1
       writeState "type" "auto" || return 1
-      writeState "vga" "cirrus" || return 1
       writeState "net" "rtl8139" || return 1
       writeState "usb" "pci-ohci" || return 1 ;;
 
@@ -1128,12 +1141,11 @@ addDrivers() {
   mkdir -p "$dst" || return 1
   cp -Lr "$dest/." "$dst" || return 1
 
-  case "${version,,}" in
-    "win11x64"* | "win2025"* )
-      # Workaround Virtio GPU driver bug
-      rm -rf "$dest/viogpudo"
-      ;;
-  esac
+  # Install the VirtIO display driver explicitly from SetupComplete.cmd so it
+  # cannot disrupt Windows Setup by loading through the WinPE driver path.
+  if ! isLegacy "$version"; then
+    rm -rf "$dest/viogpudo"
+  fi
 
   if [ -n "$file" ]; then
 
@@ -1200,6 +1212,7 @@ updateImage() {
   local bak="${xml//.xml/.org}"
   local dat="${xml//.xml/.dat}"
   local desc path src wim name info
+  local script=""
 
   skipVersion "${DETECTED,,}" && return 0
 
@@ -1279,12 +1292,23 @@ updateImage() {
       fi
     fi
 
+    if ! updateDiskID "$answer" "${DISK_TYPE:-}" "image"; then
+      error "Failed to adjust the Windows installation disk!"
+      exit 85
+    fi
+
     validateGeneratedXML "$answer" || return 1
+
+    if [ -z "${CUSTOM_XML:-}" ]; then
+      prepareSetupScript "$asset" "$tmp/setup" script || exit 84
+    fi
 
     if ! wimlib-imagex update "$wim" "$idx" --command "add $answer /$xml" > /dev/null; then
       MANUAL="Y"
       warn "failed to add answer file ($name) to ISO image, $FB"
     else
+      installSetupScript "$script" "$src" || exit 84
+
       wimlib-imagex update "$wim" "$idx" --command "add $answer /$dat" > /dev/null || true
     fi
 
@@ -1334,6 +1358,19 @@ removeImage() {
   [ -n "$CUSTOM" ] && return 0
 
   rm -f "$iso" 2> /dev/null || warn "failed to remove $iso !"
+
+  return 0
+}
+
+reserveSambaPorts() {
+
+  disabled "${SAMBA:-Y}" && return 0
+  disabled "${NETWORK:-Y}" && return 0
+  enabled "${DHCP:-N}" && return 0
+
+  # NAT can fall back to user-mode networking after this point,
+  # so always protect the Samba listeners for non-DHCP networking.
+  HOST_PORTS="${HOST_PORTS:+$HOST_PORTS,}139/tcp,445/tcp"
 
   return 0
 }
@@ -1450,6 +1487,6 @@ restoreMachineState() {
   return 0
 }
 
-installWindows
+startWindows
 
 return 0

@@ -1,4 +1,4 @@
-name: Validation settings
+name: Settings
 
 on:
   workflow_call:

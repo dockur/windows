@@ -577,6 +577,8 @@ getWindows() {
   local language edition
 
   MIDO_SOURCE=""
+  MIDO_STATIC="N"
+
   language=$(getLanguage "$lang" "desc")
   edition=$(printEdition "$version" "$desc" "Y")
 
@@ -647,6 +649,8 @@ getWindows() {
 
   MIDO_URL=$(getMido "$version" "$lang" "")
   [ -z "$MIDO_URL" ] && return 1
+
+  MIDO_STATIC="Y"
 
   if [[ "${version,,}" == "win2008r2"* ]]; then
     MIDO_SOURCE="win2008r2-eval"
@@ -1143,13 +1147,18 @@ downloadImage() {
       sum=""
       size=""
 
-      # Skip verification if the retrieved URL differs from the static URL.
+      # Apply the metadata belonging to the configured static URL.
       if [[ "${MIDO_URL%%\?*}" == "${url%%\?*}" ]]; then
         size=$(getMido "$version" "$lang" "size")
         sum=$(getMido "$version" "$lang" "sum")
       fi
 
-      if tryDownload "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$desc" "$seconds" "$web_desc"; then
+      local download_desc="$desc"
+      if enabled "$MIDO_STATIC"; then
+        download_desc+=" using a static link"
+      fi
+
+      if tryDownload "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$download_desc" "$seconds" "$web_desc"; then
         # Commit the candidate only after the image was downloaded and verified.
         DETECTED="$detected"
         return 0
