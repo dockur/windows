@@ -244,12 +244,12 @@ getVersions() {
     done
 
     if [ -z "$candidate_base" ] || [ -z "$candidate_id" ]; then
-  
+
       name="${display:-${image:-$product}}"
       [ -n "$name" ] && warn "Unknown image name: '$name'"
-  
+
       continue
-  
+
     fi
 
     evaluation=""
@@ -336,6 +336,8 @@ selectVersion() {
   local -n selected_image_index="$index_name"
   local wanted candidate match
 
+  # A detected edition is only selectable when a matching answer file can
+  # actually be staged for it.
   for wanted in "${preference_list[@]}"; do
 
     [ -n "$wanted" ] || continue
@@ -378,6 +380,8 @@ selectEdition() {
   local -n edition_versions="$versions_name"
   local base edition entry suffix priority i
 
+  # Selection precedence is explicit EDITION, source suggestion, canonical
+  # edition order, then noncanonical editions from the same priority groups.
   if [ -n "$EDITION" ]; then
 
     for base in "${edition_bases[@]}"; do
@@ -473,6 +477,8 @@ detectVersion() {
     "$suggested" "$result_name" "$index_name" "$normalize_name" \
     selection_order && return 0
 
+  # Keep the first detected image identity when no edition with a usable answer
+  # file was found, so manual and generic fallback handling can still continue.
   local result="${versions[0]}"
   local key="${result,,}"
 
@@ -495,6 +501,8 @@ detectLanguage() {
     image="/WIM/IMAGE[@INDEX='$index']"
   fi
 
+  # Prefer the selected image's default language, then its fallback default,
+  # and finally the first listed language.
   paths=(
     "$image/WINDOWS/LANGUAGES/DEFAULT[1]"
     "$image/WINDOWS/LANGUAGES/FALLBACK/DEFAULT[1]"
@@ -546,6 +554,8 @@ getImageSize() {
 
   [ -n "$folder" ] && paths+=("$folder")
 
+  # The setup image uses FAT32, so reject files that cannot be represented even
+  # when the image itself has enough free space.
   large_file=$(find -L "${paths[@]}" \
     -type f -size +4294967295c \
     -print -quit) || return 1
@@ -568,6 +578,8 @@ getImageSize() {
 
   done
 
+  # Reserve generous filesystem and directory overhead, then round up to a
+  # power-of-two image size with a 64 MiB minimum.
   size="$minimum"
   required=$((payload + ((payload + 3) / 4) + (32 * mib)))
 
@@ -582,6 +594,8 @@ bootDirect() {
 
   local id="$1"
 
+  # ReactOS must boot from its original media and does not use the Windows
+  # setup-overlay or rebuilt-image paths.
   case "${id,,}" in
     "reactos" ) return 0 ;;
   esac
@@ -594,6 +608,8 @@ canUseSetupImage() {
   local id="$1"
   local iso="$2"
 
+  # Legacy installers and ReactOS require modifying or directly booting their
+  # media. Standalone ESDs and nested archives are not directly bootable ISOs.
   case "${id,,}" in
     "win9"* | "winxp"* | "win2k"* | "win2003"* | "reactos" )
       return 1 ;;
@@ -607,6 +623,8 @@ createImageDirectory() {
   local image="$1"
   local directory="$2"
 
+  # Treat an existing directory as success; create it only when mdir cannot
+  # already resolve it.
   if mdir -i "$image" "$directory" >/dev/null 2>&1; then
     return 0
   fi
@@ -636,6 +654,8 @@ createSetupImage() {
   local msg="Writing overlay image..."
   info "$msg" && html "$msg"
 
+  # Build and verify a temporary FAT32 image before replacing the active setup
+  # image, so a partial write never becomes boot media.
   rm -f -- "$tmp" || return 1
 
   if ! mformat \
@@ -658,6 +678,7 @@ createSetupImage() {
       -print0
   )
 
+  # Process substitution hides the find status, so wait for it explicitly.
   find_pid=$!
 
   if ! wait "$find_pid"; then
@@ -690,6 +711,7 @@ createSetupImage() {
       find "$folder" -mindepth 1 -maxdepth 1 -print0
     )
 
+    # Preserve errors from the second process-substitution find as well.
     find_pid=$!
 
     if ! wait "$find_pid"; then
@@ -708,6 +730,8 @@ createSetupImage() {
 
   fi
 
+  # Copy the generated overlay script last so it replaces an install.bat from
+  # the mounted OEM folder when both are present.
   if [ -f "$install" ]; then
     if ! mcopy -Q -o -i "$tmp" "$install" "$target/install.bat"; then
       rm -f -- "$tmp"
@@ -716,6 +740,7 @@ createSetupImage() {
     fi
   fi
 
+  # Verify that mtools can read the completed filesystem before publishing it.
   if ! mdir -i "$tmp" :: >/dev/null; then
     rm -f -- "$tmp"
     error "Failed to verify image!"
@@ -732,6 +757,7 @@ createSetupImage() {
       return 1
     fi
 
+    # Ensure the answer file survived the FAT32 copy byte-for-byte.
     if ! mtype -i "$tmp" ::/Autounattend.xml | cmp -s - "$answer"; then
       rm -f -- "$tmp"
       error "Failed to verify staged answer file!"
@@ -760,6 +786,8 @@ detectLegacy() {
 
   [[ "${PLATFORM,,}" == "x64" ]] || return 1
 
+  # Legacy media is identified from setup marker files rather than WIM
+  # metadata. The order is intentional because several releases share markers.
   marker=$(find "$dir" -maxdepth 1 -type d -iname 'ia64' -print -quit) || return 1
 
   if [ -n "$marker" ]; then
@@ -821,6 +849,8 @@ detectLegacy() {
 
   fi
 
+  # WIN51 identifies the NT 5.1/5.2 media family; the companion marker then
+  # distinguishes XP x86, XP x64, and Server 2003.
   marker=$(find "$dir" -maxdepth 1 -iname WIN51 -print -quit) || return 1
   [ -n "$marker" ] || return 1
 
@@ -894,9 +924,13 @@ resolveImage() {
   FB="falling back to manual installation!"
 
   [ -z "$DETECTED" ] || return 0
+
+  # Reused and arbitrary URL media must be inspected because their actual
+  # contents may no longer match the requested VERSION.
   [ -z "${REUSED_ISO:-}" ] || return 1
   [[ "${version,,}" != "http"* ]] || return 1
 
+  # Only direct-boot custom media can safely bypass content detection.
   if [ -n "$CUSTOM" ]; then
     bootDirect "$version" || return 1
     DETECTED="$version"
@@ -910,6 +944,7 @@ resolveImage() {
     return 0
   fi
 
+  # Evaluation media may reuse the normal edition's answer-file template.
   if [[ "${version,,}" == *"-eval" ]]; then
     local source="/run/assets/${version%-eval}.xml"
 
@@ -928,6 +963,8 @@ setImage() {
   setXML "" && return 0
   enabled "$MANUAL" && return 0
 
+  # A missing answer file is a supported manual-install path, not a hard media
+  # failure.
   MANUAL="Y"
 
   local desc
@@ -945,6 +982,7 @@ findIsoImage() {
 
   printf -v "$result_name" '%s' ""
 
+  # Prefer install.wim when both payload forms are present.
   for path in \
     /sources/install.wim \
     /sources/install.esd; do
@@ -977,6 +1015,8 @@ readWimHeader() {
 
   rm -f -- "$header" || return 1
 
+  # Read only the fixed WIM header so metadata can be located without
+  # extracting install.wim or install.esd from the ISO.
   if ! udfread range \
       --ignore-case \
       -o "$header" \
@@ -1302,6 +1342,8 @@ getSuggestion() {
   [ -z "$CUSTOM" ] || return 0
   [ -n "${REUSED_ISO:-}" ] || return 0
 
+  # A reused ISO may still correspond to the originally requested catalog
+  # version, but the suggestion remains only a preference during detection.
   echo "${SUGGEST:-}"
 }
 
@@ -1320,6 +1362,8 @@ validateEdition() {
     return 0
   fi
 
+  # Discard a stale server-edition override when it conflicts with the image
+  # that was actually detected.
   EDITION=""
   return 0
 }
@@ -1328,6 +1372,8 @@ unknownImage() {
 
   local msg="Failed to determine Windows version from image"
 
+  # Unknown media can continue when a custom answer file or manual mode already
+  # provides the required installation path; otherwise force manual fallback.
   if setXML "" || enabled "$MANUAL"; then
     info "${msg}!"
   else
@@ -1363,6 +1409,8 @@ configureImage() {
   local index="$1"
   local desc="$2"
 
+  # Prefer the exact answer file, then a family-level fallback. Manual mode is
+  # the final supported path when neither can be generated.
   setXML "" "$index" && return 0
 
   if [[ "$DETECTED" == "win81x86"* ||
@@ -1424,6 +1472,8 @@ detectIsoImage() {
   local iso="$1"
   local image header image_info
 
+  # Return 1 when direct ISO inspection is unavailable so the caller may fall
+  # back to extraction; return 2 when metadata was read but configuration failed.
   findIsoImage "$iso" image || return 1
   readWimHeader "$iso" "$image" header || return 1
   readIsoImageInfo "$iso" "$image" "$header" image_info || return 1
@@ -1441,6 +1491,7 @@ detectImage() {
 
   info "Detecting version from ISO image..."
 
+  # Marker-based legacy and ReactOS detection must run before looking for a WIM.
   if detectLegacy "$dir" || detectReactOS "$dir"; then
     desc=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 1
     info "Detected: $desc"
@@ -1465,6 +1516,8 @@ normalizeBatch() {
 
   bom=$(od -An -N2 -tx1 "$file" | tr -d ' \n') || return 1
 
+  # Convert only BOM-marked UTF-16 files; unmarked ANSI and UTF-8 batch files
+  # are deliberately left unchanged.
   case "$bom" in
     "fffe" ) encoding="UTF-16LE" ;;
     "feff" ) encoding="UTF-16BE" ;;
@@ -1634,6 +1687,8 @@ getBootLoadSize() {
   case "${DETECTED,,}" in
     "win2k"* | "winxp"* | "win2003"* )
 
+      # NT 5.x media may not expose a reliable catalog sector count, so derive
+      # it directly from the extracted boot image.
       if [ ! -s "$dir/$ETFS" ]; then
         error "Failed to locate file \"$ETFS\" in $desc ISO image!"
         return 1
@@ -1654,6 +1709,7 @@ getBootLoadSize() {
 
     * )
 
+      # Other legacy media use the El Torito Nsect value from the ISO catalog.
       if ! boot_info=$(isoinfo -d -i "$iso"); then
         error "Failed to read boot image information from $desc ISO!"
         return 1
@@ -1712,6 +1768,8 @@ extractBootImage() {
     return 1
   fi
 
+  # isoinfo reports the boot offset in 2048-byte sectors, while dd below uses
+  # 512-byte blocks, hence the factor of four.
   if ! dd \
       "if=$iso" \
       "of=$dir/$ETFS" \
@@ -1773,6 +1831,8 @@ buildImage() {
 
   /run/progress.sh "$out" "$size" "$msg ([P])..." &
 
+  # Use separate layouts for modern hybrid media, NT 5.x legacy media, Win9x,
+  # and other legacy releases because their El Torito requirements differ.
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
 
     genisoimage \
@@ -1867,6 +1927,7 @@ buildImage() {
 
   [ -s "$log" ] && err="$(<"$log")"
 
+  # UDF hybrid media intentionally triggers this genisoimage warning.
   if [ -n "$err" ] && [[ "$err" != "$hide" ]]; then
     echo "$err"
   fi
