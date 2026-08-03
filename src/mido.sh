@@ -1146,7 +1146,6 @@ downloadImage() {
 
       sum=""
       size=""
-      download_desc="$desc"
 
       # Apply the metadata belonging to the configured static URL.
       if [[ "${MIDO_URL%%\?*}" == "${url%%\?*}" ]]; then
@@ -1154,6 +1153,7 @@ downloadImage() {
         sum=$(getMido "$version" "$lang" "sum")
       fi
 
+      local download_desc="$desc"
       if enabled "$MIDO_STATIC"; then
         download_desc+=" using a static link"
       fi
