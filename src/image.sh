@@ -891,6 +891,33 @@ setImage() {
   return 0
 }
 
+findIsoImage() {
+
+  local iso="$1"
+  local result_name="$2"
+  local path
+
+  printf -v "$result_name" '%s' ""
+
+  for path in \
+    /sources/install.wim \
+    /sources/install.esd; do
+
+    if udfread stat \
+        --ignore-case \
+        "$iso" \
+        "$path" \
+        >/dev/null 2>&1; then
+
+      printf -v "$result_name" '%s' "$path"
+      return 0
+    fi
+
+  done
+
+  return 1
+}
+
 findImage() {
 
   local dir="$1"
