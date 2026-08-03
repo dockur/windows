@@ -52,6 +52,8 @@ stageAnswer() {
 
   removeGeneratedXML "$asset" || return 1
 
+  # Custom answer files keep their user-defined settings, but still receive
+  # the media-specific disk and configuration-set adjustments below.
   if [ -z "${CUSTOM_XML:-}" ]; then
     if ! updateXML "$answer" "$language"; then
       error "Failed to update answer file: $answer"
@@ -177,6 +179,8 @@ generateAnswerFile() {
     fi
 
     if [ "$install_count" = "0" ]; then
+      # InstallFrom must be inserted before InstallTo to preserve the ordering
+      # expected by the Windows Setup schema.
       install_to_count=$(getXMLNodeCount "$tmp" "$install_to") || {
         rm -f "$tmp"
         return 1
@@ -313,6 +317,8 @@ setXML() {
     exit 67
   fi
 
+  # A custom answer file always takes precedence over bundled or generated
+  # templates, in root, storage, then asset-directory order.
   for file in "${custom_files[@]}"; do
     if [ -f "$file" ] && [ -s "$file" ]; then
       CUSTOM_XML="Y"
@@ -323,6 +329,8 @@ setXML() {
 
   file="$1"
 
+  # Generate evaluation or edition-specific templates only when the selected
+  # source is unavailable or differs from the detected image identity.
   if [[ "${DETECTED,,}" == *"-eval" ]] &&
     { [ ! -f "$file" ] || [ ! -s "$file" ]; }; then
 
@@ -422,6 +430,9 @@ updateSetupScript() {
 
     id=$(basename "$asset") || return 1
     id="${id%.*}"
+
+    # Set-LocalUser is unavailable on older releases, which still require
+    # the equivalent WMIC command.
 
     case "${id,,}" in
       "win10"* | "win11"* | \
@@ -569,6 +580,8 @@ rewriteSetupBlock() {
 
   validateSetupBlock "$file" "$block" || return 1
 
+  # Rewrite through a temporary file so malformed markers or interrupted writes
+  # cannot leave a partially modified setup script.
   if ! tmp=$(mktemp "${file}.XXXXXX"); then
     error "Failed to create temporary setup script!"
     return 1
@@ -1021,6 +1034,8 @@ ensureUnattendedJoin() {
   (( component_count <= 1 )) || return 1
   (( identification_count <= 1 )) || return 1
 
+  # Templates may omit the join component entirely. Create it when absent, or
+  # normalize its architecture and schema attributes when already present.
   if [ "$component_count" = "0" ]; then
     local created="($specialize/*[local-name()='component'])[last()]"
 
@@ -1126,6 +1141,9 @@ configureDomainAccounts() {
   local domain_account="$account_list/*[local-name()='DomainAccount']"
   local created_autologon="$shell/*[local-name()='AutoLogon']"
   local auto_password="$created_autologon/*[local-name()='Password']"
+
+  # Rebuild domain-account and autologon nodes from a clean state so stale
+  # local-template values cannot survive a domain conversion.
   local -a args=(
     -L
     -N "u=$ns"
@@ -1133,6 +1151,8 @@ configureDomainAccounts() {
     -d "$domain_accounts | $autologon"
   )
 
+  # Insert DomainAccounts before AdministratorPassword when it exists to retain
+  # the child order expected by the unattend schema.
   if [ "$administrator_count" = "1" ]; then
     args+=(
       -i "($administrator)[1]"
@@ -1223,6 +1243,8 @@ configureDomainJoin() {
 
   ensureUnattendedJoin "$asset" "$arch" || return 1
 
+  # A user@domain UPN already contains its qualifier; adding a separate Domain
+  # credential node would describe the account twice.
   case "$auth" in
     *@* ) cred_domain="" ;;
   esac
@@ -1294,6 +1316,8 @@ updateWorkgroup() {
   local arch tmp
 
   arch=$(getXMLArchitecture "$asset") || return 1
+  # Apply all membership changes to a copy and publish it only after the old
+  # domain, credential, OU, and workgroup nodes have been replaced successfully.
   copyXMLAsset "$asset" tmp || return 1
 
   if ! ensureUnattendedJoin "$tmp" "$arch" ||
@@ -1328,6 +1352,8 @@ updateDomain() {
   local arch tmp
 
   arch=$(getXMLArchitecture "$asset") || return 1
+  # Account and join settings are separate XML transformations, so update a
+  # copy to keep the original answer file intact if either transformation fails.
   copyXMLAsset "$asset" tmp || return 1
 
   if ! configureDomainAccounts "$tmp" "$domain" "$account" "$pass" ||
@@ -1363,6 +1389,8 @@ prepareDomainAccount() {
 
   validateDomainName "$domain" || return 1
 
+  # Accept user or user@domain. DOMAIN\user is rejected because unattended
+  # setup stores the domain separately from the credential username.
   if [[ "$auth_ref" == *\\* ]]; then
     error "The USERNAME variable must use either \"user\" or \"user@domain\" format!"
     return 1
@@ -1575,6 +1603,8 @@ findPrimaryLocalAccount() {
     return 1
   fi
 
+  # Prefer the account referenced by AutoLogon, then the only account, then
+  # the only administrator. Ambiguous templates are rejected rather than guessed.
   if (( auto_matches == 1 )); then
     selected="$auto_primary"
   elif (( local_count == 1 )); then
@@ -1622,6 +1652,8 @@ encodeUnattendPassword() {
   local password="$1"
   local suffix="$2"
 
+  # Windows unattend password fields use a field-specific suffix before
+  # UTF-16LE/Base64 encoding; this is obfuscation rather than encryption.
   printf '%s' "${password}${suffix}" |
     iconv -f utf-8 -t utf-16le |
     base64 -w 0
@@ -1656,6 +1688,8 @@ updateLocalAccount() {
 
   target_user="${user:-$current_user}"
 
+  # Update the selected local account, Administrator password, and AutoLogon
+  # credentials atomically so they cannot become inconsistent.
   copyXMLAsset "$asset" tmp || return 1
 
   if ! validateUniqueXMLNodes "$tmp" \
@@ -1759,6 +1793,8 @@ updateMembership() {
 
   if [ -n "$domain" ]; then
 
+    # Domain customization is optional: if the template cannot be transformed,
+    # retain its local-account path and allow installation to continue.
     if ! updateDomain \
       "$asset" \
       "$domain" \
@@ -1892,6 +1928,8 @@ updateDiskID() {
 
   [ -s "$asset" ] || return 1
 
+  # The setup overlay occupies disk 0, so common VirtIO installation disks move
+  # to disk 1 in setup-image mode. Rebuilt media keeps the original disk layout.
   case "$mode" in
     "setup" )
       case "$disk_type" in
@@ -1962,6 +2000,8 @@ getXMLArchitecture() {
   local asset="$1"
   local ns="urn:schemas-microsoft-com:unattend"
   local arch
+  # Prefer architecture declarations from Windows PE setup components and skip
+  # wow64 compatibility components, which do not describe the target image.
   local -a paths=(
     '/u:unattend/u:settings[@pass="windowsPE"]/u:component[@name="Microsoft-Windows-Setup"]/@processorArchitecture'
     '/u:unattend/u:settings[@pass="windowsPE"]/u:component[@name="Microsoft-Windows-International-Core-WinPE"]/@processorArchitecture'
@@ -2017,6 +2057,8 @@ setConfigurationXML() {
     [ "$config_value" != "true" ] || return 0
   fi
 
+  # Use an identity XSL transform because UseConfigurationSet must be added
+  # at a schema-valid position relative to UserData, not merely appended anywhere.
   if ! tmp=$(mktemp -d); then
     error "Failed to create a temporary answer file!"
     return 1
@@ -2320,6 +2362,8 @@ patchStorageDriver() {
   local file="$1"
   local arch="$2"
 
+  # Text-mode setup reads TXTSETUP.SIF before Plug and Play is available, so the
+  # VirtIO storage service and hardware IDs must be registered there explicitly.
   sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$file" || return 1
   sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\nviostor.sys=1,,,,,,4_,4,1,,,1,4/' "$file" || return 1
   sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device\"/' "$file" || return 1
@@ -2423,6 +2467,8 @@ setLegacyKey() {
 
   if [[ -n "$file" ]]; then
 
+    # Prefer a staging or OEM key already shipped on the media before falling
+    # back to Microsoft's documented generic installation keys.
     if [[ "$driver" == "2k3" ]]; then
       key=$(grep -i -A 2 "StagingKey" "$file" | tail -n 2 | head -n 1) || key=""
     else
@@ -2701,6 +2747,9 @@ writeVBS() {
   local username="$2"
   local shortcut="$3"
 
+  # Locate the built-in Administrator by its RID 500 SID rather than its
+  # localized display name, then rename that account to the requested username.
+
   {
     printf '%s\n' \
       'Set WshShell = WScript.CreateObject("WScript.Shell")' \
@@ -2787,6 +2836,8 @@ disableAutoReboot() {
     return 1
   fi
 
+  # Keep setup crashes visible instead of immediately rebooting into an
+  # opaque installation loop.
   if grep -Fqi \
     'HKLM,"SYSTEM\CurrentControlSet\Control\CrashControl","AutoReboot"' \
     "$file"; then
@@ -2830,6 +2881,8 @@ legacyInstall() {
     return 1
   fi
 
+  # Legacy media uses directory names rather than metadata to identify the
+  # architecture and the text-mode setup source tree.
   local arch="amd64"
   [ ! -d "$dir/AMD64" ] && arch="x86"
 
@@ -2898,6 +2951,8 @@ legacyInstall() {
   validateLegacyUsername "$username" "$desc" || return 1
   validatePassword "$password" "$desc" || return 1
 
+  # WINNT.SIF and .reg files use different escaping rules, so prepare their
+  # values independently before generating either file.
   sifHost=$(escapeSIFValue "${HOST:-*}") || return 1
   sifUsername=$(escapeSIFValue "$username") || return 1
   sifPassword=$(escapeSIFValue "$password") || return 1
