@@ -1404,6 +1404,57 @@ configureImage() {
   return 0
 }
 
+detectImageInfo() {
+
+  local image_info="$1"
+  local desc suggested index
+
+  checkPlatform "$image_info" || exit 67
+
+  suggested=$(getSuggestion) || return 1
+
+  detectVersion \
+    "$image_info" \
+    "$suggested" \
+    DETECTED \
+    index || return 1
+
+  validateEdition || return 1
+
+  if [ -z "$DETECTED" ]; then
+    unknownImage || return 1
+    return 0
+  fi
+
+  describeImage "$image_info" "$index" desc || return 1
+  info "Detected: $desc"
+
+  configureImage "$index" "$desc" || return 1
+
+  return 0
+}
+
+detectIsoImage() {
+
+  local iso="$1"
+  local image header image_info
+
+  findIsoImage "$iso" image || return 1
+  readWimHeader "$iso" "$image" header || return 1
+
+  readIsoImageInfo \
+    "$iso" \
+    "$image" \
+    "$header" \
+    image_info || return 1
+
+  info "Detecting version from ISO image..."
+
+  detectImageInfo "$image_info" || return 2
+
+  return 0
+}
+
 detectImage() {
 
   local dir="$1"
@@ -1423,26 +1474,7 @@ detectImage() {
   local image_info
   readImageInfo "$wim" image_info || return 1
 
-  checkPlatform "$image_info" || exit 67
-
-  local suggested
-  suggested=$(getSuggestion) || return 1
-
-  local index
-  detectVersion "$image_info" "$suggested" DETECTED index || return 1
-  validateEdition || return 1
-
-  if [ -z "$DETECTED" ]; then
-    unknownImage || return 1
-    return 0
-  fi
-
-  describeImage "$image_info" "$index" desc || return 1
-  info "Detected: $desc"
-
-  configureImage "$index" "$desc" || return 1
-
-  return 0
+  detectImageInfo "$image_info"
 }
 
 normalizeBatch() {
