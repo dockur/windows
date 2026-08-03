@@ -26,6 +26,7 @@ RUN <<EOF
     wimtools \
     dos2unix \
     cabextract \
+    xmlstarlet \
     icu-devtools \
     libxml2-utils \
     libarchive-tools
