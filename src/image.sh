@@ -1007,9 +1007,7 @@ readWimHeader() {
 
   printf -v "$result_name" '%s' ""
 
-  if ! rm -f -- "$header"; then
-    return 1
-  fi
+  rm -f -- "$header" || return 1
 
   if ! udfread range \
       --ignore-case \
@@ -1018,28 +1016,12 @@ readWimHeader() {
       "$image" \
       0 \
       208 \
-      >/dev/null 2>&1; then
+      >/dev/null 2>&1 ||
+      ! size=$(stat -c%s -- "$header") ||
+      (( size != 208 )) ||
+      ! signature=$(od -An -N8 -tx1 "$header" | tr -d ' \n') ||
+      [[ "$signature" != "4d5357494d000000" ]]; then
 
-    rm -f -- "$header"
-    return 1
-  fi
-
-  if ! size=$(stat -c%s -- "$header"); then
-    rm -f -- "$header"
-    return 1
-  fi
-
-  if (( size != 208 )); then
-    rm -f -- "$header"
-    return 1
-  fi
-
-  if ! signature=$(od -An -N8 -tx1 "$header" | tr -d ' \n'); then
-    rm -f -- "$header"
-    return 1
-  fi
-
-  if [[ "$signature" != "4d5357494d000000" ]]; then
     rm -f -- "$header"
     return 1
   fi
