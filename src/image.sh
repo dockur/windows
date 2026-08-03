@@ -9,10 +9,10 @@ getPlatform() {
 
   counts=$(xmlstarlet sel \
     -T -t \
-    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[text()="0"])' -o '|' \
-    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[text()="9"])' -o '|' \
-    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[text()="12"])' \
-    - 2>/dev/null <<< "$xml") || counts="0|0|0"
+    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="0"])' -o '|' \
+    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="9"])' -o '|' \
+    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="12"])' \
+    - 2>/dev/null <<< "$xml") || return 1
 
   IFS='|' read -r x86 x64 arm64 <<< "$counts"
 
@@ -166,19 +166,25 @@ getVersions() {
   records=$(xmlstarlet sel \
     -T -t \
     -m '/WIM/IMAGE' \
-    -v '@INDEX' -o "$separator" \
-    -v 'DISPLAYNAME' -o "$separator" \
-    -v 'WINDOWS/PRODUCTNAME' -o "$separator" \
-    -v 'NAME' -o "$separator" \
-    -v 'WINDOWS/EDITIONID' -o "$separator" \
-    -v 'WINDOWS/INSTALLATIONTYPE' -o "$separator" \
-    -v 'FLAGS' -n \
-    - 2>/dev/null <<< "$xml") || return 0
+    -v 'normalize-space(@INDEX)' -o "$separator" \
+    -v 'normalize-space(DISPLAYNAME)' -o "$separator" \
+    -v 'normalize-space(WINDOWS/PRODUCTNAME)' -o "$separator" \
+    -v 'normalize-space(NAME)' -o "$separator" \
+    -v 'normalize-space(WINDOWS/EDITIONID)' -o "$separator" \
+    -v 'normalize-space(WINDOWS/INSTALLATIONTYPE)' -o "$separator" \
+    -v 'normalize-space(FLAGS)' -n \
+    - 2>/dev/null <<< "$xml") || return 1
 
   while IFS="$separator" read -r \
     image_index display product image edition_id install_type flags; do
 
     [ -n "$image_index" ] || continue
+
+    if [[ ! "$image_index" =~ ^[1-9][0-9]*$ ]]; then
+      warn "Invalid image index in WIM metadata: '$image_index'"
+      continue
+    fi
+
     local candidate_id=""
     local candidate_base=""
 
@@ -461,18 +467,30 @@ detectLanguage() {
 
   local xml="$1"
   local index="${2:-}"
-  local xpath lang culture
+  local image='/WIM/IMAGE'
+  local lang culture path
+  local -a paths=()
 
-  if [[ "$index" =~ ^[0-9]+$ ]]; then
-    xpath="string((/WIM/IMAGE[@INDEX='$index']/WINDOWS/LANGUAGES/DEFAULT | /WIM/IMAGE[@INDEX='$index']/WINDOWS/LANGUAGES/FALLBACK/DEFAULT)[1])"
-  else
-    xpath='string((/WIM/IMAGE/WINDOWS/LANGUAGES/DEFAULT | /WIM/IMAGE/WINDOWS/LANGUAGES/FALLBACK/DEFAULT)[1])'
+  if [[ "$index" =~ ^[1-9][0-9]*$ ]]; then
+    image="/WIM/IMAGE[@INDEX='$index']"
   fi
 
-  lang=$(xmlstarlet sel \
-    -T -t \
-    -v "$xpath" \
-    - 2>/dev/null <<< "$xml") || lang=""
+  paths=(
+    "$image/WINDOWS/LANGUAGES/DEFAULT[1]"
+    "$image/WINDOWS/LANGUAGES/FALLBACK/DEFAULT[1]"
+    "$image/WINDOWS/LANGUAGES/LANGUAGE[1]"
+  )
+
+  lang=""
+
+  for path in "${paths[@]}"; do
+    lang=$(xmlstarlet sel \
+      -T -t \
+      -v "normalize-space(string(($path)[1]))" \
+      - 2>/dev/null <<< "$xml") || lang=""
+
+    [ -n "$lang" ] && break
+  done
 
   if [ -z "$lang" ]; then
     warn "Language could not be detected from ISO!"
@@ -1134,8 +1152,8 @@ readIsoImageInfo() {
 
   metadata=$(xmlstarlet sel \
     -T -t \
-    -v 'name(/*)' -o "$separator" \
-    -v 'count(/WIM/IMAGE)' \
+    -v 'local-name(/*)' -o "$separator" \
+    -v 'count(/*[local-name()="WIM"]/*[local-name()="IMAGE"])' \
     - 2>/dev/null <<< "$result") || return 1
 
   IFS="$separator" read -r root xml_count <<< "$metadata"
