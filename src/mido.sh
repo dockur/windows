@@ -1246,7 +1246,11 @@ downloadImage() {
 
   # Some editions share another download route. Update the effective version
   # before looking up ESD catalogs and mirrors.
-  if switchEdition version; then
+  if version=$(switchEdition "$version"); then
+  
+    if ! enabled "${DETECTED_ORG:-}"; then
+      DETECTED="${SUGGEST:-$version}"
+    fi
 
     desc=$(printVariant "$DETECTED" "" "Y")
     web_desc=$(printVariant "$DETECTED" "")
