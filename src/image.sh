@@ -118,7 +118,7 @@ getVersionPriority() {
 
   id="${id%-eval}"
 
-  getEditionOrder "$base" order || return 1
+  mapfile -t order < <(getEditionOrder "$base")
 
   local edition="${id#"$base"}"
   edition="${edition#-}"
@@ -471,7 +471,7 @@ detectVersion() {
       normalize_name="normalizeServerEditionID" ;;
   esac
 
-  getEditionOrder "${bases[0]}" selection_order || return 1
+  mapfile -t selection_order < <(getEditionOrder "${bases[0]}")
 
   selectEdition versions bases groups image_indexes \
     "$suggested" "$result_name" "$index_name" "$normalize_name" \
