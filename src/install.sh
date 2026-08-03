@@ -19,10 +19,9 @@ startWindows() {
     fi
   fi
 
-  local handled=0
-  local extracted=0
   local boot="$BOOT"
   local dir="$TMP/unpack"
+  local handled=0 extracted=0
 
   selectWindowsImage "$ISO" "$dir" "$boot" || return $?
   (( handled )) && return 0
@@ -43,6 +42,7 @@ selectWindowsImage() {
   local iso="$1"
   local dir="$2"
   local boot="$3"
+
   local detect_rc=0
 
   # Known versions already provide the required image metadata.
@@ -103,6 +103,7 @@ configureMachine() {
   local iso="$1"
   local dir="$2"
   local boot="$3"
+
   local desc
 
   if ! desc=$(printVariant "$DETECTED" "$DETECTED"); then
@@ -312,6 +313,7 @@ abortInstall() {
   local dir="$1"
   local iso="$2"
   local boot="$3"
+
   local efi efi32 efi64
 
   # Standalone ESD files and nested archives are not directly bootable media,
@@ -380,6 +382,7 @@ skipInstall() {
 
   local iso="$1"
   local previousBase="$2"
+
   local boot="$STORAGE/windows.boot"
 
   if [ -n "$previousBase" ]; then
@@ -437,6 +440,7 @@ finishInstall() {
   local iso="$1"
   local aborted="$2"
   local boot="$3"
+
   local base
 
   if [ ! -s "$iso" ] || [ ! -f "$iso" ]; then
@@ -493,8 +497,9 @@ finishInstall() {
 
 findFile() {
 
-  local dir file base
   local fname="$1"
+
+  local dir file base
   local boot="$STORAGE/windows.boot"
 
   dir=$(find / -maxdepth 1 -type d -iname "$fname" -print -quit)
@@ -581,6 +586,7 @@ checkFreeSpace() {
 
   local dir="$1"
   local size="$2"
+
   local size_gb space space_gb
 
   size_gb=$(formatBytes "$size")
@@ -602,14 +608,10 @@ extractESD() {
   local version="$3"
   local desc="$4"
 
-  local bootTotal bootLinks
-  local wimTotal wimLinks
-  local installSize size
-  local edition imgEdition
-  local bootWim installWim
-  local bootSize wimSize
-  local index line ret
-  local xml metadata count
+  local bootTotal bootLinks wimTotal wimLinks
+  local installSize size edition imgEdition
+  local bootWim installWim bootSize wimSize
+  local index line ret xml metadata count
   local -a fields
 
   local minSize=100000000
@@ -793,8 +795,9 @@ extractImage() {
   local iso="$1"
   local dir="$2"
   local version="$3"
-  local desc="local ISO"
+
   local file size
+  local desc="local ISO"
 
   if [ -z "$CUSTOM" ]; then
     desc="downloaded ISO"
@@ -992,6 +995,7 @@ prepareImage() {
 
   local iso="$1"
   local dir="$2"
+
   local desc missing
 
   desc=$(printVariant "$DETECTED" "$DETECTED")
@@ -1044,7 +1048,8 @@ addFolder() {
   local target="${2:-image}"
   local log="${3:-Y}"
   local mode="${4:-copy}"
-  local folder file="" source=""
+  
+  local file="" source="" folder
   local dest="$src/\$OEM\$/\$1/OEM"
   local install="$src/.overlay-install.bat"
 
@@ -1129,6 +1134,7 @@ addDriver() {
   local path="$2"
   local target="$3"
   local driver="$4"
+
   local folder="" desc
 
   if [ -z "$id" ]; then
@@ -1166,8 +1172,7 @@ addDriver() {
 
   case "${id,,}" in
     "winvista"* )
-      [[ "${driver,,}" == "viorng" ]] && return 0
-      ;;
+      [[ "${driver,,}" == "viorng" ]] && return 0 ;;
   esac
 
   local dest="$path/$target/$driver"
@@ -1185,6 +1190,7 @@ addDrivers() {
   local file="${4:-}"
   local index="${5:-}"
   local log="${6:-Y}"
+
   local drivers="$tmp/drivers"
 
   rm -rf "$drivers"
@@ -1206,6 +1212,7 @@ addDrivers() {
 
   local target="\$WinPEDriver\$"
   local dest="$drivers/$target"
+
   mkdir -p "$dest" || return 1
 
   if [ -n "$file" ]; then
@@ -1313,12 +1320,13 @@ updateImage() {
   local dir="$1"
   local asset="$2"
   local language="$3"
+
+  local script=""
   local tmp="/tmp/install"
   local xml="autounattend.xml"
   local bak="${xml//.xml/.org}"
   local dat="${xml//.xml/.dat}"
-  local desc path src wim name info
-  local script=""
+  local desc path src wim name info 
 
   skipVersion "${DETECTED,,}" && return 0
 
@@ -1491,10 +1499,11 @@ reserveSambaPorts() {
 backup () {
 
   local iso="$1"
+
   local count=1
   local name="unknown"
   local root="$STORAGE/backups"
-  local file previous failed=""
+  local failed="" file previous
 
   previous=$(readState "base") || return 1
   [ -n "$previous" ] && name="${previous%.*}"
