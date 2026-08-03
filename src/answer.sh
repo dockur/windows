@@ -1387,12 +1387,17 @@ updateDiskID() {
   current="$ids"
   [ "$current" = "$target" ] && return 0
 
-  if [ "$current" != "1" ]; then
-    error "The answer file must use DiskID 1 as its template value: $asset"
-    return 1
-  fi
+  case "$current" in
+    "0" | "1" ) ;;
+    * )
+      error "Unsupported DiskID $current in answer file: $asset"
+      return 1
+      ;;
+  esac
 
-  if ! sed -i 's#<DiskID>1</DiskID>#<DiskID>0</DiskID>#g' "$asset"; then
+  if ! sed -i -E \
+    "s#<DiskID>[[:space:]]*$current[[:space:]]*</DiskID>#<DiskID>$target</DiskID>#g" \
+    "$asset"; then
     error "Failed to update DiskID in answer file: $asset"
     return 1
   fi
