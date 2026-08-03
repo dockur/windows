@@ -50,6 +50,8 @@ curlRequest() {
     return 1
   fi
 
+  # Preserve curl's status under errexit so its stderr can be translated
+  # into a useful error instead of terminating the script immediately.
   {
     response=$(LC_ALL=C curl \
       --silent \
@@ -99,7 +101,8 @@ downloadWindowsLink() {
   local ovToken="" ovTicks=""
   local profile="606624d44113"
 
-  # uuidgen: For MacOS (installed by default) and other systems (e.g. with no /proc) that don't have a kernel interface for generating random UUIDs
+  # Prefer the Linux kernel UUID source, with uuidgen as a portable fallback
+  # for macOS and systems without /proc.
   if ! session=$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random); then
     error "Failed to generate session ID!"
     return 1
@@ -112,22 +115,22 @@ downloadWindowsLink() {
     return 1
   fi
 
-  # Microsoft download "protection" requires the sessionId to be whitelisted through vlscppe.microsoft.com/tags
+  # Register the session with Microsoft's anti-abuse endpoint before
+  # requesting SKU or download links.
 
   local orgId="y6jn8c31"
   local vlsUrl="https://vlscppe.microsoft.com/tags?org_id=$orgId&session_id=$session"
 
   enabled "$DEBUG" && echo "Getting Session ID: $session"
 
-  # Permit Session ID
   curlRequest "" "Microsoft" "$agent" \
     --output /dev/null \
     --header "Accept:" \
     --max-filesize 100K \
     -- "$vlsUrl" || return 1
 
-  # Microsoft download "protection" also requires an ov-df.microsoft.com request/reply
-  # 1) Request mdt.js to get w and rticks. InstanceId is (currently) constant.
+  # Complete Microsoft's ov-df challenge by retrieving a token and timing
+  # value, then returning both with the current timestamp.
 
   local instance="560dc9f3-1aa5-4a2f-b63c-9e18f8d0e175"
   local ovUrl="https://ov-df.microsoft.com/mdt.js?instanceId=$instance&PageId=si&session_id=$session"
@@ -156,8 +159,6 @@ downloadWindowsLink() {
 
   sleep 0.2
 
-  # 2) Send a reply with session ID, current epoch and previously retrieved w and rticks
-
   ovTime=$(date +%s%3N)
   ovUrl="https://ov-df.microsoft.com/?session_id=$session&CustomerId=$instance&PageId=si&w=$ovToken&mdt=$ovTime&rticks=$ovTicks"
 
@@ -179,6 +180,8 @@ downloadWindowsLink() {
     --max-filesize 100K \
     -- "$skuUrl" || return 1
 
+  # Guard jq under errexit so malformed API data can be handled as a normal
+  # missing-result error. The same pattern is reused for the link response.
   { skuId=$(printf '%s\n' "$skuJson" | jq --arg LANG "$language" -r 'first(.Skus[]? | select(.Language == $LANG) | .Id) // empty') 2>/dev/null; local rc=$?; } || :
 
   if [ -z "$skuId" ] || [[ "${skuId,,}" == "null" ]] || (( rc != 0 )); then
@@ -190,8 +193,8 @@ downloadWindowsLink() {
   enabled "$DEBUG" && echo "$skuId"
   enabled "$DEBUG" && echo "Getting ISO download link..."
 
-  # Get ISO download link
-  # If any request is going to be blocked by Microsoft it's always this last one (the previous requests always seem to succeed)
+  # Microsoft normally applies request or IP blocking on this final connector
+  # call rather than during the preceding session setup.
 
   local linkUrl="https://www.microsoft.com/software-download-connector/api/GetProductDownloadLinksBySku?profile=$profile&ProductEditionId=undefined&SKU=$skuId&friendlyFileName=undefined&Locale=en-US&sessionID=$session"
 
@@ -202,7 +205,6 @@ downloadWindowsLink() {
     -- "$linkUrl" || return 1
 
   if ! [ "$linkJson" ]; then
-    # This should only happen if there's been some change to how this API works
     error "Microsoft servers gave us an empty response to our request for an automated download."
     return 1
   fi
@@ -275,6 +277,8 @@ downloadWindows() {
 
   sleep 1
 
+  # Product edition IDs can change. If the configured ID fails, recover the
+  # current value from Microsoft's public download page and retry once.
   local msg="retrying using a different method..."
   info "Microsoft download request failed, $msg"
   enabled "$DEBUG" && echo "Parsing download page: ${url}"
@@ -360,7 +364,6 @@ downloadWindowsEval() {
     -- "$url" || return 1
 
   if ! [ "$page" ]; then
-    # This should only happen if there's been some change to where this download page is located
     error "Windows server download page gave us an empty response"
     return 1
   fi
@@ -375,7 +378,8 @@ downloadWindowsEval() {
     grep -Eio "https://go\.microsoft\.com/fwlink(/p)?/\?[^\"'<>[:space:]]+" |
     grep -Ei '(^|[?&])culture='"${culture,,}"'(&|$)' |
     grep -Ei '(^|[?&])country='"${country,,}"'(&|$)') || {
-    # This should only happen if there's been some change to the download endpoint web address
+    # Distinguish a changed or missing English page from an unavailable
+    # translation for an otherwise supported product.
     if [[ "${lang,,}" == "en" || "${lang,,}" == "en-"* ]]; then
       error "Windows server download page gave us no download link!"
     else
@@ -385,6 +389,8 @@ downloadWindowsEval() {
     return 1
   }
 
+  # Evaluation pages currently expose several matching fwlinks in a known
+  # product/platform order, so select the entry for the requested variant.
   case "$type" in
     "iot" )
       case "${PLATFORM,,}" in
@@ -420,8 +426,8 @@ downloadWindowsEval() {
 
   [ -z "$link" ] && error "Could not parse download link from page!" && return 1
 
-  # Follow redirect so proceeding log message is useful
-  # This is a request we make that Fido doesn't
+  # Resolve the fwlink now so later logging and platform validation use the
+  # actual ISO URL rather than Microsoft's generic redirect.
 
   curlRequest link "Microsoft" "$agent" \
     --location \
@@ -433,6 +439,8 @@ downloadWindowsEval() {
   local lower="${link,,}"
   local separator='(^|[[:space:]_./-])'
 
+  # Guard against page-order changes resolving to the wrong architecture
+  # before downloading a multi-gigabyte image.
   case "${PLATFORM,,}" in
     "x64" )
       if [[ "$lower" =~ ${separator}(arm64|a64) ]]; then
@@ -450,6 +458,8 @@ downloadWindowsEval() {
       fi ;;
   esac
 
+  # During debug verification, compare the resolved filename with the static
+  # catalog entry to expose unexpected changes on Microsoft's page.
   if enabled "$DEBUG" && enabled "$VERIFY" && [[ "${lang,,}" == "en"* ]]; then
 
     compare=$(getMido "$id" "$lang" "")
@@ -550,6 +560,8 @@ downloadWindowsLtsc() {
       ;;
   esac
 
+  # IoT and LTSC share related evaluation sources and may become unavailable
+  # independently, so use the sibling edition as a compatibility fallback.
   if downloadWindowsEval "$id" "$lang" "$desc" > /dev/null 2>&1; then
     MIDO_SOURCE="$id"
     return 0
@@ -586,6 +598,8 @@ getWindows() {
   local web_msg="Requesting $web_desc from the Microsoft servers..."
   info "$msg" && html "$web_msg"
 
+  # These sources are only published in English, so avoid trying download
+  # routes that cannot satisfy the requested language.
   case "${version,,}" in
     "win2008r2"* | \
     "win81${PLATFORM,,}"* | \
@@ -598,6 +612,8 @@ getWindows() {
       fi ;;
   esac
 
+  # ARM64 downloads exist only for the explicitly supported Windows 11
+  # routes; all other catalog entries remain x64-only.
   case "${version,,}" in
     "win10x64" ) ;;
     "win11${PLATFORM,,}" ) ;;
@@ -610,6 +626,8 @@ getWindows() {
       fi ;;
   esac
 
+  # Prefer live Microsoft download routes. Unsupported or failed live routes
+  # fall through to the configured static catalog below.
   case "${version,,}" in
     "win10x64" | "win11${PLATFORM,,}" )
 
@@ -647,6 +665,8 @@ getWindows() {
       ;;
   esac
 
+  # Static catalog URLs are the last resort after live Microsoft methods are
+  # unavailable or have failed.
   MIDO_URL=$(getMido "$version" "$lang" "")
   [ -z "$MIDO_URL" ] && return 1
 
@@ -756,6 +776,8 @@ parseESD() {
   ESD_SUM=""
   ESD_SIZE=""
 
+  # Microsoft catalogs have used different XML namespaces. Match elements by
+  # local name and flatten the catalog once so selection needs no temporary XML.
   if ! records=$(xmlstarlet sel \
     -T -t \
     -m "//*[local-name()='File']" \
@@ -777,6 +799,8 @@ parseESD() {
     return 1
   fi
 
+  # Track product/platform and language matches separately so failures can
+  # distinguish an unavailable edition from an unavailable translation.
   while IFS="$separator" read -r \
     architecture file_edition file_culture \
     file_path file_sum file_size; do
@@ -869,6 +893,8 @@ getESD() {
     return 1
   fi
 
+  # Preserve wget's status under errexit so its log can provide the actual
+  # server or filesystem failure reason.
   {
     LC_ALL=C wget "$catalog" -O "$dir/$file" --no-verbose --timeout=30 \
       --no-http-keep-alive --output-file="$log"
@@ -899,6 +925,8 @@ getESD() {
 
   rm -f "$log"
 
+  # Normal catalogs arrive as CAB archives, while pinned build catalogs are
+  # already XML and only need the common filename.
   if [[ "$file" == *".xml" ]]; then
 
     if ! mv -f "$dir/$file" "$dir/$xmlFile"; then
@@ -936,6 +964,8 @@ isCompressed() {
 
   local url="${1%%\?*}"
 
+  # The ReactOS latest-build endpoint returns an archive without a filename
+  # extension, so recognize its path explicitly.
   case "${url,,}" in
     *.7z | *.zip | *.rar | *.tar | *.cab | *.cpio | \
     *.lzh | *.lha | *.xar | */latest-x86-gcc-lin-rel )
@@ -964,6 +994,9 @@ verifyFile() {
 
   [ -z "$check" ] && return 0
   enabled "$VERIFY" || return 0
+
+  # Microsoft ESD catalogs publish SHA1, while current mirror metadata normally
+  # uses SHA256; the digest length identifies which algorithm is required.
   [[ "${#check}" == "40" ]] && algo="SHA1"
 
   local msg="Verifying downloaded ISO..."
@@ -1017,6 +1050,8 @@ downloadFile() {
   local console_msg="Downloading $desc"
   local domain dots
 
+  # Keep mirror messages concise by reducing subdomains to the final two
+  # labels, while Microsoft downloads retain the generic description.
   domain=$(echo "$url" | awk -F/ '{print $3}')
   dots=$(echo "$domain" | tr -cd '.' | wc -c)
   (( dots > 1 )) && domain=$(expr "$domain" : '.*\.\(.*\..*\)')
@@ -1047,6 +1082,8 @@ tryDownload() {
   local web_desc="$8"
   local total minimum="104857600"
 
+  # Compressed archives can legitimately be much smaller than the ISO they
+  # contain, so use a lower sanity threshold until extraction.
   if isCompressed "$url"; then
     minimum="10485760"
   fi
@@ -1165,6 +1202,8 @@ downloadImage() {
     desc+=" in $language"
   fi
 
+  # Prefer a live Microsoft URL and retry link generation once before moving
+  # on to ESD catalogs or mirrors.
   if isMido "$version" "$lang"; then
 
     tried="y"
@@ -1205,6 +1244,8 @@ downloadImage() {
     fi
   fi
 
+  # Some editions share another download route. Update the effective version
+  # before looking up ESD catalogs and mirrors.
   if switchEdition version; then
 
     desc=$(printVariant "$DETECTED" "" "Y")
@@ -1234,6 +1275,8 @@ downloadImage() {
 
     if [[ "$success" == "y" ]]; then
 
+      # Standalone ESD media requires a different extraction path, so expose
+      # its real extension through the active ISO variable.
       ISO="${ISO%.*}.esd"
 
       if tryDownload "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$lang" "$desc" "$seconds" "$web_desc"; then
