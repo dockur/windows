@@ -1855,9 +1855,11 @@ setConfigurationXML() {
 
   local asset="$1"
 
-  local setup='/*[local-name()="unattend"]/*[local-name()="settings" and @pass="windowsPE"]/*[local-name()="component" and @name="Microsoft-Windows-Setup"]'
-  local config="$setup/*[local-name()=\"UseConfigurationSet\"]"
-  local setup_count config_count config_value result_count tmp
+  local ns="urn:schemas-microsoft-com:unattend"
+  local userdata="$setup/*[local-name()='UserData']"
+  local config="$setup/*[local-name()='UseConfigurationSet']"
+  local setup='/*[local-name()="unattend"]/*[local-name()="settings" and @pass="windowsPE"]/*[local-name()="component" and @name="Microsoft-Windows-Setup"]' 
+  local setup_count config_count config_value userdata_count result_count tmp
 
   [ -s "$asset" ] || return 1
 
@@ -1876,110 +1878,58 @@ setConfigurationXML() {
   fi
 
   if [ "$config_count" = "1" ]; then
-    config_value=$(xmlstarlet sel \
-      -T -t -v "translate(normalize-space(string($config)), 'TRUE', 'true')" "$asset") || return 1
-
+    config_value=$(xmlstarlet sel -T -t -v "translate(normalize-space(string($config)), 'TRUE', 'true')" "$asset") || return 1
     [ "$config_value" != "true" ] || return 0
   fi
 
-  # Use an identity XSL transform because UseConfigurationSet must be added
-  # at a schema-valid position relative to UserData, not merely appended anywhere.
-  if ! tmp=$(mktemp -d); then
+  userdata_count=$(getXMLNodeCount "$asset" "$userdata") || return 1
+
+  if [ "$userdata_count" -gt 1 ]; then
+    error "Multiple UserData entries found in answer file: $asset"
+    return 1
+  fi
+
+  tmp=$(copyXMLAsset "$asset") || {
     error "Failed to create a temporary answer file!"
     return 1
+  }
+
+  if [ "$config_count" = "1" ]; then
+    xmlstarlet ed -L -N "u=$ns" -u "$config" -v "true" "$tmp" || {
+      rm -f "$tmp"
+      error "Failed to enable the Windows configuration set!"
+      return 1
+    }
+  elif [ "$userdata_count" = "1" ]; then
+    xmlstarlet ed -L -N "u=$ns" -i "$userdata" -t elem -n "u:UseConfigurationSet" -v "true" "$tmp" || {
+      rm -f "$tmp"
+      error "Failed to enable the Windows configuration set!"
+      return 1
+    }
+  else
+    xmlstarlet ed -L -N "u=$ns" -s "$setup" -t elem -n "u:UseConfigurationSet" -v "true" "$tmp" || {
+      rm -f "$tmp"
+      error "Failed to enable the Windows configuration set!"
+      return 1
+    }
   fi
 
-  local stylesheet="$tmp/configuration.xsl"
-  local result="$tmp/answer.xml"
-
-  if ! cat > "$stylesheet" <<'XSL'
-<?xml version="1.0" encoding="UTF-8"?>
-<xsl:stylesheet version="1.0"
-  xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
-  <xsl:output method="xml" encoding="UTF-8" indent="yes"/>
-
-  <xsl:template match="@*|node()">
-    <xsl:copy>
-      <xsl:apply-templates select="@*|node()"/>
-    </xsl:copy>
-  </xsl:template>
-
-  <xsl:template match="
-    *[local-name()='UseConfigurationSet' and
-      parent::*[
-        local-name()='component' and
-        @name='Microsoft-Windows-Setup' and
-        parent::*[local-name()='settings' and @pass='windowsPE']
-      ]
-    ]">
-    <xsl:copy>
-      <xsl:copy-of select="@*"/>
-      <xsl:text>true</xsl:text>
-    </xsl:copy>
-  </xsl:template>
-
-  <xsl:template match="
-    *[local-name()='UserData' and
-      parent::*[
-        local-name()='component' and
-        @name='Microsoft-Windows-Setup' and
-        parent::*[local-name()='settings' and @pass='windowsPE'] and
-        not(*[local-name()='UseConfigurationSet'])
-      ]
-    ]">
-    <xsl:element name="UseConfigurationSet" namespace="{namespace-uri()}">
-      <xsl:text>true</xsl:text>
-    </xsl:element>
-    <xsl:copy>
-      <xsl:apply-templates select="@*|node()"/>
-    </xsl:copy>
-  </xsl:template>
-
-  <xsl:template match="
-    *[local-name()='component' and
-      @name='Microsoft-Windows-Setup' and
-      parent::*[local-name()='settings' and @pass='windowsPE'] and
-      not(*[local-name()='UseConfigurationSet']) and
-      not(*[local-name()='UserData'])
-    ]">
-    <xsl:copy>
-      <xsl:apply-templates select="@*|node()"/>
-      <xsl:element name="UseConfigurationSet" namespace="{namespace-uri()}">
-        <xsl:text>true</xsl:text>
-      </xsl:element>
-    </xsl:copy>
-  </xsl:template>
-</xsl:stylesheet>
-XSL
-  then
-    rm -rf "$tmp"
-    return 1
-  fi
-
-  if ! xmlstarlet tr "$stylesheet" "$asset" > "$result"; then
-    rm -rf "$tmp"
-    error "Failed to enable the Windows configuration set!"
-    return 1
-  fi
-
-  result_count=$(getXMLNodeCount "$result" "${config}[normalize-space(.)='true']") || {
-    rm -rf "$tmp"
+  result_count=$(getXMLNodeCount "$tmp" "${config}[normalize-space(.)='true']") || {
+    rm -f "$tmp"
     return 1
   }
 
   if [ "$result_count" != "1" ]; then
-    rm -rf "$tmp"
+    rm -f "$tmp"
     error "Failed to enable the Windows configuration set!"
     return 1
   fi
 
-  if ! replaceXMLAsset "$asset" "$result"; then
-    rm -rf "$tmp"
+  if ! replaceXMLAsset "$asset" "$tmp"; then
     error "Failed to replace the updated answer file!"
     return 1
   fi
 
-  rm -rf "$tmp" || return 1
   return 0
 }
 
