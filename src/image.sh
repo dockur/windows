@@ -210,6 +210,7 @@ getVersions() {
       -n \
     - 2>/dev/null <<< "$xml"); then
     error "Failed to read image records from WIM metadata!"
+
     return 1
   fi
 
@@ -243,9 +244,12 @@ getVersions() {
     done
 
     if [ -z "$candidate_base" ] || [ -z "$candidate_id" ]; then
+  
       name="${display:-${image:-$product}}"
       [ -n "$name" ] && warn "Unknown image name: '$name'"
+  
       continue
+  
     fi
 
     evaluation=""
@@ -366,14 +370,13 @@ selectEdition() {
   local normalize_name="$8"
   local order_name="$9"
 
-  local -n edition_versions="$versions_name"
-  local -n edition_bases="$bases_name"
-  local -n edition_groups="$groups_name"
-  local -n edition_order="$order_name"
-
-  local base edition entry suffix priority i
-  local -a preferred=()
   local -A seen=()
+  local -a preferred=()
+  local -n edition_bases="$bases_name"
+  local -n edition_order="$order_name"
+  local -n edition_groups="$groups_name"
+  local -n edition_versions="$versions_name"
+  local base edition entry suffix priority i
 
   if [ -n "$EDITION" ]; then
 
@@ -382,12 +385,7 @@ selectEdition() {
       preferred+=("$base${edition:+-$edition}")
     done
 
-    if selectVersion \
-        "$versions_name" \
-        "$indexes_name" \
-        preferred \
-        "$result_name" \
-        "$index_name"; then
+    if selectVersion "$versions_name" "$indexes_name" preferred "$result_name" "$index_name"; then
       return 0
     fi
 
@@ -398,12 +396,7 @@ selectEdition() {
 
     preferred=("$suggested")
 
-    if selectVersion \
-        "$versions_name" \
-        "$indexes_name" \
-        preferred \
-        "$result_name" \
-        "$index_name"; then
+    if selectVersion "$versions_name" "$indexes_name" preferred "$result_name" "$index_name"; then
       return 0
     fi
 
@@ -422,18 +415,13 @@ selectEdition() {
 
   done
 
-  if selectVersion \
-      "$versions_name" \
-      "$indexes_name" \
-      preferred \
-      "$result_name" \
-      "$index_name"; then
+  if selectVersion "$versions_name" "$indexes_name" preferred "$result_name" "$index_name"; then
     return 0
   fi
 
   # Then try noncanonical editions from the same preference groups.
-  preferred=()
   seen=()
+  preferred=()
 
   for entry in "${edition_order[@]}"; do
 
@@ -449,12 +437,7 @@ selectEdition() {
 
   done
 
-  selectVersion \
-    "$versions_name" \
-    "$indexes_name" \
-    preferred \
-    "$result_name" \
-    "$index_name"
+  selectVersion "$versions_name" "$indexes_name" preferred "$result_name" "$index_name"
 }
 
 detectVersion() {
@@ -467,18 +450,13 @@ detectVersion() {
   local -a bases=()
   local -a groups=()
   local -a versions=()
-  local -a selection_order=()
   local -A image_indexes=()
+  local -a selection_order=()
 
   printf -v "$result_name" '%s' ""
   printf -v "$index_name" '%s' ""
 
-  getVersions \
-    "$xml" \
-    versions \
-    bases \
-    groups \
-    image_indexes || return 1
+  getVersions "$xml" versions bases groups image_indexes || return 1
 
   [ "${#versions[@]}" -eq 0 ] && return 0
 
@@ -486,21 +464,13 @@ detectVersion() {
 
   case "${bases[0],,}" in
     "win20"* )
-      normalize_name="normalizeServerEditionID"
-      ;;
+      normalize_name="normalizeServerEditionID" ;;
   esac
 
   getEditionOrder "${bases[0]}" selection_order || return 1
 
-  selectEdition \
-    versions \
-    bases \
-    groups \
-    image_indexes \
-    "$suggested" \
-    "$result_name" \
-    "$index_name" \
-    "$normalize_name" \
+  selectEdition versions bases groups image_indexes \
+    "$suggested" "$result_name" "$index_name" "$normalize_name" \
     selection_order && return 0
 
   local result="${versions[0]}"
@@ -516,9 +486,10 @@ detectLanguage() {
 
   local xml="$1"
   local index="${2:-}"
-  local image='/WIM/IMAGE'
-  local lang culture path
+
   local -a paths=()
+  local lang culture path
+  local image='/WIM/IMAGE'
 
   if [[ "$index" =~ ^[1-9][0-9]*$ ]]; then
     image="/WIM/IMAGE[@INDEX='$index']"
@@ -576,10 +547,8 @@ getImageSize() {
   [ -n "$folder" ] && paths+=("$folder")
 
   large_file=$(find -L "${paths[@]}" \
-    -type f \
-    -size +4294967295c \
-    -print \
-    -quit) || return 1
+    -type f -size +4294967295c \
+    -print -quit) || return 1
 
   if [ -n "$large_file" ]; then
     error "Setup file exceeds the FAT32 limit: $large_file"
@@ -630,8 +599,7 @@ canUseSetupImage() {
       return 1 ;;
   esac
 
-  [[ "${iso,,}" != *".esd" ]] &&
-    ! enabled "${UNPACK:-}"
+  [[ "${iso,,}" != *".esd" ]] && ! enabled "${UNPACK:-}"
 }
 
 createImageDirectory() {
@@ -1185,9 +1153,9 @@ parseWimHeader() {
   local -a bytes=()
   local header_size=0
   local parsed_size=0
+  local parsed_flags=0
   local parsed_offset=0
   local parsed_original=0
-  local parsed_flags=0
   local details image_size raw
 
   size_ref=""
@@ -1270,8 +1238,7 @@ parseWimHeader() {
     return 1
   fi
 
-  if (( parsed_offset > image_size ||
-        parsed_size > image_size - parsed_offset )); then
+  if (( parsed_offset > image_size || parsed_size > image_size - parsed_offset )); then
     return 1
   fi
 
@@ -1459,15 +1426,9 @@ detectIsoImage() {
 
   findIsoImage "$iso" image || return 1
   readWimHeader "$iso" "$image" header || return 1
-
-  readIsoImageInfo \
-    "$iso" \
-    "$image" \
-    "$header" \
-    image_info || return 1
+  readIsoImageInfo "$iso" "$image" "$header" image_info || return 1
 
   info "Detecting version from ISO image..."
-
   detectImageInfo "$image_info" || return 2
 
   return 0
