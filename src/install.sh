@@ -885,7 +885,11 @@ setMachine() {
   local dir="$3"
   local desc="$4"
 
-  ETFS="boot/etfsboot.com"
+  if [[ "${id,,}" != "win9"* ]]; then
+    ETFS="boot/etfsboot.com"
+  else
+    ETFS="[BOOT]/Boot-1.44M.img"
+  fi
 
   local version=""
   case "${id,,}" in
