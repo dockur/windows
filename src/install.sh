@@ -1150,7 +1150,7 @@ addDriver() {
 
   if [ -z "$id" ]; then
     warn "no Windows version specified for \"$driver\" driver!"
-    return 0
+    return 1
   fi
 
   if ! folder=$(getDriverFolder "$id"); then
@@ -1167,7 +1167,7 @@ addDriver() {
       warn "no \"$driver\" driver available for \"$desc\" !"
     fi
 
-    return 0
+    return 1
   fi
 
   [ -d "$path/$driver/$folder" ] || return 0
@@ -1278,7 +1278,7 @@ addDrivers() {
 
   fi
 
-  rm -rf "$drivers"
+  rm -rf "$drivers" || return 1
   return 0
 }
 
@@ -1304,12 +1304,12 @@ stageSetup() {
   fi
 
   if ! addDrivers "$stage" "$stage" "$DETECTED"; then
-    error "Failed to stage Windows drivers!"
+    error "Failed to include Windows drivers!"
     return 1
   fi
 
   if ! addFolder "$stage" "image" "Y" "overlay"; then
-    error "Failed to stage OEM folder!"
+    error "Failed to include OEM folder!"
     return 1
   fi
 
