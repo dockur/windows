@@ -498,22 +498,33 @@ getCompatibleVersions() {
 checkPlatform() {
 
   local xml="$1"
-  local platform compat
+  local platform
 
   platform=$(getPlatform "$xml") || return 1
 
   case "${platform,,}" in
-    "x86" ) compat="x64" ;;
-    "x64" ) compat="$platform" ;;
-    "arm64" ) compat="$platform" ;;
     "mixed" )
       error "Windows images with mixed architectures are not supported!"
-      return 1
-      ;;
-    * ) compat="${PLATFORM,,}" ;;
+      return 1  ;;
+    "x86" | "x64" | "arm64" ) ;;
+    * )
+      error "Unsupported Windows image architecture: ${platform:-unknown}"
+      return 1 ;;
   esac
 
-  [[ "${compat,,}" == "${PLATFORM,,}" ]] && return 0
+  case "${PLATFORM,,}" in
+    "x64" )
+      if [[ "${platform,,}" == "x64" || "${platform,,}" == "x86" ]]; then
+        return 0
+      fi ;;
+    "arm64" )
+      if [[ "${platform,,}" == "arm64" ]]; then
+        return 0
+      fi ;;
+    * )
+      error "Unsupported container platform: $PLATFORM"
+      return 1 ;;
+  esac
 
   error "You cannot boot ${platform^^} images on a $PLATFORM CPU!"
   return 1
@@ -523,22 +534,27 @@ getPlatform() {
 
   local xml="$1"
 
-  local output platform="x64"
-  local x86 x64 arm64 count=0 value
+  local image_count invalid_count 
+  local x86 x64 arm64 unknown value
+  local platform="" count=0 output
   local -a counts=()
 
   if ! output=$(xmlstarlet sel \
     -T -t \
+    -v 'count(/WIM/IMAGE)' -n \
+    -v 'count(/WIM/IMAGE[count(WINDOWS/ARCH) != 1])' -n \
     -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="0"])' -n \
     -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="9"])' -n \
     -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="12"])' -n \
+    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)!="0" and normalize-space(.)!="9" and normalize-space(.)!="12"])' -n \
     - 2>/dev/null <<< "$xml"); then
+    error "Failed to read architecture metadata from WIM image!"
     return 1
   fi
 
   mapfile -t counts <<< "$output"
 
-  if (( ${#counts[@]} != 3 )); then
+  if (( ${#counts[@]} != 6 )); then
     error "Failed to read architecture counts from WIM metadata!"
     return 1
   fi
@@ -550,9 +566,27 @@ getPlatform() {
     fi
   done
 
-  x86="${counts[0]}"
-  x64="${counts[1]}"
-  arm64="${counts[2]}"
+  image_count="${counts[0]}"
+  invalid_count="${counts[1]}"
+  x86="${counts[2]}"
+  x64="${counts[3]}"
+  arm64="${counts[4]}"
+  unknown="${counts[5]}"
+
+  if (( image_count == 0 )); then
+    error "No images were found in WIM metadata!"
+    return 1
+  fi
+
+  if (( invalid_count > 0 )); then
+    error "Missing or duplicate architecture metadata in WIM image!"
+    return 1
+  fi
+
+  if (( unknown > 0 )); then
+    error "Unsupported architecture value in WIM metadata!"
+    return 1
+  fi
 
   (( x86 > 0 )) && ((count += 1))
   (( x64 > 0 )) && ((count += 1))
@@ -562,8 +596,13 @@ getPlatform() {
     platform="mixed"
   elif (( x86 > 0 )); then
     platform="x86"
+  elif (( x64 > 0 )); then
+    platform="x64"
   elif (( arm64 > 0 )); then
     platform="arm64"
+  else
+    error "Failed to determine architecture from WIM metadata!"
+    return 1
   fi
 
   echo "$platform"
