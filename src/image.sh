@@ -913,7 +913,8 @@ resolveImage() {
 
 setImage() {
 
-  skipVersion "${DETECTED,,}" && return 0
+  supportsXML "${DETECTED,,}" || return 0
+
   setXML "" && return 0
   enabled "$MANUAL" && return 0
 
