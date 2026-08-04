@@ -855,7 +855,7 @@ getServerEditionID() {
     * ) return 1 ;;
   esac
 
-  edition=$(normalizeServerEditionID "$edition")
+  edition=$(normalizeServerEditionID "$edition") || return 1
 
   echo "$edition"
   return 0
