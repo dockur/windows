@@ -1022,7 +1022,7 @@ downloadFile() {
   local web_desc="$5"
   local connections="${6:-1}"
 
-  local domain dots
+  local domain dots shortened
   local msg="Downloading $web_desc"
   local console_msg="Downloading $desc"
 
@@ -1030,7 +1030,10 @@ downloadFile() {
   # labels, while Microsoft downloads retain the generic description.
   domain=$(echo "$url" | awk -F/ '{print $3}')
   dots=$(echo "$domain" | tr -cd '.' | wc -c)
-  (( dots > 1 )) && domain=$(expr "$domain" : '.*\.\(.*\..*\)')
+
+  if (( dots > 1 )) && shortened=$(expr "$domain" : '.*\.\(.*\..*\)'); then
+    domain="$shortened"
+  fi
 
   if [ -n "$domain" ] && [[ "${domain,,}" != *"microsoft.com" ]]; then
     console_msg="Downloading $desc from $domain"
