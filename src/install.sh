@@ -499,8 +499,11 @@ findFile() {
   local dir file base
   local boot="$STORAGE/windows.boot"
 
-  dir=$(find / -maxdepth 1 -type d -iname "$fname" -print -quit)
-  [ ! -d "$dir" ] && dir=$(find "$STORAGE" -maxdepth 1 -type d -iname "$fname" -print -quit)
+  dir=$(find / -maxdepth 1 -type d -iname "$fname" -print -quit) || return 1
+
+  if [ ! -d "$dir" ]; then
+    dir=$(find "$STORAGE" -maxdepth 1 -type d -iname "$fname" -print -quit) || return 1
+  fi
 
   if [ -d "$dir" ]; then
     if ! hasData || [ ! -f "$boot" ]; then
@@ -508,8 +511,11 @@ findFile() {
     fi
   fi
 
-  file=$(find / -maxdepth 1 -type f -iname "$fname" -print -quit)
-  [ ! -s "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$fname" -print -quit)
+  file=$(find / -maxdepth 1 -type f -iname "$fname" -print -quit) || return 1
+
+  if [ ! -s "$file" ]; then
+    file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$fname" -print -quit) || return 1
+  fi
 
   if [ ! -s "$file" ] && [[ "${VERSION,,}" != "http"* ]]; then
     base=$(basename "$VERSION")
@@ -521,7 +527,7 @@ findFile() {
   fi
 
   local size
-  size="$(stat -c%s "$file")"
+  size=$(stat -c%s "$file") || return 1
 
   if [ -z "$size" ] || [[ "$size" == "0" ]]; then
     return 0
