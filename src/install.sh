@@ -49,7 +49,7 @@ selectWindowsImage() {
   if resolveImage "$VERSION"; then
 
     if ! setImage; then
-      abortInstall "$dir" "$iso" "$boot" || return 70
+      skipUnattended "$dir" "$iso" "$boot" || return 70
       handled=1
       return 0
     fi
@@ -77,7 +77,7 @@ selectWindowsImage() {
 
   # Only code 1 indicates that extraction may recover detection.
   if (( detect_rc != 1 )); then
-    abortInstall "$dir" "$iso" "$boot" || return 76
+    skipUnattended "$dir" "$iso" "$boot" || return 76
     handled=1
     return 0
   fi
@@ -93,7 +93,7 @@ selectWindowsImage() {
     return 0
   fi
 
-  abortInstall "$dir" "$iso" "$boot" || return 76
+  skipUnattended "$dir" "$iso" "$boot" || return 76
   handled=1
   return 0
 }
@@ -107,25 +107,25 @@ configureMachine() {
   local desc
 
   if ! desc=$(printVariant "$DETECTED" "$DETECTED"); then
-    abortInstall "$dir" "$iso" "$boot" || return 78
+    skipUnattended "$dir" "$iso" "$boot" || return 78
     handled=1
     return 0
   fi
 
   if ! setMachine "$DETECTED" "$iso" "$dir" "$desc"; then
-    abortInstall "$dir" "$iso" "$boot" || return 80
+    skipUnattended "$dir" "$iso" "$boot" || return 80
     handled=1
     return 0
   fi
 
   if ! restoreMachineState; then
-    abortInstall "$dir" "$iso" "$boot" || return 82
+    skipUnattended "$dir" "$iso" "$boot" || return 82
     handled=1
     return 0
   fi
 
   if ! supportsUnattended "$DETECTED"; then
-    abortInstall "$dir" "$iso" "$boot" || return 83
+    skipUnattended "$dir" "$iso" "$boot" || return 83
     handled=1
     return 0
   fi
@@ -143,7 +143,7 @@ prepareWindowsImage() {
   if canUseSetupImage "$DETECTED" "$iso"; then
 
     if ! stageSetup "$XML" "$LANGUAGE" "$TMP/setup"; then
-      abortInstall "$dir" "$iso" "$boot" || return 84
+      skipUnattended "$dir" "$iso" "$boot" || return 84
       handled=1
       return 0
     fi
@@ -166,13 +166,13 @@ prepareWindowsImage() {
   fi
 
   if ! prepareImage "$iso" "$dir"; then
-    abortInstall "$dir" "$iso" "$boot" || return 92
+    skipUnattended "$dir" "$iso" "$boot" || return 92
     handled=1
     return 0
   fi
 
   if ! updateImage "$dir" "$XML" "$LANGUAGE"; then
-    abortInstall "$dir" "$iso" "$boot" || return 94
+    skipUnattended "$dir" "$iso" "$boot" || return 94
     handled=1
     return 0
   fi
@@ -307,7 +307,7 @@ startInstall() {
   return 0
 }
 
-abortInstall() {
+skipUnattended() {
 
   local dir="$1"
   local iso="$2"
