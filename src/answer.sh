@@ -360,276 +360,6 @@ generateFallbackXML() {
   return 0
 }
 
-prepareSetupScript() {
-
-  local asset="$1"
-  local stage="$2"
-
-  local staged=""
-
-  staged=$(stageSetupScript "$asset" "$stage") || return 1
-  [ -n "$staged" ] || return 0
-
-  updateSetupScript "$staged" "$asset" || return 1
-  finalizeSetupScript "$staged" || return 1
-
-  printf '%s' "$staged"
-  return 0
-}
-
-updateSetupScript() {
-
-  local script="$1"
-  local asset="$2"
-
-  local domain="${DOMAIN:-}"
-  local user="${USERNAME:-}"
-  local content id
-
-  if [ ! -s "$script" ]; then
-    error "Failed to find staged setup script: $script"
-    return 1
-  fi
-
-  if [ -n "$domain" ]; then
-    removeSetupBlock "$script" "LOCAL_ACCOUNT" || return 1
-  elif [ -n "$user" ]; then
-    validateUsername "$user" "local" || return 1
-
-    id=$(basename "$asset") || return 1
-    id="${id%.*}"
-
-    # Set-LocalUser is unavailable on older releases, which still require
-    # the equivalent WMIC command.
-
-    case "${id,,}" in
-      "win10"* | "win11"* | "win2016"* | "win2019"* | "win2022"* | "win2025"* )
-        printf -v content '%s\n%s' \
-          'rem Prevent the local user password from expiring.' \
-          "powershell.exe -ExecutionPolicy Unrestricted -NoLogo -NoProfile -NonInteractive Set-LocalUser -Name \"$user\" -PasswordNeverExpires 1"
-        ;;
-      * )
-        printf -v content '%s\n%s' \
-          'rem Prevent the local user password from expiring.' \
-          "wmic useraccount where name=\"$user\" set PasswordExpires=false"
-        ;;
-    esac
-
-    replaceSetupBlock "$script" "LOCAL_ACCOUNT" "$content" || return 1
-  fi
-
-  enableLog "$script" || return 1
-  updateProductKey "$script" || return 1
-  removeSharedFolder "$script" || return 1
-
-  return 0
-}
-
-findSetupScript() {
-
-  local asset="$1"
-
-  local dir name id normal candidate
-  local candidates=()
-
-  [ -z "${CUSTOM_XML:-}" ] || return 0
-  [ -n "$asset" ] || return 1
-
-  dir=$(dirname "$asset") || return 1
-  name=$(basename "$asset") || return 1
-  id="${name%.*}"
-  normal="$id"
-
-  candidates+=("$dir/$id.cmd")
-
-  if [[ "${normal,,}" == *"-eval" ]]; then
-    normal="${normal::-5}"
-    candidates+=("$dir/$normal.cmd")
-  fi
-
-  # Generated edition-specific answer files inherit the script belonging to
-  # their generic source template.
-  case "${normal,,}" in
-    "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* | "win20"* )
-      candidates+=("$dir/${normal%%-*}.cmd")
-      ;;
-  esac
-
-  for candidate in "${candidates[@]}"; do
-    if [ -f "$candidate" ] && [ -s "$candidate" ]; then
-      printf '%s' "$candidate"
-      return 0
-    fi
-  done
-
-  error "Failed to find setup script for answer file: $asset"
-  return 1
-}
-
-stageSetupScript() {
-
-  local asset="$1"
-  local stage="$2"
-
-  local source target
-
-  source=$(findSetupScript "$asset") || return 1
-  [ -n "$source" ] || return 0
-
-  target="$stage/\$OEM\$/\$\$/Setup/Scripts/SetupComplete.cmd"
-
-  if ! mkdir -p "$(dirname "$target")"; then
-    error "Failed to create setup script directory!"
-    return 1
-  fi
-
-  if ! cp -L -- "$source" "$target"; then
-    error "Failed to stage setup script: $source"
-    return 1
-  fi
-
-  # Work on a normalized copy so marker updates are independent of the line
-  # endings stored in Git. The staged result is converted back to CRLF later.
-  if ! sed -i 's/\r$//' "$target"; then
-    error "Failed to normalize setup script: $target"
-    return 1
-  fi
-
-  validateSetupScript "$target" || return 1
-
-  printf '%s' "$target"
-  return 0
-}
-
-installSetupScript() {
-
-  local script="$1"
-  local root="$2"
-
-  local target
-
-  [ -n "$script" ] || return 0
-
-  if [ ! -s "$script" ]; then
-    error "Failed to find staged setup script: $script"
-    return 1
-  fi
-
-  target="$root/\$OEM\$/\$\$/Setup/Scripts/SetupComplete.cmd"
-
-  if ! mkdir -p "$(dirname "$target")"; then
-    error "Failed to create setup script directory!"
-    return 1
-  fi
-
-  if ! cp -f -- "$script" "$target"; then
-    error "Failed to add setup script to Windows image!"
-    return 1
-  fi
-
-  return 0
-}
-
-rewriteSetupBlock() {
-
-  local file="$1"
-  local block="$2"
-  local action="$3"
-  local content="${4:-}"
-
-  local begin="rem BEGIN $block"
-  local end="rem END $block"
-  local line inside=0 tmp
-
-  case "$action" in
-    "replace" | "remove" ) ;;
-    * ) return 1 ;;
-  esac
-
-  validateSetupBlock "$file" "$block" || return 1
-
-  # Rewrite through a temporary file so malformed markers or interrupted writes
-  # cannot leave a partially modified setup script.
-  if ! tmp=$(mktemp "${file}.XXXXXX"); then
-    error "Failed to create temporary setup script!"
-    return 1
-  fi
-
-  while IFS= read -r line || [ -n "$line" ]; do
-
-    if [ "$line" = "$begin" ]; then
-      if [ "$action" = "replace" ]; then
-        if ! printf '%s\n' "$line" >> "$tmp" ||
-          ! printf '%s\n' "$content" >> "$tmp"; then
-          rm -f "$tmp"
-          return 1
-        fi
-      fi
-
-      inside=1
-      continue
-    fi
-
-    if [ "$line" = "$end" ]; then
-      inside=0
-
-      if [ "$action" = "replace" ]; then
-        if ! printf '%s\n' "$line" >> "$tmp"; then
-          rm -f "$tmp"
-          return 1
-        fi
-      fi
-
-      continue
-    fi
-
-    if (( ! inside )); then
-      if ! printf '%s\n' "$line" >> "$tmp"; then
-        rm -f "$tmp"
-        return 1
-      fi
-    fi
-
-  done < "$file"
-
-  if ! chmod --reference="$file" "$tmp" ||
-    ! mv -f -- "$tmp" "$file"; then
-    rm -f "$tmp"
-    error "Failed to $action the $block block in setup script: $file"
-    return 1
-  fi
-
-  return 0
-}
-
-replaceSetupBlock() {
-
-  rewriteSetupBlock "$1" "$2" "replace" "$3"
-}
-
-removeSetupBlock() {
-
-  rewriteSetupBlock "$1" "$2" "remove"
-}
-
-finalizeSetupScript() {
-
-  local file="$1"
-
-  [ -n "$file" ] || return 0
-  if [ ! -s "$file" ]; then
-    error "Failed to find staged setup script: $file"
-    return 1
-  fi
-
-  if ! unix2dos -q "$file"; then
-    error "Failed to convert setup script to DOS format: $file"
-    return 1
-  fi
-
-  return 0
-}
-
 updateUserXML() {
 
   local asset="$1"
@@ -2074,6 +1804,276 @@ validateLegacyUsername() {
       error "The USERNAME value \"$value\" is reserved for a built-in Windows account$suffix!"
       return 1 ;;
   esac
+
+  return 0
+}
+
+prepareSetupScript() {
+
+  local asset="$1"
+  local stage="$2"
+
+  local staged=""
+
+  staged=$(stageSetupScript "$asset" "$stage") || return 1
+  [ -n "$staged" ] || return 0
+
+  updateSetupScript "$staged" "$asset" || return 1
+  finalizeSetupScript "$staged" || return 1
+
+  printf '%s' "$staged"
+  return 0
+}
+
+updateSetupScript() {
+
+  local script="$1"
+  local asset="$2"
+
+  local domain="${DOMAIN:-}"
+  local user="${USERNAME:-}"
+  local content id
+
+  if [ ! -s "$script" ]; then
+    error "Failed to find staged setup script: $script"
+    return 1
+  fi
+
+  if [ -n "$domain" ]; then
+    removeSetupBlock "$script" "LOCAL_ACCOUNT" || return 1
+  elif [ -n "$user" ]; then
+    validateUsername "$user" "local" || return 1
+
+    id=$(basename "$asset") || return 1
+    id="${id%.*}"
+
+    # Set-LocalUser is unavailable on older releases, which still require
+    # the equivalent WMIC command.
+
+    case "${id,,}" in
+      "win10"* | "win11"* | "win2016"* | "win2019"* | "win2022"* | "win2025"* )
+        printf -v content '%s\n%s' \
+          'rem Prevent the local user password from expiring.' \
+          "powershell.exe -ExecutionPolicy Unrestricted -NoLogo -NoProfile -NonInteractive Set-LocalUser -Name \"$user\" -PasswordNeverExpires 1"
+        ;;
+      * )
+        printf -v content '%s\n%s' \
+          'rem Prevent the local user password from expiring.' \
+          "wmic useraccount where name=\"$user\" set PasswordExpires=false"
+        ;;
+    esac
+
+    replaceSetupBlock "$script" "LOCAL_ACCOUNT" "$content" || return 1
+  fi
+
+  enableLog "$script" || return 1
+  updateProductKey "$script" || return 1
+  removeSharedFolder "$script" || return 1
+
+  return 0
+}
+
+findSetupScript() {
+
+  local asset="$1"
+
+  local dir name id normal candidate
+  local candidates=()
+
+  [ -z "${CUSTOM_XML:-}" ] || return 0
+  [ -n "$asset" ] || return 1
+
+  dir=$(dirname "$asset") || return 1
+  name=$(basename "$asset") || return 1
+  id="${name%.*}"
+  normal="$id"
+
+  candidates+=("$dir/$id.cmd")
+
+  if [[ "${normal,,}" == *"-eval" ]]; then
+    normal="${normal::-5}"
+    candidates+=("$dir/$normal.cmd")
+  fi
+
+  # Generated edition-specific answer files inherit the script belonging to
+  # their generic source template.
+  case "${normal,,}" in
+    "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* | "win20"* )
+      candidates+=("$dir/${normal%%-*}.cmd")
+      ;;
+  esac
+
+  for candidate in "${candidates[@]}"; do
+    if [ -f "$candidate" ] && [ -s "$candidate" ]; then
+      printf '%s' "$candidate"
+      return 0
+    fi
+  done
+
+  error "Failed to find setup script for answer file: $asset"
+  return 1
+}
+
+stageSetupScript() {
+
+  local asset="$1"
+  local stage="$2"
+
+  local source target
+
+  source=$(findSetupScript "$asset") || return 1
+  [ -n "$source" ] || return 0
+
+  target="$stage/\$OEM\$/\$\$/Setup/Scripts/SetupComplete.cmd"
+
+  if ! mkdir -p "$(dirname "$target")"; then
+    error "Failed to create setup script directory!"
+    return 1
+  fi
+
+  if ! cp -L -- "$source" "$target"; then
+    error "Failed to stage setup script: $source"
+    return 1
+  fi
+
+  # Work on a normalized copy so marker updates are independent of the line
+  # endings stored in Git. The staged result is converted back to CRLF later.
+  if ! sed -i 's/\r$//' "$target"; then
+    error "Failed to normalize setup script: $target"
+    return 1
+  fi
+
+  validateSetupScript "$target" || return 1
+
+  printf '%s' "$target"
+  return 0
+}
+
+installSetupScript() {
+
+  local script="$1"
+  local root="$2"
+
+  local target
+
+  [ -n "$script" ] || return 0
+
+  if [ ! -s "$script" ]; then
+    error "Failed to find staged setup script: $script"
+    return 1
+  fi
+
+  target="$root/\$OEM\$/\$\$/Setup/Scripts/SetupComplete.cmd"
+
+  if ! mkdir -p "$(dirname "$target")"; then
+    error "Failed to create setup script directory!"
+    return 1
+  fi
+
+  if ! cp -f -- "$script" "$target"; then
+    error "Failed to add setup script to Windows image!"
+    return 1
+  fi
+
+  return 0
+}
+
+rewriteSetupBlock() {
+
+  local file="$1"
+  local block="$2"
+  local action="$3"
+  local content="${4:-}"
+
+  local begin="rem BEGIN $block"
+  local end="rem END $block"
+  local line inside=0 tmp
+
+  case "$action" in
+    "replace" | "remove" ) ;;
+    * ) return 1 ;;
+  esac
+
+  validateSetupBlock "$file" "$block" || return 1
+
+  # Rewrite through a temporary file so malformed markers or interrupted writes
+  # cannot leave a partially modified setup script.
+  if ! tmp=$(mktemp "${file}.XXXXXX"); then
+    error "Failed to create temporary setup script!"
+    return 1
+  fi
+
+  while IFS= read -r line || [ -n "$line" ]; do
+
+    if [ "$line" = "$begin" ]; then
+      if [ "$action" = "replace" ]; then
+        if ! printf '%s\n' "$line" >> "$tmp" ||
+          ! printf '%s\n' "$content" >> "$tmp"; then
+          rm -f "$tmp"
+          return 1
+        fi
+      fi
+
+      inside=1
+      continue
+    fi
+
+    if [ "$line" = "$end" ]; then
+      inside=0
+
+      if [ "$action" = "replace" ]; then
+        if ! printf '%s\n' "$line" >> "$tmp"; then
+          rm -f "$tmp"
+          return 1
+        fi
+      fi
+
+      continue
+    fi
+
+    if (( ! inside )); then
+      if ! printf '%s\n' "$line" >> "$tmp"; then
+        rm -f "$tmp"
+        return 1
+      fi
+    fi
+
+  done < "$file"
+
+  if ! chmod --reference="$file" "$tmp" ||
+    ! mv -f -- "$tmp" "$file"; then
+    rm -f "$tmp"
+    error "Failed to $action the $block block in setup script: $file"
+    return 1
+  fi
+
+  return 0
+}
+
+replaceSetupBlock() {
+
+  rewriteSetupBlock "$1" "$2" "replace" "$3"
+}
+
+removeSetupBlock() {
+
+  rewriteSetupBlock "$1" "$2" "remove"
+}
+
+finalizeSetupScript() {
+
+  local file="$1"
+
+  [ -n "$file" ] || return 0
+  if [ ! -s "$file" ]; then
+    error "Failed to find staged setup script: $file"
+    return 1
+  fi
+
+  if ! unix2dos -q "$file"; then
+    error "Failed to convert setup script to DOS format: $file"
+    return 1
+  fi
 
   return 0
 }
