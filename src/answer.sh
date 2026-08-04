@@ -1899,13 +1899,13 @@ setConfigurationXML() {
       return 1
     }
   elif [ "$userdata_count" = "1" ]; then
-    xmlstarlet ed -L -N "u=$ns" -i "$userdata" -t elem -n "u:UseConfigurationSet" -v "true" "$tmp" || {
+    xmlstarlet ed -L -N "u=$ns" -i "$userdata" -t elem -n "UseConfigurationSet" -v "true" "$tmp" || {
       rm -f "$tmp"
       error "Failed to enable the Windows configuration set!"
       return 1
     }
   else
-    xmlstarlet ed -L -N "u=$ns" -s "$setup" -t elem -n "u:UseConfigurationSet" -v "true" "$tmp" || {
+    xmlstarlet ed -L -N "u=$ns" -s "$setup" -t elem -n "UseConfigurationSet" -v "true" "$tmp" || {
       rm -f "$tmp"
       error "Failed to enable the Windows configuration set!"
       return 1
