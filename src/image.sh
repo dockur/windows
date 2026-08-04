@@ -1725,7 +1725,11 @@ buildImage() {
     return 1
   fi
 
-  size=$(du -b --max-depth=0 "$dir" | cut -f1)
+  if ! size=$(du -b --max-depth=0 "$dir" | cut -f1); then
+    error "Failed to calculate the size of directory \"$dir\"!"
+    return 1
+  fi
+
   checkFreeSpace "$TMP" "$size" || return 1
 
   /run/progress.sh "$out" "$size" "$msg ([P])..." &
