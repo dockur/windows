@@ -31,7 +31,7 @@ updateXML() {
 
   validateXMLSettings || return 1
 
-  updateDisplayXML "$asset" || return 1
+  updateUserXML "$asset" || return 1
   updateLocaleXML "$asset" "$language" || return 1
 
   if [ -n "$domain" ]; then
@@ -47,7 +47,7 @@ updateXML() {
   updateMembership "$asset" "$domain" "$workgroup" "$account" "$auth" || return 1
   updateAutologinXML "$asset" || return 1
   updateEditionXML "$asset" || return 1
-  
+
   validateGeneratedXML "$asset" || return 1
 
   return 0
@@ -112,7 +112,6 @@ hasAnswerFile() {
   local id="$1"
 
   local file="/run/assets/$id.xml"
-
   [ -s "$file" ] && return 0
 
   if [[ "${id,,}" == *"-eval" ]]; then
@@ -631,355 +630,152 @@ finalizeSetupScript() {
   return 0
 }
 
-validateGeneratedXML() {
+updateUserXML() {
 
   local asset="$1"
 
-  if ! xmllint --nonet --noout "$asset"; then
-    error "The generated answer file is not valid XML!"
-    return 1
+  local setup="$XML_COMPONENT_SETUP"
+  local specialize="$XML_COMPONENT_SHELL_SPECIALIZE"
+  local oobe="$XML_COMPONENT_SHELL_OOBE"
+  local app="$APP for $ENGINE"
+  local -a args=(
+    -L
+    -N "$XML_NS_UNATTEND_ARG"
+    -u "$setup/u:UserData/u:Organization | $specialize/u:OEMInformation/u:Model | $specialize/u:OEMName | $specialize/u:RegisteredOwner | $oobe/u:RegisteredOwner" -v "$app"
+    -u "$oobe/u:Display/u:VerticalResolution" -v "$HEIGHT"
+    -u "$oobe/u:Display/u:HorizontalResolution" -v "$WIDTH"
+  )
+
+  if [ -n "${HOST:-}" ]; then
+    args+=(-u "$specialize/u:ComputerName" -v "$HOST")
   fi
+
+  xmlstarlet ed "${args[@]}" "$asset" || return 1
 
   return 0
 }
 
-validateSetupScript() {
-
-  local file="$1"
-
-  local block
-  local blocks=(LOCAL_ACCOUNT PRODUCT_KEY SHARED_FOLDER OEM_SCRIPT)
-
-  [ -s "$file" ] || return 1
-
-  for block in "${blocks[@]}"; do
-    validateSetupBlock "$file" "$block" || return 1
-  done
-
-  return 0
-}
-
-validateSetupBlock() {
-
-  local file="$1"
-  local block="$2"
-
-  local begin="rem BEGIN $block"
-  local end="rem END $block"
-  local begin_count end_count begin_line end_line
-
-  [ -s "$file" ] || return 1
-
-  begin_count=$(grep -Fxc -- "$begin" "$file" || true)
-  end_count=$(grep -Fxc -- "$end" "$file" || true)
-
-  if [ "$begin_count" -ne 1 ] || [ "$end_count" -ne 1 ]; then
-    error "Invalid $block markers in setup script: $file"
-    return 1
-  fi
-
-  begin_line=$(grep -nFx -- "$begin" "$file" | cut -d: -f1) || return 1
-  end_line=$(grep -nFx -- "$end" "$file" | cut -d: -f1) || return 1
-
-  if [ "$begin_line" -ge "$end_line" ]; then
-    error "Invalid $block marker order in setup script: $file"
-    return 1
-  fi
-
-  return 0
-}
-
-validateXMLSettings() {
-
-  validateResolution "WIDTH" "$WIDTH" 320 || return 1
-  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
-  validateMembership || return 1
-  validateComputerName "${HOST:-}" || return 1
-  validateProductKey "${KEY:-}" || return 1
-  validatePassword "${PASSWORD:-}" || return 1
-
-  return 0
-}
-
-validateResolution() {
-
-  local name="$1"
-  local value="$2"
-  local minimum="$3"
-
-  if [[ ! "$value" =~ ^[0-9]+$ ]] || [ "${#value}" -gt 5 ]; then
-    error "The $name variable must be between $minimum and 16384!"
-    return 1
-  fi
-
-  local number=$((10#$value))
-
-  if [ "$number" -lt "$minimum" ] || [ "$number" -gt 16384 ]; then
-    error "The $name variable must be between $minimum and 16384!"
-    return 1
-  fi
-
-  return 0
-}
-
-validateProductKey() {
-
-  local value="$1"
-
-  [ -z "$value" ] && return 0
-
-  if [[ ! "$value" =~ ^[A-Za-z0-9]{5}(-[A-Za-z0-9]{5}){4}$ ]]; then
-    error "The KEY variable must contain a valid 25-character product key!"
-    return 1
-  fi
-
-  return 0
-}
-
-validateComputerName() {
-
-  local value="$1"
-
-  [ -z "$value" ] && return 0
-
-  if [ "${#value}" -gt 15 ]; then
-    error "The HOST variable cannot contain more than 15 characters!"
-    return 1
-  fi
-
-  if [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$ ]]; then
-    error "The HOST variable may only contain letters, digits, and hyphens, and cannot start or end with a hyphen!"
-    return 1
-  fi
-
-  if [[ "$value" =~ ^[0-9]+$ ]]; then
-    error "The HOST variable cannot contain only digits!"
-    return 1
-  fi
-
-  return 0
-}
-
-validateWorkgroup() {
-
-  local value="$1"
-
-  local safe
-
-  [ -z "$value" ] && return 0
-
-  if [ "${#value}" -gt 15 ]; then
-    error "The WORKGROUP variable cannot contain more than 15 characters!"
-    return 1
-  fi
-
-  safe=$(printf '%s' "$value" | tr -d '"/\\[]:;|=,+*?<>') || return 1
-
-  if [[ "$safe" != "$value" ]]; then
-    error "The WORKGROUP variable contains characters that are not valid in a NetBIOS name!"
-    return 1
-  fi
-
-  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
-    error "The WORKGROUP variable cannot consist only of spaces or periods!"
-    return 1
-  fi
-
-  return 0
-}
-
-validateMembership() {
-
-  if [ -n "$DOMAIN" ] && [ -n "$WORKGROUP" ]; then
-    error "The DOMAIN and WORKGROUP variables cannot be used together!"
-    return 1
-  fi
-
-  if [ -n "$DOMAIN_OU" ] && [ -z "$DOMAIN" ]; then
-    error "The DOMAIN_OU variable requires DOMAIN to be specified!"
-    return 1
-  fi
-
-  validateWorkgroup "$WORKGROUP" || return 1
-  return 0
-}
-
-validatePassword() {
-
-  local value="$1"
-  local desc="${2:-}"
-
-  local suffix=""
-
-  [ -n "$desc" ] && suffix=" for $desc"
-
-  if [ "${#value}" -gt 127 ]; then
-    error "The PASSWORD variable cannot contain more than 127 characters$suffix!"
-    return 1
-  fi
-
-  if [[ "$value" =~ [[:cntrl:]] ]]; then
-    error "The PASSWORD variable cannot contain control characters$suffix!"
-    return 1
-  fi
-
-  return 0
-}
-
-validateUsername() {
-
-  local value="$1"
-  local type="$2"
-
-  local maximum length_suffix invalid_message
-
-  case "$type" in
-    "local" )
-      [ -z "$value" ] && return 0
-
-      maximum=20
-      length_suffix=""
-      invalid_message="The USERNAME variable contains characters that are not supported by Windows local accounts!"
-      ;;
-
-    "domain" )
-      if [ -z "$value" ]; then
-        error "The USERNAME variable does not contain a valid domain account name!"
-        return 1
-      fi
-
-      maximum=256
-      length_suffix=" for a domain account"
-      invalid_message="The domain account name contains characters that are not supported by Windows unattended setup!"
-      ;;
-
-    * )
-      return 1
-      ;;
-  esac
-
-  if [ "${#value}" -gt "$maximum" ]; then
-    error "The USERNAME variable cannot contain more than $maximum characters$length_suffix!"
-    return 1
-  fi
-
-  if [[ "$value" =~ [[:cntrl:]] ]]; then
-    error "The USERNAME variable cannot contain control characters!"
-    return 1
-  fi
-
-  case "$value" in
-    *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* | *'%'* | *'@'* )
-      error "$invalid_message"
-      return 1
-      ;;
-  esac
-
-  if [[ "$value" == *"." ]]; then
-    error "The USERNAME variable cannot end with a period!"
-    return 1
-  fi
-
-  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
-    error "The USERNAME variable cannot consist only of spaces or periods!"
-    return 1
-  fi
-
-  case "${value^^}" in
-    "NONE" )
-      error "The USERNAME value \"NONE\" is reserved by Windows!"
-      return 1
-      ;;
-
-    "ADMINISTRATOR" | "GUEST" | "DEFAULTACCOUNT" | "WDAGUTILITYACCOUNT" | "WSIACCOUNT" )
-      [[ "$type" == "domain" ]] && return 0
-
-      error "The USERNAME value \"$value\" is reserved for a built-in Windows account!"
-      return 1
-      ;;
-  esac
-
-  return 0
-}
-
-validateDomainName() {
-
-  local value="$1"
-  local name="${2:-DOMAIN}"
-
-  if [ -z "$value" ]; then
-    error "The $name variable must contain a valid domain name!"
-    return 1
-  fi
-
-  if [[ "$value" == *"://"* ]]; then
-    error "The $name variable must contain a domain name, not a URL!"
-    return 1
-  fi
-
-  if [ "${#value}" -gt 255 ] ||
-    [[ "$value" =~ [[:cntrl:]] ]] ||
-    [[ "$value" =~ [[:space:]] ]] ||
-    [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$ ]]; then
-
-    error "The $name variable does not contain a valid domain name!"
-    return 1
-  fi
-
-  return 0
-}
-
-ensureUnattendedJoin() {
+updateLocaleXML() {
 
   local asset="$1"
-  local arch="$2"
+  local language="$2"
 
-  local specialize="$XML_SETTINGS_SPECIALIZE"
-  local component="$XML_COMPONENT_UNATTENDED_JOIN"
-  local identification="$component/u:Identification"
-  local counts settings_count component_count identification_count
+  local international='/u:unattend/u:settings/u:component[@name="Microsoft-Windows-International-Core" or @name="Microsoft-Windows-International-Core-WinPE"]'
+  local culture region keyboard
+  local -a args=(-L -N "$XML_NS_UNATTEND_ARG")
 
-  counts=$(xmlstarlet sel \
-    -N "$XML_NS_UNATTEND_ARG" \
-    -T -t \
-    -v "count($specialize)" -o '|' \
-    -v "count($component)" -o '|' -v "count($identification)" "$asset") || return 1
+  culture=$(getLanguage "$language" "culture") || return 1
 
-  IFS='|' read -r settings_count component_count identification_count <<< "$counts"
+  if [ -n "$culture" ]; then
+    args+=(-u "$international//u:UILanguage" -v "$culture")
+  fi
 
-  [ "$settings_count" = "1" ] || return 1
-  (( component_count <= 1 )) || return 1
-  (( identification_count <= 1 )) || return 1
+  region="${REGION:-$culture}"
 
-  # Templates may omit the join component entirely. Create it when absent, or
-  # normalize its architecture and schema attributes when already present.
-  if [ "$component_count" = "0" ]; then
-    local created="($specialize/*[local-name()='component'])[last()]"
+  if [ -n "$region" ]; then
+    args+=(-u "$international/u:UserLocale | $international/u:SystemLocale" -v "$region")
+  fi
 
-    xmlstarlet ed -L \
-      -N "$XML_NS_UNATTEND_ARG" \
-      -s "$specialize" -t elem -n 'component' \
-      -i "$created" -t attr -n 'name' -v 'Microsoft-Windows-UnattendedJoin' \
-      -i "$created" -t attr -n 'processorArchitecture' -v "$arch" \
-      -i "$created" -t attr -n 'publicKeyToken' -v '31bf3856ad364e35' \
-      -i "$created" -t attr -n 'language' -v 'neutral' \
-      -i "$created" -t attr -n 'versionScope' -v 'nonSxS' \
-      -s "$created" -t elem -n 'Identification' "$asset" || return 1
+  keyboard="${KEYBOARD:-$culture}"
 
+  if [ -n "$keyboard" ]; then
+    args+=(-u "$international/u:InputLocale" -v "$keyboard")
+  fi
+
+  if (( ${#args[@]} > 3 )); then
+    xmlstarlet ed "${args[@]}" "$asset" || return 1
+  fi
+
+  return 0
+}
+
+updateAutologinXML() {
+
+  local asset="$1"
+
+  local shell="$XML_COMPONENT_SHELL_OOBE"
+
+  disabled "${AUTOLOGIN:-}" || return 0
+
+  xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -d "$shell/u:AutoLogon" "$asset" || return 1
+
+  return 0
+}
+
+updateProductKey() {
+
+  local script="$1"
+
+  local key="${KEY:-}"
+  local content
+
+  if [ -z "$key" ]; then
+    removeSetupBlock "$script" "PRODUCT_KEY" || return 1
     return 0
   fi
 
-  xmlstarlet ed -L \
-    -N "$XML_NS_UNATTEND_ARG" \
-    -i "${component}[not(@processorArchitecture)]" -t attr -n 'processorArchitecture' -v "$arch" \
-    -u "$component/@processorArchitecture" -v "$arch" \
-    -i "${component}[not(@publicKeyToken)]" -t attr -n 'publicKeyToken' -v '31bf3856ad364e35' \
-    -u "$component/@publicKeyToken" -v '31bf3856ad364e35' \
-    -i "${component}[not(@language)]" -t attr -n 'language' -v 'neutral' \
-    -u "$component/@language" -v 'neutral' \
-    -i "${component}[not(@versionScope)]" -t attr -n 'versionScope' -v 'nonSxS' \
-    -u "$component/@versionScope" -v 'nonSxS' \
-    -s "${component}[not(u:Identification)]" -t elem -n 'Identification' "$asset" || return 1
+  printf -v content '%s\n%s' \
+    'rem Install the product key without activating Windows immediately.' \
+    "cscript.exe //B //Nologo \"%SystemRoot%\\System32\\slmgr.vbs\" /ipk \"$key\""
+
+  replaceSetupBlock "$script" "PRODUCT_KEY" "$content" || return 1
+
+  return 0
+}
+
+updateWorkgroup() {
+
+  local asset="$1"
+  local workgroup="$2"
+
+  local component="$XML_COMPONENT_UNATTENDED_JOIN"
+  local identification="$component/u:Identification"
+  local join="$identification/*[local-name()='JoinWorkgroup']"
+  local arch tmp
+
+  arch=$(getXMLArchitecture "$asset") || return 1
+  # Apply all membership changes to a copy and publish it only after the old
+  # domain, credential, OU, and workgroup nodes have been replaced successfully.
+  tmp=$(copyXMLAsset "$asset") || return 1
+
+  if ! ensureUnattendedJoin "$tmp" "$arch" ||
+    ! xmlstarlet ed -L \
+      -N "$XML_NS_UNATTEND_ARG" \
+      -d "$identification/u:Credentials | $identification/u:JoinDomain | $identification/u:JoinWorkgroup | $identification/u:MachineObjectOU" \
+      -s "$identification" -t elem -n 'JoinWorkgroup' "$tmp" ||
+    ! xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -u "$join" -v "$workgroup" "$tmp" ||
+    ! replaceXMLAsset "$asset" "$tmp"; then
+
+    rm -f "$tmp"
+    return 1
+  fi
+
+  return 0
+}
+
+updateDomain() {
+
+  local asset="$1"
+  local domain="$2"
+  local account="$3"
+  local auth="$4"
+  local pass="$5"
+  local ou="$6"
+
+  local arch tmp
+
+  arch=$(getXMLArchitecture "$asset") || return 1
+  # Account and join settings are separate XML transformations, so update a
+  # copy to keep the original answer file intact if either transformation fails.
+  tmp=$(copyXMLAsset "$asset") || return 1
+
+  if ! configureDomainAccounts "$tmp" "$domain" "$account" "$pass" ||
+    ! configureDomainJoin "$tmp" "$domain" "$auth" "$pass" "$ou" "$arch" ||
+    ! replaceXMLAsset "$asset" "$tmp"; then
+
+    rm -f "$tmp"
+    return 1
+  fi
 
   return 0
 }
@@ -1141,191 +937,6 @@ configureDomainJoin() {
   return 0
 }
 
-updateWorkgroup() {
-
-  local asset="$1"
-  local workgroup="$2"
-
-  local component="$XML_COMPONENT_UNATTENDED_JOIN"
-  local identification="$component/u:Identification"
-  local join="$identification/*[local-name()='JoinWorkgroup']"
-  local arch tmp
-
-  arch=$(getXMLArchitecture "$asset") || return 1
-  # Apply all membership changes to a copy and publish it only after the old
-  # domain, credential, OU, and workgroup nodes have been replaced successfully.
-  tmp=$(copyXMLAsset "$asset") || return 1
-
-  if ! ensureUnattendedJoin "$tmp" "$arch" ||
-    ! xmlstarlet ed -L \
-      -N "$XML_NS_UNATTEND_ARG" \
-      -d "$identification/u:Credentials | $identification/u:JoinDomain | $identification/u:JoinWorkgroup | $identification/u:MachineObjectOU" \
-      -s "$identification" -t elem -n 'JoinWorkgroup' "$tmp" ||
-    ! xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -u "$join" -v "$workgroup" "$tmp" ||
-    ! replaceXMLAsset "$asset" "$tmp"; then
-
-    rm -f "$tmp"
-    return 1
-  fi
-
-  return 0
-}
-
-updateDomain() {
-
-  local asset="$1"
-  local domain="$2"
-  local account="$3"
-  local auth="$4"
-  local pass="$5"
-  local ou="$6"
-
-  local arch tmp
-
-  arch=$(getXMLArchitecture "$asset") || return 1
-  # Account and join settings are separate XML transformations, so update a
-  # copy to keep the original answer file intact if either transformation fails.
-  tmp=$(copyXMLAsset "$asset") || return 1
-
-  if ! configureDomainAccounts "$tmp" "$domain" "$account" "$pass" ||
-    ! configureDomainJoin "$tmp" "$domain" "$auth" "$pass" "$ou" "$arch" ||
-    ! replaceXMLAsset "$asset" "$tmp"; then
-
-    rm -f "$tmp"
-    return 1
-  fi
-
-  return 0
-}
-
-prepareDomainAccount() {
-
-  local domain="$1"
-
-  local account=""
-  local auth="${USERNAME:-}"
-  local qualifier=""
-
-  if [ -z "$auth" ]; then
-    error "The USERNAME variable must be specified when joining a domain!"
-    return 1
-  fi
-
-  if [ -z "${PASSWORD:-}" ]; then
-    error "The PASSWORD variable must be specified when joining a domain!"
-    return 1
-  fi
-
-  validateDomainName "$domain" || return 1
-
-  # Accept user or user@domain. DOMAIN\user is rejected because unattended
-  # setup stores the domain separately from the credential username.
-  if [[ "$auth" == *\\* ]]; then
-    error "The USERNAME variable must use either \"user\" or \"user@domain\" format!"
-    return 1
-  fi
-
-  case "$auth" in
-    *@* )
-      account="${auth%%@*}"
-      qualifier="${auth#*@}"
-
-      if [ -z "$account" ] ||
-        [ -z "$qualifier" ] ||
-        [[ "$qualifier" == *@* ]]; then
-
-        error "The USERNAME variable does not contain a valid domain account name!"
-        return 1
-      fi
-
-      validateDomainName "$qualifier" "USERNAME" || return 1
-
-      if [[ "${qualifier,,}" != "${domain,,}" ]]; then
-        error "The domain in the USERNAME variable must match the DOMAIN variable!"
-        return 1
-      fi
-      ;;
-
-    * )
-      account="$auth"
-      ;;
-  esac
-
-  validateUsername "$account" "domain" || return 1
-
-  if [[ "${account,,}" == "docker" ]]; then
-    error "The USERNAME variable must be changed from its default value when joining a domain!"
-    return 1
-  fi
-
-  if [[ "$PASSWORD" == "admin" ]]; then
-    error "The PASSWORD variable must be changed from its default value when joining a domain!"
-    return 1
-  fi
-
-  printf '%s\n' "$account" "$auth"
-  return 0
-}
-
-updateDisplayXML() {
-
-  local asset="$1"
-
-  local setup="$XML_COMPONENT_SETUP"
-  local specialize="$XML_COMPONENT_SHELL_SPECIALIZE"
-  local oobe="$XML_COMPONENT_SHELL_OOBE"
-  local app="$APP for $ENGINE"
-  local -a args=(
-    -L
-    -N "$XML_NS_UNATTEND_ARG"
-    -u "$setup/u:UserData/u:Organization | $specialize/u:OEMInformation/u:Model | $specialize/u:OEMName | $specialize/u:RegisteredOwner | $oobe/u:RegisteredOwner" -v "$app"
-    -u "$oobe/u:Display/u:VerticalResolution" -v "$HEIGHT"
-    -u "$oobe/u:Display/u:HorizontalResolution" -v "$WIDTH"
-  )
-
-  if [ -n "${HOST:-}" ]; then
-    args+=(-u "$specialize/u:ComputerName" -v "$HOST")
-  fi
-
-  xmlstarlet ed "${args[@]}" "$asset" || return 1
-
-  return 0
-}
-
-updateLocaleXML() {
-
-  local asset="$1"
-  local language="$2"
-
-  local international='/u:unattend/u:settings/u:component[@name="Microsoft-Windows-International-Core" or @name="Microsoft-Windows-International-Core-WinPE"]'
-  local culture region keyboard
-  local -a args=(-L -N "$XML_NS_UNATTEND_ARG")
-
-  culture=$(getLanguage "$language" "culture") || return 1
-
-  if [ -n "$culture" ]; then
-    args+=(-u "$international//u:UILanguage" -v "$culture")
-  fi
-
-  region="${REGION:-$culture}"
-
-  if [ -n "$region" ]; then
-    args+=(-u "$international/u:UserLocale | $international/u:SystemLocale" -v "$region")
-  fi
-
-  keyboard="${KEYBOARD:-$culture}"
-
-  if [ -n "$keyboard" ]; then
-    args+=(-u "$international/u:InputLocale" -v "$keyboard")
-  fi
-
-  if (( ${#args[@]} > 3 )); then
-    xmlstarlet ed "${args[@]}" "$asset" || return 1
-  fi
-
-  return 0
-}
-
 findPrimaryLocalAccount() {
 
   local asset="$1"
@@ -1419,18 +1030,6 @@ findPrimaryLocalAccount() {
     "$selected" "$selected_user" "$found_admin" "$found_autologon"
 
   return 0
-}
-
-encodeUnattendPassword() {
-
-  local password="$1"
-  local suffix="$2"
-
-  # Windows unattend password fields use a field-specific suffix before
-  # UTF-16LE/Base64 encoding; this is obfuscation rather than encryption.
-  printf '%s' "${password}${suffix}" |
-    iconv -f utf-8 -t utf-16le |
-    base64 -w 0
 }
 
 updateLocalAccount() {
@@ -1571,19 +1170,6 @@ updateMembership() {
   return 0
 }
 
-updateAutologinXML() {
-
-  local asset="$1"
-
-  local shell="$XML_COMPONENT_SHELL_OOBE"
-
-  disabled "${AUTOLOGIN:-}" || return 0
-
-  xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -d "$shell/u:AutoLogon" "$asset" || return 1
-
-  return 0
-}
-
 updateEditionXML() {
 
   local asset="$1"
@@ -1629,27 +1215,6 @@ updateEditionXML() {
 
     xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -u "($selector)[$position]" -v "$replacement" "$asset" || return 1
   done <<< "$records"
-
-  return 0
-}
-
-updateProductKey() {
-
-  local script="$1"
-
-  local key="${KEY:-}"
-  local content
-
-  if [ -z "$key" ]; then
-    removeSetupBlock "$script" "PRODUCT_KEY" || return 1
-    return 0
-  fi
-
-  printf -v content '%s\n%s' \
-    'rem Install the product key without activating Windows immediately.' \
-    "cscript.exe //B //Nologo \"%SystemRoot%\\System32\\slmgr.vbs\" /ipk \"$key\""
-
-  replaceSetupBlock "$script" "PRODUCT_KEY" "$content" || return 1
 
   return 0
 }
@@ -1895,6 +1460,439 @@ removeEmbeddedProductKeys() {
 
   xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -d "$delete_xpath" "$asset" || return 1
   return 0
+}
+
+validateXMLSettings() {
+
+  validateResolution "WIDTH" "$WIDTH" 320 || return 1
+  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
+  validateMembership || return 1
+  validateComputerName "${HOST:-}" || return 1
+  validateProductKey "${KEY:-}" || return 1
+  validatePassword "${PASSWORD:-}" || return 1
+
+  return 0
+}
+
+validateGeneratedXML() {
+
+  local asset="$1"
+
+  if ! xmllint --nonet --noout "$asset"; then
+    error "The generated answer file is not valid XML!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateSetupScript() {
+
+  local file="$1"
+
+  local block
+  local blocks=(LOCAL_ACCOUNT PRODUCT_KEY SHARED_FOLDER OEM_SCRIPT)
+
+  [ -s "$file" ] || return 1
+
+  for block in "${blocks[@]}"; do
+    validateSetupBlock "$file" "$block" || return 1
+  done
+
+  return 0
+}
+
+validateSetupBlock() {
+
+  local file="$1"
+  local block="$2"
+
+  local begin="rem BEGIN $block"
+  local end="rem END $block"
+  local begin_count end_count begin_line end_line
+
+  [ -s "$file" ] || return 1
+
+  begin_count=$(grep -Fxc -- "$begin" "$file" || true)
+  end_count=$(grep -Fxc -- "$end" "$file" || true)
+
+  if [ "$begin_count" -ne 1 ] || [ "$end_count" -ne 1 ]; then
+    error "Invalid $block markers in setup script: $file"
+    return 1
+  fi
+
+  begin_line=$(grep -nFx -- "$begin" "$file" | cut -d: -f1) || return 1
+  end_line=$(grep -nFx -- "$end" "$file" | cut -d: -f1) || return 1
+
+  if [ "$begin_line" -ge "$end_line" ]; then
+    error "Invalid $block marker order in setup script: $file"
+    return 1
+  fi
+
+  return 0
+}
+
+validateResolution() {
+
+  local name="$1"
+  local value="$2"
+  local minimum="$3"
+
+  if [[ ! "$value" =~ ^[0-9]+$ ]] || [ "${#value}" -gt 5 ]; then
+    error "The $name variable must be between $minimum and 16384!"
+    return 1
+  fi
+
+  local number=$((10#$value))
+
+  if [ "$number" -lt "$minimum" ] || [ "$number" -gt 16384 ]; then
+    error "The $name variable must be between $minimum and 16384!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateProductKey() {
+
+  local value="$1"
+
+  [ -z "$value" ] && return 0
+
+  if [[ ! "$value" =~ ^[A-Za-z0-9]{5}(-[A-Za-z0-9]{5}){4}$ ]]; then
+    error "The KEY variable must contain a valid 25-character product key!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateComputerName() {
+
+  local value="$1"
+
+  [ -z "$value" ] && return 0
+
+  if [ "${#value}" -gt 15 ]; then
+    error "The HOST variable cannot contain more than 15 characters!"
+    return 1
+  fi
+
+  if [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$ ]]; then
+    error "The HOST variable may only contain letters, digits, and hyphens, and cannot start or end with a hyphen!"
+    return 1
+  fi
+
+  if [[ "$value" =~ ^[0-9]+$ ]]; then
+    error "The HOST variable cannot contain only digits!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateWorkgroup() {
+
+  local value="$1"
+
+  local safe
+
+  [ -z "$value" ] && return 0
+
+  if [ "${#value}" -gt 15 ]; then
+    error "The WORKGROUP variable cannot contain more than 15 characters!"
+    return 1
+  fi
+
+  safe=$(printf '%s' "$value" | tr -d '"/\\[]:;|=,+*?<>') || return 1
+
+  if [[ "$safe" != "$value" ]]; then
+    error "The WORKGROUP variable contains characters that are not valid in a NetBIOS name!"
+    return 1
+  fi
+
+  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
+    error "The WORKGROUP variable cannot consist only of spaces or periods!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateMembership() {
+
+  if [ -n "$DOMAIN" ] && [ -n "$WORKGROUP" ]; then
+    error "The DOMAIN and WORKGROUP variables cannot be used together!"
+    return 1
+  fi
+
+  if [ -n "$DOMAIN_OU" ] && [ -z "$DOMAIN" ]; then
+    error "The DOMAIN_OU variable requires DOMAIN to be specified!"
+    return 1
+  fi
+
+  validateWorkgroup "$WORKGROUP" || return 1
+  return 0
+}
+
+validatePassword() {
+
+  local value="$1"
+  local desc="${2:-}"
+
+  local suffix=""
+
+  [ -n "$desc" ] && suffix=" for $desc"
+
+  if [ "${#value}" -gt 127 ]; then
+    error "The PASSWORD variable cannot contain more than 127 characters$suffix!"
+    return 1
+  fi
+
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    error "The PASSWORD variable cannot contain control characters$suffix!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateUsername() {
+
+  local value="$1"
+  local type="$2"
+
+  local maximum length_suffix invalid_message
+
+  case "$type" in
+    "local" )
+      [ -z "$value" ] && return 0
+
+      maximum=20
+      length_suffix=""
+      invalid_message="The USERNAME variable contains characters that are not supported by Windows local accounts!"
+      ;;
+
+    "domain" )
+      if [ -z "$value" ]; then
+        error "The USERNAME variable does not contain a valid domain account name!"
+        return 1
+      fi
+
+      maximum=256
+      length_suffix=" for a domain account"
+      invalid_message="The domain account name contains characters that are not supported by Windows unattended setup!"
+      ;;
+
+    * )
+      return 1
+      ;;
+  esac
+
+  if [ "${#value}" -gt "$maximum" ]; then
+    error "The USERNAME variable cannot contain more than $maximum characters$length_suffix!"
+    return 1
+  fi
+
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    error "The USERNAME variable cannot contain control characters!"
+    return 1
+  fi
+
+  case "$value" in
+    *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* | *'%'* | *'@'* )
+      error "$invalid_message"
+      return 1
+      ;;
+  esac
+
+  if [[ "$value" == *"." ]]; then
+    error "The USERNAME variable cannot end with a period!"
+    return 1
+  fi
+
+  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
+    error "The USERNAME variable cannot consist only of spaces or periods!"
+    return 1
+  fi
+
+  case "${value^^}" in
+    "NONE" )
+      error "The USERNAME value \"NONE\" is reserved by Windows!"
+      return 1
+      ;;
+
+    "ADMINISTRATOR" | "GUEST" | "DEFAULTACCOUNT" | "WDAGUTILITYACCOUNT" | "WSIACCOUNT" )
+      [[ "$type" == "domain" ]] && return 0
+
+      error "The USERNAME value \"$value\" is reserved for a built-in Windows account!"
+      return 1
+      ;;
+  esac
+
+  return 0
+}
+
+validateDomainName() {
+
+  local value="$1"
+  local name="${2:-DOMAIN}"
+
+  if [ -z "$value" ]; then
+    error "The $name variable must contain a valid domain name!"
+    return 1
+  fi
+
+  if [[ "$value" == *"://"* ]]; then
+    error "The $name variable must contain a domain name, not a URL!"
+    return 1
+  fi
+
+  if [ "${#value}" -gt 255 ] ||
+    [[ "$value" =~ [[:cntrl:]] ]] ||
+    [[ "$value" =~ [[:space:]] ]] ||
+    [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$ ]]; then
+
+    error "The $name variable does not contain a valid domain name!"
+    return 1
+  fi
+
+  return 0
+}
+
+prepareDomainAccount() {
+
+  local domain="$1"
+
+  local auth="${USERNAME:-}"
+  local account="" qualifier=""
+
+  if [ -z "$auth" ]; then
+    error "The USERNAME variable must be specified when joining a domain!"
+    return 1
+  fi
+
+  if [ -z "${PASSWORD:-}" ]; then
+    error "The PASSWORD variable must be specified when joining a domain!"
+    return 1
+  fi
+
+  validateDomainName "$domain" || return 1
+
+  # Accept user or user@domain. DOMAIN\user is rejected because unattended
+  # setup stores the domain separately from the credential username.
+  if [[ "$auth" == *\\* ]]; then
+    error "The USERNAME variable must use either \"user\" or \"user@domain\" format!"
+    return 1
+  fi
+
+  case "$auth" in
+    *@* )
+      account="${auth%%@*}"
+      qualifier="${auth#*@}"
+
+      if [ -z "$account" ] ||
+        [ -z "$qualifier" ] ||
+        [[ "$qualifier" == *@* ]]; then
+
+        error "The USERNAME variable does not contain a valid domain account name!"
+        return 1
+      fi
+
+      validateDomainName "$qualifier" "USERNAME" || return 1
+
+      if [[ "${qualifier,,}" != "${domain,,}" ]]; then
+        error "The domain in the USERNAME variable must match the DOMAIN variable!"
+        return 1
+      fi
+      ;;
+
+    * )
+      account="$auth"
+      ;;
+  esac
+
+  validateUsername "$account" "domain" || return 1
+
+  if [[ "${account,,}" == "docker" ]]; then
+    error "The USERNAME variable must be changed from its default value when joining a domain!"
+    return 1
+  fi
+
+  if [[ "$PASSWORD" == "admin" ]]; then
+    error "The PASSWORD variable must be changed from its default value when joining a domain!"
+    return 1
+  fi
+
+  printf '%s\n' "$account" "$auth"
+  return 0
+}
+
+ensureUnattendedJoin() {
+
+  local asset="$1"
+  local arch="$2"
+
+  local specialize="$XML_SETTINGS_SPECIALIZE"
+  local component="$XML_COMPONENT_UNATTENDED_JOIN"
+  local identification="$component/u:Identification"
+  local counts settings_count component_count identification_count
+
+  counts=$(xmlstarlet sel \
+    -N "$XML_NS_UNATTEND_ARG" \
+    -T -t \
+    -v "count($specialize)" -o '|' \
+    -v "count($component)" -o '|' -v "count($identification)" "$asset") || return 1
+
+  IFS='|' read -r settings_count component_count identification_count <<< "$counts"
+
+  [ "$settings_count" = "1" ] || return 1
+  (( component_count <= 1 )) || return 1
+  (( identification_count <= 1 )) || return 1
+
+  # Templates may omit the join component entirely. Create it when absent, or
+  # normalize its architecture and schema attributes when already present.
+  if [ "$component_count" = "0" ]; then
+    local created="($specialize/*[local-name()='component'])[last()]"
+
+    xmlstarlet ed -L \
+      -N "$XML_NS_UNATTEND_ARG" \
+      -s "$specialize" -t elem -n 'component' \
+      -i "$created" -t attr -n 'name' -v 'Microsoft-Windows-UnattendedJoin' \
+      -i "$created" -t attr -n 'processorArchitecture' -v "$arch" \
+      -i "$created" -t attr -n 'publicKeyToken' -v '31bf3856ad364e35' \
+      -i "$created" -t attr -n 'language' -v 'neutral' \
+      -i "$created" -t attr -n 'versionScope' -v 'nonSxS' \
+      -s "$created" -t elem -n 'Identification' "$asset" || return 1
+
+    return 0
+  fi
+
+  xmlstarlet ed -L \
+    -N "$XML_NS_UNATTEND_ARG" \
+    -i "${component}[not(@processorArchitecture)]" -t attr -n 'processorArchitecture' -v "$arch" \
+    -u "$component/@processorArchitecture" -v "$arch" \
+    -i "${component}[not(@publicKeyToken)]" -t attr -n 'publicKeyToken' -v '31bf3856ad364e35' \
+    -u "$component/@publicKeyToken" -v '31bf3856ad364e35' \
+    -i "${component}[not(@language)]" -t attr -n 'language' -v 'neutral' \
+    -u "$component/@language" -v 'neutral' \
+    -i "${component}[not(@versionScope)]" -t attr -n 'versionScope' -v 'nonSxS' \
+    -u "$component/@versionScope" -v 'nonSxS' \
+    -s "${component}[not(u:Identification)]" -t elem -n 'Identification' "$asset" || return 1
+
+  return 0
+}
+
+encodeUnattendPassword() {
+
+  local password="$1"
+  local suffix="$2"
+
+  # Windows unattend password fields use a field-specific suffix before
+  # UTF-16LE/Base64 encoding; this is obfuscation rather than encryption.
+  printf '%s' "${password}${suffix}" |
+    iconv -f utf-8 -t utf-16le |
+    base64 -w 0
 }
 
 enableLog() {
