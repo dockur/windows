@@ -16,6 +16,13 @@ CONSOLE_PID="$QEMU_DIR/console.pid"
 CONSOLE_SOCKET="$QEMU_DIR/console.sock"
 QEMU_START_PID="$QEMU_DIR/qemu.start.pid"
 
+UEFI_SHELL_MESSAGE='UEFI Interactive Shell'
+LEGACY_BOOT_PATTERN='^Booting from (Hard Disk|DVD/CD)'
+UEFI_BOOT_PATTERN='BdsDxe: starting Boot[[:xdigit:]]{4} '
+UEFI_NO_BOOT_MESSAGE='BdsDxe: No bootable option or device was found.'
+UEFI_DVD_BOOT_PATTERN='BdsDxe: starting Boot[[:xdigit:]]{4} "UEFI QEMU .*DVD-ROM'
+UEFI_WINDOWS_BOOT_PATTERN='BdsDxe: starting Boot[[:xdigit:]]{4} "Windows Boot Manager" from .*HD\('
+
 bootStatus() {
 
   [ ! -s "$QEMU_PTY" ] && return 1
@@ -25,7 +32,7 @@ bootStatus() {
 
     # Only inspect output produced after the most recent BIOS boot attempt so
     # stale failures from an earlier device do not affect the current state.
-    line=$(grep -nE '^Booting from (Hard Disk|DVD/CD)' "$QEMU_PTY" | tail -1)
+    line=$(getBootMarker)
     [ -z "$line" ] && return 1
 
     last="${line#*:}"
@@ -66,10 +73,7 @@ bootStatus() {
 
   # OVMF logs every boot option it tries. Track the newest attempt and only
   # evaluate messages emitted from that point onward.
-  line=$(grep -nE \
-    'BdsDxe: starting Boot[[:xdigit:]]{4} ' \
-    "$QEMU_PTY" | tail -1)
-
+  line=$(getBootMarker)
   [ -z "$line" ] && return 1
 
   last="${line#*:}"
@@ -79,11 +83,8 @@ bootStatus() {
     'BdsDxe: failed to start Boot[[:xdigit:]]{4} "UEFI QEMU .*DVD-ROM.*: Time out' \
     <<< "$recent" && return 2
 
-  grep -Fq \
-    "BdsDxe: No bootable option or device was found." \
-    <<< "$recent" && return 2
-
-  grep -Fq "UEFI Interactive Shell" <<< "$recent" && return 2
+  grep -Fq "$UEFI_NO_BOOT_MESSAGE" <<< "$recent" && return 2
+  grep -Fq "$UEFI_SHELL_MESSAGE" <<< "$recent" && return 2
 
   # A failed device attempt is transitional because OVMF may immediately try
   # another boot target. Clear pending success and wait for the next attempt.
@@ -91,11 +92,7 @@ bootStatus() {
     'BdsDxe: failed to start Boot[[:xdigit:]]{4} ' \
     <<< "$recent" && return 5
 
-  if grep -Eq \
-    'BdsDxe: starting Boot[[:xdigit:]]{4} "Windows Boot Manager" from .*HD\(' \
-    <<< "$last"; then
-    return 3
-  fi
+  grep -Eq "$UEFI_WINDOWS_BOOT_PATTERN" <<< "$last" && return 3
 
   grep -Eq \
     -e '"UEFI QEMU .*DVD-ROM' \
@@ -262,10 +259,7 @@ ready() {
 
   local line last recent
 
-  line=$(grep -nE \
-    'BdsDxe: starting Boot[[:xdigit:]]{4} ' \
-    "$QEMU_PTY" | tail -1)
-
+  line=$(getBootMarker)
   [ -z "$line" ] && return 1
 
   last="${line#*:}"
@@ -273,9 +267,7 @@ ready() {
 
   # Only a Windows Boot Manager entry loaded from a hard disk proves that setup
   # has progressed far enough for an ACPI shutdown request to be appropriate.
-  grep -Eq \
-    'BdsDxe: starting Boot[[:xdigit:]]{4} "Windows Boot Manager" from .*HD\(' \
-    <<< "$last" || return 1
+  grep -Eq "$UEFI_WINDOWS_BOOT_PATTERN" <<< "$last" || return 1
 
   # Reject failures emitted after this exact boot attempt. Without these checks,
   # a failed Windows Boot Manager entry remains classified as ready indefinitely.
@@ -283,11 +275,8 @@ ready() {
     'BdsDxe: failed to start Boot[[:xdigit:]]{4} "Windows Boot Manager"' \
     <<< "$recent" && return 1
 
-  grep -Fq \
-    "BdsDxe: No bootable option or device was found." \
-    <<< "$recent" && return 1
-
-  grep -Fq "UEFI Interactive Shell" <<< "$recent" && return 1
+  grep -Fq "$UEFI_NO_BOOT_MESSAGE" <<< "$recent" && return 1
+  grep -Fq "$UEFI_SHELL_MESSAGE" <<< "$recent" && return 1
 
   return 0
 }
@@ -373,9 +362,7 @@ bootKeyDelay() {
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
     grep -Fq "Booting from DVD/CD" "$QEMU_PTY" || return 1
   else
-    grep -Eq \
-      'BdsDxe: starting Boot[[:xdigit:]]{4} "UEFI QEMU .*DVD-ROM' \
-      "$QEMU_PTY" || return 1
+    grep -Eq "$UEFI_DVD_BOOT_PATTERN" "$QEMU_PTY" || return 1
   fi
 
   echo 0.5
@@ -385,13 +372,11 @@ bootKeyDelay() {
 getBootMarker() {
 
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
-    grep -nE '^Booting from (Hard Disk|DVD/CD)' "$QEMU_PTY" | tail -1
+    grep -nE "$LEGACY_BOOT_PATTERN" "$QEMU_PTY" | tail -1
     return 0
   fi
 
-  grep -nE \
-    'BdsDxe: starting Boot[[:xdigit:]]{4} ' \
-    "$QEMU_PTY" | tail -1
+  grep -nE "$UEFI_BOOT_PATTERN" "$QEMU_PTY" | tail -1
 
   return 0
 }
