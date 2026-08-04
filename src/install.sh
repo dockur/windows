@@ -1154,6 +1154,10 @@ addDriver() {
   fi
 
   if ! folder=$(getDriverFolder "$id"); then
+    folder=""
+  fi
+
+  if [ -z "$folder" ]; then
 
     desc=$(printVersion "$id" "$id")
 
