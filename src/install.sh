@@ -851,10 +851,13 @@ extractImage() {
     return 1
   fi
 
-  size=$(stat -c%s "$iso")
+  if ! size=$(stat -c%s "$iso"); then
+    error "Failed to determine ISO file size: $iso"
+    return 1
+  fi
 
   if (( size < 10000000 )); then
-    error "Invalid ISO file: Size is smaller than 10 MB" && return 1
+    error "Invalid ISO file: Size of \"$iso\" is smaller than 10 MB" && return 1
   fi
 
   checkFreeSpace "$dir" "$size" || return 1
