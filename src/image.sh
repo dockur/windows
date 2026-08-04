@@ -1212,7 +1212,7 @@ findImage() {
 readImageInfo() {
 
   local wim="$1"
-  local result =""
+  local result=""
 
   result=$(wimlib-imagex info -xml "$wim" | iconv -f UTF-16LE -t UTF-8) || {
     local rc=$?
@@ -1285,8 +1285,8 @@ describeImage() {
   local index="$2"
 
   local result
-
   result=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 1
+
   detectLanguage "$info_xml" "$index" || return 1
 
   if [[ "${LANGUAGE,,}" != "en" && "${LANGUAGE,,}" != "en-"* ]]; then
