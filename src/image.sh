@@ -1822,7 +1822,9 @@ buildImage() {
       "win9"* )
 
         args+=(
+          -J
           -r
+          -V "${LABEL::30}"
         ) ;;
 
       * )
