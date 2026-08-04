@@ -934,18 +934,6 @@ getVersion() {
   return 0
 }
 
-isNT5() {
-
-  local id="$1"
-
-  case "${id,,}" in
-    "win9"* | "winxp"* | "win2k"* | "win2003"* | "reactos" )
-      return 0 ;;
-  esac
-
-  return 1
-}
-
 isLegacy() {
 
   local id="$1"
@@ -959,16 +947,28 @@ isLegacy() {
   return 1
 }
 
+supportsXML() {
+
+  local id="$1"
+
+  case "${id,,}" in
+    "win9"* | "winxp"* | "win2k"* | "win2003"* | "reactos" )
+      return 1 ;;
+  esac
+
+  return 0
+}
+
 supportsUnattended() {
 
   local id="$1"
 
   case "${id,,}" in
     "win9"* | "reactos" )
-      return 0 ;;
+      return 1 ;;
   esac
 
-  return 1
+  return 0
 }
 
 switchEdition() {
