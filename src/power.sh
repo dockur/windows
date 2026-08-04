@@ -252,18 +252,36 @@ ready() {
     return 1
   fi
 
-  local last
-  last=$(grep -E \
+  local line last recent
+
+  line=$(grep -nE \
     'BdsDxe: starting Boot[[:xdigit:]]{4} ' \
     "$QEMU_PTY" | tail -1)
+
+  [ -z "$line" ] && return 1
+
+  last="${line#*:}"
+  recent=$(tail -n +"${line%%:*}" "$QEMU_PTY")
 
   # Only a Windows Boot Manager entry loaded from a hard disk proves that setup
   # has progressed far enough for an ACPI shutdown request to be appropriate.
   grep -Eq \
     'BdsDxe: starting Boot[[:xdigit:]]{4} "Windows Boot Manager" from .*HD\(' \
-    <<< "$last" && return 0
+    <<< "$last" || return 1
 
-  return 1
+  # Reject failures emitted after this exact boot attempt. Without these checks,
+  # a failed Windows Boot Manager entry remains classified as ready indefinitely.
+  grep -Eq \
+    'BdsDxe: failed to start Boot[[:xdigit:]]{4} "Windows Boot Manager"' \
+    <<< "$recent" && return 1
+
+  grep -Fq \
+    "BdsDxe: No bootable option or device was found." \
+    <<< "$recent" && return 1
+
+  grep -Fq "UEFI Interactive Shell" <<< "$recent" && return 1
+
+  return 0
 }
 
 sendKey() {
