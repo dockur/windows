@@ -1373,10 +1373,12 @@ updateImage() {
 
   if ! addDrivers "$src" "$tmp" "$DETECTED" "$wim" "$idx"; then
     error "Failed to add drivers to image!"
+    return 1
   fi
 
   if ! addFolder "$src"; then
     error "Failed to add OEM folder to image!"
+    return 1
   fi
 
   # Preserve an original answer file only once. The .dat marker identifies an
