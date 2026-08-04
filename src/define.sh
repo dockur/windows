@@ -971,6 +971,32 @@ supportsUnattended() {
   return 0
 }
 
+getDriverFolder() {
+
+  local id="$1"
+
+  case "${id,,}" in
+    "win7x86"* )      echo "w7/x86" ;;
+    "win7x64"* )      echo "w7/amd64" ;;
+    "win81x64"* )     echo "w8.1/amd64" ;;
+    "win10x64"* )     echo "w10/amd64" ;;
+    "win11x64"* )     echo "w11/amd64" ;;
+    "win2025"* )      echo "2k25/amd64" ;;
+    "win2022"* )      echo "2k22/amd64" ;;
+    "win2019"* )      echo "2k19/amd64" ;;
+    "win2016"* )      echo "2k16/amd64" ;;
+    "win2012"* )      echo "2k12R2/amd64" ;;
+    "win2008"* )      echo "2k8R2/amd64" ;;
+    "win10arm64"* )   echo "w10/ARM64" ;;
+    "win11arm64"* )   echo "w11/ARM64" ;;
+    "winvistax86"* )  echo "2k8/x86" ;;
+    "winvistax64"* )  echo "2k8/amd64" ;;
+    * )               return 1 ;;
+  esac
+
+  return 0
+}
+
 switchEdition() {
 
   local version="$1"
