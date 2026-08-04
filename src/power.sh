@@ -75,10 +75,6 @@ bootStatus() {
   last="${line#*:}"
   recent=$(tail -n +"${line%%:*}" "$QEMU_PTY")
 
-  if [[ "$last" == *'"Windows Boot Manager"'* ]]; then
-    return 0
-  fi
-
   grep -Eq \
     'BdsDxe: failed to start Boot[[:xdigit:]]{4} "UEFI QEMU .*DVD-ROM.*: Time out' \
     <<< "$recent" && return 2
@@ -88,6 +84,18 @@ bootStatus() {
     <<< "$recent" && return 2
 
   grep -Fq "UEFI Interactive Shell" <<< "$recent" && return 2
+
+  # A failed device attempt is transitional because OVMF may immediately try
+  # another boot target. Clear pending success and wait for the next attempt.
+  grep -Eq \
+    'BdsDxe: failed to start Boot[[:xdigit:]]{4} ' \
+    <<< "$recent" && return 5
+
+  if grep -Eq \
+    'BdsDxe: starting Boot[[:xdigit:]]{4} "Windows Boot Manager" from .*HD\(' \
+    <<< "$last"; then
+    return 3
+  fi
 
   grep -Eq \
     -e '"UEFI QEMU .*DVD-ROM' \
