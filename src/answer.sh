@@ -1856,9 +1856,9 @@ setConfigurationXML() {
   local asset="$1"
 
   local ns="urn:schemas-microsoft-com:unattend"
+  local setup='/*[local-name()="unattend"]/*[local-name()="settings" and @pass="windowsPE"]/*[local-name()="component" and @name="Microsoft-Windows-Setup"]'
   local userdata="$setup/*[local-name()='UserData']"
   local config="$setup/*[local-name()='UseConfigurationSet']"
-  local setup='/*[local-name()="unattend"]/*[local-name()="settings" and @pass="windowsPE"]/*[local-name()="component" and @name="Microsoft-Windows-Setup"]' 
   local setup_count config_count config_value userdata_count result_count tmp
 
   [ -s "$asset" ] || return 1

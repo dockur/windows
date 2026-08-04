@@ -1059,6 +1059,11 @@ tryDownload() {
 
   local total minimum="104857600"
 
+  if [ -z "$iso" ] || [ -z "$url" ]; then
+    error "Invalid download parameters!"
+    return 1
+  fi
+  
   # Compressed archives can legitimately be much smaller than the ISO they
   # contain, so use a lower sanity threshold until extraction.
   if isCompressed "$url"; then
@@ -1114,6 +1119,7 @@ fallbackEnglish() {
 
   local culture web_msg
   local msg="No working download method was found for $desc, falling back to English..."
+
   info "$msg"
 
   # Preserve the requested regional format and keyboard layout.
@@ -1133,24 +1139,12 @@ fallbackEnglish() {
   downloadImage "$iso" "$version" "$LANGUAGE"
 }
 
-downloadImage() {
+validDownload() {
 
-  local iso="$1"
-  local version="$2"
-  local lang="$3"
+  local version="$1"
 
-  local requested="$version"
-  local detected="$DETECTED"  
-  local tried="n" success="n" seconds="5"
-  local i url sum size base language desc web_desc 
-
-  if [[ "${version,,}" == "http"* ]]; then
-
-    base=$(basename "$iso")
-    desc=$(fromFile "$base")
-    web_desc="$desc"
-
-    tryDownload "$iso" "$version" "" "" "" "$desc" "$seconds" "$web_desc" && return 0
+  if [ -z "$version" ]; then
+    error "Cannot download a Windows image without a version!"
     return 1
   fi
 
@@ -1158,6 +1152,32 @@ downloadImage() {
     error "Invalid VERSION specified, value \"$version\" is not recognized!"
     return 1
   fi
+
+  return 0
+}
+
+downloadImage() {
+
+  local iso="$1"
+  local version="$2"
+  local lang="$3"
+
+  local detected="$DETECTED"
+  local requested="$version" switched=""  
+  local tried="n" success="n" seconds="5"
+  local i url sum size base language desc web_desc
+
+  if [[ "${version,,}" == "http"* ]]; then
+
+    base=$(basename "$iso")
+    desc=$(fromFile "$base")
+    web_desc="$desc"
+
+    tryDownload "$iso" "$version" "" "" "" "$desc" "$seconds" "$web_desc" || return 1
+    return 0
+  fi
+
+  validDownload "$version" || return 1
 
   desc=$(printVariant "$version" "" "Y")
   web_desc=$(printVariant "$version" "")
@@ -1167,12 +1187,14 @@ downloadImage() {
     language=$(getLanguage "$lang" "desc")
 
     if ! validVersion "$version" "$lang"; then
+
       desc=$(printEdition "$version" "$desc" "Y")
       web_desc=$(printEdition "$version" "$web_desc")
       desc+=" in $language"
 
-      fallbackEnglish "$iso" "$version" "$lang" "$desc" "$web_desc" && return 0
-      return 1
+      fallbackEnglish "$iso" "$version" "$lang" "$desc" "$web_desc" || return 1
+      return 0
+
     fi
 
     desc+=" in $language"
@@ -1220,10 +1242,13 @@ downloadImage() {
     fi
   fi
 
-  # Some editions share another download route. Update the effective version
-  # before looking up ESD catalogs and mirrors.
-  if version=$(switchEdition "$version"); then
-  
+  # If an evaluation version was requested, switch to the 
+  # normal edition since none of our mirrors provide those.
+  if switched=$(switchEdition "$version"); then
+
+    validDownload "$switched" || return 1
+    version="$switched"
+
     if ! enabled "${DETECTED_ORG:-}"; then
       DETECTED="${SUGGEST:-$version}"
     fi
@@ -1268,7 +1293,7 @@ downloadImage() {
     fi
   fi
 
-  for ((i=1;i<=MIRRORS;i++)); do
+  for ((i=1; i<=MIRRORS; i++)); do
 
     url=$(getLink "$i" "$version" "$lang")
 
@@ -1285,12 +1310,16 @@ downloadImage() {
       tryDownload "$iso" "$url" "$sum" "$size" "$lang" "$desc" "$seconds" "$web_desc" && return 0
 
     fi
+
   done
 
   if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
-    if fallbackEnglish "$iso" "$requested" "$lang" "$desc" "$web_desc"; then
-      return 0
-    fi
+    fallbackEnglish "$iso" "$requested" "$lang" "$desc" "$web_desc" || return 1
+    return 0
+  fi
+
+  if [[ "$tried" == "n" ]]; then
+    error "No download method is available for $desc!"
   fi
 
   return 1

@@ -3,19 +3,19 @@ set -Eeuo pipefail
 
 startWindows() {
 
-  parseVersion || return 58
-  parseLanguage || return 62
-  detectCustom || return 64
+  parseVersion || exit 58
+  parseLanguage || exit 62
+  detectCustom || exit 64
 
   if ! startInstall; then
-    bootWindows || return 66
+    bootWindows || exit 66
     return 0
   fi
 
   if ! hasImage "$ISO"; then
     if ! downloadImage "$ISO" "$VERSION" "$LANGUAGE"; then
       removeIso "$ISO" || :
-      return 68
+      exit 68
     fi
   fi
 
@@ -23,16 +23,16 @@ startWindows() {
   local dir="$TMP/unpack"
   local handled=0 extracted=0
 
-  selectWindowsImage "$ISO" "$dir" "$boot" || return $?
+  selectWindowsImage "$ISO" "$dir" "$boot" || exit $?
   (( handled )) && return 0
 
-  configureMachine "$ISO" "$dir" "$boot" || return $?
+  configureMachine "$ISO" "$dir" "$boot" || exit $?
   (( handled )) && return 0
 
-  prepareWindowsImage "$ISO" "$dir" "$boot" || return $?
+  prepareWindowsImage "$ISO" "$dir" "$boot" || exit $?
   (( handled )) && return 0
 
-  finishInstall "$BOOT" "N" "$boot" || return 100
+  finishInstall "$BOOT" "N" "$boot" || exit 100
 
   return 0
 }
@@ -124,8 +124,7 @@ configureMachine() {
     return 0
   fi
 
-  # Direct-boot media skips all unattended installation preparation.
-  if bootDirect "$DETECTED"; then
+  if ! supportsUnattended "$DETECTED"; then
     abortInstall "$dir" "$iso" "$boot" || return 83
     handled=1
     return 0
@@ -259,7 +258,7 @@ startInstall() {
   skipInstall "$BOOT" "$previousBase" && return 1
 
   if [ -z "$previousBase" ] && hasDisk; then
-    if ! backup ""; then
+    if ! backupPrevious ""; then
       warn "the backup was incomplete, continuing with installation..."
     fi
   fi
@@ -421,7 +420,7 @@ skipInstall() {
 
       info "Detected that $method, a backup of your previous installation will be saved..."
 
-      if ! backup "$STORAGE/$previousBase"; then
+      if ! backupPrevious "$STORAGE/$previousBase"; then
         warn "the backup was incomplete, continuing with installation..."
       fi
 
@@ -476,8 +475,9 @@ finishInstall() {
 
       local secure=0
 
-      # Enable secure boot + TPM on manual installs as Win11 requires
-      if enabled "$MANUAL" || [[ "$aborted" == [Yy1]* ]]; then
+      # Aborted Win11 installs boot without any answer file present,
+      # so enable Secure Boot and TPM to satisfy its hardware checks.
+      if [[ "$aborted" == [Yy1]* ]] || enabled "$MANUAL"; then
         [[ "${DETECTED,,}" == "win11"* ]] && secure=1
       fi
 
@@ -573,13 +573,28 @@ needsExtraction() {
   local id="$1"
   local iso="$2"
 
-  # Direct-boot media does not need rebuilding. Legacy/skipped versions,
-  # standalone ESD downloads, and nested archives require full extraction.
-  bootDirect "$id" && return 1
+  # Media without unattended support boots directly from the original ISO.
+  if ! supportsUnattended "$id"; then
+    return 1
+  fi
 
-  skipVersion "$id" ||
-    [[ "${iso,,}" == *".esd" ]] ||
-    enabled "${UNPACK:-}"
+  # SIF-based legacy installers must be extracted and rebuilt.
+  if ! supportsXML "$id"; then
+    return 0
+  fi
+
+  # Standalone ESD downloads must be extracted before they can be prepared.
+  if [[ "${iso,,}" == *".esd" ]]; then
+    return 0
+  fi
+
+  # Nested archives must be extracted to expose their contained ISO.
+  if enabled "${UNPACK:-}"; then
+    return 0
+  fi
+
+  # Modern bootable ISOs can use the original media with a setup overlay.
+  return 1
 }
 
 checkFreeSpace() {
@@ -887,11 +902,7 @@ setMachine() {
   local dir="$3"
   local desc="$4"
 
-  if [[ "${id,,}" != "win9"* ]]; then
-    ETFS="boot/etfsboot.com"
-  else
-    ETFS="[BOOT]/Boot-1.44M.img"
-  fi
+  ETFS="boot/etfsboot.com"
 
   local version=""
   case "${id,,}" in
@@ -1005,7 +1016,7 @@ prepareImage() {
     getBootLoadSize "$iso" "$dir" "$desc" || return 1
   fi
 
-  skipVersion "$DETECTED" && return 0
+  supportsXML "$DETECTED" || return 0
 
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
 
@@ -1135,40 +1146,31 @@ addDriver() {
   local target="$3"
   local driver="$4"
 
-  local folder="" desc
+  local folder desc
 
   if [ -z "$id" ]; then
-    warn "no Windows version specified for \"$driver\" driver!" && return 0
+    warn "no Windows version specified for \"$driver\" driver!"
+    return 1
   fi
 
-  case "${id,,}" in
-    "win7x86"* ) folder="w7/x86" ;;
-    "win7x64"* ) folder="w7/amd64" ;;
-    "win81x64"* ) folder="w8.1/amd64" ;;
-    "win10x64"* ) folder="w10/amd64" ;;
-    "win11x64"* ) folder="w11/amd64" ;;
-    "win2025"* ) folder="2k25/amd64" ;;
-    "win2022"* ) folder="2k22/amd64" ;;
-    "win2019"* ) folder="2k19/amd64" ;;
-    "win2016"* ) folder="2k16/amd64" ;;
-    "win2012"* ) folder="2k12R2/amd64" ;;
-    "win2008"* ) folder="2k8R2/amd64" ;;
-    "win10arm64"* ) folder="w10/ARM64" ;;
-    "win11arm64"* ) folder="w11/ARM64" ;;
-    "winvistax86"* ) folder="2k8/x86" ;;
-    "winvistax64"* ) folder="2k8/amd64" ;;
-  esac
+  if ! folder=$(getDriverFolder "$id"); then
+    folder=""
+  fi
 
   if [ -z "$folder" ]; then
+
     desc=$(printVersion "$id" "$id")
-    if [[ "${id,,}" != *"x86"* ]]; then
-      warn "no \"$driver\" driver available for \"$desc\" !" && return 0
+
+    if [[ "${id,,}" == *"x86"* ]]; then
+      warn "no \"$driver\" driver available for the 32-bit version of \"$desc\" !"
     else
-      warn "no \"$driver\" driver available for the 32-bit version of \"$desc\" !" && return 0
+      warn "no \"$driver\" driver available for \"$desc\" !"
     fi
+
+    return 1
   fi
 
-  [ ! -d "$path/$driver/$folder" ] && return 0
+  [ -d "$path/$driver/$folder" ] || return 0
 
   case "${id,,}" in
     "winvista"* )
@@ -1176,6 +1178,7 @@ addDriver() {
   esac
 
   local dest="$path/$target/$driver"
+
   mkdir -p "$dest" || return 1
   cp -Lr "$path/$driver/$folder/." "$dest" || return 1
 
@@ -1275,7 +1278,7 @@ addDrivers() {
 
   fi
 
-  rm -rf "$drivers"
+  rm -rf "$drivers" || return 1
   return 0
 }
 
@@ -1285,7 +1288,7 @@ stageSetup() {
   local language="$2"
   local stage="$3"
 
-  skipVersion "${DETECTED,,}" && return 0
+  supportsUnattended "${DETECTED,,}" || return 0
 
   local msg="Creating overlay image..."
   info "$msg" && html "$msg"
@@ -1301,12 +1304,12 @@ stageSetup() {
   fi
 
   if ! addDrivers "$stage" "$stage" "$DETECTED"; then
-    error "Failed to stage Windows drivers!"
+    error "Failed to include Windows drivers!"
     return 1
   fi
 
   if ! addFolder "$stage" "image" "Y" "overlay"; then
-    error "Failed to stage OEM folder!"
+    error "Failed to include OEM folder!"
     return 1
   fi
 
@@ -1328,7 +1331,7 @@ updateImage() {
   local dat="${xml//.xml/.dat}"
   local desc path src wim name info 
 
-  skipVersion "${DETECTED,,}" && return 0
+  supportsUnattended "${DETECTED,,}" || return 0
 
   if [ ! -s "$asset" ] || [ ! -f "$asset" ]; then
     asset=""
@@ -1370,10 +1373,12 @@ updateImage() {
 
   if ! addDrivers "$src" "$tmp" "$DETECTED" "$wim" "$idx"; then
     error "Failed to add drivers to image!"
+    return 1
   fi
 
   if ! addFolder "$src"; then
     error "Failed to add OEM folder to image!"
+    return 1
   fi
 
   # Preserve an original answer file only once. The .dat marker identifies an
@@ -1496,7 +1501,7 @@ reserveSambaPorts() {
   return 0
 }
 
-backup () {
+backupPrevious () {
 
   local iso="$1"
 
