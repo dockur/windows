@@ -605,13 +605,22 @@ checkFreeSpace() {
   local dir="$1"
   local size="$2"
 
-  local size_gb space space_gb
+  local space size_gb space_gb
 
-  size_gb=$(formatBytes "$size")
-  space=$(df --output=avail -B 1 "$dir" | tail -n 1)
-  space_gb=$(formatBytes "$space")
+  space=$(df --output=avail -B 1 "$dir" | tail -n 1) || return 1
+
+  [[ "$space" =~ ^[[:space:]]*[0-9]+[[:space:]]*$ ]] || {
+    error "Failed to determine available disk space for $dir!"
+    return 1
+  }
+
+  space="${space//[[:space:]]/}"
 
   if (( size > space )); then
+
+    size_gb=$(formatBytes "$size")
+    space_gb=$(formatBytes "$space")
+
     error "Not enough free space in $STORAGE, have $space_gb available but need at least $size_gb."
     return 1
   fi
