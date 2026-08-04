@@ -1645,12 +1645,9 @@ updateMembership() {
 
   if [ -n "$domain" ]; then
 
-    # Domain customization is optional: if the template cannot be transformed,
-    # retain its local-account path and allow installation to continue.
     if ! updateDomain "$asset" "$domain" "$account" "$auth" "$PASSWORD" "${DOMAIN_OU:-}"; then
-
-      warn "failed to add domain configuration to answer file!"
-      return 0
+      error "Failed to add domain configuration to answer file!"
+      return 1
     fi
 
     removeLocalAccount "$asset" || return 1
@@ -1660,7 +1657,8 @@ updateMembership() {
   [ -n "$workgroup" ] || return 0
 
   if ! updateWorkgroup "$asset" "$workgroup"; then
-    warn "failed to add workgroup configuration to answer file!"
+    error "Failed to add workgroup configuration to answer file!"
+    return 1
   fi
 
   return 0
