@@ -573,13 +573,28 @@ needsExtraction() {
   local id="$1"
   local iso="$2"
 
-  # Direct-boot media does not need rebuilding. Legacy/skipped versions,
-  # standalone ESD downloads, and nested archives require full extraction.
-  bootDirect "$id" && return 1
+  # Media without unattended support boots directly from the original ISO.
+  if ! supportsUnattended "$id"; then
+    return 1
+  fi
 
-  skipVersion "$id" ||
-    [[ "${iso,,}" == *".esd" ]] ||
-    enabled "${UNPACK:-}"
+  # SIF-based legacy installers must be extracted and rebuilt.
+  if ! supportsXML "$id"; then
+    return 0
+  fi
+
+  # Standalone ESD downloads must be extracted before they can be prepared.
+  if [[ "${iso,,}" == *".esd" ]]; then
+    return 0
+  fi
+
+  # Nested archives must be extracted to expose their contained ISO.
+  if enabled "${UNPACK:-}"; then
+    return 0
+  fi
+
+  # Modern bootable ISOs can use the original media with a setup overlay.
+  return 1
 }
 
 checkFreeSpace() {
@@ -1001,7 +1016,7 @@ prepareImage() {
     getBootLoadSize "$iso" "$dir" "$desc" || return 1
   fi
 
-  skipVersion "$DETECTED" && return 0
+  supportsXML "$DETECTED" || return 0
 
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
 
