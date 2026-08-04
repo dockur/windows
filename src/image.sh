@@ -1736,16 +1736,16 @@ buildImage() {
   local -a args=(
     -o "$out"
     -b "$ETFS"
-    -J
-    -V "${LABEL::30}"
   )
 
   local -a name_args=(
+    -J
     -l
     -D
     -N
     -joliet-long
     -relaxed-filenames
+    -V "${LABEL::30}"
   )
 
   # Use separate layouts for modern hybrid media, NT 5.x legacy media, Win9x,
