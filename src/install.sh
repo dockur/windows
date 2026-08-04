@@ -977,14 +977,18 @@ setMachine() {
 
     "reactos" )
 
-      [ -z "${REMOVE:-}" ] && REMOVE="N"
-
       writeState "old" "pc" || return 1
       writeState "type" "auto" || return 1
       writeState "net" "rtl8139" || return 1
       writeState "usb" "pci-ohci" || return 1 ;;
 
   esac
+
+  if [[ "${id,,}" == "reactos" ]] && [ -z "$CUSTOM" ]; then
+    # The ISO is a Live-CD so we need to disable the disk
+    REMOVE="N"
+    DISK_DISABLE="Y"
+  fi
 
   restoreMachine || return 1
 
