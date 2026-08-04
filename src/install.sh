@@ -1367,6 +1367,7 @@ updateImage() {
   local dat="${xml//.xml/.dat}"
   local desc path src wim name info 
 
+  supportsXML "${DETECTED,,}" || return 0
   supportsUnattended "${DETECTED,,}" || return 0
 
   if [ ! -s "$asset" ] || [ ! -f "$asset" ]; then
