@@ -30,6 +30,7 @@ updateXML() {
   [ -z "${HEIGHT:-}" ] && HEIGHT="720"
 
   validateXMLSettings || return 1
+  ensureXMLDefaultNamespace "$asset" || return 1
 
   updateUserXML "$asset" || return 1
   updateLocaleXML "$asset" "$language" || return 1
@@ -908,7 +909,7 @@ updateEditionXML() {
   local lower='abcdefghijklmnopqrstuvwxyz'
   local setup="$XML_COMPONENT_SETUP"
   local selector="$setup/u:ImageInstall/u:OSImage/u:InstallFrom/u:MetaData[translate(normalize-space(u:Key), '$lower', '$upper')='/IMAGE/NAME']/u:Value"
-  local edition count records position value prefix replacement
+  local edition count records position value replacement
   local separator=$'\x1f'
 
   [ -n "${EDITION:-}" ] || return 0
@@ -933,15 +934,9 @@ updateEditionXML() {
     # selector. Products such as Hyper-V Server have fixed SERVER* flags that
     # must not be rewritten.
     [[ "${value,,}" == *"windows server"* ]] || continue
+    [[ "$value" =~ ^(.*[[:space:]])SERVER[A-Za-z0-9_-]+[[:space:]]*$ ]] || continue
 
-    if [[ "$value" =~ ^(.*[[:space:]])SERVER[A-Za-z0-9_-]+[[:space:]]*$ ]]; then
-      prefix="${BASH_REMATCH[1]}"
-      replacement="${prefix}SERVER$edition"
-    elif [[ "$value" =~ ^SERVER[A-Za-z0-9_-]+[[:space:]]*$ ]]; then
-      replacement="SERVER$edition"
-    else
-      continue
-    fi
+    replacement="${BASH_REMATCH[1]}SERVER$edition"
 
     xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -u "($selector)[$position]" -v "$replacement" "$asset" || return 1
   done <<< "$records"
@@ -1089,6 +1084,13 @@ setConfigurationXML() {
     return 1
   }
 
+  if [ "$config_count" = "0" ] &&
+    ! ensureXMLDefaultNamespace "$tmp"; then
+
+    rm -f "$tmp"
+    return 1
+  fi
+
   if [ "$config_count" = "1" ]; then
     xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -u "$config" -v "true" "$tmp" || {
       rm -f "$tmp"
@@ -1109,7 +1111,7 @@ setConfigurationXML() {
     }
   fi
 
-  result_count=$(getXMLNodeCount "$tmp" "${config}[normalize-space(.)='true']") || {
+  result_count=$(getXMLNodeCount "$tmp" "$XML_COMPONENT_SETUP/u:UseConfigurationSet[normalize-space(.)='true']") || {
     rm -f "$tmp"
     return 1
   }
@@ -1714,6 +1716,37 @@ enableLog() {
     'if exist "C:\OEM\install.bat" start "Install" cmd.exe /d /c ""C:\OEM\install.bat" > "C:\OEM\install.log" 2>&1"'
 
   replaceSetupBlock "$script" "OEM_SCRIPT" "$content" || return 1
+
+  return 0
+}
+
+ensureXMLDefaultNamespace() {
+
+  local asset="$1"
+
+  local default declared count root
+
+  root=$(xmlstarlet sel -N "$XML_NS_UNATTEND_ARG" -T -t -v 'count(/u:unattend)' "$asset") || return 1
+  [ "$root" = "1" ] || return 1
+
+  declared=$(xmlstarlet sel -T -t -v 'count(/*/namespace::*[name()=""])' "$asset") || return 1
+  default=$(xmlstarlet sel -T -t -v 'string(/*/namespace::*[name()=""])' -o '|' "$asset") || return 1
+  default="${default%|}"
+
+  if [ "$declared" = "1" ]; then
+    [ "$default" = "$XML_NS_UNATTEND" ] && return 0
+    return 1
+  fi
+
+  [ "$declared" = "0" ] || return 1
+
+  count=$(xmlstarlet sel -T -t -v "count(//*[namespace-uri()=''])" "$asset") || return 1
+  [ "$count" = "0" ] || return 1
+
+  xmlstarlet ed -L \
+    -N "$XML_NS_UNATTEND_ARG" \
+    -i '/u:unattend' -t attr -n 'xmlns' -v "$XML_NS_UNATTEND" \
+    "$asset" || return 1
 
   return 0
 }
