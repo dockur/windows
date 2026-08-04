@@ -1146,40 +1146,27 @@ addDriver() {
   local target="$3"
   local driver="$4"
 
-  local folder="" desc
+  local folder desc
 
   if [ -z "$id" ]; then
-    warn "no Windows version specified for \"$driver\" driver!" && return 0
+    warn "no Windows version specified for \"$driver\" driver!"
+    return 0
   fi
 
-  case "${id,,}" in
-    "win7x86"* ) folder="w7/x86" ;;
-    "win7x64"* ) folder="w7/amd64" ;;
-    "win81x64"* ) folder="w8.1/amd64" ;;
-    "win10x64"* ) folder="w10/amd64" ;;
-    "win11x64"* ) folder="w11/amd64" ;;
-    "win2025"* ) folder="2k25/amd64" ;;
-    "win2022"* ) folder="2k22/amd64" ;;
-    "win2019"* ) folder="2k19/amd64" ;;
-    "win2016"* ) folder="2k16/amd64" ;;
-    "win2012"* ) folder="2k12R2/amd64" ;;
-    "win2008"* ) folder="2k8R2/amd64" ;;
-    "win10arm64"* ) folder="w10/ARM64" ;;
-    "win11arm64"* ) folder="w11/ARM64" ;;
-    "winvistax86"* ) folder="2k8/x86" ;;
-    "winvistax64"* ) folder="2k8/amd64" ;;
-  esac
+  if ! folder=$(getDriverFolder "$id"); then
 
-  if [ -z "$folder" ]; then
     desc=$(printVersion "$id" "$id")
-    if [[ "${id,,}" != *"x86"* ]]; then
-      warn "no \"$driver\" driver available for \"$desc\" !" && return 0
+
+    if [[ "${id,,}" == *"x86"* ]]; then
+      warn "no \"$driver\" driver available for the 32-bit version of \"$desc\" !"
     else
-      warn "no \"$driver\" driver available for the 32-bit version of \"$desc\" !" && return 0
+      warn "no \"$driver\" driver available for \"$desc\" !"
     fi
+
+    return 0
   fi
 
-  [ ! -d "$path/$driver/$folder" ] && return 0
+  [ -d "$path/$driver/$folder" ] || return 0
 
   case "${id,,}" in
     "winvista"* )
@@ -1187,6 +1174,7 @@ addDriver() {
   esac
 
   local dest="$path/$target/$driver"
+
   mkdir -p "$dest" || return 1
   cp -Lr "$path/$driver/$folder/." "$dest" || return 1
 
@@ -1296,7 +1284,7 @@ stageSetup() {
   local language="$2"
   local stage="$3"
 
-  skipVersion "${DETECTED,,}" && return 0
+  supportsUnattended "${DETECTED,,}" || return 0
 
   local msg="Creating overlay image..."
   info "$msg" && html "$msg"
@@ -1339,7 +1327,7 @@ updateImage() {
   local dat="${xml//.xml/.dat}"
   local desc path src wim name info 
 
-  skipVersion "${DETECTED,,}" && return 0
+  supportsUnattended "${DETECTED,,}" || return 0
 
   if [ ! -s "$asset" ] || [ ! -f "$asset" ]; then
     asset=""
