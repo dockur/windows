@@ -324,14 +324,11 @@ abortInstall() {
   # whether it can still be booted manually using legacy firmware.
   if [[ "${PLATFORM,,}" == "x64" ]] && [ -d "$dir" ]; then
 
-    efi=$(find "$dir" -maxdepth 1 -type d -iname efi -print -quit)
-    efi32=$(find "$dir" -maxdepth 3 -type f \
-      -ipath '*/efi/boot/bootia32.efi' -print -quit)
-    efi64=$(find "$dir" -maxdepth 3 -type f \
-      -ipath '*/efi/boot/bootx64.efi' -print -quit)
+    efi=$(find "$dir" -maxdepth 1 -type d -iname efi -print -quit) || return 1
+    efi32=$(find "$dir" -maxdepth 3 -type f -ipath '*/efi/boot/bootia32.efi' -print -quit) || return 1
+    efi64=$(find "$dir" -maxdepth 3 -type f -ipath '*/efi/boot/bootx64.efi' -print -quit) || return 1
 
-    if [ -z "$efi" ] ||
-      { [ -n "$efi32" ] && [ -z "$efi64" ]; }; then
+    if [ -z "$efi" ] || { [ -n "$efi32" ] && [ -z "$efi64" ]; }; then
 
       writeState "mode" "windows_legacy" || return 1
       restoreBootMode || return 1
