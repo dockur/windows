@@ -475,8 +475,9 @@ finishInstall() {
 
       local secure=0
 
-      # Enable secure boot + TPM on manual installs as Win11 requires
-      if enabled "$MANUAL" || [[ "$aborted" == [Yy1]* ]]; then
+      # Aborted Win11 installs boot without any answer file present,
+      # so enable Secure Boot and TPM to satisfy its hardware checks.
+      if [[ "$aborted" == [Yy1]* ]] || enabled "$MANUAL"; then
         [[ "${DETECTED,,}" == "win11"* ]] && secure=1
       fi
 
