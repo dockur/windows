@@ -1213,8 +1213,7 @@ findImage() {
 readImageInfo() {
 
   local wim="$1"
-
-  local result
+  local result =""
 
   result=$(wimlib-imagex info -xml "$wim" | iconv -f UTF-16LE -t UTF-8) || {
     local rc=$?
@@ -1223,9 +1222,13 @@ readImageInfo() {
       exit "$rc"
     fi
 
+    result=""
+  }
+
+  if [ -z "$result" ]; then
     warn "failed to read Windows image information, $FB"
     return 1
-  }
+  fi
 
   printf '%s' "$result"
   return 0
