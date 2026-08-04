@@ -882,17 +882,19 @@ extractImage() {
 
   else
 
-    # UNPACK archives contain another ISO. Extract the nested ISO, then
-    # preserve it as the actual source media for subsequent processing.
-    file=$(find "$dir" -maxdepth 1 -type f -iname "*.iso" -print -quit)
+    # Locate and extract the ISO nested inside the downloaded archive
+    if ! file=$(find "$dir" -maxdepth 1 -type f -iname "*.iso" -print -quit); then
+      error "Failed to search for a nested ISO in the extracted archive!"
+      return 1
+    fi
 
     if [ -z "$file" ]; then
-      error "Failed to find any .iso file in archive!"
+      error "Failed to find any nested ISO files in the archive!"
       return 1
     fi
 
     if ! 7z x "$file" -o"$dir" > /dev/null; then
-      error "Failed to extract archive!"
+      error "Failed to extract nested ISO file: $file"
       return 1
     fi
 
