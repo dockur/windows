@@ -768,7 +768,7 @@ getEditionID() {
     * ) return 1 ;;
   esac
 
-  edition=$(normalizeEditionID "$edition" "$id")
+  edition=$(normalizeEditionID "$edition" "$id") || return 1
 
   echo "$edition"
   return 0
