@@ -498,22 +498,33 @@ getCompatibleVersions() {
 checkPlatform() {
 
   local xml="$1"
-  local platform compat
+  local platform
 
   platform=$(getPlatform "$xml") || return 1
 
   case "${platform,,}" in
-    "x86" ) compat="x64" ;;
-    "x64" ) compat="$platform" ;;
-    "arm64" ) compat="$platform" ;;
     "mixed" )
       error "Windows images with mixed architectures are not supported!"
-      return 1
-      ;;
-    * ) compat="${PLATFORM,,}" ;;
+      return 1  ;;
+    "x86" | "x64" | "arm64" ) ;;
+    * )
+      error "Unsupported Windows image architecture: ${platform:-unknown}"
+      return 1 ;;
   esac
 
-  [[ "${compat,,}" == "${PLATFORM,,}" ]] && return 0
+  case "${PLATFORM,,}" in
+    "x64" )
+      if [[ "${platform,,}" == "x64" || "${platform,,}" == "x86" ]]; then
+        return 0
+      fi ;;
+    "arm64" )
+      if [[ "${platform,,}" == "arm64" ]]; then
+        return 0
+      fi ;;
+    * )
+      error "Unsupported container platform: $PLATFORM"
+      return 1 ;;
+  esac
 
   error "You cannot boot ${platform^^} images on a $PLATFORM CPU!"
   return 1
