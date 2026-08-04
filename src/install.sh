@@ -125,7 +125,7 @@ configureMachine() {
   fi
 
   if ! supportsUnattended "$DETECTED"; then
-    skipUnattended "$dir" "$iso" "$boot" || return 83
+    skipUnattended "$dir" "$iso" "$boot" "N" || return 83
     handled=1
     return 0
   fi
