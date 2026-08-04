@@ -1189,17 +1189,16 @@ parseWimHeader() {
 findImage() {
 
   local dir="$1"
-
   local sources result
 
-  sources=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit)
+  sources=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit) || return 1
 
   if [ ! -d "$sources" ]; then
     warn "failed to locate 'sources' folder in ISO image, $FB"
     return 1
   fi
 
-  result=$(find "$sources" -maxdepth 1 -type f \( -iname install.wim -or -iname install.esd \) -print -quit)
+  result=$(find "$sources" -maxdepth 1 -type f \( -iname install.wim -or -iname install.esd \) -print -quit) || return 1
 
   if [ ! -f "$result" ]; then
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
@@ -1213,8 +1212,7 @@ findImage() {
 readImageInfo() {
 
   local wim="$1"
-
-  local result
+  local result=""
 
   result=$(wimlib-imagex info -xml "$wim" | iconv -f UTF-16LE -t UTF-8) || {
     local rc=$?
@@ -1223,9 +1221,13 @@ readImageInfo() {
       exit "$rc"
     fi
 
+    result=""
+  }
+
+  if [ -z "$result" ]; then
     warn "failed to read Windows image information, $FB"
     return 1
-  }
+  fi
 
   printf '%s' "$result"
   return 0
@@ -1283,8 +1285,8 @@ describeImage() {
   local index="$2"
 
   local result
-
   result=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 1
+
   detectLanguage "$info_xml" "$index" || return 1
 
   if [[ "${LANGUAGE,,}" != "en" && "${LANGUAGE,,}" != "en-"* ]]; then
@@ -1723,7 +1725,11 @@ buildImage() {
     return 1
   fi
 
-  size=$(du -b --max-depth=0 "$dir" | cut -f1)
+  if ! size=$(du -b --max-depth=0 "$dir" | cut -f1); then
+    error "Failed to calculate the size of directory \"$dir\"!"
+    return 1
+  fi
+
   checkFreeSpace "$TMP" "$size" || return 1
 
   /run/progress.sh "$out" "$size" "$msg ([P])..." &

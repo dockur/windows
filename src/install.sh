@@ -49,7 +49,7 @@ selectWindowsImage() {
   if resolveImage "$VERSION"; then
 
     if ! setImage; then
-      abortInstall "$dir" "$iso" "$boot" || return 70
+      skipUnattended "$dir" "$iso" "$boot" || return 70
       handled=1
       return 0
     fi
@@ -77,7 +77,7 @@ selectWindowsImage() {
 
   # Only code 1 indicates that extraction may recover detection.
   if (( detect_rc != 1 )); then
-    abortInstall "$dir" "$iso" "$boot" || return 76
+    skipUnattended "$dir" "$iso" "$boot" || return 76
     handled=1
     return 0
   fi
@@ -93,7 +93,7 @@ selectWindowsImage() {
     return 0
   fi
 
-  abortInstall "$dir" "$iso" "$boot" || return 76
+  skipUnattended "$dir" "$iso" "$boot" || return 76
   handled=1
   return 0
 }
@@ -107,25 +107,25 @@ configureMachine() {
   local desc
 
   if ! desc=$(printVariant "$DETECTED" "$DETECTED"); then
-    abortInstall "$dir" "$iso" "$boot" || return 78
+    skipUnattended "$dir" "$iso" "$boot" || return 78
     handled=1
     return 0
   fi
 
   if ! setMachine "$DETECTED" "$iso" "$dir" "$desc"; then
-    abortInstall "$dir" "$iso" "$boot" || return 80
+    skipUnattended "$dir" "$iso" "$boot" || return 80
     handled=1
     return 0
   fi
 
   if ! restoreMachineState; then
-    abortInstall "$dir" "$iso" "$boot" || return 82
+    skipUnattended "$dir" "$iso" "$boot" || return 82
     handled=1
     return 0
   fi
 
   if ! supportsUnattended "$DETECTED"; then
-    abortInstall "$dir" "$iso" "$boot" || return 83
+    skipUnattended "$dir" "$iso" "$boot" || return 83
     handled=1
     return 0
   fi
@@ -143,7 +143,7 @@ prepareWindowsImage() {
   if canUseSetupImage "$DETECTED" "$iso"; then
 
     if ! stageSetup "$XML" "$LANGUAGE" "$TMP/setup"; then
-      abortInstall "$dir" "$iso" "$boot" || return 84
+      skipUnattended "$dir" "$iso" "$boot" || return 84
       handled=1
       return 0
     fi
@@ -166,13 +166,13 @@ prepareWindowsImage() {
   fi
 
   if ! prepareImage "$iso" "$dir"; then
-    abortInstall "$dir" "$iso" "$boot" || return 92
+    skipUnattended "$dir" "$iso" "$boot" || return 92
     handled=1
     return 0
   fi
 
   if ! updateImage "$dir" "$XML" "$LANGUAGE"; then
-    abortInstall "$dir" "$iso" "$boot" || return 94
+    skipUnattended "$dir" "$iso" "$boot" || return 94
     handled=1
     return 0
   fi
@@ -307,7 +307,7 @@ startInstall() {
   return 0
 }
 
-abortInstall() {
+skipUnattended() {
 
   local dir="$1"
   local iso="$2"
@@ -324,14 +324,11 @@ abortInstall() {
   # whether it can still be booted manually using legacy firmware.
   if [[ "${PLATFORM,,}" == "x64" ]] && [ -d "$dir" ]; then
 
-    efi=$(find "$dir" -maxdepth 1 -type d -iname efi -print -quit)
-    efi32=$(find "$dir" -maxdepth 3 -type f \
-      -ipath '*/efi/boot/bootia32.efi' -print -quit)
-    efi64=$(find "$dir" -maxdepth 3 -type f \
-      -ipath '*/efi/boot/bootx64.efi' -print -quit)
+    efi=$(find "$dir" -maxdepth 1 -type d -iname efi -print -quit) || return 1
+    efi32=$(find "$dir" -maxdepth 3 -type f -ipath '*/efi/boot/bootia32.efi' -print -quit) || return 1
+    efi64=$(find "$dir" -maxdepth 3 -type f -ipath '*/efi/boot/bootx64.efi' -print -quit) || return 1
 
-    if [ -z "$efi" ] ||
-      { [ -n "$efi32" ] && [ -z "$efi64" ]; }; then
+    if [ -z "$efi" ] || { [ -n "$efi32" ] && [ -z "$efi64" ]; }; then
 
       writeState "mode" "windows_legacy" || return 1
       restoreBootMode || return 1
@@ -502,8 +499,11 @@ findFile() {
   local dir file base
   local boot="$STORAGE/windows.boot"
 
-  dir=$(find / -maxdepth 1 -type d -iname "$fname" -print -quit)
-  [ ! -d "$dir" ] && dir=$(find "$STORAGE" -maxdepth 1 -type d -iname "$fname" -print -quit)
+  dir=$(find / -maxdepth 1 -type d -iname "$fname" -print -quit) || return 1
+
+  if [ ! -d "$dir" ]; then
+    dir=$(find "$STORAGE" -maxdepth 1 -type d -iname "$fname" -print -quit) || return 1
+  fi
 
   if [ -d "$dir" ]; then
     if ! hasData || [ ! -f "$boot" ]; then
@@ -511,8 +511,11 @@ findFile() {
     fi
   fi
 
-  file=$(find / -maxdepth 1 -type f -iname "$fname" -print -quit)
-  [ ! -s "$file" ] && file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$fname" -print -quit)
+  file=$(find / -maxdepth 1 -type f -iname "$fname" -print -quit) || return 1
+
+  if [ ! -s "$file" ]; then
+    file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$fname" -print -quit) || return 1
+  fi
 
   if [ ! -s "$file" ] && [[ "${VERSION,,}" != "http"* ]]; then
     base=$(basename "$VERSION")
@@ -524,7 +527,7 @@ findFile() {
   fi
 
   local size
-  size="$(stat -c%s "$file")"
+  size=$(stat -c%s "$file") || return 1
 
   if [ -z "$size" ] || [[ "$size" == "0" ]]; then
     return 0
@@ -602,13 +605,22 @@ checkFreeSpace() {
   local dir="$1"
   local size="$2"
 
-  local size_gb space space_gb
+  local space size_gb space_gb
 
-  size_gb=$(formatBytes "$size")
-  space=$(df --output=avail -B 1 "$dir" | tail -n 1)
-  space_gb=$(formatBytes "$space")
+  space=$(df --output=avail -B 1 "$dir" | tail -n 1) || return 1
+
+  [[ "$space" =~ ^[[:space:]]*[0-9]+[[:space:]]*$ ]] || {
+    error "Failed to determine available disk space for $dir!"
+    return 1
+  }
+
+  space="${space//[[:space:]]/}"
 
   if (( size > space )); then
+
+    size_gb=$(formatBytes "$size")
+    space_gb=$(formatBytes "$space")
+
     error "Not enough free space in $STORAGE, have $space_gb available but need at least $size_gb."
     return 1
   fi
@@ -839,10 +851,13 @@ extractImage() {
     return 1
   fi
 
-  size=$(stat -c%s "$iso")
+  if ! size=$(stat -c%s "$iso"); then
+    error "Failed to determine ISO file size: $iso"
+    return 1
+  fi
 
   if (( size < 10000000 )); then
-    error "Invalid ISO file: Size is smaller than 10 MB" && return 1
+    error "Invalid ISO file: Size of \"$iso\" is smaller than 10 MB" && return 1
   fi
 
   checkFreeSpace "$dir" "$size" || return 1
@@ -867,17 +882,19 @@ extractImage() {
 
   else
 
-    # UNPACK archives contain another ISO. Extract the nested ISO, then
-    # preserve it as the actual source media for subsequent processing.
-    file=$(find "$dir" -maxdepth 1 -type f -iname "*.iso" -print -quit)
+    # Locate and extract the ISO nested inside the downloaded archive
+    if ! file=$(find "$dir" -maxdepth 1 -type f -iname "*.iso" -print -quit); then
+      error "Failed to search for a nested ISO in the extracted archive!"
+      return 1
+    fi
 
     if [ -z "$file" ]; then
-      error "Failed to find any .iso file in archive!"
+      error "Failed to find any nested ISO files in the archive!"
       return 1
     fi
 
     if ! 7z x "$file" -o"$dir" > /dev/null; then
-      error "Failed to extract archive!"
+      error "Failed to extract nested ISO file: $file"
       return 1
     fi
 

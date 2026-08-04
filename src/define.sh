@@ -685,7 +685,6 @@ normalizeEdition() {
   local edition
 
   source="${source//evaluation/}"
-
   source=$(printf '%s' "$source" |
     uconv -x 'Any-Latin; Latin-ASCII' 2>/dev/null) || return 1
 
@@ -704,7 +703,7 @@ normalizeEditionID() {
   local edition base
   local id="$2"
 
-  edition=$(normalizeEdition "$1")
+  edition=$(normalizeEdition "$1") || return 1
 
   case "$edition" in
     "pro" | "professional" | "business" )
@@ -768,7 +767,7 @@ getEditionID() {
     * ) return 1 ;;
   esac
 
-  edition=$(normalizeEditionID "$edition" "$id")
+  edition=$(normalizeEditionID "$edition" "$id") || return 1
 
   echo "$edition"
   return 0
@@ -856,7 +855,7 @@ getServerEditionID() {
     * ) return 1 ;;
   esac
 
-  edition=$(normalizeServerEditionID "$edition")
+  edition=$(normalizeServerEditionID "$edition") || return 1
 
   echo "$edition"
   return 0
