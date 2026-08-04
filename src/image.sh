@@ -1694,10 +1694,9 @@ buildImage() {
 
   local dir="$1"
 
-  local failed=""
   local cat="BOOT.CAT"
   local log="/run/shm/iso.log"
-  local base size desc
+  local base size desc failed=""
 
   if [ -f "$BOOT" ]; then
     error "File $BOOT does already exist?!" && return 1
@@ -1734,88 +1733,77 @@ buildImage() {
 
   /run/progress.sh "$out" "$size" "$msg ([P])..." &
 
+  local -a args=(
+    -o "$out"
+    -b "$ETFS"
+    -J
+    -V "${LABEL::30}"
+  )
+
+  local -a name_args=(
+    -l
+    -D
+    -N
+    -joliet-long
+    -relaxed-filenames
+  )
+
   # Use separate layouts for modern hybrid media, NT 5.x legacy media, Win9x,
   # and other legacy releases because their El Torito requirements differ.
   if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
 
-    genisoimage \
-      -o "$out" \
-      -b "$ETFS" \
-      -no-emul-boot \
-      -c "$cat" \
-      -iso-level 4 \
-      -J \
-      -l \
-      -D \
-      -N \
-      -joliet-long \
-      -relaxed-filenames \
-      -V "${LABEL::30}" \
-      -udf \
-      -boot-info-table \
-      -eltorito-alt-boot \
-      -eltorito-boot "$EFISYS" \
-      -no-emul-boot \
-      -allow-limited-size \
-      -quiet \
-      "$dir" 2> "$log" || failed="y"
+    args+=(
+      -no-emul-boot
+      -c "$cat"
+      -iso-level 4
+      "${name_args[@]}"
+      -udf
+      -boot-info-table
+      -eltorito-alt-boot
+      -eltorito-boot "$EFISYS"
+      -no-emul-boot
+      -allow-limited-size
+    )
 
   else
 
     case "${DETECTED,,}" in
+
       "win2k"* | "winxp"* | "win2003"* )
-        genisoimage \
-          -o "$out" \
-          -b "$ETFS" \
-          -no-emul-boot \
-          -boot-load-seg 1984 \
-          -boot-load-size "$BOOT_LOAD_SIZE" \
-          -c "$cat" \
-          -iso-level 2 \
-          -J \
-          -l \
-          -D \
-          -N \
-          -joliet-long \
-          -relaxed-filenames \
-          -V "${LABEL::30}" \
-          -quiet \
-          "$dir" 2> "$log" || failed="y"
-        ;;
+
+        args+=(
+          -no-emul-boot
+          -boot-load-seg 1984
+          -boot-load-size "$BOOT_LOAD_SIZE"
+          -c "$cat"
+          -iso-level 2
+          "${name_args[@]}"
+        ) ;;
 
       "win9"* )
-        genisoimage \
-          -o "$out" \
-          -b "$ETFS" \
-          -J \
-          -r \
-          -V "${LABEL::30}" \
-          -quiet \
-          "$dir" 2> "$log" || failed="y"
-        ;;
+
+        args+=(
+          -r
+        ) ;;
 
       * )
-        genisoimage \
-          -o "$out" \
-          -b "$ETFS" \
-          -no-emul-boot \
-          -boot-load-size "$BOOT_LOAD_SIZE" \
-          -c "$cat" \
-          -iso-level 2 \
-          -J \
-          -l \
-          -D \
-          -N \
-          -joliet-long \
-          -relaxed-filenames \
-          -V "${LABEL::30}" \
-          -udf \
-          -allow-limited-size \
-          -quiet \
-          "$dir" 2> "$log" || failed="y"
-        ;;
+
+        args+=(
+          -no-emul-boot
+          -boot-load-size "$BOOT_LOAD_SIZE"
+          -c "$cat"
+          -iso-level 2
+          "${name_args[@]}"
+          -udf
+          -allow-limited-size
+        ) ;;
+
     esac
 
+  fi
+
+  if ! genisoimage "${args[@]}" -quiet "$dir" 2> "$log"; then
+    failed="y"
   fi
 
   fKill "progress.sh"
