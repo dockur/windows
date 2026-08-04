@@ -312,6 +312,7 @@ skipUnattended() {
   local dir="$1"
   local iso="$2"
   local boot="$3"
+  local aborted="${4:-Y}"
 
   local efi efi32 efi64
 
@@ -350,7 +351,7 @@ skipUnattended() {
     fi
   fi
 
-  finishInstall "$BOOT" "Y" "$boot" && return 0
+  finishInstall "$BOOT" "$aborted" "$boot" && return 0
   return 1
 }
 
