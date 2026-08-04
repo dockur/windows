@@ -925,7 +925,7 @@ resolveImage() {
 
   # Only direct-boot custom media can safely bypass content detection.
   if [ -n "$CUSTOM" ]; then
-    bootDirect "$version" || return 1
+    supportsUnattended "$version" && return 1
     DETECTED="$version"
     return 0
   fi
