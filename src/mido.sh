@@ -1022,17 +1022,17 @@ downloadFile() {
   local web_desc="$5"
   local connections="${6:-1}"
 
-  local domain dots shortened
+  local domain
   local msg="Downloading $web_desc"
   local console_msg="Downloading $desc"
 
   # Keep mirror messages concise by reducing subdomains to the final two
   # labels, while Microsoft downloads retain the generic description.
   domain=$(echo "$url" | awk -F/ '{print $3}')
-  dots=$(echo "$domain" | tr -cd '.' | wc -c)
 
-  if (( dots > 1 )) && shortened=$(expr "$domain" : '.*\.\(.*\..*\)'); then
-    domain="$shortened"
+  if [[ "$domain" == *.*.* ]]; then
+    local parent="${domain%.*}"
+    domain="${parent##*.}.${domain##*.}"
   fi
 
   if [ -n "$domain" ] && [[ "${domain,,}" != *"microsoft.com" ]]; then
