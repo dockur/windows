@@ -1208,6 +1208,40 @@ addDriver() {
   return 0
 }
 
+selectDrivers() {
+
+  local version="$1"
+  local drivers="$2"
+  local target="$3"
+
+  local driver_list=(
+    qxl
+    viofs
+    sriov
+    smbus
+    qxldod
+    viorng
+    viostor
+    viomem
+    NetKVM
+    Balloon
+    vioscsi
+    pvpanic
+    vioinput
+    viogpudo
+    vioserial
+    qemupciserial
+  )
+
+  local driver
+
+  for driver in "${driver_list[@]}"; do
+    addDriver "$version" "$drivers" "$target" "$driver" || return 1
+  done
+
+  return 0
+}
+
 addDrivers() {
 
   local src="$1"
@@ -1219,8 +1253,8 @@ addDrivers() {
 
   local drivers="$tmp/drivers"
 
-  rm -rf "$drivers"
-  mkdir -p "$drivers"
+  rm -rf "$drivers" || return 1
+  mkdir -p "$drivers" || return 1
 
   if enabled "$log"; then
     local msg="Adding drivers to image..."
@@ -1248,33 +1282,12 @@ addDrivers() {
       return 1
     fi
 
-    wimlib-imagex update "$file" "$index" --command "delete --force --recursive /$target" >/dev/null || true
+    wimlib-imagex update "$file" "$index" \
+      --command "delete --force --recursive /$target" >/dev/null || true
 
   fi
 
-  local driver
-  local driver_list=(
-    qxl
-    viofs
-    sriov
-    smbus
-    qxldod
-    viorng
-    viostor
-    viomem
-    NetKVM
-    Balloon
-    vioscsi
-    pvpanic
-    vioinput
-    viogpudo
-    vioserial
-    qemupciserial
-  )
-
-  for driver in "${driver_list[@]}"; do
-    addDriver "$version" "$drivers" "$target" "$driver" || return 1
-  done
+  selectDrivers "$version" "$drivers" "$target" || return 1
 
   local dst="$src/\$OEM\$/\$\$/Drivers"
   mkdir -p "$dst" || return 1
@@ -1283,7 +1296,7 @@ addDrivers() {
   # Install the VirtIO display driver explicitly from SetupComplete.cmd so it
   # cannot disrupt Windows Setup by loading through the WinPE driver path.
   if ! isLegacy "$version"; then
-    rm -rf "$dest/viogpudo"
+    rm -rf "$dest/viogpudo" || return 1
   fi
 
   if [ -n "$file" ]; then
