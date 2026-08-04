@@ -704,7 +704,7 @@ normalizeEditionID() {
   local edition base
   local id="$2"
 
-  edition=$(normalizeEdition "$1")
+  edition=$(normalizeEdition "$1") || return 1
 
   case "$edition" in
     "pro" | "professional" | "business" )
