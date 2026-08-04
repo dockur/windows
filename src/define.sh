@@ -685,7 +685,6 @@ normalizeEdition() {
   local edition
 
   source="${source//evaluation/}"
-
   source=$(printf '%s' "$source" |
     uconv -x 'Any-Latin; Latin-ASCII' 2>/dev/null) || return 1
 
