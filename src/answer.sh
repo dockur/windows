@@ -1,12 +1,118 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+XML_NS_UNATTEND='urn:schemas-microsoft-com:unattend'
+XML_NS_WCM='http://schemas.microsoft.com/WMIConfig/2002/State'
+
+XML_NS_WCM_ARG="wcm=$XML_NS_WCM"
+XML_NS_UNATTEND_ARG="u=$XML_NS_UNATTEND"
+
+XML_SETTINGS_OOBE='/u:unattend/u:settings[@pass="oobeSystem"]'
+XML_SETTINGS_WINDOWS_PE='/u:unattend/u:settings[@pass="windowsPE"]'
+XML_SETTINGS_SPECIALIZE='/u:unattend/u:settings[@pass="specialize"]'
+
+XML_COMPONENT_SETUP="$XML_SETTINGS_WINDOWS_PE/u:component[@name='Microsoft-Windows-Setup']"
+XML_COMPONENT_SHELL_OOBE="$XML_SETTINGS_OOBE/u:component[@name='Microsoft-Windows-Shell-Setup']"
+XML_COMPONENT_SHELL_SPECIALIZE="$XML_SETTINGS_SPECIALIZE/u:component[@name='Microsoft-Windows-Shell-Setup']"
+XML_COMPONENT_UNATTENDED_JOIN="$XML_SETTINGS_SPECIALIZE/u:component[@name='Microsoft-Windows-UnattendedJoin']"
+
+updateXML() {
+
+  local asset="$1"
+  local language="$2"
+
+  local domain="${DOMAIN:-}"
+  local workgroup="${WORKGROUP:-}"
+  local account="" auth="" result
+  local -a values=()
+
+  [ -z "${WIDTH:-}" ] && WIDTH="1280"
+  [ -z "${HEIGHT:-}" ] && HEIGHT="720"
+
+  validateXMLSettings || return 1
+  ensureXMLDefaultNamespace "$asset" || return 1
+
+  updateUserXML "$asset" || return 1
+  updateLocaleXML "$asset" "$language" || return 1
+
+  if [ -n "$domain" ]; then
+    result=$(prepareDomainAccount "$domain") || return 1
+    mapfile -t values <<< "$result"
+    (( ${#values[@]} == 2 )) || return 1
+    account="${values[0]}"
+    auth="${values[1]}"
+  else
+    updateLocalAccount "$asset" || return 1
+  fi
+
+  updateMembership "$asset" "$domain" "$workgroup" "$account" "$auth" || return 1
+  updateAutologinXML "$asset" || return 1
+  updateEditionXML "$asset" || return 1
+
+  validateGeneratedXML "$asset" || return 1
+
+  return 0
+}
+
+setXML() {
+
+  local file="$1"
+  local index="${2:-}"
+
+  local target="/run/assets/$DETECTED.xml"
+  local custom_files=("/custom.xml" "$STORAGE/custom.xml" "/run/assets/custom.xml")
+
+  CUSTOM_XML=""
+
+  removeGeneratedXML "$target" || return 1
+
+  if [ -d "${custom_files[0]}" ]; then
+    error "The bind ${custom_files[0]} maps to a file that does not exist!"
+    exit 67
+  fi
+
+  # A custom answer file always takes precedence over bundled or generated
+  # templates, in root, storage, then asset-directory order.
+  for file in "${custom_files[@]}"; do
+    if [ -f "$file" ] && [ -s "$file" ]; then
+      CUSTOM_XML="Y"
+      XML="$file"
+      return 0
+    fi
+  done
+
+  file="$1"
+
+  # Generate evaluation or edition-specific templates only when the selected
+  # source is unavailable or differs from the detected image identity.
+  if [[ "${DETECTED,,}" == *"-eval" ]] &&
+    { [ ! -f "$file" ] || [ ! -s "$file" ]; }; then
+
+    generateEvalXML "$DETECTED" "$index" || return 1
+    file="$target"
+
+  elif [ ! -f "$file" ] || [ ! -s "$file" ]; then
+
+    file="$target"
+
+  elif [[ "$file" != "$target" ]]; then
+
+    generateFallbackXML "$DETECTED" "$index" || return 1
+    file="$target"
+
+  fi
+
+  [ -f "$file" ] && [ -s "$file" ] || return 1
+
+  XML="$file"
+  return 0
+}
+
 hasAnswerFile() {
 
   local id="$1"
 
   local file="/run/assets/$id.xml"
-
   [ -s "$file" ] && return 0
 
   if [[ "${id,,}" == *"-eval" ]]; then
@@ -82,41 +188,6 @@ stageAnswer() {
   return 0
 }
 
-markGeneratedXML() {
-
-  local file="$1"
-
-  local marker='<!-- generated-answer-file: do not reuse as a template -->'
-
-  [ -s "$file" ] || return 1
-
-  if head -n 1 "$file" | grep -q '^<?xml'; then
-    sed -i "1a$marker" "$file" || return 1
-  else
-    sed -i "1i$marker" "$file" || return 1
-  fi
-
-  return 0
-}
-
-removeGeneratedXML() {
-
-  local file="$1"
-
-  [ -n "$file" ] || return 0
-  [ -f "$file" ] || return 0
-
-  head -n 5 "$file" |
-    grep -Fqi 'generated-answer-file' || return 0
-
-  if ! rm -f "$file"; then
-    error "Failed to remove generated answer file: $file"
-    return 1
-  fi
-
-  return 0
-}
-
 generateAnswerFile() {
 
   local id="$1"
@@ -126,9 +197,7 @@ generateAnswerFile() {
   local type="$5"
   local remove_selector="$6"
 
-  local ns="urn:schemas-microsoft-com:unattend"
-  local wcm="http://schemas.microsoft.com/WMIConfig/2002/State"
-  local setup='/u:unattend/u:settings[@pass="windowsPE"]/u:component[@name="Microsoft-Windows-Setup"]'
+  local setup="$XML_COMPONENT_SETUP"
   local os_image="$setup/u:ImageInstall/u:OSImage"
   local install_from="$os_image/u:InstallFrom"
   local install_to="$os_image/u:InstallTo"
@@ -161,7 +230,7 @@ generateAnswerFile() {
   fi
 
   if [ "$type" != "evaluation" ] || [ "$remove_selector" = "Y" ]; then
-    if ! xmlstarlet ed -L -N "u=$ns" -d "$install_from" "$tmp"; then
+    if ! xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -d "$install_from" "$tmp"; then
       rm -f "$tmp"
       error "Failed to generate $type answer file from $source!"
       return 1
@@ -195,8 +264,8 @@ generateAnswerFile() {
       fi
 
       if ! xmlstarlet ed -L \
-        -N "u=$ns" \
-        -N "wcm=$wcm" \
+        -N "$XML_NS_UNATTEND_ARG" \
+        -N "$XML_NS_WCM_ARG" \
         -i "($install_to)[1]" -t elem -n 'InstallFrom' \
         -s "$os_image/*[local-name()='InstallFrom']" -t elem -n 'MetaData' \
         -i "$os_image/*[local-name()='InstallFrom']/*[local-name()='MetaData']" -t attr -n 'wcm:action' -v 'add' \
@@ -292,96 +361,1482 @@ generateFallbackXML() {
   return 0
 }
 
-setXML() {
+updateUserXML() {
 
-  local file="$1"
-  local index="${2:-}"
+  local asset="$1"
 
-  local target="/run/assets/$DETECTED.xml"
+  local setup="$XML_COMPONENT_SETUP"
+  local specialize="$XML_COMPONENT_SHELL_SPECIALIZE"
+  local oobe="$XML_COMPONENT_SHELL_OOBE"
+  local app="$APP for $ENGINE"
+  local -a args=(
+    -L
+    -N "$XML_NS_UNATTEND_ARG"
+    -u "$setup/u:UserData/u:Organization | $specialize/u:OEMInformation/u:Model | $specialize/u:OEMName | $specialize/u:RegisteredOwner | $oobe/u:RegisteredOwner" -v "$app"
+    -u "$oobe/u:Display/u:VerticalResolution" -v "$HEIGHT"
+    -u "$oobe/u:Display/u:HorizontalResolution" -v "$WIDTH"
+  )
 
-  local custom_files=("/custom.xml" "$STORAGE/custom.xml" "/run/assets/custom.xml")
-
-  CUSTOM_XML=""
-
-  removeGeneratedXML "$target" || return 1
-
-  if [ -d "${custom_files[0]}" ]; then
-    error "The bind ${custom_files[0]} maps to a file that does not exist!"
-    exit 67
+  if [ -n "${HOST:-}" ]; then
+    args+=(-u "$specialize/u:ComputerName" -v "$HOST")
   fi
 
-  # A custom answer file always takes precedence over bundled or generated
-  # templates, in root, storage, then asset-directory order.
-  for file in "${custom_files[@]}"; do
-    if [ -f "$file" ] && [ -s "$file" ]; then
-      CUSTOM_XML="Y"
-      XML="$file"
-      return 0
-    fi
-  done
+  xmlstarlet ed "${args[@]}" "$asset" || return 1
 
-  file="$1"
-
-  # Generate evaluation or edition-specific templates only when the selected
-  # source is unavailable or differs from the detected image identity.
-  if [[ "${DETECTED,,}" == *"-eval" ]] &&
-    { [ ! -f "$file" ] || [ ! -s "$file" ]; }; then
-
-    generateEvalXML "$DETECTED" "$index" || return 1
-    file="$target"
-
-  elif [ ! -f "$file" ] || [ ! -s "$file" ]; then
-
-    file="$target"
-
-  elif [[ "$file" != "$target" ]]; then
-
-    generateFallbackXML "$DETECTED" "$index" || return 1
-    file="$target"
-
-  fi
-
-  [ -f "$file" ] && [ -s "$file" ] || return 1
-
-  XML="$file"
   return 0
 }
 
-updateXML() {
+updateLocaleXML() {
 
   local asset="$1"
   local language="$2"
 
-  local domain="${DOMAIN:-}"
-  local workgroup="${WORKGROUP:-}"
-  local account=""
-  local auth=""
-  local result
-  local -a values=()
+  local international='/u:unattend/u:settings/u:component[@name="Microsoft-Windows-International-Core" or @name="Microsoft-Windows-International-Core-WinPE"]'
+  local culture region keyboard
+  local -a args=(-L -N "$XML_NS_UNATTEND_ARG")
 
-  [ -z "${WIDTH:-}" ] && WIDTH="1280"
-  [ -z "${HEIGHT:-}" ] && HEIGHT="720"
+  culture=$(getLanguage "$language" "culture") || return 1
 
-  validateXMLSettings || return 1
-  updateDisplayXML "$asset" || return 1
-  updateLocaleXML "$asset" "$language" || return 1
-
-  if [ -n "$domain" ]; then
-    result=$(prepareDomainAccount "$domain") || return 1
-    mapfile -t values <<< "$result"
-    (( ${#values[@]} == 2 )) || return 1
-    account="${values[0]}"
-    auth="${values[1]}"
-  else
-    updateLocalAccount "$asset" || return 1
+  if [ -n "$culture" ]; then
+    args+=(-u "$international//u:UILanguage" -v "$culture")
   fi
 
+  region="${REGION:-$culture}"
 
-  updateMembership "$asset" "$domain" "$workgroup" "$account" "$auth" || return 1
+  if [ -n "$region" ]; then
+    args+=(-u "$international/u:UserLocale | $international/u:SystemLocale" -v "$region")
+  fi
 
-  updateAutologinXML "$asset" || return 1
-  updateEditionXML "$asset" || return 1
-  validateGeneratedXML "$asset" || return 1
+  keyboard="${KEYBOARD:-$culture}"
+
+  if [ -n "$keyboard" ]; then
+    args+=(-u "$international/u:InputLocale" -v "$keyboard")
+  fi
+
+  if (( ${#args[@]} > 3 )); then
+    xmlstarlet ed "${args[@]}" "$asset" || return 1
+  fi
+
+  return 0
+}
+
+updateAutologinXML() {
+
+  local asset="$1"
+
+  local shell="$XML_COMPONENT_SHELL_OOBE"
+
+  disabled "${AUTOLOGIN:-}" || return 0
+
+  xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -d "$shell/u:AutoLogon" "$asset" || return 1
+
+  return 0
+}
+
+updateProductKey() {
+
+  local script="$1"
+
+  local key="${KEY:-}"
+  local content
+
+  if [ -z "$key" ]; then
+    removeSetupBlock "$script" "PRODUCT_KEY" || return 1
+    return 0
+  fi
+
+  printf -v content '%s\n%s' \
+    'rem Install the product key without activating Windows immediately.' \
+    "cscript.exe //B //Nologo \"%SystemRoot%\\System32\\slmgr.vbs\" /ipk \"$key\""
+
+  replaceSetupBlock "$script" "PRODUCT_KEY" "$content" || return 1
+
+  return 0
+}
+
+updateWorkgroup() {
+
+  local asset="$1"
+  local workgroup="$2"
+
+  local component="$XML_COMPONENT_UNATTENDED_JOIN"
+  local identification="$component/u:Identification"
+  local join="$identification/*[local-name()='JoinWorkgroup']"
+  local arch tmp
+
+  arch=$(getXMLArchitecture "$asset") || return 1
+  # Apply all membership changes to a copy and publish it only after the old
+  # domain, credential, OU, and workgroup nodes have been replaced successfully.
+  tmp=$(copyXMLAsset "$asset") || return 1
+
+  if ! ensureUnattendedJoin "$tmp" "$arch" ||
+    ! xmlstarlet ed -L \
+      -N "$XML_NS_UNATTEND_ARG" \
+      -d "$identification/u:Credentials | $identification/u:JoinDomain | $identification/u:JoinWorkgroup | $identification/u:MachineObjectOU" \
+      -s "$identification" -t elem -n 'JoinWorkgroup' "$tmp" ||
+    ! xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -u "$join" -v "$workgroup" "$tmp" ||
+    ! replaceXMLAsset "$asset" "$tmp"; then
+
+    rm -f "$tmp"
+    return 1
+  fi
+
+  return 0
+}
+
+updateDomain() {
+
+  local asset="$1"
+  local domain="$2"
+  local account="$3"
+  local auth="$4"
+  local pass="$5"
+  local ou="$6"
+
+  local arch tmp
+
+  arch=$(getXMLArchitecture "$asset") || return 1
+  # Account and join settings are separate XML transformations, so update a
+  # copy to keep the original answer file intact if either transformation fails.
+  tmp=$(copyXMLAsset "$asset") || return 1
+
+  if ! configureDomainAccounts "$tmp" "$domain" "$account" "$pass" ||
+    ! configureDomainJoin "$tmp" "$domain" "$auth" "$pass" "$ou" "$arch" ||
+    ! replaceXMLAsset "$asset" "$tmp"; then
+
+    rm -f "$tmp"
+    return 1
+  fi
+
+  return 0
+}
+
+configureDomainAccounts() {
+
+  local asset="$1"
+  local domain="$2"
+  local account="$3"
+  local pass="$4"
+
+  local shell="$XML_COMPONENT_SHELL_OOBE"
+  local accounts="$shell/u:UserAccounts"
+  local administrator="$accounts/u:AdministratorPassword"
+  local autologon="$shell/u:AutoLogon"
+  local domain_accounts="$accounts/u:DomainAccounts"
+  local counts shell_count accounts_count administrator_count autologon_count child_count
+
+  counts=$(xmlstarlet sel \
+    -N "$XML_NS_UNATTEND_ARG" \
+    -T -t \
+    -v "count($shell)" -o '|' \
+    -v "count($accounts)" -o '|' \
+    -v "count($administrator)" -o '|' -v "count($autologon)" "$asset") || return 1
+
+  IFS='|' read -r shell_count accounts_count administrator_count autologon_count <<< "$counts"
+
+  [ "$shell_count" = "1" ] || return 1
+  (( accounts_count <= 1 )) || return 1
+  (( administrator_count <= 1 )) || return 1
+  (( autologon_count <= 1 )) || return 1
+
+  if [ "$accounts_count" = "0" ]; then
+    child_count=$(getXMLNodeCount "$asset" "$shell/*") || return 1
+
+    if [ "$child_count" = "0" ]; then
+      xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -s "$shell" -t elem -n 'UserAccounts' "$asset" || return 1
+    else
+      xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -i "$shell/*[1]" -t elem -n 'UserAccounts' "$asset" || return 1
+    fi
+  fi
+
+  local created_accounts="$accounts/*[local-name()='DomainAccounts']"
+  local account_list="$created_accounts/*[local-name()='DomainAccountList']"
+  local domain_account="$account_list/*[local-name()='DomainAccount']"
+  local created_autologon="$shell/*[local-name()='AutoLogon']"
+  local auto_password="$created_autologon/*[local-name()='Password']"
+
+  # Rebuild domain-account and autologon nodes from a clean state so stale
+  # local-template values cannot survive a domain conversion.
+  local -a args=(
+    -L
+    -N "$XML_NS_UNATTEND_ARG"
+    -N "$XML_NS_WCM_ARG"
+    -d "$domain_accounts | $autologon"
+  )
+
+  # Insert DomainAccounts before AdministratorPassword when it exists to retain
+  # the child order expected by the unattend schema.
+  if [ "$administrator_count" = "1" ]; then
+    args+=(-i "($administrator)[1]" -t elem -n 'DomainAccounts')
+  else
+    args+=(-s "$accounts" -t elem -n 'DomainAccounts')
+  fi
+
+  args+=(
+    -s "$created_accounts" -t elem -n 'DomainAccountList'
+    -i "$account_list" -t attr -n 'wcm:action' -v 'add'
+    -s "$account_list" -t elem -n 'DomainAccount'
+    -i "$domain_account" -t attr -n 'wcm:action' -v 'add'
+    -s "$domain_account" -t elem -n 'Name'
+    -s "$domain_account" -t elem -n 'Group' -v 'Administrators'
+    -s "$account_list" -t elem -n 'Domain'
+    -a "$accounts" -t elem -n 'AutoLogon'
+    -s "$created_autologon" -t elem -n 'Username'
+    -s "$created_autologon" -t elem -n 'Domain'
+    -s "$created_autologon" -t elem -n 'Enabled' -v 'true'
+    -s "$created_autologon" -t elem -n 'LogonCount' -v '65432'
+    -s "$created_autologon" -t elem -n 'Password'
+    -s "$auto_password" -t elem -n 'Value'
+    -s "$auto_password" -t elem -n 'PlainText' -v 'true'
+  )
+
+  xmlstarlet ed "${args[@]}" "$asset" || return 1
+
+  xmlstarlet ed -L \
+    -N "$XML_NS_UNATTEND_ARG" \
+    -u "$domain_account/*[local-name()='Name']" -v "$account" \
+    -u "$account_list/*[local-name()='Domain']" -v "$domain" \
+    -u "$created_autologon/*[local-name()='Username']" -v "$account" \
+    -u "$created_autologon/*[local-name()='Domain']" -v "$domain" \
+    -u "$auto_password/*[local-name()='Value']" -v "$pass" "$asset" || return 1
+
+  return 0
+}
+
+configureDomainJoin() {
+
+  local asset="$1"
+  local domain="$2"
+  local auth="$3"
+  local pass="$4"
+  local ou="$5"
+  local arch="$6"
+
+  local component="$XML_COMPONENT_UNATTENDED_JOIN"
+  local identification="$component/u:Identification"
+  local credentials="$identification/*[local-name()='Credentials']"
+  local cred_domain="$domain"
+
+  local -a args=(
+    -L
+    -N "$XML_NS_UNATTEND_ARG"
+    -d "$identification/u:Credentials | $identification/u:JoinDomain | $identification/u:JoinWorkgroup | $identification/u:MachineObjectOU"
+    -s "$identification" -t elem -n 'Credentials'
+  )
+
+  ensureUnattendedJoin "$asset" "$arch" || return 1
+
+  # A user@domain UPN already contains its qualifier; adding a separate Domain
+  # credential node would describe the account twice.
+  case "$auth" in
+    *@* ) cred_domain="" ;;
+  esac
+
+  if [ -n "$cred_domain" ]; then
+    args+=(-s "$credentials" -t elem -n 'Domain')
+  fi
+
+  args+=(
+    -s "$credentials" -t elem -n 'Username'
+    -s "$credentials" -t elem -n 'Password'
+    -s "$identification" -t elem -n 'JoinDomain'
+  )
+
+  if [ -n "$ou" ]; then
+    args+=(-s "$identification" -t elem -n 'MachineObjectOU')
+  fi
+
+  xmlstarlet ed "${args[@]}" "$asset" || return 1
+
+  local -a values=(
+    -L
+    -N "$XML_NS_UNATTEND_ARG"
+    -u "$credentials/*[local-name()='Username']" -v "$auth"
+    -u "$credentials/*[local-name()='Password']" -v "$pass"
+    -u "$identification/*[local-name()='JoinDomain']" -v "$domain"
+  )
+
+  if [ -n "$cred_domain" ]; then
+    values+=(-u "$credentials/*[local-name()='Domain']" -v "$cred_domain")
+  fi
+
+  if [ -n "$ou" ]; then
+    values+=(-u "$identification/*[local-name()='MachineObjectOU']" -v "$ou")
+  fi
+
+  xmlstarlet ed "${values[@]}" "$asset" || return 1
+  return 0
+}
+
+findPrimaryLocalAccount() {
+
+  local asset="$1"
+
+  local shell="$XML_COMPONENT_SHELL_OOBE"
+  local local_accounts="$shell/u:UserAccounts/u:LocalAccounts/u:LocalAccount"
+  local administrator="$shell/u:UserAccounts/u:AdministratorPassword"
+  local autologon="$shell/u:AutoLogon"
+  local auto_primary=0 auto_matches=0
+  local admin_primary=0 admin_matches=0
+  local selected=0 separator=$'\x1f'
+
+  local -a groups=()
+  local counts records auto_user selected_user position name group
+  local shell_count local_count found_admin found_autologon token
+
+  counts=$(xmlstarlet sel \
+    -N "$XML_NS_UNATTEND_ARG" \
+    -T -t \
+    -v "count($shell)" -o '|' \
+    -v "count($local_accounts)" -o '|' \
+    -v "count($administrator)" -o '|' -v "count($autologon)" "$asset") || return 1
+
+  IFS='|' read -r shell_count local_count found_admin found_autologon <<< "$counts"
+
+  [ "$shell_count" = "1" ] || return 1
+  (( local_count > 0 )) || return 1
+  (( found_admin <= 1 )) || return 1
+  (( found_autologon <= 1 )) || return 1
+
+  auto_user=""
+
+  if [ "$found_autologon" = "1" ]; then
+    auto_user=$(xmlstarlet sel \
+      -N "$XML_NS_UNATTEND_ARG" -T -t -v "normalize-space(string($autologon/u:Username))" "$asset") || return 1
+  fi
+
+  records=$(xmlstarlet sel \
+    -N "$XML_NS_UNATTEND_ARG" \
+    -T -t \
+    -m "$local_accounts" \
+    -v 'position()' -o "$separator" \
+    -v 'normalize-space(string(u:Name))' -o "$separator" \
+    -v 'normalize-space(string(u:Group))' -n "$asset") || return 1
+
+  while IFS="$separator" read -r position name group; do
+
+    if [ -n "$auto_user" ] &&
+      [[ "${name,,}" == "${auto_user,,}" ]]; then
+      auto_primary="$position"
+      ((auto_matches += 1))
+    fi
+
+    IFS=';,' read -r -a groups <<< "$group"
+
+    for token in "${groups[@]}"; do
+      token="${token#"${token%%[![:space:]]*}"}"
+      token="${token%"${token##*[![:space:]]}"}"
+      [[ "${token,,}" == "administrators" ]] || continue
+      admin_primary="$position"
+      ((admin_matches += 1))
+      break
+    done
+
+  done <<< "$records"
+
+  if (( auto_matches > 1 )); then
+    error "Multiple local accounts match the automatic-logon username!"
+    return 1
+  fi
+
+  # Prefer the account referenced by AutoLogon, then the only account, then
+  # the only administrator. Ambiguous templates are rejected rather than guessed.
+  if (( auto_matches == 1 )); then
+    selected="$auto_primary"
+  elif (( local_count == 1 )); then
+    selected=1
+  elif (( admin_matches == 1 )); then
+    selected="$admin_primary"
+  else
+    error "Failed to identify the primary local account in the answer file!"
+    return 1
+  fi
+
+  selected_user=$(xmlstarlet sel \
+    -N "$XML_NS_UNATTEND_ARG" -T -t -v "normalize-space(string(${local_accounts}[${selected}]/u:Name))" "$asset") || return 1
+
+  [ -n "$selected_user" ] || return 1
+
+  printf '%s\n' \
+    "$selected" "$selected_user" "$found_admin" "$found_autologon"
+
+  return 0
+}
+
+updateLocalAccount() {
+
+  local asset="$1"
+
+  local user="${USERNAME:-}"
+  local pass="${PASSWORD:-admin}"
+  local setup="$XML_COMPONENT_SETUP"
+  local shell="$XML_COMPONENT_SHELL_OOBE"
+  local local_accounts="$shell/u:UserAccounts/u:LocalAccounts/u:LocalAccount"
+  local administrator="$shell/u:UserAccounts/u:AdministratorPassword"
+  local autologon="$shell/u:AutoLogon"
+  local primary admin_count autologon_count tmp
+  local current_user target_user pw admin result
+  local -a values=()
+
+  validateUsername "$user" "local" || return 1
+
+  result=$(findPrimaryLocalAccount "$asset") || return 1
+  mapfile -t values <<< "$result"
+  (( ${#values[@]} == 4 )) || return 1
+  primary="${values[0]}"
+  current_user="${values[1]}"
+  admin_count="${values[2]}"
+  autologon_count="${values[3]}"
+
+  local account="${local_accounts}[${primary}]"
+  local password="$account/*[local-name()='Password']"
+  local admin_value="$administrator/*[local-name()='Value']"
+  local admin_plain="$administrator/*[local-name()='PlainText']"
+  local auto_password="$autologon/*[local-name()='Password']"
+  local auto_value="$auto_password/*[local-name()='Value']"
+  local auto_plain="$auto_password/*[local-name()='PlainText']"
+
+  target_user="${user:-$current_user}"
+
+  # Update the selected local account, Administrator password, and AutoLogon
+  # credentials atomically so they cannot become inconsistent.
+  tmp=$(copyXMLAsset "$asset") || return 1
+
+  if ! validateUniqueXMLNodes "$tmp" \
+      "$password" \
+      "$password/*[local-name()='Value']" \
+      "$password/*[local-name()='PlainText']" \
+      "$admin_value" \
+      "$admin_plain" \
+      "$autologon/*[local-name()='Username']" "$auto_password" "$auto_value" "$auto_plain"; then
+
+    rm -f "$tmp"
+    return 1
+  fi
+
+  pw=$(encodeUnattendPassword "$pass" "Password") || {
+    rm -f "$tmp"
+    return 1
+  }
+
+  admin=$(encodeUnattendPassword "$pass" "AdministratorPassword") || {
+    rm -f "$tmp"
+    return 1
+  }
+
+  local -a args=(
+    -L
+    -N "$XML_NS_UNATTEND_ARG"
+    -s "${account}[not(*[local-name()='Password'])]" -t elem -n 'Password'
+    -s "${password}[not(*[local-name()='Value'])]" -t elem -n 'Value'
+    -s "${password}[not(*[local-name()='PlainText'])]" -t elem -n 'PlainText'
+    -u "$password/*[local-name()='Value']" -v "$pw"
+    -u "$password/*[local-name()='PlainText']" -v 'false'
+  )
+
+  if [ -n "$user" ]; then
+    args+=(
+      -u "$account/u:Name" -v "$user"
+      -u "$setup/u:UserData/u:FullName" -v "$user"
+    )
+  fi
+
+  if [ "$admin_count" = "1" ]; then
+    args+=(
+      -s "${administrator}[not(*[local-name()='Value'])]" -t elem -n 'Value'
+      -s "${administrator}[not(*[local-name()='PlainText'])]" -t elem -n 'PlainText'
+      -u "$admin_value" -v "$admin"
+      -u "$admin_plain" -v 'false'
+    )
+  fi
+
+  if [ "$autologon_count" = "1" ]; then
+    args+=(
+      -s "${autologon}[not(*[local-name()='Username'])]" -t elem -n 'Username'
+      -s "${autologon}[not(*[local-name()='Password'])]" -t elem -n 'Password'
+      -s "${auto_password}[not(*[local-name()='Value'])]" -t elem -n 'Value'
+      -s "${auto_password}[not(*[local-name()='PlainText'])]" -t elem -n 'PlainText'
+      -u "$autologon/*[local-name()='Username']" -v "$target_user"
+      -u "$auto_value" -v "$pw"
+      -u "$auto_plain" -v 'false'
+    )
+  fi
+
+  if ! xmlstarlet ed "${args[@]}" "$tmp" ||
+    ! replaceXMLAsset "$asset" "$tmp"; then
+
+    rm -f "$tmp"
+    return 1
+  fi
+
+  return 0
+}
+
+updateMembership() {
+
+  local asset="$1"
+  local domain="$2"
+  local workgroup="$3"
+  local account="$4"
+  local auth="$5"
+
+  if [ -n "$domain" ]; then
+
+    if ! updateDomain "$asset" "$domain" "$account" "$auth" "$PASSWORD" "${DOMAIN_OU:-}"; then
+      error "Failed to add domain configuration to answer file!"
+      return 1
+    fi
+
+    removeLocalAccount "$asset" || return 1
+    return 0
+  fi
+
+  [ -n "$workgroup" ] || return 0
+
+  if ! updateWorkgroup "$asset" "$workgroup"; then
+    error "Failed to add workgroup configuration to answer file!"
+    return 1
+  fi
+
+  return 0
+}
+
+updateEditionXML() {
+
+  local asset="$1"
+
+  local upper='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  local lower='abcdefghijklmnopqrstuvwxyz'
+  local setup="$XML_COMPONENT_SETUP"
+  local selector="$setup/u:ImageInstall/u:OSImage/u:InstallFrom/u:MetaData[translate(normalize-space(u:Key), '$lower', '$upper')='/IMAGE/NAME']/u:Value"
+  local edition count records position value replacement
+  local separator=$'\x1f'
+
+  [ -n "${EDITION:-}" ] || return 0
+
+  count=$(getXMLNodeCount "$asset" "$selector") || return 1
+
+  # Client and index-based answer files do not contain an /IMAGE/NAME
+  # selector. In that case there is nothing to update.
+  [ "$count" != "0" ] || return 0
+
+  edition=$(normalizeServerEdition "$EDITION") || return 1
+  edition="${edition//-/}"
+  edition="${edition^^}"
+
+  records=$(xmlstarlet sel \
+    -N "$XML_NS_UNATTEND_ARG" -T -t -m "$selector" -v 'position()' -o "$separator" -v 'string(.)' -n "$asset") || return 1
+
+  while IFS="$separator" read -r position value; do
+    [ -n "$position" ] || continue
+
+    # Only Windows Server templates use EDITION as a mutable answer-file
+    # selector. Products such as Hyper-V Server have fixed SERVER* flags that
+    # must not be rewritten.
+    [[ "${value,,}" == *"windows server"* ]] || continue
+    [[ "$value" =~ ^(.*[[:space:]])SERVER[A-Za-z0-9_-]+[[:space:]]*$ ]] || continue
+
+    replacement="${BASH_REMATCH[1]}SERVER$edition"
+
+    xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -u "($selector)[$position]" -v "$replacement" "$asset" || return 1
+  done <<< "$records"
+
+  return 0
+}
+
+updateDiskID() {
+
+  local asset="$1"
+  local disk_type="${2,,}"
+  local mode="${3:-setup}"
+
+  local target="0"
+  local setup="$XML_COMPONENT_SETUP"
+  local disk_ids="$setup//u:DiskID"
+  local count values value current
+  local -a ids=()
+
+  [ -s "$asset" ] || return 1
+
+  # The setup overlay occupies disk 0, so common VirtIO installation disks move
+  # to disk 1 in setup-image mode. Rebuilt media keeps the original disk layout.
+  case "$mode" in
+    "setup" )
+      case "$disk_type" in
+        "" | "scsi" | "virtio-scsi" | "blk" | "virtio-blk" ) target="1" ;;
+      esac
+      ;;
+    "image" ) ;;
+    * ) return 1 ;;
+  esac
+
+  count=$(getXMLNodeCount "$asset" "$disk_ids") || {
+    error "Failed to read DiskID values from answer file: $asset"
+    return 1
+  }
+
+  [ "$count" != "0" ] || return 0
+
+  values=$(xmlstarlet sel -N "$XML_NS_UNATTEND_ARG" -T -t -m "$disk_ids" -v 'normalize-space(.)' -n "$asset") || {
+    error "Failed to read DiskID values from answer file: $asset"
+    return 1
+  }
+
+  while IFS= read -r value; do
+    if [[ ! "$value" =~ ^[0-9]+$ ]]; then
+      error "Invalid DiskID value in answer file: $asset"
+      return 1
+    fi
+
+    ids+=( "$value" )
+  done <<< "$values"
+
+  mapfile -t ids < <(printf '%s\n' "${ids[@]}" | sort -u)
+
+  # Leave explicit multi-disk configurations untouched.
+  (( ${#ids[@]} == 1 )) || return 0
+
+  current="${ids[0]}"
+  [ "$current" = "$target" ] && return 0
+
+  case "$current" in
+    "0" | "1" ) ;;
+    * )
+      error "Unsupported DiskID $current in answer file: $asset"
+      return 1
+      ;;
+  esac
+
+  if ! xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -u "${disk_ids}[normalize-space(.)='$current']" -v "$target" "$asset"; then
+
+    error "Failed to update DiskID in answer file: $asset"
+    return 1
+  fi
+
+  return 0
+}
+
+getXMLArchitecture() {
+
+  local asset="$1"
+
+  local arch
+  # Prefer architecture declarations from Windows PE setup components and skip
+  # wow64 compatibility components, which do not describe the target image.
+  local -a paths=(
+    "$XML_COMPONENT_SETUP/@processorArchitecture"
+    "$XML_SETTINGS_WINDOWS_PE/u:component[@name='Microsoft-Windows-International-Core-WinPE']/@processorArchitecture"
+    '/u:unattend/u:settings/u:component[translate(@processorArchitecture, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz") != "wow64"]/@processorArchitecture'
+  )
+  local path
+
+  for path in "${paths[@]}"; do
+    arch=$(xmlstarlet sel -N "$XML_NS_UNATTEND_ARG" -T -t -v "normalize-space(string(($path)[1]))" "$asset") || arch=""
+
+    [ -n "$arch" ] || continue
+    [[ "${arch,,}" != "wow64" ]] || continue
+    printf '%s' "$arch"
+    return 0
+  done
+
+  return 1
+}
+
+setConfigurationXML() {
+
+  local asset="$1"
+
+  local setup='/*[local-name()="unattend"]/*[local-name()="settings" and @pass="windowsPE"]/*[local-name()="component" and @name="Microsoft-Windows-Setup"]'
+  local userdata="$setup/*[local-name()='UserData']"
+  local config="$setup/*[local-name()='UseConfigurationSet']"
+  local setup_count config_count config_value userdata_count result_count tmp
+
+  [ -s "$asset" ] || return 1
+
+  setup_count=$(getXMLNodeCount "$asset" "$setup") || return 1
+
+  if [ "$setup_count" != "1" ]; then
+    error "Failed to find a unique Microsoft-Windows-Setup component: $asset"
+    return 1
+  fi
+
+  config_count=$(getXMLNodeCount "$asset" "$config") || return 1
+
+  if [ "$config_count" -gt 1 ]; then
+    error "Multiple UseConfigurationSet entries found in answer file: $asset"
+    return 1
+  fi
+
+  if [ "$config_count" = "1" ]; then
+    config_value=$(xmlstarlet sel -T -t -v "translate(normalize-space(string($config)), 'TRUE', 'true')" "$asset") || return 1
+    [ "$config_value" != "true" ] || return 0
+  fi
+
+  userdata_count=$(getXMLNodeCount "$asset" "$userdata") || return 1
+
+  if [ "$userdata_count" -gt 1 ]; then
+    error "Multiple UserData entries found in answer file: $asset"
+    return 1
+  fi
+
+  tmp=$(copyXMLAsset "$asset") || {
+    error "Failed to create a temporary answer file!"
+    return 1
+  }
+
+  if [ "$config_count" = "0" ] &&
+    ! ensureXMLDefaultNamespace "$tmp"; then
+
+    rm -f "$tmp"
+    return 1
+  fi
+
+  if [ "$config_count" = "1" ]; then
+    xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -u "$config" -v "true" "$tmp" || {
+      rm -f "$tmp"
+      error "Failed to enable the Windows configuration set!"
+      return 1
+    }
+  elif [ "$userdata_count" = "1" ]; then
+    xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -i "$userdata" -t elem -n "UseConfigurationSet" -v "true" "$tmp" || {
+      rm -f "$tmp"
+      error "Failed to enable the Windows configuration set!"
+      return 1
+    }
+  else
+    xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -s "$setup" -t elem -n "UseConfigurationSet" -v "true" "$tmp" || {
+      rm -f "$tmp"
+      error "Failed to enable the Windows configuration set!"
+      return 1
+    }
+  fi
+
+  result_count=$(getXMLNodeCount "$tmp" "$XML_COMPONENT_SETUP/u:UseConfigurationSet[normalize-space(.)='true']") || {
+    rm -f "$tmp"
+    return 1
+  }
+
+  if [ "$result_count" != "1" ]; then
+    rm -f "$tmp"
+    error "Failed to enable the Windows configuration set!"
+    return 1
+  fi
+
+  if ! replaceXMLAsset "$asset" "$tmp"; then
+    error "Failed to replace the updated answer file!"
+    return 1
+  fi
+
+  return 0
+}
+
+removeSharedFolder() {
+
+  local script="$1"
+
+  if ! disabled "${SHORTCUT:-}" &&
+    ! disabled "${SAMBA:-}"; then
+    return 0
+  fi
+
+  removeSetupBlock "$script" "SHARED_FOLDER" || return 1
+
+  return 0
+}
+
+removeLocalAccount() {
+
+  local asset="$1"
+
+  local accounts="$XML_COMPONENT_SHELL_OOBE/u:UserAccounts"
+
+  if ! xmlstarlet ed -L \
+    -N "$XML_NS_UNATTEND_ARG" -d "$accounts/u:LocalAccounts | $accounts/u:AdministratorPassword" "$asset"; then
+
+    error "Failed to remove local account configuration from answer file!"
+    return 1
+  fi
+
+  return 0
+}
+
+removeEmbeddedProductKeys() {
+
+  local asset="$1"
+
+  local product_keys='//u:ProductKey'
+  local separator=$'\x1f' delete_xpath=""
+  local records position child_key direct_key
+
+  records=$(xmlstarlet sel \
+    -N "$XML_NS_UNATTEND_ARG" -T -t \
+    -m "$product_keys" \
+    -v 'position()' -o "$separator" \
+    -v 'normalize-space(string((u:Key[normalize-space(.)])[1]))' -o "$separator" \
+    -v 'normalize-space(string(text()[normalize-space()][1]))' -n \
+    "$asset") || return 1
+
+  while IFS="$separator" read -r position child_key direct_key; do
+    [ -n "$position" ] || continue
+
+    if [[ ! "$child_key" =~ ^[A-Za-z0-9]{5}(-[A-Za-z0-9]{5}){4}$ ]] &&
+      [[ ! "$direct_key" =~ ^[A-Za-z0-9]{5}(-[A-Za-z0-9]{5}){4}$ ]]; then
+      continue
+    fi
+
+    [ -z "$delete_xpath" ] || delete_xpath+=" | "
+    delete_xpath+="($product_keys)[$position]"
+  done <<< "$records"
+
+  [ -n "$delete_xpath" ] || return 0
+
+  xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -d "$delete_xpath" "$asset" || return 1
+  return 0
+}
+
+validateXMLSettings() {
+
+  validateResolution "WIDTH" "$WIDTH" 320 || return 1
+  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
+  validateMembership || return 1
+  validateComputerName "${HOST:-}" || return 1
+  validateProductKey "${KEY:-}" || return 1
+  validatePassword "${PASSWORD:-}" || return 1
+
+  return 0
+}
+
+validateGeneratedXML() {
+
+  local asset="$1"
+
+  if ! xmllint --nonet --noout "$asset"; then
+    error "The generated answer file is not valid XML!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateSetupScript() {
+
+  local file="$1"
+
+  local block
+  local blocks=(LOCAL_ACCOUNT PRODUCT_KEY SHARED_FOLDER OEM_SCRIPT)
+
+  [ -s "$file" ] || return 1
+
+  for block in "${blocks[@]}"; do
+    validateSetupBlock "$file" "$block" || return 1
+  done
+
+  return 0
+}
+
+validateSetupBlock() {
+
+  local file="$1"
+  local block="$2"
+
+  local begin="rem BEGIN $block"
+  local end="rem END $block"
+  local begin_count end_count begin_line end_line
+
+  [ -s "$file" ] || return 1
+
+  begin_count=$(grep -Fxc -- "$begin" "$file" || true)
+  end_count=$(grep -Fxc -- "$end" "$file" || true)
+
+  if [ "$begin_count" -ne 1 ] || [ "$end_count" -ne 1 ]; then
+    error "Invalid $block markers in setup script: $file"
+    return 1
+  fi
+
+  begin_line=$(grep -nFx -- "$begin" "$file" | cut -d: -f1) || return 1
+  end_line=$(grep -nFx -- "$end" "$file" | cut -d: -f1) || return 1
+
+  if [ "$begin_line" -ge "$end_line" ]; then
+    error "Invalid $block marker order in setup script: $file"
+    return 1
+  fi
+
+  return 0
+}
+
+validateResolution() {
+
+  local name="$1"
+  local value="$2"
+  local minimum="$3"
+
+  if [[ ! "$value" =~ ^[0-9]+$ ]] || [ "${#value}" -gt 5 ]; then
+    error "The $name variable must be between $minimum and 16384!"
+    return 1
+  fi
+
+  local number=$((10#$value))
+
+  if [ "$number" -lt "$minimum" ] || [ "$number" -gt 16384 ]; then
+    error "The $name variable must be between $minimum and 16384!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateProductKey() {
+
+  local value="$1"
+
+  [ -z "$value" ] && return 0
+
+  if [[ ! "$value" =~ ^[A-Za-z0-9]{5}(-[A-Za-z0-9]{5}){4}$ ]]; then
+    error "The KEY variable must contain a valid 25-character product key!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateComputerName() {
+
+  local value="$1"
+
+  [ -z "$value" ] && return 0
+
+  if [ "${#value}" -gt 15 ]; then
+    error "The HOST variable cannot contain more than 15 characters!"
+    return 1
+  fi
+
+  if [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$ ]]; then
+    error "The HOST variable may only contain letters, digits, and hyphens, and cannot start or end with a hyphen!"
+    return 1
+  fi
+
+  if [[ "$value" =~ ^[0-9]+$ ]]; then
+    error "The HOST variable cannot contain only digits!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateWorkgroup() {
+
+  local value="$1"
+
+  local safe
+
+  [ -z "$value" ] && return 0
+
+  if [ "${#value}" -gt 15 ]; then
+    error "The WORKGROUP variable cannot contain more than 15 characters!"
+    return 1
+  fi
+
+  safe=$(printf '%s' "$value" | tr -d '"/\\[]:;|=,+*?<>') || return 1
+
+  if [[ "$safe" != "$value" ]]; then
+    error "The WORKGROUP variable contains characters that are not valid in a NetBIOS name!"
+    return 1
+  fi
+
+  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
+    error "The WORKGROUP variable cannot consist only of spaces or periods!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateMembership() {
+
+  if [ -n "$DOMAIN" ] && [ -n "$WORKGROUP" ]; then
+    error "The DOMAIN and WORKGROUP variables cannot be used together!"
+    return 1
+  fi
+
+  if [ -n "$DOMAIN_OU" ] && [ -z "$DOMAIN" ]; then
+    error "The DOMAIN_OU variable requires DOMAIN to be specified!"
+    return 1
+  fi
+
+  validateWorkgroup "$WORKGROUP" || return 1
+  return 0
+}
+
+validatePassword() {
+
+  local value="$1"
+  local desc="${2:-}"
+
+  local suffix=""
+
+  [ -n "$desc" ] && suffix=" for $desc"
+
+  if [ "${#value}" -gt 127 ]; then
+    error "The PASSWORD variable cannot contain more than 127 characters$suffix!"
+    return 1
+  fi
+
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    error "The PASSWORD variable cannot contain control characters$suffix!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateUsername() {
+
+  local value="$1"
+  local type="$2"
+
+  local maximum length_suffix invalid_message
+
+  case "$type" in
+    "local" )
+      [ -z "$value" ] && return 0
+
+      maximum=20
+      length_suffix=""
+      invalid_message="The USERNAME variable contains characters that are not supported by Windows local accounts!"
+      ;;
+
+    "domain" )
+      if [ -z "$value" ]; then
+        error "The USERNAME variable does not contain a valid domain account name!"
+        return 1
+      fi
+
+      maximum=256
+      length_suffix=" for a domain account"
+      invalid_message="The domain account name contains characters that are not supported by Windows unattended setup!"
+      ;;
+
+    * )
+      return 1
+      ;;
+  esac
+
+  if [ "${#value}" -gt "$maximum" ]; then
+    error "The USERNAME variable cannot contain more than $maximum characters$length_suffix!"
+    return 1
+  fi
+
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    error "The USERNAME variable cannot contain control characters!"
+    return 1
+  fi
+
+  case "$value" in
+    *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* | *'%'* | *'@'* )
+      error "$invalid_message"
+      return 1
+      ;;
+  esac
+
+  if [[ "$value" == *"." ]]; then
+    error "The USERNAME variable cannot end with a period!"
+    return 1
+  fi
+
+  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
+    error "The USERNAME variable cannot consist only of spaces or periods!"
+    return 1
+  fi
+
+  case "${value^^}" in
+    "NONE" )
+      error "The USERNAME value \"NONE\" is reserved by Windows!"
+      return 1
+      ;;
+
+    "ADMINISTRATOR" | "GUEST" | "DEFAULTACCOUNT" | "WDAGUTILITYACCOUNT" | "WSIACCOUNT" )
+      [[ "$type" == "domain" ]] && return 0
+
+      error "The USERNAME value \"$value\" is reserved for a built-in Windows account!"
+      return 1
+      ;;
+  esac
+
+  return 0
+}
+
+validateLegacyText() {
+
+  local name="$1"
+  local value="$2"
+  local desc="${3:-}"
+
+  local suffix=""
+
+  [ -n "$desc" ] && suffix=" for $desc"
+
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    error "The $name variable cannot contain control characters$suffix!"
+    return 1
+  fi
+
+  if [[ "$value" == *'"'* ]]; then
+    error "The $name variable cannot contain double quotes$suffix!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateLegacyUsername() {
+
+  local value="$1"
+  local desc="${2:-}"
+
+  local suffix=""
+
+  [ -n "$desc" ] && suffix=" for $desc"
+
+  if [ -z "$value" ]; then
+    error "The USERNAME variable cannot be empty$suffix!"
+    return 1
+  fi
+
+  if [ "${#value}" -gt 20 ]; then
+    error "The USERNAME variable cannot contain more than 20 characters$suffix!"
+    return 1
+  fi
+
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    error "The USERNAME variable cannot contain control characters$suffix!"
+    return 1
+  fi
+
+  case "$value" in
+    *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | \
+    *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* | *'%'* )
+      error "The USERNAME variable contains unsupported characters$suffix!"
+      return 1 ;;
+  esac
+
+  if [[ "$value" == *"." ]]; then
+    error "The USERNAME variable cannot end with a period$suffix!"
+    return 1
+  fi
+
+  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
+    error "The USERNAME variable cannot consist only of spaces or periods$suffix!"
+    return 1
+  fi
+
+  case "${value^^}" in
+    "NONE" )
+      error "The USERNAME value \"NONE\" is reserved by Windows$suffix!"
+      return 1 ;;
+    "ADMINISTRATOR" | "GUEST" | "DEFAULTACCOUNT" | "WDAGUTILITYACCOUNT" | "WSIACCOUNT" )
+      error "The USERNAME value \"$value\" is reserved for a built-in Windows account$suffix!"
+      return 1 ;;
+  esac
+
+  return 0
+}
+
+validateDomainName() {
+
+  local value="$1"
+  local name="${2:-DOMAIN}"
+
+  if [ -z "$value" ]; then
+    error "The $name variable must contain a valid domain name!"
+    return 1
+  fi
+
+  if [[ "$value" == *"://"* ]]; then
+    error "The $name variable must contain a domain name, not a URL!"
+    return 1
+  fi
+
+  if [ "${#value}" -gt 255 ] ||
+    [[ "$value" =~ [[:cntrl:]] ]] ||
+    [[ "$value" =~ [[:space:]] ]] ||
+    [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$ ]]; then
+
+    error "The $name variable does not contain a valid domain name!"
+    return 1
+  fi
+
+  return 0
+}
+
+prepareDomainAccount() {
+
+  local domain="$1"
+
+  local auth="${USERNAME:-}"
+  local account="" qualifier=""
+
+  if [ -z "$auth" ]; then
+    error "The USERNAME variable must be specified when joining a domain!"
+    return 1
+  fi
+
+  if [ -z "${PASSWORD:-}" ]; then
+    error "The PASSWORD variable must be specified when joining a domain!"
+    return 1
+  fi
+
+  validateDomainName "$domain" || return 1
+
+  # Accept user or user@domain. DOMAIN\user is rejected because unattended
+  # setup stores the domain separately from the credential username.
+  if [[ "$auth" == *\\* ]]; then
+    error "The USERNAME variable must use either \"user\" or \"user@domain\" format!"
+    return 1
+  fi
+
+  case "$auth" in
+    *@* )
+      account="${auth%%@*}"
+      qualifier="${auth#*@}"
+
+      if [ -z "$account" ] ||
+        [ -z "$qualifier" ] ||
+        [[ "$qualifier" == *@* ]]; then
+
+        error "The USERNAME variable does not contain a valid domain account name!"
+        return 1
+      fi
+
+      validateDomainName "$qualifier" "USERNAME" || return 1
+
+      if [[ "${qualifier,,}" != "${domain,,}" ]]; then
+        error "The domain in the USERNAME variable must match the DOMAIN variable!"
+        return 1
+      fi
+      ;;
+
+    * )
+      account="$auth"
+      ;;
+  esac
+
+  validateUsername "$account" "domain" || return 1
+
+  if [[ "${account,,}" == "docker" ]]; then
+    error "The USERNAME variable must be changed from its default value when joining a domain!"
+    return 1
+  fi
+
+  if [[ "$PASSWORD" == "admin" ]]; then
+    error "The PASSWORD variable must be changed from its default value when joining a domain!"
+    return 1
+  fi
+
+  printf '%s\n' "$account" "$auth"
+  return 0
+}
+
+ensureUnattendedJoin() {
+
+  local asset="$1"
+  local arch="$2"
+
+  local specialize="$XML_SETTINGS_SPECIALIZE"
+  local component="$XML_COMPONENT_UNATTENDED_JOIN"
+  local identification="$component/u:Identification"
+  local counts settings_count component_count identification_count
+
+  counts=$(xmlstarlet sel \
+    -N "$XML_NS_UNATTEND_ARG" \
+    -T -t \
+    -v "count($specialize)" -o '|' \
+    -v "count($component)" -o '|' -v "count($identification)" "$asset") || return 1
+
+  IFS='|' read -r settings_count component_count identification_count <<< "$counts"
+
+  [ "$settings_count" = "1" ] || return 1
+  (( component_count <= 1 )) || return 1
+  (( identification_count <= 1 )) || return 1
+
+  # Templates may omit the join component entirely. Create it when absent, or
+  # normalize its architecture and schema attributes when already present.
+  if [ "$component_count" = "0" ]; then
+    local created="($specialize/*[local-name()='component'])[last()]"
+
+    xmlstarlet ed -L \
+      -N "$XML_NS_UNATTEND_ARG" \
+      -s "$specialize" -t elem -n 'component' \
+      -i "$created" -t attr -n 'name' -v 'Microsoft-Windows-UnattendedJoin' \
+      -i "$created" -t attr -n 'processorArchitecture' -v "$arch" \
+      -i "$created" -t attr -n 'publicKeyToken' -v '31bf3856ad364e35' \
+      -i "$created" -t attr -n 'language' -v 'neutral' \
+      -i "$created" -t attr -n 'versionScope' -v 'nonSxS' \
+      -s "$created" -t elem -n 'Identification' "$asset" || return 1
+
+    return 0
+  fi
+
+  xmlstarlet ed -L \
+    -N "$XML_NS_UNATTEND_ARG" \
+    -i "${component}[not(@processorArchitecture)]" -t attr -n 'processorArchitecture' -v "$arch" \
+    -u "$component/@processorArchitecture" -v "$arch" \
+    -i "${component}[not(@publicKeyToken)]" -t attr -n 'publicKeyToken' -v '31bf3856ad364e35' \
+    -u "$component/@publicKeyToken" -v '31bf3856ad364e35' \
+    -i "${component}[not(@language)]" -t attr -n 'language' -v 'neutral' \
+    -u "$component/@language" -v 'neutral' \
+    -i "${component}[not(@versionScope)]" -t attr -n 'versionScope' -v 'nonSxS' \
+    -u "$component/@versionScope" -v 'nonSxS' \
+    -s "${component}[not(u:Identification)]" -t elem -n 'Identification' "$asset" || return 1
+
+  return 0
+}
+
+encodeUnattendPassword() {
+
+  local password="$1"
+  local suffix="$2"
+
+  # Windows unattend password fields use a field-specific suffix before
+  # UTF-16LE/Base64 encoding; this is obfuscation rather than encryption.
+  printf '%s' "${password}${suffix}" |
+    iconv -f utf-8 -t utf-16le |
+    base64 -w 0
+}
+
+enableLog() {
+
+  local script="$1"
+
+  local content
+
+  enabled "${LOG:-}" || return 0
+
+  printf -v content '%s\n%s' \
+    'rem Launch the custom script asynchronously in a separate visible window.' \
+    'if exist "C:\OEM\install.bat" start "Install" cmd.exe /d /c ""C:\OEM\install.bat" > "C:\OEM\install.log" 2>&1"'
+
+  replaceSetupBlock "$script" "OEM_SCRIPT" "$content" || return 1
+
+  return 0
+}
+
+ensureXMLDefaultNamespace() {
+
+  local asset="$1"
+
+  local default declared count root
+
+  root=$(xmlstarlet sel -N "$XML_NS_UNATTEND_ARG" -T -t -v 'count(/u:unattend)' "$asset") || return 1
+  [ "$root" = "1" ] || return 1
+
+  declared=$(xmlstarlet sel -T -t -v 'count(/*/namespace::*[name()=""])' "$asset") || return 1
+  default=$(xmlstarlet sel -T -t -v 'string(/*/namespace::*[name()=""])' -o '|' "$asset") || return 1
+  default="${default%|}"
+
+  if [ "$declared" = "1" ]; then
+    [ "$default" = "$XML_NS_UNATTEND" ] && return 0
+    return 1
+  fi
+
+  [ "$declared" = "0" ] || return 1
+
+  count=$(xmlstarlet sel -T -t -v "count(//*[namespace-uri()=''])" "$asset") || return 1
+  [ "$count" = "0" ] || return 1
+
+  xmlstarlet ed -L \
+    -N "$XML_NS_UNATTEND_ARG" \
+    -i '/u:unattend' -t attr -n 'xmlns' -v "$XML_NS_UNATTEND" \
+    "$asset" || return 1
+
+  return 0
+}
+
+getXMLNodeCount() {
+
+  local asset="$1"
+  local xpath="$2"
+
+  xmlstarlet sel -N "$XML_NS_UNATTEND_ARG" -T -t -v "count($xpath)" "$asset"
+}
+
+validateUniqueXMLNodes() {
+
+  local asset="$1"
+  shift
+
+  local xpath count
+
+  for xpath in "$@"; do
+    count=$(getXMLNodeCount "$asset" "$xpath") || return 1
+    (( count <= 1 )) || return 1
+  done
+
+  return 0
+}
+
+copyXMLAsset() {
+
+  local asset="$1"
+
+  local copy
+
+  if ! copy=$(mktemp "${asset}.XXXXXX") ||
+    ! cp -p -- "$asset" "$copy"; then
+
+    rm -f "${copy:-}"
+    return 1
+  fi
+
+  printf '%s' "$copy"
+  return 0
+}
+
+replaceXMLAsset() {
+
+  local asset="$1"
+  local tmp="$2"
+
+  if ! chmod --reference="$asset" "$tmp" ||
+    ! mv -f "$tmp" "$asset"; then
+
+    rm -f "$tmp"
+    return 1
+  fi
+
+  return 0
+}
+
+markGeneratedXML() {
+
+  local file="$1"
+
+  local marker='<!-- generated-answer-file: do not reuse as a template -->'
+
+  [ -s "$file" ] || return 1
+
+  if head -n 1 "$file" | grep -q '^<?xml'; then
+    sed -i "1a$marker" "$file" || return 1
+  else
+    sed -i "1i$marker" "$file" || return 1
+  fi
+
+  return 0
+}
+
+removeGeneratedXML() {
+
+  local file="$1"
+
+  [ -n "$file" ] || return 0
+  [ -f "$file" ] || return 0
+
+  head -n 5 "$file" |
+    grep -Fqi 'generated-answer-file' || return 0
+
+  if ! rm -f "$file"; then
+    error "Failed to remove generated answer file: $file"
+    return 1
+  fi
 
   return 0
 }
@@ -652,1440 +2107,6 @@ finalizeSetupScript() {
     error "Failed to convert setup script to DOS format: $file"
     return 1
   fi
-
-  return 0
-}
-
-validateGeneratedXML() {
-
-  local asset="$1"
-
-  if ! xmllint --nonet --noout "$asset"; then
-    error "The generated answer file is not valid XML!"
-    return 1
-  fi
-
-  return 0
-}
-
-validateSetupScript() {
-
-  local file="$1"
-
-  local block
-  local blocks=(LOCAL_ACCOUNT PRODUCT_KEY SHARED_FOLDER OEM_SCRIPT)
-
-  [ -s "$file" ] || return 1
-
-  for block in "${blocks[@]}"; do
-    validateSetupBlock "$file" "$block" || return 1
-  done
-
-  return 0
-}
-
-validateSetupBlock() {
-
-  local file="$1"
-  local block="$2"
-
-  local begin="rem BEGIN $block"
-  local end="rem END $block"
-  local begin_count end_count begin_line end_line
-
-  [ -s "$file" ] || return 1
-
-  begin_count=$(grep -Fxc -- "$begin" "$file" || true)
-  end_count=$(grep -Fxc -- "$end" "$file" || true)
-
-  if [ "$begin_count" -ne 1 ] || [ "$end_count" -ne 1 ]; then
-    error "Invalid $block markers in setup script: $file"
-    return 1
-  fi
-
-  begin_line=$(grep -nFx -- "$begin" "$file" | cut -d: -f1) || return 1
-  end_line=$(grep -nFx -- "$end" "$file" | cut -d: -f1) || return 1
-
-  if [ "$begin_line" -ge "$end_line" ]; then
-    error "Invalid $block marker order in setup script: $file"
-    return 1
-  fi
-
-  return 0
-}
-
-validateXMLSettings() {
-
-  validateResolution "WIDTH" "$WIDTH" 320 || return 1
-  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
-  validateMembership || return 1
-  validateComputerName "${HOST:-}" || return 1
-  validateProductKey "${KEY:-}" || return 1
-  validatePassword "${PASSWORD:-}" || return 1
-
-  return 0
-}
-
-validateResolution() {
-
-  local name="$1"
-  local value="$2"
-  local minimum="$3"
-
-  if [[ ! "$value" =~ ^[0-9]+$ ]] || [ "${#value}" -gt 5 ]; then
-    error "The $name variable must be between $minimum and 16384!"
-    return 1
-  fi
-
-  local number=$((10#$value))
-
-  if [ "$number" -lt "$minimum" ] || [ "$number" -gt 16384 ]; then
-    error "The $name variable must be between $minimum and 16384!"
-    return 1
-  fi
-
-  return 0
-}
-
-validateProductKey() {
-
-  local value="$1"
-
-  [ -z "$value" ] && return 0
-
-  if [[ ! "$value" =~ ^[A-Za-z0-9]{5}(-[A-Za-z0-9]{5}){4}$ ]]; then
-    error "The KEY variable must contain a valid 25-character product key!"
-    return 1
-  fi
-
-  return 0
-}
-
-validateComputerName() {
-
-  local value="$1"
-
-  [ -z "$value" ] && return 0
-
-  if [ "${#value}" -gt 15 ]; then
-    error "The HOST variable cannot contain more than 15 characters!"
-    return 1
-  fi
-
-  if [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$ ]]; then
-    error "The HOST variable may only contain letters, digits, and hyphens, and cannot start or end with a hyphen!"
-    return 1
-  fi
-
-  if [[ "$value" =~ ^[0-9]+$ ]]; then
-    error "The HOST variable cannot contain only digits!"
-    return 1
-  fi
-
-  return 0
-}
-
-validateWorkgroup() {
-
-  local value="$1"
-
-  local safe
-
-  [ -z "$value" ] && return 0
-
-  if [ "${#value}" -gt 15 ]; then
-    error "The WORKGROUP variable cannot contain more than 15 characters!"
-    return 1
-  fi
-
-  safe=$(printf '%s' "$value" | tr -d '"/\\[]:;|=,+*?<>') || return 1
-
-  if [[ "$safe" != "$value" ]]; then
-    error "The WORKGROUP variable contains characters that are not valid in a NetBIOS name!"
-    return 1
-  fi
-
-  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
-    error "The WORKGROUP variable cannot consist only of spaces or periods!"
-    return 1
-  fi
-
-  return 0
-}
-
-validateMembership() {
-
-  if [ -n "$DOMAIN" ] && [ -n "$WORKGROUP" ]; then
-    error "The DOMAIN and WORKGROUP variables cannot be used together!"
-    return 1
-  fi
-
-  if [ -n "$DOMAIN_OU" ] && [ -z "$DOMAIN" ]; then
-    error "The DOMAIN_OU variable requires DOMAIN to be specified!"
-    return 1
-  fi
-
-  validateWorkgroup "$WORKGROUP" || return 1
-  return 0
-}
-
-validatePassword() {
-
-  local value="$1"
-  local desc="${2:-}"
-
-  local suffix=""
-
-  [ -n "$desc" ] && suffix=" for $desc"
-
-  if [ "${#value}" -gt 127 ]; then
-    error "The PASSWORD variable cannot contain more than 127 characters$suffix!"
-    return 1
-  fi
-
-  if [[ "$value" =~ [[:cntrl:]] ]]; then
-    error "The PASSWORD variable cannot contain control characters$suffix!"
-    return 1
-  fi
-
-  return 0
-}
-
-validateUsername() {
-
-  local value="$1"
-  local type="$2"
-
-  local maximum length_suffix invalid_message
-
-  case "$type" in
-    "local" )
-      [ -z "$value" ] && return 0
-
-      maximum=20
-      length_suffix=""
-      invalid_message="The USERNAME variable contains characters that are not supported by Windows local accounts!"
-      ;;
-
-    "domain" )
-      if [ -z "$value" ]; then
-        error "The USERNAME variable does not contain a valid domain account name!"
-        return 1
-      fi
-
-      maximum=256
-      length_suffix=" for a domain account"
-      invalid_message="The domain account name contains characters that are not supported by Windows unattended setup!"
-      ;;
-
-    * )
-      return 1
-      ;;
-  esac
-
-  if [ "${#value}" -gt "$maximum" ]; then
-    error "The USERNAME variable cannot contain more than $maximum characters$length_suffix!"
-    return 1
-  fi
-
-  if [[ "$value" =~ [[:cntrl:]] ]]; then
-    error "The USERNAME variable cannot contain control characters!"
-    return 1
-  fi
-
-  case "$value" in
-    *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* | *'%'* | *'@'* )
-      error "$invalid_message"
-      return 1
-      ;;
-  esac
-
-  if [[ "$value" == *"." ]]; then
-    error "The USERNAME variable cannot end with a period!"
-    return 1
-  fi
-
-  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
-    error "The USERNAME variable cannot consist only of spaces or periods!"
-    return 1
-  fi
-
-  case "${value^^}" in
-    "NONE" )
-      error "The USERNAME value \"NONE\" is reserved by Windows!"
-      return 1
-      ;;
-
-    "ADMINISTRATOR" | "GUEST" | "DEFAULTACCOUNT" | "WDAGUTILITYACCOUNT" | "WSIACCOUNT" )
-      [[ "$type" == "domain" ]] && return 0
-
-      error "The USERNAME value \"$value\" is reserved for a built-in Windows account!"
-      return 1
-      ;;
-  esac
-
-  return 0
-}
-
-validateDomainName() {
-
-  local value="$1"
-  local name="${2:-DOMAIN}"
-
-  if [ -z "$value" ]; then
-    error "The $name variable must contain a valid domain name!"
-    return 1
-  fi
-
-  if [[ "$value" == *"://"* ]]; then
-    error "The $name variable must contain a domain name, not a URL!"
-    return 1
-  fi
-
-  if [ "${#value}" -gt 255 ] ||
-    [[ "$value" =~ [[:cntrl:]] ]] ||
-    [[ "$value" =~ [[:space:]] ]] ||
-    [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$ ]]; then
-
-    error "The $name variable does not contain a valid domain name!"
-    return 1
-  fi
-
-  return 0
-}
-
-getXMLNodeCount() {
-
-  local asset="$1"
-  local xpath="$2"
-
-  local ns="urn:schemas-microsoft-com:unattend"
-
-  xmlstarlet sel -N "u=$ns" -T -t -v "count($xpath)" "$asset"
-}
-
-copyXMLAsset() {
-
-  local asset="$1"
-
-  local copy
-
-  if ! copy=$(mktemp "${asset}.XXXXXX") ||
-    ! cp -p -- "$asset" "$copy"; then
-
-    rm -f "${copy:-}"
-    return 1
-  fi
-
-  printf '%s' "$copy"
-  return 0
-}
-
-replaceXMLAsset() {
-
-  local asset="$1"
-  local tmp="$2"
-
-  if ! chmod --reference="$asset" "$tmp" ||
-    ! mv -f "$tmp" "$asset"; then
-
-    rm -f "$tmp"
-    return 1
-  fi
-
-  return 0
-}
-
-ensureUnattendedJoin() {
-
-  local asset="$1"
-  local arch="$2"
-
-  local ns="urn:schemas-microsoft-com:unattend"
-  local specialize='/u:unattend/u:settings[@pass="specialize"]'
-  local component="$specialize/u:component[@name='Microsoft-Windows-UnattendedJoin']"
-  local identification="$component/u:Identification"
-  local counts settings_count component_count identification_count
-
-  counts=$(xmlstarlet sel \
-    -N "u=$ns" \
-    -T -t \
-    -v "count($specialize)" -o '|' \
-    -v "count($component)" -o '|' -v "count($identification)" "$asset") || return 1
-
-  IFS='|' read -r settings_count component_count identification_count <<< "$counts"
-
-  [ "$settings_count" = "1" ] || return 1
-  (( component_count <= 1 )) || return 1
-  (( identification_count <= 1 )) || return 1
-
-  # Templates may omit the join component entirely. Create it when absent, or
-  # normalize its architecture and schema attributes when already present.
-  if [ "$component_count" = "0" ]; then
-    local created="($specialize/*[local-name()='component'])[last()]"
-
-    xmlstarlet ed -L \
-      -N "u=$ns" \
-      -s "$specialize" -t elem -n 'component' \
-      -i "$created" -t attr -n 'name' -v 'Microsoft-Windows-UnattendedJoin' \
-      -i "$created" -t attr -n 'processorArchitecture' -v "$arch" \
-      -i "$created" -t attr -n 'publicKeyToken' -v '31bf3856ad364e35' \
-      -i "$created" -t attr -n 'language' -v 'neutral' \
-      -i "$created" -t attr -n 'versionScope' -v 'nonSxS' \
-      -s "$created" -t elem -n 'Identification' "$asset" || return 1
-
-    return 0
-  fi
-
-  xmlstarlet ed -L \
-    -N "u=$ns" \
-    -i "${component}[not(@processorArchitecture)]" -t attr -n 'processorArchitecture' -v "$arch" \
-    -u "$component/@processorArchitecture" -v "$arch" \
-    -i "${component}[not(@publicKeyToken)]" -t attr -n 'publicKeyToken' -v '31bf3856ad364e35' \
-    -u "$component/@publicKeyToken" -v '31bf3856ad364e35' \
-    -i "${component}[not(@language)]" -t attr -n 'language' -v 'neutral' \
-    -u "$component/@language" -v 'neutral' \
-    -i "${component}[not(@versionScope)]" -t attr -n 'versionScope' -v 'nonSxS' \
-    -u "$component/@versionScope" -v 'nonSxS' \
-    -s "${component}[not(u:Identification)]" -t elem -n 'Identification' "$asset" || return 1
-
-  return 0
-}
-
-configureDomainAccounts() {
-
-  local asset="$1"
-  local domain="$2"
-  local account="$3"
-  local pass="$4"
-
-  local ns="urn:schemas-microsoft-com:unattend"
-  local wcm="http://schemas.microsoft.com/WMIConfig/2002/State"
-  local shell='/u:unattend/u:settings[@pass="oobeSystem"]/u:component[@name="Microsoft-Windows-Shell-Setup"]'
-  local accounts="$shell/u:UserAccounts"
-  local administrator="$accounts/u:AdministratorPassword"
-  local autologon="$shell/u:AutoLogon"
-  local domain_accounts="$accounts/u:DomainAccounts"
-  local counts shell_count accounts_count administrator_count autologon_count child_count
-
-  counts=$(xmlstarlet sel \
-    -N "u=$ns" \
-    -T -t \
-    -v "count($shell)" -o '|' \
-    -v "count($accounts)" -o '|' \
-    -v "count($administrator)" -o '|' -v "count($autologon)" "$asset") || return 1
-
-  IFS='|' read -r shell_count accounts_count administrator_count autologon_count <<< "$counts"
-
-  [ "$shell_count" = "1" ] || return 1
-  (( accounts_count <= 1 )) || return 1
-  (( administrator_count <= 1 )) || return 1
-  (( autologon_count <= 1 )) || return 1
-
-  if [ "$accounts_count" = "0" ]; then
-    child_count=$(getXMLNodeCount "$asset" "$shell/*") || return 1
-
-    if [ "$child_count" = "0" ]; then
-      xmlstarlet ed -L -N "u=$ns" -s "$shell" -t elem -n 'UserAccounts' "$asset" || return 1
-    else
-      xmlstarlet ed -L -N "u=$ns" -i "$shell/*[1]" -t elem -n 'UserAccounts' "$asset" || return 1
-    fi
-  fi
-
-  local created_accounts="$accounts/*[local-name()='DomainAccounts']"
-  local account_list="$created_accounts/*[local-name()='DomainAccountList']"
-  local domain_account="$account_list/*[local-name()='DomainAccount']"
-  local created_autologon="$shell/*[local-name()='AutoLogon']"
-  local auto_password="$created_autologon/*[local-name()='Password']"
-
-  # Rebuild domain-account and autologon nodes from a clean state so stale
-  # local-template values cannot survive a domain conversion.
-  local -a args=(
-    -L
-    -N "u=$ns"
-    -N "wcm=$wcm"
-    -d "$domain_accounts | $autologon"
-  )
-
-  # Insert DomainAccounts before AdministratorPassword when it exists to retain
-  # the child order expected by the unattend schema.
-  if [ "$administrator_count" = "1" ]; then
-    args+=(-i "($administrator)[1]" -t elem -n 'DomainAccounts')
-  else
-    args+=(-s "$accounts" -t elem -n 'DomainAccounts')
-  fi
-
-  args+=(
-    -s "$created_accounts" -t elem -n 'DomainAccountList'
-    -i "$account_list" -t attr -n 'wcm:action' -v 'add'
-    -s "$account_list" -t elem -n 'DomainAccount'
-    -i "$domain_account" -t attr -n 'wcm:action' -v 'add'
-    -s "$domain_account" -t elem -n 'Name'
-    -s "$domain_account" -t elem -n 'Group' -v 'Administrators'
-    -s "$account_list" -t elem -n 'Domain'
-    -a "$accounts" -t elem -n 'AutoLogon'
-    -s "$created_autologon" -t elem -n 'Username'
-    -s "$created_autologon" -t elem -n 'Domain'
-    -s "$created_autologon" -t elem -n 'Enabled' -v 'true'
-    -s "$created_autologon" -t elem -n 'LogonCount' -v '65432'
-    -s "$created_autologon" -t elem -n 'Password'
-    -s "$auto_password" -t elem -n 'Value'
-    -s "$auto_password" -t elem -n 'PlainText' -v 'true'
-  )
-
-  xmlstarlet ed "${args[@]}" "$asset" || return 1
-
-  xmlstarlet ed -L \
-    -N "u=$ns" \
-    -u "$domain_account/*[local-name()='Name']" -v "$account" \
-    -u "$account_list/*[local-name()='Domain']" -v "$domain" \
-    -u "$created_autologon/*[local-name()='Username']" -v "$account" \
-    -u "$created_autologon/*[local-name()='Domain']" -v "$domain" \
-    -u "$auto_password/*[local-name()='Value']" -v "$pass" "$asset" || return 1
-
-  return 0
-}
-
-configureDomainJoin() {
-
-  local asset="$1"
-  local domain="$2"
-  local auth="$3"
-  local pass="$4"
-  local ou="$5"
-  local arch="$6"
-
-  local ns="urn:schemas-microsoft-com:unattend"
-  local specialize='/u:unattend/u:settings[@pass="specialize"]'
-  local component="$specialize/u:component[@name='Microsoft-Windows-UnattendedJoin']"
-  local identification="$component/u:Identification"
-  local credentials="$identification/*[local-name()='Credentials']"
-  local cred_domain="$domain"
-
-  local -a args=(
-    -L
-    -N "u=$ns"
-    -d "$identification/u:Credentials | $identification/u:JoinDomain | $identification/u:JoinWorkgroup | $identification/u:MachineObjectOU"
-    -s "$identification" -t elem -n 'Credentials'
-  )
-
-  ensureUnattendedJoin "$asset" "$arch" || return 1
-
-  # A user@domain UPN already contains its qualifier; adding a separate Domain
-  # credential node would describe the account twice.
-  case "$auth" in
-    *@* ) cred_domain="" ;;
-  esac
-
-  if [ -n "$cred_domain" ]; then
-    args+=(-s "$credentials" -t elem -n 'Domain')
-  fi
-
-  args+=(
-    -s "$credentials" -t elem -n 'Username'
-    -s "$credentials" -t elem -n 'Password'
-    -s "$identification" -t elem -n 'JoinDomain'
-  )
-
-  if [ -n "$ou" ]; then
-    args+=(-s "$identification" -t elem -n 'MachineObjectOU')
-  fi
-
-  xmlstarlet ed "${args[@]}" "$asset" || return 1
-
-  local -a values=(
-    -L
-    -N "u=$ns"
-    -u "$credentials/*[local-name()='Username']" -v "$auth"
-    -u "$credentials/*[local-name()='Password']" -v "$pass"
-    -u "$identification/*[local-name()='JoinDomain']" -v "$domain"
-  )
-
-  if [ -n "$cred_domain" ]; then
-    values+=(-u "$credentials/*[local-name()='Domain']" -v "$cred_domain")
-  fi
-
-  if [ -n "$ou" ]; then
-    values+=(-u "$identification/*[local-name()='MachineObjectOU']" -v "$ou")
-  fi
-
-  xmlstarlet ed "${values[@]}" "$asset" || return 1
-  return 0
-}
-
-updateWorkgroup() {
-
-  local asset="$1"
-  local workgroup="$2"
-
-  local ns="urn:schemas-microsoft-com:unattend"
-  local specialize='/u:unattend/u:settings[@pass="specialize"]'
-  local component="$specialize/u:component[@name='Microsoft-Windows-UnattendedJoin']"
-  local identification="$component/u:Identification"
-  local join="$identification/*[local-name()='JoinWorkgroup']"
-  local arch tmp
-
-  arch=$(getXMLArchitecture "$asset") || return 1
-  # Apply all membership changes to a copy and publish it only after the old
-  # domain, credential, OU, and workgroup nodes have been replaced successfully.
-  tmp=$(copyXMLAsset "$asset") || return 1
-
-  if ! ensureUnattendedJoin "$tmp" "$arch" ||
-    ! xmlstarlet ed -L \
-      -N "u=$ns" \
-      -d "$identification/u:Credentials | $identification/u:JoinDomain | $identification/u:JoinWorkgroup | $identification/u:MachineObjectOU" \
-      -s "$identification" -t elem -n 'JoinWorkgroup' "$tmp" ||
-    ! xmlstarlet ed -L -N "u=$ns" -u "$join" -v "$workgroup" "$tmp" ||
-    ! replaceXMLAsset "$asset" "$tmp"; then
-
-    rm -f "$tmp"
-    return 1
-  fi
-
-  return 0
-}
-
-updateDomain() {
-
-  local asset="$1"
-  local domain="$2"
-  local account="$3"
-  local auth="$4"
-  local pass="$5"
-  local ou="$6"
-
-  local arch tmp
-
-  arch=$(getXMLArchitecture "$asset") || return 1
-  # Account and join settings are separate XML transformations, so update a
-  # copy to keep the original answer file intact if either transformation fails.
-  tmp=$(copyXMLAsset "$asset") || return 1
-
-  if ! configureDomainAccounts "$tmp" "$domain" "$account" "$pass" ||
-    ! configureDomainJoin "$tmp" "$domain" "$auth" "$pass" "$ou" "$arch" ||
-    ! replaceXMLAsset "$asset" "$tmp"; then
-
-    rm -f "$tmp"
-    return 1
-  fi
-
-  return 0
-}
-
-prepareDomainAccount() {
-
-  local domain="$1"
-
-  local account=""
-  local auth="${USERNAME:-}"
-  local qualifier=""
-
-  if [ -z "$auth" ]; then
-    error "The USERNAME variable must be specified when joining a domain!"
-    return 1
-  fi
-
-  if [ -z "${PASSWORD:-}" ]; then
-    error "The PASSWORD variable must be specified when joining a domain!"
-    return 1
-  fi
-
-  validateDomainName "$domain" || return 1
-
-  # Accept user or user@domain. DOMAIN\user is rejected because unattended
-  # setup stores the domain separately from the credential username.
-  if [[ "$auth" == *\\* ]]; then
-    error "The USERNAME variable must use either \"user\" or \"user@domain\" format!"
-    return 1
-  fi
-
-  case "$auth" in
-    *@* )
-      account="${auth%%@*}"
-      qualifier="${auth#*@}"
-
-      if [ -z "$account" ] ||
-        [ -z "$qualifier" ] ||
-        [[ "$qualifier" == *@* ]]; then
-
-        error "The USERNAME variable does not contain a valid domain account name!"
-        return 1
-      fi
-
-      validateDomainName "$qualifier" "USERNAME" || return 1
-
-      if [[ "${qualifier,,}" != "${domain,,}" ]]; then
-        error "The domain in the USERNAME variable must match the DOMAIN variable!"
-        return 1
-      fi
-      ;;
-
-    * )
-      account="$auth"
-      ;;
-  esac
-
-  validateUsername "$account" "domain" || return 1
-
-  if [[ "${account,,}" == "docker" ]]; then
-    error "The USERNAME variable must be changed from its default value when joining a domain!"
-    return 1
-  fi
-
-  if [[ "$PASSWORD" == "admin" ]]; then
-    error "The PASSWORD variable must be changed from its default value when joining a domain!"
-    return 1
-  fi
-
-  printf '%s\n' "$account" "$auth"
-  return 0
-}
-
-updateDisplayXML() {
-
-  local asset="$1"
-
-  local ns="urn:schemas-microsoft-com:unattend"
-  local setup='/u:unattend/u:settings[@pass="windowsPE"]/u:component[@name="Microsoft-Windows-Setup"]'
-  local specialize='/u:unattend/u:settings[@pass="specialize"]/u:component[@name="Microsoft-Windows-Shell-Setup"]'
-  local oobe='/u:unattend/u:settings[@pass="oobeSystem"]/u:component[@name="Microsoft-Windows-Shell-Setup"]'
-  local app="$APP for $ENGINE"
-  local -a args=(
-    -L
-    -N "u=$ns"
-    -u "$setup/u:UserData/u:Organization | $specialize/u:OEMInformation/u:Model | $specialize/u:OEMName | $specialize/u:RegisteredOwner | $oobe/u:RegisteredOwner" -v "$app"
-    -u "$oobe/u:Display/u:VerticalResolution" -v "$HEIGHT"
-    -u "$oobe/u:Display/u:HorizontalResolution" -v "$WIDTH"
-  )
-
-  if [ -n "${HOST:-}" ]; then
-    args+=(-u "$specialize/u:ComputerName" -v "$HOST")
-  fi
-
-  xmlstarlet ed "${args[@]}" "$asset" || return 1
-
-  return 0
-}
-
-updateLocaleXML() {
-
-  local asset="$1"
-  local language="$2"
-
-  local ns="urn:schemas-microsoft-com:unattend"
-  local international='/u:unattend/u:settings/u:component[@name="Microsoft-Windows-International-Core" or @name="Microsoft-Windows-International-Core-WinPE"]'
-  local culture region keyboard
-  local -a args=(-L -N "u=$ns")
-
-  culture=$(getLanguage "$language" "culture") || return 1
-
-  if [ -n "$culture" ]; then
-    args+=(-u "$international//u:UILanguage" -v "$culture")
-  fi
-
-  region="${REGION:-$culture}"
-
-  if [ -n "$region" ]; then
-    args+=(-u "$international/u:UserLocale | $international/u:SystemLocale" -v "$region")
-  fi
-
-  keyboard="${KEYBOARD:-$culture}"
-
-  if [ -n "$keyboard" ]; then
-    args+=(-u "$international/u:InputLocale" -v "$keyboard")
-  fi
-
-  if (( ${#args[@]} > 3 )); then
-    xmlstarlet ed "${args[@]}" "$asset" || return 1
-  fi
-
-  return 0
-}
-
-findPrimaryLocalAccount() {
-
-  local asset="$1"
-
-  local ns="urn:schemas-microsoft-com:unattend"
-  local shell='/u:unattend/u:settings[@pass="oobeSystem"]/u:component[@name="Microsoft-Windows-Shell-Setup"]'
-  local local_accounts="$shell/u:UserAccounts/u:LocalAccounts/u:LocalAccount"
-  local administrator="$shell/u:UserAccounts/u:AdministratorPassword"
-  local autologon="$shell/u:AutoLogon"
-  local auto_primary=0 auto_matches=0
-  local admin_primary=0 admin_matches=0
-  local selected=0 separator=$'\x1f'
-
-  local -a groups=()
-  local counts records auto_user selected_user position name group
-  local shell_count local_count found_admin found_autologon token
-
-  counts=$(xmlstarlet sel \
-    -N "u=$ns" \
-    -T -t \
-    -v "count($shell)" -o '|' \
-    -v "count($local_accounts)" -o '|' \
-    -v "count($administrator)" -o '|' -v "count($autologon)" "$asset") || return 1
-
-  IFS='|' read -r shell_count local_count found_admin found_autologon <<< "$counts"
-
-  [ "$shell_count" = "1" ] || return 1
-  (( local_count > 0 )) || return 1
-  (( found_admin <= 1 )) || return 1
-  (( found_autologon <= 1 )) || return 1
-
-  auto_user=""
-
-  if [ "$found_autologon" = "1" ]; then
-    auto_user=$(xmlstarlet sel \
-      -N "u=$ns" -T -t -v "normalize-space(string($autologon/u:Username))" "$asset") || return 1
-  fi
-
-  records=$(xmlstarlet sel \
-    -N "u=$ns" \
-    -T -t \
-    -m "$local_accounts" \
-    -v 'position()' -o "$separator" \
-    -v 'normalize-space(string(u:Name))' -o "$separator" \
-    -v 'normalize-space(string(u:Group))' -n "$asset") || return 1
-
-  while IFS="$separator" read -r position name group; do
-
-    if [ -n "$auto_user" ] &&
-      [[ "${name,,}" == "${auto_user,,}" ]]; then
-      auto_primary="$position"
-      ((auto_matches += 1))
-    fi
-
-    IFS=';,' read -r -a groups <<< "$group"
-
-    for token in "${groups[@]}"; do
-      token="${token#"${token%%[![:space:]]*}"}"
-      token="${token%"${token##*[![:space:]]}"}"
-      [[ "${token,,}" == "administrators" ]] || continue
-      admin_primary="$position"
-      ((admin_matches += 1))
-      break
-    done
-
-  done <<< "$records"
-
-  if (( auto_matches > 1 )); then
-    error "Multiple local accounts match the automatic-logon username!"
-    return 1
-  fi
-
-  # Prefer the account referenced by AutoLogon, then the only account, then
-  # the only administrator. Ambiguous templates are rejected rather than guessed.
-  if (( auto_matches == 1 )); then
-    selected="$auto_primary"
-  elif (( local_count == 1 )); then
-    selected=1
-  elif (( admin_matches == 1 )); then
-    selected="$admin_primary"
-  else
-    error "Failed to identify the primary local account in the answer file!"
-    return 1
-  fi
-
-  selected_user=$(xmlstarlet sel \
-    -N "u=$ns" -T -t -v "normalize-space(string(${local_accounts}[${selected}]/u:Name))" "$asset") || return 1
-
-  [ -n "$selected_user" ] || return 1
-
-  printf '%s\n' \
-    "$selected" "$selected_user" "$found_admin" "$found_autologon"
-
-  return 0
-}
-
-validateUniqueXMLNodes() {
-
-  local asset="$1"
-  shift
-
-  local xpath count
-
-  for xpath in "$@"; do
-    count=$(getXMLNodeCount "$asset" "$xpath") || return 1
-    (( count <= 1 )) || return 1
-  done
-
-  return 0
-}
-
-encodeUnattendPassword() {
-
-  local password="$1"
-  local suffix="$2"
-
-  # Windows unattend password fields use a field-specific suffix before
-  # UTF-16LE/Base64 encoding; this is obfuscation rather than encryption.
-  printf '%s' "${password}${suffix}" |
-    iconv -f utf-8 -t utf-16le |
-    base64 -w 0
-}
-
-updateLocalAccount() {
-
-  local asset="$1"
-
-  local user="${USERNAME:-}"
-  local pass="${PASSWORD:-admin}"
-  local ns="urn:schemas-microsoft-com:unattend"
-  local setup='/u:unattend/u:settings[@pass="windowsPE"]/u:component[@name="Microsoft-Windows-Setup"]'
-  local shell='/u:unattend/u:settings[@pass="oobeSystem"]/u:component[@name="Microsoft-Windows-Shell-Setup"]'
-  local local_accounts="$shell/u:UserAccounts/u:LocalAccounts/u:LocalAccount"
-  local administrator="$shell/u:UserAccounts/u:AdministratorPassword"
-  local autologon="$shell/u:AutoLogon"
-  local primary admin_count autologon_count tmp
-  local current_user target_user pw admin result
-  local -a values=()
-
-  validateUsername "$user" "local" || return 1
-
-  result=$(findPrimaryLocalAccount "$asset") || return 1
-  mapfile -t values <<< "$result"
-  (( ${#values[@]} == 4 )) || return 1
-  primary="${values[0]}"
-  current_user="${values[1]}"
-  admin_count="${values[2]}"
-  autologon_count="${values[3]}"
-
-  local account="${local_accounts}[${primary}]"
-  local password="$account/*[local-name()='Password']"
-  local admin_value="$administrator/*[local-name()='Value']"
-  local admin_plain="$administrator/*[local-name()='PlainText']"
-  local auto_password="$autologon/*[local-name()='Password']"
-  local auto_value="$auto_password/*[local-name()='Value']"
-  local auto_plain="$auto_password/*[local-name()='PlainText']"
-
-  target_user="${user:-$current_user}"
-
-  # Update the selected local account, Administrator password, and AutoLogon
-  # credentials atomically so they cannot become inconsistent.
-  tmp=$(copyXMLAsset "$asset") || return 1
-
-  if ! validateUniqueXMLNodes "$tmp" \
-      "$password" \
-      "$password/*[local-name()='Value']" \
-      "$password/*[local-name()='PlainText']" \
-      "$admin_value" \
-      "$admin_plain" \
-      "$autologon/*[local-name()='Username']" "$auto_password" "$auto_value" "$auto_plain"; then
-
-    rm -f "$tmp"
-    return 1
-  fi
-
-  pw=$(encodeUnattendPassword "$pass" "Password") || {
-    rm -f "$tmp"
-    return 1
-  }
-
-  admin=$(encodeUnattendPassword "$pass" "AdministratorPassword") || {
-    rm -f "$tmp"
-    return 1
-  }
-
-  local -a args=(
-    -L
-    -N "u=$ns"
-    -s "${account}[not(*[local-name()='Password'])]" -t elem -n 'Password'
-    -s "${password}[not(*[local-name()='Value'])]" -t elem -n 'Value'
-    -s "${password}[not(*[local-name()='PlainText'])]" -t elem -n 'PlainText'
-    -u "$password/*[local-name()='Value']" -v "$pw"
-    -u "$password/*[local-name()='PlainText']" -v 'false'
-  )
-
-  if [ -n "$user" ]; then
-    args+=(
-      -u "$account/u:Name" -v "$user"
-      -u "$setup/u:UserData/u:FullName" -v "$user"
-    )
-  fi
-
-  if [ "$admin_count" = "1" ]; then
-    args+=(
-      -s "${administrator}[not(*[local-name()='Value'])]" -t elem -n 'Value'
-      -s "${administrator}[not(*[local-name()='PlainText'])]" -t elem -n 'PlainText'
-      -u "$admin_value" -v "$admin"
-      -u "$admin_plain" -v 'false'
-    )
-  fi
-
-  if [ "$autologon_count" = "1" ]; then
-    args+=(
-      -s "${autologon}[not(*[local-name()='Username'])]" -t elem -n 'Username'
-      -s "${autologon}[not(*[local-name()='Password'])]" -t elem -n 'Password'
-      -s "${auto_password}[not(*[local-name()='Value'])]" -t elem -n 'Value'
-      -s "${auto_password}[not(*[local-name()='PlainText'])]" -t elem -n 'PlainText'
-      -u "$autologon/*[local-name()='Username']" -v "$target_user"
-      -u "$auto_value" -v "$pw"
-      -u "$auto_plain" -v 'false'
-    )
-  fi
-
-  if ! xmlstarlet ed "${args[@]}" "$tmp" ||
-    ! replaceXMLAsset "$asset" "$tmp"; then
-
-    rm -f "$tmp"
-    return 1
-  fi
-
-  return 0
-}
-
-updateMembership() {
-
-  local asset="$1"
-  local domain="$2"
-  local workgroup="$3"
-  local account="$4"
-  local auth="$5"
-
-  if [ -n "$domain" ]; then
-
-    if ! updateDomain "$asset" "$domain" "$account" "$auth" "$PASSWORD" "${DOMAIN_OU:-}"; then
-      error "Failed to add domain configuration to answer file!"
-      return 1
-    fi
-
-    removeLocalAccount "$asset" || return 1
-    return 0
-  fi
-
-  [ -n "$workgroup" ] || return 0
-
-  if ! updateWorkgroup "$asset" "$workgroup"; then
-    error "Failed to add workgroup configuration to answer file!"
-    return 1
-  fi
-
-  return 0
-}
-
-updateAutologinXML() {
-
-  local asset="$1"
-
-  local ns="urn:schemas-microsoft-com:unattend"
-  local shell='/u:unattend/u:settings[@pass="oobeSystem"]/u:component[@name="Microsoft-Windows-Shell-Setup"]'
-
-  disabled "${AUTOLOGIN:-}" || return 0
-
-  xmlstarlet ed -L -N "u=$ns" -d "$shell/u:AutoLogon" "$asset" || return 1
-
-  return 0
-}
-
-updateEditionXML() {
-
-  local asset="$1"
-
-  local ns="urn:schemas-microsoft-com:unattend"
-  local upper='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-  local lower='abcdefghijklmnopqrstuvwxyz'
-  local setup='/u:unattend/u:settings[@pass="windowsPE"]/u:component[@name="Microsoft-Windows-Setup"]'
-  local selector="$setup/u:ImageInstall/u:OSImage/u:InstallFrom/u:MetaData[translate(normalize-space(u:Key), '$lower', '$upper')='/IMAGE/NAME']/u:Value"
-  local edition count records position value prefix replacement
-  local separator=$'\x1f'
-
-  [ -n "${EDITION:-}" ] || return 0
-
-  count=$(getXMLNodeCount "$asset" "$selector") || return 1
-
-  # Client and index-based answer files do not contain an /IMAGE/NAME
-  # selector. In that case there is nothing to update.
-  [ "$count" != "0" ] || return 0
-
-  edition=$(normalizeServerEdition "$EDITION") || return 1
-  edition="${edition//-/}"
-  edition="${edition^^}"
-
-  records=$(xmlstarlet sel \
-    -N "u=$ns" -T -t -m "$selector" -v 'position()' -o "$separator" -v 'string(.)' -n "$asset") || return 1
-
-  while IFS="$separator" read -r position value; do
-    [ -n "$position" ] || continue
-
-    # Only Windows Server templates use EDITION as a mutable answer-file
-    # selector. Products such as Hyper-V Server have fixed SERVER* flags that
-    # must not be rewritten.
-    [[ "${value,,}" == *"windows server"* ]] || continue
-
-    if [[ "$value" =~ ^(.*[[:space:]])SERVER[A-Za-z0-9_-]+[[:space:]]*$ ]]; then
-      prefix="${BASH_REMATCH[1]}"
-      replacement="${prefix}SERVER$edition"
-    elif [[ "$value" =~ ^SERVER[A-Za-z0-9_-]+[[:space:]]*$ ]]; then
-      replacement="SERVER$edition"
-    else
-      continue
-    fi
-
-    xmlstarlet ed -L -N "u=$ns" -u "($selector)[$position]" -v "$replacement" "$asset" || return 1
-  done <<< "$records"
-
-  return 0
-}
-
-updateProductKey() {
-
-  local script="$1"
-
-  local key="${KEY:-}"
-  local content
-
-  if [ -z "$key" ]; then
-    removeSetupBlock "$script" "PRODUCT_KEY" || return 1
-    return 0
-  fi
-
-  printf -v content '%s\n%s' \
-    'rem Install the product key without activating Windows immediately.' \
-    "cscript.exe //B //Nologo \"%SystemRoot%\\System32\\slmgr.vbs\" /ipk \"$key\""
-
-  replaceSetupBlock "$script" "PRODUCT_KEY" "$content" || return 1
-
-  return 0
-}
-
-updateDiskID() {
-
-  local asset="$1"
-  local disk_type="${2,,}"
-  local mode="${3:-setup}"
-
-  local target="0"
-  local ns="urn:schemas-microsoft-com:unattend"
-  local setup='/u:unattend/u:settings[@pass="windowsPE"]/u:component[@name="Microsoft-Windows-Setup"]'
-  local disk_ids="$setup//u:DiskID"
-  local count values value current
-  local -a ids=()
-
-  [ -s "$asset" ] || return 1
-
-  # The setup overlay occupies disk 0, so common VirtIO installation disks move
-  # to disk 1 in setup-image mode. Rebuilt media keeps the original disk layout.
-  case "$mode" in
-    "setup" )
-      case "$disk_type" in
-        "" | "scsi" | "virtio-scsi" | "blk" | "virtio-blk" ) target="1" ;;
-      esac
-      ;;
-    "image" ) ;;
-    * ) return 1 ;;
-  esac
-
-  count=$(getXMLNodeCount "$asset" "$disk_ids") || {
-    error "Failed to read DiskID values from answer file: $asset"
-    return 1
-  }
-
-  [ "$count" != "0" ] || return 0
-
-  values=$(xmlstarlet sel -N "u=$ns" -T -t -m "$disk_ids" -v 'normalize-space(.)' -n "$asset") || {
-    error "Failed to read DiskID values from answer file: $asset"
-    return 1
-  }
-
-  while IFS= read -r value; do
-    if [[ ! "$value" =~ ^[0-9]+$ ]]; then
-      error "Invalid DiskID value in answer file: $asset"
-      return 1
-    fi
-
-    ids+=( "$value" )
-  done <<< "$values"
-
-  mapfile -t ids < <(printf '%s\n' "${ids[@]}" | sort -u)
-
-  # Leave explicit multi-disk configurations untouched.
-  (( ${#ids[@]} == 1 )) || return 0
-
-  current="${ids[0]}"
-  [ "$current" = "$target" ] && return 0
-
-  case "$current" in
-    "0" | "1" ) ;;
-    * )
-      error "Unsupported DiskID $current in answer file: $asset"
-      return 1
-      ;;
-  esac
-
-  if ! xmlstarlet ed -L -N "u=$ns" -u "${disk_ids}[normalize-space(.)='$current']" -v "$target" "$asset"; then
-
-    error "Failed to update DiskID in answer file: $asset"
-    return 1
-  fi
-
-  return 0
-}
-
-getXMLArchitecture() {
-
-  local asset="$1"
-
-  local ns="urn:schemas-microsoft-com:unattend"
-  local arch
-  # Prefer architecture declarations from Windows PE setup components and skip
-  # wow64 compatibility components, which do not describe the target image.
-  local -a paths=(
-    '/u:unattend/u:settings[@pass="windowsPE"]/u:component[@name="Microsoft-Windows-Setup"]/@processorArchitecture'
-    '/u:unattend/u:settings[@pass="windowsPE"]/u:component[@name="Microsoft-Windows-International-Core-WinPE"]/@processorArchitecture'
-    '/u:unattend/u:settings/u:component[translate(@processorArchitecture, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz") != "wow64"]/@processorArchitecture'
-  )
-  local path
-
-  for path in "${paths[@]}"; do
-    arch=$(xmlstarlet sel -N "u=$ns" -T -t -v "normalize-space(string(($path)[1]))" "$asset") || arch=""
-
-    [ -n "$arch" ] || continue
-    [[ "${arch,,}" != "wow64" ]] || continue
-    printf '%s' "$arch"
-    return 0
-  done
-
-  return 1
-}
-
-setConfigurationXML() {
-
-  local asset="$1"
-
-  local ns="urn:schemas-microsoft-com:unattend"
-  local setup='/*[local-name()="unattend"]/*[local-name()="settings" and @pass="windowsPE"]/*[local-name()="component" and @name="Microsoft-Windows-Setup"]'
-  local userdata="$setup/*[local-name()='UserData']"
-  local config="$setup/*[local-name()='UseConfigurationSet']"
-  local setup_count config_count config_value userdata_count result_count tmp
-
-  [ -s "$asset" ] || return 1
-
-  setup_count=$(getXMLNodeCount "$asset" "$setup") || return 1
-
-  if [ "$setup_count" != "1" ]; then
-    error "Failed to find a unique Microsoft-Windows-Setup component: $asset"
-    return 1
-  fi
-
-  config_count=$(getXMLNodeCount "$asset" "$config") || return 1
-
-  if [ "$config_count" -gt 1 ]; then
-    error "Multiple UseConfigurationSet entries found in answer file: $asset"
-    return 1
-  fi
-
-  if [ "$config_count" = "1" ]; then
-    config_value=$(xmlstarlet sel -T -t -v "translate(normalize-space(string($config)), 'TRUE', 'true')" "$asset") || return 1
-    [ "$config_value" != "true" ] || return 0
-  fi
-
-  userdata_count=$(getXMLNodeCount "$asset" "$userdata") || return 1
-
-  if [ "$userdata_count" -gt 1 ]; then
-    error "Multiple UserData entries found in answer file: $asset"
-    return 1
-  fi
-
-  tmp=$(copyXMLAsset "$asset") || {
-    error "Failed to create a temporary answer file!"
-    return 1
-  }
-
-  if [ "$config_count" = "1" ]; then
-    xmlstarlet ed -L -N "u=$ns" -u "$config" -v "true" "$tmp" || {
-      rm -f "$tmp"
-      error "Failed to enable the Windows configuration set!"
-      return 1
-    }
-  elif [ "$userdata_count" = "1" ]; then
-    xmlstarlet ed -L -N "u=$ns" -i "$userdata" -t elem -n "u:UseConfigurationSet" -v "true" "$tmp" || {
-      rm -f "$tmp"
-      error "Failed to enable the Windows configuration set!"
-      return 1
-    }
-  else
-    xmlstarlet ed -L -N "u=$ns" -s "$setup" -t elem -n "u:UseConfigurationSet" -v "true" "$tmp" || {
-      rm -f "$tmp"
-      error "Failed to enable the Windows configuration set!"
-      return 1
-    }
-  fi
-
-  result_count=$(getXMLNodeCount "$tmp" "${config}[normalize-space(.)='true']") || {
-    rm -f "$tmp"
-    return 1
-  }
-
-  if [ "$result_count" != "1" ]; then
-    rm -f "$tmp"
-    error "Failed to enable the Windows configuration set!"
-    return 1
-  fi
-
-  if ! replaceXMLAsset "$asset" "$tmp"; then
-    error "Failed to replace the updated answer file!"
-    return 1
-  fi
-
-  return 0
-}
-
-removeSharedFolder() {
-
-  local script="$1"
-
-  if ! disabled "${SHORTCUT:-}" &&
-    ! disabled "${SAMBA:-}"; then
-    return 0
-  fi
-
-  removeSetupBlock "$script" "SHARED_FOLDER" || return 1
-
-  return 0
-}
-
-removeLocalAccount() {
-
-  local asset="$1"
-
-  local ns="urn:schemas-microsoft-com:unattend"
-  local accounts='/u:unattend/u:settings[@pass="oobeSystem"]/u:component[@name="Microsoft-Windows-Shell-Setup"]/u:UserAccounts'
-
-  if ! xmlstarlet ed -L \
-    -N "u=$ns" -d "$accounts/u:LocalAccounts | $accounts/u:AdministratorPassword" "$asset"; then
-
-    error "Failed to remove local account configuration from answer file!"
-    return 1
-  fi
-
-  return 0
-}
-
-removeEmbeddedProductKeys() {
-
-  local asset="$1"
-
-  local product_keys='//u:ProductKey'
-  local separator=$'\x1f' delete_xpath=""
-  local ns="urn:schemas-microsoft-com:unattend"
-  local records position child_key direct_key
-
-  records=$(xmlstarlet sel \
-    -N "u=$ns" -T -t \
-    -m "$product_keys" \
-    -v 'position()' -o "$separator" \
-    -v 'normalize-space(string((u:Key[normalize-space(.)])[1]))' -o "$separator" \
-    -v 'normalize-space(string(text()[normalize-space()][1]))' -n \
-    "$asset") || return 1
-
-  while IFS="$separator" read -r position child_key direct_key; do
-    [ -n "$position" ] || continue
-
-    if [[ ! "$child_key" =~ ^[A-Za-z0-9]{5}(-[A-Za-z0-9]{5}){4}$ ]] &&
-      [[ ! "$direct_key" =~ ^[A-Za-z0-9]{5}(-[A-Za-z0-9]{5}){4}$ ]]; then
-      continue
-    fi
-
-    [ -z "$delete_xpath" ] || delete_xpath+=" | "
-    delete_xpath+="($product_keys)[$position]"
-  done <<< "$records"
-
-  [ -n "$delete_xpath" ] || return 0
-
-  xmlstarlet ed -L -N "u=$ns" -d "$delete_xpath" "$asset" || return 1
-  return 0
-}
-
-enableLog() {
-
-  local script="$1"
-
-  local content
-
-  enabled "${LOG:-}" || return 0
-
-  printf -v content '%s\n%s' \
-    'rem Launch the custom script asynchronously in a separate visible window.' \
-    'if exist "C:\OEM\install.bat" start "Install" cmd.exe /d /c ""C:\OEM\install.bat" > "C:\OEM\install.log" 2>&1"'
-
-  replaceSetupBlock "$script" "OEM_SCRIPT" "$content" || return 1
-
-  return 0
-}
-
-validateLegacyText() {
-
-  local name="$1"
-  local value="$2"
-  local desc="${3:-}"
-
-  local suffix=""
-
-  [ -n "$desc" ] && suffix=" for $desc"
-
-  if [[ "$value" =~ [[:cntrl:]] ]]; then
-    error "The $name variable cannot contain control characters$suffix!"
-    return 1
-  fi
-
-  if [[ "$value" == *'"'* ]]; then
-    error "The $name variable cannot contain double quotes$suffix!"
-    return 1
-  fi
-
-  return 0
-}
-
-validateLegacyUsername() {
-
-  local value="$1"
-  local desc="${2:-}"
-
-  local suffix=""
-
-  [ -n "$desc" ] && suffix=" for $desc"
-
-  if [ -z "$value" ]; then
-    error "The USERNAME variable cannot be empty$suffix!"
-    return 1
-  fi
-
-  if [ "${#value}" -gt 20 ]; then
-    error "The USERNAME variable cannot contain more than 20 characters$suffix!"
-    return 1
-  fi
-
-  if [[ "$value" =~ [[:cntrl:]] ]]; then
-    error "The USERNAME variable cannot contain control characters$suffix!"
-    return 1
-  fi
-
-  case "$value" in
-    *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | \
-    *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* | *'%'* )
-      error "The USERNAME variable contains unsupported characters$suffix!"
-      return 1 ;;
-  esac
-
-  if [[ "$value" == *"." ]]; then
-    error "The USERNAME variable cannot end with a period$suffix!"
-    return 1
-  fi
-
-  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
-    error "The USERNAME variable cannot consist only of spaces or periods$suffix!"
-    return 1
-  fi
-
-  case "${value^^}" in
-    "NONE" )
-      error "The USERNAME value \"NONE\" is reserved by Windows$suffix!"
-      return 1 ;;
-    "ADMINISTRATOR" | "GUEST" | "DEFAULTACCOUNT" | "WDAGUTILITYACCOUNT" | "WSIACCOUNT" )
-      error "The USERNAME value \"$value\" is reserved for a built-in Windows account$suffix!"
-      return 1 ;;
-  esac
 
   return 0
 }
