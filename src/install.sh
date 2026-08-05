@@ -572,6 +572,47 @@ removeIso() {
   return 0
 }
 
+resolveImage() {
+
+  local version="$1"
+
+  XML=""
+  FB="falling back to manual installation!"
+
+  [ -z "$DETECTED" ] || return 0
+
+  # Reused and arbitrary URL media must be inspected because their actual
+  # contents may no longer match the requested VERSION.
+  [ -z "${REUSED_ISO:-}" ] || return 1
+  [[ "${version,,}" != "http"* ]] || return 1
+
+  # Only direct-boot custom media can safely bypass content detection.
+  if [ -n "$CUSTOM" ]; then
+    supportsUnattended "$version" && return 1
+    DETECTED="$version"
+    return 0
+  fi
+
+  local file="/run/assets/$version.xml"
+
+  if [ -s "$file" ]; then
+    DETECTED="$version"
+    return 0
+  fi
+
+  # Evaluation media may reuse the normal edition's answer-file template.
+  if [[ "${version,,}" == *"-eval" ]]; then
+    local source="/run/assets/${version%-eval}.xml"
+
+    if [ -s "$source" ]; then
+      DETECTED="$version"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
 setImage() {
 
   supportsXML "${DETECTED,,}" || return 0
