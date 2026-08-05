@@ -291,7 +291,7 @@ getLanguage() {
       lang="Polish"
       culture="pl-PL" ;;
     "br" | "pt" | "pt-br" | "portuguese" | "português" | "portugues" )
-      [[ "$input" != "pt-br" ]] && id="pt-br"
+      [[ "$input" == "pt-br" ]] || id="pt-br"
       short="pt"
       lang="Brazilian Portuguese"
       desc="Portuguese"
