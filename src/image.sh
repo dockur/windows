@@ -434,7 +434,7 @@ getImageSize() {
   local stage="$1"
   local folder="${2:-}"
 
-  local size bytes path
+  local size bytes path output
   local required large_file
   local mib=$((1024 * 1024))
   local minimum=$((64 * mib))
@@ -458,7 +458,12 @@ getImageSize() {
 
   for path in "${paths[@]}"; do
 
-    if ! read -r bytes _ < <(du -Llsb --apparent-size -- "$path"); then
+    if ! output=$(du -Llsb --apparent-size -- "$path"); then
+      error "Failed to calculate setup size!"
+      return 1
+    fi
+
+    if ! read -r bytes _ <<< "$output" || [[ ! "$bytes" =~ ^[0-9]+$ ]]; then
       error "Failed to calculate setup size!"
       return 1
     fi
