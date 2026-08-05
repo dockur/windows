@@ -204,7 +204,7 @@ startInstall() {
 
     if [[ "${VERSION,,}" == "http"* ]]; then
 
-      file=$(basename "${VERSION%%\?*}")
+      file=$(basename "${VERSION%%[\?#]*}")
       printf -v file '%b' "${file//%/\\x}"
       file="${file//[!A-Za-z0-9._-]/_}"
 
@@ -270,24 +270,6 @@ startInstall() {
   if ! previousBase=$(readState "base"); then
     error "Failed to read the previous installation state!"
     exit 50
-  fi
-
-  # Older releases stored the original download name in windows.base. New
-  # releases always store the final ISO name, so migrate legacy state once.
-  if [ -n "$previousBase" ] && [[ "${previousBase,,}" != *.iso ]]; then
-
-    if isCompressed "$previousBase" || [[ "${previousBase,,}" == *.esd ]]; then
-      previousBase="${previousBase%.*}"
-    fi
-
-    [ -n "$previousBase" ] || previousBase="download"
-    previousBase+=".iso"
-
-    if ! writeState "base" "$previousBase"; then
-      error "Failed to migrate the previous installation state!"
-      exit 50
-    fi
-
   fi
 
   skipInstall "$BOOT" "$previousBase" && return 1
@@ -378,16 +360,7 @@ skipUnattended() {
 
   # Preserve custom media in place. Downloaded or reused media must be moved
   # back to persistent storage before the manual fallback is started.
-  if [ -n "$CUSTOM" ]; then
-    BOOT="$iso"
-    REMOVE="N"
-  else
-    if [[ "$iso" != "$BOOT" ]]; then
-      if ! mv -f "$iso" "$BOOT"; then
-        error "Failed to move ISO file: $iso" && return 1
-      fi
-    fi
-  fi
+  useOriginalImage "$iso"
 
   finishInstall "$BOOT" "$aborted" "$boot" && return 0
   return 1
@@ -417,10 +390,28 @@ skipInstall() {
 
   local iso="$1"
   local previousBase="$2"
-
   local boot="$STORAGE/windows.boot"
 
   if [ -n "$previousBase" ]; then
+
+    # Older releases stored the original download name in windows.base. New
+    # releases always store the final ISO name, so migrate legacy state once.
+    if [[ "${previousBase,,}" != *.iso ]]; then
+
+      if isCompressed "$previousBase" || [[ "${previousBase,,}" == *.esd ]]; then
+        previousBase="${previousBase%.*}"
+      fi
+
+      [ -n "$previousBase" ] || previousBase="download"
+      previousBase+=".iso"
+
+      if ! writeState "base" "$previousBase"; then
+        error "Failed to migrate the previous installation state!"
+        exit 50
+      fi
+
+    fi
+
     # A changed source invalidates an unfinished installation. Back up an
     # existing installation, but discard stale media when no disk exists yet.
     if [[ "${STORAGE,,}/${previousBase,,}" != "${iso,,}" ]]; then
