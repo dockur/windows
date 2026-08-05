@@ -483,7 +483,7 @@ gracefulShutdown() {
 
   code=$(signalCode "$sig")
 
-  if [ -n "${SHUTDOWN_SIGNAL:-}" ]; then
+  if (( SHUTDOWN_SIGNAL != 0 )); then
 
     # A second Ctrl-C during an active shutdown skips the remaining grace period
     # and lets the shutdown loop force QEMU down immediately.
