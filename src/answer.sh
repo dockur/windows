@@ -131,7 +131,7 @@ hasAnswerFile() {
   return 1
 }
 
-stageAnswer() {
+addAnswerFile() {
 
   local asset="$1"
   local language="$2"
