@@ -639,13 +639,14 @@ extractESD() {
   local bootTotal bootLinks wimTotal wimLinks
   local installSize size edition imgEdition
   local bootWim installWim bootSize wimSize
-  local index line ret xml metadata count
+  local image index line ret metadata count
+  local result resultCount resultEdition xml
   local -a fields
 
   local minSize=100000000
-  local freeSpace=9606127360
   local bootPad=60000000
   local installPad=3000000
+  local spacePad=1073741824
 
   local msg="Extracting $desc bootdisk from ESD file"
   info "$msg..." && html "$msg..."
@@ -669,8 +670,6 @@ extractESD() {
     error "Failed to create directory \"$dir\" !"
     return 1
   fi
-
-  checkFreeSpace "$dir" "$freeSpace" || return 1
 
   if ! xml=$(wimlib-imagex info "$iso" --xml 2>/dev/null |
       iconv -f UTF-16LE -t UTF-8 2>/dev/null); then
@@ -728,6 +727,12 @@ extractESD() {
 
   wimSize=$(( wimTotal - wimLinks + bootPad ))
 
+  # The downloaded ESD already occupies disk space and is moved into the
+  # installation media. Peak additional usage consists of the extracted setup
+  # files and boot.wim, plus the final ISO containing those files and the ESD.
+  local freeSpace=$(( size + 2 * (bootSize + wimSize) + spacePad ))
+  checkFreeSpace "$dir" "$freeSpace" || return 1
+
   /run/progress.sh "$dir" "$bootSize" "$msg ([P])..." &
 
   index="1"
@@ -741,7 +746,7 @@ extractESD() {
   fKill "progress.sh"
 
   bootWim="$dir/sources/boot.wim"
-  installWim="$dir/sources/install.wim"
+  installWim="$dir/sources/install.esd"
 
   msg="Extracting $desc environment from ESD file"
   info "$msg..." && html "$msg..."
@@ -785,37 +790,92 @@ extractESD() {
   info "$msg..." && html "$msg..."
 
   edition=$(getCatalog "$version" "name")
+
   if [ -z "$edition" ]; then
     error "Invalid VERSION specified, value \"$version\" is not recognized!"
     return 1
   fi
 
+  index=""
+
   for line in "${fields[@]:5}"; do
 
-    IFS=$'\t' read -r index imgEdition <<< "$line"
+    IFS=$'\t' read -r image imgEdition <<< "$line"
 
-    [[ ! "$index" =~ ^[0-9]+$ ]] && continue
+    [[ ! "$image" =~ ^[0-9]+$ ]] && continue
     [[ "${imgEdition,,}" != "${edition,,}" ]] && continue
 
-    installSize=$(( size + installPad ))
-
-    /run/progress.sh "$installWim" "$installSize" "$msg ([P])..." &
-
-    wimlib-imagex export "$iso" "$index" "$installWim" --quiet || {
-      ret=$?
-      fKill "progress.sh"
-      error "Addition of $index to the $desc image failed ($ret)"
-      return 1
-    }
-
-    fKill "progress.sh"
-    return 0
+    index="$image"
+    break
 
   done
 
+  if [ -z "$index" ]; then
+    error "Failed to find product '$edition' in install.esd!"
+    return 1
+  fi
+
+  installSize=$(( size + installPad ))
+  /run/progress.sh "$installWim" "$installSize" "$msg ([P])..." &
+
+  if ! rm -f -- "$dir/sources/install.wim" "$installWim"; then
+    fKill "progress.sh"
+    error "Failed to remove previous Windows installation image!"
+    return 1
+  fi
+
+  # Reuse the downloaded solid ESD instead of exporting the selected image.
+  # Both paths are below $TMP, so this is a same-filesystem rename.
+  if ! mv -f -- "$iso" "$installWim"; then
+    fKill "progress.sh"
+    error "Failed to move downloaded ESD file into the installation media!"
+    return 1
+  fi
+
+  # Remove all other images without rebuilding the solid-compressed resources.
+  # Deleting in descending order leaves the selected edition at index 1.
+  for (( image=count; image >= 1; image-- )); do
+
+    (( image == index )) && continue
+
+    if ! wimlib-imagex delete "$installWim" "$image" --soft --quiet; then
+      fKill "progress.sh"
+      error "Failed to remove image $image from install.esd!"
+      return 1
+    fi
+
+  done
+
+  if ! result=$(wimlib-imagex info "$installWim" --xml 2>/dev/null |
+      iconv -f UTF-16LE -t UTF-8 2>/dev/null); then
+    fKill "progress.sh"
+    error "Cannot verify the prepared install.esd file!"
+    return 1
+  fi
+
+  if ! metadata=$(xmlstarlet sel -t \
+      -v 'count(/WIM/IMAGE)' -n \
+      -v 'normalize-space(/WIM/IMAGE[@INDEX="1"]/DESCRIPTION)' -n \
+      <<< "$result" 2>/dev/null); then
+    fKill "progress.sh"
+    error "Cannot verify the prepared install.esd file!"
+    return 1
+  fi
+
+  mapfile -t fields <<< "$metadata"
+
+  resultCount="${fields[0]:-}"
+  resultEdition="${fields[1]:-}"
+
+  if [[ "$resultCount" != "1" ]] ||
+      [[ "${resultEdition,,}" != "${edition,,}" ]]; then
+    fKill "progress.sh"
+    error "Prepared install.esd does not contain only '$edition' at index 1!"
+    return 1
+  fi
+
   fKill "progress.sh"
-  error "Failed to find product '$edition' in install.wim!"
-  return 1
+  return 0
 }
 
 extractImage() {
@@ -932,10 +992,8 @@ prepareImage() {
   supportsXML "$DETECTED" || return 0
 
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
-
     extractBootImage "$iso" "$dir" "$desc" && return 0
     error "Failed to extract boot image from ISO image \"${iso}\"!"
-
     return 1
   fi
 
