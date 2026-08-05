@@ -716,8 +716,14 @@ getWorCatalog() {
   local ret="$2"
   local build="${3:-}"
 
-  local edition="" filter="" version=""
-  local file="catalog.xml" url="" name="" 
+  local file="catalog.xml"
+  local name="" filter="" url=""
+  local version="" edition="" arch=""
+
+  case "${PLATFORM,,}" in
+    "x64" ) arch="x64" ;;
+    "arm64" ) arch="ARM64" ;;
+  esac
 
   case "${id,,}" in
     "win11${PLATFORM,,}" )
@@ -738,8 +744,8 @@ getWorCatalog() {
       name="Windows 10 Enterprise" ;;
   esac
 
-  if [ -n "$version" ]; then
-    url="https://worproject.com/dldserv/esd/getcatalog.php?ver=${version}&arch=${PLATFORM^^}&edition=${filter}"
+  if [ -n "$version" ] && [ -n "$arch" ]; then
+    url="https://worproject.com/dldserv/esd/getcatalog.php?ver=${version}&arch=${arch}&edition=${filter}"
     [ -n "$build" ] && url+="&build=${build}"
   fi
 
@@ -763,33 +769,35 @@ parseESD() {
   local edition="$5"
   local culture="$6"
 
-  local xmlFile="${xml##*/}"  
-  local file_path file_sum file_size file_edition
-  local file_culture file_match=0 language_match=0
+  local xmlFile="${xml##*/}"
+  local file_size file_edition file_culture
+  local file_path file_sum file_sha1 file_sha256
+  local file_match=0 language_match=0
   local records architecture language separator=$'\x1f'
+  local upper="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  local lower="abcdefghijklmnopqrstuvwxyz"
 
   ESD=""
   ESD_SUM=""
   ESD_SIZE=""
 
-  # Microsoft catalogs have used different XML namespaces. Match elements by
-  # local name and flatten the catalog once so selection needs no temporary XML.
-  if ! records=$(xmlstarlet sel \
-    -T -t \
-    -m "//*[local-name()='File']" \
-      -v "normalize-space(*[local-name()='Architecture'])" \
-      -o "$separator" \
-      -v "normalize-space(*[local-name()='Edition'])" \
-      -o "$separator" \
-      -v "normalize-space(*[local-name()='LanguageCode'])" \
-      -o "$separator" \
-      -v "normalize-space(*[local-name()='FilePath'])" \
-      -o "$separator" \
-      -v "normalize-space(*[local-name()='Sha1'])" \
-      -o "$separator" \
-      -v "normalize-space(*[local-name()='Size'])" \
-      -n \
-    "$xml" 2>/dev/null); then
+  # Microsoft catalogs may use different XML namespaces, tag casing, and checksum
+  # algorithms. Flatten the catalog once so all selection logic remains in Bash.
+  local upper="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  local lower="abcdefghijklmnopqrstuvwxyz"
+  local lname="translate(local-name(), '$upper', '$lower')"
+
+  if ! records=$(xmlstarlet sel -T -t \
+      -m "//*[$lname='file']" \
+        -v "normalize-space(*[$lname='architecture'][1])" -o "$separator" \
+        -v "normalize-space(*[$lname='edition'][1])" -o "$separator" \
+        -v "normalize-space(*[$lname='languagecode'][1])" -o "$separator" \
+        -v "normalize-space(*[$lname='filepath'][1])" -o "$separator" \
+        -v "normalize-space(*[$lname='sha256'][1])" -o "$separator" \
+        -v "normalize-space(*[$lname='sha1'][1])" -o "$separator" \
+        -v "normalize-space(*[$lname='size'][1])" \
+        -n \
+      "$xml" 2>/dev/null); then
 
     error "Failed to parse $xmlFile!"
     return 1
@@ -799,9 +807,9 @@ parseESD() {
   # distinguish an unavailable edition from an unavailable translation.
   while IFS="$separator" read -r \
     architecture file_edition file_culture \
-    file_path file_sum file_size; do
+    file_path file_sha256 file_sha1 file_size; do
 
-    [ -n "$architecture$file_path$file_sum$file_size$file_culture$file_edition" ] || continue
+    [ -n "$architecture$file_path$file_sha256$file_sha1$file_size$file_culture$file_edition" ] || continue
 
     [ "${architecture,,}" = "${PLATFORM,,}" ] || continue
 
@@ -815,6 +823,8 @@ parseESD() {
     [ "${file_culture,,}" = "${culture,,}" ] || continue
 
     language_match=1
+    file_sum="${file_sha256:-$file_sha1}"
+
     ESD="$file_path"
     ESD_SUM="$file_sum"
     ESD_SIZE="$file_size"
@@ -853,6 +863,83 @@ parseESD() {
   return 0
 }
 
+getCatalogError() {
+
+  local file="$1"
+  local result=""
+
+  [ -s "$file" ] || return 0
+
+  # Prefer leaf text when the response is parseable XML, separating adjacent
+  # elements so HTML error pages remain readable. Fall back to the beginning
+  # of a plain-text response when XML parsing fails.
+  result=$(xmlstarlet sel -T -t \
+    -m '//*[not(*) and normalize-space()]' \
+      -v 'normalize-space(.)' -o ' ' \
+    "$file" 2>/dev/null) || result=$(head -c 1024 -- "$file" 2>/dev/null || :)
+
+  # Keep upstream error details useful without allowing control sequences,
+  # multiline output, or a complete HTML error page into the application log.
+  result=$(
+    printf '%s' "$result" | \
+      LC_ALL=C tr -cd '\11\12\15\40-\176' | \
+      sed 's/<[^>]*>/ /g' | tr '\r\n\t' '   ' | \
+      sed 's/[[:space:]][[:space:]]*/ /g; s/^ //; s/ $//'
+  )
+
+  if (( ${#result} > 500 )); then
+    result="${result:0:500}..."
+  fi
+
+  printf '%s' "$result"
+  return 0
+}
+
+validateESDCatalog() {
+
+  local xml="$1"
+  local provider="$2"
+
+  local metadata root fileCount 
+  local separator=$'\x1f' response
+  local upper='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  local lower='abcdefghijklmnopqrstuvwxyz'
+
+  if [ ! -s "$xml" ]; then
+    error "$provider returned an empty ESD catalog!"
+    return 1
+  fi
+
+  # Successful Microsoft and WoR responses contain an MCT document with at
+  # least one File record. Reject API error tokens and unrelated XML before
+  # parseESD can misreport them as a products.xml parsing failure.
+  if metadata=$(xmlstarlet sel \
+      -T -t \
+      -v "translate(local-name(/*), '$upper', '$lower')" -o "$separator" \
+      -v "count(/*[translate(local-name(), '$upper', '$lower')='mct']//*[translate(local-name(), '$upper', '$lower')='file'])" \
+      "$xml" 2>/dev/null); then
+
+    IFS="$separator" read -r root fileCount <<< "$metadata"
+
+    if [ "$root" = "mct" ] &&
+        [[ "$fileCount" =~ ^[0-9]+$ ]] &&
+        (( fileCount > 0 )); then
+      return 0
+    fi
+
+  fi
+
+  response=$(getCatalogError "$xml") || response=""
+
+  if [ -n "$response" ]; then
+    error "$provider returned: $response"
+  else
+    error "$provider returned an invalid ESD catalog!"
+  fi
+
+  return 1
+}
+
 getESD() {
 
   local dir="$1"
@@ -861,9 +948,9 @@ getESD() {
   local desc="$4"
   local source="${5:-microsoft}"
 
-  local file culture log
-  local edition catalog rc=0
   local xmlFile="products.xml"
+  local file culture provider
+  local edition catalog log rc=0
 
   culture=$(getLanguage "$lang" "culture")
   file=$(getCatalog "$version" "file" "$source")
@@ -874,6 +961,9 @@ getESD() {
     error "Invalid VERSION specified, value \"$version\" is not recognized!"
     return 1
   fi
+
+  provider="Microsoft"
+  [[ "${file,,}" == *.xml ]] && provider="WoR"
 
   local msg="Downloading ESD catalog..."
   info "$msg" && html "$msg"
@@ -922,9 +1012,11 @@ getESD() {
 
   rm -f "$log"
 
-  # Normal catalogs arrive as CAB archives, while pinned build catalogs are
-  # already XML and only need the common filename.
-  if [[ "$file" == *".xml" ]]; then
+  # Microsoft catalogs arrive as CAB archives. WoR catalogs are returned as
+  # XML and must be validated before they are published as products.xml.
+  if [[ "${file,,}" == *.xml ]]; then
+
+    validateESDCatalog "$dir/$file" "$provider" || return 1
 
     if ! mv -f "$dir/$file" "$dir/$xmlFile"; then
       error "Failed to rename $file to $xmlFile."
@@ -946,6 +1038,12 @@ getESD() {
   if [ ! -s "$dir/$xmlFile" ]; then
     error "Failed to find $xmlFile in $file!"
     return 1
+  fi
+
+  # Validate extracted Microsoft catalogs as well, so parseESD only receives
+  # the catalog format it expects.
+  if [[ "${file,,}" != *.xml ]]; then
+    validateESDCatalog "$dir/$xmlFile" "$provider" || return 1
   fi
 
   if ! parseESD \
@@ -1299,7 +1397,6 @@ downloadImage() {
     if getESD "$TMP/esd" "$version" "$lang" "$desc"; then
       success="y"
     else
-      delay "$seconds"
       getESD "$TMP/esd" "$version" "$lang" "$desc" "wor" && success="y"
     fi
 

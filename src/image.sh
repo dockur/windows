@@ -1407,7 +1407,7 @@ extractESD() {
   local installPad=3000000
   local spacePad=1073741824
 
-  local msg="Extracting $desc bootdisk from ESD file"
+  local msg="Extracting bootdisk from ESD file"
   info "$msg..." && html "$msg..."
 
   if ! size=$(stat -c%s -- "$iso"); then
@@ -1507,7 +1507,7 @@ extractESD() {
   bootWim="$dir/sources/boot.wim"
   installWim="$dir/sources/install.esd"
 
-  msg="Extracting $desc environment from ESD file"
+  msg="Extracting environment from ESD file"
   info "$msg..." && html "$msg..."
 
   index="2"
@@ -1523,7 +1523,7 @@ extractESD() {
 
   fKill "progress.sh"
 
-  msg="Extracting $desc setup from ESD file"
+  msg="Extracting setup from ESD file"
   info "$msg..."
 
   index="3"
@@ -1545,7 +1545,7 @@ extractESD() {
     LABEL="CPBA_A64FRE_EN-US_DV9"
   fi
 
-  msg="Extracting $desc image from ESD file"
+  msg="Extracting image from ESD file"
   info "$msg..." && html "$msg..."
 
   edition=$(getCatalog "$version" "name")
