@@ -2189,6 +2189,40 @@ addNetworkDriver() {
   return 0
 }
 
+addSIFEntry() {
+
+  local file="$1"
+  local section="$2"
+  local entry="$3"
+
+  local header="[$section]"
+  local line ending="lf"
+
+  line=$(grep -Fnx -m 1 "$header" "$file" | cut -d: -f1) || line=""
+
+  if [ -z "$line" ]; then
+    line=$(grep -Fnx -m 1 "$header"$'\r' "$file" | cut -d: -f1) || line=""
+    ending="crlf"
+  fi
+
+  if [ -z "$line" ]; then
+    error "Failed to locate section \"$header\" in \"$file\" !"
+    return 1
+  fi
+
+  if grep -Fqx "$entry" "$file" || grep -Fqx "$entry"$'\r' "$file"; then
+    return 0
+  fi
+
+  if [[ "$ending" == "crlf" ]]; then
+    printf '%s\r\n' "$entry"
+  else
+    printf '%s\n' "$entry"
+  fi | sed -i "${line}r /dev/stdin" "$file" || return 1
+
+  return 0
+}
+
 patchStorageDriver() {
 
   local file="$1"
@@ -2196,12 +2230,12 @@ patchStorageDriver() {
 
   # Text-mode setup reads TXTSETUP.SIF before Plug and Play is available, so the
   # VirtIO storage service and hardware IDs must be registered there explicitly.
-  sed -i '/^\[SCSI.Load\]/s/$/\nviostor=viostor.sys,4/' "$file" || return 1
-  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\nviostor.sys=1,,,,,,4_,4,1,,,1,4/' "$file" || return 1
-  sed -i '/^\[SCSI\]/s/$/\nviostor=\"Red Hat VirtIO SCSI Disk Device\"/' "$file" || return 1
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00000000=\"viostor\"/' "$file" || return 1
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00020000=\"viostor\"/' "$file" || return 1
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_1AF4\&DEV_1001\&SUBSYS_00021AF4=\"viostor\"/' "$file" || return 1
+  addSIFEntry "$file" "SCSI.Load" 'viostor=viostor.sys,4' || return 1
+  addSIFEntry "$file" "SourceDisksFiles.$arch" 'viostor.sys=1,,,,,,4_,4,1,,,1,4' || return 1
+  addSIFEntry "$file" "SCSI" 'viostor="Red Hat VirtIO SCSI Disk Device"' || return 1
+  addSIFEntry "$file" "HardwareIdsDatabase" 'PCI\VEN_1AF4&DEV_1001&SUBSYS_00000000="viostor"' || return 1
+  addSIFEntry "$file" "HardwareIdsDatabase" 'PCI\VEN_1AF4&DEV_1001&SUBSYS_00020000="viostor"' || return 1
+  addSIFEntry "$file" "HardwareIdsDatabase" 'PCI\VEN_1AF4&DEV_1001&SUBSYS_00021AF4="viostor"' || return 1
 
   return 0
 }
@@ -2225,16 +2259,16 @@ addSataDriver() {
   cp -Lr "$drivers/sata/xp/$arch/." "$destination" || return 1
   cp -Lr "$drivers/sata/xp/$arch/." "$target" || return 1
 
-  sed -i '/^\[SCSI.Load\]/s/$/\niaStor=iaStor.sys,4/' "$file" || return 1
-  sed -i '/^\[FileFlags\]/s/$/\niaStor.sys = 16/' "$file" || return 1
-  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.cat = 1,,,,,,,1,0,0/' "$file" || return 1
-  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.inf = 1,,,,,,,1,0,0/' "$file" || return 1
-  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,4_,4,1,,,1,4/' "$file" || return 1
-  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaStor.sys = 1,,,,,,,1,0,0/' "$file" || return 1
-  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaahci.cat = 1,,,,,,,1,0,0/' "$file" || return 1
-  sed -i '/^\[SourceDisksFiles.'"$arch"'\]/s/$/\niaAHCI.inf = 1,,,,,,,1,0,0/' "$file" || return 1
-  sed -i '/^\[SCSI\]/s/$/\niaStor=\"Intel\(R\) SATA RAID\/AHCI Controller\"/' "$file" || return 1
-  sed -i '/^\[HardwareIdsDatabase\]/s/$/\nPCI\\VEN_8086\&DEV_2922\&CC_0106=\"iaStor\"/' "$file" || return 1
+  addSIFEntry "$file" "SCSI.Load" 'iaStor=iaStor.sys,4' || return 1
+  addSIFEntry "$file" "FileFlags" 'iaStor.sys = 16' || return 1
+  addSIFEntry "$file" "SourceDisksFiles.$arch" 'iaStor.cat = 1,,,,,,,1,0,0' || return 1
+  addSIFEntry "$file" "SourceDisksFiles.$arch" 'iaStor.inf = 1,,,,,,,1,0,0' || return 1
+  addSIFEntry "$file" "SourceDisksFiles.$arch" 'iaStor.sys = 1,,,,,,4_,4,1,,,1,4' || return 1
+  addSIFEntry "$file" "SourceDisksFiles.$arch" 'iaStor.sys = 1,,,,,,,1,0,0' || return 1
+  addSIFEntry "$file" "SourceDisksFiles.$arch" 'iaahci.cat = 1,,,,,,,1,0,0' || return 1
+  addSIFEntry "$file" "SourceDisksFiles.$arch" 'iaAHCI.inf = 1,,,,,,,1,0,0' || return 1
+  addSIFEntry "$file" "SCSI" 'iaStor="Intel(R) SATA RAID/AHCI Controller"' || return 1
+  addSIFEntry "$file" "HardwareIdsDatabase" 'PCI\VEN_8086&DEV_2922&CC_0106="iaStor"' || return 1
 
   return 0
 }
@@ -2398,7 +2432,6 @@ writeSIF() {
       '[Unattended]' \
       '    UnattendSwitch=Yes' \
       '    UnattendMode=FullUnattended' \
-      '    FileSystem=NTFS' \
       '    OemSkipEula=Yes' \
       '    OemPreinstall=Yes' \
       '    Repartition=Yes' \
