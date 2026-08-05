@@ -615,7 +615,6 @@ canUseSetupImage() {
   local iso="$2"
 
   supportsXML "$id" || return 1
-  enabled "${UNPACK:-}" && return 1
   [[ "${iso,,}" == *".esd" ]] && return 1
 
   return 0
