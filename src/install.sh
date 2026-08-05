@@ -200,12 +200,28 @@ startInstall() {
   if [ -z "$CUSTOM" ]; then
 
     local file="${VERSION//\//}.iso"
+    local boot="$file"
 
     if [[ "${VERSION,,}" == "http"* ]]; then
 
       file=$(basename "${VERSION%%\?*}")
       printf -v file '%b' "${file//%/\\x}"
       file="${file//[!A-Za-z0-9._-]/_}"
+
+      boot="$file"
+
+      if isCompressed "$VERSION" || [[ "${boot,,}" == *.esd ]]; then
+        boot="${boot%.*}"
+      fi
+
+      [ -n "$boot" ] || boot="download"
+      [[ "${boot,,}" == *.iso ]] || boot+=".iso"
+
+      case "${boot,,}" in
+        "windows."* )
+          error "The download filename \"$file\" uses the reserved \"windows.*\" namespace!"
+          exit 58 ;;
+      esac
 
     else
 
@@ -215,11 +231,12 @@ startInstall() {
 
       if [ -n "$language" ] && [[ "${language,,}" != "en" ]]; then
         file="${VERSION//\//}_${language,,}.iso"
+        boot="$file"
       fi
 
     fi
 
-    BOOT="$STORAGE/$file"
+    BOOT="$STORAGE/$boot"
 
     REUSED_ISO=""
     [ -s "$BOOT" ] && REUSED_ISO="Y"
@@ -255,6 +272,24 @@ startInstall() {
     exit 50
   fi
 
+  # Older releases stored the original download name in windows.base. New
+  # releases always store the final ISO name, so migrate legacy state once.
+  if [ -n "$previousBase" ] && [[ "${previousBase,,}" != *.iso ]]; then
+
+    if isCompressed "$previousBase" || [[ "${previousBase,,}" == *.esd ]]; then
+      previousBase="${previousBase%.*}"
+    fi
+
+    [ -n "$previousBase" ] || previousBase="download"
+    previousBase+=".iso"
+
+    if ! writeState "base" "$previousBase"; then
+      error "Failed to migrate the previous installation state!"
+      exit 50
+    fi
+
+  fi
+
   skipInstall "$BOOT" "$previousBase" && return 1
 
   if [ -z "$previousBase" ] && hasDisk; then
@@ -270,8 +305,11 @@ startInstall() {
 
   if [ -z "$CUSTOM" ]; then
 
-    ISO=$(basename "$BOOT")
-    ISO="$TMP/$ISO"
+    if [ -n "$REUSED_ISO" ]; then
+      ISO="$TMP/$(basename "$BOOT")"
+    else
+      ISO="$TMP/$file"
+    fi
 
     # Work from the temporary directory so the persistent source path can
     # later contain either the preserved ISO or the rebuilt installation image.
