@@ -157,7 +157,7 @@ waitForBoot() {
 
       2) echo
 
-        error "$(app) could not boot, aborting..."
+        error "$(app) could not boot, terminating..."
         terminateQemu
         return 0 ;;
 
@@ -214,7 +214,7 @@ waitForBoot() {
   isAlive "$pid" || return 0
   [ -f "$QEMU_END" ] && return 0
 
-  error "Timeout while waiting for QEMU to boot the machine, aborting..."
+  error "Timeout while waiting for QEMU to boot the machine, terminating..."
   terminateQemu
 
   return 0
@@ -458,7 +458,7 @@ abortDuringSetup() {
   # Before Windows boots from disk, ACPI may be ignored or interpreted by setup
   # itself. Terminate QEMU directly instead of waiting for a graceful shutdown.
   if [[ "${DETECTED,,}" != "reactos" ]] || [ -n "${CUSTOM:-}" ]; then
-    info "Cannot send ACPI signal during $(app) setup, aborting..."
+    info "Cannot send ACPI signal during $(app) setup, terminating..."
   else
     info "ReactOS LiveCD does not support ACPI shutdown, terminating..."
   fi
