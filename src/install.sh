@@ -923,8 +923,10 @@ prepareImage() {
   desc=$(printVariant "$DETECTED" "$DETECTED")
 
   # Legacy rebuilt media must retain the source ISO's El Torito boot-load size.
-  if [[ "${BOOT_MODE,,}" == "windows_legacy" && "${DETECTED,,}" != "win9"* ]]; then
-    getBootLoadSize "$iso" "$dir" "$desc" || return 1
+  if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+    if [[ "${DETECTED,,}" != "win9"* && "${DETECTED,,}" != "winnt4" ]]; then
+      getBootLoadSize "$iso" "$dir" "$desc" || return 1
+    fi
   fi
 
   supportsXML "$DETECTED" || return 0
@@ -1586,7 +1588,7 @@ setMachine() {
 
   case "${id,,}" in
 
-    "win9"* )
+    "win9"* | "winnt4" )
 
       writeState "usb" "N" || return 1
       writeState "net" "pcnet" || return 1
@@ -1626,7 +1628,7 @@ setMachine() {
 
   case "${id,,}" in
 
-    "win9"* | "win2k"* | *"x86"* | "reactos" )
+    "win9"* | "winnt4" | "win2k"* | *"x86"* | "reactos" )
 
       # Legacy 32-bit Windows may enter an incompatible PAE/DEP path when the
       # NX flag is exposed, causing installation failures or repeated resets.
@@ -1637,7 +1639,7 @@ setMachine() {
 
   case "${id,,}" in
 
-    "win9"* | "win2k"* | "winxp"* | "win2003"* | \
+    "win9"* | "winnt4" | "win2k"* | "winxp"* | "win2003"* | \
     "winvistax86"* | "win7x86"* | "reactos" )
 
       if isQ35 "$MACHINE"; then

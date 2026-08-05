@@ -1753,19 +1753,19 @@ buildImage() {
     error "Failed to locate file \"$ETFS\" in ISO image!" && return 1
   fi
 
-  if [[ "${BOOT_MODE,,}" == "windows_legacy" &&
-    "${DETECTED,,}" != "win9"* &&
-    -z "${BOOT_LOAD_SIZE:-}" ]]; then
-    error "Failed to determine the boot image load size!"
-    return 1
-  fi
-
   if ! size=$(du -b --max-depth=0 "$dir" | cut -f1); then
     error "Failed to calculate the size of directory \"$dir\"!"
     return 1
   fi
 
   checkFreeSpace "$TMP" "$size" || return 1
+
+  if [[ "${BOOT_MODE,,}" == "windows_legacy" ]] && [ -z "${BOOT_LOAD_SIZE:-}" ]; then
+    if [[ "${DETECTED,,}" != "win9"* && "${DETECTED,,}" != "winnt4" ]]; then
+      error "Failed to determine the boot image load size!"
+      return 1
+    fi
+  fi
 
   /run/progress.sh "$out" "$size" "$msg ([P])..." &
 
@@ -1816,7 +1816,7 @@ buildImage() {
           "${name_args[@]}"
         ) ;;
 
-      "win9"* )
+      "win9"* | "winnt4" )
 
         args+=(
           -J
