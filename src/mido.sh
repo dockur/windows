@@ -1057,14 +1057,22 @@ getESD() {
 
 isCompressed() {
 
-  local url="${1%%\?*}"
+  local url="${1%%[\?#]*}"
+  local file
+
+  file=$(basename "$url")
+  printf -v file '%b' "${file//%/\\x}"
 
   # The ReactOS latest-build endpoint returns an archive without a filename
   # extension, so recognize its path explicitly.
-  case "${url,,}" in
+  case "${file,,}" in
     *.7z | *.zip | *.rar | *.tar | *.cab | *.cpio | \
-    *.lzh | *.lha | *.xar | */latest-x86-gcc-lin-rel )
+    *.lzh | *.lha | *.xar )
       return 0 ;;
+  esac
+
+  case "${url,,}" in
+    */latest-x86-gcc-lin-rel ) return 0 ;;
   esac
 
   return 1
