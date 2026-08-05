@@ -946,24 +946,6 @@ resolveImage() {
   return 1
 }
 
-setImage() {
-
-  supportsXML "${DETECTED,,}" || return 0
-
-  setXML "" && return 0
-  enabled "$MANUAL" && return 0
-
-  # A missing answer file is a supported manual-install path, not a hard media
-  # failure.
-  MANUAL="Y"
-
-  local desc
-  desc=$(printEdition "$DETECTED" "this version") || return 1
-
-  warn "the answer file for $desc was not found ($DETECTED.xml), $FB."
-  return 0
-}
-
 findIsoImage() {
 
   local iso="$1"
