@@ -417,6 +417,7 @@ printVersion() {
     "win9x"* ) desc="Windows ME" ;;
     "win98"* ) desc="Windows 98" ;;
     "win95"* ) desc="Windows 95" ;;
+    "winnt4"* ) desc="Windows NT 4" ;;
     "win2k"* ) desc="Windows 2000" ;;
     "winvista"* ) desc="Windows Vista" ;;
     "win2019-hv"* ) desc="Hyper-V Server" ;;
