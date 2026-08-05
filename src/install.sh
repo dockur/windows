@@ -1324,6 +1324,7 @@ stageSetup() {
   local language="$2"
   local stage="$3"
 
+  supportsXML "${DETECTED,,}" || return 0
   supportsUnattended "${DETECTED,,}" || return 0
 
   local msg="Creating overlay image..."
