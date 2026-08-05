@@ -854,7 +854,7 @@ getESD() {
     return 1
   fi
 
-  local msg="Downloading catalog from the Microsoft servers..."
+  local msg="Downloading ESD catalog from the Microsoft servers..."
   info "$msg" && html "$msg"
 
   rm -rf "$dir"
@@ -965,7 +965,7 @@ verifyFile() {
   fi
 
   local algo="SHA256"
-  local hash
+  local type="ISO" hash
 
   [ -z "$check" ] && return 0
   enabled "$VERIFY" || return 0
@@ -973,8 +973,9 @@ verifyFile() {
   # Microsoft ESD catalogs publish SHA1, while current mirror metadata normally
   # uses SHA256; the digest length identifies which algorithm is required.
   [[ "${#check}" == "40" ]] && algo="SHA1"
+  [[ "${iso,,}" == *.esd ]] && type="ESD file"
 
-  local msg="Verifying downloaded ISO..."
+  local msg="Verifying downloaded $type..."
   info "$msg" && html "$msg"
 
   if [[ "${algo,,}" != "sha256" ]]; then
@@ -1006,7 +1007,7 @@ verifyFile() {
   fi
 
   if [[ "$hash" == "$check" ]]; then
-    info "Successfully verified ISO!" && return 0
+    info "Successfully verified $type!" && return 0
   fi
 
   error "The downloaded file has an unknown $algo checksum: $hash , as the expected value was: $check. Please report this at $SUPPORT/issues"
@@ -1022,9 +1023,12 @@ downloadFile() {
   local web_desc="$5"
   local connections="${6:-1}"
 
-  local domain parent
-  local msg="Downloading $web_desc"
-  local console_msg="Downloading $desc"
+  local domain parent suffix=""
+
+  [[ "${iso,,}" == *.esd ]] && suffix=" ESD file"
+
+  local msg="Downloading $web_desc$suffix"
+  local console_msg="Downloading $desc$suffix"
 
   # Keep mirror messages concise by reducing subdomains to the final two
   # labels, while Microsoft downloads retain the generic description.
@@ -1037,7 +1041,7 @@ downloadFile() {
   fi
 
   if [ -n "$domain" ] && [[ "${domain,,}" != *"microsoft.com" ]]; then
-    console_msg="Downloading $desc from $domain"
+    console_msg="Downloading $desc$suffix from $domain"
   fi
 
   info "$console_msg..."
