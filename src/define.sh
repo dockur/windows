@@ -938,24 +938,12 @@ isLegacy() {
   local id="$1"
 
   case "${id,,}" in
-    "winnt4" | "win9"* | "winxp"* | "win2003"* | \
-    "win2k"* | "winvista"* | "win7"* | "win2008"* | "reactos" )
+    "win9"* | "winnt4"* | "win2k"* | "winxp"* | "win2003"* | \
+    "winvista"* | "win7"* | "win2008"* | "reactos" )
       return 0 ;;
   esac
 
   return 1
-}
-
-supportsXML() {
-
-  local id="$1"
-
-  case "${id,,}" in
-    "winnt4" | "win9"* | "winxp"* | "win2k"* | "win2003"* | "reactos" )
-      return 1 ;;
-  esac
-
-  return 0
 }
 
 supportsUnattended() {
@@ -963,7 +951,21 @@ supportsUnattended() {
   local id="$1"
 
   case "${id,,}" in
-    "winnt4" | "win9"* | "reactos" )
+    "win9"* | "winnt4"* | "reactos" )
+      return 1 ;;
+  esac
+
+  return 0
+}
+
+supportsXML() {
+
+  local id="$1"
+
+  supportsUnattended "$id" || return 1
+
+  case "${id,,}" in
+    "win2k"* | "winxp"* | "win2003"* )
       return 1 ;;
   esac
 
