@@ -142,7 +142,7 @@ prepareWindowsImage() {
   # Prefer the original ISO with a small setup image whenever possible.
   if canUseSetupImage "$DETECTED" "$iso"; then
 
-    if ! stageSetup "$XML" "$LANGUAGE" "$TMP/setup"; then
+    if ! createOverlay "$XML" "$LANGUAGE" "$TMP/setup"; then
       skipUnattended "$dir" "$iso" "$boot" || return 84
       handled=1
       return 0
@@ -1318,14 +1318,13 @@ addDrivers() {
   return 0
 }
 
-stageSetup() {
+createOverlay() {
 
   local asset="$1"
   local language="$2"
   local stage="$3"
 
   supportsXML "${DETECTED,,}" || return 0
-  supportsUnattended "${DETECTED,,}" || return 0
 
   local msg="Creating overlay image..."
   info "$msg" && html "$msg"
