@@ -483,7 +483,7 @@ gracefulShutdown() {
 
   code=$(signalCode "$sig")
 
-  if [ -f "$QEMU_END" ]; then
+  if (( SHUTDOWN_SIGNAL != 0 )); then
 
     # A second Ctrl-C during an active shutdown skips the remaining grace period
     # and lets the shutdown loop force QEMU down immediately.
@@ -497,12 +497,12 @@ gracefulShutdown() {
     return
   fi
 
+  SHUTDOWN_SIGNAL=$code
+
   # Signal handlers must complete their own error handling and cleanup without
   # errexit terminating the shell partway through the shutdown sequence.
   set +e
-  SHUTDOWN_SIGNAL=$code
 
-  touch "$QEMU_END"
   echo && info "Received $sig signal, sending ACPI shutdown signal..."
 
   # Interactive startup may receive a signal before the PID file appears, so
