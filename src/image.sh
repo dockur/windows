@@ -1,56 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-getVersionPriority() {
-
-  local id="${1,,}"
-  local base="${2,,}"
-
-  local entry priority patterns pattern
-  local result="other" score best_score=-1
-  local -a order=()
-
-  id="${id%-eval}"
-
-  mapfile -t order < <(getEditionOrder "$base")
-
-  local edition="${id#"$base"}"
-  edition="${edition#-}"
-
-  # Use the most specific matching pattern. This prevents broad patterns
-  # such as enterprise-* from taking precedence over enterprise-iot-*.
-  for entry in "${order[@]}"; do
-
-    IFS='|' read -r _ priority patterns <<< "$entry"
-
-    for pattern in $patterns; do
-
-      if [ "$pattern" = "@default" ]; then
-        [ -z "$edition" ] || continue
-        score=1
-      elif [[ "$pattern" == *"*" ]]; then
-        local prefix="${pattern%\*}"
-        [[ "$edition" == "$prefix"* ]] || continue
-        score="${#pattern}"
-      elif [ "$edition" = "$pattern" ]; then
-        score="${#pattern}"
-      else
-        continue
-      fi
-
-      if (( score > best_score )); then
-        result="$priority"
-        best_score="$score"
-      fi
-
-    done
-
-  done
-
-  echo "$result"
-  return 0
-}
-
 getVersions() {
 
   local xml="$1"
@@ -76,7 +26,6 @@ getVersions() {
   versions_ref=()
 
   platform=$(getPlatform "$xml") || return 1
-
   image_count=$(xmlstarlet sel -T -t -v 'count(/WIM/IMAGE)' - 2>/dev/null <<< "$xml") || return 1
 
   if [[ ! "$image_count" =~ ^[0-9]+$ ]]; then
@@ -100,7 +49,6 @@ getVersions() {
       -v 'normalize-space(FLAGS)' -n \
     - 2>/dev/null <<< "$xml"); then
     error "Failed to read image records from WIM metadata!"
-
     return 1
   fi
 
@@ -202,6 +150,21 @@ getVersions() {
   return 0
 }
 
+getCompatibleVersions() {
+
+  local wanted="$1"
+
+  printf '%s\n' "$wanted"
+
+  # Treat normal and Evaluation variants of the same edition as compatible.
+  # The exact requested variant is always checked first.
+  if [[ "${wanted,,}" == *"-eval" ]]; then
+    printf '%s\n' "${wanted%-eval}"
+  else
+    printf '%s\n' "$wanted-eval"
+  fi
+}
+
 selectVersion() {
 
   local versions_name="$1"
@@ -211,10 +174,10 @@ selectVersion() {
   local index_name="$5"
 
   local -a candidates=()
-  local -n version_list="$versions_name"
   local -n index_map="$indexes_name"
-  local -n preference_list="$preferred_name"
+  local -n version_list="$versions_name"
   local -n selected_version="$result_name"
+  local -n preference_list="$preferred_name"
   local -n selected_image_index="$index_name"
   local wanted candidate match
 
@@ -228,11 +191,13 @@ selectVersion() {
     for candidate in "${candidates[@]}"; do
 
       match=$(hasVersion "$candidate" "${version_list[@]}") || continue
+
       hasAnswerFile "$match" || continue
 
       local key="${match,,}"
       selected_version="$match"
       selected_image_index="${index_map[$key]}"
+
       return 0
 
     done
@@ -369,6 +334,56 @@ detectVersion() {
   return 0
 }
 
+getVersionPriority() {
+
+  local id="${1,,}"
+  local base="${2,,}"
+
+  local entry priority patterns pattern
+  local result="other" score best_score=-1
+  local -a order=()
+
+  id="${id%-eval}"
+
+  mapfile -t order < <(getEditionOrder "$base")
+
+  local edition="${id#"$base"}"
+  edition="${edition#-}"
+
+  # Use the most specific matching pattern. This prevents broad patterns
+  # such as enterprise-* from taking precedence over enterprise-iot-*.
+  for entry in "${order[@]}"; do
+
+    IFS='|' read -r _ priority patterns <<< "$entry"
+
+    for pattern in $patterns; do
+
+      if [ "$pattern" = "@default" ]; then
+        [ -z "$edition" ] || continue
+        score=1
+      elif [[ "$pattern" == *"*" ]]; then
+        local prefix="${pattern%\*}"
+        [[ "$edition" == "$prefix"* ]] || continue
+        score="${#pattern}"
+      elif [ "$edition" = "$pattern" ]; then
+        score="${#pattern}"
+      else
+        continue
+      fi
+
+      if (( score > best_score )); then
+        result="$priority"
+        best_score="$score"
+      fi
+
+    done
+
+  done
+
+  echo "$result"
+  return 0
+}
+
 detectLanguage() {
 
   local xml="$1"
@@ -478,21 +493,6 @@ hasVersion() {
   done
 
   return 1
-}
-
-getCompatibleVersions() {
-
-  local wanted="$1"
-
-  printf '%s\n' "$wanted"
-
-  # Treat normal and Evaluation variants of the same edition as compatible.
-  # The exact requested variant is always checked first.
-  if [[ "${wanted,,}" == *"-eval" ]]; then
-    printf '%s\n' "${wanted%-eval}"
-  else
-    printf '%s\n' "$wanted-eval"
-  fi
 }
 
 checkPlatform() {
