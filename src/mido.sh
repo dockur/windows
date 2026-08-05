@@ -717,7 +717,7 @@ getWorCatalog() {
   local build="${3:-}"
 
   local file="catalog.xml"
-  local name="" filter="" url="" 
+  local name="" filter="" url=""
   local version="" edition="" arch=""
 
   case "${PLATFORM,,}" in
@@ -769,7 +769,7 @@ parseESD() {
   local edition="$5"
   local culture="$6"
 
-  local xmlFile="${xml##*/}"  
+  local xmlFile="${xml##*/}"
   local file_path file_sum file_size file_edition
   local file_culture file_match=0 language_match=0
   local records architecture language separator=$'\x1f'
