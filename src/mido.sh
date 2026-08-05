@@ -1043,12 +1043,9 @@ downloadFile() {
   local web_desc="$5"
   local connections="${6:-1}"
 
-  local domain parent suffix=""
-
-  [[ "${iso,,}" == *.esd ]] && suffix=" ESD file"
-
-  local msg="Downloading $web_desc$suffix"
-  local console_msg="Downloading $desc$suffix"
+  local domain parent
+  local msg="Downloading $web_desc"
+  local console_msg="Downloading $desc"
 
   # Keep mirror messages concise by reducing subdomains to the final two
   # labels, while Microsoft downloads retain the generic description.
@@ -1061,7 +1058,7 @@ downloadFile() {
   fi
 
   if [ -n "$domain" ] && [[ "${domain,,}" != *"microsoft.com" ]]; then
-    console_msg="Downloading $desc$suffix from $domain"
+    console_msg="Downloading $desc from $domain"
   fi
 
   info "$console_msg..."
