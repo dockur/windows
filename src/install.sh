@@ -274,7 +274,7 @@ startInstall() {
 
   skipInstall "$BOOT" "$previousBase" && return 1
 
-  if [ -z "$previousBase" ] && hasDisk; then
+  if [ -z "$previousBase" ] && hasData; then
     if ! backupPrevious ""; then
       warn "the backup was incomplete, continuing with installation..."
     fi
@@ -418,7 +418,7 @@ skipInstall() {
     # existing installation, but discard stale media when no disk exists yet.
     if [[ "${STORAGE,,}/${previousBase,,}" != "${iso,,}" ]]; then
 
-      if ! hasDisk; then
+      if ! hasData; then
 
         if ! rm -f -- "$STORAGE/$previousBase"; then
           error "Failed to remove ISO file \"$STORAGE/$previousBase\" !"
@@ -538,7 +538,7 @@ findFile() {
   fi
 
   if [ -d "$dir" ]; then
-    if ! hasData || [ ! -f "$boot" ]; then
+    if ! hasDisk || [ ! -f "$boot" ]; then
       error "The bind $dir maps to a file that does not exist!" && return 1
     fi
   fi
