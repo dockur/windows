@@ -338,12 +338,14 @@ skipUnattended() {
 
   # Standalone ESD files and nested archives are not directly bootable media,
   # so they cannot use the manual-install fallback.
-  [[ "${iso,,}" == *".esd" ]] && exit 60
-  enabled "${UNPACK:-}" && exit 60
+  if enabled "${UNPACK:-}" || [[ "${iso,,}" == *".esd" ]]; then
+    error "Failed to boot \"$iso\" because it is not a directly bootable ISO image!"
+    exit 60
+  fi
 
   # When automatic preparation fails, inspect extracted media to determine
   # whether it can still be booted manually using legacy firmware.
-  if [[ "${PLATFORM,,}" == "x64" ]] && [ -d "$dir" ]; then
+  if enabled "$aborted" && [[ "${PLATFORM,,}" == "x64" ]] && [ -d "$dir" ]; then
 
     efi=$(find "$dir" -maxdepth 1 -type d -iname efi -print -quit) || return 1
     efi32=$(find "$dir" -maxdepth 3 -type f -ipath '*/efi/boot/bootia32.efi' -print -quit) || return 1

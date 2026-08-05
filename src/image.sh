@@ -80,6 +80,23 @@ getVersions() {
 
     done
 
+    # Preserve NAME precedence, but allow a recognized DISPLAYNAME edition to
+    # refine an otherwise generic family name.
+    if [ -n "$candidate_base" ] && [ -n "$candidate_id" ] && [ -n "$display" ]; then
+      name=$(normalizeEdition "$(printVersion "$candidate_base" "")") || return 1
+      candidate=$(normalizeEdition "$candidate") || return 1
+
+      if [ "$candidate" = "$name" ]; then
+        structured=$(getVersion "$display" "$platform")
+
+        if [ "$(fromName "$display" "$platform")" = "$candidate_base" ] &&
+          [ -n "$structured" ] && [[ "${structured%-eval}" != "$candidate_base" ]] &&
+          [[ "$(getVersionPriority "$structured" "$candidate_base")" != "other" ]]; then
+          candidate_id="$structured"
+        fi
+      fi
+    fi
+
     if [ -z "$candidate_base" ] || [ -z "$candidate_id" ]; then
 
       name="${display:-${image:-$product}}"
