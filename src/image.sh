@@ -1748,6 +1748,7 @@ buildImage() {
   desc=$(printVariant "$DETECTED" "ISO")
 
   local msg="Building $desc image"
+  [[ "${ISO,,}" == *.esd ]] && msg+=" from ESD file"
   info "$msg..." && html "$msg..."
 
   [ -z "$LABEL" ] && LABEL="Windows"
