@@ -923,8 +923,10 @@ prepareImage() {
   desc=$(printVariant "$DETECTED" "$DETECTED")
 
   # Legacy rebuilt media must retain the source ISO's El Torito boot-load size.
-  if [[ "${BOOT_MODE,,}" == "windows_legacy" && "${DETECTED,,}" != "win9"* ]]; then
-    getBootLoadSize "$iso" "$dir" "$desc" || return 1
+  if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+    if [[ "${DETECTED,,}" != "win9"* && "${DETECTED,,}" != "winnt4" ]]; then
+      getBootLoadSize "$iso" "$dir" "$desc" || return 1
+    fi
   fi
 
   supportsXML "$DETECTED" || return 0
