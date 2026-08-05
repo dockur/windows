@@ -469,7 +469,7 @@ formatEdition() {
   local edition="${1//-/ }"
   local result="" word
 
-  for word in "$edition"; do
+  for word in $edition; do
     if [ "$word" == "for" ]; then
       word="for"
     elif [ "${#word}" -eq 1 ]; then
