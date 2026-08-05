@@ -502,6 +502,7 @@ gracefulShutdown() {
   # Signal handlers must complete their own error handling and cleanup without
   # errexit terminating the shell partway through the shutdown sequence.
   set +e
+  touch "$QEMU_END"
 
   echo && info "Received $sig signal, sending ACPI shutdown signal..."
 
