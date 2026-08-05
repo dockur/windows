@@ -339,7 +339,7 @@ skipUnattended() {
   # Standalone ESD files and nested archives are not directly bootable media,
   # so they cannot use the manual-install fallback.
   if enabled "${UNPACK:-}" || [[ "${iso,,}" == *".esd" ]]; then
-    error "Failed to boot $iso because of its file rxtrnsion"
+    error "Failed to boot \"$iso\" because it is not a directly bootable ISO image!"
     exit 60
   fi
 
