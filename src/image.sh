@@ -614,14 +614,10 @@ canUseSetupImage() {
   local id="$1"
   local iso="$2"
 
-  # Legacy installers and ReactOS require modifying or directly booting their
-  # media. Standalone ESDs and nested archives are not directly bootable ISOs.
-  case "${id,,}" in
-    "win9"* | "winxp"* | "win2k"* | "win2003"* | "reactos" )
-      return 1 ;;
-  esac
+  supportsXML "$id" || return 1
+  [[ "${iso,,}" == *".esd" ]] && return 1
 
-  [[ "${iso,,}" != *".esd" ]] && ! enabled "${UNPACK:-}"
+  return 0
 }
 
 createImageDirectory() {
@@ -1748,6 +1744,7 @@ buildImage() {
   desc=$(printVariant "$DETECTED" "ISO")
 
   local msg="Building $desc image"
+  [[ "${ISO,,}" == *.esd ]] && msg+=" from ESD file"
   info "$msg..." && html "$msg..."
 
   [ -z "$LABEL" ] && LABEL="Windows"

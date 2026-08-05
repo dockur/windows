@@ -142,7 +142,7 @@ prepareWindowsImage() {
   # Prefer the original ISO with a small setup image whenever possible.
   if canUseSetupImage "$DETECTED" "$iso"; then
 
-    if ! stageSetup "$XML" "$LANGUAGE" "$TMP/setup"; then
+    if ! createOverlay "$XML" "$LANGUAGE" "$TMP/setup"; then
       skipUnattended "$dir" "$iso" "$boot" || return 84
       handled=1
       return 0
@@ -913,118 +913,6 @@ extractImage() {
   return 0
 }
 
-setMachine() {
-
-  local id="$1"
-  local iso="$2"
-  local dir="$3"
-  local desc="$4"
-
-  ETFS="boot/etfsboot.com"
-
-  local version=""
-  case "${id,,}" in
-    "win2k"* )   version="2k" ;;
-    "winxp"* )   version="xp" ;;
-    "win2003"* ) version="2k3" ;;
-  esac
-
-  if [ -n "$version" ]; then
-
-    if ! legacyInstall "$iso" "$dir" "$desc" "$version"; then
-      error "Failed to prepare $desc ISO!"
-      return 1
-    fi
-
-  fi
-
-  if isLegacy "$id"; then
-
-    writeState "mode" "windows_legacy" || return 1
-
-    case "${id,,}" in
-      "win9"* | "win2k"* | "reactos" )
-        writeState "vga" "cirrus" || return 1 ;;
-      * )
-        writeState "vga" "std" || return 1 ;;
-    esac
-
-  fi
-
-  restoreBootMode || return 1
-
-  case "${id,,}" in
-
-    "win9"* )
-
-      writeState "usb" "N" || return 1
-      writeState "net" "pcnet" || return 1
-      writeState "type" "auto" || return 1
-      writeState "old" "pc-i440fx-2.4" || return 1 ;;
-
-    "win2k"* )
-
-      writeState "old" "pc" || return 1
-      writeState "type" "auto" || return 1
-      writeState "net" "rtl8139" || return 1
-      writeState "usb" "pci-ohci" || return 1 ;;
-
-    "winxpx"* | "win2003"* )
-
-      writeState "type" "blk" || return 1
-      writeState "net" "rtl8139" || return 1
-      writeState "sound" "usb-audio" || return 1 ;;
-
-    "reactos" )
-
-      writeState "old" "pc" || return 1
-      writeState "type" "auto" || return 1
-      writeState "net" "rtl8139" || return 1
-      writeState "usb" "pci-ohci" || return 1 ;;
-
-  esac
-
-  if [[ "${id,,}" == "reactos" ]] && [ -z "$CUSTOM" ]; then
-    # The ISO is a Live-CD so we need to disable the data disk
-    # as it will be always wiped during the next runs currently.
-    REMOVE="N"
-    DISK_DISABLE="Y"
-  fi
-
-  restoreMachine || return 1
-
-  case "${id,,}" in
-
-    "win9"* | "win2k"* | *"x86"* | "reactos" )
-
-      # Legacy 32-bit Windows may enter an incompatible PAE/DEP path when the
-      # NX flag is exposed, causing installation failures or repeated resets.
-
-      writeState "flag" "nx=off" || return 1 ;;
-
-  esac
-
-  case "${id,,}" in
-
-    "win9"* | "win2k"* | "winxp"* | "win2003"* | \
-    "winvistax86"* | "win7x86"* | "reactos" )
-
-      if isQ35 "$MACHINE"; then
-
-        # pc-q35-2.11 began advertising a synthetic 64-bit PCI MMIO aperture.
-        # Older Windows ACPI implementations may reject that resource layout,
-        # so retain the pre-2.11 behavior for these guests to prevent a
-        # blue screen on XP and others if the 64 bit PCI hole size is >2G.
-
-        writeState "args" "-global q35-pcihost.x-pci-hole64-fix=false" || return 1
-
-      fi ;;
-
-  esac
-
-  return 0
-}
-
 prepareImage() {
 
   local iso="$1"
@@ -1318,13 +1206,13 @@ addDrivers() {
   return 0
 }
 
-stageSetup() {
+createOverlay() {
 
   local asset="$1"
   local language="$2"
   local stage="$3"
 
-  supportsUnattended "${DETECTED,,}" || return 0
+  supportsXML "${DETECTED,,}" || return 0
 
   local msg="Creating overlay image..."
   info "$msg" && html "$msg"
@@ -1349,7 +1237,7 @@ stageSetup() {
     return 1
   fi
 
-  stageAnswer "$asset" "$language" "$stage" || return 1
+  addAnswerFile "$asset" "$language" "$stage" || return 1
 
   return 0
 }
@@ -1367,7 +1255,7 @@ updateImage() {
   local dat="${xml//.xml/.dat}"
   local desc path src wim name info 
 
-  supportsUnattended "${DETECTED,,}" || return 0
+  supportsXML "${DETECTED,,}" || return 0
 
   if [ ! -s "$asset" ] || [ ! -f "$asset" ]; then
     asset=""
@@ -1652,6 +1540,118 @@ restoreMachineState() {
 
   mergeState "CPU_FLAGS" "flag" "," || return 1
   mergeState "ARGUMENTS" "args" " " || return 1
+
+  return 0
+}
+
+setMachine() {
+
+  local id="$1"
+  local iso="$2"
+  local dir="$3"
+  local desc="$4"
+
+  ETFS="boot/etfsboot.com"
+
+  local version=""
+  case "${id,,}" in
+    "win2k"* )   version="2k" ;;
+    "winxp"* )   version="xp" ;;
+    "win2003"* ) version="2k3" ;;
+  esac
+
+  if [ -n "$version" ]; then
+
+    if ! legacyInstall "$iso" "$dir" "$desc" "$version"; then
+      error "Failed to prepare $desc ISO!"
+      return 1
+    fi
+
+  fi
+
+  if isLegacy "$id"; then
+
+    writeState "mode" "windows_legacy" || return 1
+
+    case "${id,,}" in
+      "win9"* | "win2k"* | "reactos" )
+        writeState "vga" "cirrus" || return 1 ;;
+      * )
+        writeState "vga" "std" || return 1 ;;
+    esac
+
+  fi
+
+  restoreBootMode || return 1
+
+  case "${id,,}" in
+
+    "win9"* )
+
+      writeState "usb" "N" || return 1
+      writeState "net" "pcnet" || return 1
+      writeState "type" "auto" || return 1
+      writeState "old" "pc-i440fx-2.4" || return 1 ;;
+
+    "win2k"* )
+
+      writeState "old" "pc" || return 1
+      writeState "type" "auto" || return 1
+      writeState "net" "rtl8139" || return 1
+      writeState "usb" "pci-ohci" || return 1 ;;
+
+    "winxpx"* | "win2003"* )
+
+      writeState "type" "blk" || return 1
+      writeState "net" "rtl8139" || return 1
+      writeState "sound" "usb-audio" || return 1 ;;
+
+    "reactos" )
+
+      writeState "old" "pc" || return 1
+      writeState "type" "auto" || return 1
+      writeState "net" "rtl8139" || return 1
+      writeState "usb" "pci-ohci" || return 1 ;;
+
+  esac
+
+  if [[ "${id,,}" == "reactos" ]] && [ -z "$CUSTOM" ]; then
+    # The ISO is a Live-CD so we need to disable the data disk
+    # as it will be always wiped during the next runs currently.
+    REMOVE="N"
+    DISK_DISABLE="Y"
+  fi
+
+  restoreMachine || return 1
+
+  case "${id,,}" in
+
+    "win9"* | "win2k"* | *"x86"* | "reactos" )
+
+      # Legacy 32-bit Windows may enter an incompatible PAE/DEP path when the
+      # NX flag is exposed, causing installation failures or repeated resets.
+
+      writeState "flag" "nx=off" || return 1 ;;
+
+  esac
+
+  case "${id,,}" in
+
+    "win9"* | "win2k"* | "winxp"* | "win2003"* | \
+    "winvistax86"* | "win7x86"* | "reactos" )
+
+      if isQ35 "$MACHINE"; then
+
+        # pc-q35-2.11 began advertising a synthetic 64-bit PCI MMIO aperture.
+        # Older Windows ACPI implementations may reject that resource layout,
+        # so retain the pre-2.11 behavior for these guests to prevent a
+        # blue screen on XP and others if the 64 bit PCI hole size is >2G.
+
+        writeState "args" "-global q35-pcihost.x-pci-hole64-fix=false" || return 1
+
+      fi ;;
+
+  esac
 
   return 0
 }
