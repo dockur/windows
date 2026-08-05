@@ -538,7 +538,7 @@ findFile() {
   fi
 
   if [ -d "$dir" ]; then
-    if ! hasData || [ ! -f "$boot" ]; then
+    if ! hasDisk || [ ! -f "$boot" ]; then
       error "The bind $dir maps to a file that does not exist!" && return 1
     fi
   fi
