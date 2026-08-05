@@ -408,6 +408,8 @@ markWindowsBooted() {
     rm -f "$BOOT" 2>/dev/null || true
   fi
 
+  rm -f "$STORAGE/setup.img" 2>/dev/null || :
+
   return 0
 }
 
