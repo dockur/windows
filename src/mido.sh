@@ -773,6 +773,8 @@ parseESD() {
   local file_path file_sum file_size file_edition
   local file_culture file_match=0 language_match=0
   local records architecture language separator=$'\x1f'
+  local upper='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  local lower='abcdefghijklmnopqrstuvwxyz'
 
   ESD=""
   ESD_SUM=""
@@ -782,18 +784,18 @@ parseESD() {
   # local name and flatten the catalog once so selection needs no temporary XML.
   if ! records=$(xmlstarlet sel \
     -T -t \
-    -m "//*[local-name()='File']" \
-      -v "normalize-space(*[local-name()='Architecture'])" \
+    -m "//*[translate(local-name(), '$upper', '$lower')='file']" \
+      -v "normalize-space(*[translate(local-name(), '$upper', '$lower')='architecture'][1])" \
       -o "$separator" \
-      -v "normalize-space(*[local-name()='Edition'])" \
+      -v "normalize-space(*[translate(local-name(), '$upper', '$lower')='edition'][1])" \
       -o "$separator" \
-      -v "normalize-space(*[local-name()='LanguageCode'])" \
+      -v "normalize-space(*[translate(local-name(), '$upper', '$lower')='languagecode'][1])" \
       -o "$separator" \
-      -v "normalize-space(*[local-name()='FilePath'])" \
+      -v "normalize-space(*[translate(local-name(), '$upper', '$lower')='filepath'][1])" \
       -o "$separator" \
-      -v "normalize-space(*[local-name()='Sha1'])" \
+      -v "normalize-space(*[translate(local-name(), '$upper', '$lower')='sha1'][1])" \
       -o "$separator" \
-      -v "normalize-space(*[local-name()='Size'])" \
+      -v "normalize-space(*[translate(local-name(), '$upper', '$lower')='size'][1])" \
       -n \
     "$xml" 2>/dev/null); then
 
@@ -899,6 +901,8 @@ validateESDCatalog() {
 
   local metadata root fileCount 
   local separator=$'\x1f' response
+  local upper='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  local lower='abcdefghijklmnopqrstuvwxyz'
 
   if [ ! -s "$xml" ]; then
     error "$provider returned an empty ESD catalog!"
@@ -910,13 +914,13 @@ validateESDCatalog() {
   # parseESD can misreport them as a products.xml parsing failure.
   if metadata=$(xmlstarlet sel \
       -T -t \
-      -v 'local-name(/*)' -o "$separator" \
-      -v 'count(/*[local-name()="MCT"]//*[local-name()="File"])' \
+      -v "translate(local-name(/*), '$upper', '$lower')" -o "$separator" \
+      -v "count(/*[translate(local-name(), '$upper', '$lower')='mct']//*[translate(local-name(), '$upper', '$lower')='file'])" \
       "$xml" 2>/dev/null); then
 
     IFS="$separator" read -r root fileCount <<< "$metadata"
 
-    if [ "$root" = "MCT" ] &&
+    if [ "$root" = "mct" ] &&
         [[ "$fileCount" =~ ^[0-9]+$ ]] &&
         (( fileCount > 0 )); then
       return 0
