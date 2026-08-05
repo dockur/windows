@@ -1349,7 +1349,7 @@ createOverlay() {
     return 1
   fi
 
-  stageAnswer "$asset" "$language" "$stage" || return 1
+  addAnswerFile "$asset" "$language" "$stage" || return 1
 
   return 0
 }
