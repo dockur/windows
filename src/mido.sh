@@ -770,34 +770,34 @@ parseESD() {
   local culture="$6"
 
   local xmlFile="${xml##*/}"
-  local file_path file_sum file_size file_edition
-  local file_culture file_match=0 language_match=0
+  local file_size file_edition file_culture
+  local file_path file_sum file_sha1 file_sha256
+  local file_match=0 language_match=0
   local records architecture language separator=$'\x1f'
-  local upper='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-  local lower='abcdefghijklmnopqrstuvwxyz'
+  local upper="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  local lower="abcdefghijklmnopqrstuvwxyz"
 
   ESD=""
   ESD_SUM=""
   ESD_SIZE=""
 
-  # Microsoft catalogs have used different XML namespaces. Match elements by
-  # local name and flatten the catalog once so selection needs no temporary XML.
-  if ! records=$(xmlstarlet sel \
-    -T -t \
-    -m "//*[translate(local-name(), '$upper', '$lower')='file']" \
-      -v "normalize-space(*[translate(local-name(), '$upper', '$lower')='architecture'][1])" \
-      -o "$separator" \
-      -v "normalize-space(*[translate(local-name(), '$upper', '$lower')='edition'][1])" \
-      -o "$separator" \
-      -v "normalize-space(*[translate(local-name(), '$upper', '$lower')='languagecode'][1])" \
-      -o "$separator" \
-      -v "normalize-space(*[translate(local-name(), '$upper', '$lower')='filepath'][1])" \
-      -o "$separator" \
-      -v "normalize-space(*[translate(local-name(), '$upper', '$lower')='sha1'][1])" \
-      -o "$separator" \
-      -v "normalize-space(*[translate(local-name(), '$upper', '$lower')='size'][1])" \
-      -n \
-    "$xml" 2>/dev/null); then
+  # Microsoft catalogs may use different XML namespaces, tag casing, and checksum
+  # algorithms. Flatten the catalog once so all selection logic remains in Bash.
+  local upper="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  local lower="abcdefghijklmnopqrstuvwxyz"
+  local lname="translate(local-name(), '$upper', '$lower')"
+
+  if ! records=$(xmlstarlet sel -T -t \
+      -m "//*[$lname='file']" \
+        -v "normalize-space(*[$lname='architecture'][1])" -o "$separator" \
+        -v "normalize-space(*[$lname='edition'][1])" -o "$separator" \
+        -v "normalize-space(*[$lname='languagecode'][1])" -o "$separator" \
+        -v "normalize-space(*[$lname='filepath'][1])" -o "$separator" \
+        -v "normalize-space(*[$lname='sha256'][1])" -o "$separator" \
+        -v "normalize-space(*[$lname='sha1'][1])" -o "$separator" \
+        -v "normalize-space(*[$lname='size'][1])" \
+        -n \
+      "$xml" 2>/dev/null); then
 
     error "Failed to parse $xmlFile!"
     return 1
@@ -807,9 +807,9 @@ parseESD() {
   # distinguish an unavailable edition from an unavailable translation.
   while IFS="$separator" read -r \
     architecture file_edition file_culture \
-    file_path file_sum file_size; do
+    file_path file_sha256 file_sha1 file_size; do
 
-    [ -n "$architecture$file_path$file_sum$file_size$file_culture$file_edition" ] || continue
+    [ -n "$architecture$file_path$file_sha256$file_sha1$file_size$file_culture$file_edition" ] || continue
 
     [ "${architecture,,}" = "${PLATFORM,,}" ] || continue
 
@@ -823,6 +823,8 @@ parseESD() {
     [ "${file_culture,,}" = "${culture,,}" ] || continue
 
     language_match=1
+    file_sum="${file_sha256:-$file_sha1}"
+
     ESD="$file_path"
     ESD_SUM="$file_sum"
     ESD_SIZE="$file_size"
@@ -881,8 +883,7 @@ getCatalogError() {
   result=$(
     printf '%s' "$result" | \
       LC_ALL=C tr -cd '\11\12\15\40-\176' | \
-      sed 's/<[^>]*>/ /g' | \
-      tr '\r\n\t' '   ' | \
+      sed 's/<[^>]*>/ /g' | tr '\r\n\t' '   ' | \
       sed 's/[[:space:]][[:space:]]*/ /g; s/^ //; s/ $//'
   )
 
