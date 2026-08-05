@@ -706,6 +706,8 @@ extractImage() {
 
   local file size
   local desc="local ISO"
+  local archive="${dir}.archive"
+  local target="$dir"
 
   if [ -z "$CUSTOM" ]; then
     desc="downloaded ISO"
@@ -722,13 +724,15 @@ extractImage() {
   local msg="Extracting $desc image"
   info "$msg..." && html "$msg..."
 
-  if ! rm -rf -- "$dir"; then
-    error "Failed to remove directory \"$dir\" !"
+  enabled "${UNPACK:-}" && target="$archive"
+
+  if ! rm -rf -- "$dir" "$archive"; then
+    error "Failed to remove extraction directories!"
     return 1
   fi
 
-  if ! makeDir "$dir"; then
-    error "Failed to create directory \"$dir\" !"
+  if ! makeDir "$target"; then
+    error "Failed to create directory \"$target\" !"
     return 1
   fi
 
@@ -738,21 +742,23 @@ extractImage() {
   fi
 
   if (( size < 10000000 )); then
-    error "Invalid ISO file: Size of \"$iso\" is smaller than 10 MB" && return 1
-  fi
-
-  checkFreeSpace "$dir" "$size" || return 1
-
-  if ! rm -rf -- "$dir"; then
-    error "Failed to remove directory \"$dir\" !"
+    error "Invalid ISO file: Size of \"$iso\" is smaller than 10 MB"
     return 1
   fi
 
-  /run/progress.sh "$dir" "$size" "$msg ([P])..." &
+  checkFreeSpace "$target" "$size" || return 1
 
-  if ! 7z x "$iso" -o"$dir" > /dev/null; then
+  if ! rm -rf -- "$target"; then
+    error "Failed to remove directory \"$target\" !"
+    return 1
+  fi
+
+  /run/progress.sh "$target" "$size" "$msg ([P])..." &
+
+  if ! 7z x "$iso" -o"$target" > /dev/null; then
     fKill "progress.sh"
-    error "Failed to extract ISO file: $iso" && return 1
+    error "Failed to extract ISO file: $iso"
+    return 1
   fi
 
   fKill "progress.sh"
@@ -763,14 +769,19 @@ extractImage() {
 
   else
 
-    # Locate and extract the ISO nested inside the downloaded archive
-    if ! file=$(find "$dir" -maxdepth 1 -type f -iname "*.iso" -print -quit); then
+    # Locate the first root-level ISO in the downloaded archive
+    if ! file=$(find "$archive" -maxdepth 1 -type f -iname "*.iso" -print -quit); then
       error "Failed to search for a nested ISO in the extracted archive!"
       return 1
     fi
 
     if [ -z "$file" ]; then
       error "Failed to find any nested ISO files in the archive!"
+      return 1
+    fi
+
+    if ! makeDir "$dir"; then
+      error "Failed to create directory \"$dir\" !"
       return 1
     fi
 
@@ -783,6 +794,11 @@ extractImage() {
 
     if ! mv -f -- "$file" "$iso"; then
       error "Failed to preserve extracted ISO file: $file"
+      return 1
+    fi
+
+    if ! rm -rf -- "$archive"; then
+      error "Failed to remove directory \"$archive\" !"
       return 1
     fi
 
