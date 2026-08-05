@@ -714,6 +714,30 @@ extractImage() {
   return 0
 }
 
+detectImage() {
+
+  local dir="$1"
+
+  local desc
+
+  info "Detecting version from ISO image..."
+
+  # Marker-based legacy and ReactOS detection must run before looking for a WIM.
+  if detectLegacy "$dir" || detectReactOS "$dir"; then
+    desc=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 1
+    info "Detected: $desc"
+    return 0
+  fi
+
+  local wim
+  wim=$(findImage "$dir") || return 1
+
+  local image_info
+  image_info=$(readImageInfo "$wim") || return 1
+
+  detectImageInfo "$image_info"
+}
+
 prepareImage() {
 
   local iso="$1"
