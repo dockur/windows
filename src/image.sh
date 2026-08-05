@@ -1,56 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-getVersionPriority() {
-
-  local id="${1,,}"
-  local base="${2,,}"
-
-  local entry priority patterns pattern
-  local result="other" score best_score=-1
-  local -a order=()
-
-  id="${id%-eval}"
-
-  mapfile -t order < <(getEditionOrder "$base")
-
-  local edition="${id#"$base"}"
-  edition="${edition#-}"
-
-  # Use the most specific matching pattern. This prevents broad patterns
-  # such as enterprise-* from taking precedence over enterprise-iot-*.
-  for entry in "${order[@]}"; do
-
-    IFS='|' read -r _ priority patterns <<< "$entry"
-
-    for pattern in $patterns; do
-
-      if [ "$pattern" = "@default" ]; then
-        [ -z "$edition" ] || continue
-        score=1
-      elif [[ "$pattern" == *"*" ]]; then
-        local prefix="${pattern%\*}"
-        [[ "$edition" == "$prefix"* ]] || continue
-        score="${#pattern}"
-      elif [ "$edition" = "$pattern" ]; then
-        score="${#pattern}"
-      else
-        continue
-      fi
-
-      if (( score > best_score )); then
-        result="$priority"
-        best_score="$score"
-      fi
-
-    done
-
-  done
-
-  echo "$result"
-  return 0
-}
-
 getVersions() {
 
   local xml="$1"
@@ -76,7 +26,6 @@ getVersions() {
   versions_ref=()
 
   platform=$(getPlatform "$xml") || return 1
-
   image_count=$(xmlstarlet sel -T -t -v 'count(/WIM/IMAGE)' - 2>/dev/null <<< "$xml") || return 1
 
   if [[ ! "$image_count" =~ ^[0-9]+$ ]]; then
@@ -100,7 +49,6 @@ getVersions() {
       -v 'normalize-space(FLAGS)' -n \
     - 2>/dev/null <<< "$xml"); then
     error "Failed to read image records from WIM metadata!"
-
     return 1
   fi
 
@@ -202,6 +150,21 @@ getVersions() {
   return 0
 }
 
+getCompatibleVersions() {
+
+  local wanted="$1"
+
+  printf '%s\n' "$wanted"
+
+  # Treat normal and Evaluation variants of the same edition as compatible.
+  # The exact requested variant is always checked first.
+  if [[ "${wanted,,}" == *"-eval" ]]; then
+    printf '%s\n' "${wanted%-eval}"
+  else
+    printf '%s\n' "$wanted-eval"
+  fi
+}
+
 selectVersion() {
 
   local versions_name="$1"
@@ -211,10 +174,10 @@ selectVersion() {
   local index_name="$5"
 
   local -a candidates=()
-  local -n version_list="$versions_name"
   local -n index_map="$indexes_name"
-  local -n preference_list="$preferred_name"
+  local -n version_list="$versions_name"
   local -n selected_version="$result_name"
+  local -n preference_list="$preferred_name"
   local -n selected_image_index="$index_name"
   local wanted candidate match
 
@@ -228,11 +191,13 @@ selectVersion() {
     for candidate in "${candidates[@]}"; do
 
       match=$(hasVersion "$candidate" "${version_list[@]}") || continue
+
       hasAnswerFile "$match" || continue
 
       local key="${match,,}"
       selected_version="$match"
       selected_image_index="${index_map[$key]}"
+
       return 0
 
     done
@@ -369,6 +334,56 @@ detectVersion() {
   return 0
 }
 
+getVersionPriority() {
+
+  local id="${1,,}"
+  local base="${2,,}"
+
+  local entry priority patterns pattern
+  local result="other" score best_score=-1
+  local -a order=()
+
+  id="${id%-eval}"
+
+  mapfile -t order < <(getEditionOrder "$base")
+
+  local edition="${id#"$base"}"
+  edition="${edition#-}"
+
+  # Use the most specific matching pattern. This prevents broad patterns
+  # such as enterprise-* from taking precedence over enterprise-iot-*.
+  for entry in "${order[@]}"; do
+
+    IFS='|' read -r _ priority patterns <<< "$entry"
+
+    for pattern in $patterns; do
+
+      if [ "$pattern" = "@default" ]; then
+        [ -z "$edition" ] || continue
+        score=1
+      elif [[ "$pattern" == *"*" ]]; then
+        local prefix="${pattern%\*}"
+        [[ "$edition" == "$prefix"* ]] || continue
+        score="${#pattern}"
+      elif [ "$edition" = "$pattern" ]; then
+        score="${#pattern}"
+      else
+        continue
+      fi
+
+      if (( score > best_score )); then
+        result="$priority"
+        best_score="$score"
+      fi
+
+    done
+
+  done
+
+  echo "$result"
+  return 0
+}
+
 detectLanguage() {
 
   local xml="$1"
@@ -478,21 +493,6 @@ hasVersion() {
   done
 
   return 1
-}
-
-getCompatibleVersions() {
-
-  local wanted="$1"
-
-  printf '%s\n' "$wanted"
-
-  # Treat normal and Evaluation variants of the same edition as compatible.
-  # The exact requested variant is always checked first.
-  if [[ "${wanted,,}" == *"-eval" ]]; then
-    printf '%s\n' "${wanted%-eval}"
-  else
-    printf '%s\n' "$wanted-eval"
-  fi
 }
 
 checkPlatform() {
@@ -902,65 +902,6 @@ detectReactOS() {
   [ -n "$marker" ] || return 1
 
   DETECTED="reactos"
-  return 0
-}
-
-resolveImage() {
-
-  local version="$1"
-
-  XML=""
-  FB="falling back to manual installation!"
-
-  [ -z "$DETECTED" ] || return 0
-
-  # Reused and arbitrary URL media must be inspected because their actual
-  # contents may no longer match the requested VERSION.
-  [ -z "${REUSED_ISO:-}" ] || return 1
-  [[ "${version,,}" != "http"* ]] || return 1
-
-  # Only direct-boot custom media can safely bypass content detection.
-  if [ -n "$CUSTOM" ]; then
-    supportsUnattended "$version" && return 1
-    DETECTED="$version"
-    return 0
-  fi
-
-  local file="/run/assets/$version.xml"
-
-  if [ -s "$file" ]; then
-    DETECTED="$version"
-    return 0
-  fi
-
-  # Evaluation media may reuse the normal edition's answer-file template.
-  if [[ "${version,,}" == *"-eval" ]]; then
-    local source="/run/assets/${version%-eval}.xml"
-
-    if [ -s "$source" ]; then
-      DETECTED="$version"
-      return 0
-    fi
-  fi
-
-  return 1
-}
-
-setImage() {
-
-  supportsXML "${DETECTED,,}" || return 0
-
-  setXML "" && return 0
-  enabled "$MANUAL" && return 0
-
-  # A missing answer file is a supported manual-install path, not a hard media
-  # failure.
-  MANUAL="Y"
-
-  local desc
-  desc=$(printEdition "$DETECTED" "this version") || return 1
-
-  warn "the answer file for $desc was not found ($DETECTED.xml), $FB."
   return 0
 }
 
@@ -1419,28 +1360,281 @@ detectIsoImage() {
   return 0
 }
 
-detectImage() {
+checkFreeSpace() {
 
   local dir="$1"
+  local size="$2"
 
-  local desc
+  local space size_gb space_gb
 
-  info "Detecting version from ISO image..."
+  space=$(df --output=avail -B 1 "$dir" | tail -n 1) || return 1
 
-  # Marker-based legacy and ReactOS detection must run before looking for a WIM.
-  if detectLegacy "$dir" || detectReactOS "$dir"; then
-    desc=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 1
-    info "Detected: $desc"
-    return 0
+  [[ "$space" =~ ^[[:space:]]*[0-9]+[[:space:]]*$ ]] || {
+    error "Failed to determine available disk space for $dir!"
+    return 1
+  }
+
+  space="${space//[[:space:]]/}"
+
+  if (( size > space )); then
+
+    size_gb=$(formatBytes "$size")
+    space_gb=$(formatBytes "$space")
+
+    error "Not enough free space in $STORAGE, have $space_gb available but need at least $size_gb."
+    return 1
   fi
 
-  local wim
-  wim=$(findImage "$dir") || return 1
+  return 0
+}
 
-  local image_info
-  image_info=$(readImageInfo "$wim") || return 1
+extractESD() {
 
-  detectImageInfo "$image_info"
+  local iso="$1"
+  local dir="$2"
+  local version="$3"
+  local desc="$4"
+
+  local bootTotal bootLinks wimTotal wimLinks
+  local installSize size edition imgEdition
+  local bootWim installWim bootSize wimSize
+  local image index line ret metadata count
+  local result resultCount resultEdition xml
+  local -a fields
+
+  local minSize=100000000
+  local bootPad=60000000
+  local installPad=3000000
+  local spacePad=1073741824
+
+  local msg="Extracting $desc bootdisk from ESD file"
+  info "$msg..." && html "$msg..."
+
+  if ! size=$(stat -c%s -- "$iso"); then
+    error "Failed to determine size of ISO file \"$iso\" !"
+    return 1
+  fi
+
+  if (( size < minSize )); then
+    error "The downloaded ISO file is too small!"
+    return 1
+  fi
+
+  if ! rm -rf -- "$dir"; then
+    error "Failed to remove directory \"$dir\" !"
+    return 1
+  fi
+
+  if ! makeDir "$dir"; then
+    error "Failed to create directory \"$dir\" !"
+    return 1
+  fi
+
+  if ! xml=$(wimlib-imagex info "$iso" --xml 2>/dev/null |
+      iconv -f UTF-16LE -t UTF-8 2>/dev/null); then
+    error "Cannot read ESD file information!"
+    return 1
+  fi
+
+  # Microsoft download ESDs use images 1-3 for setup media, WinPE, and Windows
+  # Setup; images 4 and higher contain installable editions. Read all metadata
+  # once because repeatedly inspecting a solid-compressed ESD is expensive.
+  if ! metadata=$(xmlstarlet sel -t \
+      -v 'count(/WIM/IMAGE)' -n \
+      -v 'normalize-space(/WIM/IMAGE[@INDEX="1"]/TOTALBYTES)' -n \
+      -v 'normalize-space(/WIM/IMAGE[@INDEX="1"]/HARDLINKBYTES)' -n \
+      -v 'normalize-space(/WIM/IMAGE[@INDEX="3"]/TOTALBYTES)' -n \
+      -v 'normalize-space(/WIM/IMAGE[@INDEX="3"]/HARDLINKBYTES)' -n \
+      -m '/WIM/IMAGE[number(@INDEX) >= 4]' -v '@INDEX' -o $'\t' -v 'DESCRIPTION' -n \
+      <<< "$xml" 2>/dev/null); then
+    error "Cannot read ESD file information!"
+    return 1
+  fi
+
+  mapfile -t fields <<< "$metadata"
+
+  count="${fields[0]:-}"
+  if [[ ! "$count" =~ ^[0-9]+$ ]]; then
+    error "Cannot read the image count in ESD file!"
+    return 1
+  fi
+
+  if (( count < 3 )); then
+    error "Invalid ESD file: expected at least 3 images, found $count."
+    return 1
+  fi
+
+  bootTotal="${fields[1]:-}"
+  bootLinks="${fields[2]:-}"
+
+  if [[ ! "$bootTotal" =~ ^[0-9]+$ ]] ||
+      [[ ! "$bootLinks" =~ ^[0-9]+$ ]]; then
+    error "Cannot read bootdisk size from ESD file!"
+    return 1
+  fi
+
+  bootSize=$(( bootTotal - bootLinks ))
+
+  wimTotal="${fields[3]:-}"
+  wimLinks="${fields[4]:-}"
+
+  if [[ ! "$wimTotal" =~ ^[0-9]+$ ]] ||
+      [[ ! "$wimLinks" =~ ^[0-9]+$ ]]; then
+    error "Cannot read boot.wim size from ESD file!"
+    return 1
+  fi
+
+  wimSize=$(( wimTotal - wimLinks + bootPad ))
+
+  # The downloaded ESD already occupies disk space and is moved into the
+  # installation media. Peak additional usage consists of the extracted setup
+  # files and boot.wim, plus the final ISO containing those files and the ESD.
+  local freeSpace=$(( size + 2 * (bootSize + wimSize) + spacePad ))
+  checkFreeSpace "$dir" "$freeSpace" || return 1
+
+  /run/progress.sh "$dir" "$bootSize" "$msg ([P])..." &
+
+  index="1"
+  wimlib-imagex apply "$iso" "$index" "$dir" --quiet 2>/dev/null || {
+    ret=$?
+    fKill "progress.sh"
+    error "Extracting $desc bootdisk failed ($ret)"
+    return 1
+  }
+
+  fKill "progress.sh"
+
+  bootWim="$dir/sources/boot.wim"
+  installWim="$dir/sources/install.esd"
+
+  msg="Extracting $desc environment from ESD file"
+  info "$msg..." && html "$msg..."
+
+  index="2"
+  /run/progress.sh "$bootWim" "$wimSize" "$msg ([P])..." &
+
+  wimlib-imagex export "$iso" "$index" "$bootWim" \
+    --compress=none --quiet || {
+    ret=$?
+    fKill "progress.sh"
+    error "Adding WinPE failed ($ret)"
+    return 1
+  }
+
+  fKill "progress.sh"
+
+  msg="Extracting $desc setup from ESD file"
+  info "$msg..."
+
+  index="3"
+  /run/progress.sh "$bootWim" "$wimSize" "$msg ([P])..." &
+
+  wimlib-imagex export "$iso" "$index" "$bootWim" \
+    --compress=none --boot --quiet || {
+    ret=$?
+    fKill "progress.sh"
+    error "Adding Windows Setup failed ($ret)"
+    return 1
+  }
+
+  fKill "progress.sh"
+
+  if [[ "${PLATFORM,,}" == "x64" ]]; then
+    LABEL="CCCOMA_X64FRE_EN-US_DV9"
+  else
+    LABEL="CPBA_A64FRE_EN-US_DV9"
+  fi
+
+  msg="Extracting $desc image from ESD file"
+  info "$msg..." && html "$msg..."
+
+  edition=$(getCatalog "$version" "name")
+
+  if [ -z "$edition" ]; then
+    error "Invalid VERSION specified, value \"$version\" is not recognized!"
+    return 1
+  fi
+
+  index=""
+
+  for line in "${fields[@]:5}"; do
+
+    IFS=$'\t' read -r image imgEdition <<< "$line"
+
+    [[ ! "$image" =~ ^[0-9]+$ ]] && continue
+    [[ "${imgEdition,,}" != "${edition,,}" ]] && continue
+
+    index="$image"
+    break
+
+  done
+
+  if [ -z "$index" ]; then
+    error "Failed to find product '$edition' in install.esd!"
+    return 1
+  fi
+
+  installSize=$(( size + installPad ))
+  /run/progress.sh "$installWim" "$installSize" "$msg ([P])..." &
+
+  if ! rm -f -- "$dir/sources/install.wim" "$installWim"; then
+    fKill "progress.sh"
+    error "Failed to remove previous Windows installation image!"
+    return 1
+  fi
+
+  # Reuse the downloaded solid ESD instead of exporting the selected image.
+  # Both paths are below $TMP, so this is a same-filesystem rename.
+  if ! mv -f -- "$iso" "$installWim"; then
+    fKill "progress.sh"
+    error "Failed to move downloaded ESD file into the installation media!"
+    return 1
+  fi
+
+  # Remove all other images without rebuilding the solid-compressed resources.
+  # Deleting in descending order leaves the selected edition at index 1.
+  for (( image=count; image >= 1; image-- )); do
+
+    (( image == index )) && continue
+
+    if ! wimlib-imagex delete "$installWim" "$image" --soft --quiet; then
+      fKill "progress.sh"
+      error "Failed to remove image $image from install.esd!"
+      return 1
+    fi
+
+  done
+
+  if ! result=$(wimlib-imagex info "$installWim" --xml 2>/dev/null |
+      iconv -f UTF-16LE -t UTF-8 2>/dev/null); then
+    fKill "progress.sh"
+    error "Cannot verify the prepared install.esd file!"
+    return 1
+  fi
+
+  if ! metadata=$(xmlstarlet sel -t \
+      -v 'count(/WIM/IMAGE)' -n \
+      -v 'normalize-space(/WIM/IMAGE[@INDEX="1"]/DESCRIPTION)' -n \
+      <<< "$result" 2>/dev/null); then
+    fKill "progress.sh"
+    error "Cannot verify the prepared install.esd file!"
+    return 1
+  fi
+
+  mapfile -t fields <<< "$metadata"
+
+  resultCount="${fields[0]:-}"
+  resultEdition="${fields[1]:-}"
+
+  if [[ "$resultCount" != "1" ]] ||
+      [[ "${resultEdition,,}" != "${edition,,}" ]]; then
+    fKill "progress.sh"
+    error "Prepared install.esd does not contain only '$edition' at index 1!"
+    return 1
+  fi
+
+  fKill "progress.sh"
+  return 0
 }
 
 normalizeBatch() {

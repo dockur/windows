@@ -572,6 +572,65 @@ removeIso() {
   return 0
 }
 
+resolveImage() {
+
+  local version="$1"
+
+  XML=""
+  FB="falling back to manual installation!"
+
+  [ -z "$DETECTED" ] || return 0
+
+  # Reused and arbitrary URL media must be inspected because their actual
+  # contents may no longer match the requested VERSION.
+  [ -z "${REUSED_ISO:-}" ] || return 1
+  [[ "${version,,}" != "http"* ]] || return 1
+
+  # Only direct-boot custom media can safely bypass content detection.
+  if [ -n "$CUSTOM" ]; then
+    supportsUnattended "$version" && return 1
+    DETECTED="$version"
+    return 0
+  fi
+
+  local file="/run/assets/$version.xml"
+
+  if [ -s "$file" ]; then
+    DETECTED="$version"
+    return 0
+  fi
+
+  # Evaluation media may reuse the normal edition's answer-file template.
+  if [[ "${version,,}" == *"-eval" ]]; then
+    local source="/run/assets/${version%-eval}.xml"
+
+    if [ -s "$source" ]; then
+      DETECTED="$version"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
+setImage() {
+
+  supportsXML "${DETECTED,,}" || return 0
+
+  setXML "" && return 0
+  enabled "$MANUAL" && return 0
+
+  # A missing answer file is a supported manual-install path, not a hard media
+  # failure.
+  MANUAL="Y"
+
+  local desc
+  desc=$(printEdition "$DETECTED" "this version") || return 1
+
+  warn "the answer file for $desc was not found ($DETECTED.xml), $FB."
+  return 0
+}
+
 needsExtraction() {
 
   local id="$1"
@@ -598,223 +657,6 @@ needsExtraction() {
   fi
 
   # Modern bootable ISOs can use the original media with a setup overlay.
-  return 1
-}
-
-checkFreeSpace() {
-
-  local dir="$1"
-  local size="$2"
-
-  local space size_gb space_gb
-
-  space=$(df --output=avail -B 1 "$dir" | tail -n 1) || return 1
-
-  [[ "$space" =~ ^[[:space:]]*[0-9]+[[:space:]]*$ ]] || {
-    error "Failed to determine available disk space for $dir!"
-    return 1
-  }
-
-  space="${space//[[:space:]]/}"
-
-  if (( size > space )); then
-
-    size_gb=$(formatBytes "$size")
-    space_gb=$(formatBytes "$space")
-
-    error "Not enough free space in $STORAGE, have $space_gb available but need at least $size_gb."
-    return 1
-  fi
-
-  return 0
-}
-
-extractESD() {
-
-  local iso="$1"
-  local dir="$2"
-  local version="$3"
-  local desc="$4"
-
-  local bootTotal bootLinks wimTotal wimLinks
-  local installSize size edition imgEdition
-  local bootWim installWim bootSize wimSize
-  local index line ret xml metadata count
-  local -a fields
-
-  local minSize=100000000
-  local freeSpace=9606127360
-  local bootPad=60000000
-  local installPad=3000000
-
-  local msg="Extracting $desc bootdisk from ESD file"
-  info "$msg..." && html "$msg..."
-
-  if ! size=$(stat -c%s -- "$iso"); then
-    error "Failed to determine size of ISO file \"$iso\" !"
-    return 1
-  fi
-
-  if (( size < minSize )); then
-    error "The downloaded ISO file is too small!"
-    return 1
-  fi
-
-  if ! rm -rf -- "$dir"; then
-    error "Failed to remove directory \"$dir\" !"
-    return 1
-  fi
-
-  if ! makeDir "$dir"; then
-    error "Failed to create directory \"$dir\" !"
-    return 1
-  fi
-
-  checkFreeSpace "$dir" "$freeSpace" || return 1
-
-  if ! xml=$(wimlib-imagex info "$iso" --xml 2>/dev/null |
-      iconv -f UTF-16LE -t UTF-8 2>/dev/null); then
-    error "Cannot read ESD file information!"
-    return 1
-  fi
-
-  # Microsoft download ESDs use images 1-3 for setup media, WinPE, and Windows
-  # Setup; images 4 and higher contain installable editions. Read all metadata
-  # once because repeatedly inspecting a solid-compressed ESD is expensive.
-  if ! metadata=$(xmlstarlet sel -t \
-      -v 'count(/WIM/IMAGE)' -n \
-      -v 'normalize-space(/WIM/IMAGE[@INDEX="1"]/TOTALBYTES)' -n \
-      -v 'normalize-space(/WIM/IMAGE[@INDEX="1"]/HARDLINKBYTES)' -n \
-      -v 'normalize-space(/WIM/IMAGE[@INDEX="3"]/TOTALBYTES)' -n \
-      -v 'normalize-space(/WIM/IMAGE[@INDEX="3"]/HARDLINKBYTES)' -n \
-      -m '/WIM/IMAGE[number(@INDEX) >= 4]' -v '@INDEX' -o $'\t' -v 'DESCRIPTION' -n \
-      <<< "$xml" 2>/dev/null); then
-    error "Cannot read ESD file information!"
-    return 1
-  fi
-
-  mapfile -t fields <<< "$metadata"
-
-  count="${fields[0]:-}"
-  if [[ ! "$count" =~ ^[0-9]+$ ]]; then
-    error "Cannot read the image count in ESD file!"
-    return 1
-  fi
-
-  if (( count < 3 )); then
-    error "Invalid ESD file: expected at least 3 images, found $count."
-    return 1
-  fi
-
-  bootTotal="${fields[1]:-}"
-  bootLinks="${fields[2]:-}"
-
-  if [[ ! "$bootTotal" =~ ^[0-9]+$ ]] ||
-      [[ ! "$bootLinks" =~ ^[0-9]+$ ]]; then
-    error "Cannot read bootdisk size from ESD file!"
-    return 1
-  fi
-
-  bootSize=$(( bootTotal - bootLinks ))
-
-  wimTotal="${fields[3]:-}"
-  wimLinks="${fields[4]:-}"
-
-  if [[ ! "$wimTotal" =~ ^[0-9]+$ ]] ||
-      [[ ! "$wimLinks" =~ ^[0-9]+$ ]]; then
-    error "Cannot read boot.wim size from ESD file!"
-    return 1
-  fi
-
-  wimSize=$(( wimTotal - wimLinks + bootPad ))
-
-  /run/progress.sh "$dir" "$bootSize" "$msg ([P])..." &
-
-  index="1"
-  wimlib-imagex apply "$iso" "$index" "$dir" --quiet 2>/dev/null || {
-    ret=$?
-    fKill "progress.sh"
-    error "Extracting $desc bootdisk failed ($ret)"
-    return 1
-  }
-
-  fKill "progress.sh"
-
-  bootWim="$dir/sources/boot.wim"
-  installWim="$dir/sources/install.wim"
-
-  msg="Extracting $desc environment from ESD file"
-  info "$msg..." && html "$msg..."
-
-  index="2"
-  /run/progress.sh "$bootWim" "$wimSize" "$msg ([P])..." &
-
-  wimlib-imagex export "$iso" "$index" "$bootWim" \
-    --compress=none --quiet || {
-    ret=$?
-    fKill "progress.sh"
-    error "Adding WinPE failed ($ret)"
-    return 1
-  }
-
-  fKill "progress.sh"
-
-  msg="Extracting $desc setup from ESD file"
-  info "$msg..."
-
-  index="3"
-  /run/progress.sh "$bootWim" "$wimSize" "$msg ([P])..." &
-
-  wimlib-imagex export "$iso" "$index" "$bootWim" \
-    --compress=none --boot --quiet || {
-    ret=$?
-    fKill "progress.sh"
-    error "Adding Windows Setup failed ($ret)"
-    return 1
-  }
-
-  fKill "progress.sh"
-
-  if [[ "${PLATFORM,,}" == "x64" ]]; then
-    LABEL="CCCOMA_X64FRE_EN-US_DV9"
-  else
-    LABEL="CPBA_A64FRE_EN-US_DV9"
-  fi
-
-  msg="Extracting $desc image from ESD file"
-  info "$msg..." && html "$msg..."
-
-  edition=$(getCatalog "$version" "name")
-  if [ -z "$edition" ]; then
-    error "Invalid VERSION specified, value \"$version\" is not recognized!"
-    return 1
-  fi
-
-  for line in "${fields[@]:5}"; do
-
-    IFS=$'\t' read -r index imgEdition <<< "$line"
-
-    [[ ! "$index" =~ ^[0-9]+$ ]] && continue
-    [[ "${imgEdition,,}" != "${edition,,}" ]] && continue
-
-    installSize=$(( size + installPad ))
-
-    /run/progress.sh "$installWim" "$installSize" "$msg ([P])..." &
-
-    wimlib-imagex export "$iso" "$index" "$installWim" --quiet || {
-      ret=$?
-      fKill "progress.sh"
-      error "Addition of $index to the $desc image failed ($ret)"
-      return 1
-    }
-
-    fKill "progress.sh"
-    return 0
-
-  done
-
-  fKill "progress.sh"
-  error "Failed to find product '$edition' in install.wim!"
   return 1
 }
 
@@ -913,6 +755,30 @@ extractImage() {
   return 0
 }
 
+detectImage() {
+
+  local dir="$1"
+
+  local desc
+
+  info "Detecting version from ISO image..."
+
+  # Marker-based legacy and ReactOS detection must run before looking for a WIM.
+  if detectLegacy "$dir" || detectReactOS "$dir"; then
+    desc=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 1
+    info "Detected: $desc"
+    return 0
+  fi
+
+  local wim
+  wim=$(findImage "$dir") || return 1
+
+  local image_info
+  image_info=$(readImageInfo "$wim") || return 1
+
+  detectImageInfo "$image_info"
+}
+
 prepareImage() {
 
   local iso="$1"
@@ -932,10 +798,8 @@ prepareImage() {
   supportsXML "$DETECTED" || return 0
 
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
-
     extractBootImage "$iso" "$dir" "$desc" && return 0
     error "Failed to extract boot image from ISO image \"${iso}\"!"
-
     return 1
   fi
 
