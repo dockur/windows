@@ -2432,7 +2432,6 @@ writeSIF() {
       '[Unattended]' \
       '    UnattendSwitch=Yes' \
       '    UnattendMode=FullUnattended' \
-      '    FileSystem=NTFS' \
       '    OemSkipEula=Yes' \
       '    OemPreinstall=Yes' \
       '    Repartition=Yes' \
