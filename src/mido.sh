@@ -716,8 +716,14 @@ getWorCatalog() {
   local ret="$2"
   local build="${3:-}"
 
-  local edition="" filter="" version=""
-  local file="catalog.xml" url="" name="" 
+  local file="catalog.xml"
+  local name="" filter="" url="" 
+  local version="" edition="" arch=""
+
+  case "${PLATFORM,,}" in
+    "x64" ) arch="x64" ;;
+    "arm64" ) arch="ARM64" ;;
+  esac
 
   case "${id,,}" in
     "win11${PLATFORM,,}" )
@@ -738,8 +744,8 @@ getWorCatalog() {
       name="Windows 10 Enterprise" ;;
   esac
 
-  if [ -n "$version" ]; then
-    url="https://worproject.com/dldserv/esd/getcatalog.php?ver=${version}&arch=${PLATFORM^^}&edition=${filter}"
+  if [ -n "$version" ] && [ -n "$arch" ]; then
+    url="https://worproject.com/dldserv/esd/getcatalog.php?ver=${version}&arch=${arch}&edition=${filter}"
     [ -n "$build" ] && url+="&build=${build}"
   fi
 
@@ -853,6 +859,82 @@ parseESD() {
   return 0
 }
 
+getCatalogError() {
+
+  local file="$1"
+  local result=""
+
+  [ -s "$file" ] || return 0
+
+  # Prefer leaf text when the response is parseable XML, separating adjacent
+  # elements so HTML error pages remain readable. Fall back to the beginning
+  # of a plain-text response when XML parsing fails.
+  result=$(xmlstarlet sel -T -t \
+    -m '//*[not(*) and normalize-space()]' \
+      -v 'normalize-space(.)' -o ' ' \
+    "$file" 2>/dev/null) || result=$(head -c 1024 -- "$file" 2>/dev/null || :)
+
+  # Keep upstream error details useful without allowing control sequences,
+  # multiline output, or a complete HTML error page into the application log.
+  result=$(
+    printf '%s' "$result" | \
+      LC_ALL=C tr -cd '\11\12\15\40-\176' | \
+      sed 's/<[^>]*>/ /g' | \
+      tr '\r\n\t' '   ' | \
+      sed 's/[[:space:]][[:space:]]*/ /g; s/^ //; s/ $//'
+  )
+
+  if (( ${#result} > 500 )); then
+    result="${result:0:500}..."
+  fi
+
+  printf '%s' "$result"
+  return 0
+}
+
+validateESDCatalog() {
+
+  local xml="$1"
+  local provider="$2"
+
+  local metadata root fileCount 
+  local separator=$'\x1f' response
+
+  if [ ! -s "$xml" ]; then
+    error "$provider returned an empty ESD catalog!"
+    return 1
+  fi
+
+  # Successful Microsoft and WoR responses contain an MCT document with at
+  # least one File record. Reject API error tokens and unrelated XML before
+  # parseESD can misreport them as a products.xml parsing failure.
+  if metadata=$(xmlstarlet sel \
+      -T -t \
+      -v 'local-name(/*)' -o "$separator" \
+      -v 'count(/*[local-name()="MCT"]//*[local-name()="File"])' \
+      "$xml" 2>/dev/null); then
+
+    IFS="$separator" read -r root fileCount <<< "$metadata"
+
+    if [ "$root" = "MCT" ] &&
+        [[ "$fileCount" =~ ^[0-9]+$ ]] &&
+        (( fileCount > 0 )); then
+      return 0
+    fi
+
+  fi
+
+  response=$(getCatalogError "$xml") || response=""
+
+  if [ -n "$response" ]; then
+    error "$provider returned: $response"
+  else
+    error "$provider returned an invalid ESD catalog!"
+  fi
+
+  return 1
+}
+
 getESD() {
 
   local dir="$1"
@@ -861,9 +943,9 @@ getESD() {
   local desc="$4"
   local source="${5:-microsoft}"
 
-  local file culture log
-  local edition catalog rc=0
   local xmlFile="products.xml"
+  local file culture provider
+  local edition catalog log rc=0
 
   culture=$(getLanguage "$lang" "culture")
   file=$(getCatalog "$version" "file" "$source")
@@ -874,6 +956,9 @@ getESD() {
     error "Invalid VERSION specified, value \"$version\" is not recognized!"
     return 1
   fi
+
+  provider="Microsoft"
+  [[ "${file,,}" == *.xml ]] && provider="WoR"
 
   local msg="Downloading ESD catalog..."
   info "$msg" && html "$msg"
@@ -922,9 +1007,11 @@ getESD() {
 
   rm -f "$log"
 
-  # Normal catalogs arrive as CAB archives, while pinned build catalogs are
-  # already XML and only need the common filename.
-  if [[ "$file" == *".xml" ]]; then
+  # Microsoft catalogs arrive as CAB archives. WoR catalogs are returned as
+  # XML and must be validated before they are published as products.xml.
+  if [[ "${file,,}" == *.xml ]]; then
+
+    validateESDCatalog "$dir/$file" "$provider" || return 1
 
     if ! mv -f "$dir/$file" "$dir/$xmlFile"; then
       error "Failed to rename $file to $xmlFile."
@@ -946,6 +1033,12 @@ getESD() {
   if [ ! -s "$dir/$xmlFile" ]; then
     error "Failed to find $xmlFile in $file!"
     return 1
+  fi
+
+  # Validate extracted Microsoft catalogs as well, so parseESD only receives
+  # the catalog format it expects.
+  if [[ "${file,,}" != *.xml ]]; then
+    validateESDCatalog "$dir/$xmlFile" "$provider" || return 1
   fi
 
   if ! parseESD \
@@ -1299,7 +1392,6 @@ downloadImage() {
     if getESD "$TMP/esd" "$version" "$lang" "$desc"; then
       success="y"
     else
-      delay "$seconds"
       getESD "$TMP/esd" "$version" "$lang" "$desc" "wor" && success="y"
     fi
 
