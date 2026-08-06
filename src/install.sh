@@ -1131,6 +1131,7 @@ addDrivers() {
   local version="$2"
 
   local drivers="$stage/drivers"
+  local msg="Windows version and architecture are unknown; cannot select drivers!"
 
   rm -rf "$drivers" || return 1
   mkdir -p "$drivers" || return 1
@@ -1138,8 +1139,22 @@ addDrivers() {
   info "Adding drivers to image..."
 
   if [ -z "$version" ]; then
-    version="win11x64"
-    warn "Windows version unknown, falling back to Windows 11 drivers..."
+
+    if [ -z "${IMAGE_PLATFORM:-}" ]; then
+      error "$msg" && return 1
+    fi
+
+    case "${IMAGE_PLATFORM,,}" in
+      "x86" )   version="win7x86" ;;
+      "x64" )   version="win11x64" ;;
+      "arm64" ) version="win11arm64" ;;
+      * )       error "$msg" && return 1 ;;
+    esac
+
+    local desc
+    desc=$(printVersion "$version" "") || return 1
+
+    warn "Windows version unknown, falling back to $desc drivers..."
   fi
 
   if ! bsdtar -xf /var/drivers.txz -C "$drivers"; then
