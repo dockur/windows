@@ -1081,6 +1081,7 @@ addDrivers() {
   local version="$2"
 
   local drivers="$stage/drivers"
+  local msg="Windows version and architecture are unknown; cannot select drivers!"
 
   rm -rf "$drivers" || return 1
   mkdir -p "$drivers" || return 1
@@ -1089,13 +1090,15 @@ addDrivers() {
 
   if [ -z "$version" ]; then
 
-    case "${IMAGE_PLATFORM:-}" in
+    if [ -z "${IMAGE_PLATFORM:-}" ]; then
+      error "$msg" && return 1
+    fi
+
+    case "${IMAGE_PLATFORM,,}" in
       "x86" )   version="win7x86" ;;
       "x64" )   version="win11x64" ;;
       "arm64" ) version="win11arm64" ;;
-      * )
-        error "Windows version and architecture are unknown; cannot select drivers!"
-        return 1 ;;
+      * )       error "$msg" && return 1 ;;
     esac
 
     local desc
