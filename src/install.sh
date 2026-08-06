@@ -1088,8 +1088,20 @@ addDrivers() {
   info "Adding drivers to image..."
 
   if [ -z "$version" ]; then
-    version="win11x64"
-    warn "Windows version unknown, falling back to Windows 11 drivers..."
+
+    case "${IMAGE_PLATFORM:-}" in
+      "x86" )   version="win7x86" ;;
+      "x64" )   version="win11x64" ;;
+      "arm64" ) version="win11arm64" ;;
+      * )
+        error "Windows version and architecture are unknown; cannot select drivers!"
+        return 1 ;;
+    esac
+
+    local desc
+    desc=$(printVersion "$version" "") || return 1
+
+    warn "Windows version unknown, falling back to $desc drivers..."
   fi
 
   if ! bsdtar -xf /var/drivers.txz -C "$drivers"; then
