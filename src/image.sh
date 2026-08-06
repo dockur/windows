@@ -167,19 +167,53 @@ getVersions() {
   return 0
 }
 
-getCompatibleVersions() {
+getVersionPriority() {
 
-  local wanted="$1"
+  local id="${1,,}"
+  local base="${2,,}"
 
-  printf '%s\n' "$wanted"
+  local entry priority patterns pattern
+  local result="other" score best_score=-1
+  local -a order=() pattern_list=()
 
-  # Treat normal and Evaluation variants of the same edition as compatible.
-  # The exact requested variant is always checked first.
-  if [[ "${wanted,,}" == *"-eval" ]]; then
-    printf '%s\n' "${wanted%-eval}"
-  else
-    printf '%s\n' "$wanted-eval"
-  fi
+  id="${id%-eval}"
+
+  mapfile -t order < <(getEditionOrder "$base")
+
+  local edition="${id#"$base"}"
+  edition="${edition#-}"
+
+  # Use the most specific matching pattern. This prevents broad patterns
+  # such as enterprise-* from taking precedence over enterprise-iot-*.
+  for entry in "${order[@]}"; do
+    IFS='|' read -r _ priority patterns <<< "$entry"
+    read -r -a pattern_list <<< "$patterns"
+    for pattern in "${pattern_list[@]}"; do
+
+      if [ "$pattern" = "@default" ]; then
+        [ -z "$edition" ] || continue
+        score=1
+      elif [[ "$pattern" == *"*" ]]; then
+        local prefix="${pattern%\*}"
+        [[ "$edition" == "$prefix"* ]] || continue
+        score="${#pattern}"
+      elif [ "$edition" = "$pattern" ]; then
+        score="${#pattern}"
+      else
+        continue
+      fi
+
+      if (( score > best_score )); then
+        result="$priority"
+        best_score="$score"
+      fi
+
+    done
+
+  done
+
+  echo "$result"
+  return 0
 }
 
 selectVersion() {
@@ -222,6 +256,21 @@ selectVersion() {
   done
 
   return 1
+}
+
+getCompatibleVersions() {
+
+  local wanted="$1"
+
+  printf '%s\n' "$wanted"
+
+  # Treat normal and Evaluation variants of the same edition as compatible.
+  # The exact requested variant is always checked first.
+  if [[ "${wanted,,}" == *"-eval" ]]; then
+    printf '%s\n' "${wanted%-eval}"
+  else
+    printf '%s\n' "$wanted-eval"
+  fi
 }
 
 selectEdition() {
@@ -348,56 +397,6 @@ detectVersion() {
   index="${image_indexes[$key]}"
 
   printf '%s\n%s\n' "$result" "$index"
-  return 0
-}
-
-getVersionPriority() {
-
-  local id="${1,,}"
-  local base="${2,,}"
-
-  local entry priority patterns pattern
-  local result="other" score best_score=-1
-  local -a order=()
-
-  id="${id%-eval}"
-
-  mapfile -t order < <(getEditionOrder "$base")
-
-  local edition="${id#"$base"}"
-  edition="${edition#-}"
-
-  # Use the most specific matching pattern. This prevents broad patterns
-  # such as enterprise-* from taking precedence over enterprise-iot-*.
-  for entry in "${order[@]}"; do
-
-    IFS='|' read -r _ priority patterns <<< "$entry"
-
-    for pattern in $patterns; do
-
-      if [ "$pattern" = "@default" ]; then
-        [ -z "$edition" ] || continue
-        score=1
-      elif [[ "$pattern" == *"*" ]]; then
-        local prefix="${pattern%\*}"
-        [[ "$edition" == "$prefix"* ]] || continue
-        score="${#pattern}"
-      elif [ "$edition" = "$pattern" ]; then
-        score="${#pattern}"
-      else
-        continue
-      fi
-
-      if (( score > best_score )); then
-        result="$priority"
-        best_score="$score"
-      fi
-
-    done
-
-  done
-
-  echo "$result"
   return 0
 }
 
