@@ -1524,6 +1524,33 @@ validateUsername() {
   return 0
 }
 
+validateDomainName() {
+
+  local value="$1"
+  local name="${2:-DOMAIN}"
+
+  if [ -z "$value" ]; then
+    error "The $name variable must contain a valid domain name!"
+    return 1
+  fi
+
+  if [[ "$value" == *"://"* ]]; then
+    error "The $name variable must contain a domain name, not a URL!"
+    return 1
+  fi
+
+  if [ "${#value}" -gt 255 ] ||
+    [[ "$value" =~ [[:cntrl:]] ]] ||
+    [[ "$value" =~ [[:space:]] ]] ||
+    [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$ ]]; then
+
+    error "The $name variable does not contain a valid domain name!"
+    return 1
+  fi
+
+  return 0
+}
+
 validateLegacyText() {
 
   local name="$1"
@@ -1601,27 +1628,17 @@ validateLegacyUsername() {
   return 0
 }
 
-validateDomainName() {
+validateLegacyEncoding() {
 
-  local value="$1"
-  local name="${2:-DOMAIN}"
+  local name="$1"
+  local value="$2"
+  local desc="${3:-}"
 
-  if [ -z "$value" ]; then
-    error "The $name variable must contain a valid domain name!"
-    return 1
-  fi
+  local suffix=""
+  [ -n "$desc" ] && suffix=" for $desc"
 
-  if [[ "$value" == *"://"* ]]; then
-    error "The $name variable must contain a domain name, not a URL!"
-    return 1
-  fi
-
-  if [ "${#value}" -gt 255 ] ||
-    [[ "$value" =~ [[:cntrl:]] ]] ||
-    [[ "$value" =~ [[:space:]] ]] ||
-    [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$ ]]; then
-
-    error "The $name variable does not contain a valid domain name!"
+  if LC_ALL=C grep -q '[^ -~]' <<< "$value"; then
+    error "The $name variable may only contain printable ASCII characters$suffix!"
     return 1
   fi
 
@@ -2822,8 +2839,14 @@ legacyInstall() {
   validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
   validateMembership || return 1
   validateComputerName "$HOST" || return 1
+
   validateLegacyText "APP" "$APP" "$desc" || return 1
   validateLegacyText "ENGINE" "$ENGINE" "$desc" || return 1
+
+  if [[ "$driver" == "2k" ]]; then
+    validateLegacyEncoding "APP" "$APP" "$desc" || return 1
+    validateLegacyEncoding "ENGINE" "$ENGINE" "$desc" || return 1
+  fi
 
   XHEX=$(printf '%08x\n' "$((10#$WIDTH))") || return 1
   YHEX=$(printf '%08x\n' "$((10#$HEIGHT))") || return 1
@@ -2837,6 +2860,12 @@ legacyInstall() {
 
   validateLegacyUsername "$username" "$desc" || return 1
   validatePassword "$password" "$desc" || return 1
+
+  if [[ "$driver" == "2k" ]]; then
+    validateLegacyEncoding "USERNAME" "$username" "$desc" || return 1
+    validateLegacyEncoding "PASSWORD" "$password" "$desc" || return 1
+    validateLegacyEncoding "WORKGROUP" "$workgroup" "$desc" || return 1
+  fi
 
   # WINNT.SIF and .reg files use different escaping rules, so prepare their
   # values independently before generating either file.
