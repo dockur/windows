@@ -1132,7 +1132,7 @@ verifyFile() {
 
   fi
 
-  if [[ "$hash" == "$check" ]]; then
+  if [[ "${hash,,}" == "${check,,}" ]]; then
     info "Successfully verified $type!" && return 0
   fi
 
@@ -1296,7 +1296,7 @@ downloadImage() {
   local detected="$DETECTED"
   local requested="$version" switched=""  
   local tried="n" success="n" seconds="5"
-  local i url sum size base language desc web_desc
+  local i url sum size base language desc web_desc metadata
 
   if [[ "${version,,}" == "http"* ]]; then
 
@@ -1348,15 +1348,16 @@ downloadImage() {
     if [[ "$success" == "y" ]]; then
 
       detected=$(getMidoDetected "$version" "$MIDO_SOURCE" "$DETECTED")
-      url=$(getMido "$version" "$lang" "")
+      metadata="${MIDO_SOURCE:-$version}"
+      url=$(getMido "$metadata" "$lang" "")
 
       sum=""
       size=""
 
       # Apply the metadata belonging to the configured static URL.
       if [[ "${MIDO_URL%%\?*}" == "${url%%\?*}" ]]; then
-        size=$(getMido "$version" "$lang" "size")
-        sum=$(getMido "$version" "$lang" "sum")
+        size=$(getMido "$metadata" "$lang" "size")
+        sum=$(getMido "$metadata" "$lang" "sum")
       fi
 
       local download_desc="$desc"
