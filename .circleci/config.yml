@@ -4,7 +4,7 @@ jobs:
   build:
     docker:
       - image: cimg/node:26.7.0
-    parallelism: 30
+    parallelism: 29
     resource_class: large
     steps:
       - run:
