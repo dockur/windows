@@ -806,7 +806,7 @@ detectLegacy() {
 
   if [ -n "$marker" ]; then
     error "Windows IA-64 (Itanium) images are not supported by this container!"
-    return 1
+    exit 67
   fi
 
   marker=$(find "$dir" -maxdepth 1 -type d -iname WIN95 -print -quit) || return 1
