@@ -305,7 +305,7 @@ startInstall() {
   fi
 
   if ! rm -f -- "$BOOT"; then
-    error "Failed to remove ISO file \"$BOOT\" !"
+    error "Failed to remove obsolete ISO file \"$BOOT\" !"
     exit 50
   fi
 
@@ -322,6 +322,10 @@ startInstall() {
   if ! find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete; then
     error "Failed to remove obsolete firmware files from \"$STORAGE\" !"
     exit 50
+  fi
+
+  if [ -z "$CUSTOM" ] && [ -z "$REUSED_ISO" ]; then
+    checkMemory || exit 67
   fi
 
   return 0
@@ -1400,6 +1404,52 @@ backupPrevious () {
   [ -z "$(ls -A "$root")" ] && rm -rf "$root"
 
   [ -n "$failed" ] && return 1
+
+  return 0
+}
+
+checkMemory() {
+
+  local id="$1"
+  local desc="${2:-}"
+  local required wanted available
+
+  required=$(getRequiredMemory "$id") || return 1
+
+  if [ -z "$desc" ]; then
+    desc=$(printVariant "$id" "$id") || return 1
+  fi
+
+  # Ensure the final memory allocation also uses this floor.
+  RAM_MINIMUM="$required"
+
+  # Refresh host and container memory availability.
+  getMemoryInfo
+
+  available=$(( RAM_AVAIL - RAM_SPARE ))
+  (( available < 0 )) && available=0
+
+  case "${RAM_SIZE,,}" in
+    "max" )
+      wanted="$available" ;;
+    "half" )
+      wanted=$(( RAM_TOTAL / 2 ))
+      (( wanted > available )) && wanted="$available" ;;
+    * )
+      wanted=$(numfmt --from=iec "$RAM_SIZE") || return 1
+
+      if (( wanted < required )); then
+        error "$desc requires at least $(formatBytes "$required") of RAM, but RAM_SIZE is set to $(formatBytes "$wanted")."
+        return 1
+      fi
+
+      (( wanted > available )) && wanted="$available" ;;
+  esac
+
+  if (( wanted < required )); then
+    error "$desc requires at least $(formatBytes "$required") of RAM, but only $(formatBytes "$wanted") can be allocated."
+    return 1
+  fi
 
   return 0
 }
