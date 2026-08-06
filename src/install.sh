@@ -112,6 +112,13 @@ configureMachine() {
     return 0
   fi
 
+  if ! checkMemory "$DETECTED" "$desc"; then
+    if [ -n "${REUSED_ISO:-}" ]; then
+      useOriginalImage "$iso" || return 79
+    fi
+    return 79
+  fi
+
   if ! setMachine "$DETECTED" "$iso" "$dir" "$desc"; then
     skipUnattended "$dir" "$iso" "$boot" || return 80
     handled=1
@@ -305,7 +312,7 @@ startInstall() {
   fi
 
   if ! rm -f -- "$BOOT"; then
-    error "Failed to remove ISO file \"$BOOT\" !"
+    error "Failed to remove obsolete ISO file \"$BOOT\" !"
     exit 50
   fi
 
@@ -322,6 +329,10 @@ startInstall() {
   if ! find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete; then
     error "Failed to remove obsolete firmware files from \"$STORAGE\" !"
     exit 50
+  fi
+
+  if [ -z "$CUSTOM" ] && [ -z "$REUSED_ISO" ] && [[ "${VERSION,,}" != "http"* ]]; then
+    checkMemory "$VERSION" || exit 67
   fi
 
   return 0
@@ -832,14 +843,15 @@ prepareImage() {
   local dir="$2"
 
   local desc missing
-
   desc=$(printVariant "$DETECTED" "$DETECTED")
+
+  # Use the standard Windows BIOS boot image unless legacy preparation
+  # already selected a media-specific El Torito image.
+  ETFS="${ETFS:-boot/etfsboot.com}"
 
   # Legacy rebuilt media must retain the source ISO's El Torito boot-load size.
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
-    if [[ "${DETECTED,,}" != "win9"* && "${DETECTED,,}" != "winnt4" ]]; then
-      getBootLoadSize "$iso" "$dir" "$desc" || return 1
-    fi
+    getBootLoadSize "$iso" "$dir" "$desc" || return 1
   fi
 
   supportsXML "$DETECTED" || return 0
@@ -1404,6 +1416,52 @@ backupPrevious () {
   return 0
 }
 
+checkMemory() {
+
+  local id="$1"
+  local desc="${2:-}"
+  local required wanted available
+
+  required=$(getRequiredMemory "$id") || return 1
+
+  if [ -z "$desc" ]; then
+    desc=$(printVariant "$id" "$id") || return 1
+  fi
+
+  # Ensure the final memory allocation also uses this floor.
+  RAM_MINIMUM="$required"
+
+  # Refresh host and container memory availability.
+  getMemoryInfo
+
+  available=$(( RAM_AVAIL - RAM_SPARE ))
+  (( available < 0 )) && available=0
+
+  case "${RAM_SIZE,,}" in
+    "max" )
+      wanted="$available" ;;
+    "half" )
+      wanted=$(( RAM_TOTAL / 2 ))
+      (( wanted > available )) && wanted="$available" ;;
+    * )
+      wanted=$(numfmt --from=iec "$RAM_SIZE") || return 1
+
+      if (( wanted < required )); then
+        error "$desc requires at least $(formatBytes "$required") of RAM, but RAM_SIZE is set to $(formatBytes "$wanted")."
+        return 1
+      fi
+
+      (( wanted > available )) && wanted="$available" ;;
+  esac
+
+  if (( wanted < required )); then
+    error "$desc requires at least $(formatBytes "$required") of RAM, but only $(formatBytes "$wanted") can be allocated."
+    return 1
+  fi
+
+  return 0
+}
+
 restoreBootMode() {
 
   local current="${BOOT_MODE:-}"
@@ -1463,10 +1521,8 @@ setMachine() {
   local iso="$2"
   local dir="$3"
   local desc="$4"
-
-  ETFS="boot/etfsboot.com"
-
   local version=""
+
   case "${id,,}" in
     "win2k"* )   version="2k" ;;
     "winxp"* )   version="xp" ;;

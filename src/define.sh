@@ -934,6 +934,38 @@ getVersion() {
   return 0
 }
 
+getRequiredMemory() {
+
+  local id="${1,,}"
+
+  case "$id" in
+    "win11"* )
+      echo 4294967296 ;;
+    "tiny11"* | "core11"* )
+      echo 2147483648 ;;
+    "win10"* | "tiny10"* )
+      echo 2147483648 ;;
+    "win2025"* | "win2022"* | "win2019"* | "win2016"* )
+      echo 2147483648 ;;
+    "win81"* | "win7x64"* )
+      echo 2147483648 ;;
+    "win7x86"* | "winvista"* | "win2012"* )
+      echo 1073741824 ;;
+    "win2008"* | "win2003"* )
+      echo 536870912 ;;
+    "winxpx64"* )
+      echo 268435456 ;;
+    "win9"* | "winnt4"* | "winxpx86"* | "win2k"* )
+      echo 136314880 ;;
+    "reactos"* )
+      echo 136314880 ;;
+    * )
+      echo 136314880 ;;
+  esac
+
+  return 0
+}
+
 isLegacy() {
 
   local id="$1"
