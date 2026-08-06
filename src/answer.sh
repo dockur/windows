@@ -1913,15 +1913,15 @@ prepareSetupScript() {
 
   local asset="$1"
   local stage="$2"
-  local staged=""
 
+  local staged=""
   staged=$(stageSetupScript "$asset" "$stage") || return 1
+
   [ -n "$staged" ] || return 0
 
   updateSetupScript "$staged" "$asset" || return 1
   finalizeSetupScript "$staged" || return 1
 
-  printf '%s' "$staged"
   return 0
 }
 
