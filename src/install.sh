@@ -419,8 +419,8 @@ skipInstall() {
 
   if [ -n "$previousBase" ]; then
 
-    # Older releases stored the original download name in windows.base. New
-    # releases always store the final ISO name, so migrate legacy state once.
+    # Older releases stored the original download name in windows.base. Current
+    # releases store an ISO source identity, so migrate legacy state once.
     if [[ "${previousBase,,}" != *.iso ]]; then
 
       if isCompressed "$previousBase" || [[ "${previousBase,,}" == *.esd ]]; then
@@ -435,6 +435,15 @@ skipInstall() {
         exit 50
       fi
 
+    fi
+
+    # Older releases may have left a rebuilt custom ISO at its synthetic source
+    # identity. A completed installation no longer needs that installation media.
+    if [[ "${previousBase,,}" == "windows."* ]] && [ -f "$boot" ] && hasData; then
+      if ! rm -f -- "$STORAGE/$previousBase"; then
+        error "Failed to remove obsolete ISO file \"$STORAGE/$previousBase\" !"
+        exit 50
+      fi
     fi
 
     # A changed source invalidates an unfinished installation. Back up an
@@ -590,7 +599,7 @@ findFile() {
 
   ISO="$file"
   CUSTOM="$file"
-  # Include the custom ISO size in its persistent name so replacing a
+  # Encode the custom ISO size in a synthetic source identity so replacing a
   # bind-mounted ISO is detected as a different installation source.
   BOOT="$STORAGE/windows.$size.iso"
 
