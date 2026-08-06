@@ -1875,12 +1875,16 @@ getBootLoadSize() {
         return 1
       fi
 
-      if [[ ! "$value" =~ ^[[:xdigit:]]+$ ]] || [ "${#value}" -gt 4 ]; then
+      if [[ "$value" =~ ^[[:digit:]]{1,5}$ ]]; then
+        BOOT_LOAD_SIZE=$((10#$value))
+      elif [[ "$value" =~ ^(0[xX])?[[:xdigit:]]{1,4}$ ]]; then
+        value=${value#0x}
+        value=${value#0X}
+        BOOT_LOAD_SIZE=$((16#$value))
+      else
         error "Invalid boot image load size found in $desc ISO!"
         return 1
-      fi
-
-      BOOT_LOAD_SIZE=$((16#$value)) ;;
+      fi ;;
   esac
 
   if (( BOOT_LOAD_SIZE < 1 || BOOT_LOAD_SIZE > 65535 )); then
