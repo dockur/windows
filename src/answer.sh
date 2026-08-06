@@ -185,7 +185,7 @@ addAnswerFile() {
 
   fi
 
-  if ! updateDiskID "$answer" "${DISK_TYPE:-}" "setup"; then
+  if ! updateDiskID "$answer" "${DISK_TYPE:-}"; then
     error "Failed to adjust the Windows installation disk!"
     exit 85
   fi
