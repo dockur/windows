@@ -983,8 +983,8 @@ updateDiskID() {
   local disk_type="${2,,}"
 
   local target="0"
-  local disk_ids="$setup//u:DiskID"
   local setup="$XML_COMPONENT_SETUP"
+  local disk_ids="$setup//u:DiskID"
   local count values value current
   local -a ids=()
 
