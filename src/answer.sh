@@ -980,29 +980,19 @@ updateDiskID() {
 
   local asset="$1"
   local disk_type="${2,,}"
-  local mode="${3:-setup}"
 
   local target="0"
-  local setup="$XML_COMPONENT_SETUP"
   local disk_ids="$setup//u:DiskID"
+  local setup="$XML_COMPONENT_SETUP"
   local count values value current
   local -a ids=()
 
   [ -s "$asset" ] || return 1
 
-  # The setup overlay occupies disk 0, so common VirtIO installation disks move
-  # to disk 1 in setup-image mode. Rebuilt media keeps the original disk layout.
-  case "$mode" in
+  # The setup overlay occupies disk 0, so VirtIO disks move to disk 1.
 
-    "setup" )
-
-      case "$disk_type" in
-        "" | "scsi" | "virtio-scsi" | "blk" | "virtio-blk" ) target="1" ;;
-      esac ;;
-
-    "image" ) ;;
-    * ) return 1 ;;
-
+  case "$disk_type" in
+    "" | "scsi" | "virtio-scsi" | "blk" | "virtio-blk" ) target="1" ;;
   esac
 
   count=$(getXMLNodeCount "$asset" "$disk_ids") || {
