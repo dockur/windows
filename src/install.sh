@@ -1080,9 +1080,7 @@ addDrivers() {
   local src="$1"
   local tmp="$2"
   local version="$3"
-  local file="${4:-}"
-  local index="${5:-}"
-  local log="${6:-Y}"
+  local log="${4:-Y}"
 
   local drivers="$tmp/drivers"
 
@@ -1108,18 +1106,6 @@ addDrivers() {
 
   mkdir -p "$dest" || return 1
 
-  if [ -n "$file" ]; then
-
-    if [ -z "$index" ]; then
-      error "No boot image index specified!"
-      return 1
-    fi
-
-    wimlib-imagex update "$file" "$index" \
-      --command "delete --force --recursive /$target" >/dev/null || true
-
-  fi
-
   selectDrivers "$version" "$drivers" "$target" || return 1
 
   local dst="$src/\$OEM\$/\$\$/Drivers"
@@ -1132,22 +1118,13 @@ addDrivers() {
     rm -rf "$dest/viogpudo" || return 1
   fi
 
-  if [ -n "$file" ]; then
+  local winpe="$src/$target"
 
-    if ! wimlib-imagex update "$file" "$index" --command "add $dest /$target" >/dev/null; then
-      return 1
-    fi
-
-  else
-
-    local winpe="$src/$target"
-    rm -rf "$winpe" || return 1
-    mkdir -p "$winpe" || return 1
-    cp -Lr "$dest/." "$winpe" || return 1
-
-  fi
-
+  rm -rf "$winpe" || return 1
+  mkdir -p "$winpe" || return 1
+  cp -Lr "$dest/." "$winpe" || return 1
   rm -rf "$drivers" || return 1
+
   return 0
 }
 
