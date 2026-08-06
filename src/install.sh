@@ -1129,8 +1129,6 @@ createOverlay() {
   local language="$2"
   local stage="$3"
 
-  supportsXML "${DETECTED,,}" || return 0
-
   local msg="Creating overlay image..."
   info "$msg" && html "$msg"
 
