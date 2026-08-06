@@ -372,7 +372,8 @@ downloadWindowsEval() {
   culture=$(getLanguage "$lang" "culture")
 
   local country="${culture#*-}"
-  local link="" links page
+  local culture_key redirect redirect_key
+  local link="" links page candidate all_links
   local url="https://www.microsoft.com/en-us/evalcenter/download-$winVer"
 
   enabled "$DEBUG" && echo "Parsing download page: ${url}"
@@ -397,10 +398,61 @@ downloadWindowsEval() {
   page=${page//&amp;/\&}
   page=${page//&#38;/\&}
 
-  links=$(printf '%s\n' "$page" |
-    grep -Eio "https://go\.microsoft\.com/fwlink(/p)?/\?[^\"'<>[:space:]]+" |
+  all_links=$(printf '%s\n' "$page" |
+    grep -Eio "https://go\.microsoft\.com/fwlink(/p)?/\?[^\"'<>[:space:]]+") || {
+    error "Windows server download page gave us no download link!"
+    return 1
+  }
+
+  # Older Evaluation Center pages identify the language directly in the
+  # fwlink query. Keep that efficient path when those parameters are usable.
+  links=$(printf '%s\n' "$all_links" |
     grep -Ei '(^|[?&])culture='"${culture,,}"'(&|$)' |
-    grep -Ei '(^|[?&])country='"${country,,}"'(&|$)') || {
+    grep -Ei '(^|[?&])country='"${country,,}"'(&|$)') || links=""
+
+  if [ -z "$links" ]; then
+
+    culture_key="${culture,,}"
+    culture_key="${culture_key//[^[:alnum:]]/}"
+
+    # Current Evaluation Center pages reuse en-US query parameters for every
+    # language. Their first redirect target still carries the actual locale,
+    # so inspect that target without following the complete download chain.
+    while IFS= read -r candidate; do
+
+      [ -n "$candidate" ] || continue
+
+      redirect=$(curlRequest "Microsoft" "$agent" \
+        --output /dev/null \
+        --write-out "%{redirect_url}" \
+        --head \
+        -- "$candidate") || {
+          local rc=$?
+          (( rc >= 129 )) && exit "$rc"
+          continue
+        }
+
+      [ -n "$redirect" ] || continue
+
+      redirect_key="${redirect%%[?#]*}"
+      redirect_key="${redirect_key##*/}"
+      redirect_key="${redirect_key,,}"
+      redirect_key="${redirect_key//[^[:alnum:]]/}"
+
+      if [[ "$redirect_key" != *"$culture_key"* ]]; then
+        # Microsoft currently labels Traditional Chinese redirects as cn-TW
+        # while the Windows culture name is zh-TW.
+        [[ "$culture_key" == "zhtw" && "$redirect_key" == *"cntw"* ]] || continue
+      fi
+
+      [ -n "$links" ] && links+=$'\n'
+      links+="$candidate"
+
+    done <<< "$all_links"
+
+  fi
+
+  if [ -z "$links" ]; then
     # Distinguish a changed or missing English page from an unavailable
     # translation for an otherwise supported product.
     if [[ "${lang,,}" == "en" || "${lang,,}" == "en-"* ]]; then
@@ -410,7 +462,7 @@ downloadWindowsEval() {
       error "No download in the $language language available for $desc!"
     fi
     return 1
-  }
+  fi
 
   # Evaluation pages currently expose several matching fwlinks in a known
   # product/platform order, so select the entry for the requested variant.
