@@ -1373,7 +1373,7 @@ detectIsoImage() {
 
   image=$(findIsoImage "$iso") || return 1
   header=$(readWimHeader "$iso" "$image") || return 1
-  image_info=$(readIsoImageInfo "$iso" "$image" "$header") || return 1
+  image_info=$(readIsoImageInfo "$iso" "$image" "$header") || return $?
 
   info "Detecting version from ISO image..."
   detectImageInfo "$image_info" || return 2
@@ -1838,6 +1838,7 @@ getBootLoadSize() {
   local boot_info size value
 
   case "${DETECTED,,}" in
+
     "win2k"* | "winxp"* | "win2003"* )
 
       # NT 5.x media may not expose a reliable catalog sector count, so derive
@@ -1874,16 +1875,13 @@ getBootLoadSize() {
         return 1
       fi
 
-      if [[ "$value" =~ ^[[:digit:]]{1,5}$ ]]; then
-        BOOT_LOAD_SIZE=$((10#$value))
-      elif [[ "$value" =~ ^(0[xX])?[[:xdigit:]]{1,4}$ ]]; then
-        value=${value#0x}
-        value=${value#0X}
-        BOOT_LOAD_SIZE=$((16#$value))
-      else
+      if [[ ! "$value" =~ ^[[:xdigit:]]{1,4}$ ]]; then
         error "Invalid boot image load size found in $desc ISO!"
         return 1
-      fi ;;
+      fi
+
+      BOOT_LOAD_SIZE=$((16#$value)) ;;
+
   esac
 
   if (( BOOT_LOAD_SIZE < 1 || BOOT_LOAD_SIZE > 65535 )); then

@@ -75,6 +75,10 @@ selectWindowsImage() {
     return 0
   fi
 
+  if (( detect_rc >= 129 )); then
+    return "$detect_rc"
+  fi
+
   # Only code 1 indicates that extraction may recover detection.
   if (( detect_rc != 1 )); then
     skipUnattended "$dir" "$iso" "$boot" || return 76
@@ -88,12 +92,20 @@ selectWindowsImage() {
   fi
 
   extracted=1
+  detect_rc=0
 
-  if detectImage "$dir"; then
+  detectImage "$dir" || detect_rc=$?
+
+  if (( detect_rc == 0 )); then
     return 0
   fi
 
+  if (( detect_rc >= 129 )); then
+    return "$detect_rc"
+  fi
+
   skipUnattended "$dir" "$iso" "$boot" || return 76
+
   handled=1
   return 0
 }
@@ -832,7 +844,7 @@ detectImage() {
   wim=$(findImage "$dir") || return 1
 
   local image_info
-  image_info=$(readImageInfo "$wim") || return 1
+  image_info=$(readImageInfo "$wim") || return $?
 
   detectImageInfo "$image_info"
 }
