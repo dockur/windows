@@ -1279,13 +1279,8 @@ unknownImage() {
 
 describeImage() {
 
-  local info_xml="$1"
-  local index="$2"
-
   local result
   result=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 1
-
-  detectLanguage "$info_xml" "$index" || return 1
 
   if [[ "${LANGUAGE,,}" != "en" && "${LANGUAGE,,}" != "en-"* ]]; then
     local language
@@ -1355,7 +1350,9 @@ detectImageInfo() {
     return 0
   fi
 
-  desc=$(describeImage "$image_info" "$index") || return 1
+  detectLanguage "$image_info" "$index" || return 1
+
+  desc=$(describeImage) || return 1
   info "Detected: $desc"
 
   configureImage "$index" "$desc" || return 1
