@@ -36,13 +36,18 @@ updateXML() {
   updateLocaleXML "$asset" "$language" || return 1
 
   if [ -n "$domain" ]; then
+
     result=$(prepareDomainAccount "$domain") || return 1
     mapfile -t values <<< "$result"
     (( ${#values[@]} == 2 )) || return 1
+
     account="${values[0]}"
     auth="${values[1]}"
+
   else
+
     updateLocalAccount "$asset" || return 1
+
   fi
 
   updateMembership "$asset" "$domain" "$workgroup" "$account" "$auth" || return 1
@@ -74,11 +79,16 @@ setXML() {
   # A custom answer file always takes precedence over bundled or generated
   # templates, in root, storage, then asset-directory order.
   for file in "${custom_files[@]}"; do
+
     if [ -f "$file" ] && [ -s "$file" ]; then
+
       CUSTOM_XML="Y"
       XML="$file"
+
       return 0
+
     fi
+
   done
 
   file="$1"
@@ -111,21 +121,25 @@ setXML() {
 hasAnswerFile() {
 
   local id="$1"
-
   local file="/run/assets/$id.xml"
+
   [ -s "$file" ] && return 0
 
   if [[ "${id,,}" == *"-eval" ]]; then
+
     file="/run/assets/${id%-eval}.xml"
     [ -s "$file" ] && return 0
+
   fi
 
   # Editions without a dedicated template can use the generic template.
   case "${id,,}" in
+
     "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* | "win20"* )
+
       file="/run/assets/${id%%-*}.xml"
-      [ -s "$file" ] && return 0
-      ;;
+      [ -s "$file" ] && return 0 ;;
+
   esac
 
   return 1
@@ -137,8 +151,8 @@ addAnswerFile() {
   local language="$2"
   local stage="$3"
 
-  local answer="$stage/Autounattend.xml"
   local script="" name
+  local answer="$stage/Autounattend.xml"
 
   if enabled "$MANUAL"; then
     removeGeneratedXML "$asset" || return 1
@@ -163,10 +177,12 @@ addAnswerFile() {
   # Custom answer files keep their user-defined settings, but still receive
   # the media-specific disk and configuration-set adjustments below.
   if [ -z "${CUSTOM_XML:-}" ]; then
+
     if ! updateXML "$answer" "$language"; then
       error "Failed to update answer file: $answer"
       return 1
     fi
+
   fi
 
   if ! updateDiskID "$answer" "${DISK_TYPE:-}" "setup"; then
@@ -182,7 +198,9 @@ addAnswerFile() {
   validateGeneratedXML "$answer" || return 1
 
   if [ -z "${CUSTOM_XML:-}" ]; then
+
     script=$(prepareSetupScript "$asset" "$stage") || exit 84
+
   fi
 
   return 0
@@ -230,14 +248,17 @@ generateAnswerFile() {
   fi
 
   if [ "$type" != "evaluation" ] || [ "$remove_selector" = "Y" ]; then
+
     if ! xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -d "$install_from" "$tmp"; then
       rm -f "$tmp"
       error "Failed to generate $type answer file from $source!"
       return 1
     fi
+
   fi
 
   if [ -n "$index" ]; then
+
     install_count=$(getXMLNodeCount "$tmp" "$install_from") || {
       rm -f "$tmp"
       return 1
@@ -250,6 +271,7 @@ generateAnswerFile() {
     fi
 
     if [ "$install_count" = "0" ]; then
+
       # InstallFrom must be inserted before InstallTo to preserve the ordering
       # expected by the Windows Setup schema.
       install_to_count=$(getXMLNodeCount "$tmp" "$install_to") || {
@@ -278,6 +300,7 @@ generateAnswerFile() {
         return 1
       fi
     fi
+
   fi
 
   if ! markGeneratedXML "$tmp"; then
@@ -311,16 +334,18 @@ generateEvalXML() {
   [[ "${id,,}" == *"-eval" ]] || return 1
 
   local normal="${id::-5}"
-  local source="/run/assets/$normal.xml"
-  local target="/run/assets/$id.xml"
-  local index="$detected_index"
   local remove_selector="N"
+  local index="$detected_index"
+  local target="/run/assets/$id.xml"
+  local source="/run/assets/$normal.xml"
 
   removeGeneratedXML "$source" || return 1
 
   if [ ! -s "$source" ]; then
+
     source="/run/assets/${normal%%-*}.xml"
     removeGeneratedXML "$source" || return 1
+
   fi
 
   [ -s "$source" ] || return 1
@@ -348,12 +373,13 @@ generateFallbackXML() {
   local id="$1"
   local index="${2:-}"
 
-  local source="/run/assets/${id%%-*}.xml"
   local target="/run/assets/$id.xml"
+  local source="/run/assets/${id%%-*}.xml"
 
   [ "$source" != "$target" ] || return 1
 
   removeGeneratedXML "$source" || return 1
+
   [ -s "$source" ] || return 1
 
   generateAnswerFile "$id" "$source" "$target" "$index" "fallback" "Y" || return 1
@@ -369,6 +395,7 @@ updateUserXML() {
   local specialize="$XML_COMPONENT_SHELL_SPECIALIZE"
   local oobe="$XML_COMPONENT_SHELL_OOBE"
   local app="$APP for $ENGINE"
+
   local -a args=(
     -L
     -N "$XML_NS_UNATTEND_ARG"
@@ -423,7 +450,6 @@ updateLocaleXML() {
 updateAutologinXML() {
 
   local asset="$1"
-
   local shell="$XML_COMPONENT_SHELL_OOBE"
 
   disabled "${AUTOLOGIN:-}" || return 0
@@ -437,8 +463,7 @@ updateProductKey() {
 
   local script="$1"
 
-  local key="${KEY:-}"
-  local content
+  local key="${KEY:-}" content
 
   if [ -z "$key" ]; then
     removeSetupBlock "$script" "PRODUCT_KEY" || return 1
@@ -540,6 +565,7 @@ configureDomainAccounts() {
   (( autologon_count <= 1 )) || return 1
 
   if [ "$accounts_count" = "0" ]; then
+
     child_count=$(getXMLNodeCount "$asset" "$shell/*") || return 1
 
     if [ "$child_count" = "0" ]; then
@@ -547,6 +573,7 @@ configureDomainAccounts() {
     else
       xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -i "$shell/*[1]" -t elem -n 'UserAccounts' "$asset" || return 1
     fi
+
   fi
 
   local created_accounts="$accounts/*[local-name()='DomainAccounts']"
@@ -612,10 +639,10 @@ configureDomainJoin() {
   local ou="$5"
   local arch="$6"
 
+  local cred_domain="$domain"
   local component="$XML_COMPONENT_UNATTENDED_JOIN"
   local identification="$component/u:Identification"
   local credentials="$identification/*[local-name()='Credentials']"
-  local cred_domain="$domain"
 
   local -a args=(
     -L
@@ -665,6 +692,7 @@ configureDomainJoin() {
   fi
 
   xmlstarlet ed "${values[@]}" "$asset" || return 1
+
   return 0
 }
 
@@ -724,12 +752,17 @@ findPrimaryLocalAccount() {
     IFS=';,' read -r -a groups <<< "$group"
 
     for token in "${groups[@]}"; do
+
       token="${token#"${token%%[![:space:]]*}"}"
       token="${token%"${token##*[![:space:]]}"}"
+
       [[ "${token,,}" == "administrators" ]] || continue
+
       admin_primary="$position"
       ((admin_matches += 1))
+
       break
+
     done
 
   done <<< "$records"
@@ -757,8 +790,7 @@ findPrimaryLocalAccount() {
 
   [ -n "$selected_user" ] || return 1
 
-  printf '%s\n' \
-    "$selected" "$selected_user" "$found_admin" "$found_autologon"
+  printf '%s\n' "$selected" "$selected_user" "$found_admin" "$found_autologon"
 
   return 0
 }
@@ -961,13 +993,16 @@ updateDiskID() {
   # The setup overlay occupies disk 0, so common VirtIO installation disks move
   # to disk 1 in setup-image mode. Rebuilt media keeps the original disk layout.
   case "$mode" in
+
     "setup" )
+
       case "$disk_type" in
         "" | "scsi" | "virtio-scsi" | "blk" | "virtio-blk" ) target="1" ;;
-      esac
-      ;;
+      esac ;;
+
     "image" ) ;;
     * ) return 1 ;;
+
   esac
 
   count=$(getXMLNodeCount "$asset" "$disk_ids") || {
@@ -983,12 +1018,14 @@ updateDiskID() {
   }
 
   while IFS= read -r value; do
+
     if [[ ! "$value" =~ ^[0-9]+$ ]]; then
       error "Invalid DiskID value in answer file: $asset"
       return 1
     fi
 
     ids+=( "$value" )
+
   done <<< "$values"
 
   mapfile -t ids < <(printf '%s\n' "${ids[@]}" | sort -u)
@@ -1000,15 +1037,16 @@ updateDiskID() {
   [ "$current" = "$target" ] && return 0
 
   case "$current" in
+
     "0" | "1" ) ;;
+
     * )
       error "Unsupported DiskID $current in answer file: $asset"
-      return 1
-      ;;
+      return 1 ;;
+
   esac
 
   if ! xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -u "${disk_ids}[normalize-space(.)='$current']" -v "$target" "$asset"; then
-
     error "Failed to update DiskID in answer file: $asset"
     return 1
   fi
@@ -1020,7 +1058,6 @@ getXMLArchitecture() {
 
   local asset="$1"
 
-  local arch
   # Prefer architecture declarations from Windows PE setup components and skip
   # wow64 compatibility components, which do not describe the target image.
   local -a paths=(
@@ -1028,15 +1065,19 @@ getXMLArchitecture() {
     "$XML_SETTINGS_WINDOWS_PE/u:component[@name='Microsoft-Windows-International-Core-WinPE']/@processorArchitecture"
     '/u:unattend/u:settings/u:component[translate(@processorArchitecture, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz") != "wow64"]/@processorArchitecture'
   )
-  local path
+
+  local arch path
 
   for path in "${paths[@]}"; do
+
     arch=$(xmlstarlet sel -N "$XML_NS_UNATTEND_ARG" -T -t -v "normalize-space(string(($path)[1]))" "$asset") || arch=""
 
     [ -n "$arch" ] || continue
     [[ "${arch,,}" != "wow64" ]] || continue
+
     printf '%s' "$arch"
     return 0
+
   done
 
   return 1
@@ -1177,6 +1218,7 @@ removeEmbeddedProductKeys() {
     "$asset") || return 1
 
   while IFS="$separator" read -r position child_key direct_key; do
+
     [ -n "$position" ] || continue
 
     if [[ ! "$child_key" =~ ^[A-Za-z0-9]{5}(-[A-Za-z0-9]{5}){4}$ ]] &&
@@ -1193,11 +1235,13 @@ removeEmbeddedProductKeys() {
       [ -z "$delete_xpath" ] || delete_xpath+=" | "
       delete_xpath+="($product_keys)[$position]/text()[normalize-space()][1]"
     fi
+
   done <<< "$records"
 
   [ -n "$delete_xpath" ] || return 0
 
   xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -d "$delete_xpath" "$asset" || return 1
+
   return 0
 }
 
@@ -1235,7 +1279,9 @@ validateSetupScript() {
   [ -s "$file" ] || return 1
 
   for block in "${blocks[@]}"; do
+
     validateSetupBlock "$file" "$block" || return 1
+
   done
 
   return 0
@@ -1334,8 +1380,6 @@ validateWorkgroup() {
 
   local value="$1"
 
-  local safe
-
   [ -z "$value" ] && return 0
 
   if [ "${#value}" -gt 15 ]; then
@@ -1343,6 +1387,12 @@ validateWorkgroup() {
     return 1
   fi
 
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    error "The WORKGROUP variable cannot contain control characters!"
+    return 1
+  fi
+
+  local safe
   safe=$(printf '%s' "$value" | tr -d '"/\\[]:;|=,+*?<>') || return 1
 
   if [[ "$safe" != "$value" ]]; then
@@ -1371,6 +1421,7 @@ validateMembership() {
   fi
 
   validateWorkgroup "$WORKGROUP" || return 1
+
   return 0
 }
 
@@ -1380,7 +1431,6 @@ validatePassword() {
   local desc="${2:-}"
 
   local suffix=""
-
   [ -n "$desc" ] && suffix=" for $desc"
 
   if [ "${#value}" -gt 127 ]; then
@@ -1404,15 +1454,17 @@ validateUsername() {
   local maximum length_suffix invalid_message
 
   case "$type" in
+
     "local" )
+
       [ -z "$value" ] && return 0
 
       maximum=20
       length_suffix=""
-      invalid_message="The USERNAME variable contains characters that are not supported by Windows local accounts!"
-      ;;
+      invalid_message="The USERNAME variable contains characters that are not supported by Windows local accounts!" ;;
 
     "domain" )
+
       if [ -z "$value" ]; then
         error "The USERNAME variable does not contain a valid domain account name!"
         return 1
@@ -1420,12 +1472,11 @@ validateUsername() {
 
       maximum=256
       length_suffix=" for a domain account"
-      invalid_message="The domain account name contains characters that are not supported by Windows unattended setup!"
-      ;;
+      invalid_message="The domain account name contains characters that are not supported by Windows unattended setup!" ;;
 
     * )
-      return 1
-      ;;
+      return 1 ;;
+
   esac
 
   if [ "${#value}" -gt "$maximum" ]; then
@@ -1441,8 +1492,7 @@ validateUsername() {
   case "$value" in
     *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* | *'%'* | *'@'* )
       error "$invalid_message"
-      return 1
-      ;;
+      return 1 ;;
   esac
 
   if [[ "$value" == *"." ]]; then
@@ -1456,18 +1506,47 @@ validateUsername() {
   fi
 
   case "${value^^}" in
+
     "NONE" )
+
       error "The USERNAME value \"NONE\" is reserved by Windows!"
-      return 1
-      ;;
+      return 1 ;;
 
     "ADMINISTRATOR" | "GUEST" | "DEFAULTACCOUNT" | "WDAGUTILITYACCOUNT" | "WSIACCOUNT" )
+
       [[ "$type" == "domain" ]] && return 0
 
       error "The USERNAME value \"$value\" is reserved for a built-in Windows account!"
-      return 1
-      ;;
+      return 1 ;;
+
   esac
+
+  return 0
+}
+
+validateDomainName() {
+
+  local value="$1"
+  local name="${2:-DOMAIN}"
+
+  if [ -z "$value" ]; then
+    error "The $name variable must contain a valid domain name!"
+    return 1
+  fi
+
+  if [[ "$value" == *"://"* ]]; then
+    error "The $name variable must contain a domain name, not a URL!"
+    return 1
+  fi
+
+  if [ "${#value}" -gt 255 ] ||
+    [[ "$value" =~ [[:cntrl:]] ]] ||
+    [[ "$value" =~ [[:space:]] ]] ||
+    [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$ ]]; then
+
+    error "The $name variable does not contain a valid domain name!"
+    return 1
+  fi
 
   return 0
 }
@@ -1479,7 +1558,6 @@ validateLegacyText() {
   local desc="${3:-}"
 
   local suffix=""
-
   [ -n "$desc" ] && suffix=" for $desc"
 
   if [[ "$value" =~ [[:cntrl:]] ]]; then
@@ -1501,7 +1579,6 @@ validateLegacyUsername() {
   local desc="${2:-}"
 
   local suffix=""
-
   [ -n "$desc" ] && suffix=" for $desc"
 
   if [ -z "$value" ]; then
@@ -1537,38 +1614,31 @@ validateLegacyUsername() {
   fi
 
   case "${value^^}" in
+
     "NONE" )
       error "The USERNAME value \"NONE\" is reserved by Windows$suffix!"
       return 1 ;;
+
     "ADMINISTRATOR" | "GUEST" | "DEFAULTACCOUNT" | "WDAGUTILITYACCOUNT" | "WSIACCOUNT" )
       error "The USERNAME value \"$value\" is reserved for a built-in Windows account$suffix!"
       return 1 ;;
+
   esac
 
   return 0
 }
 
-validateDomainName() {
+validateLegacyEncoding() {
 
-  local value="$1"
-  local name="${2:-DOMAIN}"
+  local name="$1"
+  local value="$2"
+  local desc="${3:-}"
 
-  if [ -z "$value" ]; then
-    error "The $name variable must contain a valid domain name!"
-    return 1
-  fi
+  local suffix=""
+  [ -n "$desc" ] && suffix=" for $desc"
 
-  if [[ "$value" == *"://"* ]]; then
-    error "The $name variable must contain a domain name, not a URL!"
-    return 1
-  fi
-
-  if [ "${#value}" -gt 255 ] ||
-    [[ "$value" =~ [[:cntrl:]] ]] ||
-    [[ "$value" =~ [[:space:]] ]] ||
-    [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$ ]]; then
-
-    error "The $name variable does not contain a valid domain name!"
+  if LC_ALL=C grep -q '[^ -~]' <<< "$value"; then
+    error "The $name variable may only contain printable ASCII characters$suffix!"
     return 1
   fi
 
@@ -1602,7 +1672,9 @@ prepareDomainAccount() {
   fi
 
   case "$auth" in
+
     *@* )
+
       account="${auth%%@*}"
       qualifier="${auth#*@}"
 
@@ -1619,12 +1691,11 @@ prepareDomainAccount() {
       if [[ "${qualifier,,}" != "${domain,,}" ]]; then
         error "The domain in the USERNAME variable must match the DOMAIN variable!"
         return 1
-      fi
-      ;;
+      fi ;;
 
     * )
-      account="$auth"
-      ;;
+      account="$auth" ;;
+
   esac
 
   validateUsername "$account" "domain" || return 1
@@ -1764,6 +1835,7 @@ getXMLNodeCount() {
   local xpath="$2"
 
   xmlstarlet sel -N "$XML_NS_UNATTEND_ARG" -T -t -v "count($xpath)" "$asset"
+
 }
 
 validateUniqueXMLNodes() {
@@ -1784,7 +1856,6 @@ validateUniqueXMLNodes() {
 copyXMLAsset() {
 
   local asset="$1"
-
   local copy
 
   if ! copy=$(mktemp "${asset}.XXXXXX") ||
@@ -1816,7 +1887,6 @@ replaceXMLAsset() {
 markGeneratedXML() {
 
   local file="$1"
-
   local marker='<!-- generated-answer-file: do not reuse as a template -->'
 
   [ -s "$file" ] || return 1
@@ -1852,7 +1922,6 @@ prepareSetupScript() {
 
   local asset="$1"
   local stage="$2"
-
   local staged=""
 
   staged=$(stageSetupScript "$asset" "$stage") || return 1
@@ -1993,7 +2062,6 @@ installSetupScript() {
 
   local script="$1"
   local root="$2"
-
   local target
 
   [ -n "$script" ] || return 0
@@ -2132,6 +2200,7 @@ escapeSIFValue() {
 escapeRegistryValue() {
 
   printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
+
 }
 
 extractDrivers() {
@@ -2665,6 +2734,7 @@ disableAutoReboot() {
   local target="$1"
 
   local file
+  local pattern='^[[:space:]]*HKLM[[:space:]]*,[[:space:]]*"SYSTEM\\CurrentControlSet\\Control\\CrashControl"[[:space:]]*,[[:space:]]*"AutoReboot"[[:space:]]*,[[:space:]]*[^,]*,'
 
   file=$(find \
     "$target" -maxdepth 1 -type f -iname HIVESYS.INF -print -quit
@@ -2677,10 +2747,10 @@ disableAutoReboot() {
 
   # Keep setup crashes visible instead of immediately rebooting into an
   # opaque installation loop.
-  if grep -Fqi 'HKLM,"SYSTEM\CurrentControlSet\Control\CrashControl","AutoReboot"' "$file"; then
+  if grep -Eqi "${pattern}[[:space:]]*[^,;[:space:]]+" "$file"; then
 
     sed -i -E \
-      's|^(HKLM,"SYSTEM\\CurrentControlSet\\Control\\CrashControl","AutoReboot",[^,]*,)[^[:space:]]*|\1 0|I' \
+      "s|(${pattern})[[:space:]]*[^,;[:space:]]+|\\1 0|I" \
       "$file" || return 1
 
   else
@@ -2769,8 +2839,14 @@ legacyInstall() {
   validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
   validateMembership || return 1
   validateComputerName "$HOST" || return 1
+
   validateLegacyText "APP" "$APP" "$desc" || return 1
   validateLegacyText "ENGINE" "$ENGINE" "$desc" || return 1
+
+  if [[ "$driver" == "2k" ]]; then
+    validateLegacyEncoding "APP" "$APP" "$desc" || return 1
+    validateLegacyEncoding "ENGINE" "$ENGINE" "$desc" || return 1
+  fi
 
   XHEX=$(printf '%08x\n' "$((10#$WIDTH))") || return 1
   YHEX=$(printf '%08x\n' "$((10#$HEIGHT))") || return 1
@@ -2784,6 +2860,12 @@ legacyInstall() {
 
   validateLegacyUsername "$username" "$desc" || return 1
   validatePassword "$password" "$desc" || return 1
+
+  if [[ "$driver" == "2k" ]]; then
+    validateLegacyEncoding "USERNAME" "$username" "$desc" || return 1
+    validateLegacyEncoding "PASSWORD" "$password" "$desc" || return 1
+    validateLegacyEncoding "WORKGROUP" "$workgroup" "$desc" || return 1
+  fi
 
   # WINNT.SIF and .reg files use different escaping rules, so prepare their
   # values independently before generating either file.
