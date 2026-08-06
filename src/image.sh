@@ -1571,7 +1571,7 @@ extractESD() {
       return 1
     fi
 
-    checkPlatform "$installXml" || return 1
+    checkPlatform "$xml" || return 1
 
     output=$(detectVersion "$installXml") || return 1
     mapfile -t detected <<< "$output"
