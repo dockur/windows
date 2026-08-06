@@ -70,7 +70,11 @@ curlRequest() {
     reason=$(sed -nE 's/^curl: \([0-9]+\) //p' "$log" | tail -n 1)
 
     rm -f "$log"
-    handleCurlError "$rc" "$server" "$reason"
+    handleCurlError "$rc" "$server" "$reason" || :
+
+    if (( rc >= 129 )); then
+      return "$rc"
+    fi
 
     return 1
   fi
@@ -122,7 +126,11 @@ downloadWindowsLink() {
     --output /dev/null \
     --header "Accept:" \
     --max-filesize 100K \
-    -- "$vlsUrl" || return 1
+    -- "$vlsUrl" || {
+      local rc=$?
+      (( rc >= 129 )) && exit "$rc"
+      return 1
+    }
 
   # Complete Microsoft's ov-df challenge by retrieving a token and timing
   # value, then returning both with the current timestamp.
@@ -135,7 +143,11 @@ downloadWindowsLink() {
   ovData=$(curlRequest "Microsoft" "$agent" \
     --header "Accept:" \
     --max-filesize 1M \
-    -- "$ovUrl") || return 1
+    -- "$ovUrl") || {
+      local rc=$?
+      (( rc >= 129 )) && exit "$rc"
+      return 1
+    }
 
   if [[ $ovData =~ [\?\&]w=([A-Fa-f0-9]+) ]]; then
     ovToken="${BASH_REMATCH[1]}"
@@ -163,7 +175,11 @@ downloadWindowsLink() {
     --output /dev/null \
     --header "Accept:" \
     --max-filesize 100K \
-    -- "$ovUrl" || return 1
+    -- "$ovUrl" || {
+      local rc=$?
+      (( rc >= 129 )) && exit "$rc"
+      return 1
+    }
 
   enabled "$DEBUG" && echo -n "Getting language SKU ID: "
 
@@ -173,7 +189,11 @@ downloadWindowsLink() {
     --referer "$url" \
     --header "Accept:" \
     --max-filesize 100K \
-    -- "$skuUrl") || return 1
+    -- "$skuUrl") || {
+      local rc=$?
+      (( rc >= 129 )) && exit "$rc"
+      return 1
+    }
 
   # Guard jq under errexit so malformed API data can be handled as a normal
   # missing-result error. The same pattern is reused for the link response.
@@ -197,7 +217,11 @@ downloadWindowsLink() {
     --referer "$url" \
     --header "Accept:" \
     --max-filesize 100K \
-    -- "$linkUrl") || return 1
+    -- "$linkUrl") || {
+      local rc=$?
+      (( rc >= 129 )) && exit "$rc"
+      return 1
+    }
 
   if ! [ "$linkJson" ]; then
     error "Microsoft servers gave us an empty response to our request for an automated download."
@@ -276,7 +300,11 @@ downloadWindows() {
   page=$(curlRequest "Microsoft" "$agent" \
     --header "Accept:" \
     --max-filesize 1M \
-    -- "$url") || return 1
+    -- "$url") || {
+      local rc=$?
+      (( rc >= 129 )) && exit "$rc"
+      return 1
+    }
 
   enabled "$DEBUG" && echo -n "Getting Product edition ID: "
   productId=$(printf '%s' "$page" |
@@ -352,7 +380,11 @@ downloadWindowsEval() {
   page=$(curlRequest "Microsoft" "$agent" \
     --location \
     --max-filesize 1M \
-    -- "$url") || return 1
+    -- "$url") || {
+      local rc=$?
+      (( rc >= 129 )) && exit "$rc"
+      return 1
+    }
 
   if ! [ "$page" ]; then
     error "Windows server download page gave us an empty response"
@@ -425,7 +457,11 @@ downloadWindowsEval() {
     --output /dev/null \
     --write-out "%{url_effective}" \
     --head \
-    -- "$link") || return 1
+    -- "$link") || {
+      local rc=$?
+      (( rc >= 129 )) && exit "$rc"
+      return 1
+    }
 
   local lower="${link,,}"
   local separator='(^|[[:space:]_./-])'
@@ -1007,6 +1043,11 @@ getESD() {
     fi
 
     rm -f "$log"
+
+    if (( rc >= 129 )); then
+      exit "$rc"
+    fi
+
     return 1
   fi
 
@@ -1215,6 +1256,10 @@ tryDownload() {
     local rc=0
   else
     local rc=$?
+  fi
+
+  if (( rc >= 129 )); then
+    exit "$rc"
   fi
 
   (( rc == 0 )) || return "$rc"
