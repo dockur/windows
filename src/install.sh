@@ -810,7 +810,7 @@ extractImage() {
 
   if enabled "${UNPACK:-}"; then
     getArchiveSize "$iso" archiveSize || return 1
-    required=$(( archiveSize * 2 ))
+    required="$archiveSize"
   fi
 
   checkFreeSpace "$target" "$required" || return 1
@@ -847,18 +847,6 @@ extractImage() {
       return 1
     fi
 
-    if ! makeDir "$dir"; then
-      error "Failed to create directory \"$dir\" !"
-      return 1
-    fi
-
-    if ! 7z x "$file" -o"$dir" > /dev/null; then
-      error "Failed to extract nested ISO file: $file"
-      return 1
-    fi
-
-    LABEL=$(isoinfo -d -i "$file" | sed -n 's/Volume id: //p') || LABEL=""
-
     if ! mv -f -- "$file" "$iso"; then
       error "Failed to preserve extracted ISO file: $file"
       return 1
@@ -868,6 +856,25 @@ extractImage() {
       error "Failed to remove directory \"$archive\" !"
       return 1
     fi
+
+    if ! makeDir "$dir"; then
+      error "Failed to create directory \"$dir\" !"
+      return 1
+    fi
+
+    if ! size=$(stat -c%s "$iso"); then
+      error "Failed to determine nested ISO file size: $iso"
+      return 1
+    fi
+
+    checkFreeSpace "$dir" "$size" || return 1
+
+    if ! 7z x "$iso" -o"$dir" > /dev/null; then
+      error "Failed to extract nested ISO file: $iso"
+      return 1
+    fi
+
+    LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p') || LABEL=""
 
     UNPACK=""
 
