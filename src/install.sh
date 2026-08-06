@@ -1520,10 +1520,8 @@ setMachine() {
   local iso="$2"
   local dir="$3"
   local desc="$4"
-
-  ETFS="boot/etfsboot.com"
-
   local version=""
+
   case "${id,,}" in
     "win2k"* )   version="2k" ;;
     "winxp"* )   version="xp" ;;
