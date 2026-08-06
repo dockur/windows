@@ -1405,12 +1405,12 @@ extractESD() {
   local version="$3"
   local desc="$4"
 
-  local bootTotal bootLinks wimTotal wimLinks
   local installSize size edition imgEdition
-  local bootWim installWim bootSize wimSize
-  local image index line ret metadata count
-  local result resultCount resultEdition xml
-  local -a fields
+  local bootTotal bootLinks wimTotal wimLinks
+  local bootWim installWim bootSize wimSize xml
+  local image index line ret metadata count output
+  local result resultCount resultEdition installXml
+  local -a detected fields
 
   local minSize=100000000
   local bootPad=60000000
@@ -1558,30 +1558,68 @@ extractESD() {
   msg="Extracting image from ESD file"
   info "$msg..." && html "$msg..."
 
-  edition=$(getCatalog "$version" "name")
-
-  if [ -z "$edition" ]; then
-    error "Invalid VERSION specified, value \"$version\" is not recognized!"
-    return 1
-  fi
-
   index=""
 
-  for line in "${fields[@]:5}"; do
+  if [[ "${version,,}" == "http"* ]]; then
 
-    IFS=$'\t' read -r image imgEdition <<< "$line"
+    # Direct ESD URLs have no catalog identity. Restrict automatic detection
+    # to installable images because indexes 1-3 contain setup components.
+    if ! installXml=$(xmlstarlet ed \
+        -d '/WIM/IMAGE[number(@INDEX) < 4]' \
+        <<< "$xml" 2>/dev/null); then
+      error "Cannot read installable images from ESD file!"
+      return 1
+    fi
 
-    [[ ! "$image" =~ ^[0-9]+$ ]] && continue
-    [[ "${imgEdition,,}" != "${edition,,}" ]] && continue
+    checkPlatform "$xml" || return 1
 
-    index="$image"
-    break
+    output=$(detectVersion "$installXml") || return 1
+    mapfile -t detected <<< "$output"
 
-  done
+    index="${detected[1]:-}"
 
-  if [ -z "$index" ]; then
-    error "Failed to find product '$edition' in install.esd!"
-    return 1
+    for line in "${fields[@]:5}"; do
+
+      IFS=$'\t' read -r image imgEdition <<< "$line"
+
+      [[ "$image" == "$index" ]] || continue
+
+      edition="$imgEdition"
+      break
+
+    done
+
+    if [ -z "$index" ] || [ -z "$edition" ]; then
+      error "Failed to select an installation image from install.esd!"
+      return 1
+    fi
+
+  else
+
+    edition=$(getCatalog "$version" "name")
+
+    if [ -z "$edition" ]; then
+      error "Invalid VERSION specified, value \"$version\" is not recognized!"
+      return 1
+    fi
+
+    for line in "${fields[@]:5}"; do
+
+      IFS=$'\t' read -r image imgEdition <<< "$line"
+
+      [[ ! "$image" =~ ^[0-9]+$ ]] && continue
+      [[ "${imgEdition,,}" != "${edition,,}" ]] && continue
+
+      index="$image"
+      break
+
+    done
+
+    if [ -z "$index" ]; then
+      error "Failed to find product '$edition' in install.esd!"
+      return 1
+    fi
+
   fi
 
   installSize=$(( size + installPad ))

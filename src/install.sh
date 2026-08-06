@@ -722,16 +722,52 @@ needsExtraction() {
   return 1
 }
 
+getArchiveSize() {
+
+  local file="$1"
+  local result_name="$2"
+  local -n result="$result_name"
+
+  local listing line value
+  local found=0
+
+  result=0
+
+  if ! listing=$(7z l -slt "$file" 2>/dev/null); then
+    error "Failed to read archive information: $file"
+    return 1
+  fi
+
+  while IFS= read -r line; do
+
+    [[ "$line" == "Size = "* ]] || continue
+
+    value="${line#Size = }"
+    [[ "$value" =~ ^[0-9]+$ ]] || continue
+
+    result=$(( result + value ))
+    found=1
+
+  done <<< "$listing"
+
+  if (( ! found )); then
+    error "Failed to determine archive contents size: $file"
+    return 1
+  fi
+
+  return 0
+}
+
 extractImage() {
 
   local iso="$1"
   local dir="$2"
   local version="$3"
 
-  local file size
+  local target="$dir"
   local desc="local ISO"
   local archive="${dir}.archive"
-  local target="$dir"
+  local file size required archiveSize
 
   if [ -z "$CUSTOM" ]; then
     desc="downloaded ISO"
@@ -770,7 +806,14 @@ extractImage() {
     return 1
   fi
 
-  checkFreeSpace "$target" "$size" || return 1
+  required="$size"
+
+  if enabled "${UNPACK:-}"; then
+    getArchiveSize "$iso" archiveSize || return 1
+    required="$archiveSize"
+  fi
+
+  checkFreeSpace "$target" "$required" || return 1
 
   if ! rm -rf -- "$target"; then
     error "Failed to remove directory \"$target\" !"
@@ -804,18 +847,6 @@ extractImage() {
       return 1
     fi
 
-    if ! makeDir "$dir"; then
-      error "Failed to create directory \"$dir\" !"
-      return 1
-    fi
-
-    if ! 7z x "$file" -o"$dir" > /dev/null; then
-      error "Failed to extract nested ISO file: $file"
-      return 1
-    fi
-
-    LABEL=$(isoinfo -d -i "$file" | sed -n 's/Volume id: //p') || LABEL=""
-
     if ! mv -f -- "$file" "$iso"; then
       error "Failed to preserve extracted ISO file: $file"
       return 1
@@ -825,6 +856,25 @@ extractImage() {
       error "Failed to remove directory \"$archive\" !"
       return 1
     fi
+
+    if ! makeDir "$dir"; then
+      error "Failed to create directory \"$dir\" !"
+      return 1
+    fi
+
+    if ! size=$(stat -c%s "$iso"); then
+      error "Failed to determine nested ISO file size: $iso"
+      return 1
+    fi
+
+    checkFreeSpace "$dir" "$size" || return 1
+
+    if ! 7z x "$iso" -o"$dir" > /dev/null; then
+      error "Failed to extract nested ISO file: $iso"
+      return 1
+    fi
+
+    LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p') || LABEL=""
 
     UNPACK=""
 
