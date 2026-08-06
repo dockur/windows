@@ -2058,34 +2058,6 @@ stageSetupScript() {
   return 0
 }
 
-installSetupScript() {
-
-  local script="$1"
-  local root="$2"
-  local target
-
-  [ -n "$script" ] || return 0
-
-  if [ ! -s "$script" ]; then
-    error "Failed to find staged setup script: $script"
-    return 1
-  fi
-
-  target="$root/\$OEM\$/\$\$/Setup/Scripts/SetupComplete.cmd"
-
-  if ! mkdir -p "$(dirname "$target")"; then
-    error "Failed to create setup script directory!"
-    return 1
-  fi
-
-  if ! cp -f -- "$script" "$target"; then
-    error "Failed to add setup script to Windows image!"
-    return 1
-  fi
-
-  return 0
-}
-
 rewriteSetupBlock() {
 
   local file="$1"
