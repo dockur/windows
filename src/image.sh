@@ -351,56 +351,6 @@ detectVersion() {
   return 0
 }
 
-getVersionPriority() {
-
-  local id="${1,,}"
-  local base="${2,,}"
-
-  local entry priority patterns pattern
-  local result="other" score best_score=-1
-  local -a order=()
-
-  id="${id%-eval}"
-
-  mapfile -t order < <(getEditionOrder "$base")
-
-  local edition="${id#"$base"}"
-  edition="${edition#-}"
-
-  # Use the most specific matching pattern. This prevents broad patterns
-  # such as enterprise-* from taking precedence over enterprise-iot-*.
-  for entry in "${order[@]}"; do
-
-    IFS='|' read -r _ priority patterns <<< "$entry"
-
-    for pattern in $patterns; do
-
-      if [ "$pattern" = "@default" ]; then
-        [ -z "$edition" ] || continue
-        score=1
-      elif [[ "$pattern" == *"*" ]]; then
-        local prefix="${pattern%\*}"
-        [[ "$edition" == "$prefix"* ]] || continue
-        score="${#pattern}"
-      elif [ "$edition" = "$pattern" ]; then
-        score="${#pattern}"
-      else
-        continue
-      fi
-
-      if (( score > best_score )); then
-        result="$priority"
-        best_score="$score"
-      fi
-
-    done
-
-  done
-
-  echo "$result"
-  return 0
-}
-
 detectLanguage() {
 
   local xml="$1"
