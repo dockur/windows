@@ -1373,7 +1373,7 @@ detectIsoImage() {
 
   image=$(findIsoImage "$iso") || return 1
   header=$(readWimHeader "$iso" "$image") || return 1
-  image_info=$(readIsoImageInfo "$iso" "$image" "$header") || return 1
+  image_info=$(readIsoImageInfo "$iso" "$image" "$header") || return $?
 
   info "Detecting version from ISO image..."
   detectImageInfo "$image_info" || return 2
