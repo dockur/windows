@@ -1077,17 +1077,15 @@ selectDrivers() {
 
 addDrivers() {
 
-  local src="$1"
-  local tmp="$2"
-  local version="$3"
+  local stage="$1"
+  local version="$2"
 
-  local drivers="$tmp/drivers"
+  local drivers="$stage/drivers"
 
   rm -rf "$drivers" || return 1
   mkdir -p "$drivers" || return 1
 
-  local msg="Adding drivers to image..."
-  info "$msg"
+  info "Adding drivers to image..."
 
   if [ -z "$version" ]; then
     version="win11x64"
@@ -1105,7 +1103,7 @@ addDrivers() {
 
   selectDrivers "$version" "$drivers" "$target" || return 1
 
-  local dst="$src/\$OEM\$/\$\$/Drivers"
+  local dst="$stage/\$OEM\$/\$\$/Drivers"
   mkdir -p "$dst" || return 1
   cp -Lr "$dest/." "$dst" || return 1
 
@@ -1115,11 +1113,11 @@ addDrivers() {
     rm -rf "$dest/viogpudo" || return 1
   fi
 
-  local winpe="$src/$target"
-
+  local winpe="$stage/$target"
   rm -rf "$winpe" || return 1
   mkdir -p "$winpe" || return 1
   cp -Lr "$dest/." "$winpe" || return 1
+
   rm -rf "$drivers" || return 1
 
   return 0
@@ -1146,7 +1144,7 @@ createOverlay() {
     return 1
   fi
 
-  if ! addDrivers "$stage" "$stage" "$DETECTED"; then
+  if ! addDrivers "$stage" "$DETECTED"; then
     error "Failed to include Windows drivers!"
     return 1
   fi
