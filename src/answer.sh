@@ -151,7 +151,6 @@ addAnswerFile() {
   local language="$2"
   local stage="$3"
 
-  local script="" name
   local answer="$stage/Autounattend.xml"
 
   if enabled "$MANUAL"; then
@@ -164,7 +163,9 @@ addAnswerFile() {
     return 1
   fi
 
+  local name
   name=$(basename "$asset") || return 1
+
   info "Adding $name for automatic installation..."
 
   if ! cp -L -- "$asset" "$answer"; then
@@ -199,7 +200,7 @@ addAnswerFile() {
 
   if [ -z "${CUSTOM_XML:-}" ]; then
 
-    script=$(prepareSetupScript "$asset" "$stage") || exit 84
+    prepareSetupScript "$asset" "$stage" || exit 84
 
   fi
 
