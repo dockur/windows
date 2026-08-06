@@ -362,8 +362,8 @@ downloadWindowsEval() {
   enabled "$DEBUG" && echo "Getting download link.."
 
   # Normalize HTML-encoded query separators before extracting fwlinks.
-  page=${page//&amp;/&}
-  page=${page//&#38;/&}
+  page=${page//&amp;/\&}
+  page=${page//&#38;/\&}
 
   links=$(printf '%s\n' "$page" |
     grep -Eio "https://go\.microsoft\.com/fwlink(/p)?/\?[^\"'<>[:space:]]+" |
