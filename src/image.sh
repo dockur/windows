@@ -521,6 +521,7 @@ checkPlatform() {
   local xml="$1"
   local platform
 
+  IMAGE_PLATFORM=""
   platform=$(getPlatform "$xml") || return 1
 
   case "${platform,,}" in
@@ -535,20 +536,22 @@ checkPlatform() {
 
   case "${PLATFORM,,}" in
     "x64" )
-      if [[ "${platform,,}" == "x64" || "${platform,,}" == "x86" ]]; then
-        return 0
+      if [[ "${platform,,}" != "x64" && "${platform,,}" != "x86" ]]; then
+        error "You cannot boot ${platform^^} images on a $PLATFORM CPU!"
+        return 1
       fi ;;
     "arm64" )
-      if [[ "${platform,,}" == "arm64" ]]; then
-        return 0
+      if [[ "${platform,,}" != "arm64" ]]; then
+        error "You cannot boot ${platform^^} images on a $PLATFORM CPU!"
+        return 1
       fi ;;
     * )
       error "Unsupported container platform: $PLATFORM"
       return 1 ;;
   esac
 
-  error "You cannot boot ${platform^^} images on a $PLATFORM CPU!"
-  return 1
+  IMAGE_PLATFORM="${platform,,}"
+  return 0
 }
 
 getPlatform() {
