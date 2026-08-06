@@ -112,6 +112,13 @@ configureMachine() {
     return 0
   fi
 
+  if ! checkMemory "$DETECTED" "$desc"; then
+    if [ -n "${REUSED_ISO:-}" ]; then
+      useOriginalImage "$iso" || return 79
+    fi
+    return 79
+  fi
+
   if ! setMachine "$DETECTED" "$iso" "$dir" "$desc"; then
     skipUnattended "$dir" "$iso" "$boot" || return 80
     handled=1
@@ -324,8 +331,8 @@ startInstall() {
     exit 50
   fi
 
-  if [ -z "$CUSTOM" ] && [ -z "$REUSED_ISO" ]; then
-    checkMemory || exit 67
+  if [ -z "$CUSTOM" ] && [ -z "$REUSED_ISO" ] && [[ "${VERSION,,}" != "http"* ]]; then
+    checkMemory "$VERSION" || exit 67
   fi
 
   return 0
