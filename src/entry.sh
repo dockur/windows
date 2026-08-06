@@ -25,8 +25,8 @@ cd /run
 . samba.sh      # Configure samba
 . boot.sh       # Configure boot
 . proc.sh       # Initialize processor
-. power.sh      # Configure shutdown
 . balloon.sh    # Initialize ballooning
+. power.sh      # Configure shutdown
 . config.sh     # Configure arguments
 . finish.sh     # Finish initialization
 
