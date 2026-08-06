@@ -1316,16 +1316,12 @@ backupPrevious () {
 checkMemory() {
 
   local id="$1"
-  local name="${2:-}"
-  local required
+  local required name
 
   required=$(getRequiredMemory "$id") || return 1
-
-  if [ -z "$name" ]; then
-    name=$(printVersion "$id" "") || return 1
-  fi
-
   RAM_MINIMUM="$required"
+
+  name=$(printVersion "$id" "") || return 1
   checkMemoryRequirement "$name"
 
   return 0
