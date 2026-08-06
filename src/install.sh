@@ -916,9 +916,7 @@ getOemFolder() {
 addFolder() {
 
   local src="$1"
-  local target="${2:-image}"
-  local log="${3:-Y}"
-  local mode="${4:-copy}"
+  local mode="${2:-copy}"
   
   local file="" source="" folder
   local dest="$src/\$OEM\$/\$1/OEM"
@@ -928,10 +926,8 @@ addFolder() {
 
   [ -z "$folder" ] && [ -z "$COMMAND" ] && return 0
 
-  if enabled "$log"; then
-    local msg="Adding OEM files to $target..."
-    info "$msg" && html "$msg"
-  fi
+  local msg="Adding OEM files to image..."
+  info "$msg" && html "$msg"
 
   # Setup-image mode cannot modify the original ISO, so create a temporary
   # writable copy of install.bat for the overlay image.
