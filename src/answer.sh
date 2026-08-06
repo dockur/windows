@@ -2717,6 +2717,7 @@ disableAutoReboot() {
   local target="$1"
 
   local file
+  local pattern='^[[:space:]]*HKLM[[:space:]]*,[[:space:]]*"SYSTEM\\CurrentControlSet\\Control\\CrashControl"[[:space:]]*,[[:space:]]*"AutoReboot"[[:space:]]*,[[:space:]]*[^,]*,'
 
   file=$(find \
     "$target" -maxdepth 1 -type f -iname HIVESYS.INF -print -quit
@@ -2729,10 +2730,10 @@ disableAutoReboot() {
 
   # Keep setup crashes visible instead of immediately rebooting into an
   # opaque installation loop.
-  if grep -Fqi 'HKLM,"SYSTEM\CurrentControlSet\Control\CrashControl","AutoReboot"' "$file"; then
+  if grep -Eqi "${pattern}[[:space:]]*[^,;[:space:]]+" "$file"; then
 
     sed -i -E \
-      's|^(HKLM,"SYSTEM\\CurrentControlSet\\Control\\CrashControl","AutoReboot",[^,]*,)[^[:space:]]*|\1 0|I' \
+      "s|(${pattern})[[:space:]]*[^,;[:space:]]+|\\1 0|I" \
       "$file" || return 1
 
   else
