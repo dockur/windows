@@ -755,7 +755,7 @@ findPrimaryLocalAccount() {
 
       token="${token#"${token%%[![:space:]]*}"}"
       token="${token%"${token##*[![:space:]]}"}"
-  
+
       [[ "${token,,}" == "administrators" ]] || continue
 
       admin_primary="$position"
