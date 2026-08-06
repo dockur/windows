@@ -371,9 +371,10 @@ downloadWindowsEval() {
   agent=$(getAgent)
   culture=$(getLanguage "$lang" "culture")
 
-  local country="${culture#*-}"
-  local culture_key redirect redirect_key
-  local link="" links page candidate all_links
+  local country="${culture##*-}"
+  local -a culture_keys=() link_list=()
+  local candidate culture_key key redirect redirect_key
+  local link="" link_index=-1 links page matched all_links
   local url="https://www.microsoft.com/en-us/evalcenter/download-$winVer"
 
   enabled "$DEBUG" && echo "Parsing download page: ${url}"
@@ -388,7 +389,7 @@ downloadWindowsEval() {
     }
 
   if ! [ "$page" ]; then
-    error "Windows server download page gave us an empty response"
+    error "Evaluation Center download page gave us an empty response"
     return 1
   fi
 
@@ -400,7 +401,7 @@ downloadWindowsEval() {
 
   all_links=$(printf '%s\n' "$page" |
     grep -Eio "https://go\.microsoft\.com/fwlink(/p)?/\?[^\"'<>[:space:]]+") || {
-    error "Windows server download page gave us no download link!"
+    error "Evaluation Center download page gave us no download link!"
     return 1
   }
 
@@ -414,6 +415,12 @@ downloadWindowsEval() {
 
     culture_key="${culture,,}"
     culture_key="${culture_key//[^[:alnum:]]/}"
+    culture_keys=("$culture_key")
+
+    case "$culture_key" in
+      "jajp" ) culture_keys+=("jpjp") ;;
+      "zhtw" ) culture_keys+=("cntw") ;;
+    esac
 
     # Current Evaluation Center pages reuse en-US query parameters for every
     # language. Their first redirect target still carries the actual locale,
@@ -434,16 +441,20 @@ downloadWindowsEval() {
 
       [ -n "$redirect" ] || continue
 
+      # Match against the complete redirect URL so locale path segments are
+      # recognized as well as locale markers in the target filename.
       redirect_key="${redirect%%[?#]*}"
-      redirect_key="${redirect_key##*/}"
       redirect_key="${redirect_key,,}"
       redirect_key="${redirect_key//[^[:alnum:]]/}"
+      matched=""
 
-      if [[ "$redirect_key" != *"$culture_key"* ]]; then
-        # Microsoft currently labels Traditional Chinese redirects as cn-TW
-        # while the Windows culture name is zh-TW.
-        [[ "$culture_key" == "zhtw" && "$redirect_key" == *"cntw"* ]] || continue
-      fi
+      for key in "${culture_keys[@]}"; do
+        [[ "$redirect_key" == *"$key"* ]] || continue
+        matched="Y"
+        break
+      done
+
+      [ -n "$matched" ] || continue
 
       [ -n "$links" ] && links+=$'\n'
       links+="$candidate"
@@ -456,7 +467,7 @@ downloadWindowsEval() {
     # Distinguish a changed or missing English page from an unavailable
     # translation for an otherwise supported product.
     if [[ "${lang,,}" == "en" || "${lang,,}" == "en-"* ]]; then
-      error "Windows server download page gave us no download link!"
+      error "Evaluation Center download page gave us no download link!"
     else
       language=$(getLanguage "$lang" "desc")
       error "No download in the $language language available for $desc!"
@@ -464,42 +475,49 @@ downloadWindowsEval() {
     return 1
   fi
 
+  mapfile -t link_list <<< "$links"
+
   # Evaluation pages currently expose several matching fwlinks in a known
   # product/platform order, so select the entry for the requested variant.
   case "$type" in
     "iot" )
       case "${PLATFORM,,}" in
         "x64" )
-          link=$(printf '%s\n' "$links" | head -n 1) ;;
+          link_index=0 ;;
         "arm64" )
-          link=$(printf '%s\n' "$links" | head -n 2 | tail -n 1) ;;
+          link_index=1 ;;
       esac ;;
     "ltsc" )
       case "${PLATFORM,,}" in
         "x64" )
-          link=$(printf '%s\n' "$links" | head -n 2 | tail -n 1) ;;
+          link_index=1 ;;
       esac ;;
     "enterprise" )
       case "${PLATFORM,,}" in
         "x64" )
           if [[ "$winVer" != "windows-10"* ]]; then
-            link=$(printf '%s\n' "$links" | head -n 1)
+            link_index=0
           else
-            link=$(printf '%s\n' "$links" | head -n 2 | tail -n 1)
+            link_index=1
           fi ;;
         "arm64" )
-          link=$(printf '%s\n' "$links" | head -n 2 | tail -n 1) ;;
+          link_index=1 ;;
       esac ;;
     "server" )
       case "${PLATFORM,,}" in
         "x64" )
-          link=$(printf '%s\n' "$links" | head -n 1) ;;
+          link_index=0 ;;
       esac ;;
     * )
       error "Invalid type specified, value \"$type\" is not recognized!" && return 1 ;;
   esac
 
-  [ -z "$link" ] && error "Could not parse download link from page!" && return 1
+  if (( link_index < 0 || link_index >= ${#link_list[@]} )); then
+    error "Could not find the requested download link on the Evaluation Center page!"
+    return 1
+  fi
+
+  link="${link_list[$link_index]}"
 
   # Resolve the fwlink now so later logging and platform validation use the
   # actual ISO URL rather than Microsoft's generic redirect.
