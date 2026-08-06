@@ -1080,17 +1080,14 @@ addDrivers() {
   local src="$1"
   local tmp="$2"
   local version="$3"
-  local log="${4:-Y}"
 
   local drivers="$tmp/drivers"
 
   rm -rf "$drivers" || return 1
   mkdir -p "$drivers" || return 1
 
-  if enabled "$log"; then
-    local msg="Adding drivers to image..."
-    info "$msg" && html "$msg"
-  fi
+  local msg="Adding drivers to image..."
+  info "$msg"
 
   if [ -z "$version" ]; then
     version="win11x64"
