@@ -630,6 +630,8 @@ removeIso() {
 
   local iso="$1"
 
+  [ -n "$CUSTOM" ] && return 0
+
   rm -f -- "$iso" 2>/dev/null || :
 
   return 0
