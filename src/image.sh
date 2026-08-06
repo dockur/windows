@@ -806,7 +806,7 @@ detectLegacy() {
 
   if [ -n "$marker" ]; then
     error "Windows IA-64 (Itanium) images are not supported by this container!"
-    return 1
+    exit 67
   fi
 
   marker=$(find "$dir" -maxdepth 1 -type d -iname WIN95 -print -quit) || return 1
@@ -1215,7 +1215,7 @@ readImageInfo() {
   local wim="$1"
   local result=""
 
-  result=$(wimlib-imagex info -xml "$wim" | iconv -f UTF-16LE -t UTF-8) || {
+  result=$(wimlib-imagex info --xml "$wim" | iconv -f UTF-16LE -t UTF-8) || {
     local rc=$?
 
     if (( rc >= 129 )); then
@@ -1858,8 +1858,7 @@ getBootLoadSize() {
         return 1
       fi
 
-      BOOT_LOAD_SIZE=$((size / 512))
-      ;;
+      BOOT_LOAD_SIZE=$((size / 512)) ;;
 
     * )
 
@@ -1876,13 +1875,16 @@ getBootLoadSize() {
         return 1
       fi
 
-      if [[ ! "$value" =~ ^[0-9]+$ ]] || [ "${#value}" -gt 5 ]; then
+      if [[ "$value" =~ ^[[:digit:]]{1,5}$ ]]; then
+        BOOT_LOAD_SIZE=$((10#$value))
+      elif [[ "$value" =~ ^(0[xX])?[[:xdigit:]]{1,4}$ ]]; then
+        value=${value#0x}
+        value=${value#0X}
+        BOOT_LOAD_SIZE=$((16#$value))
+      else
         error "Invalid boot image load size found in $desc ISO!"
         return 1
-      fi
-
-      BOOT_LOAD_SIZE=$((10#$value))
-      ;;
+      fi ;;
   esac
 
   if (( BOOT_LOAD_SIZE < 1 || BOOT_LOAD_SIZE > 65535 )); then
@@ -1899,7 +1901,7 @@ extractBootImage() {
   local dir="$2"
   local desc="$3"
 
-  local offset info
+  local actual expected offset info
 
   ETFS="boot.img"
 
@@ -1932,9 +1934,17 @@ extractBootImage() {
     return 1
   fi
 
-  if [ ! -s "$dir/$ETFS" ]; then
+  expected=$((BOOT_LOAD_SIZE * 512))
+
+  if ! actual=$(stat -c%s "$dir/$ETFS"); then
     rm -f "$dir/$ETFS" || true
-    error "Failed to locate file \"$ETFS\" in $desc ISO image!"
+    error "Failed to determine boot image size from $desc ISO!"
+    return 1
+  fi
+
+  if (( actual != expected )); then
+    rm -f "$dir/$ETFS" || true
+    error "Failed to extract complete boot image from $desc ISO!"
     return 1
   fi
 
