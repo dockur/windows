@@ -158,8 +158,8 @@ prepareWindowsImage() {
   local dir="$2"
   local boot="$3"
 
-  # Prefer the original ISO with a small setup image whenever possible.
-  if canUseSetupImage "$DETECTED" "$iso"; then
+  # Keep all run-specific automation on the setup image for XML-capable media.
+  if supportsXML "$DETECTED"; then
 
     if ! createOverlay "$XML" "$LANGUAGE" "$TMP/setup"; then
       skipUnattended "$dir" "$iso" "$boot" || return 84
@@ -171,12 +171,15 @@ prepareWindowsImage() {
       exit 86
     fi
 
-    useOriginalImage "$iso" || return 88
-    return 0
+    # Bootable ISOs can be reused unchanged with the generated setup image.
+    if (( ! extracted )); then
+      useOriginalImage "$iso" || return 88
+      return 0
+    fi
 
   fi
 
-  # Legacy or modifiable media must be extracted, updated, and rebuilt.
+  # Extracted modern sources and SIF-based legacy media require a clean rebuild.
   if (( ! extracted )); then
     if ! extractImage "$iso" "$dir" "$VERSION"; then
       removeIso "$iso" || :
@@ -186,12 +189,6 @@ prepareWindowsImage() {
 
   if ! prepareImage "$iso" "$dir"; then
     skipUnattended "$dir" "$iso" "$boot" || return 92
-    handled=1
-    return 0
-  fi
-
-  if ! updateImage "$dir" "$XML" "$LANGUAGE"; then
-    skipUnattended "$dir" "$iso" "$boot" || return 94
     handled=1
     return 0
   fi
@@ -630,6 +627,8 @@ removeIso() {
 
   local iso="$1"
 
+  [ -n "$CUSTOM" ] && return 0
+
   rm -f -- "$iso" 2>/dev/null || :
 
   return 0
@@ -872,13 +871,17 @@ prepareImage() {
 
   # Legacy rebuilt media must retain the source ISO's El Torito boot-load size.
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+
     getBootLoadSize "$iso" "$dir" "$desc" || return 1
+
   fi
 
   supportsXML "$DETECTED" || return 0
 
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+
     extractBootImage "$iso" "$dir" "$desc" && return 0
+
     error "Failed to extract boot image from ISO image \"${iso}\"!"
     return 1
   fi
@@ -913,9 +916,7 @@ getOemFolder() {
 addFolder() {
 
   local src="$1"
-  local target="${2:-image}"
-  local log="${3:-Y}"
-  local mode="${4:-copy}"
+  local mode="${2:-copy}"
   
   local file="" source="" folder
   local dest="$src/\$OEM\$/\$1/OEM"
@@ -925,10 +926,8 @@ addFolder() {
 
   [ -z "$folder" ] && [ -z "$COMMAND" ] && return 0
 
-  if enabled "$log"; then
-    local msg="Adding OEM files to $target..."
-    info "$msg" && html "$msg"
-  fi
+  local msg="Adding OEM files to image..."
+  info "$msg" && html "$msg"
 
   # Setup-image mode cannot modify the original ISO, so create a temporary
   # writable copy of install.bat for the overlay image.
@@ -1078,22 +1077,15 @@ selectDrivers() {
 
 addDrivers() {
 
-  local src="$1"
-  local tmp="$2"
-  local version="$3"
-  local file="${4:-}"
-  local index="${5:-}"
-  local log="${6:-Y}"
+  local stage="$1"
+  local version="$2"
 
-  local drivers="$tmp/drivers"
+  local drivers="$stage/drivers"
 
   rm -rf "$drivers" || return 1
   mkdir -p "$drivers" || return 1
 
-  if enabled "$log"; then
-    local msg="Adding drivers to image..."
-    info "$msg" && html "$msg"
-  fi
+  info "Adding drivers to image..."
 
   if [ -z "$version" ]; then
     version="win11x64"
@@ -1109,21 +1101,9 @@ addDrivers() {
 
   mkdir -p "$dest" || return 1
 
-  if [ -n "$file" ]; then
-
-    if [ -z "$index" ]; then
-      error "No boot image index specified!"
-      return 1
-    fi
-
-    wimlib-imagex update "$file" "$index" \
-      --command "delete --force --recursive /$target" >/dev/null || true
-
-  fi
-
   selectDrivers "$version" "$drivers" "$target" || return 1
 
-  local dst="$src/\$OEM\$/\$\$/Drivers"
+  local dst="$stage/\$OEM\$/\$\$/Drivers"
   mkdir -p "$dst" || return 1
   cp -Lr "$dest/." "$dst" || return 1
 
@@ -1133,22 +1113,13 @@ addDrivers() {
     rm -rf "$dest/viogpudo" || return 1
   fi
 
-  if [ -n "$file" ]; then
-
-    if ! wimlib-imagex update "$file" "$index" --command "add $dest /$target" >/dev/null; then
-      return 1
-    fi
-
-  else
-
-    local winpe="$src/$target"
-    rm -rf "$winpe" || return 1
-    mkdir -p "$winpe" || return 1
-    cp -Lr "$dest/." "$winpe" || return 1
-
-  fi
+  local winpe="$stage/$target"
+  rm -rf "$winpe" || return 1
+  mkdir -p "$winpe" || return 1
+  cp -Lr "$dest/." "$winpe" || return 1
 
   rm -rf "$drivers" || return 1
+
   return 0
 }
 
@@ -1157,8 +1128,6 @@ createOverlay() {
   local asset="$1"
   local language="$2"
   local stage="$3"
-
-  supportsXML "${DETECTED,,}" || return 0
 
   local msg="Creating overlay image..."
   info "$msg" && html "$msg"
@@ -1173,176 +1142,18 @@ createOverlay() {
     return 1
   fi
 
-  if ! addDrivers "$stage" "$stage" "$DETECTED"; then
+  if ! addDrivers "$stage" "$DETECTED"; then
     error "Failed to include Windows drivers!"
     return 1
   fi
 
-  if ! addFolder "$stage" "image" "Y" "overlay"; then
+  if ! addFolder "$stage" "overlay"; then
     error "Failed to include OEM folder!"
     return 1
   fi
 
   addAnswerFile "$asset" "$language" "$stage" || return 1
 
-  return 0
-}
-
-updateImage() {
-
-  local dir="$1"
-  local asset="$2"
-  local language="$3"
-
-  local script=""
-  local tmp="/tmp/install"
-  local xml="autounattend.xml"
-  local bak="${xml//.xml/.org}"
-  local dat="${xml//.xml/.dat}"
-  local desc path src wim name info 
-
-  supportsXML "${DETECTED,,}" || return 0
-
-  if [ ! -s "$asset" ] || [ ! -f "$asset" ]; then
-    asset=""
-    if ! enabled "$MANUAL"; then
-      MANUAL="Y"
-      warn "no answer file provided, $FB."
-    fi
-  fi
-
-  rm -rf "$tmp" || return 1
-  mkdir -p "$tmp" || return 1
-
-  src=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit) || return 1
-
-  if [ ! -d "$src" ]; then
-    error "failed to locate 'sources' folder in ISO image, $FB"
-    return 1
-  fi
-
-  wim=$(find "$src" -maxdepth 1 -type f \( -iname boot.wim -or -iname boot.esd \) -print -quit) || return 1
-
-  if [ ! -f "$wim" ]; then
-    error "failed to locate 'boot.wim' or 'boot.esd' in ISO image, $FB"
-    return 1
-  fi
-
-  # Windows Setup normally resides in boot image 2; single-image media uses 1.
-  local idx="1"
-
-  if ! info=$(wimlib-imagex info --xml "$wim" | iconv -f UTF-16LE -t UTF-8); then
-    warn "failed to read boot image information, $FB"
-    MANUAL="Y"
-    info=""
-  fi
-
-  if [[ "${info^^}" == *"<IMAGE INDEX=\"2\">"* ]]; then
-    idx="2"
-  fi
-
-  if ! addDrivers "$src" "$tmp" "$DETECTED" "$wim" "$idx"; then
-    error "Failed to add drivers to image!"
-    return 1
-  fi
-
-  if ! addFolder "$src"; then
-    error "Failed to add OEM folder to image!"
-    return 1
-  fi
-
-  # Preserve an original answer file only once. The .dat marker identifies an
-  # image where our generated answer file has already been installed.
-  if wimlib-imagex extract "$wim" "$idx" "/$xml" "--dest-dir=$tmp" >/dev/null 2>&1; then
-    if ! wimlib-imagex extract "$wim" "$idx" "/$dat" "--dest-dir=$tmp" >/dev/null 2>&1; then
-      if ! wimlib-imagex extract "$wim" "$idx" "/$bak" "--dest-dir=$tmp" >/dev/null 2>&1; then
-        if ! wimlib-imagex update "$wim" "$idx" --command "rename /$xml /$bak" > /dev/null; then
-          warn "failed to backup original answer file ($xml)."
-        fi
-      fi
-    fi
-  fi
-
-  if ! enabled "$MANUAL"; then
-
-    name=$(basename "$asset") || return 1
-    local answer="$tmp/$name"
-
-    info "Adding $name for automatic installation..."
-
-    if ! cp "$asset" "$answer"; then
-      error "Failed to copy answer file to $answer."
-      return 1
-    fi
-
-    removeGeneratedXML "$asset" || return 1
-
-    if [ -z "${CUSTOM_XML:-}" ]; then
-      if ! updateXML "$answer" "$language"; then
-        error "Failed to update answer file: $answer"
-        return 1
-      fi
-    fi
-
-    if ! updateDiskID "$answer" "${DISK_TYPE:-}" "image"; then
-      error "Failed to adjust the Windows installation disk!"
-      exit 85
-    fi
-
-    validateGeneratedXML "$answer" || return 1
-
-    if [ -z "${CUSTOM_XML:-}" ]; then
-      script=$(prepareSetupScript "$asset" "$tmp/setup") || exit 84
-    fi
-
-    if ! wimlib-imagex update "$wim" "$idx" --command "add $answer /$xml" > /dev/null; then
-      MANUAL="Y"
-      warn "failed to add answer file ($name) to ISO image, $FB"
-    else
-      installSetupScript "$script" "$src" || exit 84
-
-      wimlib-imagex update "$wim" "$idx" --command "add $answer /$dat" > /dev/null || true
-    fi
-
-  fi
-
-  # Manual mode removes generated automation and restores the original answer
-  # file when one was backed up earlier.
-  if enabled "$MANUAL"; then
-
-    removeGeneratedXML "$asset" || return 1
-
-    wimlib-imagex update "$wim" "$idx" --command "delete --force /$xml" > /dev/null || true
-
-    if wimlib-imagex extract "$wim" "$idx" "/$bak" "--dest-dir=$tmp" >/dev/null 2>&1; then
-      if ! wimlib-imagex update "$wim" "$idx" --command "add $tmp/$bak /$xml" > /dev/null; then
-        warn "failed to restore original answer file ($bak)."
-      fi
-    fi
-
-  fi
-
-  # Prevent a root-level answer file from overriding the selected automatic or
-  # manual behavior when Windows Setup first boots.
-  name="$xml"
-  enabled "$MANUAL" && name="$bak"
-  path=$(find "$dir" -maxdepth 1 -type f -iname "$name" -print -quit) || return 1
-
-  if [ -f "$path" ]; then
-    if ! enabled "$MANUAL"; then
-      if ! mv -f "$path" "${path%.*}.org"; then
-        error "Failed to rename answer file: $path"
-        return 1
-      fi
-    else
-      if ! mv -f "$path" "${path%.*}.xml"; then
-        error "Failed to rename answer file: $path"
-        return 1
-      fi
-    fi
-  fi
-
-  rm -rf "$tmp" || return 1
   return 0
 }
 

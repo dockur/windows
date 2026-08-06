@@ -151,7 +151,6 @@ addAnswerFile() {
   local language="$2"
   local stage="$3"
 
-  local script="" name
   local answer="$stage/Autounattend.xml"
 
   if enabled "$MANUAL"; then
@@ -164,7 +163,9 @@ addAnswerFile() {
     return 1
   fi
 
+  local name
   name=$(basename "$asset") || return 1
+
   info "Adding $name for automatic installation..."
 
   if ! cp -L -- "$asset" "$answer"; then
@@ -185,7 +186,7 @@ addAnswerFile() {
 
   fi
 
-  if ! updateDiskID "$answer" "${DISK_TYPE:-}" "setup"; then
+  if ! updateDiskID "$answer" "${DISK_TYPE:-}"; then
     error "Failed to adjust the Windows installation disk!"
     exit 85
   fi
@@ -199,7 +200,7 @@ addAnswerFile() {
 
   if [ -z "${CUSTOM_XML:-}" ]; then
 
-    script=$(prepareSetupScript "$asset" "$stage") || exit 84
+    prepareSetupScript "$asset" "$stage" || exit 84
 
   fi
 
@@ -980,7 +981,6 @@ updateDiskID() {
 
   local asset="$1"
   local disk_type="${2,,}"
-  local mode="${3:-setup}"
 
   local target="0"
   local setup="$XML_COMPONENT_SETUP"
@@ -990,19 +990,10 @@ updateDiskID() {
 
   [ -s "$asset" ] || return 1
 
-  # The setup overlay occupies disk 0, so common VirtIO installation disks move
-  # to disk 1 in setup-image mode. Rebuilt media keeps the original disk layout.
-  case "$mode" in
+  # The setup overlay occupies disk 0, so VirtIO disks move to disk 1.
 
-    "setup" )
-
-      case "$disk_type" in
-        "" | "scsi" | "virtio-scsi" | "blk" | "virtio-blk" ) target="1" ;;
-      esac ;;
-
-    "image" ) ;;
-    * ) return 1 ;;
-
+  case "$disk_type" in
+    "" | "scsi" | "virtio-scsi" | "blk" | "virtio-blk" ) target="1" ;;
   esac
 
   count=$(getXMLNodeCount "$asset" "$disk_ids") || {
@@ -1922,15 +1913,15 @@ prepareSetupScript() {
 
   local asset="$1"
   local stage="$2"
-  local staged=""
 
+  local staged=""
   staged=$(stageSetupScript "$asset" "$stage") || return 1
+
   [ -n "$staged" ] || return 0
 
   updateSetupScript "$staged" "$asset" || return 1
   finalizeSetupScript "$staged" || return 1
 
-  printf '%s' "$staged"
   return 0
 }
 
@@ -2055,34 +2046,6 @@ stageSetupScript() {
   validateSetupScript "$target" || return 1
 
   printf '%s' "$target"
-  return 0
-}
-
-installSetupScript() {
-
-  local script="$1"
-  local root="$2"
-  local target
-
-  [ -n "$script" ] || return 0
-
-  if [ ! -s "$script" ]; then
-    error "Failed to find staged setup script: $script"
-    return 1
-  fi
-
-  target="$root/\$OEM\$/\$\$/Setup/Scripts/SetupComplete.cmd"
-
-  if ! mkdir -p "$(dirname "$target")"; then
-    error "Failed to create setup script directory!"
-    return 1
-  fi
-
-  if ! cp -f -- "$script" "$target"; then
-    error "Failed to add setup script to Windows image!"
-    return 1
-  fi
-
   return 0
 }
 

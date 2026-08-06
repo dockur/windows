@@ -630,17 +630,6 @@ getPlatform() {
   return 0
 }
 
-canUseSetupImage() {
-
-  local id="$1"
-  local iso="$2"
-
-  supportsXML "$id" || return 1
-  [[ "${iso,,}" == *".esd" ]] && return 1
-
-  return 0
-}
-
 createImageDirectory() {
 
   local image="$1"
