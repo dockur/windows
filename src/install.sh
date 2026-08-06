@@ -843,14 +843,15 @@ prepareImage() {
   local dir="$2"
 
   local desc missing
-
   desc=$(printVariant "$DETECTED" "$DETECTED")
+
+  # Use the standard Windows BIOS boot image unless legacy preparation
+  # already selected a media-specific El Torito image.
+  ETFS="${ETFS:-boot/etfsboot.com}"
 
   # Legacy rebuilt media must retain the source ISO's El Torito boot-load size.
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
-    if [[ "${DETECTED,,}" != "win9"* && "${DETECTED,,}" != "winnt4" ]]; then
-      getBootLoadSize "$iso" "$dir" "$desc" || return 1
-    fi
+    getBootLoadSize "$iso" "$dir" "$desc" || return 1
   fi
 
   supportsXML "$DETECTED" || return 0
