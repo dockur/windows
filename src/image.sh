@@ -1212,7 +1212,7 @@ readImageInfo() {
   local wim="$1"
   local result=""
 
-  result=$(wimlib-imagex info -xml "$wim" | iconv -f UTF-16LE -t UTF-8) || {
+  result=$(wimlib-imagex info --xml "$wim" | iconv -f UTF-16LE -t UTF-8) || {
     local rc=$?
 
     if (( rc >= 129 )); then
