@@ -1184,8 +1184,15 @@ removeEmbeddedProductKeys() {
       continue
     fi
 
-    [ -z "$delete_xpath" ] || delete_xpath+=" | "
-    delete_xpath+="($product_keys)[$position]"
+    if [[ "$child_key" =~ ^[A-Za-z0-9]{5}(-[A-Za-z0-9]{5}){4}$ ]]; then
+      [ -z "$delete_xpath" ] || delete_xpath+=" | "
+      delete_xpath+="($product_keys)[$position]/u:Key[normalize-space(.)][1]"
+    fi
+
+    if [[ "$direct_key" =~ ^[A-Za-z0-9]{5}(-[A-Za-z0-9]{5}){4}$ ]]; then
+      [ -z "$delete_xpath" ] || delete_xpath+=" | "
+      delete_xpath+="($product_keys)[$position]/text()[normalize-space()][1]"
+    fi
   done <<< "$records"
 
   [ -n "$delete_xpath" ] || return 0
