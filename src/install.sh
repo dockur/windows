@@ -222,12 +222,6 @@ startInstall() {
 
       file=$(basename "${VERSION%%[\?#]*}")
       printf -v file '%b' "${file//%/\\x}"
-
-      if [[ "${file,,}" == *.esd ]]; then
-        error "Direct ESD download URLs are not supported!"
-        exit 58
-      fi
-
       file="${file//[!A-Za-z0-9._-]/_}"
 
       boot="$file"
