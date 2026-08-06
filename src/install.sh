@@ -722,16 +722,52 @@ needsExtraction() {
   return 1
 }
 
+getArchiveSize() {
+
+  local file="$1"
+  local result_name="$2"
+  local -n result="$result_name"
+
+  local listing line value
+  local found=0
+
+  result=0
+
+  if ! listing=$(7z l -slt "$file" 2>/dev/null); then
+    error "Failed to read archive information: $file"
+    return 1
+  fi
+
+  while IFS= read -r line; do
+
+    [[ "$line" == "Size = "* ]] || continue
+
+    value="${line#Size = }"
+    [[ "$value" =~ ^[0-9]+$ ]] || continue
+
+    result=$(( result + value ))
+    found=1
+
+  done <<< "$listing"
+
+  if (( ! found )); then
+    error "Failed to determine archive contents size: $file"
+    return 1
+  fi
+
+  return 0
+}
+
 extractImage() {
 
   local iso="$1"
   local dir="$2"
   local version="$3"
 
-  local file size
+  local target="$dir"
   local desc="local ISO"
   local archive="${dir}.archive"
-  local target="$dir"
+  local file size required archiveSize
 
   if [ -z "$CUSTOM" ]; then
     desc="downloaded ISO"
@@ -770,7 +806,14 @@ extractImage() {
     return 1
   fi
 
-  checkFreeSpace "$target" "$size" || return 1
+  required="$size"
+
+  if enabled "${UNPACK:-}"; then
+    getArchiveSize "$iso" archiveSize || return 1
+    required=$(( archiveSize * 2 ))
+  fi
+
+  checkFreeSpace "$target" "$required" || return 1
 
   if ! rm -rf -- "$target"; then
     error "Failed to remove directory \"$target\" !"
