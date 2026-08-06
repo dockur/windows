@@ -186,10 +186,8 @@ getVersionPriority() {
   # Use the most specific matching pattern. This prevents broad patterns
   # such as enterprise-* from taking precedence over enterprise-iot-*.
   for entry in "${order[@]}"; do
-
     IFS='|' read -r _ priority patterns <<< "$entry"
-    read -ra pattern_list <<< "$patterns"
-
+    read -r -a pattern_list <<< "$patterns"
     for pattern in "${pattern_list[@]}"; do
 
       if [ "$pattern" = "@default" ]; then
