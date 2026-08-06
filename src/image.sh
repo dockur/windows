@@ -1897,7 +1897,7 @@ extractBootImage() {
   local dir="$2"
   local desc="$3"
 
-  local offset info
+  local actual expected offset info
 
   ETFS="boot.img"
 
@@ -1930,9 +1930,17 @@ extractBootImage() {
     return 1
   fi
 
-  if [ ! -s "$dir/$ETFS" ]; then
+  expected=$((BOOT_LOAD_SIZE * 512))
+
+  if ! actual=$(stat -c%s "$dir/$ETFS"); then
     rm -f "$dir/$ETFS" || true
-    error "Failed to locate file \"$ETFS\" in $desc ISO image!"
+    error "Failed to determine boot image size from $desc ISO!"
+    return 1
+  fi
+
+  if (( actual != expected )); then
+    rm -f "$dir/$ETFS" || true
+    error "Failed to extract complete boot image from $desc ISO!"
     return 1
   fi
 
