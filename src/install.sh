@@ -871,13 +871,17 @@ prepareImage() {
 
   # Legacy rebuilt media must retain the source ISO's El Torito boot-load size.
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+
     getBootLoadSize "$iso" "$dir" "$desc" || return 1
+
   fi
 
   supportsXML "$DETECTED" || return 0
 
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+
     extractBootImage "$iso" "$dir" "$desc" && return 0
+
     error "Failed to extract boot image from ISO image \"${iso}\"!"
     return 1
   fi
