@@ -1149,7 +1149,7 @@ createOverlay() {
     return 1
   fi
 
-  if ! addFolder "$stage" "image" "Y" "overlay"; then
+  if ! addFolder "$stage" "overlay"; then
     error "Failed to include OEM folder!"
     return 1
   fi
