@@ -1210,7 +1210,7 @@ updateImage() {
   # Windows Setup normally resides in boot image 2; single-image media uses 1.
   local idx="1"
 
-  if ! info=$(wimlib-imagex info -xml "$wim" | iconv -f UTF-16LE -t UTF-8); then
+  if ! info=$(wimlib-imagex info --xml "$wim" | iconv -f UTF-16LE -t UTF-8); then
     warn "failed to read boot image information, $FB"
     MANUAL="Y"
     info=""
