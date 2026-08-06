@@ -1187,7 +1187,7 @@ parseWimHeader() {
 findImage() {
 
   local dir="$1"
-  local sources result
+  local name sources result
 
   sources=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit) || return 1
 
@@ -1196,7 +1196,10 @@ findImage() {
     return 1
   fi
 
-  result=$(find "$sources" -maxdepth 1 -type f \( -iname install.wim -or -iname install.esd \) -print -quit) || return 1
+  for name in install.wim install.esd; do
+    result=$(find "$sources" -maxdepth 1 -type f -iname "$name" -print -quit) || return 1
+    [ -n "$result" ] && break
+  done
 
   if [ ! -f "$result" ]; then
     warn "failed to locate 'install.wim' or 'install.esd' in ISO image, $FB"
