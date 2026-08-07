@@ -298,17 +298,6 @@ For a complete graphical desktop experience, see [WinBoat](https://winboat.app),
 
   The example folder `./example` will be copied to `C:\OEM` and the `install.bat` file inside it will be executed during the final step of the automatic installation.
 
-### How do I perform a manual installation?
-
-  It's recommended to stick to the automatic installation, as it adjusts various settings to prevent common issues when running Windows inside a virtual environment.
-
-  However, if you insist on performing the installation manually (at your own risk), add the following environment variable to your compose file:
-
-  ```yaml
-  environment:
-    MANUAL: "Y"
-  ```
-
 ### How do I assign an individual IP address to the container?
 
   By default, the container uses bridge networking, which shares the IP address with the host. 
