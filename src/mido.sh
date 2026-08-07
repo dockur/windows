@@ -558,7 +558,6 @@ getWindows() {
 
   local language edition rc
 
-  MIDO_SOURCE=""
   MIDO_STATIC="N"
 
   language=$(getLanguage "$lang" "desc")
@@ -602,7 +601,6 @@ getWindows() {
     "win10x64" | "win11${PLATFORM,,}" )
 
       if downloadWindows "$version" "$lang" "$edition"; then
-        MIDO_SOURCE="$version"
         return 0
       else
         rc=$?
@@ -612,7 +610,6 @@ getWindows() {
     "win11${PLATFORM,,}-enterprise"* )
 
       if downloadWindowsEval "$version" "$lang" "$edition"; then
-        MIDO_SOURCE="$version"
         return 0
       else
         rc=$?
@@ -623,7 +620,6 @@ getWindows() {
     "win2019-hv" | "win2016-eval" | "win2012r2-eval" )
 
       if downloadWindowsEval "$version" "$lang" "$edition"; then
-        MIDO_SOURCE="$version"
         return 0
       else
         rc=$?
@@ -644,12 +640,6 @@ getWindows() {
 
   MIDO_STATIC="Y"
 
-  if [[ "${version,,}" == "win2008r2"* ]]; then
-    MIDO_SOURCE="win2008r2-eval"
-    return 0
-  fi
-
-  MIDO_SOURCE="$version"
   return 0
 }
 
@@ -1272,9 +1262,9 @@ downloadImage() {
   local version="$2"
   local lang="$3"
 
-  local requested="$version" switched=""
+  local requested="$version"
   local tried="n" success="n" seconds="5"
-  local i url sum size base language desc web_desc metadata rc
+  local i url sum size base language desc web_desc rc
 
   if [[ "${version,,}" == "http"* ]]; then
 
@@ -1334,16 +1324,15 @@ downloadImage() {
 
     if [[ "$success" == "y" ]]; then
 
-      metadata="${MIDO_SOURCE:-$version}"
-      url=$(getMido "$metadata" "$lang" "")
+      url=$(getMido "$version" "$lang" "")
 
       sum=""
       size=""
 
       # Apply the metadata belonging to the configured static URL.
       if [[ "${MIDO_URL%%\?*}" == "${url%%\?*}" ]]; then
-        size=$(getMido "$metadata" "$lang" "size")
-        sum=$(getMido "$metadata" "$lang" "sum")
+        size=$(getMido "$version" "$lang" "size")
+        sum=$(getMido "$version" "$lang" "sum")
       fi
 
       local download_desc="$desc"
@@ -1363,10 +1352,10 @@ downloadImage() {
 
   # If an evaluation version was requested, switch to the 
   # normal edition since none of our mirrors provide those.
-  if switched=$(switchEdition "$version"); then
+  if [[ "${version,,}" == *"-eval" ]]; then
 
-    validDownload "$switched" || return 1
-    version="$switched"
+    version="${version::-5}"
+    validDownload "$version" || return 1
 
     [ -n "$DETECTED" ] || DETECTED="$version"
 
