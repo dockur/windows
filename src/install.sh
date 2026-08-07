@@ -49,9 +49,7 @@ selectWindowsImage() {
   if resolveImage "$VERSION"; then
 
     if ! setImage; then
-      skipUnattended "$dir" "$iso" "$boot" || return 70
-      handled=1
-      return 0
+      return 70
     fi
 
     if ! needsExtraction "$DETECTED" "$iso"; then
@@ -689,8 +687,11 @@ setImage() {
   setXML "" && return 0
   enabled "$MANUAL" && return 0
 
-  # A missing answer file is a supported manual-install path, not a hard media
-  # failure.
+  # If a usable source template exists, setXML failed while preparing it.
+  # That is an installation error and must not fall back to manual setup.
+  hasAnswerFile "$DETECTED" && return 1
+
+  # A genuinely missing answer file is a supported manual-install path.
   MANUAL="Y"
 
   local desc
