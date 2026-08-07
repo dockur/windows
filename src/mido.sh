@@ -337,9 +337,6 @@ downloadWindowsEval() {
   local agent culture language type winVer
 
   case "${id,,}" in
-    "win10${PLATFORM,,}-enterprise-eval" )
-      type="enterprise"
-      winVer="windows-10-enterprise" ;;
     "win11${PLATFORM,,}-enterprise-eval" )
       type="enterprise"
       winVer="windows-11-enterprise" ;;
@@ -734,7 +731,6 @@ getWindows() {
 
       downloadWindowsLtsc "$version" "$lang" "$edition" && return 0 ;;
 
-    "win10${PLATFORM,,}-enterprise-eval" | \
     "win11${PLATFORM,,}-enterprise"* )
 
       if downloadWindowsEval "$version" "$lang" "$edition"; then
