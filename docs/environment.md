@@ -93,11 +93,8 @@ An empty default means the variable is unset and its value is determined automat
 | `WEB` | `Y` | Enables the web interface. |
 | `WEB_PORT` | `8006` | Port for the web interface. |
 | `VNC_PORT` | `5900` | Port for the VNC server. |
-| `WSS_PORT` | `5700` | WebSocket port used by noVNC. |
-| `WSD_PORT` | `8004` | Internal websocketd port used for the display stream. |
 | `AUDIO` | `N` | Streams guest audio to the web viewer. |
 | `SOUND` | `intel-hda` | QEMU audio device used by the web viewer. |
-| `AUX_PORT` | `8003` | Internal WebSocket port used for the audio stream. |
 | `PROTECT` | `N` | Enables password protection for the web interface. |
 
 ## 📁 File Sharing
@@ -181,4 +178,4 @@ Also see [Dynamic memory allocation](https://github.com/qemus/qemu/blob/master/d
 | `LOG`   | `N` | Saves all output from `install.bat` to `C:\OEM\install.log` for troubleshooting. |
 | `DETECTED` |  | Overrides the automatically detected Windows image identifier. |
 | `SERIAL` | `mon:stdio` | QEMU serial device configuration. |
-| `MONITOR` | `unix:/run/shm/monitor.sock` | QEMU monitor configuration. |
+| `MONITOR` |  | QEMU monitor configuration. |
