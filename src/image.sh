@@ -83,10 +83,12 @@ getVersions() {
     # Preserve NAME precedence, but allow a recognized DISPLAYNAME edition to
     # refine an otherwise generic family name.
     if [ -n "$candidate_base" ] && [ -n "$candidate_id" ] && [ -n "$display" ]; then
+
       name=$(normalizeEdition "$(printVersion "$candidate_base" "")") || return 1
       candidate=$(normalizeEdition "$candidate") || return 1
 
       if [ "$candidate" = "$name" ]; then
+
         structured=$(getVersion "$display" "$platform")
 
         if [ "$(fromName "$display" "$platform")" = "$candidate_base" ] &&
@@ -94,6 +96,7 @@ getVersions() {
           [[ "$(getVersionPriority "$structured" "$candidate_base")" != "other" ]]; then
           candidate_id="$structured"
         fi
+
       fi
     fi
 
@@ -123,6 +126,7 @@ getVersions() {
     # editions. Preserve the established unsuffixed Pro ID, and use the
     # structured edition metadata only to disambiguate a collision.
     if [[ -v "indexes_ref[$key]" ]]; then
+
       structured=""
 
       case "${candidate_base,,}" in
@@ -145,6 +149,7 @@ getVersions() {
         candidate_id="$candidate_base-$structured$evaluation"
         key="${candidate_id,,}"
       fi
+
     fi
 
     if [[ -v "indexes_ref[$key]" ]]; then
@@ -186,8 +191,10 @@ getVersionPriority() {
   # Use the most specific matching pattern. This prevents broad patterns
   # such as enterprise-* from taking precedence over enterprise-iot-*.
   for entry in "${order[@]}"; do
+
     IFS='|' read -r _ priority patterns <<< "$entry"
     read -r -a pattern_list <<< "$patterns"
+
     for pattern in "${pattern_list[@]}"; do
 
       if [ "$pattern" = "@default" ]; then
@@ -271,6 +278,7 @@ getCompatibleVersions() {
   else
     printf '%s\n' "$wanted-eval"
   fi
+
 }
 
 selectEdition() {
@@ -307,6 +315,7 @@ selectEdition() {
     fi
 
     warn "edition '$EDITION' is not supported by this image, using automatic selection instead."
+
   fi
 
   if [ -n "$suggested" ]; then
@@ -348,8 +357,10 @@ selectEdition() {
     seen["$priority"]="Y"
 
     for ((i=0;i<${#edition_versions[@]};i++)); do
+
       [[ "${edition_groups[$i]}" == "$priority" ]] || continue
       preferred+=("${edition_versions[$i]}")
+
     done
 
   done
@@ -424,9 +435,11 @@ detectLanguage() {
   lang=""
 
   for path in "${paths[@]}"; do
+
     lang=$(xmlstarlet sel -T -t -v "normalize-space(string(($path)[1]))" - 2>/dev/null <<< "$xml") || lang=""
 
     [ -n "$lang" ] && break
+
   done
 
   if [ -z "$lang" ]; then
@@ -926,10 +939,24 @@ findIsoImage() {
   local iso="$1"
   local path
 
-  # Verify that udfread can access the ISO before treating missing payload paths
-  # as a normal detection miss.
-  udfread stat --ignore-case "$iso" / >/dev/null 2>&1 || return 2
-  udfread stat --ignore-case "$iso" /sources >/dev/null 2>&1 || return 1
+  # Direct UDF inspection is unavailable for valid ISO9660-only media, so
+  # fall back to extraction when the image can still be read as ISO9660.
+  if ! udfread stat --ignore-case "$iso" / >/dev/null 2>&1; then
+
+    if isoinfo -d -i "$iso" >/dev/null 2>&1; then
+      return 1
+    fi
+
+    enabled "$DEBUG" && echo "Neither UDF nor ISO9660 inspection could read the ISO image: $iso" >&2
+    error "Failed to read ISO image: $iso"
+
+    return 2
+  fi
+
+  if ! udfread stat --ignore-case "$iso" /sources >/dev/null 2>&1; then
+    enabled "$DEBUG" && echo "The UDF filesystem is readable, but the /sources directory is unavailable." >&2
+    return 1
+  fi
 
   # Prefer install.wim when both payload forms are present.
   for path in /sources/install.wim /sources/install.esd; do
@@ -942,6 +969,7 @@ findIsoImage() {
 
   done
 
+  enabled "$DEBUG" && echo "No install.wim or install.esd payload was found in /sources." >&2
   return 1
 }
 
@@ -953,14 +981,45 @@ readWimHeader() {
   local size signature
   local header="$TMP/wim-header.bin"
 
-  rm -f -- "$header" || return 1
+  if ! rm -f -- "$header"; then
+    enabled "$DEBUG" && echo "Failed to remove the previous temporary WIM header: $header" >&2
+    error "Failed to prepare Windows image header!"
+    return 1
+  fi
 
   # Read only the fixed WIM header so metadata can be located without
   # extracting install.wim or install.esd from the ISO.
-  if ! udfread range --ignore-case -o "$header" "$iso" "$image" 0 208 >/dev/null 2>&1 ||
-      ! size=$(stat -c%s -- "$header") || (( size != 208 )) ||
-      ! signature=$(od -An -N8 -tx1 "$header" | tr -d ' \n') || [[ "$signature" != "4d5357494d000000" ]]; then
+  if ! udfread range --ignore-case -o "$header" "$iso" "$image" 0 208 >/dev/null 2>&1; then
+    enabled "$DEBUG" && echo "udfread failed to read the first 208 bytes of $image from $iso." >&2
+    error "Failed to read Windows image header!"
+    rm -f -- "$header"
+    return 1
+  fi
 
+  if ! size=$(stat -c%s -- "$header"); then
+    enabled "$DEBUG" && echo "Failed to determine the size of the temporary WIM header: $header" >&2
+    error "Failed to read Windows image header!"
+    rm -f -- "$header"
+    return 1
+  fi
+
+  if (( size != 208 )); then
+    enabled "$DEBUG" && echo "The WIM header is $size bytes instead of the expected 208 bytes." >&2
+    error "Failed to read Windows image header!"
+    rm -f -- "$header"
+    return 1
+  fi
+
+  if ! signature=$(od -An -N8 -tx1 "$header" | tr -d ' \n'); then
+    enabled "$DEBUG" && echo "Failed to read the WIM header signature from $header." >&2
+    error "Failed to read Windows image header!"
+    rm -f -- "$header"
+    return 1
+  fi
+
+  if [[ "$signature" != "4d5357494d000000" ]]; then
+    enabled "$DEBUG" && echo "The WIM header has an invalid signature: ${signature:-empty}." >&2
+    error "Failed to read Windows image header!"
     rm -f -- "$header"
     return 1
   fi
@@ -975,27 +1034,41 @@ readIsoImageInfo() {
   local image="$2"
   local header="$3"
 
-  local raw result root xml_count
+  local raw result root xml_count rc
   local header_size version
   local part_number total_parts image_count
   local xml_offset xml_size xml_original xml_flags
   local -a bytes=() values=()
 
-  [ -f "$header" ] || return 1
-  raw=$(od -An -v -N208 -tu1 -- "$header") || return 1
+  if [ ! -f "$header" ]; then
+    enabled "$DEBUG" && echo "The temporary WIM header does not exist: $header" >&2
+    return 1
+  fi
+
+  raw=$(od -An -v -N208 -tu1 -- "$header") || {
+    enabled "$DEBUG" && echo "Failed to read the 208-byte WIM header from $header." >&2
+    return 1
+  }
 
   read -r -a bytes <<< "${raw//$'\n'/ }"
-  (( ${#bytes[@]} == 208 )) || return 1
+
+  if (( ${#bytes[@]} != 208 )); then
+    enabled "$DEBUG" && echo "The WIM header decoded to ${#bytes[@]} bytes instead of 208." >&2
+    return 1
+  fi
 
   # Validate the MSWIM\0\0\0 signature.
-  (( bytes[0] == 77 &&
-     bytes[1] == 83 &&
-     bytes[2] == 87 &&
-     bytes[3] == 73 &&
-     bytes[4] == 77 &&
-     bytes[5] == 0 &&
-     bytes[6] == 0 &&
-     bytes[7] == 0 )) || return 1
+  if ! (( bytes[0] == 77 &&
+         bytes[1] == 83 &&
+         bytes[2] == 87 &&
+         bytes[3] == 73 &&
+         bytes[4] == 77 &&
+         bytes[5] == 0 &&
+         bytes[6] == 0 &&
+         bytes[7] == 0 )); then
+    enabled "$DEBUG" && echo "The decoded WIM header does not contain the expected MSWIM signature." >&2
+    return 1
+  fi
 
   # Header size at offset 0x08.
   header_size=$(( \
@@ -1005,7 +1078,10 @@ readIsoImageInfo() {
     bytes[11] << 24
   ))
 
-  (( header_size == 208 )) || return 1
+  if (( header_size != 208 )); then
+    enabled "$DEBUG" && echo "The WIM header declares an unexpected header size: $header_size bytes." >&2
+    return 1
+  fi
 
   # WIM version at offset 0x0c.
   version=$(( \
@@ -1015,15 +1091,21 @@ readIsoImageInfo() {
     bytes[15] << 24
   ))
 
-  (( version == 0x10d00 || version == 0x0e00 )) || return 1
+  if ! (( version == 0x10d00 || version == 0x0e00 )); then
+    enabled "$DEBUG" && echo "The WIM header contains an unsupported version value: $version." >&2
+    return 1
+  fi
 
   # Split-WIM information at offsets 0x28 and 0x2a.
   part_number=$((bytes[40] | bytes[41] << 8))
   total_parts=$((bytes[42] | bytes[43] << 8))
 
-  (( part_number > 0 &&
-     total_parts > 0 &&
-     part_number <= total_parts )) || return 1
+  if ! (( part_number > 0 &&
+         total_parts > 0 &&
+         part_number <= total_parts )); then
+    enabled "$DEBUG" && echo "The WIM split-image fields are invalid: part $part_number of $total_parts." >&2
+    return 1
+  fi
 
   # Image count at offset 0x2c.
   image_count=$(( \
@@ -1033,25 +1115,43 @@ readIsoImageInfo() {
     bytes[47] << 24
   ))
 
-  (( image_count > 0 && image_count <= 65535 )) || return 1
+  if ! (( image_count > 0 && image_count <= 65535 )); then
+    enabled "$DEBUG" && echo "The WIM header contains an invalid image count: $image_count." >&2
+    return 1
+  fi
 
-  result=$(parseWimHeader "$iso" "$image" "$header") || return 1
+  result=$(parseWimHeader "$iso" "$image" "$header") || {
+    enabled "$DEBUG" && echo "Failed to parse the WIM XML resource descriptor." >&2
+    return 1
+  }
+
   mapfile -t values <<< "$result"
-  (( ${#values[@]} == 4 )) || return 1
+
+  if (( ${#values[@]} != 4 )); then
+    enabled "$DEBUG" && echo "The WIM XML resource descriptor returned ${#values[@]} values instead of 4." >&2
+    return 1
+  fi
+
   xml_offset="${values[0]}"
   xml_size="${values[1]}"
   xml_original="${values[2]}"
   xml_flags="${values[3]}"
 
-  [[ "$xml_offset" =~ ^[0-9]+$ &&
-     "$xml_size" =~ ^[0-9]+$ &&
-     "$xml_original" =~ ^[0-9]+$ &&
-     "$xml_flags" =~ ^[0-9]+$ ]] || return 1
+  if ! [[ "$xml_offset" =~ ^[0-9]+$ &&
+          "$xml_size" =~ ^[0-9]+$ &&
+          "$xml_original" =~ ^[0-9]+$ &&
+          "$xml_flags" =~ ^[0-9]+$ ]]; then
+    enabled "$DEBUG" && echo "The WIM XML resource descriptor contains non-numeric values: offset=$xml_offset size=$xml_size original=$xml_original flags=$xml_flags." >&2
+    return 1
+  fi
 
-  (( xml_size > 0 &&
-     xml_original > 0 &&
-     xml_size == xml_original &&
-     xml_size % 2 == 0 )) || return 1
+  if ! (( xml_size > 0 &&
+         xml_original > 0 &&
+         xml_size == xml_original &&
+         xml_size % 2 == 0 )); then
+    enabled "$DEBUG" && echo "The WIM XML resource sizes are invalid: size=$xml_size original=$xml_original." >&2
+    return 1
+  fi
 
   # These resource forms cannot be decoded as a direct UTF-16LE byte range:
   #
@@ -1060,13 +1160,23 @@ readIsoImageInfo() {
   # 0x10: solid
   #
   # The metadata flag 0x02 is expected and deliberately allowed.
-  (( !(xml_flags & 0x1c) )) || return 1
+  if (( xml_flags & 0x1c )); then
+    enabled "$DEBUG" && echo "The WIM XML resource uses unsupported flags: $xml_flags." >&2
+    return 1
+  fi
 
   result=$(udfread range --ignore-case "$iso" "$image" "$xml_offset" "$xml_size" \
            2>/dev/null | iconv -f UTF-16LE -t UTF-8 2>/dev/null
-  ) || return
+  ) || {
+    rc=$?
+    enabled "$DEBUG" && echo "Failed to read or decode the WIM XML metadata range at offset $xml_offset with size $xml_size (status $rc)." >&2
+    return "$rc"
+  }
 
-  [ -n "$result" ] || return 1
+  if [ -z "$result" ]; then
+    enabled "$DEBUG" && echo "The WIM XML metadata range was empty." >&2
+    return 1
+  fi
 
   local metadata separator=$'\x1f'
 
@@ -1074,13 +1184,27 @@ readIsoImageInfo() {
     -T -t \
     -v 'local-name(/*)' -o "$separator" \
     -v 'count(/*[local-name()="WIM"]/*[local-name()="IMAGE"])' \
-    - 2>/dev/null <<< "$result") || return 1
+    - 2>/dev/null <<< "$result") || {
+    enabled "$DEBUG" && echo "Failed to parse the WIM XML metadata document." >&2
+    return 1
+  }
 
   IFS="$separator" read -r root xml_count <<< "$metadata"
 
-  [ "$root" = "WIM" ] || return 1
-  [[ "$xml_count" =~ ^[0-9]+$ ]] || return 1
-  (( xml_count == image_count )) || return 1
+  if [ "$root" != "WIM" ]; then
+    enabled "$DEBUG" && echo "The WIM XML metadata has an unexpected root element: ${root:-empty}." >&2
+    return 1
+  fi
+
+  if [[ ! "$xml_count" =~ ^[0-9]+$ ]]; then
+    enabled "$DEBUG" && echo "The WIM XML metadata returned an invalid image count: ${xml_count:-empty}." >&2
+    return 1
+  fi
+
+  if (( xml_count != image_count )); then
+    enabled "$DEBUG" && echo "The WIM header image count ($image_count) does not match the XML metadata image count ($xml_count)." >&2
+    return 1
+  fi
 
   printf '%s' "$result"
   return 0
@@ -1101,16 +1225,19 @@ parseWimHeader() {
   local details image_size raw
 
   if [ ! -f "$header" ] || [ ! -s "$header" ]; then
+    enabled "$DEBUG" && echo "The WIM header file is missing or empty: $header" >&2
     return 1
   fi
 
   if ! raw=$(od -An -v -j8 -N88 -tu1 -- "$header"); then
+    enabled "$DEBUG" && echo "Failed to read the WIM header fields from offset 0x08." >&2
     return 1
   fi
 
   read -r -a bytes <<< "${raw//$'\n'/ }"
 
   if (( ${#bytes[@]} != 88 )); then
+    enabled "$DEBUG" && echo "The WIM resource-header section decoded to ${#bytes[@]} bytes instead of 88." >&2
     return 1
   fi
 
@@ -1122,6 +1249,7 @@ parseWimHeader() {
   done
 
   if (( header_size != 208 )); then
+    enabled "$DEBUG" && echo "The WIM resource parser found an unexpected header size: $header_size bytes." >&2
     return 1
   fi
 
@@ -1135,6 +1263,7 @@ parseWimHeader() {
 
   # The XML resource offset is an unsigned 64-bit little-endian value at 0x50.
   if (( bytes[79] >= 128 )); then
+    enabled "$DEBUG" && echo "The WIM XML resource offset cannot be represented safely as a signed shell integer." >&2
     return 1
   fi
 
@@ -1144,6 +1273,7 @@ parseWimHeader() {
 
   # The uncompressed XML size is an unsigned 64-bit value at offset 0x58.
   if (( bytes[87] >= 128 )); then
+    enabled "$DEBUG" && echo "The WIM XML resource size cannot be represented safely as a signed shell integer." >&2
     return 1
   fi
 
@@ -1152,20 +1282,24 @@ parseWimHeader() {
   done
 
   if (( parsed_size <= 0 || parsed_offset < header_size || parsed_original <= 0 )); then
+    enabled "$DEBUG" && echo "The WIM XML resource descriptor is invalid: offset=$parsed_offset size=$parsed_size original=$parsed_original header=$header_size." >&2
     return 1
   fi
 
   if ! details=$(udfread stat --ignore-case "$iso" "$image" 2>/dev/null); then
+    enabled "$DEBUG" && echo "udfread failed to determine the size of $image in $iso." >&2
     return 1
   fi
 
   image_size=$(sed -n 's/^Size: \([0-9][0-9]*\) bytes$/\1/p' <<< "$details")
 
   if [[ ! "$image_size" =~ ^[0-9]+$ ]]; then
+    enabled "$DEBUG" && echo "udfread returned no usable size for $image." >&2
     return 1
   fi
 
   if (( parsed_offset > image_size || parsed_size > image_size - parsed_offset )); then
+    enabled "$DEBUG" && echo "The WIM XML resource lies outside the image bounds: offset=$parsed_offset size=$parsed_size image=$image_size." >&2
     return 1
   fi
 
@@ -1173,7 +1307,6 @@ parseWimHeader() {
 
   return 0
 }
-
 findImage() {
 
   local dir="$1"
@@ -1337,14 +1470,25 @@ detectImageInfo() {
 
   local image_info="$1"
 
-  local desc suggested index
+  local desc suggested index rc
 
-  checkPlatform "$image_info" || exit 67
+  checkPlatform "$image_info" || {
+    enabled "$DEBUG" && echo "Platform validation failed for the Windows image metadata." >&2
+    exit 67
+  }
 
-  suggested=$(getSuggestion) || return
+  suggested=$(getSuggestion) || {
+    rc=$?
+    enabled "$DEBUG" && echo "Failed to determine the suggested Windows image edition (status $rc)." >&2
+    return "$rc"
+  }
 
   local output
-  output=$(detectVersion "$image_info" "$suggested") || return
+  output=$(detectVersion "$image_info" "$suggested") || {
+    enabled "$DEBUG" && echo "Version detection failed while parsing the Windows image metadata." >&2
+    error "Failed to detect Windows version from image metadata!"
+    return 1
+  }
 
   local -a detected=()
   mapfile -t detected <<< "$output"
@@ -1352,19 +1496,40 @@ detectImageInfo() {
   DETECTED="${detected[0]:-}"
   index="${detected[1]:-}"
 
-  validateEdition || return
+  validateEdition || {
+    enabled "$DEBUG" && echo "Edition validation failed for detected image: ${DETECTED:-empty}, index: ${index:-empty}." >&2
+    error "Failed to validate Windows edition from image metadata!"
+    return 1
+  }
 
   if [ -z "$DETECTED" ]; then
-    unknownImage || return
+    unknownImage || {
+      rc=$?
+      enabled "$DEBUG" && echo "Unknown-image handling failed after no Windows version could be detected (status $rc)." >&2
+      return "$rc"
+    }
     return 0
   fi
 
-  detectLanguage "$image_info" "$index" || return
+  detectLanguage "$image_info" "$index" || {
+    rc=$?
+    enabled "$DEBUG" && echo "Failed to detect the language for image $DETECTED at index ${index:-empty} (status $rc)." >&2
+    return "$rc"
+  }
 
-  desc=$(describeImage) || return
+  desc=$(describeImage) || {
+    rc=$?
+    enabled "$DEBUG" && echo "Failed to describe the detected Windows image $DETECTED (status $rc)." >&2
+    return "$rc"
+  }
+
   info "Detected: $desc"
 
-  configureImage "$index" "$desc" || return
+  configureImage "$index" "$desc" || {
+    rc=$?
+    enabled "$DEBUG" && echo "Failed to configure the detected Windows image $DETECTED at index ${index:-empty} (status $rc)." >&2
+    return "$rc"
+  }
 
   return 0
 }
@@ -1373,17 +1538,33 @@ detectIsoImage() {
 
   local iso="$1"
 
-  local image header image_info
+  local image header image_info rc
 
   # Return 1 only when no directly inspectable WIM/ESD payload is available so
   # the caller may extract the media. Metadata parsing/configuration errors use 2.
-  image=$(findIsoImage "$iso") || return
-  header=$(readWimHeader "$iso" "$image") || return 2
+  image=$(findIsoImage "$iso") || {
+    rc=$?
+    enabled "$DEBUG" && echo "Direct ISO image lookup stopped with status $rc." >&2
+    return "$rc"
+  }
 
-  image_info=$(readIsoImageInfo "$iso" "$image" "$header") || return 2
+  header=$(readWimHeader "$iso" "$image") || {
+    enabled "$DEBUG" && echo "Reading the WIM header failed for $image." >&2
+    return 2
+  }
+
+  image_info=$(readIsoImageInfo "$iso" "$image" "$header") || {
+    enabled "$DEBUG" && echo "Reading the WIM XML metadata failed for $image." >&2
+    error "Failed to read Windows image metadata!"
+    return 2
+  }
 
   info "Detecting version from ISO image..."
-  detectImageInfo "$image_info" || return 2
+
+  detectImageInfo "$image_info" || {
+    enabled "$DEBUG" && echo "Processing the Windows image metadata failed." >&2
+    return 2
+  }
 
   return 0
 }
