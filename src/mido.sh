@@ -333,8 +333,8 @@ downloadWindowsEval() {
   local lang="$2"
   local desc="$3"
 
-  local culture language agent winVer
-  local compare compare_name link_name type
+  local compare compare_name link_name
+  local agent culture language type winVer
 
   case "${id,,}" in
     "win10${PLATFORM,,}-enterprise-eval" )
@@ -403,7 +403,8 @@ downloadWindowsEval() {
   page=${page//&#38;/\&}
 
   all_links=$(printf '%s\n' "$page" |
-    grep -Eio "https://go\.microsoft\.com/fwlink(/p)?/\?[^\"'<>[:space:]]+") || {
+    grep -Eio "https://go\.microsoft\.com/fwlink(/p)?/\?[^\"'<>[:space:]]+" |
+    awk 'NF && !seen[$0]++') || {
     error "Evaluation Center download page gave us no download link!"
     return 1
   }
