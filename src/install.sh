@@ -254,25 +254,16 @@ startInstall() {
     exit 50
   fi
 
-  local rc
-
-  if skipInstall "$BOOT" "$previousBase"; then
-    return 1
-  else
-    rc=$?
-    (( rc == 1 )) || return "$rc"
-  fi
+  skipInstall "$BOOT" "$previousBase" && return 1
 
   if [ -z "$previousBase" ] && hasData; then
 
     if enabled "$SHUTDOWN" && [ ! -f "$STORAGE/windows.boot" ]; then
       discardPrevious "" || exit 50
-    elif backupPrevious ""; then
-      :
     else
-      rc=$?
-      (( rc == 1 )) || return "$rc"
-      warn "the backup was incomplete, continuing with installation..."
+      if ! backupPrevious ""; then
+        warn "the backup was incomplete, continuing with installation..."
+      fi
     fi
 
   fi
@@ -467,11 +458,7 @@ skipInstall() {
 
       info "Detected that $method, a backup of your previous installation will be saved..."
 
-      if backupPrevious "$STORAGE/$previousBase"; then
-        :
-      else
-        local rc=$?
-        (( rc == 1 )) || return "$rc"
+      if ! backupPrevious "$STORAGE/$previousBase"; then
         warn "the backup was incomplete, continuing with installation..."
       fi
 
@@ -1287,9 +1274,9 @@ backupPrevious () {
   local count=1
   local name="unknown"
   local root="$STORAGE/backups"
-  local failed="" file previous rc
+  local failed="" file previous
 
-  previous=$(readState "base") || return
+  previous=$(readState "base") || return 1
   [ -n "$previous" ] && name="${previous%.*}"
 
   if ! makeDir "$root"; then
@@ -1333,11 +1320,7 @@ backupPrevious () {
   # detected rather than being mistaken for a successful backup.
   local find_pid=$!
 
-  if wait "$find_pid"; then
-    :
-  else
-    rc=$?
-    (( rc == 1 )) || return "$rc"
+  if ! wait "$find_pid"; then
     error "Failed to enumerate files in \"$STORAGE\"."
     failed="Y"
   fi
