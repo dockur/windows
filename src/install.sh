@@ -43,8 +43,15 @@ selectWindowsImage() {
   local dir="$2"
   local boot="$3"
 
-  # Known versions already provide the required image metadata.
-  if resolveImage "$VERSION"; then
+  XML=""
+  FB="falling back to manual installation!"
+
+  # Known catalog versions already provide the required image metadata.
+  if [ -z "$DETECTED" ] && [ -z "$CUSTOM" ] && [[ "${VERSION,,}" != "http"* ]]; then
+    DETECTED="$VERSION"
+  fi
+
+  if [ -n "$DETECTED" ]; then
 
     if ! setImage; then
       return 70
@@ -615,54 +622,6 @@ removeImage() {
   fi
 
   return 0
-}
-
-resolveImage() {
-
-  local version="$1"
-
-  XML=""
-  FB="falling back to manual installation!"
-
-  [ -z "$DETECTED" ] || return 0
-
-  # Arbitrary URL media must be inspected because VERSION does not describe
-  # the Windows image contained in the download.
-  [[ "${version,,}" != "http"* ]] || return 1
-
-  # Only direct-boot custom media can safely bypass content detection.
-  if [ -n "$CUSTOM" ]; then
-    supportsUnattended "$version" && return 1
-    DETECTED="$version"
-    return 0
-  fi
-
-  # SIF-based catalog versions have no XML answer-file template, but their
-  # download route still identifies the exact Windows version.
-  case "${version,,}" in
-    "win2k"* | "winxp"* | "win2003"* )
-      DETECTED="$version"
-      return 0 ;;
-  esac
-
-  local file="/run/assets/$version.xml"
-
-  if [ -s "$file" ]; then
-    DETECTED="$version"
-    return 0
-  fi
-
-  # Evaluation media may reuse the normal edition's answer-file template.
-  if [[ "${version,,}" == *"-eval" ]]; then
-    local source="/run/assets/${version%-eval}.xml"
-
-    if [ -s "$source" ]; then
-      DETECTED="$version"
-      return 0
-    fi
-  fi
-
-  return 1
 }
 
 setImage() {
