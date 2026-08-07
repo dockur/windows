@@ -337,6 +337,9 @@ downloadWindowsEval() {
   local agent language winVer
 
   case "${id,,}" in
+    "win10${PLATFORM,,}-enterprise-eval" )
+      type="enterprise"
+      winVer="windows-10-enterprise" ;;
     "win11${PLATFORM,,}-enterprise-eval" )
       type="enterprise"
       winVer="windows-11-enterprise" ;;
@@ -692,7 +695,7 @@ getWindows() {
   case "${version,,}" in
     "win2008r2"* | \
     "win81${PLATFORM,,}"* | \
-    "win10${PLATFORM,,}-enterprise"* | \
+    "win10${PLATFORM,,}-enterprise-ltsc-eval" | \
     "win11${PLATFORM,,}-enterprise-iot-eval" )
       if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
         error "No download in the $language language available for $edition!"
@@ -730,6 +733,7 @@ getWindows() {
 
       downloadWindowsLtsc "$version" "$lang" "$edition" && return 0 ;;
 
+    "win10${PLATFORM,,}-enterprise-eval" | \
     "win11${PLATFORM,,}-enterprise"* )
 
       if downloadWindowsEval "$version" "$lang" "$edition"; then
