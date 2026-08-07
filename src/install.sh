@@ -79,9 +79,7 @@ selectWindowsImage() {
 
   # Only code 1 indicates that extraction may recover detection.
   if (( detect_rc != 1 )); then
-    skipUnattended "$dir" "$iso" "$boot" || return 76
-    handled=1
-    return 0
+    return 76
   fi
 
   if ! extractImage "$iso" "$dir" "$VERSION"; then
@@ -102,6 +100,10 @@ selectWindowsImage() {
     return "$detect_rc"
   fi
 
+  if (( detect_rc != 1 )); then
+    return 76
+  fi
+
   skipUnattended "$dir" "$iso" "$boot" || return 76
 
   handled=1
@@ -116,11 +118,7 @@ configureMachine() {
 
   local desc
 
-  if ! desc=$(printVariant "$DETECTED" "$DETECTED"); then
-    skipUnattended "$dir" "$iso" "$boot" || return 78
-    handled=1
-    return 0
-  fi
+  desc=$(printVariant "$DETECTED" "$DETECTED") || return 78
 
   if ! checkMemory "$DETECTED" "$desc"; then
     if [ -n "${REUSED_ISO:-}" ]; then
@@ -130,15 +128,11 @@ configureMachine() {
   fi
 
   if ! setMachine "$DETECTED" "$iso" "$dir" "$desc"; then
-    skipUnattended "$dir" "$iso" "$boot" || return 80
-    handled=1
-    return 0
+    return 80
   fi
 
   if ! restoreMachineState; then
-    skipUnattended "$dir" "$iso" "$boot" || return 82
-    handled=1
-    return 0
+    return 82
   fi
 
   if ! supportsUnattended "$DETECTED"; then
@@ -160,9 +154,7 @@ prepareWindowsImage() {
   if supportsXML "$DETECTED"; then
 
     if ! createOverlay "$XML" "$LANGUAGE" "$TMP/setup"; then
-      skipUnattended "$dir" "$iso" "$boot" || return 84
-      handled=1
-      return 0
+      return 84
     fi
 
     if ! createSetupImage "$TMP/setup" "$STORAGE/setup.img"; then
@@ -186,9 +178,7 @@ prepareWindowsImage() {
   fi
 
   if ! prepareImage "$iso" "$dir"; then
-    skipUnattended "$dir" "$iso" "$boot" || return 92
-    handled=1
-    return 0
+    return 92
   fi
 
   removeImage "$iso" || return 96
@@ -684,14 +674,19 @@ setImage() {
 
   supportsXML "${DETECTED,,}" || return 0
 
-  setXML "" && return 0
+  local rc=0
+
+  setXML "" || rc=$?
+
+  if (( rc == 0 )); then
+    return 0
+  fi
+
   enabled "$MANUAL" && return 0
 
-  # If a usable source template exists, setXML failed while preparing it.
-  # That is an installation error and must not fall back to manual setup.
-  hasAnswerFile "$DETECTED" && return 1
+  # Only a genuinely missing answer file may fall back to manual setup.
+  (( rc == 1 )) || return "$rc"
 
-  # A genuinely missing answer file is a supported manual-install path.
   MANUAL="Y"
 
   local desc
@@ -906,24 +901,39 @@ detectImage() {
 
   local dir="$1"
 
-  local desc
+  local desc detect_rc=0
 
   info "Detecting version from ISO image..."
 
   # Marker-based legacy and ReactOS detection must run before looking for a WIM.
-  if detectLegacy "$dir" || detectReactOS "$dir"; then
-    desc=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 1
+  detectLegacy "$dir" || detect_rc=$?
+
+  if (( detect_rc == 0 )); then
+    desc=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 2
     info "Detected: $desc"
     return 0
   fi
 
+  (( detect_rc == 1 )) || return "$detect_rc"
+
+  detect_rc=0
+  detectReactOS "$dir" || detect_rc=$?
+
+  if (( detect_rc == 0 )); then
+    desc=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 2
+    info "Detected: $desc"
+    return 0
+  fi
+
+  (( detect_rc == 1 )) || return "$detect_rc"
+
   local wim
-  wim=$(findImage "$dir") || return 1
+  wim=$(findImage "$dir") || return $?
 
   local image_info
   image_info=$(readImageInfo "$wim") || return $?
 
-  detectImageInfo "$image_info"
+  detectImageInfo "$image_info" || return 2
 }
 
 prepareImage() {

@@ -796,28 +796,28 @@ detectLegacy() {
 
   # Legacy media is identified from setup marker files rather than WIM
   # metadata. The order is intentional because several releases share markers.
-  marker=$(find "$dir" -maxdepth 1 -type d -iname 'ia64' -print -quit) || return 1
+  marker=$(find "$dir" -maxdepth 1 -type d -iname 'ia64' -print -quit) || return 2
 
   if [ -n "$marker" ]; then
     error "Windows IA-64 (Itanium) images are not supported by this container!"
     exit 67
   fi
 
-  marker=$(find "$dir" -maxdepth 1 -type d -iname WIN95 -print -quit) || return 1
+  marker=$(find "$dir" -maxdepth 1 -type d -iname WIN95 -print -quit) || return 2
 
   if [ -n "$marker" ]; then
     DETECTED="win95"
     return 0
   fi
 
-  marker=$(find "$dir" -maxdepth 1 -type d -iname WIN98 -print -quit) || return 1
+  marker=$(find "$dir" -maxdepth 1 -type d -iname WIN98 -print -quit) || return 2
 
   if [ -n "$marker" ]; then
     DETECTED="win98"
     return 0
   fi
 
-  marker=$(find "$dir" -maxdepth 1 -type d -iname WIN9X -print -quit) || return 1
+  marker=$(find "$dir" -maxdepth 1 -type d -iname WIN9X -print -quit) || return 2
 
   if [ -n "$marker" ]; then
     DETECTED="win9x"
@@ -830,14 +830,14 @@ detectLegacy() {
       -iname CDROM_S.40 -o \
       -iname CDROM_TS.40 \
     \) \
-    -print -quit) || return 1
+    -print -quit) || return 2
 
   if [ -n "$marker" ]; then
     DETECTED="winnt4"
     return 0
   fi
 
-  marker=$(find "$dir" -maxdepth 1 -type f -iname CDROM_NT.5 -print -quit) || return 1
+  marker=$(find "$dir" -maxdepth 1 -type f -iname CDROM_NT.5 -print -quit) || return 2
 
   if [ -n "$marker" ]; then
 
@@ -848,7 +848,7 @@ detectLegacy() {
         -iname CDROM_IP.5 -o \
         -iname CDROM_IS.5 \
       \) \
-      -print -quit) || return 1
+      -print -quit) || return 2
 
     if [ -n "$marker" ]; then
       DETECTED="win2k"
@@ -859,10 +859,10 @@ detectLegacy() {
 
   # WIN51 identifies the NT 5.1/5.2 media family; the companion marker then
   # distinguishes XP x86, XP x64, and Server 2003.
-  marker=$(find "$dir" -maxdepth 1 -iname WIN51 -print -quit) || return 1
+  marker=$(find "$dir" -maxdepth 1 -iname WIN51 -print -quit) || return 2
   [ -n "$marker" ] || return 1
 
-  marker=$(find "$dir" -maxdepth 1 -type f -iname WIN51AP -print -quit) || return 1
+  marker=$(find "$dir" -maxdepth 1 -type f -iname WIN51AP -print -quit) || return 2
 
   if [ -n "$marker" ]; then
     DETECTED="winxpx64"
@@ -875,7 +875,7 @@ detectLegacy() {
       -iname WIN51IP -o \
       -iname setupxp.htm \
     \) \
-    -print -quit) || return 1
+    -print -quit) || return 2
 
   if [ -n "$marker" ]; then
     DETECTED="winxpx86"
@@ -896,7 +896,7 @@ detectLegacy() {
       -iname WIN51MD -o \
       -iname WIN51MP \
     \) \
-    -print -quit) || return 1
+    -print -quit) || return 2
 
   if [ -n "$marker" ]; then
     DETECTED="win2003r2"
@@ -913,7 +913,7 @@ detectReactOS() {
   local marker
 
   marker=$(find "$dir" -maxdepth 2 -type f \
-    \( -ipath '*/reactos/reactos.inf' -o -ipath '*/reactos/unattend.inf' \) -print -quit) || return 1
+    \( -ipath '*/reactos/reactos.inf' -o -ipath '*/reactos/unattend.inf' \) -print -quit) || return 2
 
   [ -n "$marker" ] || return 1
 
@@ -1183,7 +1183,7 @@ findImage() {
   local dir="$1"
   local name sources result
 
-  sources=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit) || return 1
+  sources=$(find "$dir" -maxdepth 1 -type d -iname sources -print -quit) || return 2
 
   if [ ! -d "$sources" ]; then
     warn "failed to locate 'sources' folder in ISO image, $FB"
@@ -1191,7 +1191,7 @@ findImage() {
   fi
 
   for name in install.wim install.esd; do
-    result=$(find "$sources" -maxdepth 1 -type f -iname "$name" -print -quit) || return 1
+    result=$(find "$sources" -maxdepth 1 -type f -iname "$name" -print -quit) || return 2
     [ -n "$result" ] && break
   done
 
@@ -1220,8 +1220,8 @@ readImageInfo() {
   }
 
   if [ -z "$result" ]; then
-    warn "failed to read Windows image information, $FB"
-    return 1
+    error "Failed to read Windows image information!"
+    return 2
   fi
 
   printf '%s' "$result"
@@ -1261,15 +1261,20 @@ validateEdition() {
 unknownImage() {
 
   local msg="Failed to determine Windows version from image"
+  local rc=0
 
-  # Unknown media can continue when a custom answer file or manual mode already
-  # provides the required installation path; otherwise force manual fallback.
-  if setXML "" || enabled "$MANUAL"; then
+  setXML "" || rc=$?
+
+  if (( rc == 0 )) || enabled "$MANUAL"; then
     info "${msg}!"
-  else
-    MANUAL="Y"
-    warn "${msg}, $FB."
+    return 0
   fi
+
+  # Only absence of a usable answer file is a supported manual fallback.
+  (( rc == 1 )) || return "$rc"
+
+  MANUAL="Y"
+  warn "${msg}, $FB."
 
   return 0
 }
@@ -1294,9 +1299,20 @@ configureImage() {
   local index="$1"
   local desc="$2"
 
+  local rc=0
+
   # Prefer the exact answer file, then a family-level fallback. Manual mode is
-  # the final supported path when neither can be generated.
-  setXML "" "$index" && return 0
+  # the final supported path only when no usable template exists.
+  setXML "" "$index" || rc=$?
+
+  if (( rc == 0 )); then
+    return 0
+  fi
+
+  enabled "$MANUAL" && return 0
+
+  # Generation or preparation errors must not be hidden by another fallback.
+  (( rc == 1 )) || return "$rc"
 
   if [[ "$DETECTED" == "win81x86"* || "$DETECTED" == "win10x86"* ]]; then
     error "The 32-bit version of $desc is not supported!"
@@ -1306,14 +1322,18 @@ configureImage() {
   local msg="the answer file for $desc was not found ($DETECTED.xml)"
   local fallback="/run/assets/${DETECTED%%-*}.xml"
 
-  if setXML "$fallback" "$index"; then
-    if ! enabled "$MANUAL"; then
-      warn "${msg}."
-    fi
+  rc=0
+  setXML "$fallback" "$index" || rc=$?
+
+  if (( rc == 0 )); then
+    warn "${msg}."
     return 0
   fi
 
   enabled "$MANUAL" && return 0
+
+  # The family-level template was present but could not be generated/prepared.
+  (( rc == 1 )) || return "$rc"
 
   MANUAL="Y"
   warn "${msg}, $FB."
@@ -1361,14 +1381,18 @@ detectIsoImage() {
 
   local iso="$1"
 
-  local image header image_info
+  local image header image_info rc
 
-  # Return 1 when direct ISO inspection is unavailable so the caller may fall
-  # back to extraction; return 2 when metadata was read but configuration failed.
-
+  # Return 1 only when no directly inspectable WIM/ESD payload is available so
+  # the caller may extract the media. Metadata parsing/configuration errors use 2.
   image=$(findIsoImage "$iso") || return 1
-  header=$(readWimHeader "$iso" "$image") || return 1
-  image_info=$(readIsoImageInfo "$iso" "$image" "$header") || return $?
+  header=$(readWimHeader "$iso" "$image") || return 2
+
+  image_info=$(readIsoImageInfo "$iso" "$image" "$header") || {
+    rc=$?
+    (( rc >= 129 )) && return "$rc"
+    return 2
+  }
 
   info "Detecting version from ISO image..."
   detectImageInfo "$image_info" || return 2
