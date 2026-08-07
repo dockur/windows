@@ -1477,7 +1477,7 @@ extractESD() {
   fi
 
   if (( count < 4 )); then
-    error "Invalid ESD file: expected at least 3 images, found $count."
+    error "Invalid ESD file: expected at least 4 images, found $count."
     return 1
   fi
 
