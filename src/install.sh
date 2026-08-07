@@ -1322,7 +1322,7 @@ checkMemory() {
   RAM_MINIMUM="$required"
 
   name=$(printVersion "$id" "") || return 1
-  checkMemoryRequirement "$name"
+  checkMemoryRequirement "$name" || return 1
 
   return 0
 }
