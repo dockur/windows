@@ -926,9 +926,13 @@ findIsoImage() {
   local iso="$1"
   local path
 
-  # Verify that udfread can access the ISO before treating missing payload paths
-  # as a normal detection miss.
-  udfread stat --ignore-case "$iso" / >/dev/null 2>&1 || return 2
+  # Direct UDF inspection is unavailable for valid ISO9660-only media, so
+  # fall back to extraction when the image can still be read as ISO9660.
+  if ! udfread stat --ignore-case "$iso" / >/dev/null 2>&1; then
+    isoinfo -d -i "$iso" >/dev/null 2>&1 && return 1
+    return 2
+  fi
+
   udfread stat --ignore-case "$iso" /sources >/dev/null 2>&1 || return 1
 
   # Prefer install.wim when both payload forms are present.
