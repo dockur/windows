@@ -1011,16 +1011,6 @@ getDriverFolder() {
   return 0
 }
 
-switchEdition() {
-
-  local version="$1"
-
-  [[ "${version,,}" == *"-eval" ]] || return 1
-
-  echo "${version::-5}"
-  return 0
-}
-
 getMido() {
 
   local id="$1"
