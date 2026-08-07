@@ -69,7 +69,7 @@ setXML() {
 
   CUSTOM_XML=""
 
-  removeGeneratedXML "$target" || return 1
+  removeGeneratedXML "$target" || return 2
 
   if [ -d "${custom_files[0]}" ]; then
     error "The bind ${custom_files[0]} maps to a file that does not exist!"
@@ -98,7 +98,7 @@ setXML() {
   if [[ "${DETECTED,,}" == *"-eval" ]] &&
     { [ ! -f "$file" ] || [ ! -s "$file" ]; }; then
 
-    generateEvalXML "$DETECTED" "$index" || return 1
+    generateEvalXML "$DETECTED" "$index" || return $?
     file="$target"
 
   elif [ ! -f "$file" ] || [ ! -s "$file" ]; then
@@ -107,7 +107,7 @@ setXML() {
 
   elif [[ "$file" != "$target" ]]; then
 
-    generateFallbackXML "$DETECTED" "$index" || return 1
+    generateFallbackXML "$DETECTED" "$index" || return $?
     file="$target"
 
   fi
@@ -340,12 +340,12 @@ generateEvalXML() {
   local target="/run/assets/$id.xml"
   local source="/run/assets/$normal.xml"
 
-  removeGeneratedXML "$source" || return 1
+  removeGeneratedXML "$source" || return 2
 
   if [ ! -s "$source" ]; then
 
     source="/run/assets/${normal%%-*}.xml"
-    removeGeneratedXML "$source" || return 1
+    removeGeneratedXML "$source" || return 2
 
   fi
 
@@ -361,7 +361,7 @@ generateEvalXML() {
     esac
   fi
 
-  generateAnswerFile "$id" "$source" "$target" "$index" "evaluation" "$remove_selector" || return 1
+  generateAnswerFile "$id" "$source" "$target" "$index" "evaluation" "$remove_selector" || return 2
 
   return 0
 }
@@ -379,11 +379,11 @@ generateFallbackXML() {
 
   [ "$source" != "$target" ] || return 1
 
-  removeGeneratedXML "$source" || return 1
+  removeGeneratedXML "$source" || return 2
 
   [ -s "$source" ] || return 1
 
-  generateAnswerFile "$id" "$source" "$target" "$index" "fallback" "Y" || return 1
+  generateAnswerFile "$id" "$source" "$target" "$index" "fallback" "Y" || return 2
 
   return 0
 }
