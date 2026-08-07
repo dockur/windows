@@ -1413,9 +1413,10 @@ extractESD() {
 
   local installSize size edition imgEdition
   local bootTotal bootLinks wimTotal wimLinks
-  local bootWim installWim bootSize wimSize xml
-  local image index line ret metadata count output
-  local result resultCount resultEdition installXml
+  local bootWim installWim bootSize wimSize
+  local image index line ret metadata count
+  local resultCount resultIndex resultEdition
+  local xml installXml output result
   local -a detected fields
 
   local minSize=100000000
@@ -1584,18 +1585,7 @@ extractESD() {
 
     index="${detected[1]:-}"
 
-    for line in "${fields[@]:5}"; do
-
-      IFS=$'\t' read -r image imgEdition <<< "$line"
-
-      [[ "$image" == "$index" ]] || continue
-
-      edition="$imgEdition"
-      break
-
-    done
-
-    if [ -z "$index" ] || [ -z "$edition" ]; then
+    if [ -z "$index" ]; then
       error "Failed to select an installation image from install.esd!"
       return 1
     fi
@@ -1668,6 +1658,7 @@ extractESD() {
 
   if ! metadata=$(xmlstarlet sel -t \
       -v 'count(/WIM/IMAGE)' -n \
+      -v 'count(/WIM/IMAGE[@INDEX="1"])' -n \
       -v 'normalize-space(/WIM/IMAGE[@INDEX="1"]/DESCRIPTION)' -n \
       <<< "$result" 2>/dev/null); then
     fKill "progress.sh"
@@ -1678,9 +1669,16 @@ extractESD() {
   mapfile -t fields <<< "$metadata"
 
   resultCount="${fields[0]:-}"
-  resultEdition="${fields[1]:-}"
+  resultIndex="${fields[1]:-}"
+  resultEdition="${fields[2]:-}"
 
-  if [[ "$resultCount" != "1" ]] ||
+  if [[ "$resultCount" != "1" ]] || [[ "$resultIndex" != "1" ]]; then
+    fKill "progress.sh"
+    error "Prepared install.esd does not contain exactly one image at index 1!"
+    return 1
+  fi
+
+  if [[ "${version,,}" != "http"* ]] &&
       [[ "${resultEdition,,}" != "${edition,,}" ]]; then
     fKill "progress.sh"
     error "Prepared install.esd does not contain only '$edition' at index 1!"
