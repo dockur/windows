@@ -1316,45 +1316,13 @@ backupPrevious () {
 checkMemory() {
 
   local id="$1"
-  local desc="${2:-}"
-  local required wanted available
+  local required name
 
   required=$(getRequiredMemory "$id") || return 1
-
-  if [ -z "$desc" ]; then
-    desc=$(printVariant "$id" "$id") || return 1
-  fi
-
-  # Ensure the final memory allocation also uses this floor.
   RAM_MINIMUM="$required"
 
-  # Refresh host and container memory availability.
-  getMemoryInfo
-
-  available=$(( RAM_AVAIL - RAM_SPARE ))
-  (( available < 0 )) && available=0
-
-  case "${RAM_SIZE,,}" in
-    "max" )
-      wanted="$available" ;;
-    "half" )
-      wanted=$(( RAM_TOTAL / 2 ))
-      (( wanted > available )) && wanted="$available" ;;
-    * )
-      wanted=$(numfmt --from=iec "$RAM_SIZE") || return 1
-
-      if (( wanted < required )); then
-        error "$desc requires at least $(formatBytes "$required") of RAM, but RAM_SIZE is set to $(formatBytes "$wanted")."
-        return 1
-      fi
-
-      (( wanted > available )) && wanted="$available" ;;
-  esac
-
-  if (( wanted < required )); then
-    error "$desc requires at least $(formatBytes "$required") of RAM, but only $(formatBytes "$wanted") can be allocated."
-    return 1
-  fi
+  name=$(printVersion "$id" "") || return 1
+  checkMemoryRequirement "$name"
 
   return 0
 }
