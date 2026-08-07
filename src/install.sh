@@ -43,8 +43,6 @@ selectWindowsImage() {
   local dir="$2"
   local boot="$3"
 
-  local detect_rc=0
-
   # Known versions already provide the required image metadata.
   if resolveImage "$VERSION"; then
 
@@ -67,19 +65,10 @@ selectWindowsImage() {
   fi
 
   # Inspect unknown media directly before falling back to extraction.
-  detectIsoImage "$iso" || detect_rc=$?
-
-  if (( detect_rc == 0 )); then
+  if detectIsoImage "$iso"; then
     return 0
-  fi
-
-  if (( detect_rc >= 129 )); then
-    return "$detect_rc"
-  fi
-
-  # Only code 1 indicates that extraction may recover detection.
-  if (( detect_rc != 1 )); then
-    return 76
+  else
+    checkReturn "$?" 76 || return $?
   fi
 
   if ! extractImage "$iso" "$dir" "$VERSION"; then
@@ -88,20 +77,11 @@ selectWindowsImage() {
   fi
 
   extracted=1
-  detect_rc=0
 
-  detectImage "$dir" || detect_rc=$?
-
-  if (( detect_rc == 0 )); then
+  if detectImage "$dir"; then
     return 0
-  fi
-
-  if (( detect_rc >= 129 )); then
-    return "$detect_rc"
-  fi
-
-  if (( detect_rc != 1 )); then
-    return 76
+  else
+    checkReturn "$?" 76 || return $?
   fi
 
   skipUnattended "$dir" "$iso" "$boot" || return 76
@@ -629,6 +609,22 @@ hasImage() {
   [ -f "$file" ] && [ -s "$file" ]
 }
 
+checkReturn() {
+
+  local rc="$1"
+  local error="${2:-$rc}"
+
+  if (( rc == 0 || rc == 1 )); then
+    return 0
+  fi
+
+  if (( rc >= 129 )); then
+    return "$rc"
+  fi
+
+  return "$error"
+}
+
 removeImage() {
 
   local iso="$1"
@@ -915,31 +911,26 @@ detectImage() {
 
   local dir="$1"
 
-  local desc detect_rc=0
+  local desc
 
   info "Detecting version from ISO image..."
 
   # Marker-based legacy and ReactOS detection must run before looking for a WIM.
-  detectLegacy "$dir" || detect_rc=$?
-
-  if (( detect_rc == 0 )); then
+  if detectLegacy "$dir"; then
     desc=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 2
     info "Detected: $desc"
     return 0
+  else
+    checkReturn "$?" || return $?
   fi
 
-  (( detect_rc == 1 )) || return "$detect_rc"
-
-  detect_rc=0
-  detectReactOS "$dir" || detect_rc=$?
-
-  if (( detect_rc == 0 )); then
+  if detectReactOS "$dir"; then
     desc=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 2
     info "Detected: $desc"
     return 0
+  else
+    checkReturn "$?" || return $?
   fi
-
-  (( detect_rc == 1 )) || return "$detect_rc"
 
   local wim
   wim=$(findImage "$dir") || return $?
