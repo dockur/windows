@@ -369,7 +369,7 @@ detectVersion() {
   local -a selection_order=()
   local result="" index=""
 
-  getVersions "$xml" versions bases groups image_indexes || return 1
+  getVersions "$xml" versions bases groups image_indexes || return
 
   if [ "${#versions[@]}" -eq 0 ]; then
     printf '%s\n%s\n' "$result" "$index"
@@ -642,6 +642,9 @@ createImageDirectory() {
   # already resolve it.
   if mdir -i "$image" "$directory" >/dev/null 2>&1; then
     return 0
+  else
+    local rc=$?
+    (( rc == 1 )) || return "$rc"
   fi
 
   mmd -i "$image" "$directory" >/dev/null
@@ -925,7 +928,7 @@ findIsoImage() {
 
   local iso="$1"
 
-  local path
+  local path rc
 
   # Prefer install.wim when both payload forms are present.
   for path in /sources/install.wim /sources/install.esd; do
@@ -934,6 +937,9 @@ findIsoImage() {
 
       printf '%s' "$path"
       return 0
+    else
+      rc=$?
+      (( rc == 1 )) || return "$rc"
     fi
 
   done
@@ -1060,15 +1066,7 @@ readIsoImageInfo() {
 
   result=$(udfread range --ignore-case "$iso" "$image" "$xml_offset" "$xml_size" \
            2>/dev/null | iconv -f UTF-16LE -t UTF-8 2>/dev/null
-  ) || {
-    local rc=$?
-
-    if (( rc >= 129 )); then
-      exit "$rc"
-    fi
-
-    return 1
-  }
+  ) || return
 
   [ -n "$result" ] || return 1
 
@@ -1349,10 +1347,10 @@ detectImageInfo() {
 
   checkPlatform "$image_info" || exit 67
 
-  suggested=$(getSuggestion) || return 1
+  suggested=$(getSuggestion) || return
 
   local output
-  output=$(detectVersion "$image_info" "$suggested") || return 1
+  output=$(detectVersion "$image_info" "$suggested") || return
 
   local -a detected=()
   mapfile -t detected <<< "$output"
@@ -1360,19 +1358,19 @@ detectImageInfo() {
   DETECTED="${detected[0]:-}"
   index="${detected[1]:-}"
 
-  validateEdition || return 1
+  validateEdition || return
 
   if [ -z "$DETECTED" ]; then
-    unknownImage || return 1
+    unknownImage || return
     return 0
   fi
 
-  detectLanguage "$image_info" "$index" || return 1
+  detectLanguage "$image_info" "$index" || return
 
-  desc=$(describeImage) || return 1
+  desc=$(describeImage) || return
   info "Detected: $desc"
 
-  configureImage "$index" "$desc" || return 1
+  configureImage "$index" "$desc" || return
 
   return 0
 }
@@ -1385,14 +1383,14 @@ detectIsoImage() {
 
   # Return 1 only when no directly inspectable WIM/ESD payload is available so
   # the caller may extract the media. Metadata parsing/configuration errors use 2.
-  image=$(findIsoImage "$iso") || return 1
-  header=$(readWimHeader "$iso" "$image") || return 2
-
-  image_info=$(readIsoImageInfo "$iso" "$image" "$header") || {
+  image=$(findIsoImage "$iso") || {
     rc=$?
-    (( rc >= 129 )) && return "$rc"
+    (( rc == 1 )) && return 1
     return 2
   }
+  header=$(readWimHeader "$iso" "$image") || return 2
+
+  image_info=$(readIsoImageInfo "$iso" "$image" "$header") || return 2
 
   info "Detecting version from ISO image..."
   detectImageInfo "$image_info" || return 2
@@ -1471,11 +1469,12 @@ extractESD() {
     return 1
   fi
 
-  if ! xml=$(wimlib-imagex info "$iso" --xml 2>/dev/null |
-      iconv -f UTF-16LE -t UTF-8 2>/dev/null); then
+  xml=$(wimlib-imagex info "$iso" --xml 2>/dev/null |
+    iconv -f UTF-16LE -t UTF-8 2>/dev/null) || {
+    ret=$?
     error "Cannot read ESD file information!"
-    return 1
-  fi
+    return "$ret"
+  }
 
   # Microsoft download ESDs use images 1-3 for setup media, WinPE, and Windows
   # Setup; images 4 and higher contain installable editions. Read all metadata
@@ -1531,7 +1530,7 @@ extractESD() {
   # installation media. Peak additional usage consists of the extracted setup
   # files and boot.wim, plus the final ISO containing those files and the ESD.
   local freeSpace=$(( size + 2 * (bootSize + wimSize) + spacePad ))
-  checkFreeSpace "$dir" "$freeSpace" || return 1
+  checkFreeSpace "$dir" "$freeSpace" || return
 
   /run/progress.sh "$dir" "$bootSize" "$msg ([P])..." &
 
@@ -1540,7 +1539,7 @@ extractESD() {
     ret=$?
     fKill "progress.sh"
     error "Extracting $desc bootdisk failed ($ret)"
-    return 1
+    return "$ret"
   }
 
   fKill "progress.sh"
@@ -1559,7 +1558,7 @@ extractESD() {
     ret=$?
     fKill "progress.sh"
     error "Adding WinPE failed ($ret)"
-    return 1
+    return "$ret"
   }
 
   fKill "progress.sh"
@@ -1575,7 +1574,7 @@ extractESD() {
     ret=$?
     fKill "progress.sh"
     error "Adding Windows Setup failed ($ret)"
-    return 1
+    return "$ret"
   }
 
   fKill "progress.sh"
@@ -1602,9 +1601,9 @@ extractESD() {
       return 1
     fi
 
-    checkPlatform "$xml" || return 1
+    checkPlatform "$xml" || return
 
-    output=$(detectVersion "$installXml") || return 1
+    output=$(detectVersion "$installXml") || return
     mapfile -t detected <<< "$output"
 
     index="${detected[1]:-}"
@@ -1665,20 +1664,22 @@ extractESD() {
 
     (( image == index )) && continue
 
-    if ! wimlib-imagex delete "$installWim" "$image" --soft --quiet; then
+    wimlib-imagex delete "$installWim" "$image" --soft --quiet || {
+      ret=$?
       fKill "progress.sh"
       error "Failed to remove image $image from install.esd!"
-      return 1
-    fi
+      return "$ret"
+    }
 
   done
 
-  if ! result=$(wimlib-imagex info "$installWim" --xml 2>/dev/null |
-      iconv -f UTF-16LE -t UTF-8 2>/dev/null); then
+  result=$(wimlib-imagex info "$installWim" --xml 2>/dev/null |
+    iconv -f UTF-16LE -t UTF-8 2>/dev/null) || {
+    ret=$?
     fKill "progress.sh"
     error "Cannot verify the prepared install.esd file!"
-    return 1
-  fi
+    return "$ret"
+  }
 
   if ! metadata=$(xmlstarlet sel -t \
       -v 'count(/WIM/IMAGE)' -n \
@@ -2009,7 +2010,7 @@ buildImage() {
 
   local cat="BOOT.CAT"
   local log="/run/shm/iso.log"
-  local base size desc failed=""
+  local base size desc rc=0
 
   if [ -f "$BOOT" ]; then
     error "File $BOOT does already exist?!" && return 1
@@ -2118,15 +2119,14 @@ buildImage() {
 
   fi
 
-  if ! genisoimage "${args[@]}" -quiet "$dir" 2> "$log"; then
-    failed="y"
-  fi
+  genisoimage "${args[@]}" -quiet "$dir" 2> "$log" || rc=$?
 
   fKill "progress.sh"
 
-  if [ -n "$failed" ]; then
+  if (( rc != 0 )); then
     [ -s "$log" ] && echo "$(<"$log")"
-    error "Failed to build image!" && return 1
+    error "Failed to build image!"
+    return "$rc"
   fi
 
   local err=""
@@ -2139,7 +2139,7 @@ buildImage() {
     echo "$err"
   fi
 
-  mv -f "$out" "$BOOT" || return 1
+  mv -f "$out" "$BOOT" || return
 
   if ! setOwner "$BOOT"; then
     warn "Failed to set the owner for \"$BOOT\" !"
