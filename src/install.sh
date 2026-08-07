@@ -309,20 +309,15 @@ startInstall() {
       ISO="$TMP/$file"
     fi
 
-    # Work from the temporary directory so the persistent source path can
-    # later contain either the preserved ISO or the rebuilt installation image.
-    if [ -f "$BOOT" ] && [ -s "$BOOT" ]; then
-      if ! mv -f -- "$BOOT" "$ISO"; then
-        error "Failed to move ISO file from \"$BOOT\" to \"$ISO\" !"
-        exit 50
-      fi
-    fi
-
   fi
 
-  if ! rm -f -- "$BOOT"; then
-    error "Failed to remove obsolete ISO file \"$BOOT\" !"
-    exit 50
+  # Keep reusable media at its persistent path until all storage cleanup has
+  # completed successfully, so a later failure cannot strand it under $TMP.
+  if [ -n "$CUSTOM" ] || [ -z "$REUSED_ISO" ]; then
+    if ! rm -f -- "$BOOT"; then
+      error "Failed to remove obsolete ISO file \"$BOOT\" !"
+      exit 50
+    fi
   fi
 
   if ! find "$STORAGE" -maxdepth 1 -type f -iname 'data.*' -not -iname '*.iso' -delete; then
@@ -342,6 +337,15 @@ startInstall() {
 
   if [ -z "$CUSTOM" ] && [ -z "$REUSED_ISO" ] && [[ "${VERSION,,}" != "http"* ]]; then
     checkMemory "$VERSION" || exit 67
+  fi
+
+  # Work from the temporary directory so the persistent source path can
+  # later contain either the preserved ISO or the rebuilt installation image.
+  if [ -z "$CUSTOM" ] && [ -f "$BOOT" ] && [ -s "$BOOT" ]; then
+    if ! mv -f -- "$BOOT" "$ISO"; then
+      error "Failed to move ISO file from \"$BOOT\" to \"$ISO\" !"
+      exit 50
+    fi
   fi
 
   return 0
@@ -548,7 +552,11 @@ finishInstall() {
 
   reserveSambaPorts || return 1
 
-  rm -rf "$TMP"
+  if ! rm -rf -- "$TMP"; then
+    error "Failed to remove directory \"$TMP\" !"
+    return 1
+  fi
+
   return 0
 }
 
