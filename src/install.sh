@@ -7,11 +7,7 @@ startWindows() {
   parseLanguage || exit 62
   detectCustom || exit 64
 
-  if startInstall; then
-    :
-  else
-    local rc=$?
-    (( rc == 1 )) || exit "$rc"
+  if ! startInstall; then
     bootWindows || exit 66
     return 0
   fi
