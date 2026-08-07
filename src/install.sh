@@ -118,11 +118,7 @@ configureMachine() {
 
   local desc
 
-  if ! desc=$(printVariant "$DETECTED" "$DETECTED"); then
-    skipUnattended "$dir" "$iso" "$boot" || return 78
-    handled=1
-    return 0
-  fi
+  desc=$(printVariant "$DETECTED" "$DETECTED") || return 78
 
   if ! checkMemory "$DETECTED" "$desc"; then
     if [ -n "${REUSED_ISO:-}" ]; then
