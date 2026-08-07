@@ -156,7 +156,7 @@ downloadWindowsLink() {
 
   enabled "$DEBUG" && echo "$ovToken"
 
-  sleep 0.2 || return
+  sleep 0.2
 
   ovTime=$(date +%s%3N)
   ovUrl="https://ov-df.microsoft.com/?session_id=$session&CustomerId=$instance&PageId=si&w=$ovToken&mdt=$ovTime&rticks=$ovTicks"
@@ -375,8 +375,6 @@ downloadWindowsEval() {
   all_links=$(printf '%s\n' "$page" |
     grep -Eio "https://go\.microsoft\.com/fwlink(/p)?/\?[^\"'<>[:space:]]+" |
     awk 'NF && !seen[$0]++') || {
-    rc=$?
-    (( rc == 1 )) || return "$rc"
     error "Evaluation Center download page gave us no download link!"
     return 1
   }
@@ -385,11 +383,7 @@ downloadWindowsEval() {
   # fwlink query. Keep that efficient path when those parameters are usable.
   links=$(printf '%s\n' "$all_links" |
     grep -Ei '(^|[?&])culture='"${culture,,}"'(&|$)' |
-    grep -Ei '(^|[?&])country='"${country,,}"'(&|$)') || {
-      rc=$?
-      (( rc == 1 )) || return "$rc"
-      links=""
-    }
+    grep -Ei '(^|[?&])country='"${country,,}"'(&|$)') || links=""
 
   if [ -z "$links" ]; then
 
@@ -883,21 +877,21 @@ parseESD() {
   # algorithms. Flatten the catalog once so all selection logic remains in Bash.
   local lname="translate(local-name(), '$upper', '$lower')"
 
-  records=$(xmlstarlet sel -T -t \
-    -m "//*[$lname='file']" \
-      -v "normalize-space(*[$lname='architecture'][1])" -o "$separator" \
-      -v "normalize-space(*[$lname='edition'][1])" -o "$separator" \
-      -v "normalize-space(*[$lname='languagecode'][1])" -o "$separator" \
-      -v "normalize-space(*[$lname='filepath'][1])" -o "$separator" \
-      -v "normalize-space(*[$lname='sha256'][1])" -o "$separator" \
-      -v "normalize-space(*[$lname='sha1'][1])" -o "$separator" \
-      -v "normalize-space(*[$lname='size'][1])" \
-      -n \
-    "$xml" 2>/dev/null) || {
-    local rc=$?
+  if ! records=$(xmlstarlet sel -T -t \
+      -m "//*[$lname='file']" \
+        -v "normalize-space(*[$lname='architecture'][1])" -o "$separator" \
+        -v "normalize-space(*[$lname='edition'][1])" -o "$separator" \
+        -v "normalize-space(*[$lname='languagecode'][1])" -o "$separator" \
+        -v "normalize-space(*[$lname='filepath'][1])" -o "$separator" \
+        -v "normalize-space(*[$lname='sha256'][1])" -o "$separator" \
+        -v "normalize-space(*[$lname='sha1'][1])" -o "$separator" \
+        -v "normalize-space(*[$lname='size'][1])" \
+        -n \
+      "$xml" 2>/dev/null); then
+
     error "Failed to parse $xmlFile!"
-    return "$rc"
-  }
+    return 1
+  fi
 
   # Track product/platform and language matches separately so failures can
   # distinguish an unavailable edition from an unavailable translation.
@@ -969,16 +963,10 @@ getCatalogError() {
   # Prefer leaf text when the response is parseable XML, separating adjacent
   # elements so HTML error pages remain readable. Fall back to the beginning
   # of a plain-text response when XML parsing fails.
-  if result=$(xmlstarlet sel -T -t \
-      -m '//*[not(*) and normalize-space()]' \
-        -v 'normalize-space(.)' -o ' ' \
-      "$file" 2>/dev/null); then
-    :
-  else
-    local rc=$?
-    (( rc == 1 )) || return "$rc"
-    result=$(head -c 1024 -- "$file" 2>/dev/null) || return
-  fi
+  result=$(xmlstarlet sel -T -t \
+    -m '//*[not(*) and normalize-space()]' \
+      -v 'normalize-space(.)' -o ' ' \
+    "$file" 2>/dev/null) || result=$(head -c 1024 -- "$file" 2>/dev/null || :)
 
   # Keep upstream error details useful without allowing control sequences,
   # multiline output, or a complete HTML error page into the application log.
@@ -987,7 +975,7 @@ getCatalogError() {
       LC_ALL=C tr -cd '\11\12\15\40-\176' | \
       sed 's/<[^>]*>/ /g' | tr '\r\n\t' '   ' | \
       sed 's/[[:space:]][[:space:]]*/ /g; s/^ //; s/ $//'
-  ) || return
+  )
 
   if (( ${#result} > 500 )); then
     result="${result:0:500}..."
@@ -1029,18 +1017,9 @@ validateESDCatalog() {
       return 0
     fi
 
-  else
-    local rc=$?
-    (( rc == 1 )) || return "$rc"
   fi
 
-  if response=$(getCatalogError "$xml"); then
-    :
-  else
-    local rc=$?
-    (( rc == 1 )) || return "$rc"
-    response=""
-  fi
+  response=$(getCatalogError "$xml") || response=""
 
   if [ -n "$response" ]; then
     error "$provider returned: $response"
@@ -1079,7 +1058,10 @@ getESD() {
   local msg="Downloading ESD catalog..."
   info "$msg" && html "$msg"
 
-  rm -rf "$dir" || return
+  if ! rm -rf "$dir"; then
+    error "Failed to remove directory \"$dir\" !"
+    return 1
+  fi
 
   if ! makeDir "$dir"; then
     error "Failed to create directory \"$dir\" !"
@@ -1119,7 +1101,11 @@ getESD() {
 
     rm -f "$log"
 
-    return "$rc"
+    if (( rc >= 129 )); then
+      return "$rc"
+    fi
+
+    return 1
   fi
 
   rm -f "$log"
@@ -1128,7 +1114,7 @@ getESD() {
   # XML and must be validated before they are published as products.xml.
   if [[ "${file,,}" == *.xml ]]; then
 
-    validateESDCatalog "$dir/$file" "$provider" || return
+    validateESDCatalog "$dir/$file" "$provider" || return 1
 
     if ! mv -f "$dir/$file" "$dir/$xmlFile"; then
       error "Failed to rename $file to $xmlFile."
@@ -1137,15 +1123,12 @@ getESD() {
 
   else
 
-    if (
+    if ! (
       cd "$dir" || exit 1
       cabextract "$file" > /dev/null
     ); then
-      :
-    else
-      rc=$?
       error "Failed to extract $file!"
-      return "$rc"
+      return 1
     fi
 
   fi
@@ -1158,12 +1141,14 @@ getESD() {
   # Validate extracted Microsoft catalogs as well, so parseESD only receives
   # the catalog format it expects.
   if [[ "${file,,}" != *.xml ]]; then
-    validateESDCatalog "$dir/$xmlFile" "$provider" || return
+    validateESDCatalog "$dir/$xmlFile" "$provider" || return 1
   fi
 
-  parseESD "$dir/$xmlFile" "$version" "$lang" "$desc" "$edition" "$culture" || return
+  if ! parseESD "$dir/$xmlFile" "$version" "$lang" "$desc" "$edition" "$culture"; then
+    return 1
+  fi
 
-  rm -rf "$dir" || return
+  rm -rf "$dir"
   return 0
 }
 
@@ -1323,9 +1308,7 @@ tryDownload() {
   fi
 
   # Status 2 means the completed download failed deterministic validation.
-  if verifyFile "$iso" "$size" "$total" "$sum"; then
-    :
-  else
+  verifyFile "$iso" "$size" "$total" "$sum" || {
     local rc=$?
     (( rc == 1 )) || return "$rc"
 
@@ -1333,7 +1316,7 @@ tryDownload() {
       warn "failed to remove invalid download \"$iso\"!"
     fi
     return 2
-  fi
+  }
 
   # Extract the .iso from the compressed archive if needed.
   isCompressed "$url" && UNPACK="Y"
