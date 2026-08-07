@@ -14,7 +14,7 @@ startWindows() {
 
   if ! hasImage "$ISO"; then
     if ! downloadImage "$ISO" "$VERSION" "$LANGUAGE"; then
-      removeIso "$ISO" || :
+      removeImage "$ISO" || :
       exit 68
     fi
   fi
@@ -59,7 +59,7 @@ selectWindowsImage() {
     fi
 
     if ! extractImage "$iso" "$dir" "$VERSION"; then
-      removeIso "$iso" || :
+      removeImage "$iso" || :
       return 72
     fi
 
@@ -87,7 +87,7 @@ selectWindowsImage() {
   fi
 
   if ! extractImage "$iso" "$dir" "$VERSION"; then
-    removeIso "$iso" || :
+    removeImage "$iso" || :
     return 74
   fi
 
@@ -182,7 +182,7 @@ prepareWindowsImage() {
   # Extracted modern sources and SIF-based legacy media require a clean rebuild.
   if (( ! extracted )); then
     if ! extractImage "$iso" "$dir" "$VERSION"; then
-      removeIso "$iso" || :
+      removeImage "$iso" || :
       return 90
     fi
   fi
@@ -394,7 +394,6 @@ useOriginalImage() {
 
   if [ -n "$CUSTOM" ]; then
     BOOT="$iso"
-    REMOVE="N"
     return 0
   fi
 
@@ -623,13 +622,13 @@ hasImage() {
   [ -f "$file" ] && [ -s "$file" ]
 }
 
-removeIso() {
+removeImage() {
 
   local iso="$1"
 
   [ -n "$CUSTOM" ] && return 0
 
-  rm -f -- "$iso" 2>/dev/null || :
+  rm -f -- "$iso" 2>/dev/null || warn "failed to remove image \"$iso\"!"
 
   return 0
 }
@@ -1233,18 +1232,6 @@ createOverlay() {
   return 0
 }
 
-removeImage() {
-
-  local iso="$1"
-
-  [ ! -f "$iso" ] && return 0
-  [ -n "$CUSTOM" ] && return 0
-
-  rm -f "$iso" 2> /dev/null || warn "failed to remove $iso !"
-
-  return 0
-}
-
 reserveSambaPorts() {
 
   disabled "${SAMBA:-Y}" && return 0
@@ -1463,7 +1450,6 @@ setMachine() {
   if [[ "${id,,}" == "reactos" ]] && [ -z "$CUSTOM" ]; then
     # The ISO is a Live-CD so we need to disable the data disk
     # as it will be always wiped during the next runs currently.
-    REMOVE="N"
     DISK_DISABLE="Y"
   fi
 
