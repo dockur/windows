@@ -333,8 +333,8 @@ downloadWindowsEval() {
   local lang="$2"
   local desc="$3"
 
-  local culture compare type
-  local agent language winVer
+  local culture language agent winVer
+  local compare compare_name link_name type
 
   case "${id,,}" in
     "win10${PLATFORM,,}-enterprise-eval" )
@@ -893,8 +893,6 @@ parseESD() {
 
   # Microsoft catalogs may use different XML namespaces, tag casing, and checksum
   # algorithms. Flatten the catalog once so all selection logic remains in Bash.
-  local upper="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-  local lower="abcdefghijklmnopqrstuvwxyz"
   local lname="translate(local-name(), '$upper', '$lower')"
 
   if ! records=$(xmlstarlet sel -T -t \
@@ -1299,9 +1297,9 @@ tryDownload() {
   local url="$2"
   local sum="$3"
   local size="$4"
-  local desc="$6"
-  local seconds="$7"
-  local web_desc="$8"
+  local desc="$5"
+  local seconds="$6"
+  local web_desc="$7"
 
   local total minimum="104857600"
 
@@ -1365,9 +1363,8 @@ fallbackEnglish() {
   local version="$2"
   local lang="$3"
   local desc="$4"
-  local web_desc="$5"
 
-  local culture web_msg
+  local culture
   local msg="No working download method was found for $desc, falling back to English..."
 
   info "$msg"
@@ -1423,7 +1420,7 @@ downloadImage() {
     desc=$(fromFile "$base")
     web_desc="$desc"
 
-    tryDownload "$iso" "$version" "" "" "" "$desc" "$seconds" "$web_desc" || return 1
+    tryDownload "$iso" "$version" "" "" "$desc" "$seconds" "$web_desc" || return 1
     return 0
   fi
 
@@ -1442,7 +1439,7 @@ downloadImage() {
       web_desc=$(printEdition "$version" "$web_desc")
       desc+=" in $language"
 
-      fallbackEnglish "$iso" "$version" "$lang" "$desc" "$web_desc" || return 1
+      fallbackEnglish "$iso" "$version" "$lang" "$desc" || return 1
       return 0
 
     fi
@@ -1484,7 +1481,7 @@ downloadImage() {
         download_desc+=" using a static link"
       fi
 
-      if tryDownload "$iso" "$MIDO_URL" "$sum" "$size" "$lang" "$download_desc" "$seconds" "$web_desc"; then
+      if tryDownload "$iso" "$MIDO_URL" "$sum" "$size" "$download_desc" "$seconds" "$web_desc"; then
         # Commit the candidate only after the image was downloaded and verified.
         DETECTED="$detected"
         return 0
@@ -1534,7 +1531,7 @@ downloadImage() {
       # its real extension through the active ISO variable.
       ISO="${ISO%.*}.esd"
 
-      if tryDownload "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$lang" "$desc" "$seconds" "$web_desc"; then
+      if tryDownload "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$desc" "$seconds" "$web_desc"; then
         return 0
       fi
 
@@ -1557,14 +1554,14 @@ downloadImage() {
       size=$(getSize "$i" "$version" "$lang")
       sum=$(getHash "$i" "$version" "$lang")
 
-      tryDownload "$iso" "$url" "$sum" "$size" "$lang" "$desc" "$seconds" "$web_desc" && return 0
+      tryDownload "$iso" "$url" "$sum" "$size" "$desc" "$seconds" "$web_desc" && return 0
 
     fi
 
   done
 
   if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
-    fallbackEnglish "$iso" "$requested" "$lang" "$desc" "$web_desc" || return 1
+    fallbackEnglish "$iso" "$requested" "$lang" "$desc" || return 1
     return 0
   fi
 
