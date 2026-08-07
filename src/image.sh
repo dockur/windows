@@ -1353,16 +1353,6 @@ readImageInfo() {
   return 0
 }
 
-getSuggestion() {
-
-  [ -z "$CUSTOM" ] || return 0
-  [ -n "${REUSED_ISO:-}" ] || return 0
-
-  # A reused ISO may still correspond to the originally requested catalog
-  # version, but the suggestion remains only a preference during detection.
-  echo "${SUGGEST:-}"
-}
-
 validateEdition() {
 
   [ -n "$EDITION" ] || return 0
@@ -1470,21 +1460,15 @@ detectImageInfo() {
 
   local image_info="$1"
 
-  local desc suggested index rc
+  local desc index rc
 
   checkPlatform "$image_info" || {
     enabled "$DEBUG" && echo "Platform validation failed for the Windows image metadata." >&2
     exit 67
   }
 
-  suggested=$(getSuggestion) || {
-    rc=$?
-    enabled "$DEBUG" && echo "Failed to determine the suggested Windows image edition (status $rc)." >&2
-    return "$rc"
-  }
-
   local output
-  output=$(detectVersion "$image_info" "$suggested") || {
+  output=$(detectVersion "$image_info") || {
     enabled "$DEBUG" && echo "Version detection failed while parsing the Windows image metadata." >&2
     error "Failed to detect Windows version from image metadata!"
     return 1
