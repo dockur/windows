@@ -552,7 +552,11 @@ finishInstall() {
 
   reserveSambaPorts || return 1
 
-  rm -rf "$TMP"
+  if ! rm -rf -- "$TMP"; then
+    error "Failed to remove directory \"$TMP\" !"
+    return 1
+  fi
+
   return 0
 }
 
