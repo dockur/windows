@@ -729,14 +729,16 @@ getArchiveSize() {
   local -n result="$result_name"
 
   local listing line value
-  local found=0
+  local found=0 rc
 
   result=0
 
-  if ! listing=$(7z l -slt "$file" 2>/dev/null); then
+  listing=$(7z l -slt "$file" 2>/dev/null) || {
+    rc=$?
+    (( rc >= 129 )) && exit "$rc"
     error "Failed to read archive information: $file"
     return 1
-  fi
+  }
 
   while IFS= read -r line; do
 
@@ -768,6 +770,7 @@ extractImage() {
   local desc="local ISO"
   local archive="${dir}.archive"
   local file size required archiveSize
+  local rc
 
   if [ -z "$CUSTOM" ]; then
     desc="downloaded ISO"
@@ -777,8 +780,12 @@ extractImage() {
   fi
 
   if [[ "${iso,,}" == *".esd" ]]; then
-    extractESD "$iso" "$dir" "$version" "$desc" && return 0
-    return 1
+    extractESD "$iso" "$dir" "$version" "$desc" || {
+      rc=$?
+      (( rc >= 129 )) && exit "$rc"
+      return 1
+    }
+    return 0
   fi
 
   local msg="Extracting $desc image"
@@ -822,11 +829,13 @@ extractImage() {
 
   /run/progress.sh "$target" "$size" "$msg ([P])..." &
 
-  if ! 7z x "$iso" -o"$target" > /dev/null; then
+  7z x "$iso" -o"$target" > /dev/null || {
+    rc=$?
     fKill "progress.sh"
+    (( rc >= 129 )) && exit "$rc"
     error "Failed to extract ISO file: $iso"
     return 1
-  fi
+  }
 
   fKill "progress.sh"
 
@@ -869,10 +878,12 @@ extractImage() {
 
     checkFreeSpace "$dir" "$size" || return 1
 
-    if ! 7z x "$iso" -o"$dir" > /dev/null; then
+    7z x "$iso" -o"$dir" > /dev/null || {
+      rc=$?
+      (( rc >= 129 )) && exit "$rc"
       error "Failed to extract nested ISO file: $iso"
       return 1
-    fi
+    }
 
     LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p') || LABEL=""
 
