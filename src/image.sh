@@ -1307,6 +1307,7 @@ parseWimHeader() {
 
   return 0
 }
+
 findImage() {
 
   local dir="$1"
