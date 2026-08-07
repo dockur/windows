@@ -220,12 +220,6 @@ startInstall() {
 
     BOOT="$STORAGE/$boot"
 
-    if [ -n "$DETECTED" ]; then
-      DETECTED_ORG="Y"
-    else
-      DETECTED="$SUGGEST"
-    fi
-
   fi
 
   TMP="$STORAGE/tmp"
@@ -586,10 +580,18 @@ detectCustom() {
   CUSTOM=""
 
   findFile "custom.iso" || return 1
-  [ -n "$CUSTOM" ] && return 0
+
+  if [ -n "$CUSTOM" ]; then
+    DETECTED=""
+    return 0
+  fi
 
   findFile "boot.iso" || return 1
-  [ -n "$CUSTOM" ] && return 0
+
+  if [ -n "$CUSTOM" ]; then
+    DETECTED=""
+    return 0
+  fi
 
   return 0
 }
