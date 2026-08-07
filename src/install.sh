@@ -394,7 +394,6 @@ useOriginalImage() {
 
   if [ -n "$CUSTOM" ]; then
     BOOT="$iso"
-    REMOVE="N"
     return 0
   fi
 
