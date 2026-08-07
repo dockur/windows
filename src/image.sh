@@ -642,9 +642,6 @@ createImageDirectory() {
   # already resolve it.
   if mdir -i "$image" "$directory" >/dev/null 2>&1; then
     return 0
-  else
-    local rc=$?
-    (( rc == 1 )) || return "$rc"
   fi
 
   mmd -i "$image" "$directory" >/dev/null
@@ -927,8 +924,7 @@ detectReactOS() {
 findIsoImage() {
 
   local iso="$1"
-
-  local path rc
+  local path
 
   # Prefer install.wim when both payload forms are present.
   for path in /sources/install.wim /sources/install.esd; do
@@ -937,9 +933,6 @@ findIsoImage() {
 
       printf '%s' "$path"
       return 0
-    else
-      rc=$?
-      (( rc == 1 )) || return "$rc"
     fi
 
   done
@@ -1373,15 +1366,11 @@ detectIsoImage() {
 
   local iso="$1"
 
-  local image header image_info rc
+  local image header image_info
 
   # Return 1 only when no directly inspectable WIM/ESD payload is available so
   # the caller may extract the media. Metadata parsing/configuration errors use 2.
-  image=$(findIsoImage "$iso") || {
-    rc=$?
-    (( rc == 1 )) && return 1
-    return 2
-  }
+  image=$(findIsoImage "$iso") || return 1
   header=$(readWimHeader "$iso" "$image") || return 2
 
   image_info=$(readIsoImageInfo "$iso" "$image" "$header") || return 2
