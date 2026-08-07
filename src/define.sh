@@ -13,7 +13,6 @@ set -Eeuo pipefail
 : "${REMOVE:=""}"
 : "${VERSION:=""}"
 : "${COMMAND:=""}"
-: "${DETECTED:=""}"
 : "${KEYBOARD:=""}"
 : "${LANGUAGE:=""}"
 : "${USERNAME:=""}"
@@ -41,7 +40,7 @@ MIRRORS=4
 
 parseVersion() {
 
-  SUGGEST=""
+  DETECTED=""
   VERSION=$(strip "$VERSION")
   [ -z "$VERSION" ] && VERSION="win11"
 
@@ -51,41 +50,49 @@ parseVersion() {
     "11e" | "win11e" | "windows11e" | "windows 11e" )
       VERSION="win11x64-enterprise-eval" ;;
     "11l" | "11ltsc" | "ltsc11" | "win11l" | "win11-ltsc" | "win11x64-ltsc" )
-      VERSION="win11x64-enterprise-ltsc-eval" ;;
+      VERSION="win11x64-enterprise-ltsc-eval"
+      DETECTED="win11x64-ltsc" ;;
     "11i" | "11iot" | "iot11" | "win11i" | "win11-iot" | "win11x64-iot" )
-      VERSION="win11x64-enterprise-iot-eval" ;;
+      VERSION="win11x64-enterprise-iot-eval"
+      DETECTED="win11x64-iot" ;;
     "10" | "10p" | "win10" | "pro10" | "win10p" | "windows10" | "windows 10" )
       VERSION="win10x64" ;;
     "10e" | "win10e" | "windows10e" | "windows 10e" )
       VERSION="win10x64-enterprise-eval" ;;
     "10l" | "10ltsc" | "ltsc10" | "win10l" | "win10-ltsc" | "win10x64-ltsc" )
-      VERSION="win10x64-enterprise-ltsc-eval" ;;
+      VERSION="win10x64-enterprise-ltsc-eval"
+      DETECTED="win10x64-ltsc" ;;
     "10i" | "10iot" | "iot10" | "win10i" | "win10-iot" | "win10x64-iot" )
-      VERSION="win10x64-enterprise-iot-eval" ;;
+      VERSION="win10x64-enterprise-iot-eval"
+      DETECTED="win10x64-iot" ;;
     "8" | "8p" | "81" | "81p" | "pro8" | "8.1" | "win8" | "win8p" | "win81" | "win81p" | "windows 8" )
       VERSION="win81x64" ;;
     "8e" | "81e" | "8.1e" | "win8e" | "win81e" | "windows 8e" )
       VERSION="win81x64-enterprise-eval" ;;
     "7" | "win7" | "windows7" | "windows 7" )
-      VERSION="win7x64" ;;
+      VERSION="win7x64"
+      DETECTED="win7x64-ultimate" ;;
     "7u" | "win7u" | "windows7u" | "windows 7u" )
       VERSION="win7x64-ultimate" ;;
     "7e" | "win7e" | "windows7e" | "windows 7e" )
       VERSION="win7x64-enterprise" ;;
     "7x86" | "win7x86" | "win732" | "windows7x86" )
-      VERSION="win7x86" ;;
+      VERSION="win7x86"
+      DETECTED="win7x86-ultimate" ;;
     "7ux86" | "7u32" | "win7x86-ultimate" )
       VERSION="win7x86-ultimate" ;;
     "7ex86" | "7e32" | "win7x86-enterprise" )
       VERSION="win7x86-enterprise" ;;
     "vista" | "vs" | "6" | "winvista" | "windowsvista" | "windows vista" )
-      VERSION="winvistax64" ;;
+      VERSION="winvistax64"
+      DETECTED="winvistax64-ultimate" ;;
     "vistu" | "vu" | "6u" | "winvistu" )
       VERSION="winvistax64-ultimate" ;;
     "viste" | "ve" | "6e" | "winviste" )
       VERSION="winvistax64-enterprise" ;;
     "vistax86" | "vista32" | "6x86" | "winvistax86" | "windowsvistax86" )
-      VERSION="winvistax86" ;;
+      VERSION="winvistax86"
+      DETECTED="winvistax86-ultimate" ;;
     "vux86" | "vu32" | "winvistax86-ultimate" )
       VERSION="winvistax86-ultimate" ;;
     "vex86" | "ve32" | "winvistax86-enterprise" )
@@ -113,43 +120,16 @@ parseVersion() {
     "2003" | "2003r2" | "win2003" | "win2003r2" | "windows2003" | "windows 2003" )
       VERSION="win2003r2" ;;
     "core11" | "core 11" )
-      VERSION="core11" ;;
+      VERSION="core11"
+      DETECTED="win11x64" ;;
     "tiny11" | "tiny 11" )
-      VERSION="tiny11" ;;
+      VERSION="tiny11"
+      DETECTED="win11x64" ;;
     "tiny10" | "tiny 10" )
-      VERSION="tiny10" ;;
+      VERSION="tiny10"
+      DETECTED="win10x64-ltsc" ;;
     "reactos" | "react os" )
       VERSION="reactos" ;;
-  esac
-
-  SUGGEST=$(getSuggestedVersion "$VERSION")
-
-  return 0
-}
-
-getSuggestedVersion() {
-
-  local id="${1,,}"
-
-  [[ "$id" == http* ]] && return 0
-
-  case "$id" in
-    "win10x64" | "win11x64" )
-      echo "$id" ;;
-    "win7x64" | "win7x86" | "winvistax64" | "winvistax86" )
-      echo "$id-ultimate" ;;
-    "tiny10" )
-      echo "win10x64-ltsc" ;;
-    *"-enterprise-ltsc-eval" )
-      echo "${id%-enterprise-ltsc-eval}-ltsc" ;;
-    *"-enterprise-iot-eval" )
-      echo "${id%-enterprise-iot-eval}-iot" ;;
-    *"-enterprise-ltsc" )
-      echo "${id%-enterprise-ltsc}-ltsc" ;;
-    *"-enterprise-iot" )
-      echo "${id%-enterprise-iot}-iot" ;;
-    *"-eval" )
-      echo "${id%-eval}" ;;
   esac
 
   return 0
@@ -299,7 +279,7 @@ getLanguage() {
     "pt-"* )
       short="pp"
       lang="Portuguese"
-      culture="pt-BR" ;;
+      culture="pt-PT" ;;
     "ro" | "ro-"* | "romanian" | "română" | "romana" )
       [[ "$input" == "romanian" || "$input" == "română" || "$input" == "romana" ]] && id="ro"
       short="ro"
