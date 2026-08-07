@@ -940,7 +940,7 @@ getRequiredMemory() {
 
   case "$id" in
     "win11"* )
-      echo 4294967296 ;;
+      echo 2147483648 ;;
     "tiny11"* | "core11"* )
       echo 2147483648 ;;
     "win10"* | "tiny10"* )
