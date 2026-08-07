@@ -7,7 +7,11 @@ startWindows() {
   parseLanguage || exit 62
   detectCustom || exit 64
 
-  if ! startInstall; then
+  if startInstall; then
+    :
+  else
+    local rc=$?
+    (( rc == 1 )) || exit "$rc"
     bootWindows || exit 66
     return 0
   fi
@@ -65,11 +69,10 @@ selectWindowsImage() {
   fi
 
   # Inspect unknown media directly before falling back to extraction.
-  if detectIsoImage "$iso"; then
-    return 0
-  else
-    checkReturn "$?" 76 || return $?
-  fi
+  detectIsoImage "$iso" && return 0
+
+  local rc=$?
+  (( rc == 1 )) || return 76
 
   if ! extractImage "$iso" "$dir" "$VERSION"; then
     removeImage "$iso" || :
@@ -78,11 +81,10 @@ selectWindowsImage() {
 
   extracted=1
 
-  if detectImage "$dir"; then
-    return 0
-  else
-    checkReturn "$?" 76 || return $?
-  fi
+  detectImage "$dir" && return 0
+
+  rc=$?
+  (( rc == 1 )) || return 76
 
   skipUnattended "$dir" "$iso" "$boot" || return 76
 
@@ -169,10 +171,10 @@ prepareWindowsImage() {
 
 bootWindows() {
 
-  restoreMachineState || return 1
-  restoreBootMode || return 1
-  restoreMachine || return 1
-  reserveSambaPorts || return 1
+  restoreMachineState || return
+  restoreBootMode || return
+  restoreMachine || return
+  reserveSambaPorts || return
 
   return 0
 }
@@ -256,16 +258,25 @@ startInstall() {
     exit 50
   fi
 
-  skipInstall "$BOOT" "$previousBase" && return 1
+  local rc
+
+  if skipInstall "$BOOT" "$previousBase"; then
+    return 1
+  else
+    rc=$?
+    (( rc == 1 )) || return "$rc"
+  fi
 
   if [ -z "$previousBase" ] && hasData; then
 
     if enabled "$SHUTDOWN" && [ ! -f "$STORAGE/windows.boot" ]; then
       discardPrevious "" || exit 50
+    elif backupPrevious ""; then
+      :
     else
-      if ! backupPrevious ""; then
-        warn "the backup was incomplete, continuing with installation..."
-      fi
+      rc=$?
+      (( rc == 1 )) || return "$rc"
+      warn "the backup was incomplete, continuing with installation..."
     fi
 
   fi
@@ -460,7 +471,11 @@ skipInstall() {
 
       info "Detected that $method, a backup of your previous installation will be saved..."
 
-      if ! backupPrevious "$STORAGE/$previousBase"; then
+      if backupPrevious "$STORAGE/$previousBase"; then
+        :
+      else
+        local rc=$?
+        (( rc == 1 )) || return "$rc"
         warn "the backup was incomplete, continuing with installation..."
       fi
 
@@ -609,22 +624,6 @@ hasImage() {
   [ -f "$file" ] && [ -s "$file" ]
 }
 
-checkReturn() {
-
-  local rc="$1"
-  local error="${2:-$rc}"
-
-  if (( rc == 0 || rc == 1 )); then
-    return 0
-  fi
-
-  if (( rc >= 129 )); then
-    return "$rc"
-  fi
-
-  return "$error"
-}
-
 removeImage() {
 
   local iso="$1"
@@ -748,9 +747,8 @@ getArchiveSize() {
 
   listing=$(7z l -slt "$file" 2>/dev/null) || {
     rc=$?
-    (( rc >= 129 )) && exit "$rc"
     error "Failed to read archive information: $file"
-    return 1
+    return "$rc"
   }
 
   while IFS= read -r line; do
@@ -793,11 +791,7 @@ extractImage() {
   fi
 
   if [[ "${iso,,}" == *".esd" ]]; then
-    extractESD "$iso" "$dir" "$version" "$desc" || {
-      rc=$?
-      (( rc >= 129 )) && exit "$rc"
-      return 1
-    }
+    extractESD "$iso" "$dir" "$version" "$desc" || return
     return 0
   fi
 
@@ -829,7 +823,7 @@ extractImage() {
   required="$size"
 
   if enabled "${UNPACK:-}"; then
-    getArchiveSize "$iso" archiveSize || return 1
+    getArchiveSize "$iso" archiveSize || return
     required="$archiveSize"
   fi
 
@@ -845,9 +839,8 @@ extractImage() {
   7z x "$iso" -o"$target" > /dev/null || {
     rc=$?
     fKill "progress.sh"
-    (( rc >= 129 )) && exit "$rc"
     error "Failed to extract ISO file: $iso"
-    return 1
+    return "$rc"
   }
 
   fKill "progress.sh"
@@ -893,9 +886,8 @@ extractImage() {
 
     7z x "$iso" -o"$dir" > /dev/null || {
       rc=$?
-      (( rc >= 129 )) && exit "$rc"
       error "Failed to extract nested ISO file: $iso"
-      return 1
+      return "$rc"
     }
 
     LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p') || LABEL=""
@@ -911,7 +903,7 @@ detectImage() {
 
   local dir="$1"
 
-  local desc
+  local desc rc
 
   info "Detecting version from ISO image..."
 
@@ -921,7 +913,8 @@ detectImage() {
     info "Detected: $desc"
     return 0
   else
-    checkReturn "$?" || return $?
+    rc=$?
+    (( rc == 1 )) || return "$rc"
   fi
 
   if detectReactOS "$dir"; then
@@ -929,7 +922,8 @@ detectImage() {
     info "Detected: $desc"
     return 0
   else
-    checkReturn "$?" || return $?
+    rc=$?
+    (( rc == 1 )) || return "$rc"
   fi
 
   local wim
@@ -1297,12 +1291,16 @@ backupPrevious () {
   local count=1
   local name="unknown"
   local root="$STORAGE/backups"
-  local failed="" file previous
+  local failed="" file previous rc
 
-  previous=$(readState "base") || return 1
+  previous=$(readState "base") || return
   [ -n "$previous" ] && name="${previous%.*}"
 
-  if ! makeDir "$root"; then
+  if makeDir "$root"; then
+    :
+  else
+    rc=$?
+    (( rc == 1 )) || return "$rc"
     error "Failed to create directory \"$root\" !"
     return 1
   fi
@@ -1316,20 +1314,32 @@ backupPrevious () {
     dir="$root/$folder"
   done
 
-  if ! makeDir "$dir"; then
+  if makeDir "$dir"; then
+    :
+  else
+    rc=$?
+    (( rc == 1 )) || return "$rc"
     error "Failed to create directory \"$dir\" !"
     return 1
   fi
 
   if [ -f "$iso" ]; then
-    if ! mv -f -- "$iso" "$dir/"; then
+    if mv -f -- "$iso" "$dir/"; then
+      :
+    else
+      rc=$?
+      (( rc == 1 )) || return "$rc"
       error "Failed to move \"$iso\" to \"$dir\"."
       failed="Y"
     fi
   fi
 
   while IFS= read -r -d '' file; do
-    if ! mv -n -- "$file" "$dir/"; then
+    if mv -n -- "$file" "$dir/"; then
+      :
+    else
+      rc=$?
+      (( rc == 1 )) || return "$rc"
       error "Failed to move \"$file\" to \"$dir\"."
       failed="Y"
     fi
@@ -1343,7 +1353,11 @@ backupPrevious () {
   # detected rather than being mistaken for a successful backup.
   local find_pid=$!
 
-  if ! wait "$find_pid"; then
+  if wait "$find_pid"; then
+    :
+  else
+    rc=$?
+    (( rc == 1 )) || return "$rc"
     error "Failed to enumerate files in \"$STORAGE\"."
     failed="Y"
   fi
@@ -1361,11 +1375,11 @@ checkMemory() {
   local id="$1"
   local required name
 
-  required=$(getRequiredMemory "$id") || return 1
+  required=$(getRequiredMemory "$id") || return
   RAM_MINIMUM="$required"
 
-  name=$(printVersion "$id" "") || return 1
-  checkMemoryRequirement "$name" || return 1
+  name=$(printVersion "$id" "") || return
+  checkMemoryRequirement "$name" || return
 
   return 0
 }
