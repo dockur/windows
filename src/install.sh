@@ -279,9 +279,15 @@ startInstall() {
   skipInstall "$BOOT" "$previousBase" && return 1
 
   if [ -z "$previousBase" ] && hasData; then
-    if ! backupPrevious ""; then
-      warn "the backup was incomplete, continuing with installation..."
+
+    if enabled "$SHUTDOWN" && [ ! -f "$STORAGE/windows.boot" ]; then
+      discardPrevious "" || exit 50
+    else
+      if ! backupPrevious ""; then
+        warn "the backup was incomplete, continuing with installation..."
+      fi
     fi
+
   fi
 
   if ! makeDir "$TMP"; then
@@ -465,6 +471,11 @@ skipInstall() {
           fi
 
         fi
+      fi
+
+      if enabled "$SHUTDOWN" && [ ! -f "$boot" ]; then
+        discardPrevious "$STORAGE/$previousBase" || exit 50
+        return 1
       fi
 
       info "Detected that $method, a backup of your previous installation will be saved..."
@@ -1263,6 +1274,27 @@ reserveSambaPorts() {
   # NAT can fall back to user-mode networking after this point,
   # so always protect the Samba listeners for non-DHCP networking.
   HOST_PORTS="${HOST_PORTS:+$HOST_PORTS,}139/tcp,445/tcp"
+
+  return 0
+}
+
+discardPrevious() {
+
+  local iso="$1"
+
+  if [ -n "$iso" ] && [ -f "$iso" ]; then
+    if ! rm -f -- "$iso"; then
+      error "Failed to remove ISO file \"$iso\" !"
+      return 1
+    fi
+  fi
+
+  if ! find "$STORAGE" -maxdepth 1 -type f \
+    \( -iname 'data.*' -or -iname 'windows.*' -or -iname '*.rom' -or -iname '*.vars' \) \
+    -not -iname '*.iso' -delete; then
+    error "Failed to remove unfinished installation files from \"$STORAGE\" !"
+    return 1
+  fi
 
   return 0
 }
