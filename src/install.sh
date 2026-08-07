@@ -1292,11 +1292,7 @@ backupPrevious () {
   previous=$(readState "base") || return
   [ -n "$previous" ] && name="${previous%.*}"
 
-  if makeDir "$root"; then
-    :
-  else
-    rc=$?
-    (( rc == 1 )) || return "$rc"
+  if ! makeDir "$root"; then
     error "Failed to create directory \"$root\" !"
     return 1
   fi
@@ -1310,32 +1306,20 @@ backupPrevious () {
     dir="$root/$folder"
   done
 
-  if makeDir "$dir"; then
-    :
-  else
-    rc=$?
-    (( rc == 1 )) || return "$rc"
+  if ! makeDir "$dir"; then
     error "Failed to create directory \"$dir\" !"
     return 1
   fi
 
   if [ -f "$iso" ]; then
-    if mv -f -- "$iso" "$dir/"; then
-      :
-    else
-      rc=$?
-      (( rc == 1 )) || return "$rc"
+    if ! mv -f -- "$iso" "$dir/"; then
       error "Failed to move \"$iso\" to \"$dir\"."
       failed="Y"
     fi
   fi
 
   while IFS= read -r -d '' file; do
-    if mv -n -- "$file" "$dir/"; then
-      :
-    else
-      rc=$?
-      (( rc == 1 )) || return "$rc"
+    if ! mv -n -- "$file" "$dir/"; then
       error "Failed to move \"$file\" to \"$dir\"."
       failed="Y"
     fi
