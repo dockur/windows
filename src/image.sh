@@ -669,8 +669,9 @@ createSetupImage() {
   local msg="Writing overlay image..."
   info "$msg" && html "$msg"
 
-  # Build and verify a temporary FAT32 image before replacing the active setup
-  # image, so a partial write never becomes boot media.
+  # Build and verify a temporary FAT32 image before publishing it as setup
+  # media, so a partial write never becomes boot media.
+
   rm -f -- "$tmp" || return 1
 
   checkFreeSpace "$(dirname "$image")" "$size" || return 1
