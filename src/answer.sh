@@ -227,7 +227,10 @@ generateAnswerFile() {
     return 1
   fi
 
-  directory=$(dirname "$target") || return 1
+  directory=$(dirname "$target") || {
+    error "Failed to determine the $type answer file directory!"
+    return 1
+  }
 
   if ! tmp=$(mktemp -p "$directory" ".${id}.XXXXXX"); then
     error "Failed to create a temporary $type answer file!"
@@ -262,6 +265,7 @@ generateAnswerFile() {
 
     install_count=$(getXMLNodeCount "$tmp" "$install_from") || {
       rm -f "$tmp"
+      error "Failed to read the $type image selector count!"
       return 1
     }
 
@@ -277,6 +281,7 @@ generateAnswerFile() {
       # expected by the Windows Setup schema.
       install_to_count=$(getXMLNodeCount "$tmp" "$install_to") || {
         rm -f "$tmp"
+        error "Failed to read the $type installation target count!"
         return 1
       }
 
