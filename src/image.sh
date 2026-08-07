@@ -926,6 +926,11 @@ findIsoImage() {
   local iso="$1"
   local path
 
+  # Verify that udfread can access the ISO before treating missing payload paths
+  # as a normal detection miss.
+  udfread stat --ignore-case "$iso" / >/dev/null 2>&1 || return 2
+  udfread stat --ignore-case "$iso" /sources >/dev/null 2>&1 || return 1
+
   # Prefer install.wim when both payload forms are present.
   for path in /sources/install.wim /sources/install.esd; do
 
@@ -1199,13 +1204,15 @@ readImageInfo() {
 
   local wim="$1"
   local result=""
+  local msg="Failed to read Windows image information!"
 
   if ! result=$(wimlib-imagex info --xml "$wim" | iconv -f UTF-16LE -t UTF-8); then
-    result=""
+    error "$msg"
+    return 2
   fi
 
   if [ -z "$result" ]; then
-    error "Failed to read Windows image information!"
+    error "$msg"
     return 2
   fi
 
@@ -1370,7 +1377,7 @@ detectIsoImage() {
 
   # Return 1 only when no directly inspectable WIM/ESD payload is available so
   # the caller may extract the media. Metadata parsing/configuration errors use 2.
-  image=$(findIsoImage "$iso") || return 1
+  image=$(findIsoImage "$iso") || return
   header=$(readWimHeader "$iso" "$image") || return 2
 
   image_info=$(readIsoImageInfo "$iso" "$image" "$header") || return 2
