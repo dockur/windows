@@ -49,9 +49,7 @@ selectWindowsImage() {
   if resolveImage "$VERSION"; then
 
     if ! setImage; then
-      skipUnattended "$dir" "$iso" "$boot" || return 70
-      handled=1
-      return 0
+      return 70
     fi
 
     if ! needsExtraction "$DETECTED" "$iso"; then
