@@ -943,6 +943,7 @@ findIsoImage() {
   # fall back to extraction when the image can still be read as ISO9660.
   if ! udfread stat --ignore-case "$iso" / >/dev/null 2>&1; then
     isoinfo -d -i "$iso" >/dev/null 2>&1 && return 1
+    error "Failed to read ISO image: $iso"
     return 2
   fi
 
@@ -978,6 +979,7 @@ readWimHeader() {
       ! size=$(stat -c%s -- "$header") || (( size != 208 )) ||
       ! signature=$(od -An -N8 -tx1 "$header" | tr -d ' \n') || [[ "$signature" != "4d5357494d000000" ]]; then
 
+    error "Failed to read Windows image header!"
     rm -f -- "$header"
     return 1
   fi
@@ -1361,7 +1363,10 @@ detectImageInfo() {
   suggested=$(getSuggestion) || return
 
   local output
-  output=$(detectVersion "$image_info" "$suggested") || return
+  output=$(detectVersion "$image_info" "$suggested") || {
+    error "Failed to detect Windows version from image metadata!"
+    return 1
+  }
 
   local -a detected=()
   mapfile -t detected <<< "$output"
@@ -1369,7 +1374,10 @@ detectImageInfo() {
   DETECTED="${detected[0]:-}"
   index="${detected[1]:-}"
 
-  validateEdition || return
+  validateEdition || {
+    error "Failed to validate Windows edition from image metadata!"
+    return 1
+  }
 
   if [ -z "$DETECTED" ]; then
     unknownImage || return
@@ -1397,7 +1405,10 @@ detectIsoImage() {
   image=$(findIsoImage "$iso") || return
   header=$(readWimHeader "$iso" "$image") || return 2
 
-  image_info=$(readIsoImageInfo "$iso" "$image" "$header") || return 2
+  image_info=$(readIsoImageInfo "$iso" "$image" "$header") || {
+    error "Failed to read Windows image metadata!"
+    return 2
+  }
 
   info "Detecting version from ISO image..."
   detectImageInfo "$image_info" || return 2
