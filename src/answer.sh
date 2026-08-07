@@ -1932,7 +1932,7 @@ updateSetupScript() {
 
   local domain="${DOMAIN:-}"
   local user="${USERNAME:-}"
-  local content id
+  local content id ps_user
 
   if [ ! -s "$script" ]; then
     error "Failed to find staged setup script: $script"
@@ -1952,9 +1952,10 @@ updateSetupScript() {
 
     case "${id,,}" in
       "win10"* | "win11"* | "win2016"* | "win2019"* | "win2022"* | "win2025"* )
+        ps_user="${user//\'/\'\'}"
         printf -v content '%s\n%s' \
           'rem Prevent the local user password from expiring.' \
-          "powershell.exe -ExecutionPolicy Unrestricted -NoLogo -NoProfile -NonInteractive Set-LocalUser -Name \"$user\" -PasswordNeverExpires 1"
+          "powershell.exe -ExecutionPolicy Unrestricted -NoLogo -NoProfile -NonInteractive -Command \"Set-LocalUser -Name '$ps_user' -PasswordNeverExpires 1\""
         ;;
       * )
         printf -v content '%s\n%s' \
