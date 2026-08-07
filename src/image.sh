@@ -673,6 +673,8 @@ createSetupImage() {
   # image, so a partial write never becomes boot media.
   rm -f -- "$tmp" || return 1
 
+  checkFreeSpace "$(dirname "$image")" "$size" || return 1
+
   if ! mformat -i "$tmp" -C -F -T "$sectors" -v "SETUP" ::; then
     rm -f -- "$tmp"
     error "Failed to format setup image!"
