@@ -1198,7 +1198,15 @@ removeEmbeddedProductKeys() {
 
   local product_keys='//u:ProductKey'
   local separator=$'\x1f' delete_xpath=""
-  local records position child_key direct_key
+  local count records position child_key direct_key
+
+  count=$(xmlstarlet sel \
+    -N "$XML_NS_UNATTEND_ARG" -T -t \
+    -v "count($product_keys)" \
+    "$asset") || return 1
+
+  [[ "$count" =~ ^[0-9]+$ ]] || return 1
+  (( count == 0 )) && return 0
 
   records=$(xmlstarlet sel \
     -N "$XML_NS_UNATTEND_ARG" -T -t \
