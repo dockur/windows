@@ -374,7 +374,7 @@ skipUnattended() {
 
   # Preserve custom media in place. Downloaded or reused media must be moved
   # back to persistent storage before the manual fallback is started.
-  useOriginalImage "$iso"
+  useOriginalImage "$iso" || return 1
 
   finishInstall "$BOOT" "$aborted" "$boot" && return 0
   return 1
