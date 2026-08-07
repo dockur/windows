@@ -126,11 +126,7 @@ downloadWindowsLink() {
     --output /dev/null \
     --header "Accept:" \
     --max-filesize 100K \
-    -- "$vlsUrl" || {
-      local rc=$?
-      (( rc >= 129 )) && exit "$rc"
-      return 1
-    }
+    -- "$vlsUrl" || return
 
   # Complete Microsoft's ov-df challenge by retrieving a token and timing
   # value, then returning both with the current timestamp.
@@ -143,11 +139,7 @@ downloadWindowsLink() {
   ovData=$(curlRequest "Microsoft" "$agent" \
     --header "Accept:" \
     --max-filesize 1M \
-    -- "$ovUrl") || {
-      local rc=$?
-      (( rc >= 129 )) && exit "$rc"
-      return 1
-    }
+    -- "$ovUrl") || return
 
   if [[ $ovData =~ [\?\&]w=([A-Fa-f0-9]+) ]]; then
     ovToken="${BASH_REMATCH[1]}"
@@ -175,11 +167,7 @@ downloadWindowsLink() {
     --output /dev/null \
     --header "Accept:" \
     --max-filesize 100K \
-    -- "$ovUrl" || {
-      local rc=$?
-      (( rc >= 129 )) && exit "$rc"
-      return 1
-    }
+    -- "$ovUrl" || return
 
   enabled "$DEBUG" && echo -n "Getting language SKU ID: "
 
@@ -189,17 +177,13 @@ downloadWindowsLink() {
     --referer "$url" \
     --header "Accept:" \
     --max-filesize 100K \
-    -- "$skuUrl") || {
-      local rc=$?
-      (( rc >= 129 )) && exit "$rc"
-      return 1
-    }
+    -- "$skuUrl") || return
 
-  # Guard jq under errexit so malformed API data can be handled as a normal
-  # missing-result error. The same pattern is reused for the link response.
-  { skuId=$(printf '%s\n' "$skuJson" | jq --arg LANG "$language" -r 'first(.Skus[]? | select(.Language == $LANG) | .Id) // empty') 2>/dev/null; local rc=$?; } || :
+  # Let jq parsing failures propagate so malformed API data is not mistaken
+  # for a normal missing-result response. The same applies to the link data.
+  skuId=$(printf '%s\n' "$skuJson" | jq --arg LANG "$language" -r 'first(.Skus[]? | select(.Language == $LANG) | .Id) // empty') 2>/dev/null || return
 
-  if [ -z "$skuId" ] || [[ "${skuId,,}" == "null" ]] || (( rc != 0 )); then
+  if [ -z "$skuId" ] || [[ "${skuId,,}" == "null" ]]; then
     language=$(getLanguage "$lang" "desc")
     error "No download in the $language language available for $desc!"
     return 1
@@ -217,11 +201,7 @@ downloadWindowsLink() {
     --referer "$url" \
     --header "Accept:" \
     --max-filesize 100K \
-    -- "$linkUrl") || {
-      local rc=$?
-      (( rc >= 129 )) && exit "$rc"
-      return 1
-    }
+    -- "$linkUrl") || return
 
   if ! [ "$linkJson" ]; then
     error "Microsoft servers gave us an empty response to our request for an automated download."
@@ -238,9 +218,9 @@ downloadWindowsLink() {
     return 1
   fi
 
-  { link=$(printf '%s\n' "$linkJson" | jq --argjson TYPE "$type" -r 'first(.ProductDownloadOptions[]? | select(.DownloadType == $TYPE) | .Uri) // empty') 2>/dev/null; rc=$?; } || :
+  link=$(printf '%s\n' "$linkJson" | jq --argjson TYPE "$type" -r 'first(.ProductDownloadOptions[]? | select(.DownloadType == $TYPE) | .Uri) // empty') 2>/dev/null || return
 
-  if [ -z "$link" ] || [[ "${link,,}" == "null" ]] || (( rc != 0 )); then
+  if [ -z "$link" ] || [[ "${link,,}" == "null" ]]; then
     error "Microsoft server gave us no download link to our request for an automated download!"
     info "Response: $linkJson"
     return 1
@@ -256,7 +236,7 @@ downloadWindows() {
   local lang="$2"
   local desc="$3"
 
-  local agent language page
+  local agent language page rc
   local productId type winVer
 
   agent=$(getAgent)
@@ -287,9 +267,12 @@ downloadWindows() {
 
   if downloadWindowsLink "$productId" "$url" "$agent" "$language" "$lang" "$desc" "$type"; then
     return 0
+  else
+    rc=$?
+    (( rc == 1 )) || return "$rc"
   fi
 
-  sleep 1
+  sleep 1 || return
 
   # Product edition IDs can change. If the configured ID fails, recover the
   # current value from Microsoft's public download page and retry once.
@@ -300,11 +283,7 @@ downloadWindows() {
   page=$(curlRequest "Microsoft" "$agent" \
     --header "Accept:" \
     --max-filesize 1M \
-    -- "$url") || {
-      local rc=$?
-      (( rc >= 129 )) && exit "$rc"
-      return 1
-    }
+    -- "$url") || return
 
   enabled "$DEBUG" && echo -n "Getting Product edition ID: "
   productId=$(printf '%s' "$page" |
@@ -312,7 +291,7 @@ downloadWindows() {
     grep -Eio "<option[^>]*value=[\"'][0-9]+[\"'][^>]*>[[:space:]]*Windows[^<]*" |
     sed -nE "s/.*value=[\"']([0-9]+)[\"'].*/\1/p" |
     sed -n '1p' |
-    cut -c 1-16 || true)
+    cut -c 1-16) || return
   enabled "$DEBUG" && echo "$productId"
 
   if [ -z "$productId" ]; then
@@ -320,9 +299,7 @@ downloadWindows() {
     return 1
   fi
 
-  if ! downloadWindowsLink "$productId" "$url" "$agent" "$language" "$lang" "$desc" "$type"; then
-    return 1
-  fi
+  downloadWindowsLink "$productId" "$url" "$agent" "$language" "$lang" "$desc" "$type" || return
 
   return 0
 }
@@ -334,12 +311,9 @@ downloadWindowsEval() {
   local desc="$3"
 
   local compare compare_name link_name
-  local agent culture language type winVer
+  local agent culture language type winVer rc
 
   case "${id,,}" in
-    "win10${PLATFORM,,}-enterprise-eval" )
-      type="enterprise"
-      winVer="windows-10-enterprise" ;;
     "win11${PLATFORM,,}-enterprise-eval" )
       type="enterprise"
       winVer="windows-11-enterprise" ;;
@@ -385,11 +359,7 @@ downloadWindowsEval() {
   page=$(curlRequest "Microsoft" "$agent" \
     --location \
     --max-filesize 1M \
-    -- "$url") || {
-      local rc=$?
-      (( rc >= 129 )) && exit "$rc"
-      return 1
-    }
+    -- "$url") || return
 
   if ! [ "$page" ]; then
     error "Evaluation Center download page gave us an empty response"
@@ -438,8 +408,8 @@ downloadWindowsEval() {
         --write-out "%{redirect_url}" \
         --head \
         -- "$candidate") || {
-          local rc=$?
-          (( rc >= 129 )) && exit "$rc"
+          rc=$?
+          (( rc == 1 )) || return "$rc"
           continue
         }
 
@@ -531,11 +501,7 @@ downloadWindowsEval() {
     --output /dev/null \
     --write-out "%{url_effective}" \
     --head \
-    -- "$link") || {
-      local rc=$?
-      (( rc >= 129 )) && exit "$rc"
-      return 1
-    }
+    -- "$link") || return
 
   local lower="${link,,}"
   local separator='(^|[[:space:]_./-])'
@@ -640,7 +606,7 @@ downloadWindowsLtsc() {
   local lang="$2"
   local desc="$3"
 
-  local alternate alternate_desc
+  local alternate alternate_desc rc
 
   case "${id,,}" in
     "win11${PLATFORM,,}-enterprise-iot-eval" )
@@ -657,19 +623,21 @@ downloadWindowsLtsc() {
   if downloadWindowsEval "$id" "$lang" "$desc" > /dev/null 2>&1; then
     MIDO_SOURCE="$id"
     return 0
+  else
+    rc=$?
+    (( rc == 1 )) || return "$rc"
   fi
 
   alternate_desc=$(printEdition "$alternate" "$alternate" "Y")
 
   info "Primary download source failed, trying $alternate_desc instead..."
 
-  if downloadWindowsEval "$alternate" "$lang" "$alternate_desc"; then
-    MIDO_SOURCE="$alternate"
-    warn "the requested $desc was unavailable, using $alternate_desc instead."
-    return 0
-  fi
+  downloadWindowsEval "$alternate" "$lang" "$alternate_desc" || return
 
-  return 1
+  MIDO_SOURCE="$alternate"
+  warn "the requested $desc was unavailable, using $alternate_desc instead."
+
+  return 0
 }
 
 getWindows() {
@@ -679,7 +647,7 @@ getWindows() {
   local desc="$3"
   local web_desc="$4"
 
-  local language edition
+  local language edition rc
 
   MIDO_SOURCE=""
   MIDO_STATIC="N"
@@ -727,19 +695,29 @@ getWindows() {
       if downloadWindows "$version" "$lang" "$edition"; then
         MIDO_SOURCE="$version"
         return 0
+      else
+        rc=$?
+        (( rc == 1 )) || return "$rc"
       fi ;;
 
     "win11${PLATFORM,,}-enterprise-iot-eval" | \
     "win11${PLATFORM,,}-enterprise-ltsc-eval" )
 
-      downloadWindowsLtsc "$version" "$lang" "$edition" && return 0 ;;
+      if downloadWindowsLtsc "$version" "$lang" "$edition"; then
+        return 0
+      else
+        rc=$?
+        (( rc == 1 )) || return "$rc"
+      fi ;;
 
-    "win10${PLATFORM,,}-enterprise-eval" | \
     "win11${PLATFORM,,}-enterprise"* )
 
       if downloadWindowsEval "$version" "$lang" "$edition"; then
         MIDO_SOURCE="$version"
         return 0
+      else
+        rc=$?
+        (( rc == 1 )) || return "$rc"
       fi ;;
 
     "win2025-eval" | "win2022-eval" | "win2019-eval" | \
@@ -748,6 +726,9 @@ getWindows() {
       if downloadWindowsEval "$version" "$lang" "$edition"; then
         MIDO_SOURCE="$version"
         return 0
+      else
+        rc=$?
+        (( rc == 1 )) || return "$rc"
       fi ;;
 
     "win2008r2"*| "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* ) ;;
@@ -1077,7 +1058,10 @@ getESD() {
   local msg="Downloading ESD catalog..."
   info "$msg" && html "$msg"
 
-  rm -rf "$dir"
+  if ! rm -rf "$dir"; then
+    error "Failed to remove directory \"$dir\" !"
+    return 1
+  fi
 
   if ! makeDir "$dir"; then
     error "Failed to create directory \"$dir\" !"
@@ -1118,7 +1102,7 @@ getESD() {
     rm -f "$log"
 
     if (( rc >= 129 )); then
-      exit "$rc"
+      return "$rc"
     fi
 
     return 1
@@ -1160,8 +1144,7 @@ getESD() {
     validateESDCatalog "$dir/$xmlFile" "$provider" || return 1
   fi
 
-  if ! parseESD \
-    "$dir/$xmlFile" "$version" "$lang" "$desc" "$edition" "$culture"; then
+  if ! parseESD "$dir/$xmlFile" "$version" "$lang" "$desc" "$edition" "$culture"; then
     return 1
   fi
 
@@ -1222,26 +1205,16 @@ verifyFile() {
 
     hash=$(sha1sum "$iso" | cut -f1 -d' ') || {
       local rc=$?
-
-      if (( rc >= 129 )); then
-        exit "$rc"
-      fi
-
       error "Failed to calculate SHA1 checksum for $iso!"
-      return 1
+      return "$rc"
     }
 
   else
 
     hash=$(sha256sum "$iso" | cut -f1 -d' ') || {
       local rc=$?
-
-      if (( rc >= 129 )); then
-        exit "$rc"
-      fi
-
       error "Failed to calculate SHA256 checksum for $iso!"
-      return 1
+      return "$rc"
     }
 
   fi
@@ -1315,27 +1288,17 @@ tryDownload() {
     minimum="10485760"
   fi
 
-  if downloadRetry \
-      "$iso" \
-      "${CONNECTIONS:-1}" \
-      "$seconds" \
-      "$desc" \
-      "$minimum" \
-      "$iso" \
-      "$url" \
-      "$size" \
-      "$desc" \
-      "$web_desc"; then
-    local rc=0
-  else
-    local rc=$?
-  fi
-
-  if (( rc >= 129 )); then
-    exit "$rc"
-  fi
-
-  (( rc == 0 )) || return "$rc"
+  downloadRetry \
+    "$iso" \
+    "${CONNECTIONS:-1}" \
+    "$seconds" \
+    "$desc" \
+    "$minimum" \
+    "$iso" \
+    "$url" \
+    "$size" \
+    "$desc" \
+    "$web_desc" || return
 
   # The shared helper already inspected the file, so this should
   # only fail if the downloaded file was removed unexpectedly afterward.
@@ -1345,12 +1308,15 @@ tryDownload() {
   fi
 
   # Status 2 means the completed download failed deterministic validation.
-  if ! verifyFile "$iso" "$size" "$total" "$sum"; then
+  verifyFile "$iso" "$size" "$total" "$sum" || {
+    local rc=$?
+    (( rc == 1 )) || return "$rc"
+
     if ! rm -f -- "$iso" "$iso.aria2"; then
       warn "failed to remove invalid download \"$iso\"!"
     fi
     return 2
-  fi
+  }
 
   # Extract the .iso from the compressed archive if needed.
   isCompressed "$url" && UNPACK="Y"
@@ -1379,7 +1345,7 @@ fallbackEnglish() {
   # still locate the same image, but use English installation media.
   LANGUAGE="en"
 
-  removeImage "$iso" || return 1
+  removeImage "$iso" || return
 
   downloadImage "$iso" "$version" "$LANGUAGE"
 }
@@ -1410,7 +1376,7 @@ downloadImage() {
   local detected="$DETECTED"
   local requested="$version" switched=""  
   local tried="n" success="n" seconds="5"
-  local i url sum size base language desc web_desc metadata
+  local i url sum size base language desc web_desc metadata rc
 
   if [[ "${version,,}" == "http"* ]]; then
 
@@ -1418,7 +1384,7 @@ downloadImage() {
     desc=$(fromFile "$base")
     web_desc="$desc"
 
-    tryDownload "$iso" "$version" "" "" "$desc" "$seconds" "$web_desc" || return 1
+    tryDownload "$iso" "$version" "" "" "$desc" "$seconds" "$web_desc" || return
     return 0
   fi
 
@@ -1437,7 +1403,7 @@ downloadImage() {
       web_desc=$(printEdition "$version" "$web_desc")
       desc+=" in $language"
 
-      fallbackEnglish "$iso" "$version" "$lang" "$desc" || return 1
+      fallbackEnglish "$iso" "$version" "$lang" "$desc" || return
       return 0
 
     fi
@@ -1455,8 +1421,17 @@ downloadImage() {
     if getWindows "$version" "$lang" "$desc" "$web_desc"; then
       success="y"
     else
-      delay "$seconds"
-      getWindows "$version" "$lang" "$desc" "$web_desc" && success="y"
+      rc=$?
+      (( rc == 1 )) || return "$rc"
+
+      delay "$seconds" || return
+
+      if getWindows "$version" "$lang" "$desc" "$web_desc"; then
+        success="y"
+      else
+        rc=$?
+        (( rc == 1 )) || return "$rc"
+      fi
     fi
 
     if [[ "$success" == "y" ]]; then
@@ -1483,6 +1458,9 @@ downloadImage() {
         # Commit the candidate only after the image was downloaded and verified.
         DETECTED="$detected"
         return 0
+      else
+        rc=$?
+        (( rc == 1 || rc == 2 )) || return "$rc"
       fi
 
     fi
@@ -1520,7 +1498,15 @@ downloadImage() {
     if getESD "$TMP/esd" "$version" "$lang" "$desc"; then
       success="y"
     else
-      getESD "$TMP/esd" "$version" "$lang" "$desc" "wor" && success="y"
+      rc=$?
+      (( rc == 1 )) || return "$rc"
+
+      if getESD "$TMP/esd" "$version" "$lang" "$desc" "wor"; then
+        success="y"
+      else
+        rc=$?
+        (( rc == 1 )) || return "$rc"
+      fi
     fi
 
     if [[ "$success" == "y" ]]; then
@@ -1531,6 +1517,9 @@ downloadImage() {
 
       if tryDownload "$ISO" "$ESD" "$ESD_SUM" "$ESD_SIZE" "$desc" "$seconds" "$web_desc"; then
         return 0
+      else
+        rc=$?
+        (( rc == 1 || rc == 2 )) || return "$rc"
       fi
 
       ISO="$iso"
@@ -1552,14 +1541,19 @@ downloadImage() {
       size=$(getSize "$i" "$version" "$lang")
       sum=$(getHash "$i" "$version" "$lang")
 
-      tryDownload "$iso" "$url" "$sum" "$size" "$desc" "$seconds" "$web_desc" && return 0
+      if tryDownload "$iso" "$url" "$sum" "$size" "$desc" "$seconds" "$web_desc"; then
+        return 0
+      else
+        rc=$?
+        (( rc == 1 || rc == 2 )) || return "$rc"
+      fi
 
     fi
 
   done
 
   if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
-    fallbackEnglish "$iso" "$requested" "$lang" "$desc" || return 1
+    fallbackEnglish "$iso" "$requested" "$lang" "$desc" || return
     return 0
   fi
 

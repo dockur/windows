@@ -43,8 +43,6 @@ selectWindowsImage() {
   local dir="$2"
   local boot="$3"
 
-  local detect_rc=0
-
   # Known versions already provide the required image metadata.
   if resolveImage "$VERSION"; then
 
@@ -67,20 +65,10 @@ selectWindowsImage() {
   fi
 
   # Inspect unknown media directly before falling back to extraction.
-  detectIsoImage "$iso" || detect_rc=$?
+  detectIsoImage "$iso" && return 0
 
-  if (( detect_rc == 0 )); then
-    return 0
-  fi
-
-  if (( detect_rc >= 129 )); then
-    return "$detect_rc"
-  fi
-
-  # Only code 1 indicates that extraction may recover detection.
-  if (( detect_rc != 1 )); then
-    return 76
-  fi
+  local rc=$?
+  (( rc == 1 )) || return 76
 
   if ! extractImage "$iso" "$dir" "$VERSION"; then
     removeImage "$iso" || :
@@ -88,21 +76,11 @@ selectWindowsImage() {
   fi
 
   extracted=1
-  detect_rc=0
 
-  detectImage "$dir" || detect_rc=$?
+  detectImage "$dir" && return 0
 
-  if (( detect_rc == 0 )); then
-    return 0
-  fi
-
-  if (( detect_rc >= 129 )); then
-    return "$detect_rc"
-  fi
-
-  if (( detect_rc != 1 )); then
-    return 76
-  fi
+  rc=$?
+  (( rc == 1 )) || return 76
 
   skipUnattended "$dir" "$iso" "$boot" || return 76
 
@@ -189,10 +167,10 @@ prepareWindowsImage() {
 
 bootWindows() {
 
-  restoreMachineState || return 1
-  restoreBootMode || return 1
-  restoreMachine || return 1
-  reserveSambaPorts || return 1
+  restoreMachineState || return
+  restoreBootMode || return
+  restoreMachine || return
+  reserveSambaPorts || return
 
   return 0
 }
@@ -752,9 +730,8 @@ getArchiveSize() {
 
   listing=$(7z l -slt "$file" 2>/dev/null) || {
     rc=$?
-    (( rc >= 129 )) && exit "$rc"
     error "Failed to read archive information: $file"
-    return 1
+    return "$rc"
   }
 
   while IFS= read -r line; do
@@ -797,11 +774,7 @@ extractImage() {
   fi
 
   if [[ "${iso,,}" == *".esd" ]]; then
-    extractESD "$iso" "$dir" "$version" "$desc" || {
-      rc=$?
-      (( rc >= 129 )) && exit "$rc"
-      return 1
-    }
+    extractESD "$iso" "$dir" "$version" "$desc" || return
     return 0
   fi
 
@@ -833,7 +806,7 @@ extractImage() {
   required="$size"
 
   if enabled "${UNPACK:-}"; then
-    getArchiveSize "$iso" archiveSize || return 1
+    getArchiveSize "$iso" archiveSize || return
     required="$archiveSize"
   fi
 
@@ -849,9 +822,8 @@ extractImage() {
   7z x "$iso" -o"$target" > /dev/null || {
     rc=$?
     fKill "progress.sh"
-    (( rc >= 129 )) && exit "$rc"
     error "Failed to extract ISO file: $iso"
-    return 1
+    return "$rc"
   }
 
   fKill "progress.sh"
@@ -897,9 +869,8 @@ extractImage() {
 
     7z x "$iso" -o"$dir" > /dev/null || {
       rc=$?
-      (( rc >= 129 )) && exit "$rc"
       error "Failed to extract nested ISO file: $iso"
-      return 1
+      return "$rc"
     }
 
     LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p') || LABEL=""
@@ -915,31 +886,28 @@ detectImage() {
 
   local dir="$1"
 
-  local desc detect_rc=0
+  local desc rc
 
   info "Detecting version from ISO image..."
 
   # Marker-based legacy and ReactOS detection must run before looking for a WIM.
-  detectLegacy "$dir" || detect_rc=$?
-
-  if (( detect_rc == 0 )); then
+  if detectLegacy "$dir"; then
     desc=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 2
     info "Detected: $desc"
     return 0
+  else
+    rc=$?
+    (( rc == 1 )) || return "$rc"
   fi
 
-  (( detect_rc == 1 )) || return "$detect_rc"
-
-  detect_rc=0
-  detectReactOS "$dir" || detect_rc=$?
-
-  if (( detect_rc == 0 )); then
+  if detectReactOS "$dir"; then
     desc=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 2
     info "Detected: $desc"
     return 0
+  else
+    rc=$?
+    (( rc == 1 )) || return "$rc"
   fi
-
-  (( detect_rc == 1 )) || return "$detect_rc"
 
   local wim
   wim=$(findImage "$dir") || return $?
@@ -1370,11 +1338,11 @@ checkMemory() {
   local id="$1"
   local required name
 
-  required=$(getRequiredMemory "$id") || return 1
+  required=$(getRequiredMemory "$id") || return
   RAM_MINIMUM="$required"
 
-  name=$(printVersion "$id" "") || return 1
-  checkMemoryRequirement "$name" || return 1
+  name=$(printVersion "$id" "") || return
+  checkMemoryRequirement "$name" || return
 
   return 0
 }
