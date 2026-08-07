@@ -1450,7 +1450,6 @@ setMachine() {
   if [[ "${id,,}" == "reactos" ]] && [ -z "$CUSTOM" ]; then
     # The ISO is a Live-CD so we need to disable the data disk
     # as it will be always wiped during the next runs currently.
-    REMOVE="N"
     DISK_DISABLE="Y"
   fi
 
