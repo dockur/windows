@@ -405,7 +405,7 @@ markWindowsBooted() {
   fi
 
   if ! disabled "$REMOVE"; then
-    rm -f "$BOOT" 2>/dev/null || :
+    removeImage "$BOOT" || :
   fi
 
   rm -f "$STORAGE/setup.img" 2>/dev/null || :
