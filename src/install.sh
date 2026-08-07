@@ -624,7 +624,10 @@ removeImage() {
 
   [ -n "$CUSTOM" ] && return 0
 
-  rm -f -- "$iso" 2>/dev/null || warn "failed to remove image \"$iso\"!"
+  if ! rm -f -- "$iso" 2>/dev/null; then
+    warn "failed to remove image \"$iso\"!"
+    return 1
+  fi
 
   return 0
 }
