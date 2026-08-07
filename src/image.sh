@@ -1207,15 +1207,9 @@ readImageInfo() {
   local wim="$1"
   local result=""
 
-  result=$(wimlib-imagex info --xml "$wim" | iconv -f UTF-16LE -t UTF-8) || {
-    local rc=$?
-
-    if (( rc >= 129 )); then
-      exit "$rc"
-    fi
-
+  if ! result=$(wimlib-imagex info --xml "$wim" | iconv -f UTF-16LE -t UTF-8); then
     result=""
-  }
+  fi
 
   if [ -z "$result" ]; then
     error "Failed to read Windows image information!"
