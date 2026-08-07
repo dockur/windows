@@ -83,10 +83,12 @@ getVersions() {
     # Preserve NAME precedence, but allow a recognized DISPLAYNAME edition to
     # refine an otherwise generic family name.
     if [ -n "$candidate_base" ] && [ -n "$candidate_id" ] && [ -n "$display" ]; then
+
       name=$(normalizeEdition "$(printVersion "$candidate_base" "")") || return 1
       candidate=$(normalizeEdition "$candidate") || return 1
 
       if [ "$candidate" = "$name" ]; then
+
         structured=$(getVersion "$display" "$platform")
 
         if [ "$(fromName "$display" "$platform")" = "$candidate_base" ] &&
@@ -94,6 +96,7 @@ getVersions() {
           [[ "$(getVersionPriority "$structured" "$candidate_base")" != "other" ]]; then
           candidate_id="$structured"
         fi
+
       fi
     fi
 
@@ -123,6 +126,7 @@ getVersions() {
     # editions. Preserve the established unsuffixed Pro ID, and use the
     # structured edition metadata only to disambiguate a collision.
     if [[ -v "indexes_ref[$key]" ]]; then
+
       structured=""
 
       case "${candidate_base,,}" in
@@ -145,6 +149,7 @@ getVersions() {
         candidate_id="$candidate_base-$structured$evaluation"
         key="${candidate_id,,}"
       fi
+
     fi
 
     if [[ -v "indexes_ref[$key]" ]]; then
@@ -186,8 +191,10 @@ getVersionPriority() {
   # Use the most specific matching pattern. This prevents broad patterns
   # such as enterprise-* from taking precedence over enterprise-iot-*.
   for entry in "${order[@]}"; do
+
     IFS='|' read -r _ priority patterns <<< "$entry"
     read -r -a pattern_list <<< "$patterns"
+
     for pattern in "${pattern_list[@]}"; do
 
       if [ "$pattern" = "@default" ]; then
@@ -271,6 +278,7 @@ getCompatibleVersions() {
   else
     printf '%s\n' "$wanted-eval"
   fi
+
 }
 
 selectEdition() {
@@ -307,6 +315,7 @@ selectEdition() {
     fi
 
     warn "edition '$EDITION' is not supported by this image, using automatic selection instead."
+
   fi
 
   if [ -n "$suggested" ]; then
@@ -348,8 +357,10 @@ selectEdition() {
     seen["$priority"]="Y"
 
     for ((i=0;i<${#edition_versions[@]};i++)); do
+
       [[ "${edition_groups[$i]}" == "$priority" ]] || continue
       preferred+=("${edition_versions[$i]}")
+
     done
 
   done
@@ -424,9 +435,11 @@ detectLanguage() {
   lang=""
 
   for path in "${paths[@]}"; do
+
     lang=$(xmlstarlet sel -T -t -v "normalize-space(string(($path)[1]))" - 2>/dev/null <<< "$xml") || lang=""
 
     [ -n "$lang" ] && break
+
   done
 
   if [ -z "$lang" ]; then
