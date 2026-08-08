@@ -786,7 +786,6 @@ readWimHeader() {
 
   if ! rm -f -- "$header"; then
     enabled "$DEBUG" && echo "Failed to remove the previous temporary WIM header: $header" >&2
-    error "Failed to prepare Windows image header!"
     return 1
   fi
 
@@ -794,35 +793,30 @@ readWimHeader() {
   # extracting install.wim or install.esd from the ISO.
   if ! udfread range --ignore-case -o "$header" "$iso" "$image" 0 208 >/dev/null 2>&1; then
     enabled "$DEBUG" && echo "udfread failed to read the first 208 bytes of $image from $iso." >&2
-    error "Failed to read Windows image header!"
     rm -f -- "$header"
     return 1
   fi
 
   if ! size=$(stat -c%s -- "$header"); then
     enabled "$DEBUG" && echo "Failed to determine the size of the temporary WIM header: $header" >&2
-    error "Failed to read Windows image header!"
     rm -f -- "$header"
     return 1
   fi
 
   if (( size != 208 )); then
     enabled "$DEBUG" && echo "The WIM header is $size bytes instead of the expected 208 bytes." >&2
-    error "Failed to read Windows image header!"
     rm -f -- "$header"
     return 1
   fi
 
   if ! signature=$(od -An -N8 -tx1 "$header" | tr -d ' \n'); then
     enabled "$DEBUG" && echo "Failed to read the WIM header signature from $header." >&2
-    error "Failed to read Windows image header!"
     rm -f -- "$header"
     return 1
   fi
 
   if [[ "$signature" != "4d5357494d000000" ]]; then
     enabled "$DEBUG" && echo "The WIM header has an invalid signature: ${signature:-empty}." >&2
-    error "Failed to read Windows image header!"
     rm -f -- "$header"
     return 1
   fi
