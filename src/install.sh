@@ -1411,8 +1411,8 @@ backupPrevious () {
     failed="Y"
   fi
 
-  [ -z "$(ls -A "$dir")" ] && rm -rf "$dir"
-  [ -z "$(ls -A "$root")" ] && rm -rf "$root"
+  rmdir "$dir" 2>/dev/null || :
+  rmdir "$root" 2>/dev/null || :
 
   [ -n "$failed" ] && return 1
 
