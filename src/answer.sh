@@ -30,10 +30,21 @@ updateXML() {
   [ -z "${HEIGHT:-}" ] && HEIGHT="720"
 
   validateXMLSettings || return 1
-  ensureXMLDefaultNamespace "$asset" || return 1
 
-  updateUserXML "$asset" || return 1
-  updateLocaleXML "$asset" "$language" || return 1
+  if ! ensureXMLDefaultNamespace "$asset"; then
+    error "Failed to prepare the answer file XML namespace!"
+    return 1
+  fi
+
+  if ! updateUserXML "$asset"; then
+    error "Failed to update user and display settings in answer file!"
+    return 1
+  fi
+
+  if ! updateLocaleXML "$asset" "$language"; then
+    error "Failed to update regional settings in answer file!"
+    return 1
+  fi
 
   if [ -n "$domain" ]; then
 
@@ -46,13 +57,24 @@ updateXML() {
 
   else
 
-    updateLocalAccount "$asset" || return 1
+    if ! updateLocalAccount "$asset"; then
+      error "Failed to update local account settings in answer file!"
+      return 1
+    fi
 
   fi
 
   updateMembership "$asset" "$domain" "$workgroup" "$account" "$auth" || return 1
-  updateAutologinXML "$asset" || return 1
-  updateEditionXML "$asset" || return 1
+
+  if ! updateAutologinXML "$asset"; then
+    error "Failed to update automatic logon settings in answer file!"
+    return 1
+  fi
+
+  if ! updateEditionXML "$asset"; then
+    error "Failed to update edition settings in answer file!"
+    return 1
+  fi
 
   validateGeneratedXML "$asset" || return 1
 
@@ -1083,7 +1105,13 @@ updateDiskID() {
 
   done <<< "$values"
 
-  mapfile -t ids < <(printf '%s\n' "${ids[@]}" | sort -u)
+  local unique
+  unique=$(printf '%s\n' "${ids[@]}" | sort -u) || {
+    error "Failed to normalize DiskID values from answer file: $asset"
+    return 1
+  }
+
+  mapfile -t ids <<< "$unique"
 
   # Leave explicit multi-disk configurations untouched.
   (( ${#ids[@]} == 1 )) || return 0
@@ -2337,8 +2365,16 @@ addSIFEntry() {
     return 1
   fi
 
-  if grep -Fqx "$entry" "$file" || grep -Fqx "$entry"$'\r' "$file"; then
+  local rc=0
+  grep -Fqx -e "$entry" -e "$entry"$'\r' "$file" || rc=$?
+
+  if (( rc == 0 )); then
     return 0
+  fi
+
+  if (( rc != 1 )); then
+    error "Failed to inspect section \"$header\" in \"$file\" !"
+    return 1
   fi
 
   if [[ "$ending" == "crlf" ]]; then
