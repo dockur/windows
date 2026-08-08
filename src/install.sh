@@ -51,6 +51,9 @@ selectWindowsImage() {
     DETECTED="$VERSION"
   fi
 
+  DETECTED="${DETECTED/-enterprise-iot/-iot}"
+  DETECTED="${DETECTED/-enterprise-ltsc/-ltsc}"
+
   if [ -n "$DETECTED" ]; then
 
     if ! setImage; then
