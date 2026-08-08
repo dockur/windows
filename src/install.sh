@@ -65,10 +65,7 @@ selectWindowsImage() {
   XML=""
   FB="falling back to manual installation!"
 
-  normalizeDetected || {
-    error "Failed to initialize the detected Windows image!"
-    return 70
-  }
+  normalizeDetected || :
 
   if [ -n "$DETECTED" ]; then
 
@@ -146,12 +143,14 @@ configureMachine() {
   desc=$(printVariant "$DETECTED" "$DETECTED") || return 78
 
   if ! checkMemory "$DETECTED"; then
+
     if [ -z "$CUSTOM" ]; then
       useOriginalImage "$iso" || {
         error "Failed to preserve the original installation image!"
         return 79
       }
     fi
+
     return 79
   fi
 
