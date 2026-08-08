@@ -290,7 +290,7 @@ downloadWindows() {
     grep -Eio "<option[^>]*value=[\"'][0-9]+[\"'][^>]*>[[:space:]]*Windows[^<]*" |
     sed -nE "s/.*value=[\"']([0-9]+)[\"'].*/\1/p" |
     sed -n '1p' |
-    cut -c 1-16) || return
+    cut -c 1-16) || productId=""
   enabled "$DEBUG" && echo "$productId"
 
   if [ -z "$productId" ]; then
