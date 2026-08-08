@@ -2438,7 +2438,7 @@ setLegacyKey() {
   local arch="$3"
   local desc="$4"
 
-  local setup pid key file
+  local setup pid file block
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini -print -quit) || return 1
 
   [[ -n "$setup" ]] || return 0
@@ -2461,28 +2461,44 @@ setLegacyKey() {
 
   if [[ -n "$file" ]]; then
 
+    local key=""
+
     # Prefer a staging or OEM key already shipped on the media before falling
     # back to Microsoft's documented generic installation keys.
     if [[ "$driver" == "2k3" ]]; then
 
-      key=$(grep -i -A 2 "StagingKey" "$file" | tail -n 2 | head -n 1) || key=""
+      block=$(grep -i -A 2 "StagingKey" "$file") || block=""
+
+      if [ -n "$block" ]; then
+        key=$(printf '%s\n' "$block" | tail -n 2 | head -n 1) || key=""
+      fi
 
     else
 
       key="${pid: -8:5}"
 
       if [[ "${pid^^}" == *"OEM" ]]; then
-        key=$(grep -i -A 2 "$key" "$file" | tail -n 2 | head -n 1) || key=""
+
+        block=$(grep -i -A 2 "$key" "$file") || block=""
+
       else
-        key=$(grep -i -m 1 -A 2 "$key" "$file" | tail -n 2 | head -n 1) || key=""
+
+        block=$(grep -i -m 1 -A 2 "$key" "$file") || block=""
+
+      fi
+
+      if [ -n "$block" ]; then
+        key=$(printf '%s\n' "$block" | tail -n 2 | head -n 1) || key=""
       fi
 
       key="${key#*= }"
 
     fi
 
-    key="${key%$'\r'}"
-    [[ "${#key}" == "29" ]] && KEY="$key"
+    if [ -n "$key" ]; then
+      key="${key%$'\r'}"
+      [[ "${#key}" == "29" ]] && KEY="$key"
+    fi
 
   fi
 
@@ -2782,12 +2798,10 @@ disableAutoReboot() {
 
   local target="$1"
 
-  local file
+  local file rc=0
   local pattern='^[[:space:]]*HKLM[[:space:]]*,[[:space:]]*"SYSTEM\\CurrentControlSet\\Control\\CrashControl"[[:space:]]*,[[:space:]]*"AutoReboot"[[:space:]]*,[[:space:]]*[^,]*,'
 
-  file=$(find \
-    "$target" -maxdepth 1 -type f -iname HIVESYS.INF -print -quit
-  ) || return 1
+  file=$(find "$target" -maxdepth 1 -type f -iname HIVESYS.INF -print -quit) || file=""
 
   if [ -z "$file" ]; then
     error "The file HIVESYS.INF could not be found!"
@@ -2796,19 +2810,22 @@ disableAutoReboot() {
 
   # Keep setup crashes visible instead of immediately rebooting into an
   # opaque installation loop.
-  if grep -Eqi "${pattern}[[:space:]]*[^,;[:space:]]+" "$file"; then
+  grep -Eqi "${pattern}[[:space:]]*[^,;[:space:]]+" "$file" || rc=$?
 
-    sed -i -E \
-      "s|(${pattern})[[:space:]]*[^,;[:space:]]+|\\1 0|I" \
-      "$file" || return 1
-
-  else
-
-    printf '%s\n' \
-      'HKLM,"SYSTEM\CurrentControlSet\Control\CrashControl","AutoReboot",0x00010001,0' |
-      unix2dos >> "$file" || return 1
-
-  fi
+  case "$rc" in
+    0 )
+      sed -i -E "s|(${pattern})[[:space:]]*[^,;[:space:]]+|\\1 0|I" "$file" || return 1
+      ;;
+    1 )
+      printf '%s\n' \
+        'HKLM,"SYSTEM\CurrentControlSet\Control\CrashControl","AutoReboot",0x00010001,0' |
+        unix2dos >> "$file" || return 1
+      ;;
+    * )
+      error "Failed to inspect automatic reboot settings in \"$file\" !"
+      return 1 ;;
+  
+  esac
 
   return 0
 }
