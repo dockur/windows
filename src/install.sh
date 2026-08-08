@@ -43,16 +43,12 @@ selectWindowsImage() {
   local dir="$2"
   local boot="$3"
 
+  local rc
+
   XML=""
   FB="falling back to manual installation!"
 
-  # Known catalog versions already provide the required image metadata.
-  if [ -z "$DETECTED" ] && [ -z "$CUSTOM" ] && [[ "${VERSION,,}" != "http"* ]]; then
-    DETECTED="$VERSION"
-  fi
-
-  DETECTED="${DETECTED/-enterprise-iot/-iot}"
-  DETECTED="${DETECTED/-enterprise-ltsc/-ltsc}"
+  normalizeDetected || return 70
 
   if [ -n "$DETECTED" ]; then
 
@@ -74,11 +70,15 @@ selectWindowsImage() {
 
   fi
 
-  # Inspect unknown media directly before falling back to extraction.
-  detectIsoImage "$iso" && return 0
+  # Inspect unknown bootable media directly before falling back to extraction.
+  if [[ "${iso,,}" != *.esd ]]; then
 
-  local rc=$?
-  (( rc == 1 )) || return 76
+    detectIsoImage "$iso" && return 0
+
+    rc=$?
+    (( rc == 1 )) || return 76
+
+  fi
 
   if ! extractImage "$iso" "$dir" "$VERSION"; then
     removeImage "$iso" || :
@@ -579,6 +579,19 @@ findFile() {
   # Encode the custom ISO size in a synthetic source identity so replacing a
   # bind-mounted ISO is detected as a different installation source.
   BOOT="$STORAGE/windows.$size.iso"
+
+  return 0
+}
+
+normalizeDetected() {
+
+  # Known catalog versions already provide the required image metadata.
+  if [ -z "$DETECTED" ] && [ -z "$CUSTOM" ] && [[ "${VERSION,,}" != "http"* ]]; then
+    DETECTED="$VERSION"
+  fi
+
+  DETECTED="${DETECTED/-enterprise-iot/-iot}"
+  DETECTED="${DETECTED/-enterprise-ltsc/-ltsc}"
 
   return 0
 }
