@@ -78,6 +78,11 @@ selectWindowsImage() {
     rc=$?
     (( rc == 1 )) || return 76
 
+  elif [[ "${iso,,}" == *.esd ]]; then
+
+    detectESDImage "$iso" && return 0
+    return 76
+
   fi
 
   if ! extractImage "$iso" "$dir" "$VERSION"; then
@@ -149,7 +154,7 @@ prepareWindowsImage() {
     fi
 
     # Bootable ISOs can be reused unchanged with the generated setup image.
-    if (( ! extracted )); then
+    if (( ! extracted )) && isDirectImage "$iso"; then
       useOriginalImage "$iso" || return 88
       return 0
     fi
