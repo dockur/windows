@@ -1360,7 +1360,7 @@ detectESDImage() {
   image_info=$(wimlib-imagex info "$iso" --xml 2>/dev/null |
     iconv -f UTF-16LE -t UTF-8 2>/dev/null) || {
     rc=$?
-    error "Cannot read ESD file information (status $rc)." >&2
+    error "Cannot read ESD file information (status $rc)."
     return 2
   }
 
