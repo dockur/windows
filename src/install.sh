@@ -43,16 +43,12 @@ selectWindowsImage() {
   local dir="$2"
   local boot="$3"
 
+  local rc
+
   XML=""
   FB="falling back to manual installation!"
 
-  # Known catalog versions already provide the required image metadata.
-  if [ -z "$DETECTED" ] && [ -z "$CUSTOM" ] && [[ "${VERSION,,}" != "http"* ]]; then
-    DETECTED="$VERSION"
-  fi
-
-  DETECTED="${DETECTED/-enterprise-iot/-iot}"
-  DETECTED="${DETECTED/-enterprise-ltsc/-ltsc}"
+  normalizeDetected || return 70
 
   if [ -n "$DETECTED" ]; then
 
@@ -74,11 +70,15 @@ selectWindowsImage() {
 
   fi
 
-  # Inspect unknown media directly before falling back to extraction.
-  detectIsoImage "$iso" && return 0
+  # Inspect unknown bootable media directly before falling back to extraction.
+  if [[ "${iso,,}" != *.esd ]]; then
 
-  local rc=$?
-  (( rc == 1 )) || return 76
+    detectIsoImage "$iso" && return 0
+
+    rc=$?
+    (( rc == 1 )) || return 76
+
+  fi
 
   if ! extractImage "$iso" "$dir" "$VERSION"; then
     removeImage "$iso" || :
@@ -105,10 +105,9 @@ configureMachine() {
   local boot="$3"
 
   local desc
-
   desc=$(printVariant "$DETECTED" "$DETECTED") || return 78
 
-  if ! checkMemory "$DETECTED" "$desc"; then
+  if ! checkMemory "$DETECTED"; then
     if [ -z "$CUSTOM" ]; then
       useOriginalImage "$iso" || return 79
     fi
@@ -146,7 +145,7 @@ prepareWindowsImage() {
     fi
 
     if ! createSetupImage "$TMP/setup" "$STORAGE/setup.img"; then
-      exit 86
+      return 86
     fi
 
     # Bootable ISOs can be reused unchanged with the generated setup image.
@@ -385,7 +384,7 @@ skipInstall() {
 
   local iso="$1"
   local previousBase="$2"
-  local boot="$STORAGE/windows.boot"
+  local marker="$STORAGE/windows.boot"
 
   if [ -n "$previousBase" ]; then
 
@@ -409,7 +408,7 @@ skipInstall() {
 
     # Older releases may have left a rebuilt custom ISO at its synthetic source
     # identity. A completed installation no longer needs that installation media.
-    if [[ "${previousBase,,}" == "windows."* ]] && [ -f "$boot" ] && hasData; then
+    if [[ "${previousBase,,}" == "windows."* ]] && hasData && [ -f "$marker" ]; then
       if ! rm -f -- "$STORAGE/$previousBase"; then
         error "Failed to remove obsolete ISO file \"$STORAGE/$previousBase\" !"
         exit 50
@@ -441,7 +440,7 @@ skipInstall() {
         else
           method="your custom .iso file was removed"
 
-          if [ -f "$boot" ] && hasData; then
+          if hasData && [ -f "$marker" ]; then
             info "Detected that $method, will be ignored."
             return 0
           fi
@@ -449,7 +448,7 @@ skipInstall() {
         fi
       fi
 
-      if enabled "$SHUTDOWN" && [ ! -f "$boot" ]; then
+      if enabled "$SHUTDOWN" && [ ! -f "$marker" ]; then
         discardPrevious "$STORAGE/$previousBase" || exit 50
         return 1
       fi
@@ -465,7 +464,7 @@ skipInstall() {
     fi
   fi
 
-  [ -f "$boot" ] && hasData && return 0
+  hasData && [ -f "$marker" ] && return 0
 
   return 1
 }
@@ -476,7 +475,7 @@ finishInstall() {
   local aborted="$2"
   local boot="$3"
 
-  local base
+  local base secure=0
 
   if [ ! -s "$iso" ] || [ ! -f "$iso" ]; then
     error "Failed to find ISO file: $iso" && return 1
@@ -509,11 +508,9 @@ finishInstall() {
 
     else
 
-      local secure=0
-
       # Aborted Win11 installs boot without any answer file present,
       # so enable Secure Boot and TPM to satisfy its hardware checks.
-      if [[ "$aborted" == [Yy1]* ]] || enabled "$MANUAL"; then
+      if enabled "$aborted" || enabled "$MANUAL"; then
         [[ "${DETECTED,,}" == "win11"* ]] && secure=1
       fi
 
@@ -578,9 +575,23 @@ findFile() {
 
   ISO="$file"
   CUSTOM="$file"
+
   # Encode the custom ISO size in a synthetic source identity so replacing a
   # bind-mounted ISO is detected as a different installation source.
   BOOT="$STORAGE/windows.$size.iso"
+
+  return 0
+}
+
+normalizeDetected() {
+
+  # Known catalog versions already provide the required image metadata.
+  if [ -z "$DETECTED" ] && [ -z "$CUSTOM" ] && [[ "${VERSION,,}" != "http"* ]]; then
+    DETECTED="$VERSION"
+  fi
+
+  DETECTED="${DETECTED/-enterprise-iot/-iot}"
+  DETECTED="${DETECTED/-enterprise-ltsc/-ltsc}"
 
   return 0
 }
@@ -629,9 +640,9 @@ removeImage() {
 
 setImage() {
 
-  supportsXML "${DETECTED,,}" || return 0
-
   local rc=0
+
+  supportsXML "${DETECTED,,}" || return 0
 
   setXML "" || rc=$?
 
@@ -688,8 +699,7 @@ getArchiveSize() {
   local result_name="$2"
   local -n result="$result_name"
 
-  local listing line value
-  local found=0 rc
+  local found=0 listing line value rc
 
   result=0
 
@@ -728,8 +738,7 @@ extractImage() {
   local target="$dir"
   local desc="local ISO"
   local archive="${dir}.archive"
-  local file size required archiveSize
-  local rc
+  local file size required archiveSize rc
 
   if [ -z "$CUSTOM" ]; then
     desc="downloaded ISO"
@@ -850,25 +859,30 @@ extractImage() {
 detectImage() {
 
   local dir="$1"
-
   local desc rc
 
   info "Detecting version from ISO image..."
 
-  # Marker-based legacy and ReactOS detection must run before looking for a WIM.
+  # Marker-based legacy detection must run before looking for a WIM.
   if detectLegacy "$dir"; then
+
     desc=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 2
+
     info "Detected: $desc"
     return 0
+
   else
     rc=$?
     (( rc == 1 )) || return "$rc"
   fi
 
   if detectReactOS "$dir"; then
+
     desc=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 2
+
     info "Detected: $desc"
     return 0
+
   else
     rc=$?
     (( rc == 1 )) || return "$rc"
@@ -962,9 +976,11 @@ addFolder() {
     rm -f -- "$install" || return 1
 
     if [ -n "$folder" ]; then
+
       source=$(find -L "$folder" -maxdepth 1 -type f -iname install.bat -print -quit) || return 1
 
       if [ -n "$source" ]; then
+
         if ! cp -L -- "$source" "$install"; then
           error "Failed to create a writable copy of $source!"
           return 1
@@ -972,6 +988,7 @@ addFolder() {
 
         file="$install"
       fi
+
     fi
 
   else
@@ -1338,10 +1355,10 @@ restoreBootMode() {
 
 restoreMachine() {
 
-  # Restore the saved machine only when q35 is still the default; an explicit
-  # user-selected machine must remain untouched.
-  [[ "${PLATFORM,,}" != "x64" ]] && return 0
+  # Restore the saved machine only when q35 is still the default;
+  # an explicit user-selected machine must remain untouched.
   [[ "${MACHINE,,}" != "q35" ]] && return 0
+  [[ "${PLATFORM,,}" != "x64" ]] && return 0
 
   MACHINE=""
   restoreState "MACHINE" "old" || return 1

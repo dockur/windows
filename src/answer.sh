@@ -133,16 +133,10 @@ hasAnswerFile() {
   fi
 
   # Editions without a dedicated template can use the generic template.
-  case "${id,,}" in
+  file="/run/assets/${id%%-*}.xml"
+  [ -s "$file" ] || return 1
 
-    "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* | "win20"* )
-
-      file="/run/assets/${id%%-*}.xml"
-      [ -s "$file" ] && return 0 ;;
-
-  esac
-
-  return 1
+  return 0
 }
 
 addAnswerFile() {
@@ -444,22 +438,25 @@ generateFallbackXML() {
 updateUserXML() {
 
   local asset="$1"
-
-  local setup="$XML_COMPONENT_SETUP"
-  local specialize="$XML_COMPONENT_SHELL_SPECIALIZE"
-  local oobe="$XML_COMPONENT_SHELL_OOBE"
   local app="$APP for $ENGINE"
+
+  local xpath
+  xpath="$XML_COMPONENT_SETUP/u:UserData/u:Organization"
+  xpath+=" | $XML_COMPONENT_SHELL_SPECIALIZE/u:OEMInformation/u:Model"
+  xpath+=" | $XML_COMPONENT_SHELL_SPECIALIZE/u:OEMName"
+  xpath+=" | $XML_COMPONENT_SHELL_SPECIALIZE/u:RegisteredOwner"
+  xpath+=" | $XML_COMPONENT_SHELL_OOBE/u:RegisteredOwner"
 
   local -a args=(
     -L
     -N "$XML_NS_UNATTEND_ARG"
-    -u "$setup/u:UserData/u:Organization | $specialize/u:OEMInformation/u:Model | $specialize/u:OEMName | $specialize/u:RegisteredOwner | $oobe/u:RegisteredOwner" -v "$app"
-    -u "$oobe/u:Display/u:VerticalResolution" -v "$HEIGHT"
-    -u "$oobe/u:Display/u:HorizontalResolution" -v "$WIDTH"
+    -u "$xpath" -v "$app"
+    -u "$XML_COMPONENT_SHELL_OOBE/u:Display/u:VerticalResolution" -v "$HEIGHT"
+    -u "$XML_COMPONENT_SHELL_OOBE/u:Display/u:HorizontalResolution" -v "$WIDTH"
   )
 
   if [ -n "${HOST:-}" ]; then
-    args+=(-u "$specialize/u:ComputerName" -v "$HOST")
+    args+=(-u "$XML_COMPONENT_SHELL_SPECIALIZE/u:ComputerName" -v "$HOST")
   fi
 
   xmlstarlet ed "${args[@]}" "$asset" || return 1
@@ -537,23 +534,27 @@ updateWorkgroup() {
 
   local asset="$1"
   local workgroup="$2"
-
-  local component="$XML_COMPONENT_UNATTENDED_JOIN"
-  local identification="$component/u:Identification"
-  local join="$identification/*[local-name()='JoinWorkgroup']"
-  local arch tmp
+  local arch tmp xpath
 
   arch=$(getXMLArchitecture "$asset") || return 1
+
   # Apply all membership changes to a copy and publish it only after the old
   # domain, credential, OU, and workgroup nodes have been replaced successfully.
   tmp=$(copyXMLAsset "$asset") || return 1
 
+  xpath="$XML_COMPONENT_UNATTENDED_JOIN/u:Identification/u:Credentials"
+  xpath+=" | $XML_COMPONENT_UNATTENDED_JOIN/u:Identification/u:JoinDomain"
+  xpath+=" | $XML_COMPONENT_UNATTENDED_JOIN/u:Identification/u:JoinWorkgroup"
+  xpath+=" | $XML_COMPONENT_UNATTENDED_JOIN/u:Identification/u:MachineObjectOU"
+
   if ! ensureUnattendedJoin "$tmp" "$arch" ||
     ! xmlstarlet ed -L \
       -N "$XML_NS_UNATTEND_ARG" \
-      -d "$identification/u:Credentials | $identification/u:JoinDomain | $identification/u:JoinWorkgroup | $identification/u:MachineObjectOU" \
-      -s "$identification" -t elem -n 'JoinWorkgroup' "$tmp" ||
-    ! xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -u "$join" -v "$workgroup" "$tmp" ||
+      -d "$xpath" \
+      -s "$XML_COMPONENT_UNATTENDED_JOIN/u:Identification" -t elem -n 'JoinWorkgroup' "$tmp" ||
+    ! xmlstarlet ed -L \
+      -N "$XML_NS_UNATTEND_ARG" \
+      -u "$XML_COMPONENT_UNATTENDED_JOIN/u:Identification/*[local-name()='JoinWorkgroup']" -v "$workgroup" "$tmp" ||
     ! replaceXMLAsset "$asset" "$tmp"; then
 
     rm -f "$tmp"
@@ -575,6 +576,7 @@ updateDomain() {
   local arch tmp
 
   arch=$(getXMLArchitecture "$asset") || return 1
+
   # Account and join settings are separate XML transformations, so update a
   # copy to keep the original answer file intact if either transformation fails.
   tmp=$(copyXMLAsset "$asset") || return 1
@@ -602,7 +604,8 @@ configureDomainAccounts() {
   local administrator="$accounts/u:AdministratorPassword"
   local autologon="$shell/u:AutoLogon"
   local domain_accounts="$accounts/u:DomainAccounts"
-  local counts shell_count accounts_count administrator_count autologon_count child_count
+  local counts shell_count administrator_count
+  local accounts_count autologon_count child_count
 
   counts=$(xmlstarlet sel \
     -N "$XML_NS_UNATTEND_ARG" \
@@ -694,15 +697,19 @@ configureDomainJoin() {
   local arch="$6"
 
   local cred_domain="$domain"
-  local component="$XML_COMPONENT_UNATTENDED_JOIN"
-  local identification="$component/u:Identification"
-  local credentials="$identification/*[local-name()='Credentials']"
+  local credentials="$XML_COMPONENT_UNATTENDED_JOIN/u:Identification/*[local-name()='Credentials']"
+
+  local xpath
+  xpath="$XML_COMPONENT_UNATTENDED_JOIN/u:Identification/u:Credentials"
+  xpath+=" | $XML_COMPONENT_UNATTENDED_JOIN/u:Identification/u:JoinDomain"
+  xpath+=" | $XML_COMPONENT_UNATTENDED_JOIN/u:Identification/u:JoinWorkgroup"
+  xpath+=" | $XML_COMPONENT_UNATTENDED_JOIN/u:Identification/u:MachineObjectOU"
 
   local -a args=(
     -L
     -N "$XML_NS_UNATTEND_ARG"
-    -d "$identification/u:Credentials | $identification/u:JoinDomain | $identification/u:JoinWorkgroup | $identification/u:MachineObjectOU"
-    -s "$identification" -t elem -n 'Credentials'
+    -d "$xpath"
+    -s "$XML_COMPONENT_UNATTENDED_JOIN/u:Identification" -t elem -n 'Credentials'
   )
 
   ensureUnattendedJoin "$asset" "$arch" || return 1
@@ -720,11 +727,11 @@ configureDomainJoin() {
   args+=(
     -s "$credentials" -t elem -n 'Username'
     -s "$credentials" -t elem -n 'Password'
-    -s "$identification" -t elem -n 'JoinDomain'
+    -s "$XML_COMPONENT_UNATTENDED_JOIN/u:Identification" -t elem -n 'JoinDomain'
   )
 
   if [ -n "$ou" ]; then
-    args+=(-s "$identification" -t elem -n 'MachineObjectOU')
+    args+=(-s "$XML_COMPONENT_UNATTENDED_JOIN/u:Identification" -t elem -n 'MachineObjectOU')
   fi
 
   xmlstarlet ed "${args[@]}" "$asset" || return 1
@@ -734,7 +741,7 @@ configureDomainJoin() {
     -N "$XML_NS_UNATTEND_ARG"
     -u "$credentials/*[local-name()='Username']" -v "$auth"
     -u "$credentials/*[local-name()='Password']" -v "$pass"
-    -u "$identification/*[local-name()='JoinDomain']" -v "$domain"
+    -u "$XML_COMPONENT_UNATTENDED_JOIN/u:Identification/*[local-name()='JoinDomain']" -v "$domain"
   )
 
   if [ -n "$cred_domain" ]; then
@@ -742,7 +749,7 @@ configureDomainJoin() {
   fi
 
   if [ -n "$ou" ]; then
-    values+=(-u "$identification/*[local-name()='MachineObjectOU']" -v "$ou")
+    values+=(-u "$XML_COMPONENT_UNATTENDED_JOIN/u:Identification/*[local-name()='MachineObjectOU']" -v "$ou")
   fi
 
   xmlstarlet ed "${values[@]}" "$asset" || return 1
@@ -761,10 +768,9 @@ findPrimaryLocalAccount() {
   local auto_primary=0 auto_matches=0
   local admin_primary=0 admin_matches=0
   local selected=0 separator=$'\x1f'
-
-  local -a groups=()
   local counts records auto_user selected_user position name group
   local shell_count local_count found_admin found_autologon token
+  local -a groups=()
 
   counts=$(xmlstarlet sel \
     -N "$XML_NS_UNATTEND_ARG" \
@@ -869,6 +875,7 @@ updateLocalAccount() {
   result=$(findPrimaryLocalAccount "$asset") || return 1
   mapfile -t values <<< "$result"
   (( ${#values[@]} == 4 )) || return 1
+
   primary="${values[0]}"
   current_user="${values[1]}"
   admin_count="${values[2]}"
@@ -991,9 +998,9 @@ updateEditionXML() {
 
   local asset="$1"
 
+  local setup="$XML_COMPONENT_SETUP"
   local upper='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
   local lower='abcdefghijklmnopqrstuvwxyz'
-  local setup="$XML_COMPONENT_SETUP"
   local selector="$setup/u:ImageInstall/u:OSImage/u:InstallFrom/u:MetaData[translate(normalize-space(u:Key), '$lower', '$upper')='/IMAGE/NAME']/u:Value"
   local edition count records position value replacement
   local separator=$'\x1f'
@@ -1014,17 +1021,18 @@ updateEditionXML() {
     -N "$XML_NS_UNATTEND_ARG" -T -t -m "$selector" -v 'position()' -o "$separator" -v 'string(.)' -n "$asset") || return 1
 
   while IFS="$separator" read -r position value; do
+
     [ -n "$position" ] || continue
 
-    # Only Windows Server templates use EDITION as a mutable answer-file
-    # selector. Products such as Hyper-V Server have fixed SERVER* flags that
-    # must not be rewritten.
+    # Only Windows Server templates use EDITION as a mutable answer-file selector.
+    # Products such as Hyper-V Server have fixed SERVER* flags that must not be rewritten.
     [[ "${value,,}" == *"windows server"* ]] || continue
     [[ "$value" =~ ^(.*[[:space:]])SERVER[A-Za-z0-9_-]+[[:space:]]*$ ]] || continue
 
     replacement="${BASH_REMATCH[1]}SERVER$edition"
 
     xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -u "($selector)[$position]" -v "$replacement" "$asset" || return 1
+
   done <<< "$records"
 
   return 0
@@ -1169,29 +1177,30 @@ setConfigurationXML() {
     return 1
   }
 
-  if [ "$config_count" = "0" ] &&
-    ! ensureXMLDefaultNamespace "$tmp"; then
+  local msg="Failed to enable the Windows configuration set!"
 
+  if [ "$config_count" = "0" ] && ! ensureXMLDefaultNamespace "$tmp"; then
     rm -f "$tmp"
+    error "$msg (1)"
     return 1
   fi
 
   if [ "$config_count" = "1" ]; then
     xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -u "$config" -v "true" "$tmp" || {
       rm -f "$tmp"
-      error "Failed to enable the Windows configuration set!"
+      error "$msg (2)"
       return 1
     }
   elif [ "$userdata_count" = "1" ]; then
     xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -i "$userdata" -t elem -n "UseConfigurationSet" -v "true" "$tmp" || {
       rm -f "$tmp"
-      error "Failed to enable the Windows configuration set!"
+      error "$msg (3)"
       return 1
     }
   else
     xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -s "$setup" -t elem -n "UseConfigurationSet" -v "true" "$tmp" || {
       rm -f "$tmp"
-      error "Failed to enable the Windows configuration set!"
+      error "$msg (4)"
       return 1
     }
   fi
@@ -1203,7 +1212,7 @@ setConfigurationXML() {
 
   if [ "$result_count" != "1" ]; then
     rm -f "$tmp"
-    error "Failed to enable the Windows configuration set!"
+    error "$msg (5)"
     return 1
   fi
 
@@ -1219,8 +1228,7 @@ removeSharedFolder() {
 
   local script="$1"
 
-  if ! disabled "${SHORTCUT:-}" &&
-    ! disabled "${SAMBA:-}"; then
+  if ! disabled "${SHORTCUT:-}" && ! disabled "${SAMBA:-}"; then
     return 0
   fi
 
@@ -1299,12 +1307,13 @@ removeEmbeddedProductKeys() {
 
 validateXMLSettings() {
 
-  validateResolution "WIDTH" "$WIDTH" 320 || return 1
-  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
   validateMembership || return 1
   validateComputerName "${HOST:-}" || return 1
   validateProductKey "${KEY:-}" || return 1
   validatePassword "${PASSWORD:-}" || return 1
+
+  validateResolution "WIDTH" "$WIDTH" 320 || return 1
+  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
 
   return 0
 }
@@ -1828,15 +1837,13 @@ encodeUnattendPassword() {
 
   # Windows unattend password fields use a field-specific suffix before
   # UTF-16LE/Base64 encoding; this is obfuscation rather than encryption.
-  printf '%s' "${password}${suffix}" |
-    iconv -f utf-8 -t utf-16le |
-    base64 -w 0
+  printf '%s' "${password}${suffix}" | iconv -f utf-8 -t utf-16le | base64 -w 0
+
 }
 
 enableLog() {
 
   local script="$1"
-
   local content
 
   enabled "${LOG:-}" || return 0
@@ -1887,7 +1894,6 @@ getXMLNodeCount() {
   local xpath="$2"
 
   xmlstarlet sel -N "$XML_NS_UNATTEND_ARG" -T -t -v "count($xpath)" "$asset"
-
 }
 
 validateUniqueXMLNodes() {
@@ -2001,8 +2007,11 @@ updateSetupScript() {
   fi
 
   if [ -n "$domain" ]; then
+
     removeSetupBlock "$script" "LOCAL_ACCOUNT" || return 1
+
   elif [ -n "$user" ]; then
+
     validateUsername "$user" "local" || return 1
 
     id=$(basename "$asset") || return 1
@@ -2026,6 +2035,7 @@ updateSetupScript() {
     esac
 
     replaceSetupBlock "$script" "LOCAL_ACCOUNT" "$content" || return 1
+
   fi
 
   enableLog "$script" || return 1
@@ -2047,9 +2057,9 @@ findSetupScript() {
 
   dir=$(dirname "$asset") || return 1
   name=$(basename "$asset") || return 1
+
   id="${name%.*}"
   normal="$id"
-
   candidates+=("$dir/$id.cmd")
 
   if [[ "${normal,,}" == *"-eval" ]]; then
@@ -2057,19 +2067,19 @@ findSetupScript() {
     candidates+=("$dir/$normal.cmd")
   fi
 
-  # Generated edition-specific answer files inherit the script belonging to
-  # their generic source template.
-  case "${normal,,}" in
-    "win7"* | "win8"* | "win10"* | "win11"* | "winvista"* | "win20"* )
-      candidates+=("$dir/${normal%%-*}.cmd")
-      ;;
-  esac
+  # Generated edition-specific answer files inherit the
+  # script belonging to their generic source template.
+  if [[ "$normal" == *-* ]]; then
+    candidates+=("$dir/${normal%%-*}.cmd")
+  fi
 
   for candidate in "${candidates[@]}"; do
+
     if [ -f "$candidate" ] && [ -s "$candidate" ]; then
       printf '%s' "$candidate"
       return 0
     fi
+
   done
 
   error "Failed to find setup script for answer file: $asset"
@@ -2082,7 +2092,6 @@ stageSetupScript() {
   local stage="$2"
 
   local source target
-
   source=$(findSetupScript "$asset") || return 1
   [ -n "$source" ] || return 0
 
@@ -2139,6 +2148,7 @@ rewriteSetupBlock() {
   while IFS= read -r line || [ -n "$line" ]; do
 
     if [ "$line" = "$begin" ]; then
+
       if [ "$action" = "replace" ]; then
         if ! printf '%s\n' "$line" >> "$tmp" ||
           ! printf '%s\n' "$content" >> "$tmp"; then
@@ -2152,6 +2162,7 @@ rewriteSetupBlock() {
     fi
 
     if [ "$line" = "$end" ]; then
+
       inside=0
 
       if [ "$action" = "replace" ]; then
@@ -2165,10 +2176,12 @@ rewriteSetupBlock() {
     fi
 
     if (( ! inside )); then
+
       if ! printf '%s\n' "$line" >> "$tmp"; then
         rm -f "$tmp"
         return 1
       fi
+
     fi
 
   done < "$file"
@@ -2225,7 +2238,6 @@ escapeSIFValue() {
 escapeRegistryValue() {
 
   printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
-
 }
 
 extractDrivers() {
@@ -2382,15 +2394,14 @@ addLegacyDrivers() {
   local arch="$4"
   local drivers="$5"
 
-  local file
   local msg="Adding drivers to image..."
-
   info "$msg" && html "$msg"
 
   extractDrivers "$drivers" || return 1
   copyStorageDriver "$dir" "$target" "$driver" "$arch" "$drivers" || return 1
   addNetworkDriver "$dir" "$driver" "$arch" "$drivers" || return 1
 
+  local file
   file=$(find "$target" -maxdepth 1 -type f -iname TXTSETUP.SIF -print -quit) || return 1
 
   if [ -z "$file" ]; then
@@ -2414,7 +2425,6 @@ setLegacyKey() {
   local desc="$4"
 
   local setup pid key file
-
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini -print -quit) || return 1
 
   [[ -n "$setup" ]] || return 0
@@ -2440,7 +2450,9 @@ setLegacyKey() {
     # Prefer a staging or OEM key already shipped on the media before falling
     # back to Microsoft's documented generic installation keys.
     if [[ "$driver" == "2k3" ]]; then
+
       key=$(grep -i -A 2 "StagingKey" "$file" | tail -n 2 | head -n 1) || key=""
+
     else
 
       key="${pid: -8:5}"
@@ -2473,8 +2485,7 @@ setLegacyKey() {
       else
         # Windows XP Professional x64 generic trial key (no activation)
         KEY="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
-      fi
-      ;;
+      fi ;;
 
     "2k3" )
 
@@ -2484,8 +2495,7 @@ setLegacyKey() {
       else
         # Windows Server 2003 Standard x64 generic trial key (no activation)
         KEY="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
-      fi
-      ;;
+      fi ;;
 
   esac
 
