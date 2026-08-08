@@ -2462,7 +2462,9 @@ addLegacyDrivers() {
   patchStorageDriver "$file" "$arch" || return 1
   addSataDriver "$dir" "$target" "$arch" "$drivers" "$file" || return 1
 
-  rm -rf "$drivers" || return 1
+  if ! rm -rf "$drivers"; then
+    warn "failed to clean temporary driver files!"
+  fi
 
   return 0
 }
