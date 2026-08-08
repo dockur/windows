@@ -1119,7 +1119,7 @@ verifyFile() {
     info "Successfully verified $type!" && return 0
   fi
 
-  error "The downloaded file has an unknown $algo checksum: $hash , as the expected value was: $check. Please report this at $SUPPORT/issues"
+  warn "the downloaded file has an unknown $algo checksum: $hash , as the expected value was: $check. Please report this at $SUPPORT/issues"
   return 1
 }
 
