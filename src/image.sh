@@ -1269,6 +1269,7 @@ configureImage() {
 detectImageInfo() {
 
   local image_info="$1"
+  local configure="${2:-Y}"
 
   local desc index rc
 
@@ -1297,6 +1298,12 @@ detectImageInfo() {
   }
 
   if [ -z "$DETECTED" ]; then
+
+    if ! enabled "$configure"; then
+      error "Failed to determine Windows version from image metadata!"
+      return 1
+    fi
+
     unknownImage || {
       rc=$?
       enabled "$DEBUG" && echo "Unknown-image handling failed after no Windows version could be detected (status $rc)." >&2
@@ -1310,6 +1317,8 @@ detectImageInfo() {
     enabled "$DEBUG" && echo "Failed to detect the language for image $DETECTED at index ${index:-empty} (status $rc)." >&2
     return "$rc"
   }
+
+  enabled "$configure" || return 0
 
   desc=$(describeImage) || {
     rc=$?
@@ -1362,7 +1371,34 @@ detectIsoImage() {
   return 0
 }
 
+detectESDImage() {
+
+  local iso="$1"
+  local image_info
+
+  image_info=$(wimlib-imagex info "$iso" --xml 2>/dev/null |
+    iconv -f UTF-16LE -t UTF-8 2>/dev/null) || {
+    error "Cannot read ESD file information!"
+    return 2
+  }
+
+  # Direct download ESDs use images 1-3 for setup media, WinPE, and Windows
+  # Setup; only images 4 and higher contain installable editions.
+  if ! image_info=$(xmlstarlet ed \
+      -d '/WIM/IMAGE[number(@INDEX) < 4]' \
+      <<< "$image_info" 2>/dev/null); then
+    error "Cannot read installable images from ESD file!"
+    return 2
+  fi
+
+  detectImageInfo "$image_info" "N" || return 2
+
+  return 0
+}
+
 baseDir() {
+
+  # TODO: Can be removed with base image 7.45+
 
   local path="${1%/}"
 
