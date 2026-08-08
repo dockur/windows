@@ -4,39 +4,17 @@ set -Eeuo pipefail
 getVersions() {
 
   local xml="$1"
-  local versions_name="$2"
-  local bases_name="$3"
-  local groups_name="$4"
-  local indexes_name="$5"
 
-  local -n bases_ref="$bases_name"
-  local -n groups_ref="$groups_name"
-  local -n indexes_ref="$indexes_name"
-  local -n versions_ref="$versions_name"
-
-  local platform image_count records record_count=0
-  local image_index display product image edition_id
-  local install_type flags candidate candidate_id
-  local candidate_base evaluation key name structured
+  local image_index image edition_id
+  local install_type candidate_base 
+  local candidate candidate_id flags
+  local evaluation key name structured
+  local platform records display product
   local separator=$'\x1f'
-
-  bases_ref=()
-  groups_ref=()
-  indexes_ref=()
-  versions_ref=()
+  local -A indexes=()
 
   platform=$(getPlatform "$xml") || return 1
-  image_count=$(xmlstarlet sel -T -t -v 'count(/WIM/IMAGE)' - 2>/dev/null <<< "$xml") || return 1
 
-  if [[ ! "$image_count" =~ ^[0-9]+$ ]]; then
-    error "Invalid image count in WIM metadata: '$image_count'"
-    return 1
-  fi
-
-  (( image_count > 0 )) || return 0
-
-  # Keep one compact record per image. XML 1.0 cannot contain U+001F, so it
-  # can safely separate fields while all edition logic remains in Bash.
   if ! records=$(xmlstarlet sel \
     -T -t \
     -m '/WIM/IMAGE' \
@@ -54,8 +32,6 @@ getVersions() {
 
   while IFS="$separator" read -r image_index display product image edition_id install_type flags; do
 
-    ((record_count += 1))
-
     [ -n "$image_index" ] || continue
 
     if [[ ! "$image_index" =~ ^[1-9][0-9]*$ ]]; then
@@ -66,8 +42,6 @@ getVersions() {
     candidate_id=""
     candidate_base=""
 
-    # NAME normally contains the most precise edition identifier (including
-    # Server Core), while DISPLAYNAME is the best fallback for other images.
     for candidate in "$image" "$display" "$product"; do
 
       [[ "$candidate" == *"Operating System"* ]] && continue
@@ -80,33 +54,29 @@ getVersions() {
 
     done
 
-    # Preserve NAME precedence, but allow a recognized DISPLAYNAME edition to
-    # refine an otherwise generic family name.
+    # NAME sometimes contains only the Windows family while DISPLAYNAME
+    # contains the actual edition. Use the more specific DISPLAYNAME then.
     if [ -n "$candidate_base" ] && [ -n "$candidate_id" ] && [ -n "$display" ]; then
 
       name=$(normalizeEdition "$(printVersion "$candidate_base" "")") || return 1
       candidate=$(normalizeEdition "$candidate") || return 1
 
       if [ "$candidate" = "$name" ]; then
-
         structured=$(getVersion "$display" "$platform")
 
         if [ "$(fromName "$display" "$platform")" = "$candidate_base" ] &&
           [ -n "$structured" ] && [[ "${structured%-eval}" != "$candidate_base" ]] &&
-          [[ "$(getVersionPriority "$structured" "$candidate_base")" != "other" ]]; then
+          [ "$(getEditionRank "$structured")" -lt 99 ]; then
           candidate_id="$structured"
         fi
-
       fi
+
     fi
 
     if [ -z "$candidate_base" ] || [ -z "$candidate_id" ]; then
-
       name="${display:-${image:-$product}}"
       [ -n "$name" ] && warn "Unknown image name: '$name'"
-
       continue
-
     fi
 
     evaluation=""
@@ -122,10 +92,9 @@ getVersions() {
 
     key="${candidate_id,,}"
 
-    # Some client media use the same friendly name-derived ID for distinct
-    # editions. Preserve the established unsuffixed Pro ID, and use the
-    # structured edition metadata only to disambiguate a collision.
-    if [[ -v "indexes_ref[$key]" ]]; then
+    # Friendly names can collapse two different images to the same ID.
+    # Structured metadata is only needed to disambiguate that collision.
+    if [[ -v "indexes[$key]" ]]; then
 
       structured=""
 
@@ -136,9 +105,6 @@ getVersions() {
         "win20"* )
           structured=$(normalizeServerEditionID "${flags:-$edition_id}") || return 1
 
-          # Some media use the same EDITIONID for Core and Desktop images.
-          # INSTALLATIONTYPE provides the structural distinction without
-          # requiring a hardcoded marketing name.
           if [[ "${install_type,,}" == *"core"* && "$structured" != *"-core" ]]; then
             structured+="-core"
           fi
@@ -152,262 +118,187 @@ getVersions() {
 
     fi
 
-    if [[ -v "indexes_ref[$key]" ]]; then
-      warn "Duplicate image identity '$candidate_id' at indexes ${indexes_ref[$key]} and $image_index"
+    if [[ -v "indexes[$key]" ]]; then
+      warn "Duplicate image identity '$candidate_id' at indexes ${indexes[$key]} and $image_index"
       continue
     fi
 
-    indexes_ref["$key"]="$image_index"
-    versions_ref+=( "$candidate_id" )
-    bases_ref+=( "$candidate_base" )
-    groups_ref+=( "$(getVersionPriority "$candidate_id" "$candidate_base")" )
+    indexes["$key"]="$image_index"
+    printf '%s\t%s\n' "$candidate_id" "$image_index"
 
   done <<< "$records"
-
-  if (( record_count != image_count )); then
-    error "Expected $image_count image records in WIM metadata, found $record_count!"
-    return 1
-  fi
 
   return 0
 }
 
-getVersionPriority() {
+getEditionRank() {
 
   local id="${1,,}"
-  local base="${2,,}"
-
-  local entry priority patterns pattern
-  local result="other" score best_score=-1
-  local -a order=() pattern_list=()
+  local base="${id%%-*}"
+  local edition
 
   id="${id%-eval}"
-
-  mapfile -t order < <(getEditionOrder "$base")
-
-  local edition="${id#"$base"}"
+  edition="${id#"$base"}"
   edition="${edition#-}"
 
-  # Use the most specific matching pattern. This prevents broad patterns
-  # such as enterprise-* from taking precedence over enterprise-iot-*.
-  for entry in "${order[@]}"; do
-
-    IFS='|' read -r _ priority patterns <<< "$entry"
-    read -r -a pattern_list <<< "$patterns"
-
-    for pattern in "${pattern_list[@]}"; do
-
-      if [ "$pattern" = "@default" ]; then
-        [ -z "$edition" ] || continue
-        score=1
-      elif [[ "$pattern" == *"*" ]]; then
-        local prefix="${pattern%\*}"
-        [[ "$edition" == "$prefix"* ]] || continue
-        score="${#pattern}"
-      elif [ "$edition" = "$pattern" ]; then
-        score="${#pattern}"
-      else
-        continue
-      fi
-
-      if (( score > best_score )); then
-        result="$priority"
-        best_score="$score"
-      fi
-
-    done
-
-  done
-
-  echo "$result"
-  return 0
+  case "$base" in
+    "win20"* )
+      case "$edition" in
+        "" ) echo 0 ;;
+        "datacenter-azure-core" | "datacenter-azure-core-"* | \
+        "datacenter-core" | "datacenter-core-"* ) echo 7 ;;
+        "enterprise-core" | "enterprise-core-"* ) echo 8 ;;
+        "web-core" | "web-core-"* ) echo 9 ;;
+        "standard-core" | "standard-core-"* ) echo 6 ;;
+        "datacenter" | "datacenter-"* ) echo 1 ;;
+        "enterprise" | "enterprise-"* ) echo 2 ;;
+        "web" | "web-"* ) echo 3 ;;
+        "foundation" | "foundation-"* ) echo 4 ;;
+        "essentials" | "essentials-"* ) echo 5 ;;
+        "hv" | "hv-"* ) echo 10 ;;
+        * ) echo 99 ;;
+      esac
+      ;;
+    * )
+      case "$edition" in
+        "enterprise-iot" | "enterprise-iot-"* | "iot" | "iot-"* ) echo 3 ;;
+        "enterprise-ltsc" | "enterprise-ltsc-"* | "ltsc" | "ltsc-"* ) echo 4 ;;
+        "pro-education" | "pro-education-"* | "education" | "education-"* ) echo 5 ;;
+        "enterprise" | "enterprise-"* ) echo 0 ;;
+        "ultimate" | "ultimate-"* ) echo 1 ;;
+        "" | "n" | "pro" | "pro-"* | "professional" | "professional-"* | \
+        "business" | "business-"* ) echo 2 ;;
+        "home" | "home-"* ) echo 6 ;;
+        "starter" | "starter-"* ) echo 7 ;;
+        * ) echo 99 ;;
+      esac
+      ;;
+  esac
 }
 
 selectVersion() {
 
-  local versions_name="$1"
-  local indexes_name="$2"
-  local preferred_name="$3"
-  local result_name="$4"
-  local index_name="$5"
+  local wanted="$1"
+  shift
 
-  local -a candidates=()
-  local -n index_map="$indexes_name"
-  local -n version_list="$versions_name"
-  local -n selected_version="$result_name"
-  local -n preference_list="$preferred_name"
-  local -n selected_image_index="$index_name"
-  local wanted candidate match
+  local candidate record id index
+  local -a candidates=("$wanted")
 
-  # A detected edition is only selectable when a matching answer file can
-  # actually be staged for it.
-  for wanted in "${preference_list[@]}"; do
+  # Normal and Evaluation variants of the same edition are compatible.
+  if [[ "${wanted,,}" == *"-eval" ]]; then
+    candidates+=("${wanted%-eval}")
+  else
+    candidates+=("$wanted-eval")
+  fi
 
-    [ -n "$wanted" ] || continue
-    mapfile -t candidates < <(getCompatibleVersions "$wanted")
+  for candidate in "${candidates[@]}"; do
+    for record in "$@"; do
 
-    for candidate in "${candidates[@]}"; do
+      IFS=$'\t' read -r id index <<< "$record"
+      [[ "${id,,}" == "${candidate,,}" ]] || continue
+      hasAnswerFile "$id" || continue
 
-      match=$(hasVersion "$candidate" "${version_list[@]}") || continue
-
-      hasAnswerFile "$match" || continue
-
-      local key="${match,,}"
-      selected_version="$match"
-      selected_image_index="${index_map[$key]}"
-
+      printf '%s\n%s\n' "$id" "$index"
       return 0
 
     done
-
   done
 
   return 1
 }
 
-getCompatibleVersions() {
-
-  local wanted="$1"
-
-  printf '%s\n' "$wanted"
-
-  # Treat normal and Evaluation variants of the same edition as compatible.
-  # The exact requested variant is always checked first.
-  if [[ "${wanted,,}" == *"-eval" ]]; then
-    printf '%s\n' "${wanted%-eval}"
-  else
-    printf '%s\n' "$wanted-eval"
-  fi
-
-}
-
-selectEdition() {
-
-  local versions_name="$1"
-  local bases_name="$2"
-  local groups_name="$3"
-  local indexes_name="$4"
-  local suggested="$5"
-  local result_name="$6"
-  local index_name="$7"
-  local normalize_name="$8"
-  local order_name="$9"
-
-  local -A seen=()
-  local -a preferred=()
-  local -n edition_bases="$bases_name"
-  local -n edition_order="$order_name"
-  local -n edition_groups="$groups_name"
-  local -n edition_versions="$versions_name"
-  local base edition entry suffix priority i
-
-  # Selection precedence is explicit EDITION, source suggestion, canonical
-  # edition order, then noncanonical editions from the same priority groups.
-  if [ -n "$EDITION" ]; then
-
-    for base in "${edition_bases[@]}"; do
-      edition=$("$normalize_name" "$EDITION" "$base") || return 1
-      preferred+=("$base${edition:+-$edition}")
-    done
-
-    if selectVersion "$versions_name" "$indexes_name" preferred "$result_name" "$index_name"; then
-      return 0
-    fi
-
-    warn "edition '$EDITION' is not supported by this image, using automatic selection instead."
-
-  fi
-
-  if [ -n "$suggested" ]; then
-
-    preferred=("$suggested")
-
-    if selectVersion "$versions_name" "$indexes_name" preferred "$result_name" "$index_name"; then
-      return 0
-    fi
-
-  fi
-
-  # First try each canonical edition in its configured order.
-  preferred=()
-
-  for entry in "${edition_order[@]}"; do
-
-    IFS='|' read -r suffix _ _ <<< "$entry"
-
-    for base in "${edition_bases[@]}"; do
-      preferred+=("$base$suffix")
-    done
-
-  done
-
-  if selectVersion "$versions_name" "$indexes_name" preferred "$result_name" "$index_name"; then
-    return 0
-  fi
-
-  # Then try noncanonical editions from the same preference groups.
-  seen=()
-  preferred=()
-
-  for entry in "${edition_order[@]}"; do
-
-    IFS='|' read -r _ priority _ <<< "$entry"
-
-    [[ -v "seen[$priority]" ]] && continue
-    seen["$priority"]="Y"
-
-    for ((i=0;i<${#edition_versions[@]};i++)); do
-
-      [[ "${edition_groups[$i]}" == "$priority" ]] || continue
-      preferred+=("${edition_versions[$i]}")
-
-    done
-
-  done
-
-  selectVersion "$versions_name" "$indexes_name" preferred "$result_name" "$index_name"
-}
-
 detectVersion() {
 
   local xml="$1"
-  local suggested="${2:-}"
 
-  local -a bases=()
-  local -a groups=()
-  local -a versions=()
-  local -A image_indexes=()
-  local -a selection_order=()
-  local result="" index=""
+  local normalize="normalizeEditionID"
+  local output record id index base edition suffix
+  local -a images=() bases=() order=()
 
-  getVersions "$xml" versions bases groups image_indexes || return
+  output=$(getVersions "$xml") || return
+  [ -n "$output" ] && mapfile -t images <<< "$output"
 
-  if [ "${#versions[@]}" -eq 0 ]; then
-    printf '%s\n%s\n' "$result" "$index"
+  if [ "${#images[@]}" -eq 0 ]; then
+    printf '\n\n'
     return 0
   fi
 
-  local normalize="normalizeEditionID"
+  for record in "${images[@]}"; do
+    IFS=$'\t' read -r id _ <<< "$record"
+    bases+=("${id%%-*}")
+  done
 
   case "${bases[0],,}" in
     "win20"* )
-      normalize="normalizeServerEditionID" ;;
+      normalize="normalizeServerEditionID"
+      order=(
+        "" "-datacenter" "-datacenter-azure" "-enterprise" "-web"
+        "-foundation" "-essentials" "-standard-core" "-datacenter-core"
+        "-datacenter-azure-core" "-enterprise-core" "-web-core" "-hv"
+      ) ;;
+    * )
+      order=(
+        "-enterprise" "-ultimate" "" "-iot" "-ltsc" "-education"
+        "-home" "-home-premium" "-home-basic" "-starter"
+      ) ;;
   esac
 
-  mapfile -t selection_order < <(getEditionOrder "${bases[0]}")
+  # An explicit EDITION always gets first choice.
+  if [ -n "$EDITION" ]; then
 
-  if selectEdition versions bases groups image_indexes "$suggested" result index "$normalize" selection_order; then
-    printf '%s\n%s\n' "$result" "$index"
+    for base in "${bases[@]}"; do
+
+      edition=$("$normalize" "$EDITION" "$base") || return 1
+
+      if output=$(selectVersion "$base${edition:+-$edition}" "${images[@]}"); then
+        printf '%s\n' "$output"
+        return 0
+      fi
+
+    done
+
+    warn "edition '$EDITION' is not supported by this image, using automatic selection instead."
+  fi
+
+  # Prefer the normal editions in their established order.
+  for suffix in "${order[@]}"; do
+    for base in "${bases[@]}"; do
+
+      if output=$(selectVersion "$base$suffix" "${images[@]}"); then
+        printf '%s\n' "$output"
+        return 0
+      fi
+
+    done
+  done
+
+  # Otherwise keep the established family preference for noncanonical
+  # editions, while preserving WIM order within the same family.
+  local rank best_rank=99 result="" result_index=""
+
+  for record in "${images[@]}"; do
+
+    IFS=$'\t' read -r id index <<< "$record"
+    hasAnswerFile "$id" || continue
+
+    rank=$(getEditionRank "$id")
+    (( rank < best_rank )) || continue
+
+    best_rank="$rank"
+    result="$id"
+    result_index="$index"
+  
+  done
+
+  if [ -n "$result" ]; then
+    printf '%s\n%s\n' "$result" "$result_index"
     return 0
   fi
 
-  # Keep the first detected image identity when no edition with a usable answer
-  # file was found, so manual and generic fallback handling can still continue.
-  result="${versions[0]}"
-  local key="${result,,}"
-  index="${image_indexes[$key]}"
+  # Keep the first detected identity when only manual/generic fallback remains.
+  IFS=$'\t' read -r id index <<< "${images[0]}"
 
-  printf '%s\n%s\n' "$result" "$index"
+  printf '%s\n%s\n' "$id" "$index"
   return 0
 }
 
@@ -511,22 +402,6 @@ getImageSize() {
   done
 
   printf '%s\n' "$size"
-}
-
-hasVersion() {
-
-  local wanted="$1"
-  shift
-
-  local actual
-
-  for actual in "$@"; do
-    [[ "${actual,,}" == "${wanted,,}" ]] || continue
-    echo "$actual"
-    return 0
-  done
-
-  return 1
 }
 
 checkPlatform() {
