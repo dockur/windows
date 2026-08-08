@@ -136,7 +136,7 @@ waitForBoot() {
               keySent=1
             fi
           fi
-        elif (( keyWait >= 4 )); then
+        elif (( keyWait >= 1 )); then
           # Modern Windows usually needs blind timing, so start earlier.
           if sendKey spc 0 100 6 0.25; then
             keySent=1
