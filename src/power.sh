@@ -22,7 +22,6 @@ UEFI_BOOT_PATTERN='BdsDxe: starting Boot[[:xdigit:]]{4} '
 UEFI_NO_BOOT_MESSAGE='BdsDxe: No bootable option or device was found.'
 UEFI_DVD_BOOT_PATTERN='BdsDxe: starting Boot[[:xdigit:]]{4} "UEFI QEMU .*DVD-ROM'
 UEFI_DVD_KEY_PATTERN='BdsDxe: loading Boot[[:xdigit:]]{4} "UEFI QEMU .*DVD-ROM'
-UEFI_WINDOWS_BOOT_PATTERN='BdsDxe: starting Boot[[:xdigit:]]{4} "Windows Boot Manager" from .*HD\('
 
 bootStatus() {
 
