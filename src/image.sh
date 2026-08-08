@@ -273,13 +273,17 @@ detectLanguage() {
 
   for path in "${paths[@]}"; do
 
-    lang=$(xmlstarlet sel -T -t -v "normalize-space(string(($path)[1]))" - 2>/dev/null <<< "$xml") || lang=""
+    if ! lang=$(xmlstarlet sel -T -t -v "normalize-space(string(($path)[1]))" - 2>/dev/null <<< "$xml"); then
+      warn "failed to read language metadata from Windows image!"
+      return 0
+    fi
+
     [ -n "$lang" ] && break
 
   done
 
   if [ -z "$lang" ]; then
-    warn "Language could not be detected from ISO!"
+    warn "language could not be detected from ISO!"
     return 0
   fi
 
@@ -290,7 +294,7 @@ detectLanguage() {
     return 0
   fi
 
-  warn "Invalid language detected: \"$lang\""
+  warn "invalid language detected: \"$lang\""
   return 0
 }
 
