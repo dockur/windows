@@ -1235,7 +1235,7 @@ configureImage() {
 
   if [[ "$DETECTED" == "win81x86"* || "$DETECTED" == "win10x86"* ]]; then
     error "The 32-bit version of $desc is not supported!"
-    exit 67
+    return 2
   fi
 
   local msg="the answer file for $desc was not found ($DETECTED.xml)"
