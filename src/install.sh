@@ -65,11 +65,15 @@ selectWindowsImage() {
   XML=""
   FB="falling back to manual installation!"
 
-  normalizeDetected || return 70
+  normalizeDetected || {
+    error "Failed to initialize the detected Windows image!"
+    return 70
+  }
 
   if [ -n "$DETECTED" ]; then
 
     if ! setImage; then
+      error "Failed to configure the detected Windows image!"
       return 70
     fi
 
@@ -78,6 +82,7 @@ selectWindowsImage() {
     fi
 
     if ! extractImage "$iso" "$dir" "$VERSION"; then
+      error "Failed to extract the Windows installation image!"
       removeImage "$iso" || :
       return 72
     fi
@@ -93,16 +98,21 @@ selectWindowsImage() {
     detectIsoImage "$iso" && return 0
 
     rc=$?
-    (( rc == 1 )) || return 76
+    if (( rc != 1 )); then
+      error "Failed to inspect the Windows installation ISO!"
+      return 76
+    fi
 
   elif [[ "${iso,,}" == *.esd ]]; then
 
     detectESDImage "$iso" && return 0
+    error "Failed to inspect the Windows installation ESD!"
     return 76
 
   fi
 
   if ! extractImage "$iso" "$dir" "$VERSION"; then
+    error "Failed to extract the Windows installation image!"
     removeImage "$iso" || :
     return 74
   fi
@@ -112,9 +122,15 @@ selectWindowsImage() {
   detectImage "$dir" && return 0
 
   rc=$?
-  (( rc == 1 )) || return 76
+  if (( rc != 1 )); then
+    error "Failed to detect the extracted Windows installation image!"
+    return 76
+  fi
 
-  skipUnattended "$dir" "$iso" "$boot" || return 76
+  skipUnattended "$dir" "$iso" "$boot" || {
+    error "Failed to fall back to manual installation!"
+    return 76
+  }
 
   handled=1
   return 0
@@ -131,21 +147,29 @@ configureMachine() {
 
   if ! checkMemory "$DETECTED"; then
     if [ -z "$CUSTOM" ]; then
-      useOriginalImage "$iso" || return 79
+      useOriginalImage "$iso" || {
+        error "Failed to preserve the original installation image!"
+        return 79
+      }
     fi
     return 79
   fi
 
   if ! setMachine "$DETECTED" "$iso" "$dir" "$desc"; then
+    error "Failed to configure the virtual machine for $desc!"
     return 80
   fi
 
   if ! restoreMachineState; then
+    error "Failed to restore the saved machine state!"
     return 82
   fi
 
   if ! supportsUnattended "$DETECTED"; then
-    skipUnattended "$dir" "$iso" "$boot" "N" || return 83
+    skipUnattended "$dir" "$iso" "$boot" "N" || {
+      error "Failed to fall back to manual installation!"
+      return 83
+    }
     handled=1
     return 0
   fi
@@ -163,16 +187,21 @@ prepareWindowsImage() {
   if supportsXML "$DETECTED"; then
 
     if ! createOverlay "$XML" "$LANGUAGE" "$TMP/setup"; then
+      error "Failed to create the Windows setup overlay!"
       return 84
     fi
 
     if ! createSetupImage "$TMP/setup" "$STORAGE/setup.img"; then
+      error "Failed to create the Windows setup image!"
       return 86
     fi
 
     # Bootable ISOs can be reused unchanged with the generated setup image.
     if (( ! extracted )) && isDirectImage "$iso"; then
-      useOriginalImage "$iso" || return 88
+      useOriginalImage "$iso" || {
+        error "Failed to preserve the original installation image!"
+        return 88
+      }
       return 0
     fi
 
@@ -181,17 +210,26 @@ prepareWindowsImage() {
   # Extracted modern sources and SIF-based legacy media require a clean rebuild.
   if (( ! extracted )); then
     if ! extractImage "$iso" "$dir" "$VERSION"; then
+      error "Failed to extract the Windows installation image!"
       removeImage "$iso" || :
       return 90
     fi
   fi
 
   if ! prepareImage "$iso" "$dir"; then
+    error "Failed to prepare the Windows installation image!"
     return 92
   fi
 
-  removeImage "$iso" || return 96
-  buildImage "$dir" || return 98
+  removeImage "$iso" || {
+    error "Failed to remove the source installation image!"
+    return 96
+  }
+
+  buildImage "$dir" || {
+    error "Failed to build the Windows installation image!"
+    return 98
+  }
 
   return 0
 }
@@ -510,7 +548,10 @@ finishInstall() {
   fi
 
   local file="$STORAGE/windows.ver"
-  cp -f /etc/version "$file" || return 1
+  cp -f /etc/version "$file" || {
+    error "Failed to save the Windows installation version!"
+    return 1
+  }
 
   if ! setOwner "$file"; then
     warn "Failed to set the owner for \"$file\" !"
@@ -519,14 +560,20 @@ finishInstall() {
   if [[ "$boot" == "$STORAGE/"* ]]; then
     if [[ "$aborted" != [Yy1]* ]] || [ -z "$CUSTOM" ]; then
       base=$(basename "$boot")
-      writeState "base" "$base" || return 1
+      writeState "base" "$base" || {
+        error "Failed to save the Windows installation source!"
+        return 1
+      }
     fi
   fi
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
     if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
 
-      writeState "mode" "$BOOT_MODE" || return 1
+      writeState "mode" "$BOOT_MODE" || {
+        error "Failed to save the Windows boot mode!"
+        return 1
+      }
 
     else
 
@@ -538,13 +585,19 @@ finishInstall() {
 
       if (( secure )); then
         BOOT_MODE="windows_secure"
-        writeState "mode" "$BOOT_MODE" || return 1
+        writeState "mode" "$BOOT_MODE" || {
+          error "Failed to save the Windows boot mode!"
+          return 1
+        }
       fi
 
     fi
   fi
 
-  reserveSambaPorts || return 1
+  reserveSambaPorts || {
+    error "Failed to reserve Samba ports!"
+    return 1
+  }
 
   if ! rm -rf -- "$TMP"; then
     error "Failed to remove directory \"$TMP\" !"
@@ -1258,7 +1311,10 @@ createOverlay() {
     return 1
   fi
 
-  addAnswerFile "$asset" "$language" "$stage" || return 1
+  addAnswerFile "$asset" "$language" "$stage" || {
+    error "Failed to include the Windows answer file!"
+    return 1
+  }
 
   return 0
 }
