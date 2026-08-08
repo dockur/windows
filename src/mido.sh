@@ -175,9 +175,8 @@ downloadWindowsLink() {
     --max-filesize 100K \
     -- "$skuUrl") || return
 
-  # Let jq parsing failures propagate so malformed API data is not mistaken
-  # for a normal missing-result response. The same applies to the link data.
-  skuId=$(printf '%s\n' "$skuJson" | jq --arg LANG "$language" -r 'first(.Skus[]? | select(.Language == $LANG) | .Id) // empty') 2>/dev/null || return
+  # Treat malformed API responses as a failed download method so another route or mirror can be tried.
+  skuId=$(printf '%s\n' "$skuJson" | jq --arg LANG "$language" -r 'first(.Skus[]? | select(.Language == $LANG) | .Id) // empty') 2>/dev/null || return 1
 
   if [ -z "$skuId" ] || [[ "${skuId,,}" == "null" ]]; then
     language=$(getLanguage "$lang" "desc")
@@ -214,7 +213,7 @@ downloadWindowsLink() {
     return 1
   fi
 
-  link=$(printf '%s\n' "$linkJson" | jq --argjson TYPE "$type" -r 'first(.ProductDownloadOptions[]? | select(.DownloadType == $TYPE) | .Uri) // empty') 2>/dev/null || return
+  link=$(printf '%s\n' "$linkJson" | jq --argjson TYPE "$type" -r 'first(.ProductDownloadOptions[]? | select(.DownloadType == $TYPE) | .Uri) // empty') 2>/dev/null || return 1
 
   if [ -z "$link" ] || [[ "${link,,}" == "null" ]]; then
     error "Microsoft server gave us no download link to our request for an automated download!"
