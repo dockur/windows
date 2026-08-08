@@ -842,45 +842,6 @@ getServerEditionID() {
   return 0
 }
 
-getEditionOrder() {
-
-  local id="${1,,}"
-
-  case "$id" in
-    "win20"* )
-      printf '%s\n' \
-        "|default|@default" \
-        "-datacenter|datacenter|datacenter datacenter-*" \
-        "-datacenter-azure|datacenter|datacenter-azure" \
-        "-enterprise|enterprise|enterprise enterprise-*" \
-        "-web|web|web web-*" \
-        "-foundation|foundation|foundation foundation-*" \
-        "-essentials|essentials|essentials essentials-*" \
-        "-standard-core|standard-core|standard-core standard-core-*" \
-        "-datacenter-core|datacenter-core|datacenter-core datacenter-core-*" \
-        "-datacenter-azure-core|datacenter-core|datacenter-azure-core" \
-        "-enterprise-core|enterprise-core|enterprise-core enterprise-core-*" \
-        "-web-core|web-core|web-core web-core-*" \
-        "-hv|hv|hv hv-*"
-      ;;
-    * )
-      printf '%s\n' \
-        "-enterprise|enterprise|enterprise enterprise-*" \
-        "-ultimate|ultimate|ultimate ultimate-*" \
-        "|default|@default n pro pro-* professional professional-* business business-*" \
-        "-iot|iot|iot iot-* enterprise-iot enterprise-iot-*" \
-        "-ltsc|ltsc|ltsc ltsc-* enterprise-ltsc enterprise-ltsc-*" \
-        "-education|education|education education-* pro-education pro-education-*" \
-        "-home|home|home home-*" \
-        "-home-premium|home|home-premium home-premium-*" \
-        "-home-basic|home|home-basic home-basic-*" \
-        "-starter|starter|starter starter-*"
-      ;;
-  esac
-
-  return 0
-}
-
 getVersion() {
 
   local name="$1"
