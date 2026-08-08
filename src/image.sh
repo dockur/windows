@@ -1265,10 +1265,7 @@ detectImageInfo() {
   local image_info="$1"
   local desc index rc
 
-  checkPlatform "$image_info" || {
-    error "Platform validation failed for the Windows image metadata."
-    exit 67
-  }
+  checkPlatform "$image_info" || return 2
 
   local output
   output=$(detectVersion "$image_info") || {
@@ -1379,10 +1376,7 @@ detectESDImage() {
     return 2
   fi
 
-  checkPlatform "$image_info" || {
-    error "Platform validation failed for the ESD image metadata."
-    exit 67
-  }
+  checkPlatform "$image_info" || return 2
 
   local output
   output=$(detectVersion "$install_info") || {
