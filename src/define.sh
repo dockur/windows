@@ -638,6 +638,38 @@ fromName() {
   return 0
 }
 
+getVersion() {
+
+  local name="$1"
+  local arch="$2"
+
+  local id edition
+  local evaluation=""
+
+  id=$(fromName "$name" "$arch")
+  [[ "${name,,}" == *"evaluation"* ]] && evaluation="-eval"
+
+  case "${id,,}" in
+    "winvista"* | "win7"* | "win8"* | "win10"* | "win11"* )
+      if edition=$(getEditionID "$name" "$id"); then
+        [ -n "$edition" ] && id+="-$edition"
+        [ -n "$evaluation" ] && id+="$evaluation"
+      fi
+      ;;
+    "win20"* )
+      if [[ "${name,,}" == *"hyper-v server"* ]]; then
+        id+="-hv"
+      elif edition=$(getServerEditionID "$name" "$id"); then
+        [ -n "$edition" ] && id+="-$edition"
+        [ -n "$evaluation" ] && id+="$evaluation"
+      fi
+      ;;
+  esac
+
+  echo "$id"
+  return 0
+}
+
 isClientEdition() {
 
   case "${1,,}" in
@@ -649,6 +681,47 @@ isClientEdition() {
   esac
 
   return 1
+}
+
+getEditionPolicy() {
+
+  local base="${1,,}"
+
+  case "$base" in
+    "win20"* )
+      printf '%s\n' \
+        "normalizeServerEditionID" \
+        "" \
+        "-datacenter" \
+        "-datacenter-azure" \
+        "-enterprise" \
+        "-web" \
+        "-foundation" \
+        "-essentials" \
+        "-standard-core" \
+        "-datacenter-core" \
+        "-datacenter-azure-core" \
+        "-enterprise-core" \
+        "-web-core" \
+        "-hv"
+      ;;
+    * )
+      printf '%s\n' \
+        "normalizeEditionID" \
+        "-enterprise" \
+        "-ultimate" \
+        "" \
+        "-iot" \
+        "-ltsc" \
+        "-education" \
+        "-home" \
+        "-home-premium" \
+        "-home-basic" \
+        "-starter"
+      ;;
+  esac
+
+  return 0
 }
 
 normalizeEdition() {
@@ -816,79 +889,6 @@ getServerEditionID() {
   edition=$(normalizeServerEditionID "$edition") || return 1
 
   echo "$edition"
-  return 0
-}
-
-getEditionPolicy() {
-
-  local base="${1,,}"
-
-  case "$base" in
-    "win20"* )
-      printf '%s\n' \
-        "normalizeServerEditionID" \
-        "" \
-        "-datacenter" \
-        "-datacenter-azure" \
-        "-enterprise" \
-        "-web" \
-        "-foundation" \
-        "-essentials" \
-        "-standard-core" \
-        "-datacenter-core" \
-        "-datacenter-azure-core" \
-        "-enterprise-core" \
-        "-web-core" \
-        "-hv"
-      ;;
-    * )
-      printf '%s\n' \
-        "normalizeEditionID" \
-        "-enterprise" \
-        "-ultimate" \
-        "" \
-        "-iot" \
-        "-ltsc" \
-        "-education" \
-        "-home" \
-        "-home-premium" \
-        "-home-basic" \
-        "-starter"
-      ;;
-  esac
-
-  return 0
-}
-
-getVersion() {
-
-  local name="$1"
-  local arch="$2"
-
-  local id edition
-  local evaluation=""
-
-  id=$(fromName "$name" "$arch")
-  [[ "${name,,}" == *"evaluation"* ]] && evaluation="-eval"
-
-  case "${id,,}" in
-    "winvista"* | "win7"* | "win8"* | "win10"* | "win11"* )
-      if edition=$(getEditionID "$name" "$id"); then
-        [ -n "$edition" ] && id+="-$edition"
-        [ -n "$evaluation" ] && id+="$evaluation"
-      fi
-      ;;
-    "win20"* )
-      if [[ "${name,,}" == *"hyper-v server"* ]]; then
-        id+="-hv"
-      elif edition=$(getServerEditionID "$name" "$id"); then
-        [ -n "$edition" ] && id+="-$edition"
-        [ -n "$evaluation" ] && id+="$evaluation"
-      fi
-      ;;
-  esac
-
-  echo "$id"
   return 0
 }
 
