@@ -726,6 +726,8 @@ getEditionRank() {
       esac
       ;;
   esac
+
+  return 0
 }
 
 getEditionPolicy() {
