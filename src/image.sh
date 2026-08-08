@@ -1345,7 +1345,10 @@ detectIsoImage() {
 
   info "Detecting version from ISO image..."
 
-  detectImageInfo "$image_info" || return 2
+  detectImageInfo "$image_info" || {
+    error "Failed to process the Windows image metadata!"
+    return 2
+  }
 
   return 0
 }
@@ -1403,7 +1406,10 @@ detectESDImage() {
 
   info "Detecting version from ESD image..."
 
-  detectImageInfo "$image_info" || return 2
+  detectImageInfo "$image_info" || {
+    error "Failed to process the ESD image metadata!"
+    return 2
+  }
 
   return 0
 }
