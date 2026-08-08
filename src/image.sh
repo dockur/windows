@@ -1269,7 +1269,6 @@ configureImage() {
 detectImageInfo() {
 
   local image_info="$1"
-  local configure="${2:-Y}"
 
   local desc index rc
 
@@ -1299,11 +1298,6 @@ detectImageInfo() {
 
   if [ -z "$DETECTED" ]; then
 
-    if ! enabled "$configure"; then
-      error "Failed to determine Windows version from image metadata!"
-      return 1
-    fi
-
     unknownImage || {
       rc=$?
       enabled "$DEBUG" && echo "Unknown-image handling failed after no Windows version could be detected (status $rc)." >&2
@@ -1317,8 +1311,6 @@ detectImageInfo() {
     enabled "$DEBUG" && echo "Failed to detect the language for image $DETECTED at index ${index:-empty} (status $rc)." >&2
     return "$rc"
   }
-
-  enabled "$configure" || return 0
 
   desc=$(describeImage) || {
     rc=$?
