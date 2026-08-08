@@ -762,26 +762,22 @@ normalizeServerEdition() {
   edition="${edition#r2-}"
 
   case "$edition" in
-    "core" | "core-installation" | "server-core-installation" )
+    "core" | "server-core" | "servercore" | \
+    "core-installation" | "server-core-installation" )
       edition="standard-core" ;;
     "desktop-experience" | "server-with-a-gui" | "full-installation" )
       edition="standard" ;;
-    *"-server-core-installation" )
-      edition="${edition%-server-core-installation}-core" ;;
-    *"-core-installation" )
+    *"-server-core-installation" | *"-core-installation" )
+      edition="${edition%-server-core-installation}"
       edition="${edition%-core-installation}-core" ;;
-    *"-desktop-experience" )
-      edition="${edition%-desktop-experience}" ;;
-    *"-server-with-a-gui" )
-      edition="${edition%-server-with-a-gui}" ;;
-    *"-full-installation" )
+    *"-desktop-experience" | *"-server-with-a-gui" | *"-full-installation" )
+      edition="${edition%-desktop-experience}"
+      edition="${edition%-server-with-a-gui}"
       edition="${edition%-full-installation}" ;;
   esac
 
   edition="${edition#server-}"
   edition="${edition#server}"
-
-  [ "$edition" == "core" ] && edition="standard-core"
 
   echo "$edition"
   return 0
@@ -794,24 +790,13 @@ normalizeServerEditionID() {
   edition=$(normalizeServerEdition "$1") || return 1
 
   case "$edition" in
-    "" | "standard" | "serverstandard" ) edition="" ;;
-    "core" | "standard-core" | "standardcore" | "serverstandardcore" ) edition="standard-core" ;;
-    "datacenter" | "serverdatacenter" ) edition="datacenter" ;;
-    "datacenter-core" | "datacentercore" | "serverdatacentercore" ) edition="datacenter-core" ;;
-    "datacenter-azure" | "datacenter-azure-edition" | "datacenterazureedition" | \
-    "serverdatacenterazureedition" | "serverturbine" ) edition="datacenter-azure" ;;
-    "datacenter-azure-core" | "datacenter-azure-edition-core" | \
-    "datacenterazureeditioncore" | "serverdatacenterazureeditioncore" | \
-    "serverturbinecore" ) edition="datacenter-azure-core" ;;
-    "enterprise" | "serverenterprise" ) edition="enterprise" ;;
-    "enterprise-core" | "enterprisecore" | "serverenterprisecore" ) edition="enterprise-core" ;;
-    "web" | "serverweb" ) edition="web" ;;
-    "web-core" | "webcore" | "serverwebcore" ) edition="web-core" ;;
-    "foundation" | "serverfoundation" ) edition="foundation" ;;
-    "essentials" | "serveressentials" ) edition="essentials" ;;
-    # Keep unrecognized internal edition IDs deterministic and unique.
-    # Known aliases above only provide stable, friendlier public names.
-    * ) : ;;
+    "standard" ) edition="" ;;
+    "standardcore" | "datacentercore" | "enterprisecore" | "webcore" )
+      edition="${edition%core}-core" ;;
+    "datacenter-azure-edition" | "datacenterazureedition" )
+      edition="datacenter-azure" ;;
+    "datacenter-azure-edition-core" | "datacenterazureeditioncore" )
+      edition="datacenter-azure-core" ;;
   esac
 
   echo "$edition"
@@ -842,45 +827,6 @@ getServerEditionID() {
   return 0
 }
 
-getEditionOrder() {
-
-  local id="${1,,}"
-
-  case "$id" in
-    "win20"* )
-      printf '%s\n' \
-        "|default|@default" \
-        "-datacenter|datacenter|datacenter datacenter-*" \
-        "-datacenter-azure|datacenter|datacenter-azure" \
-        "-enterprise|enterprise|enterprise enterprise-*" \
-        "-web|web|web web-*" \
-        "-foundation|foundation|foundation foundation-*" \
-        "-essentials|essentials|essentials essentials-*" \
-        "-standard-core|standard-core|standard-core standard-core-*" \
-        "-datacenter-core|datacenter-core|datacenter-core datacenter-core-*" \
-        "-datacenter-azure-core|datacenter-core|datacenter-azure-core" \
-        "-enterprise-core|enterprise-core|enterprise-core enterprise-core-*" \
-        "-web-core|web-core|web-core web-core-*" \
-        "-hv|hv|hv hv-*"
-      ;;
-    * )
-      printf '%s\n' \
-        "-enterprise|enterprise|enterprise enterprise-*" \
-        "-ultimate|ultimate|ultimate ultimate-*" \
-        "|default|@default n pro pro-* professional professional-* business business-*" \
-        "-iot|iot|iot iot-* enterprise-iot enterprise-iot-*" \
-        "-ltsc|ltsc|ltsc ltsc-* enterprise-ltsc enterprise-ltsc-*" \
-        "-education|education|education education-* pro-education pro-education-*" \
-        "-home|home|home home-*" \
-        "-home-premium|home|home-premium home-premium-*" \
-        "-home-basic|home|home-basic home-basic-*" \
-        "-starter|starter|starter starter-*"
-      ;;
-  esac
-
-  return 0
-}
-
 getVersion() {
 
   local name="$1"
@@ -899,8 +845,7 @@ getVersion() {
         [ -n "$evaluation" ] && id+="$evaluation"
       fi
       ;;
-    "win2025"* | "win2022"* | "win2019"* | "win2016"* | \
-    "win2012"* | "win2008"* | "win2003"* )
+    "win20"* )
       if [[ "${name,,}" == *"hyper-v server"* ]]; then
         id+="-hv"
       elif edition=$(getServerEditionID "$name" "$id"); then
@@ -1453,7 +1398,7 @@ getLink4() {
     "win2008r2" )
       size=3166584832
       sum="dfd9890881b7e832a927c38310fb415b7ea62ac5a896671f2ce2a111998f0df8"
-      url="en_windows_server_2008_r2_with_sp1_x64_dvd_617601_202006/en_windows_server_2008_r2_with_sp1_x64_dvd_617601.iso"
+      url="en_windows_server_2008_r2_with_sp1_x64_dvd_617601_202405/en_windows_server_2008_r2_with_sp1_x64_dvd_617601.iso"
       ;;
     "win7x64" | "win7x64-ultimate" )
       size=3320903680
