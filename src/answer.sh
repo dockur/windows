@@ -194,7 +194,10 @@ addAnswerFile() {
 
   if [ -z "${CUSTOM_XML:-}" ]; then
 
-    prepareSetupScript "$asset" "$stage" || return 1
+    if ! prepareSetupScript "$asset" "$stage"; then
+      error "Failed to prepare the Windows setup script!"
+      return 1
+    fi
 
   fi
 
