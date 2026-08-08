@@ -108,31 +108,42 @@ waitForBoot() {
   local pid="$1"
   local timeout="${2:-30}"
   local keySent=0
+  local keyWait=0
   local pendingType=0
   local pendingLine=""
   local pendingDeadline=0
-  local keyMode status marker
+  local status marker
   local deadline=$((SECONDS + timeout))
   local screen="visit http://127.0.0.1:$WEB_PORT/ to view the screen..."
 
   while isAlive "$pid"; do
 
-    # Prefer the real boot prompt when it is visible on the PTY. If it is not
-    # logged, fall back to a short burst after firmware starts the DVD.
+    # The boot prompt is only an opportunistic early trigger because some
+    # Windows versions do not expose it on the PTY until much later.
     if (( ! keySent )) && needsBootKey; then
 
-      if keyMode=$(bootKeyMode); then
+      if [ -s "$QEMU_PTY" ] && grep -Fq "Press any key to" "$QEMU_PTY"; then
+        if sendKey spc 0 500; then
+          keySent=1
+        fi
+      elif bootKeyReady; then
+        (( keyWait += 1 ))
 
-        if [[ "$keyMode" == "prompt" ]]; then
-          if sendKey spc 0 500; then
-            keySent=1
+        if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+          # Keep the legacy fallback at about one second after the DVD marker.
+          if (( keyWait >= 5 )); then
+            if sendKey spc 0 100 6 0.25; then
+              keySent=1
+            fi
           fi
-        else
+        elif (( keyWait >= 4 )); then
+          # Modern Windows usually needs blind timing, so start earlier.
           if sendKey spc 0 100 6 0.25; then
             keySent=1
           fi
         fi
-
+      else
+        keyWait=0
       fi
 
     fi
@@ -347,40 +358,16 @@ needsBootKey() {
   supportsBootKey "$DETECTED"
 }
 
-bootKeyMode() {
+bootKeyReady() {
 
   [ ! -s "$QEMU_PTY" ] && return 1
 
-  # A visible prompt is the safest trigger and should be answered immediately.
-  if grep -Fq "Press any key to" "$QEMU_PTY"; then
-    echo "prompt"
-    return 0
-  fi
-
-  local i checks=4
-
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
-    grep -Fq "Booting from DVD/CD" "$QEMU_PTY" || return 1
-  else
-    grep -Eq "$UEFI_DVD_BOOT_PATTERN" "$QEMU_PTY" || return 1
-    checks=5
+    grep -Fq "Booting from DVD/CD" "$QEMU_PTY"
+    return $?
   fi
 
-  # Keep watching briefly after the firmware DVD marker so older Windows can
-  # still use its real prompt. Modern Windows usually requires blind timing.
-  for ((i = 1; i <= checks; i++)); do
-
-    sleep 0.25
-
-    if grep -Fq "Press any key to" "$QEMU_PTY"; then
-      echo "prompt"
-      return 0
-    fi
-
-  done
-
-  echo "blind"
-  return 0
+  grep -Eq "$UEFI_DVD_BOOT_PATTERN" "$QEMU_PTY"
 }
 
 getBootMarker() {
