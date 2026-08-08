@@ -1376,7 +1376,7 @@ detectESDImage() {
     return 2
   fi
 
-  checkPlatform "$image_info" || return 2
+  checkPlatform "$install_info" || return 2
 
   local output
   output=$(detectVersion "$install_info") || {
@@ -1638,7 +1638,7 @@ extractESD() {
       return 1
     fi
 
-    checkPlatform "$xml" || return
+    checkPlatform "$installXml" || return
 
     output=$(detectVersion "$installXml") || return
     mapfile -t detected <<< "$output"
