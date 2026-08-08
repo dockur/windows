@@ -385,7 +385,7 @@ skipInstall() {
 
   local iso="$1"
   local previousBase="$2"
-  local boot="$STORAGE/windows.boot"
+  local marker="$STORAGE/windows.boot"
 
   if [ -n "$previousBase" ]; then
 
@@ -409,7 +409,7 @@ skipInstall() {
 
     # Older releases may have left a rebuilt custom ISO at its synthetic source
     # identity. A completed installation no longer needs that installation media.
-    if [[ "${previousBase,,}" == "windows."* ]] && [ -f "$boot" ] && hasData; then
+    if [[ "${previousBase,,}" == "windows."* ]] && hasData && [ -f "$marker" ]; then
       if ! rm -f -- "$STORAGE/$previousBase"; then
         error "Failed to remove obsolete ISO file \"$STORAGE/$previousBase\" !"
         exit 50
@@ -441,7 +441,7 @@ skipInstall() {
         else
           method="your custom .iso file was removed"
 
-          if [ -f "$boot" ] && hasData; then
+          if hasData && [ -f "$marker" ]; then
             info "Detected that $method, will be ignored."
             return 0
           fi
@@ -449,7 +449,7 @@ skipInstall() {
         fi
       fi
 
-      if enabled "$SHUTDOWN" && [ ! -f "$boot" ]; then
+      if enabled "$SHUTDOWN" && [ ! -f "$marker" ]; then
         discardPrevious "$STORAGE/$previousBase" || exit 50
         return 1
       fi
@@ -465,7 +465,7 @@ skipInstall() {
     fi
   fi
 
-  [ -f "$boot" ] && hasData && return 0
+  hasData && [ -f "$marker" ] && return 0
 
   return 1
 }
