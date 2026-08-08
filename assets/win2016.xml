@@ -72,17 +72,17 @@
             <DiskID>1</DiskID>
             <PartitionID>3</PartitionID>
           </InstallTo>
-          <WillShowUI>OnError</WillShowUI>
+          <WillShowUI>false</WillShowUI>
           <InstallToAvailablePartition>false</InstallToAvailablePartition>
         </OSImage>
       </ImageInstall>
       <DynamicUpdate>
         <Enable>true</Enable>
-        <WillShowUI>Never</WillShowUI>
+        <WillShowUI>false</WillShowUI>
       </DynamicUpdate>
       <UpgradeData>
         <Upgrade>false</Upgrade>
-        <WillShowUI>Never</WillShowUI>
+        <WillShowUI>false</WillShowUI>
       </UpgradeData>
       <UserData>
         <AcceptEula>true</AcceptEula>

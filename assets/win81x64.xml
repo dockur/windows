@@ -76,11 +76,11 @@
       </ImageInstall>
       <DynamicUpdate>
         <Enable>true</Enable>
-        <WillShowUI>Never</WillShowUI>
+        <WillShowUI>false</WillShowUI>
       </DynamicUpdate>
       <UpgradeData>
         <Upgrade>false</Upgrade>
-        <WillShowUI>Never</WillShowUI>
+        <WillShowUI>false</WillShowUI>
       </UpgradeData>
       <UserData>
         <AcceptEula>true</AcceptEula>
@@ -88,7 +88,7 @@
         <Organization>Windows for Docker</Organization>
         <ProductKey>
           <Key>GCRJD-8NW9H-F2CDX-CCM8D-9D6T9</Key>
-          <WillShowUI>OnError</WillShowUI>
+          <WillShowUI>false</WillShowUI>
         </ProductKey>
       </UserData>
       <EnableFirewall>false</EnableFirewall>

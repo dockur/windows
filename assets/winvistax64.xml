@@ -12,7 +12,7 @@
     </component>
     <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DiskConfiguration>
-        <WillShowUI>OnError</WillShowUI>
+        <WillShowUI>false</WillShowUI>
         <Disk wcm:action="add">
           <DiskID>1</DiskID>
           <WillWipeDisk>true</WillWipeDisk>
@@ -47,7 +47,7 @@
             <DiskID>1</DiskID>
             <PartitionID>1</PartitionID>
           </InstallTo>
-          <WillShowUI>OnError</WillShowUI>
+          <WillShowUI>false</WillShowUI>
           <InstallToAvailablePartition>false</InstallToAvailablePartition>
         </OSImage>
       </ImageInstall>
