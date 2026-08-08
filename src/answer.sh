@@ -1961,11 +1961,17 @@ markGeneratedXML() {
 removeGeneratedXML() {
 
   local file="$1"
+  local header
 
   [ -n "$file" ] || return 0
   [ -f "$file" ] || return 0
 
-  head -n 5 "$file" | grep -Fqi 'generated-answer-file' || return 0
+  if ! header=$(head -n 5 "$file"); then
+    error "Failed to inspect answer file: $file"
+    return 1
+  fi
+
+  grep -Fqi 'generated-answer-file' <<< "$header" || return 0
 
   if ! rm -f "$file"; then
     error "Failed to remove generated answer file: $file"
