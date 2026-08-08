@@ -73,7 +73,7 @@ setXML() {
 
   if [ -d "${custom_files[0]}" ]; then
     error "The bind ${custom_files[0]} maps to a file that does not exist!"
-    exit 67
+    return 2
   fi
 
   # A custom answer file always takes precedence over bundled or generated
