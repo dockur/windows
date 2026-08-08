@@ -901,7 +901,12 @@ detectImage() {
   local image_info
   image_info=$(readImageInfo "$wim") || return $?
 
-  detectImageInfo "$image_info" || return 2
+  detectImageInfo "$image_info" || {
+    error "Failed to process the Windows image metadata!"
+    return 2
+  }
+
+  return 0
 }
 
 prepareImage() {
