@@ -69,7 +69,7 @@
         </OSImage>
       </ImageInstall>
       <DynamicUpdate>
-        <Enable>true</Enable>
+        <Enable>false</Enable>
         <WillShowUI>Never</WillShowUI>
       </DynamicUpdate>
       <UpgradeData>
