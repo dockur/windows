@@ -321,8 +321,13 @@ downloadWindowsEval() {
       type="iot"
       winVer="windows-11-iot-enterprise-ltsc-eval" ;;
     "win11${PLATFORM,,}-enterprise-ltsc-eval" )
-      type="ltsc"
-      winVer="windows-11-enterprise" ;;
+      if [[ "${PLATFORM,,}" == "arm64" ]]; then
+        type="iot"
+        winVer="windows-11-iot-enterprise-ltsc-eval"
+      else
+        type="ltsc"
+        winVer="windows-11-enterprise"
+      fi ;;
     "win2025-eval" )
       type="server"
       winVer="windows-server-2025" ;;
