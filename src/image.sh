@@ -1384,9 +1384,8 @@ detectESDImage() {
 
   local output
   output=$(detectVersion "$install_info") || {
-    enabled "$DEBUG" && echo "Version detection failed while parsing the ESD image metadata." >&2
     error "Failed to detect Windows version from the ESD metadata!"
-    return 1
+    return 2
   }
 
   mapfile -t detected <<< "$output"
@@ -1394,7 +1393,7 @@ detectESDImage() {
 
   if [ -z "$index" ]; then
     error "Failed to select an installation image based on the ESD metadata!"
-    return 1
+    return 2
   fi
 
   # extractESD removes every other image, leaving the selected edition at
