@@ -1495,7 +1495,7 @@ extractESD() {
   fi
 
   if (( size < minSize )); then
-    error "The downloaded ISO file is too small!"
+    error "The downloaded ESD file is too small!"
     return 1
   fi
 
@@ -1547,8 +1547,7 @@ extractESD() {
   bootTotal="${fields[1]:-}"
   bootLinks="${fields[2]:-}"
 
-  if [[ ! "$bootTotal" =~ ^[0-9]+$ ]] ||
-      [[ ! "$bootLinks" =~ ^[0-9]+$ ]]; then
+  if [[ ! "$bootTotal" =~ ^[0-9]+$ ]] || [[ ! "$bootLinks" =~ ^[0-9]+$ ]]; then
     error "Cannot read bootdisk size from ESD file!"
     return 1
   fi
@@ -1570,6 +1569,7 @@ extractESD() {
   # installation media. Peak additional usage consists of the extracted setup
   # files and boot.wim, plus the final ISO containing those files and the ESD.
   local freeSpace=$(( size + 2 * (bootSize + wimSize) + spacePad ))
+
   checkFreeSpace "$dir" "$freeSpace" || return
 
   /run/progress.sh "$dir" "$bootSize" "$msg ([P])..." &
@@ -1618,15 +1618,13 @@ extractESD() {
   }
 
   fKill "progress.sh"
+  html "$msg..."
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
     LABEL="CCCOMA_X64FRE_EN-US_DV9"
   else
     LABEL="CPBA_A64FRE_EN-US_DV9"
   fi
-
-  msg="Extracting image from ESD file"
-  info "$msg..." && html "$msg..."
 
   index=""
 
@@ -1682,10 +1680,8 @@ extractESD() {
   fi
 
   installSize=$(( size + installPad ))
-  /run/progress.sh "$installWim" "$installSize" "$msg ([P])..." &
 
   if ! rm -f -- "$dir/sources/install.wim" "$installWim"; then
-    fKill "progress.sh"
     error "Failed to remove previous Windows installation image!"
     return 1
   fi
@@ -1693,7 +1689,6 @@ extractESD() {
   # Reuse the downloaded solid ESD instead of exporting the selected image.
   # Both paths are below $TMP, so this is a same-filesystem rename.
   if ! mv -f -- "$iso" "$installWim"; then
-    fKill "progress.sh"
     error "Failed to move downloaded ESD file into the installation media!"
     return 1
   fi
@@ -1706,7 +1701,6 @@ extractESD() {
 
     wimlib-imagex delete "$installWim" "$image" --soft --quiet || {
       ret=$?
-      fKill "progress.sh"
       error "Failed to remove image $image from install.esd!"
       return "$ret"
     }
@@ -1716,7 +1710,6 @@ extractESD() {
   result=$(wimlib-imagex info "$installWim" --xml 2>/dev/null |
     iconv -f UTF-16LE -t UTF-8 2>/dev/null) || {
     ret=$?
-    fKill "progress.sh"
     error "Cannot verify the prepared install.esd file!"
     return "$ret"
   }
@@ -1726,7 +1719,6 @@ extractESD() {
       -v 'count(/WIM/IMAGE[@INDEX="1"])' -n \
       -v 'normalize-space(/WIM/IMAGE[@INDEX="1"]/DESCRIPTION)' -n \
       <<< "$result" 2>/dev/null); then
-    fKill "progress.sh"
     error "Cannot verify the prepared install.esd file!"
     return 1
   fi
@@ -1738,26 +1730,22 @@ extractESD() {
   resultEdition="${fields[2]:-}"
 
   if [[ "$resultCount" != "1" ]] || [[ "$resultIndex" != "1" ]]; then
-    fKill "progress.sh"
     error "Prepared install.esd does not contain exactly one image at index 1!"
     return 1
   fi
 
   if [[ "${version,,}" != "http"* ]] &&
       [[ "${resultEdition,,}" != "${edition,,}" ]]; then
-    fKill "progress.sh"
     error "Prepared install.esd does not contain only '$edition' at index 1!"
     return 1
   fi
 
-  fKill "progress.sh"
   return 0
 }
 
 normalizeBatch() {
 
   local file="$1"
-
   local bom tmp encoding
 
   [ ! -s "$file" ] && return 0
@@ -1801,7 +1789,6 @@ reportBatchMatches() {
   local suggestion="$5"
 
   local matches line
-
   matches=$(grep -Pin "$pattern" "$file" || true)
 
   [ -n "$matches" ] || return 0
