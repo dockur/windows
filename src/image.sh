@@ -2044,7 +2044,11 @@ buildImage() {
 
   base=$(basename "$BOOT")
   local out="$TMP/${base%.*}.tmp"
-  rm -f "$out"
+
+  if ! rm -f "$out"; then
+    error "Failed to remove temporary ISO image: $out"
+    return 1
+  fi
 
   desc=$(printVariant "$DETECTED" "ISO")
 
