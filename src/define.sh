@@ -845,8 +845,7 @@ getVersion() {
         [ -n "$evaluation" ] && id+="$evaluation"
       fi
       ;;
-    "win2025"* | "win2022"* | "win2019"* | "win2016"* | \
-    "win2012"* | "win2008"* | "win2003"* )
+    "win20"* )
       if [[ "${name,,}" == *"hyper-v server"* ]]; then
         id+="-hv"
       elif edition=$(getServerEditionID "$name" "$id"); then
