@@ -99,16 +99,15 @@ getVersions() {
       structured=""
 
       case "${candidate_base,,}" in
-        "winvista"* | "win7"* | "win8"* | "win10"* | "win11"* )
-          structured=$(normalizeEditionID "${edition_id:-${flags:-}}" "$candidate_base") || return 1
-          ;;
-        "win20"* )
-          structured=$(normalizeServerEditionID "${flags:-$edition_id}") || return 1
+
+        "win20"* ) structured=$(normalizeServerEditionID "${flags:-$edition_id}") || return 1
 
           if [[ "${install_type,,}" == *"core"* && "$structured" != *"-core" ]]; then
             structured+="-core"
-          fi
-          ;;
+          fi ;;
+
+        * ) structured=$(normalizeEditionID "${edition_id:-${flags:-}}" "$candidate_base") || return 1 ;;
+
       esac
 
       if [ -n "$structured" ]; then
