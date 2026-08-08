@@ -254,7 +254,11 @@ startInstall() {
     else
 
       local language
-      language=$(getLanguage "$LANGUAGE" "culture")
+      if ! language=$(getLanguage "$LANGUAGE" "culture"); then
+        error "Failed to determine the Windows language!"
+        exit 62
+      fi
+
       language="${language%%-*}"
 
       if [ -n "$language" ] && [[ "${language,,}" != "en" ]]; then
