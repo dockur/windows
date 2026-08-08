@@ -1283,7 +1283,11 @@ downloadImage() {
     desc=$(fromFile "$base")
     web_desc="$desc"
 
-    tryDownload "$iso" "$version" "" "" "$desc" "$seconds" "$web_desc" || return
+    tryDownload "$iso" "$version" "" "" "$desc" "$seconds" "$web_desc" || {
+      rc=$?
+      error "Failed to download the Windows image from the specified URL!"
+      return "$rc"
+    }
 
     return 0
   fi
@@ -1453,6 +1457,8 @@ downloadImage() {
 
   if [[ "$tried" == "n" ]]; then
     error "No download method is available for $desc!"
+  else
+    error "All download methods failed for $desc!"
   fi
 
   return 1
