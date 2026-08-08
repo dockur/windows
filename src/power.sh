@@ -124,7 +124,7 @@ waitForBoot() {
     if (( ! keySent )) && needsBootKey; then
 
       if [ -s "$QEMU_PTY" ] && grep -Fq "Press any key to boot from" "$QEMU_PTY"; then
-        if sendKey spc 0 500; then
+        if sendKey ret 0 500; then
           keySent=1
         fi
       elif bootKeyReady; then
@@ -133,13 +133,13 @@ waitForBoot() {
         if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
           # Keep the legacy fallback at about one second after the DVD marker.
           if (( keyWait >= 5 )); then
-            if sendKey spc 0 100 6 0.25; then
+            if sendKey ret 0 100 6 0.25; then
               keySent=1
             fi
           fi
         elif (( keyWait >= 1 )); then
           # Modern Windows usually needs blind timing, so start earlier.
-          if sendKey spc 0 100 6 0.25; then
+          if sendKey ret 0 100 6 0.25; then
             keySent=1
           fi
         fi
