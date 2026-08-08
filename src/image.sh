@@ -47,10 +47,10 @@ getVersions() {
       [[ "$candidate" == *"Operating System"* ]] && continue
       [ -n "$candidate" ] || continue
 
-      candidate_base=$(fromName "$candidate" "$platform")
       candidate_id=$(getVersion "$candidate" "$platform")
+      candidate_base="${candidate_id%%-*}"
 
-      [ -n "$candidate_base" ] && [ -n "$candidate_id" ] && break
+      [ -n "$candidate_id" ] && break
 
     done
 
@@ -64,8 +64,8 @@ getVersions() {
       if [ "$candidate" = "$name" ]; then
         structured=$(getVersion "$display" "$platform")
 
-        if [ "$(fromName "$display" "$platform")" = "$candidate_base" ] &&
-          [ -n "$structured" ] && [[ "${structured%-eval}" != "$candidate_base" ]] &&
+        if [ -n "$structured" ] && [ "${structured%%-*}" = "$candidate_base" ] &&
+          [[ "${structured%-eval}" != "$candidate_base" ]] &&
           [ "$(getEditionRank "$structured")" -lt 99 ]; then
           candidate_id="$structured"
         fi
@@ -287,7 +287,7 @@ detectVersion() {
     best_rank="$rank"
     result="$id"
     result_index="$index"
-  
+
   done
 
   if [ -n "$result" ]; then
@@ -446,76 +446,53 @@ getPlatform() {
 
   local xml="$1"
 
-  local image_count invalid_count 
-  local x86 x64 arm64 unknown value
-  local platform="" count=0 output
-  local -a counts=()
+  local arch current platform=""
+  local image_count output records
+  local separator=$'\x1f'
 
   if ! output=$(xmlstarlet sel \
     -T -t \
     -v 'count(/WIM/IMAGE)' -n \
-    -v 'count(/WIM/IMAGE[count(WINDOWS/ARCH) != 1])' -n \
-    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="0"])' -n \
-    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="9"])' -n \
-    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)="12"])' -n \
-    -v 'count(/WIM/IMAGE/WINDOWS/ARCH[normalize-space(.)!="0" and normalize-space(.)!="9" and normalize-space(.)!="12"])' -n \
+    -m '/WIM/IMAGE' \
+      -v 'count(WINDOWS/ARCH)' -o "$separator" \
+      -v 'normalize-space(WINDOWS/ARCH)' -n \
     - 2>/dev/null <<< "$xml"); then
     error "Failed to read architecture metadata from WIM image!"
     return 1
   fi
 
-  mapfile -t counts <<< "$output"
+  image_count="${output%%$'\n'*}"
 
-  if (( ${#counts[@]} != 6 )); then
-    error "Failed to read architecture counts from WIM metadata!"
-    return 1
-  fi
-
-  for value in "${counts[@]}"; do
-    if [[ ! "$value" =~ ^[0-9]+$ ]]; then
-      error "Invalid architecture count in WIM metadata: '$value'"
-      return 1
-    fi
-  done
-
-  image_count="${counts[0]}"
-  invalid_count="${counts[1]}"
-  x86="${counts[2]}"
-  x64="${counts[3]}"
-  arm64="${counts[4]}"
-  unknown="${counts[5]}"
-
-  if (( image_count == 0 )); then
+  if [ "$image_count" = "0" ]; then
     error "No images were found in WIM metadata!"
     return 1
   fi
 
-  if (( invalid_count > 0 )); then
-    error "Missing or duplicate architecture metadata in WIM image!"
-    return 1
-  fi
+  records="${output#*$'\n'}"
 
-  if (( unknown > 0 )); then
-    error "Unsupported architecture value in WIM metadata!"
-    return 1
-  fi
+  while IFS="$separator" read -r count arch; do
 
-  (( x86 > 0 )) && ((count += 1))
-  (( x64 > 0 )) && ((count += 1))
-  (( arm64 > 0 )) && ((count += 1))
+    if [ "$count" != "1" ]; then
+      error "Missing or duplicate architecture metadata in WIM image!"
+      return 1
+    fi
 
-  if (( count > 1 )); then
-    platform="mixed"
-  elif (( x86 > 0 )); then
-    platform="x86"
-  elif (( x64 > 0 )); then
-    platform="x64"
-  elif (( arm64 > 0 )); then
-    platform="arm64"
-  else
-    error "Failed to determine architecture from WIM metadata!"
-    return 1
-  fi
+    case "$arch" in
+      "0" ) current="x86" ;;
+      "9" ) current="x64" ;;
+      "12" ) current="arm64" ;;
+      * )
+        error "Unsupported architecture value in WIM metadata!"
+        return 1 ;;
+    esac
+
+    if [ -z "$platform" ]; then
+      platform="$current"
+    elif [ "$platform" != "$current" ]; then
+      platform="mixed"
+    fi
+
+  done <<< "$records"
 
   echo "$platform"
   return 0
