@@ -111,24 +111,24 @@ waitForBoot() {
   local pendingType=0
   local pendingLine=""
   local pendingDeadline=0
-  local keyDelay status marker
+  local keyMode status marker
   local deadline=$((SECONDS + timeout))
   local screen="visit http://127.0.0.1:$WEB_PORT/ to view the screen..."
 
   while isAlive "$pid"; do
 
-    # Send the boot key once, either immediately after the prompt appears or
-    # shortly after firmware starts the DVD when the prompt is not logged.
+    # Prefer the real boot prompt when it is visible on the PTY. If it is not
+    # logged, fall back to a short burst after firmware starts the DVD.
     if (( ! keySent )) && needsBootKey; then
 
-      if keyDelay=$(bootKeyDelay); then
+      if keyMode=$(bootKeyMode); then
 
-        if [[ "$keyDelay" == "0" ]]; then
+        if [[ "$keyMode" == "prompt" ]]; then
           if sendKey spc 0 500; then
             keySent=1
           fi
         else
-          if sendKey spc "$keyDelay" 250 4 0.75; then
+          if sendKey spc 0 100 6 0.25; then
             keySent=1
           fi
         fi
@@ -347,25 +347,39 @@ needsBootKey() {
   supportsBootKey "$DETECTED"
 }
 
-bootKeyDelay() {
+bootKeyMode() {
 
   [ ! -s "$QEMU_PTY" ] && return 1
 
   # A visible prompt is the safest trigger and should be answered immediately.
   if grep -Fq "Press any key to" "$QEMU_PTY"; then
-    echo 0
+    echo "prompt"
     return 0
   fi
 
-  # Some firmware or Windows versions do not log the prompt. In that case wait
-  # briefly after the DVD boot attempt and send several short key presses.
+  local i checks=4
+
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
     grep -Fq "Booting from DVD/CD" "$QEMU_PTY" || return 1
   else
     grep -Eq "$UEFI_DVD_BOOT_PATTERN" "$QEMU_PTY" || return 1
+    checks=5
   fi
 
-  echo 0.5
+  # Keep watching briefly after the firmware DVD marker so older Windows can
+  # still use its real prompt. Modern Windows usually requires blind timing.
+  for ((i = 1; i <= checks; i++)); do
+
+    sleep 0.25
+
+    if grep -Fq "Press any key to" "$QEMU_PTY"; then
+      echo "prompt"
+      return 0
+    fi
+
+  done
+
+  echo "blind"
   return 0
 }
 
