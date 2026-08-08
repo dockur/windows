@@ -1965,8 +1965,7 @@ removeGeneratedXML() {
   [ -n "$file" ] || return 0
   [ -f "$file" ] || return 0
 
-  head -n 5 "$file" |
-    grep -Fqi 'generated-answer-file' || return 0
+  head -n 5 "$file" | grep -Fqi 'generated-answer-file' || return 0
 
   if ! rm -f "$file"; then
     error "Failed to remove generated answer file: $file"
