@@ -2448,7 +2448,8 @@ setLegacyKey() {
   pid="${pid%$'\r'}"
 
   if [[ "$driver" == "2k" ]]; then
-    echo "${pid::-3}270" > "$setup" || return 1
+    [ "${#pid}" -ge 3 ] || return 0
+    echo "${pid::-3}270" > "$setup" || :
     return 0
   fi
 
@@ -2529,7 +2530,9 @@ setLegacyKey() {
 
   esac
 
-  echo "${pid::-3}000" > "$setup" || return 1
+  if [ "${#pid}" -ge 3 ]; then
+    echo "${pid::-3}000" > "$setup" || :
+  fi
 
   return 0
 }
@@ -2801,7 +2804,7 @@ disableAutoReboot() {
   local file rc=0
   local pattern='^[[:space:]]*HKLM[[:space:]]*,[[:space:]]*"SYSTEM\\CurrentControlSet\\Control\\CrashControl"[[:space:]]*,[[:space:]]*"AutoReboot"[[:space:]]*,[[:space:]]*[^,]*,'
 
-  file=$(find "$target" -maxdepth 1 -type f -iname HIVESYS.INF -print -quit) || file=""
+  file=$(find "$target" -maxdepth 1 -type f -iname HIVESYS.INF -print -quit) || return 1
 
   if [ -z "$file" ]; then
     error "The file HIVESYS.INF could not be found!"
@@ -2814,17 +2817,13 @@ disableAutoReboot() {
 
   case "$rc" in
     0 )
-      sed -i -E "s|(${pattern})[[:space:]]*[^,;[:space:]]+|\\1 0|I" "$file" || return 1
+      sed -i -E "s|(${pattern})[[:space:]]*[^,;[:space:]]+|\\1 0|I" "$file" || :
       ;;
     1 )
       printf '%s\n' \
         'HKLM,"SYSTEM\CurrentControlSet\Control\CrashControl","AutoReboot",0x00010001,0' |
-        unix2dos >> "$file" || return 1
+        unix2dos >> "$file" || :
       ;;
-    * )
-      error "Failed to inspect automatic reboot settings in \"$file\" !"
-      return 1 ;;
-  
   esac
 
   return 0
