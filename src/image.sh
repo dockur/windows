@@ -130,58 +130,13 @@ getVersions() {
   return 0
 }
 
-getEditionRank() {
-
-  local id="${1,,}"
-  local base="${id%%-*}"
-  local edition
-
-  id="${id%-eval}"
-  edition="${id#"$base"}"
-  edition="${edition#-}"
-
-  case "$base" in
-    "win20"* )
-      case "$edition" in
-        "" ) echo 0 ;;
-        "datacenter-azure-core" | "datacenter-azure-core-"* | \
-        "datacenter-core" | "datacenter-core-"* ) echo 7 ;;
-        "enterprise-core" | "enterprise-core-"* ) echo 8 ;;
-        "web-core" | "web-core-"* ) echo 9 ;;
-        "standard-core" | "standard-core-"* ) echo 6 ;;
-        "datacenter" | "datacenter-"* ) echo 1 ;;
-        "enterprise" | "enterprise-"* ) echo 2 ;;
-        "web" | "web-"* ) echo 3 ;;
-        "foundation" | "foundation-"* ) echo 4 ;;
-        "essentials" | "essentials-"* ) echo 5 ;;
-        "hv" | "hv-"* ) echo 10 ;;
-        * ) echo 99 ;;
-      esac
-      ;;
-    * )
-      case "$edition" in
-        "enterprise-iot" | "enterprise-iot-"* | "iot" | "iot-"* ) echo 3 ;;
-        "enterprise-ltsc" | "enterprise-ltsc-"* | "ltsc" | "ltsc-"* ) echo 4 ;;
-        "pro-education" | "pro-education-"* | "education" | "education-"* ) echo 5 ;;
-        "enterprise" | "enterprise-"* ) echo 0 ;;
-        "ultimate" | "ultimate-"* ) echo 1 ;;
-        "" | "n" | "pro" | "pro-"* | "professional" | "professional-"* | \
-        "business" | "business-"* ) echo 2 ;;
-        "home" | "home-"* ) echo 6 ;;
-        "starter" | "starter-"* ) echo 7 ;;
-        * ) echo 99 ;;
-      esac
-      ;;
-  esac
-}
-
 selectVersion() {
 
   local wanted="$1"
   shift
 
-  local candidate record id index
   local -a candidates=("$wanted")
+  local candidate record id index
 
   # Normal and Evaluation variants of the same edition are compatible.
   if [[ "${wanted,,}" == *"-eval" ]]; then
@@ -211,9 +166,8 @@ detectVersion() {
 
   local xml="$1"
 
-  local normalize="normalizeEditionID"
-  local output record id index base edition suffix
-  local -a images=() bases=() order=()
+  local -a images=() bases=() order=() preferences=()
+  local normalize output policy record id index base edition suffix
 
   output=$(getVersions "$xml") || return
   [ -n "$output" ] && mapfile -t images <<< "$output"
@@ -228,20 +182,11 @@ detectVersion() {
     bases+=("${id%%-*}")
   done
 
-  case "${bases[0],,}" in
-    "win20"* )
-      normalize="normalizeServerEditionID"
-      order=(
-        "" "-datacenter" "-datacenter-azure" "-enterprise" "-web"
-        "-foundation" "-essentials" "-standard-core" "-datacenter-core"
-        "-datacenter-azure-core" "-enterprise-core" "-web-core" "-hv"
-      ) ;;
-    * )
-      order=(
-        "-enterprise" "-ultimate" "" "-iot" "-ltsc" "-education"
-        "-home" "-home-premium" "-home-basic" "-starter"
-      ) ;;
-  esac
+  policy=$(getEditionPolicy "${bases[0]}") || return 1
+  mapfile -t preferences <<< "$policy"
+
+  normalize="${preferences[0]}"
+  order=("${preferences[@]:1}")
 
   # An explicit EDITION always gets first choice.
   if [ -n "$EDITION" ]; then

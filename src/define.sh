@@ -638,6 +638,38 @@ fromName() {
   return 0
 }
 
+getVersion() {
+
+  local name="$1"
+  local arch="$2"
+
+  local id edition
+  local evaluation=""
+
+  id=$(fromName "$name" "$arch")
+  [[ "${name,,}" == *"evaluation"* ]] && evaluation="-eval"
+
+  case "${id,,}" in
+    "winvista"* | "win7"* | "win8"* | "win10"* | "win11"* )
+      if edition=$(getEditionID "$name" "$id"); then
+        [ -n "$edition" ] && id+="-$edition"
+        [ -n "$evaluation" ] && id+="$evaluation"
+      fi
+      ;;
+    "win20"* )
+      if [[ "${name,,}" == *"hyper-v server"* ]]; then
+        id+="-hv"
+      elif edition=$(getServerEditionID "$name" "$id"); then
+        [ -n "$edition" ] && id+="-$edition"
+        [ -n "$evaluation" ] && id+="$evaluation"
+      fi
+      ;;
+  esac
+
+  echo "$id"
+  return 0
+}
+
 isClientEdition() {
 
   case "${1,,}" in
@@ -649,6 +681,94 @@ isClientEdition() {
   esac
 
   return 1
+}
+
+getEditionRank() {
+
+  local id="${1,,}"
+  local base="${id%%-*}"
+  local edition
+
+  id="${id%-eval}"
+  edition="${id#"$base"}"
+  edition="${edition#-}"
+
+  case "$base" in
+    "win20"* )
+      case "$edition" in
+        "" ) echo 0 ;;
+        "datacenter-azure-core" | "datacenter-azure-core-"* | \
+        "datacenter-core" | "datacenter-core-"* ) echo 7 ;;
+        "enterprise-core" | "enterprise-core-"* ) echo 8 ;;
+        "web-core" | "web-core-"* ) echo 9 ;;
+        "standard-core" | "standard-core-"* ) echo 6 ;;
+        "datacenter" | "datacenter-"* ) echo 1 ;;
+        "enterprise" | "enterprise-"* ) echo 2 ;;
+        "web" | "web-"* ) echo 3 ;;
+        "foundation" | "foundation-"* ) echo 4 ;;
+        "essentials" | "essentials-"* ) echo 5 ;;
+        "hv" | "hv-"* ) echo 10 ;;
+        * ) echo 99 ;;
+      esac
+      ;;
+    * )
+      case "$edition" in
+        "enterprise-iot" | "enterprise-iot-"* | "iot" | "iot-"* ) echo 3 ;;
+        "enterprise-ltsc" | "enterprise-ltsc-"* | "ltsc" | "ltsc-"* ) echo 4 ;;
+        "pro-education" | "pro-education-"* | "education" | "education-"* ) echo 5 ;;
+        "enterprise" | "enterprise-"* ) echo 0 ;;
+        "ultimate" | "ultimate-"* ) echo 1 ;;
+        "" | "n" | "pro" | "pro-"* | "professional" | "professional-"* | \
+        "business" | "business-"* ) echo 2 ;;
+        "home" | "home-"* ) echo 6 ;;
+        "starter" | "starter-"* ) echo 7 ;;
+        * ) echo 99 ;;
+      esac
+      ;;
+  esac
+
+  return 0
+}
+
+getEditionPolicy() {
+
+  local base="${1,,}"
+
+  case "$base" in
+    "win20"* )
+      printf '%s\n' \
+        "normalizeServerEditionID" \
+        "" \
+        "-datacenter" \
+        "-datacenter-azure" \
+        "-enterprise" \
+        "-web" \
+        "-foundation" \
+        "-essentials" \
+        "-standard-core" \
+        "-datacenter-core" \
+        "-datacenter-azure-core" \
+        "-enterprise-core" \
+        "-web-core" \
+        "-hv"
+      ;;
+    * )
+      printf '%s\n' \
+        "normalizeEditionID" \
+        "-enterprise" \
+        "-ultimate" \
+        "" \
+        "-iot" \
+        "-ltsc" \
+        "-education" \
+        "-home" \
+        "-home-premium" \
+        "-home-basic" \
+        "-starter"
+      ;;
+  esac
+
+  return 0
 }
 
 normalizeEdition() {
@@ -816,38 +936,6 @@ getServerEditionID() {
   edition=$(normalizeServerEditionID "$edition") || return 1
 
   echo "$edition"
-  return 0
-}
-
-getVersion() {
-
-  local name="$1"
-  local arch="$2"
-
-  local id edition
-  local evaluation=""
-
-  id=$(fromName "$name" "$arch")
-  [[ "${name,,}" == *"evaluation"* ]] && evaluation="-eval"
-
-  case "${id,,}" in
-    "winvista"* | "win7"* | "win8"* | "win10"* | "win11"* )
-      if edition=$(getEditionID "$name" "$id"); then
-        [ -n "$edition" ] && id+="-$edition"
-        [ -n "$evaluation" ] && id+="$evaluation"
-      fi
-      ;;
-    "win20"* )
-      if [[ "${name,,}" == *"hyper-v server"* ]]; then
-        id+="-hv"
-      elif edition=$(getServerEditionID "$name" "$id"); then
-        [ -n "$edition" ] && id+="-$edition"
-        [ -n "$evaluation" ] && id+="$evaluation"
-      fi
-      ;;
-  esac
-
-  echo "$id"
   return 0
 }
 
