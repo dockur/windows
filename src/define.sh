@@ -819,6 +819,47 @@ getServerEditionID() {
   return 0
 }
 
+getEditionPolicy() {
+
+  local base="${1,,}"
+
+  case "$base" in
+    "win20"* )
+      printf '%s\n' \
+        "normalizeServerEditionID" \
+        "" \
+        "-datacenter" \
+        "-datacenter-azure" \
+        "-enterprise" \
+        "-web" \
+        "-foundation" \
+        "-essentials" \
+        "-standard-core" \
+        "-datacenter-core" \
+        "-datacenter-azure-core" \
+        "-enterprise-core" \
+        "-web-core" \
+        "-hv"
+      ;;
+    * )
+      printf '%s\n' \
+        "normalizeEditionID" \
+        "-enterprise" \
+        "-ultimate" \
+        "" \
+        "-iot" \
+        "-ltsc" \
+        "-education" \
+        "-home" \
+        "-home-premium" \
+        "-home-basic" \
+        "-starter"
+      ;;
+  esac
+
+  return 0
+}
+
 getVersion() {
 
   local name="$1"
