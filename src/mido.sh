@@ -175,12 +175,16 @@ downloadWindowsLink() {
     --max-filesize 100K \
     -- "$skuUrl") || return
 
-  # Treat malformed API responses as a failed download method so another route or mirror can be tried.
-  skuId=$(printf '%s\n' "$skuJson" | jq --arg LANG "$language" -r 'first(.Skus[]? | select(.Language == $LANG) | .Id) // empty') 2>/dev/null || return 1
+  skuId=$(printf '%s\n' "$skuJson" | jq --arg LANG "$language" -r 'first(.Skus[]? | select(.Language == $LANG) | .Id) // empty') 2>/dev/null || skuId=""
 
   if [ -z "$skuId" ] || [[ "${skuId,,}" == "null" ]]; then
-    language=$(getLanguage "$lang" "desc")
-    error "No download in the $language language available for $desc!"
+    if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
+      language=$(getLanguage "$lang" "desc")
+      error "No download in the $language language available for $desc!"
+    else
+      error "Microsoft server provided us no SKU ID in response to our request!"
+      info "Response: $skuJson"
+    fi
     return 1
   fi
 
@@ -213,10 +217,10 @@ downloadWindowsLink() {
     return 1
   fi
 
-  link=$(printf '%s\n' "$linkJson" | jq --argjson TYPE "$type" -r 'first(.ProductDownloadOptions[]? | select(.DownloadType == $TYPE) | .Uri) // empty') 2>/dev/null || return 1
+  link=$(printf '%s\n' "$linkJson" | jq --argjson TYPE "$type" -r 'first(.ProductDownloadOptions[]? | select(.DownloadType == $TYPE) | .Uri) // empty') 2>/dev/null || link=""
 
   if [ -z "$link" ] || [[ "${link,,}" == "null" ]]; then
-    error "Microsoft server gave us no download link to our request for an automated download!"
+    error "Microsoft server provided us no download link to our request for an automated download!"
     info "Response: $linkJson"
     return 1
   fi
