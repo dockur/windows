@@ -71,7 +71,7 @@ selectWindowsImage() {
   fi
 
   # Inspect unknown bootable media directly before falling back to extraction.
-  if [[ "${iso,,}" != *.esd ]]; then
+  if isDirectImage "$iso"; then
 
     detectIsoImage "$iso" && return 0
 
@@ -361,25 +361,6 @@ skipUnattended() {
   return 1
 }
 
-useOriginalImage() {
-
-  local iso="$1"
-
-  if [ -n "$CUSTOM" ]; then
-    BOOT="$iso"
-    return 0
-  fi
-
-  if [[ "$iso" != "$BOOT" ]]; then
-    if ! mv -f -- "$iso" "$BOOT"; then
-      error "Failed to move ISO file: $iso"
-      return 1
-    fi
-  fi
-
-  return 0
-}
-
 skipInstall() {
 
   local iso="$1"
@@ -619,9 +600,35 @@ detectCustom() {
 
 hasImage() {
 
-  local file="$1"
+  local iso="$1"
 
-  [ -f "$file" ] && [ -s "$file" ]
+  [ -f "$iso" ] && [ -s "$iso" ]
+}
+
+isDirectImage() {
+
+  local iso="$1"
+
+  ! enabled "${UNPACK:-}" && [[ "${iso,,}" != *.esd ]]
+}
+
+useOriginalImage() {
+
+  local iso="$1"
+
+  if [ -n "$CUSTOM" ]; then
+    BOOT="$iso"
+    return 0
+  fi
+
+  if [[ "$iso" != "$BOOT" ]]; then
+    if ! mv -f -- "$iso" "$BOOT"; then
+      error "Failed to move ISO file: $iso"
+      return 1
+    fi
+  fi
+
+  return 0
 }
 
 removeImage() {
@@ -669,8 +676,8 @@ needsExtraction() {
   local id="$1"
   local iso="$2"
 
-  # Nested archives must be extracted to expose their contained ISO.
-  if enabled "${UNPACK:-}"; then
+  # Nested archives must be extracted before they can be prepared.
+  if ! isDirectImage "$iso"; then
     return 0
   fi
 
@@ -681,11 +688,6 @@ needsExtraction() {
 
   # SIF-based legacy installers must be extracted and rebuilt.
   if ! supportsXML "$id"; then
-    return 0
-  fi
-
-  # Standalone ESD downloads must be extracted before they can be prepared.
-  if [[ "${iso,,}" == *".esd" ]]; then
     return 0
   fi
 
