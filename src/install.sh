@@ -338,7 +338,7 @@ skipUnattended() {
   # so they cannot use the manual-install fallback.
   if ! isDirectImage "$iso"; then
     error "Failed to boot \"$iso\" because it is not a directly bootable ISO image!"
-    exit 60
+    return 1
   fi
 
   # When automatic preparation fails, inspect extracted media to determine
