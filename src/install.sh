@@ -43,8 +43,15 @@ selectWindowsImage() {
   local dir="$2"
   local boot="$3"
 
-  # Known versions already provide the required image metadata.
-  if resolveImage "$VERSION"; then
+  XML=""
+  FB="falling back to manual installation!"
+
+  # Known catalog versions already provide the required image metadata.
+  if [ -z "$DETECTED" ] && [ -z "$CUSTOM" ] && [[ "${VERSION,,}" != "http"* ]]; then
+    DETECTED="$VERSION"
+  fi
+
+  if [ -n "$DETECTED" ]; then
 
     if ! setImage; then
       return 70
@@ -99,7 +106,7 @@ configureMachine() {
   desc=$(printVariant "$DETECTED" "$DETECTED") || return 78
 
   if ! checkMemory "$DETECTED" "$desc"; then
-    if [ -n "${REUSED_ISO:-}" ]; then
+    if [ -z "$CUSTOM" ]; then
       useOriginalImage "$iso" || return 79
     fi
     return 79
@@ -220,18 +227,6 @@ startInstall() {
 
     BOOT="$STORAGE/$boot"
 
-    REUSED_ISO=""
-    [ -s "$BOOT" ] && REUSED_ISO="Y"
-
-    # Use the suggested answer file for a new automatic download. When an
-    # existing ISO is reused, leave DETECTED empty so its actual image can
-    # be inspected instead.
-    if [ -n "$DETECTED" ]; then
-      DETECTED_ORG="Y"
-    elif [ -z "$REUSED_ISO" ]; then
-      DETECTED="$SUGGEST"
-    fi
-
   fi
 
   TMP="$STORAGE/tmp"
@@ -275,7 +270,7 @@ startInstall() {
 
   if [ -z "$CUSTOM" ]; then
 
-    if [ -n "$REUSED_ISO" ]; then
+    if [ -s "$BOOT" ]; then
       ISO="$TMP/$(basename "$BOOT")"
     else
       ISO="$TMP/$file"
@@ -283,9 +278,9 @@ startInstall() {
 
   fi
 
-  # Keep reusable media at its persistent path until all storage cleanup has
+  # Keep existing media at its persistent path until all storage cleanup has
   # completed successfully, so a later failure cannot strand it under $TMP.
-  if [ -n "$CUSTOM" ] || [ -z "$REUSED_ISO" ]; then
+  if [ -n "$CUSTOM" ] || [ ! -s "$BOOT" ]; then
     if ! rm -f -- "$BOOT"; then
       error "Failed to remove obsolete ISO file \"$BOOT\" !"
       exit 50
@@ -307,7 +302,7 @@ startInstall() {
     exit 50
   fi
 
-  if [ -z "$CUSTOM" ] && [ -z "$REUSED_ISO" ] && [[ "${VERSION,,}" != "http"* ]]; then
+  if [ -z "$CUSTOM" ] && [[ "${VERSION,,}" != "http"* ]]; then
     checkMemory "$VERSION" || exit 67
   fi
 
@@ -592,10 +587,18 @@ detectCustom() {
   CUSTOM=""
 
   findFile "custom.iso" || return 1
-  [ -n "$CUSTOM" ] && return 0
+
+  if [ -n "$CUSTOM" ]; then
+    DETECTED=""
+    return 0
+  fi
 
   findFile "boot.iso" || return 1
-  [ -n "$CUSTOM" ] && return 0
+
+  if [ -n "$CUSTOM" ]; then
+    DETECTED=""
+    return 0
+  fi
 
   return 0
 }
@@ -619,47 +622,6 @@ removeImage() {
   fi
 
   return 0
-}
-
-resolveImage() {
-
-  local version="$1"
-
-  XML=""
-  FB="falling back to manual installation!"
-
-  [ -z "$DETECTED" ] || return 0
-
-  # Reused and arbitrary URL media must be inspected because their actual
-  # contents may no longer match the requested VERSION.
-  [ -z "${REUSED_ISO:-}" ] || return 1
-  [[ "${version,,}" != "http"* ]] || return 1
-
-  # Only direct-boot custom media can safely bypass content detection.
-  if [ -n "$CUSTOM" ]; then
-    supportsUnattended "$version" && return 1
-    DETECTED="$version"
-    return 0
-  fi
-
-  local file="/run/assets/$version.xml"
-
-  if [ -s "$file" ]; then
-    DETECTED="$version"
-    return 0
-  fi
-
-  # Evaluation media may reuse the normal edition's answer-file template.
-  if [[ "${version,,}" == *"-eval" ]]; then
-    local source="/run/assets/${version%-eval}.xml"
-
-    if [ -s "$source" ]; then
-      DETECTED="$version"
-      return 0
-    fi
-  fi
-
-  return 1
 }
 
 setImage() {

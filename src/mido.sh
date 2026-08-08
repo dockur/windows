@@ -549,97 +549,6 @@ downloadWindowsEval() {
   return 0
 }
 
-getMidoDetected() {
-
-  # Return the answer-file identity for the Microsoft source that actually
-  # succeeded without changing the global DETECTED value.
-
-  local version="${1,,}"
-  local source="${2,,}"
-  local current="$3"
-  local default="$version"
-  local detected
-
-  [ -z "$source" ] && source="$version"
-
-  # Preserve a DETECTED value that existed before SUGGEST was assigned.
-  if enabled "${DETECTED_ORG:-}"; then
-    echo "$current"
-    return 0
-  fi
-
-  # Derive the normal answer-file identity from the requested download route.
-  case "$default" in
-    *"-enterprise-ltsc-eval" )
-      default="${default%-enterprise-ltsc-eval}-ltsc" ;;
-    *"-enterprise-iot-eval" )
-      default="${default%-enterprise-iot-eval}-iot" ;;
-    *"-eval" )
-      default="${default%-eval}" ;;
-  esac
-
-  # Preserve a genuinely different DETECTED override.
-  if [ -n "$current" ] && [[ "${current,,}" != "$default" ]]; then
-    echo "$current"
-    return 0
-  fi
-
-  # Select the answer-file identity for the source that actually succeeded.
-  case "$source" in
-    *"-enterprise-ltsc-eval" )
-      detected="${source%-enterprise-ltsc-eval}-ltsc-eval" ;;
-    *"-enterprise-iot-eval" )
-      detected="${source%-enterprise-iot-eval}-iot-eval" ;;
-    *"-eval" )
-      detected="$source" ;;
-    * )
-      detected="${current:-$default}" ;;
-  esac
-
-  echo "$detected"
-  return 0
-}
-
-downloadWindowsLtsc() {
-
-  local id="$1"
-  local lang="$2"
-  local desc="$3"
-
-  local alternate alternate_desc rc
-
-  case "${id,,}" in
-    "win11${PLATFORM,,}-enterprise-iot-eval" )
-      alternate="win11${PLATFORM,,}-enterprise-ltsc-eval" ;;
-    "win11${PLATFORM,,}-enterprise-ltsc-eval" )
-      alternate="win11${PLATFORM,,}-enterprise-iot-eval" ;;
-    * )
-      error "Invalid VERSION specified, value \"$id\" is not recognized!"
-      return 1 ;;
-  esac
-
-  # IoT and LTSC share related evaluation sources and may become unavailable
-  # independently, so use the sibling edition as a compatibility fallback.
-  if downloadWindowsEval "$id" "$lang" "$desc" > /dev/null 2>&1; then
-    MIDO_SOURCE="$id"
-    return 0
-  else
-    rc=$?
-    (( rc == 1 )) || return "$rc"
-  fi
-
-  alternate_desc=$(printEdition "$alternate" "$alternate" "Y")
-
-  info "Primary download source failed, trying $alternate_desc instead..."
-
-  downloadWindowsEval "$alternate" "$lang" "$alternate_desc" || return
-
-  MIDO_SOURCE="$alternate"
-  warn "the requested $desc was unavailable, using $alternate_desc instead."
-
-  return 0
-}
-
 getWindows() {
 
   local version="$1"
@@ -649,7 +558,6 @@ getWindows() {
 
   local language edition rc
 
-  MIDO_SOURCE=""
   MIDO_STATIC="N"
 
   language=$(getLanguage "$lang" "desc")
@@ -693,17 +601,6 @@ getWindows() {
     "win10x64" | "win11${PLATFORM,,}" )
 
       if downloadWindows "$version" "$lang" "$edition"; then
-        MIDO_SOURCE="$version"
-        return 0
-      else
-        rc=$?
-        (( rc == 1 )) || return "$rc"
-      fi ;;
-
-    "win11${PLATFORM,,}-enterprise-iot-eval" | \
-    "win11${PLATFORM,,}-enterprise-ltsc-eval" )
-
-      if downloadWindowsLtsc "$version" "$lang" "$edition"; then
         return 0
       else
         rc=$?
@@ -713,7 +610,6 @@ getWindows() {
     "win11${PLATFORM,,}-enterprise"* )
 
       if downloadWindowsEval "$version" "$lang" "$edition"; then
-        MIDO_SOURCE="$version"
         return 0
       else
         rc=$?
@@ -724,7 +620,6 @@ getWindows() {
     "win2019-hv" | "win2016-eval" | "win2012r2-eval" )
 
       if downloadWindowsEval "$version" "$lang" "$edition"; then
-        MIDO_SOURCE="$version"
         return 0
       else
         rc=$?
@@ -745,12 +640,6 @@ getWindows() {
 
   MIDO_STATIC="Y"
 
-  if [[ "${version,,}" == "win2008r2"* ]]; then
-    MIDO_SOURCE="win2008r2-eval"
-    return 0
-  fi
-
-  MIDO_SOURCE="$version"
   return 0
 }
 
@@ -1373,10 +1262,9 @@ downloadImage() {
   local version="$2"
   local lang="$3"
 
-  local detected="$DETECTED"
-  local requested="$version" switched=""  
+  local requested="$version"
   local tried="n" success="n" seconds="5"
-  local i url sum size base language desc web_desc metadata rc
+  local i url sum size base language desc web_desc rc
 
   if [[ "${version,,}" == "http"* ]]; then
 
@@ -1436,17 +1324,15 @@ downloadImage() {
 
     if [[ "$success" == "y" ]]; then
 
-      detected=$(getMidoDetected "$version" "$MIDO_SOURCE" "$DETECTED")
-      metadata="${MIDO_SOURCE:-$version}"
-      url=$(getMido "$metadata" "$lang" "")
+      url=$(getMido "$version" "$lang" "")
 
       sum=""
       size=""
 
       # Apply the metadata belonging to the configured static URL.
       if [[ "${MIDO_URL%%\?*}" == "${url%%\?*}" ]]; then
-        size=$(getMido "$metadata" "$lang" "size")
-        sum=$(getMido "$metadata" "$lang" "sum")
+        size=$(getMido "$version" "$lang" "size")
+        sum=$(getMido "$version" "$lang" "sum")
       fi
 
       local download_desc="$desc"
@@ -1455,8 +1341,6 @@ downloadImage() {
       fi
 
       if tryDownload "$iso" "$MIDO_URL" "$sum" "$size" "$download_desc" "$seconds" "$web_desc"; then
-        # Commit the candidate only after the image was downloaded and verified.
-        DETECTED="$detected"
         return 0
       else
         rc=$?
@@ -1468,14 +1352,12 @@ downloadImage() {
 
   # If an evaluation version was requested, switch to the 
   # normal edition since none of our mirrors provide those.
-  if switched=$(switchEdition "$version"); then
+  if [[ "${version,,}" == *"-eval" ]]; then
 
-    validDownload "$switched" || return 1
-    version="$switched"
+    version="${version::-5}"
+    validDownload "$version" || return 1
 
-    if ! enabled "${DETECTED_ORG:-}"; then
-      DETECTED="${SUGGEST:-$version}"
-    fi
+    [ -n "$DETECTED" ] || DETECTED="$version"
 
     desc=$(printVariant "$DETECTED" "" "Y")
     web_desc=$(printVariant "$DETECTED" "")
