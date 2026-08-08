@@ -658,6 +658,11 @@ needsExtraction() {
   local id="$1"
   local iso="$2"
 
+  # Nested archives must be extracted to expose their contained ISO.
+  if enabled "${UNPACK:-}"; then
+    return 0
+  fi
+
   # Media without unattended support boots directly from the original ISO.
   if ! supportsUnattended "$id"; then
     return 1
@@ -670,11 +675,6 @@ needsExtraction() {
 
   # Standalone ESD downloads must be extracted before they can be prepared.
   if [[ "${iso,,}" == *".esd" ]]; then
-    return 0
-  fi
-
-  # Nested archives must be extracted to expose their contained ISO.
-  if enabled "${UNPACK:-}"; then
     return 0
   fi
 
