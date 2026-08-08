@@ -1949,10 +1949,16 @@ markGeneratedXML() {
 
   local file="$1"
   local marker='<!-- generated-answer-file: do not reuse as a template -->'
+  local first
 
   [ -s "$file" ] || return 1
 
-  if head -n 1 "$file" | grep -q '^<?xml'; then
+  if ! first=$(head -n 1 "$file"); then
+    error "Failed to inspect generated answer file: $file"
+    return 1
+  fi
+
+  if [[ "$first" == "<?xml"* ]]; then
     sed -i "1a$marker" "$file" || return 1
   else
     sed -i "1i$marker" "$file" || return 1
