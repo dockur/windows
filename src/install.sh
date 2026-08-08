@@ -105,10 +105,9 @@ configureMachine() {
   local boot="$3"
 
   local desc
-
   desc=$(printVariant "$DETECTED" "$DETECTED") || return 78
 
-  if ! checkMemory "$DETECTED" "$desc"; then
+  if ! checkMemory "$DETECTED"; then
     if [ -z "$CUSTOM" ]; then
       useOriginalImage "$iso" || return 79
     fi
