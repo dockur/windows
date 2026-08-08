@@ -194,7 +194,7 @@ addAnswerFile() {
 
   if [ -z "${CUSTOM_XML:-}" ]; then
 
-    prepareSetupScript "$asset" "$stage" || exit 84
+    prepareSetupScript "$asset" "$stage" || return 1
 
   fi
 
