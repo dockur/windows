@@ -762,26 +762,22 @@ normalizeServerEdition() {
   edition="${edition#r2-}"
 
   case "$edition" in
-    "core" | "core-installation" | "server-core-installation" )
+    "core" | "server-core" | "servercore" | \
+    "core-installation" | "server-core-installation" )
       edition="standard-core" ;;
     "desktop-experience" | "server-with-a-gui" | "full-installation" )
       edition="standard" ;;
-    *"-server-core-installation" )
-      edition="${edition%-server-core-installation}-core" ;;
-    *"-core-installation" )
+    *"-server-core-installation" | *"-core-installation" )
+      edition="${edition%-server-core-installation}"
       edition="${edition%-core-installation}-core" ;;
-    *"-desktop-experience" )
-      edition="${edition%-desktop-experience}" ;;
-    *"-server-with-a-gui" )
-      edition="${edition%-server-with-a-gui}" ;;
-    *"-full-installation" )
+    *"-desktop-experience" | *"-server-with-a-gui" | *"-full-installation" )
+      edition="${edition%-desktop-experience}"
+      edition="${edition%-server-with-a-gui}"
       edition="${edition%-full-installation}" ;;
   esac
 
   edition="${edition#server-}"
   edition="${edition#server}"
-
-  [ "$edition" == "core" ] && edition="standard-core"
 
   echo "$edition"
   return 0
@@ -794,24 +790,13 @@ normalizeServerEditionID() {
   edition=$(normalizeServerEdition "$1") || return 1
 
   case "$edition" in
-    "" | "standard" | "serverstandard" ) edition="" ;;
-    "core" | "standard-core" | "standardcore" | "serverstandardcore" ) edition="standard-core" ;;
-    "datacenter" | "serverdatacenter" ) edition="datacenter" ;;
-    "datacenter-core" | "datacentercore" | "serverdatacentercore" ) edition="datacenter-core" ;;
-    "datacenter-azure" | "datacenter-azure-edition" | "datacenterazureedition" | \
-    "serverdatacenterazureedition" | "serverturbine" ) edition="datacenter-azure" ;;
-    "datacenter-azure-core" | "datacenter-azure-edition-core" | \
-    "datacenterazureeditioncore" | "serverdatacenterazureeditioncore" | \
-    "serverturbinecore" ) edition="datacenter-azure-core" ;;
-    "enterprise" | "serverenterprise" ) edition="enterprise" ;;
-    "enterprise-core" | "enterprisecore" | "serverenterprisecore" ) edition="enterprise-core" ;;
-    "web" | "serverweb" ) edition="web" ;;
-    "web-core" | "webcore" | "serverwebcore" ) edition="web-core" ;;
-    "foundation" | "serverfoundation" ) edition="foundation" ;;
-    "essentials" | "serveressentials" ) edition="essentials" ;;
-    # Keep unrecognized internal edition IDs deterministic and unique.
-    # Known aliases above only provide stable, friendlier public names.
-    * ) : ;;
+    "standard" ) edition="" ;;
+    "standardcore" | "datacentercore" | "enterprisecore" | "webcore" )
+      edition="${edition%core}-core" ;;
+    "datacenter-azure-edition" | "datacenterazureedition" )
+      edition="datacenter-azure" ;;
+    "datacenter-azure-edition-core" | "datacenterazureeditioncore" )
+      edition="datacenter-azure-core" ;;
   esac
 
   echo "$edition"
