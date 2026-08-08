@@ -7,8 +7,6 @@ handleCurlError() {
   local server="$2"
   local reason="${3:-}"
 
-  local signal
-
   if [ -n "$reason" ] && (( code <= 125 )); then
     error "Request to $server servers failed: ${reason%.}."
     return 1
@@ -23,6 +21,7 @@ handleCurlError() {
         return 1
       fi
 
+      local signal
       signal=$(kill -l "$((code - 128))" 2>/dev/null || true)
 
       case "$signal" in
@@ -72,10 +71,7 @@ curlRequest() {
     rm -f "$log"
     handleCurlError "$rc" "$server" "$reason" || :
 
-    if (( rc >= 129 )); then
-      return "$rc"
-    fi
-
+    (( rc >= 129 )) && return "$rc"
     return 1
   fi
 
@@ -579,11 +575,13 @@ getWindows() {
     "win81${PLATFORM,,}"* | \
     "win10${PLATFORM,,}-enterprise-ltsc-eval" | \
     "win11${PLATFORM,,}-enterprise-iot-eval" )
+
       if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
         error "No download in the $language language available for $edition!"
         MIDO_URL=""
         return 1
       fi ;;
+
   esac
 
   # ARM64 downloads exist only for the explicitly supported Windows 11
@@ -593,24 +591,28 @@ getWindows() {
     "win11${PLATFORM,,}" ) ;;
     "win11${PLATFORM,,}-enterprise"* ) ;;
     * )
+
       if [[ "${PLATFORM,,}" != "x64" ]]; then
         error "No download for the ${PLATFORM^^} platform available for $edition!"
         MIDO_URL=""
         return 1
       fi ;;
+
   esac
 
   # Prefer live Microsoft download routes. Unsupported or failed live routes
   # fall through to the configured static catalog below.
   case "${version,,}" in
+
     "win10x64" | "win11${PLATFORM,,}" )
 
       if downloadWindows "$version" "$lang" "$edition"; then
         return 0
       else
         rc=$?
-        (( rc == 1 )) || return "$rc"
-      fi ;;
+      fi
+      
+      (( rc == 1 )) || return "$rc" ;;
 
     "win11${PLATFORM,,}-enterprise"* )
 
@@ -618,8 +620,9 @@ getWindows() {
         return 0
       else
         rc=$?
-        (( rc == 1 )) || return "$rc"
-      fi ;;
+      fi
+      
+      (( rc == 1 )) || return "$rc" ;;
 
     "win2025-eval" | "win2022-eval" | "win2019-eval" | \
     "win2019-hv" | "win2016-eval" | "win2012r2-eval" )
@@ -628,14 +631,16 @@ getWindows() {
         return 0
       else
         rc=$?
-        (( rc == 1 )) || return "$rc"
-      fi ;;
+      fi
+      
+      (( rc == 1 )) || return "$rc" ;;
 
     "win2008r2"*| "win81${PLATFORM,,}"* | "win10${PLATFORM,,}-enterprise"* ) ;;
 
     * )
       error "Invalid VERSION specified, value \"$version\" is not recognized!"
       return 1 ;;
+
   esac
 
   # Static catalog URLs are the last resort after live Microsoft methods are
@@ -995,10 +1000,7 @@ getESD() {
 
     rm -f "$log"
 
-    if (( rc >= 129 )); then
-      return "$rc"
-    fi
-
+    (( rc >= 129 )) && return "$rc"
     return 1
   fi
 
@@ -1209,6 +1211,7 @@ tryDownload() {
     if ! rm -f -- "$iso" "$iso.aria2"; then
       warn "failed to remove invalid download \"$iso\"!"
     fi
+
     return 2
   }
 
@@ -1278,6 +1281,7 @@ downloadImage() {
     web_desc="$desc"
 
     tryDownload "$iso" "$version" "" "" "$desc" "$seconds" "$web_desc" || return
+
     return 0
   fi
 
