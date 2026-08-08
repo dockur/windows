@@ -195,6 +195,7 @@ selectVersion() {
 
       IFS=$'\t' read -r id index <<< "$record"
       [[ "${id,,}" == "${candidate,,}" ]] || continue
+ 
       hasAnswerFile "$id" || continue
 
       printf '%s\n%s\n' "$id" "$index"
@@ -278,6 +279,7 @@ detectVersion() {
   for record in "${images[@]}"; do
 
     IFS=$'\t' read -r id index <<< "$record"
+
     hasAnswerFile "$id" || continue
 
     rank=$(getEditionRank "$id")
@@ -327,7 +329,6 @@ detectLanguage() {
   for path in "${paths[@]}"; do
 
     lang=$(xmlstarlet sel -T -t -v "normalize-space(string(($path)[1]))" - 2>/dev/null <<< "$xml") || lang=""
-
     [ -n "$lang" ] && break
 
   done
@@ -502,8 +503,6 @@ createImageDirectory() {
   local image="$1"
   local directory="$2"
 
-  # Treat an existing directory as success; create it only when mdir cannot
-  # already resolve it.
   if mdir -i "$image" "$directory" >/dev/null 2>&1; then
     return 0
   fi
@@ -560,20 +559,25 @@ createSetupImage() {
   fi
 
   for entry in "${entries[@]}"; do
+
     if ! mcopy -Q -s -i "$tmp" "$entry" ::; then
       rm -f -- "$tmp"
       error "Failed to copy image file: $entry"
       return 1
     fi
+
   done
 
   if [ -n "$folder" ] || [ -f "$install" ]; then
+
     if ! createImageDirectory "$tmp" "::/\$OEM\$" || ! createImageDirectory "$tmp" "::/\$OEM\$/\$1" ||
       ! createImageDirectory "$tmp" "$target"; then
+
       rm -f -- "$tmp"
       error "Failed to create OEM directory in setup image!"
       return 1
     fi
+
   fi
 
   if [ -n "$folder" ]; then
@@ -592,11 +596,13 @@ createSetupImage() {
     fi
 
     for entry in "${entries[@]}"; do
+
       if ! mcopy -Q -s -o -i "$tmp" "$entry" "$target"; then
         rm -f -- "$tmp"
         error "Failed to copy OEM file: $entry"
         return 1
       fi
+
     done
 
   fi
@@ -604,11 +610,13 @@ createSetupImage() {
   # Copy the generated overlay script last so it replaces an install.bat from
   # the mounted OEM folder when both are present.
   if [ -f "$install" ]; then
+
     if ! mcopy -Q -o -i "$tmp" "$install" "$target/install.bat"; then
       rm -f -- "$tmp"
       error "Failed to replace install.bat in setup image!"
       return 1
     fi
+
   fi
 
   # Verify that mtools can read the completed filesystem before publishing it.
@@ -773,7 +781,6 @@ detectLegacy() {
 detectReactOS() {
 
   local dir="$1"
-
   local marker
 
   marker=$(find "$dir" -maxdepth 2 -type f \
@@ -885,8 +892,8 @@ readIsoImageInfo() {
   local image="$2"
   local header="$3"
 
-  local raw result root xml_count rc
-  local header_size version
+  local raw result xml_count rc
+  local root header_size version
   local part_number total_parts image_count
   local xml_offset xml_size xml_original xml_flags
   local -a bytes=() values=()
@@ -1172,8 +1179,10 @@ findImage() {
   fi
 
   for name in install.wim install.esd; do
+
     result=$(find "$sources" -maxdepth 1 -type f -iname "$name" -print -quit) || return 2
     [ -n "$result" ] && break
+
   done
 
   if [ ! -f "$result" ]; then
@@ -1222,13 +1231,14 @@ validateEdition() {
   # Discard a stale server-edition override when it conflicts with the image
   # that was actually detected.
   EDITION=""
+
   return 0
 }
 
 unknownImage() {
 
-  local msg="Failed to determine Windows version from image"
   local rc=0
+  local msg="Failed to determine Windows version from image"
 
   setXML "" || rc=$?
 
@@ -1252,9 +1262,12 @@ describeImage() {
   result=$(printEdition "$DETECTED" "$DETECTED" "Y") || return 1
 
   if [[ "${LANGUAGE,,}" != "en" && "${LANGUAGE,,}" != "en-"* ]]; then
+
     local language
     language=$(getLanguage "$LANGUAGE" "desc") || return 1
+
     result+=" ($language)"
+
   fi
 
   printf '%s' "$result"
@@ -1373,7 +1386,6 @@ detectImageInfo() {
 detectIsoImage() {
 
   local iso="$1"
-
   local image header image_info rc
 
   # Return 1 only when no directly inspectable WIM/ESD payload is available so
@@ -1405,19 +1417,39 @@ detectIsoImage() {
   return 0
 }
 
+baseDir() {
+
+  local path="${1%/}"
+
+  [[ -z "$path" || "$path" == "/" ]] && {
+    echo "/"
+    return 0
+  }
+
+  path="${path#/}"
+  path="${path%%/*}"
+
+  echo "/$path"
+  return 0
+}
+
 checkFreeSpace() {
 
   local dir="$1"
   local size="$2"
 
-  local space size_gb space_gb
+  local base space size_gb space_gb
+  base=$(baseDir "$dir")
 
-  space=$(df --output=avail -B 1 "$dir" | tail -n 1) || return 1
-
-  [[ "$space" =~ ^[[:space:]]*[0-9]+[[:space:]]*$ ]] || {
-    error "Failed to determine available disk space for $dir!"
+  if ! space=$(df --output=avail -B 1 "$dir" | tail -n 1); then
+    error "Failed to check free space in $dir."
     return 1
-  }
+  fi
+
+  if [[ ! "$space" =~ ^[[:space:]]*[0-9]+[[:space:]]*$ ]]; then
+    error "Failed to determine available disk space for $dir."
+    return 1
+  fi
 
   space="${space//[[:space:]]/}"
 
@@ -1426,8 +1458,9 @@ checkFreeSpace() {
     size_gb=$(formatBytes "$size")
     space_gb=$(formatBytes "$space")
 
-    error "Not enough free space in $STORAGE, have $space_gb available but need at least $size_gb."
+    error "Not enough free space in $base, have $space_gb available but need at least $size_gb."
     return 1
+
   fi
 
   return 0
