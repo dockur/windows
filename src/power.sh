@@ -21,6 +21,7 @@ LEGACY_BOOT_PATTERN='^Booting from (Hard Disk|DVD/CD)'
 UEFI_BOOT_PATTERN='BdsDxe: starting Boot[[:xdigit:]]{4} '
 UEFI_NO_BOOT_MESSAGE='BdsDxe: No bootable option or device was found.'
 UEFI_DVD_BOOT_PATTERN='BdsDxe: starting Boot[[:xdigit:]]{4} "UEFI QEMU .*DVD-ROM'
+UEFI_USB_BOOT_PATTERN='BdsDxe: starting Boot[[:xdigit:]]{4} "UEFI QEMU .*USB HARDDRIVE'
 UEFI_WINDOWS_BOOT_PATTERN='BdsDxe: starting Boot[[:xdigit:]]{4} "Windows Boot Manager" from .*HD\('
 
 bootStatus() {
@@ -122,7 +123,7 @@ waitForBoot() {
     # Windows versions do not expose it on the PTY until much later.
     if (( ! keySent )) && needsBootKey; then
 
-      if [ -s "$QEMU_PTY" ] && grep -Fq "Press any key to" "$QEMU_PTY"; then
+      if [ -s "$QEMU_PTY" ] && grep -Fq "Press any key to boot from" "$QEMU_PTY"; then
         if sendKey spc 0 500; then
           keySent=1
         fi
@@ -367,7 +368,11 @@ bootKeyReady() {
     return $?
   fi
 
-  grep -Eq "$UEFI_DVD_BOOT_PATTERN" "$QEMU_PTY"
+  if [[ "${PLATFORM,,}" == "arm64" ]]; then
+    grep -Eq "$UEFI_USB_BOOT_PATTERN" "$QEMU_PTY"
+  else
+    grep -Eq "$UEFI_DVD_BOOT_PATTERN" "$QEMU_PTY"
+  fi
 }
 
 getBootMarker() {
