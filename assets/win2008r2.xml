@@ -12,7 +12,7 @@
     </component>
     <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DiskConfiguration>
-        <WillShowUI>false</WillShowUI>
+        <WillShowUI>Enable</WillShowUI>
         <Disk wcm:action="add">
           <DiskID>1</DiskID>
           <WillWipeDisk>true</WillWipeDisk>
@@ -65,11 +65,11 @@
       </ImageInstall>
       <DynamicUpdate>
         <Enable>true</Enable>
-        <WillShowUI>false</WillShowUI>
+        <WillShowUI>Enable</WillShowUI>
       </DynamicUpdate>
       <UpgradeData>
         <Upgrade>false</Upgrade>
-        <WillShowUI>false</WillShowUI>
+        <WillShowUI>Enable</WillShowUI>
       </UpgradeData>
       <UserData>
         <AcceptEula>true</AcceptEula>

@@ -76,11 +76,11 @@
       </ImageInstall>
       <DynamicUpdate>
         <Enable>true</Enable>
-        <WillShowUI>false</WillShowUI>
+        <WillShowUI>Enable</WillShowUI>
       </DynamicUpdate>
       <UpgradeData>
         <Upgrade>false</Upgrade>
-        <WillShowUI>false</WillShowUI>
+        <WillShowUI>Enable</WillShowUI>
       </UpgradeData>
       <UserData>
         <AcceptEula>true</AcceptEula>
