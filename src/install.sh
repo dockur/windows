@@ -3,13 +3,30 @@ set -Eeuo pipefail
 
 startWindows() {
 
-  parseVersion || exit 58
-  parseLanguage || exit 62
-  detectCustom || exit 64
+  parseVersion || {
+    error "Failed to parse the Windows version!"
+    exit 58
+  }
+
+  parseLanguage || {
+    error "Failed to parse the Windows language!"
+    exit 62
+  }
+
+  detectCustom || {
+    error "Failed to scan for custom installation media!"
+    exit 64
+  }
 
   if ! startInstall; then
-    bootWindows || exit 66
+
+    bootWindows || {
+      error "Failed to boot Windows!"
+      exit 66
+    }
+
     return 0
+
   fi
 
   if ! hasImage "$ISO"; then
@@ -181,10 +198,25 @@ prepareWindowsImage() {
 
 bootWindows() {
 
-  restoreMachineState || return
-  restoreBootMode || return
-  restoreMachine || return
-  reserveSambaPorts || return
+  if ! restoreMachineState; then
+    error "Failed to restore the saved machine state!"
+    return 1
+  fi
+
+  if ! restoreBootMode; then
+    error "Failed to restore the saved boot mode!"
+    return 1
+  fi
+
+  if ! restoreMachine; then
+    error "Failed to restore the saved machine type!"
+    return 1
+  fi
+
+  if ! reserveSambaPorts; then
+    error "Failed to reserve Samba ports!"
+    return 1
+  fi
 
   return 0
 }
