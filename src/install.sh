@@ -197,10 +197,12 @@ prepareWindowsImage() {
 
     # Bootable ISOs can be reused unchanged with the generated setup image.
     if (( ! extracted )) && isDirectImage "$iso"; then
+
       useOriginalImage "$iso" || {
         error "Failed to preserve the original installation image!"
         return 88
       }
+
       return 0
     fi
 
@@ -208,11 +210,13 @@ prepareWindowsImage() {
 
   # Extracted modern sources and SIF-based legacy media require a clean rebuild.
   if (( ! extracted )); then
+
     if ! extractImage "$iso" "$dir" "$VERSION"; then
       error "Failed to extract the Windows installation image!"
       removeImage "$iso" || :
       return 90
     fi
+  
   fi
 
   if ! prepareImage "$iso" "$dir"; then
@@ -468,10 +472,12 @@ skipInstall() {
     # Older releases may have left a rebuilt custom ISO at its synthetic source
     # identity. A completed installation no longer needs that installation media.
     if [[ "${previousBase,,}" == "windows."* ]] && hasData && [ -f "$marker" ]; then
+
       if ! rm -f -- "$STORAGE/$previousBase"; then
         error "Failed to remove obsolete ISO file \"$STORAGE/$previousBase\" !"
         exit 50
       fi
+
     fi
 
     # A changed source invalidates an unfinished installation. Back up an
@@ -558,11 +564,13 @@ finishInstall() {
 
   if [[ "$boot" == "$STORAGE/"* ]]; then
     if [[ "$aborted" != [Yy1]* ]] || [ -z "$CUSTOM" ]; then
+
       base=$(basename "$boot")
       writeState "base" "$base" || {
         error "Failed to save the Windows installation source!"
         return 1
       }
+
     fi
   fi
 
@@ -583,11 +591,13 @@ finishInstall() {
       fi
 
       if (( secure )); then
+
         BOOT_MODE="windows_secure"
         writeState "mode" "$BOOT_MODE" || {
           error "Failed to save the Windows boot mode!"
           return 1
         }
+
       fi
 
     fi
@@ -609,7 +619,6 @@ finishInstall() {
 findFile() {
 
   local fname="$1"
-
   local dir file base
   local boot="$STORAGE/windows.boot"
 
