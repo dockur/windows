@@ -175,13 +175,16 @@ downloadWindowsLink() {
     --max-filesize 100K \
     -- "$skuUrl") || return
 
-  # Let jq parsing failures propagate so malformed API data is not mistaken
-  # for a normal missing-result response. The same applies to the link data.
-  skuId=$(printf '%s\n' "$skuJson" | jq --arg LANG "$language" -r 'first(.Skus[]? | select(.Language == $LANG) | .Id) // empty') 2>/dev/null || return
+  skuId=$(printf '%s\n' "$skuJson" | jq --arg LANG "$language" -r 'first(.Skus[]? | select(.Language == $LANG) | .Id) // empty') 2>/dev/null || skuId=""
 
   if [ -z "$skuId" ] || [[ "${skuId,,}" == "null" ]]; then
-    language=$(getLanguage "$lang" "desc")
-    error "No download in the $language language available for $desc!"
+    if [[ "${lang,,}" != "en" && "${lang,,}" != "en-"* ]]; then
+      language=$(getLanguage "$lang" "desc")
+      error "No download in the $language language available for $desc!"
+    else
+      error "Microsoft server provided us no SKU ID in response to our request!"
+      info "Response: $skuJson"
+    fi
     return 1
   fi
 
@@ -214,10 +217,10 @@ downloadWindowsLink() {
     return 1
   fi
 
-  link=$(printf '%s\n' "$linkJson" | jq --argjson TYPE "$type" -r 'first(.ProductDownloadOptions[]? | select(.DownloadType == $TYPE) | .Uri) // empty') 2>/dev/null || return
+  link=$(printf '%s\n' "$linkJson" | jq --argjson TYPE "$type" -r 'first(.ProductDownloadOptions[]? | select(.DownloadType == $TYPE) | .Uri) // empty') 2>/dev/null || link=""
 
   if [ -z "$link" ] || [[ "${link,,}" == "null" ]]; then
-    error "Microsoft server gave us no download link to our request for an automated download!"
+    error "Microsoft server provided us no download link to our request for an automated download!"
     info "Response: $linkJson"
     return 1
   fi
@@ -287,7 +290,7 @@ downloadWindows() {
     grep -Eio "<option[^>]*value=[\"'][0-9]+[\"'][^>]*>[[:space:]]*Windows[^<]*" |
     sed -nE "s/.*value=[\"']([0-9]+)[\"'].*/\1/p" |
     sed -n '1p' |
-    cut -c 1-16) || return
+    cut -c 1-16) || productId=""
   enabled "$DEBUG" && echo "$productId"
 
   if [ -z "$productId" ]; then
@@ -1119,7 +1122,7 @@ verifyFile() {
     info "Successfully verified $type!" && return 0
   fi
 
-  error "The downloaded file has an unknown $algo checksum: $hash , as the expected value was: $check. Please report this at $SUPPORT/issues"
+  warn "the downloaded file has an unknown $algo checksum: $hash , as the expected value was: $check. Please report this at $SUPPORT/issues"
   return 1
 }
 
@@ -1280,7 +1283,11 @@ downloadImage() {
     desc=$(fromFile "$base")
     web_desc="$desc"
 
-    tryDownload "$iso" "$version" "" "" "$desc" "$seconds" "$web_desc" || return
+    tryDownload "$iso" "$version" "" "" "$desc" "$seconds" "$web_desc" || {
+      rc=$?
+      error "Failed to download the Windows image from the specified URL!"
+      return "$rc"
+    }
 
     return 0
   fi
@@ -1450,6 +1457,8 @@ downloadImage() {
 
   if [[ "$tried" == "n" ]]; then
     error "No download method is available for $desc!"
+  else
+    error "All download methods failed for $desc!"
   fi
 
   return 1

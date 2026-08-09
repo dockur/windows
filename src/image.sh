@@ -273,13 +273,17 @@ detectLanguage() {
 
   for path in "${paths[@]}"; do
 
-    lang=$(xmlstarlet sel -T -t -v "normalize-space(string(($path)[1]))" - 2>/dev/null <<< "$xml") || lang=""
+    if ! lang=$(xmlstarlet sel -T -t -v "normalize-space(string(($path)[1]))" - 2>/dev/null <<< "$xml"); then
+      warn "failed to read language metadata from Windows image!"
+      return 0
+    fi
+
     [ -n "$lang" ] && break
 
   done
 
   if [ -z "$lang" ]; then
-    warn "Language could not be detected from ISO!"
+    warn "language could not be detected from ISO!"
     return 0
   fi
 
@@ -290,7 +294,7 @@ detectLanguage() {
     return 0
   fi
 
-  warn "Invalid language detected: \"$lang\""
+  warn "invalid language detected: \"$lang\""
   return 0
 }
 
@@ -617,7 +621,7 @@ detectLegacy() {
 
   if [ -n "$marker" ]; then
     error "Windows IA-64 (Itanium) images are not supported by this container!"
-    exit 67
+    return 2
   fi
 
   marker=$(find "$dir" -maxdepth 1 -type d -iname WIN95 -print -quit) || return 2
@@ -786,7 +790,6 @@ readWimHeader() {
 
   if ! rm -f -- "$header"; then
     enabled "$DEBUG" && echo "Failed to remove the previous temporary WIM header: $header" >&2
-    error "Failed to prepare Windows image header!"
     return 1
   fi
 
@@ -794,35 +797,30 @@ readWimHeader() {
   # extracting install.wim or install.esd from the ISO.
   if ! udfread range --ignore-case -o "$header" "$iso" "$image" 0 208 >/dev/null 2>&1; then
     enabled "$DEBUG" && echo "udfread failed to read the first 208 bytes of $image from $iso." >&2
-    error "Failed to read Windows image header!"
     rm -f -- "$header"
     return 1
   fi
 
   if ! size=$(stat -c%s -- "$header"); then
     enabled "$DEBUG" && echo "Failed to determine the size of the temporary WIM header: $header" >&2
-    error "Failed to read Windows image header!"
     rm -f -- "$header"
     return 1
   fi
 
   if (( size != 208 )); then
     enabled "$DEBUG" && echo "The WIM header is $size bytes instead of the expected 208 bytes." >&2
-    error "Failed to read Windows image header!"
     rm -f -- "$header"
     return 1
   fi
 
   if ! signature=$(od -An -N8 -tx1 "$header" | tr -d ' \n'); then
     enabled "$DEBUG" && echo "Failed to read the WIM header signature from $header." >&2
-    error "Failed to read Windows image header!"
     rm -f -- "$header"
     return 1
   fi
 
   if [[ "$signature" != "4d5357494d000000" ]]; then
     enabled "$DEBUG" && echo "The WIM header has an invalid signature: ${signature:-empty}." >&2
-    error "Failed to read Windows image header!"
     rm -f -- "$header"
     return 1
   fi
@@ -1241,7 +1239,7 @@ configureImage() {
 
   if [[ "$DETECTED" == "win81x86"* || "$DETECTED" == "win10x86"* ]]; then
     error "The 32-bit version of $desc is not supported!"
-    exit 67
+    return 2
   fi
 
   local msg="the answer file for $desc was not found ($DETECTED.xml)"
@@ -1269,18 +1267,14 @@ configureImage() {
 detectImageInfo() {
 
   local image_info="$1"
-
   local desc index rc
 
-  checkPlatform "$image_info" || {
-    enabled "$DEBUG" && echo "Platform validation failed for the Windows image metadata." >&2
-    exit 67
-  }
+  checkPlatform "$image_info" || return 2
 
   local output
   output=$(detectVersion "$image_info") || {
     enabled "$DEBUG" && echo "Version detection failed while parsing the Windows image metadata." >&2
-    error "Failed to detect Windows version from image metadata!"
+    error "Failed to detect the Windows version from image metadata!"
     return 1
   }
 
@@ -1292,16 +1286,18 @@ detectImageInfo() {
 
   validateEdition || {
     enabled "$DEBUG" && echo "Edition validation failed for detected image: ${DETECTED:-empty}, index: ${index:-empty}." >&2
-    error "Failed to validate Windows edition from image metadata!"
+    error "Failed to validate the Windows edition from image metadata!"
     return 1
   }
 
   if [ -z "$DETECTED" ]; then
+
     unknownImage || {
       rc=$?
       enabled "$DEBUG" && echo "Unknown-image handling failed after no Windows version could be detected (status $rc)." >&2
       return "$rc"
     }
+
     return 0
   fi
 
@@ -1337,25 +1333,84 @@ detectIsoImage() {
   # the caller may extract the media. Metadata parsing/configuration errors use 2.
   image=$(findIsoImage "$iso") || {
     rc=$?
-    enabled "$DEBUG" && echo "Direct ISO image lookup stopped with status $rc." >&2
+    enabled "$DEBUG" && echo "ISO image lookup failed (status $rc)." >&2
     return "$rc"
   }
 
   header=$(readWimHeader "$iso" "$image") || {
-    enabled "$DEBUG" && echo "Reading the WIM header failed for $image." >&2
+    error "Failed to read the Windows image header!"
     return 2
   }
 
   image_info=$(readIsoImageInfo "$iso" "$image" "$header") || {
-    enabled "$DEBUG" && echo "Reading the WIM XML metadata failed for $image." >&2
-    error "Failed to read Windows image metadata!"
+    error "Failed to read the Windows image metadata!"
     return 2
   }
 
   info "Detecting version from ISO image..."
 
   detectImageInfo "$image_info" || {
-    enabled "$DEBUG" && echo "Processing the Windows image metadata failed." >&2
+    error "Failed to process the Windows image metadata!"
+    return 2
+  }
+
+  return 0
+}
+
+detectESDImage() {
+
+  local iso="$1"
+
+  local image_info install_info output index rc
+  local -a detected=()
+
+  image_info=$(wimlib-imagex info "$iso" --xml 2>/dev/null |
+    iconv -f UTF-16LE -t UTF-8 2>/dev/null) || {
+    rc=$?
+    error "Cannot read ESD file information (status $rc)."
+    return 2
+  }
+
+  # Microsoft download ESDs use images 1-3 for setup media, WinPE, and Windows
+  # Setup; images 4 and higher contain installable editions.
+  if ! install_info=$(xmlstarlet ed \
+      -d '/WIM/IMAGE[number(@INDEX) < 4]' \
+      <<< "$image_info" 2>/dev/null); then
+    error "Cannot read installable images from ESD file!"
+    return 2
+  fi
+
+  checkPlatform "$install_info" || return 2
+
+  local output
+  output=$(detectVersion "$install_info") || {
+    error "Failed to detect Windows version from the ESD metadata!"
+    return 2
+  }
+
+  mapfile -t detected <<< "$output"
+  index="${detected[1]:-}"
+
+  if [ -z "$index" ]; then
+    error "Failed to select an installation image based on the ESD metadata!"
+    return 2
+  fi
+
+  # extractESD removes every other image, leaving the selected edition at
+  # index 1. Detect against that final layout so the generated answer file
+  # already references the index that will exist after extraction.
+  if ! image_info=$(xmlstarlet ed \
+      -d "/WIM/IMAGE[number(@INDEX) != $index]" \
+      -u "/WIM/IMAGE[@INDEX='$index']/@INDEX" -v '1' \
+      <<< "$install_info" 2>/dev/null); then
+    error "Cannot prepare ESD image information!"
+    return 2
+  fi
+
+  info "Detecting version from ESD image..."
+
+  detectImageInfo "$image_info" || {
+    error "Failed to process the ESD image metadata!"
     return 2
   }
 
@@ -1363,6 +1418,8 @@ detectIsoImage() {
 }
 
 baseDir() {
+
+  # TODO: Can be removed with base image 7.45+
 
   local path="${1%/}"
 
@@ -1584,7 +1641,7 @@ extractESD() {
       return 1
     fi
 
-    checkPlatform "$xml" || return
+    checkPlatform "$installXml" || return
 
     output=$(detectVersion "$installXml") || return
     mapfile -t detected <<< "$output"
@@ -1990,7 +2047,11 @@ buildImage() {
 
   base=$(basename "$BOOT")
   local out="$TMP/${base%.*}.tmp"
-  rm -f "$out"
+
+  if ! rm -f "$out"; then
+    error "Failed to remove temporary ISO image: $out"
+    return 1
+  fi
 
   desc=$(printVariant "$DETECTED" "ISO")
 

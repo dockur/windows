@@ -30,10 +30,21 @@ updateXML() {
   [ -z "${HEIGHT:-}" ] && HEIGHT="720"
 
   validateXMLSettings || return 1
-  ensureXMLDefaultNamespace "$asset" || return 1
 
-  updateUserXML "$asset" || return 1
-  updateLocaleXML "$asset" "$language" || return 1
+  if ! ensureXMLDefaultNamespace "$asset"; then
+    error "Failed to prepare the answer file XML namespace!"
+    return 1
+  fi
+
+  if ! updateUserXML "$asset"; then
+    error "Failed to update user and display settings in answer file!"
+    return 1
+  fi
+
+  if ! updateLocaleXML "$asset" "$language"; then
+    error "Failed to update regional settings in answer file!"
+    return 1
+  fi
 
   if [ -n "$domain" ]; then
 
@@ -46,13 +57,24 @@ updateXML() {
 
   else
 
-    updateLocalAccount "$asset" || return 1
+    if ! updateLocalAccount "$asset"; then
+      error "Failed to update local account settings in answer file!"
+      return 1
+    fi
 
   fi
 
   updateMembership "$asset" "$domain" "$workgroup" "$account" "$auth" || return 1
-  updateAutologinXML "$asset" || return 1
-  updateEditionXML "$asset" || return 1
+
+  if ! updateAutologinXML "$asset"; then
+    error "Failed to update automatic logon settings in answer file!"
+    return 1
+  fi
+
+  if ! updateEditionXML "$asset"; then
+    error "Failed to update edition settings in answer file!"
+    return 1
+  fi
 
   validateGeneratedXML "$asset" || return 1
 
@@ -73,7 +95,7 @@ setXML() {
 
   if [ -d "${custom_files[0]}" ]; then
     error "The bind ${custom_files[0]} maps to a file that does not exist!"
-    exit 67
+    return 2
   fi
 
   # A custom answer file always takes precedence over bundled or generated
@@ -182,7 +204,7 @@ addAnswerFile() {
 
   if ! updateDiskID "$answer" "${DISK_TYPE:-}"; then
     error "Failed to adjust the Windows installation disk!"
-    exit 85
+    return 1
   fi
 
   if ! setConfigurationXML "$answer"; then
@@ -194,7 +216,10 @@ addAnswerFile() {
 
   if [ -z "${CUSTOM_XML:-}" ]; then
 
-    prepareSetupScript "$asset" "$stage" || exit 84
+    if ! prepareSetupScript "$asset" "$stage"; then
+      error "Failed to prepare the Windows setup script!"
+      return 1
+    fi
 
   fi
 
@@ -1080,7 +1105,13 @@ updateDiskID() {
 
   done <<< "$values"
 
-  mapfile -t ids < <(printf '%s\n' "${ids[@]}" | sort -u)
+  local unique
+  unique=$(printf '%s\n' "${ids[@]}" | sort -u) || {
+    error "Failed to normalize DiskID values from answer file: $asset"
+    return 1
+  }
+
+  mapfile -t ids <<< "$unique"
 
   # Leave explicit multi-disk configurations untouched.
   (( ${#ids[@]} == 1 )) || return 0
@@ -1946,10 +1977,16 @@ markGeneratedXML() {
 
   local file="$1"
   local marker='<!-- generated-answer-file: do not reuse as a template -->'
+  local first
 
   [ -s "$file" ] || return 1
 
-  if head -n 1 "$file" | grep -q '^<?xml'; then
+  if ! first=$(head -n 1 "$file"); then
+    error "Failed to inspect generated answer file: $file"
+    return 1
+  fi
+
+  if [[ "$first" == "<?xml"* ]]; then
     sed -i "1a$marker" "$file" || return 1
   else
     sed -i "1i$marker" "$file" || return 1
@@ -1961,12 +1998,17 @@ markGeneratedXML() {
 removeGeneratedXML() {
 
   local file="$1"
+  local header
 
   [ -n "$file" ] || return 0
   [ -f "$file" ] || return 0
 
-  head -n 5 "$file" |
-    grep -Fqi 'generated-answer-file' || return 0
+  if ! header=$(head -n 5 "$file"); then
+    error "Failed to inspect answer file: $file"
+    return 1
+  fi
+
+  grep -Fqi 'generated-answer-file' <<< "$header" || return 0
 
   if ! rm -f "$file"; then
     error "Failed to remove generated answer file: $file"
@@ -2323,8 +2365,16 @@ addSIFEntry() {
     return 1
   fi
 
-  if grep -Fqx "$entry" "$file" || grep -Fqx "$entry"$'\r' "$file"; then
+  local rc=0
+  grep -Fqx -e "$entry" -e "$entry"$'\r' "$file" || rc=$?
+
+  if (( rc == 0 )); then
     return 0
+  fi
+
+  if (( rc != 1 )); then
+    error "Failed to inspect section \"$header\" in \"$file\" !"
+    return 1
   fi
 
   if [[ "$ending" == "crlf" ]]; then
@@ -2412,7 +2462,9 @@ addLegacyDrivers() {
   patchStorageDriver "$file" "$arch" || return 1
   addSataDriver "$dir" "$target" "$arch" "$drivers" "$file" || return 1
 
-  rm -rf "$drivers" || return 1
+  if ! rm -rf "$drivers"; then
+    warn "failed to clean temporary driver files!"
+  fi
 
   return 0
 }
@@ -2424,7 +2476,7 @@ setLegacyKey() {
   local arch="$3"
   local desc="$4"
 
-  local setup pid key file
+  local setup pid file block
   setup=$(find "$target" -maxdepth 1 -type f -iname setupp.ini -print -quit) || return 1
 
   [[ -n "$setup" ]] || return 0
@@ -2434,7 +2486,8 @@ setLegacyKey() {
   pid="${pid%$'\r'}"
 
   if [[ "$driver" == "2k" ]]; then
-    echo "${pid::-3}270" > "$setup" || return 1
+    [ "${#pid}" -ge 3 ] || return 0
+    echo "${pid::-3}270" > "$setup" || :
     return 0
   fi
 
@@ -2447,28 +2500,44 @@ setLegacyKey() {
 
   if [[ -n "$file" ]]; then
 
+    local key=""
+
     # Prefer a staging or OEM key already shipped on the media before falling
     # back to Microsoft's documented generic installation keys.
     if [[ "$driver" == "2k3" ]]; then
 
-      key=$(grep -i -A 2 "StagingKey" "$file" | tail -n 2 | head -n 1) || key=""
+      block=$(grep -i -A 2 "StagingKey" "$file") || block=""
+
+      if [ -n "$block" ]; then
+        key=$(printf '%s\n' "$block" | tail -n 2 | head -n 1) || key=""
+      fi
 
     else
 
       key="${pid: -8:5}"
 
       if [[ "${pid^^}" == *"OEM" ]]; then
-        key=$(grep -i -A 2 "$key" "$file" | tail -n 2 | head -n 1) || key=""
+
+        block=$(grep -i -A 2 "$key" "$file") || block=""
+
       else
-        key=$(grep -i -m 1 -A 2 "$key" "$file" | tail -n 2 | head -n 1) || key=""
+
+        block=$(grep -i -m 1 -A 2 "$key" "$file") || block=""
+
+      fi
+
+      if [ -n "$block" ]; then
+        key=$(printf '%s\n' "$block" | tail -n 2 | head -n 1) || key=""
       fi
 
       key="${key#*= }"
 
     fi
 
-    key="${key%$'\r'}"
-    [[ "${#key}" == "29" ]] && KEY="$key"
+    if [ -n "$key" ]; then
+      key="${key%$'\r'}"
+      [[ "${#key}" == "29" ]] && KEY="$key"
+    fi
 
   fi
 
@@ -2499,7 +2568,9 @@ setLegacyKey() {
 
   esac
 
-  echo "${pid::-3}000" > "$setup" || return 1
+  if [ "${#pid}" -ge 3 ]; then
+    echo "${pid::-3}000" > "$setup" || :
+  fi
 
   return 0
 }
@@ -2768,12 +2839,10 @@ disableAutoReboot() {
 
   local target="$1"
 
-  local file
+  local file rc=0
   local pattern='^[[:space:]]*HKLM[[:space:]]*,[[:space:]]*"SYSTEM\\CurrentControlSet\\Control\\CrashControl"[[:space:]]*,[[:space:]]*"AutoReboot"[[:space:]]*,[[:space:]]*[^,]*,'
 
-  file=$(find \
-    "$target" -maxdepth 1 -type f -iname HIVESYS.INF -print -quit
-  ) || return 1
+  file=$(find "$target" -maxdepth 1 -type f -iname HIVESYS.INF -print -quit) || return 1
 
   if [ -z "$file" ]; then
     error "The file HIVESYS.INF could not be found!"
@@ -2782,19 +2851,18 @@ disableAutoReboot() {
 
   # Keep setup crashes visible instead of immediately rebooting into an
   # opaque installation loop.
-  if grep -Eqi "${pattern}[[:space:]]*[^,;[:space:]]+" "$file"; then
+  grep -Eqi "${pattern}[[:space:]]*[^,;[:space:]]+" "$file" || rc=$?
 
-    sed -i -E \
-      "s|(${pattern})[[:space:]]*[^,;[:space:]]+|\\1 0|I" \
-      "$file" || return 1
-
-  else
-
-    printf '%s\n' \
-      'HKLM,"SYSTEM\CurrentControlSet\Control\CrashControl","AutoReboot",0x00010001,0' |
-      unix2dos >> "$file" || return 1
-
-  fi
+  case "$rc" in
+    0 )
+      sed -i -E "s|(${pattern})[[:space:]]*[^,;[:space:]]+|\\1 0|I" "$file" || :
+      ;;
+    1 )
+      printf '%s\n' \
+        'HKLM,"SYSTEM\CurrentControlSet\Control\CrashControl","AutoReboot",0x00010001,0' |
+        unix2dos >> "$file" || :
+      ;;
+  esac
 
   return 0
 }

@@ -647,23 +647,28 @@ getVersion() {
   local evaluation=""
 
   id=$(fromName "$name" "$arch")
+  [ -z "$id" ] && return 0
+
   [[ "${name,,}" == *"evaluation"* ]] && evaluation="-eval"
 
   case "${id,,}" in
-    "winvista"* | "win7"* | "win8"* | "win10"* | "win11"* )
-      if edition=$(getEditionID "$name" "$id"); then
-        [ -n "$edition" ] && id+="-$edition"
-        [ -n "$evaluation" ] && id+="$evaluation"
-      fi
-      ;;
+
     "win20"* )
+
       if [[ "${name,,}" == *"hyper-v server"* ]]; then
         id+="-hv"
       elif edition=$(getServerEditionID "$name" "$id"); then
         [ -n "$edition" ] && id+="-$edition"
         [ -n "$evaluation" ] && id+="$evaluation"
-      fi
-      ;;
+      fi ;;
+
+    * )
+
+      if edition=$(getEditionID "$name" "$id"); then
+        [ -n "$edition" ] && id+="-$edition"
+        [ -n "$evaluation" ] && id+="$evaluation"
+      fi ;;
+
   esac
 
   echo "$id"
@@ -695,6 +700,7 @@ getEditionRank() {
 
   case "$base" in
     "win20"* )
+
       case "$edition" in
         "" ) echo 0 ;;
         "datacenter-azure-core" | "datacenter-azure-core-"* | \
@@ -709,9 +715,10 @@ getEditionRank() {
         "essentials" | "essentials-"* ) echo 5 ;;
         "hv" | "hv-"* ) echo 10 ;;
         * ) echo 99 ;;
-      esac
-      ;;
+      esac ;;
+
     * )
+
       case "$edition" in
         "enterprise-iot" | "enterprise-iot-"* | "iot" | "iot-"* ) echo 3 ;;
         "enterprise-ltsc" | "enterprise-ltsc-"* | "ltsc" | "ltsc-"* ) echo 4 ;;
@@ -723,8 +730,8 @@ getEditionRank() {
         "home" | "home-"* ) echo 6 ;;
         "starter" | "starter-"* ) echo 7 ;;
         * ) echo 99 ;;
-      esac
-      ;;
+      esac ;;
+
   esac
 
   return 0
@@ -735,6 +742,7 @@ getEditionPolicy() {
   local base="${1,,}"
 
   case "$base" in
+
     "win20"* )
       printf '%s\n' \
         "normalizeServerEditionID" \
@@ -750,9 +758,10 @@ getEditionPolicy() {
         "-datacenter-azure-core" \
         "-enterprise-core" \
         "-web-core" \
-        "-hv"
-      ;;
+        "-hv" ;;
+
     * )
+
       printf '%s\n' \
         "normalizeEditionID" \
         "-enterprise" \
@@ -764,8 +773,8 @@ getEditionPolicy() {
         "-home" \
         "-home-premium" \
         "-home-basic" \
-        "-starter"
-      ;;
+        "-starter" ;;
+
   esac
 
   return 0
@@ -774,18 +783,20 @@ getEditionPolicy() {
 normalizeEdition() {
 
   local source="${1,,}"
-
-  local edition
+  local edition transliterated
 
   source="${source//evaluation/}"
-  source=$(printf '%s' "$source" |
-    uconv -x 'Any-Latin; Latin-ASCII' 2>/dev/null) || return 1
+
+  if transliterated=$(printf '%s' "$source" |
+    uconv -x 'Any-Latin; Latin-ASCII' 2>/dev/null); then
+    source="$transliterated"
+  fi
 
   edition=$(sed -E \
     -e 's/[^a-z0-9]+/-/g' \
     -e 's/^-+//' \
     -e 's/-+$//' \
-    <<< "$source")
+    <<< "$source") || edition=""
 
   echo "$edition"
   return 0
@@ -799,11 +810,15 @@ normalizeEditionID() {
   edition=$(normalizeEdition "$1") || return 1
 
   case "$edition" in
+
     "pro" | "professional" | "business" )
       edition="" ;;
+
     "pro-n" | "pron" | "professional-n" | "professionaln" | "business-n" | "businessn" )
       edition="n" ;;
+
     * )
+
       if ! isClientEdition "$edition"; then
         case "$edition" in
           *"-n" ) base="${edition%-n}" ;;
@@ -816,10 +831,13 @@ normalizeEditionID() {
         fi
 
       fi ;;
+  
   esac
 
   case "${id,,}" in
+
     "win10"* | "win11"* )
+
       case "$edition" in
         "iot-enterprise-ltsc" | \
         "iot-enterprise-ltsc-"[0-9][0-9][0-9][0-9] )
@@ -827,8 +845,8 @@ normalizeEditionID() {
         "enterprise-ltsc" | \
         "enterprise-ltsc-"[0-9][0-9][0-9][0-9] )
           edition="ltsc" ;;
-      esac
-      ;;
+      esac ;;
+
   esac
 
   echo "$edition"

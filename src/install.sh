@@ -3,20 +3,43 @@ set -Eeuo pipefail
 
 startWindows() {
 
-  parseVersion || exit 58
-  parseLanguage || exit 62
-  detectCustom || exit 64
+  parseVersion || {
+    error "Failed to parse the Windows version!"
+    exit 58
+  }
 
-  if ! startInstall; then
-    bootWindows || exit 66
+  parseLanguage || {
+    error "Failed to parse the Windows language!"
+    exit 62
+  }
+
+  detectCustom || {
+    error "Failed to scan for custom installation media!"
+    exit 64
+  }
+
+  local rc=0
+  startInstall || rc=$?
+  (( rc > 1 )) && exit "$rc"
+
+  if (( rc )); then
+
+    bootWindows || {
+      error "Failed to boot Windows!"
+      exit 66
+    }
+
     return 0
+
   fi
 
   if ! hasImage "$ISO"; then
+
     if ! downloadImage "$ISO" "$VERSION" "$LANGUAGE"; then
       removeImage "$ISO" || :
       exit 68
     fi
+
   fi
 
   local boot="$BOOT"
@@ -48,11 +71,12 @@ selectWindowsImage() {
   XML=""
   FB="falling back to manual installation!"
 
-  normalizeDetected || return 70
+  normalizeDetected || :
 
   if [ -n "$DETECTED" ]; then
 
     if ! setImage; then
+      error "Failed to configure the detected Windows image!"
       return 70
     fi
 
@@ -61,6 +85,7 @@ selectWindowsImage() {
     fi
 
     if ! extractImage "$iso" "$dir" "$VERSION"; then
+      error "Failed to extract the Windows installation image!"
       removeImage "$iso" || :
       return 72
     fi
@@ -76,11 +101,21 @@ selectWindowsImage() {
     detectIsoImage "$iso" && return 0
 
     rc=$?
-    (( rc == 1 )) || return 76
+    if (( rc != 1 )); then
+      error "Failed to inspect the Windows installation ISO!"
+      return 76
+    fi
+
+  elif [[ "${iso,,}" == *.esd ]]; then
+
+    detectESDImage "$iso" && return 0
+    error "Failed to inspect the Windows installation ESD!"
+    return 76
 
   fi
 
   if ! extractImage "$iso" "$dir" "$VERSION"; then
+    error "Failed to extract the Windows installation image!"
     removeImage "$iso" || :
     return 74
   fi
@@ -90,9 +125,15 @@ selectWindowsImage() {
   detectImage "$dir" && return 0
 
   rc=$?
-  (( rc == 1 )) || return 76
+  if (( rc != 1 )); then
+    error "Failed to detect the extracted Windows installation image!"
+    return 76
+  fi
 
-  skipUnattended "$dir" "$iso" "$boot" || return 76
+  skipUnattended "$dir" "$iso" "$boot" || {
+    error "Failed to fall back to manual installation!"
+    return 76
+  }
 
   handled=1
   return 0
@@ -108,24 +149,37 @@ configureMachine() {
   desc=$(printVariant "$DETECTED" "$DETECTED") || return 78
 
   if ! checkMemory "$DETECTED"; then
+
     if [ -z "$CUSTOM" ]; then
-      useOriginalImage "$iso" || return 79
+      useOriginalImage "$iso" || {
+        error "Failed to preserve the original installation image!"
+        return 79
+      }
     fi
+
     return 79
   fi
 
   if ! setMachine "$DETECTED" "$iso" "$dir" "$desc"; then
+    error "Failed to configure the virtual machine for $desc!"
     return 80
   fi
 
   if ! restoreMachineState; then
+    error "Failed to restore the saved machine state!"
     return 82
   fi
 
   if ! supportsUnattended "$DETECTED"; then
-    skipUnattended "$dir" "$iso" "$boot" "N" || return 83
+
+    skipUnattended "$dir" "$iso" "$boot" "N" || {
+      error "Failed to fall back to manual installation!"
+      return 83
+    }
+  
     handled=1
     return 0
+
   fi
 
   return 0
@@ -141,16 +195,23 @@ prepareWindowsImage() {
   if supportsXML "$DETECTED"; then
 
     if ! createOverlay "$XML" "$LANGUAGE" "$TMP/setup"; then
+      error "Failed to create the Windows setup overlay!"
       return 84
     fi
 
     if ! createSetupImage "$TMP/setup" "$STORAGE/setup.img"; then
+      error "Failed to create the Windows setup image!"
       return 86
     fi
 
     # Bootable ISOs can be reused unchanged with the generated setup image.
-    if (( ! extracted )); then
-      useOriginalImage "$iso" || return 88
+    if (( ! extracted )) && isDirectImage "$iso"; then
+
+      useOriginalImage "$iso" || {
+        error "Failed to preserve the original installation image!"
+        return 88
+      }
+
       return 0
     fi
 
@@ -158,28 +219,54 @@ prepareWindowsImage() {
 
   # Extracted modern sources and SIF-based legacy media require a clean rebuild.
   if (( ! extracted )); then
+
     if ! extractImage "$iso" "$dir" "$VERSION"; then
+      error "Failed to extract the Windows installation image!"
       removeImage "$iso" || :
       return 90
     fi
+  
   fi
 
   if ! prepareImage "$iso" "$dir"; then
+    error "Failed to prepare the Windows installation image!"
     return 92
   fi
 
-  removeImage "$iso" || return 96
-  buildImage "$dir" || return 98
+  removeImage "$iso" || {
+    error "Failed to remove the source installation image!"
+    return 96
+  }
+
+  buildImage "$dir" || {
+    error "Failed to build the Windows installation image!"
+    return 98
+  }
 
   return 0
 }
 
 bootWindows() {
 
-  restoreMachineState || return
-  restoreBootMode || return
-  restoreMachine || return
-  reserveSambaPorts || return
+  if ! restoreMachineState; then
+    error "Failed to restore the saved machine state!"
+    return 1
+  fi
+
+  if ! restoreBootMode; then
+    error "Failed to restore the saved boot mode!"
+    return 1
+  fi
+
+  if ! restoreMachine; then
+    error "Failed to restore the saved machine type!"
+    return 1
+  fi
+
+  if ! reserveSambaPorts; then
+    error "Failed to reserve Samba ports!"
+    return 1
+  fi
 
   return 0
 }
@@ -211,13 +298,17 @@ startInstall() {
       case "${boot,,}" in
         "windows."* )
           error "The download filename \"$file\" uses the reserved \"windows.*\" namespace!"
-          exit 58 ;;
+          return 58 ;;
       esac
 
     else
 
       local language
-      language=$(getLanguage "$LANGUAGE" "culture")
+      if ! language=$(getLanguage "$LANGUAGE" "culture"); then
+        error "Failed to determine the Windows language!"
+        return 62
+      fi
+
       language="${language%%-*}"
 
       if [ -n "$language" ] && [[ "${language,,}" != "en" ]]; then
@@ -235,28 +326,32 @@ startInstall() {
 
   if ! rm -rf -- "$TMP"; then
     error "Failed to remove directory \"$TMP\" !"
-    exit 50
+    return 50
   fi
 
   local setup="$STORAGE/setup.img"
 
   if ! rm -f -- "$setup" "${setup}.tmp"; then
     error "Failed to remove setup image \"$setup\" !"
-    exit 50
+    return 50
   fi
 
   local previousBase
   if ! previousBase=$(readState "base"); then
     error "Failed to read the previous installation state!"
-    exit 50
+    return 50
   fi
 
-  skipInstall "$BOOT" "$previousBase" && return 1
+  local rc=0
+  skipInstall "$BOOT" "$previousBase" || rc=$?
+
+  (( rc > 1 )) && return "$rc"
+  (( rc )) || return 1
 
   if [ -z "$previousBase" ] && hasData; then
 
     if enabled "$SHUTDOWN" && [ ! -f "$STORAGE/windows.boot" ]; then
-      discardPrevious "" || exit 50
+      discardPrevious "" || return 50
     else
       if ! backupPrevious ""; then
         warn "the backup was incomplete, continuing with installation..."
@@ -267,7 +362,7 @@ startInstall() {
 
   if ! makeDir "$TMP"; then
     error "Failed to create directory \"$TMP\" !"
-    exit 50
+    return 50
   fi
 
   if [ -z "$CUSTOM" ]; then
@@ -285,27 +380,27 @@ startInstall() {
   if [ -n "$CUSTOM" ] || [ ! -s "$BOOT" ]; then
     if ! rm -f -- "$BOOT"; then
       error "Failed to remove obsolete ISO file \"$BOOT\" !"
-      exit 50
+      return 50
     fi
   fi
 
   if ! find "$STORAGE" -maxdepth 1 -type f -iname 'data.*' -not -iname '*.iso' -delete; then
     error "Failed to remove obsolete disk files from \"$STORAGE\" !"
-    exit 50
+    return 50
   fi
 
   if ! find "$STORAGE" -maxdepth 1 -type f -iname 'windows.*' -not -iname '*.iso' -delete; then
     error "Failed to remove obsolete Windows files from \"$STORAGE\" !"
-    exit 50
+    return 50
   fi
 
   if ! find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete; then
     error "Failed to remove obsolete firmware files from \"$STORAGE\" !"
-    exit 50
+    return 50
   fi
 
   if [ -z "$CUSTOM" ] && [[ "${VERSION,,}" != "http"* ]]; then
-    checkMemory "$VERSION" || exit 67
+    checkMemory "$VERSION" || return 67
   fi
 
   # Work from the temporary directory so the persistent source path can
@@ -313,7 +408,7 @@ startInstall() {
   if [ -z "$CUSTOM" ] && [ -f "$BOOT" ] && [ -s "$BOOT" ]; then
     if ! mv -f -- "$BOOT" "$ISO"; then
       error "Failed to move ISO file from \"$BOOT\" to \"$ISO\" !"
-      exit 50
+      return 50
     fi
   fi
 
@@ -333,7 +428,7 @@ skipUnattended() {
   # so they cannot use the manual-install fallback.
   if ! isDirectImage "$iso"; then
     error "Failed to boot \"$iso\" because it is not a directly bootable ISO image!"
-    exit 60
+    return 1
   fi
 
   # When automatic preparation fails, inspect extracted media to determine
@@ -382,7 +477,7 @@ skipInstall() {
 
       if ! writeState "base" "$previousBase"; then
         error "Failed to migrate the previous installation state!"
-        exit 50
+        return 50
       fi
 
     fi
@@ -390,10 +485,12 @@ skipInstall() {
     # Older releases may have left a rebuilt custom ISO at its synthetic source
     # identity. A completed installation no longer needs that installation media.
     if [[ "${previousBase,,}" == "windows."* ]] && hasData && [ -f "$marker" ]; then
+
       if ! rm -f -- "$STORAGE/$previousBase"; then
         error "Failed to remove obsolete ISO file \"$STORAGE/$previousBase\" !"
-        exit 50
+        return 50
       fi
+
     fi
 
     # A changed source invalidates an unfinished installation. Back up an
@@ -404,7 +501,7 @@ skipInstall() {
 
         if ! rm -f -- "$STORAGE/$previousBase"; then
           error "Failed to remove ISO file \"$STORAGE/$previousBase\" !"
-          exit 50
+          return 50
         fi
 
         return 1
@@ -430,7 +527,7 @@ skipInstall() {
       fi
 
       if enabled "$SHUTDOWN" && [ ! -f "$marker" ]; then
-        discardPrevious "$STORAGE/$previousBase" || exit 50
+        discardPrevious "$STORAGE/$previousBase" || return 50
         return 1
       fi
 
@@ -469,7 +566,10 @@ finishInstall() {
   fi
 
   local file="$STORAGE/windows.ver"
-  cp -f /etc/version "$file" || return 1
+  cp -f /etc/version "$file" || {
+    error "Failed to save the Windows installation version!"
+    return 1
+  }
 
   if ! setOwner "$file"; then
     warn "Failed to set the owner for \"$file\" !"
@@ -477,15 +577,23 @@ finishInstall() {
 
   if [[ "$boot" == "$STORAGE/"* ]]; then
     if [[ "$aborted" != [Yy1]* ]] || [ -z "$CUSTOM" ]; then
+
       base=$(basename "$boot")
-      writeState "base" "$base" || return 1
+      writeState "base" "$base" || {
+        error "Failed to save the Windows installation source!"
+        return 1
+      }
+
     fi
   fi
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
     if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
 
-      writeState "mode" "$BOOT_MODE" || return 1
+      writeState "mode" "$BOOT_MODE" || {
+        error "Failed to save the Windows boot mode!"
+        return 1
+      }
 
     else
 
@@ -496,14 +604,22 @@ finishInstall() {
       fi
 
       if (( secure )); then
+
         BOOT_MODE="windows_secure"
-        writeState "mode" "$BOOT_MODE" || return 1
+        writeState "mode" "$BOOT_MODE" || {
+          error "Failed to save the Windows boot mode!"
+          return 1
+        }
+
       fi
 
     fi
   fi
 
-  reserveSambaPorts || return 1
+  reserveSambaPorts || {
+    error "Failed to reserve Samba ports!"
+    return 1
+  }
 
   if ! rm -rf -- "$TMP"; then
     error "Failed to remove directory \"$TMP\" !"
@@ -516,7 +632,6 @@ finishInstall() {
 findFile() {
 
   local fname="$1"
-
   local dir file base
   local boot="$STORAGE/windows.boot"
 
@@ -896,7 +1011,12 @@ detectImage() {
   local image_info
   image_info=$(readImageInfo "$wim") || return $?
 
-  detectImageInfo "$image_info" || return 2
+  detectImageInfo "$image_info" || {
+    error "Failed to process the Windows image metadata!"
+    return 2
+  }
+
+  return 0
 }
 
 prepareImage() {
@@ -1212,7 +1332,10 @@ createOverlay() {
     return 1
   fi
 
-  addAnswerFile "$asset" "$language" "$stage" || return 1
+  addAnswerFile "$asset" "$language" "$stage" || {
+    error "Failed to include the Windows answer file!"
+    return 1
+  }
 
   return 0
 }
@@ -1309,8 +1432,8 @@ backupPrevious () {
     failed="Y"
   fi
 
-  [ -z "$(ls -A "$dir")" ] && rm -rf "$dir"
-  [ -z "$(ls -A "$root")" ] && rm -rf "$root"
+  rmdir "$dir" 2>/dev/null || :
+  rmdir "$root" 2>/dev/null || :
 
   [ -n "$failed" ] && return 1
 
