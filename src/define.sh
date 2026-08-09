@@ -963,27 +963,71 @@ getRequiredMemory() {
 
   case "$id" in
     "win11"* )
-      echo 2147483648 ;;
+      echo "2G" ;;
     "tiny11"* | "core11"* )
-      echo 2147483648 ;;
+      echo "2G" ;;
     "win10"* | "tiny10"* )
-      echo 2147483648 ;;
+      echo "2G" ;;
     "win2025"* | "win2022"* | "win2019"* | "win2016"* )
-      echo 2147483648 ;;
+      echo "2G" ;;
     "win81"* | "win7x64"* )
-      echo 2147483648 ;;
+      echo "2G" ;;
     "win7x86"* | "winvista"* | "win2012"* )
-      echo 1073741824 ;;
+      echo "1G" ;;
     "win2008"* | "win2003"* )
-      echo 536870912 ;;
+      echo "512M" ;;
     "winxpx64"* )
-      echo 268435456 ;;
+      echo "256M" ;;
     "win9"* | "winnt4"* | "winxpx86"* | "win2k"* )
-      echo 136314880 ;;
+      echo "130M" ;;
     "reactos"* )
-      echo 136314880 ;;
+      echo "130M" ;;
     * )
-      echo 136314880 ;;
+      echo "130M" ;;
+  esac
+
+  return 0
+}
+
+getRequiredDisk() {
+
+  local id="${1,,}"
+
+  case "$id" in
+    "win11"* )
+      echo "32G" ;;
+    "tiny11"* )
+      echo "8G" ;;
+    "core11"* )
+      echo "4G" ;;
+    "win10"* )
+      echo "16G" ;;
+    "tiny10"* )
+      echo "10G" ;;
+    "win2025"* | "win2022"* | "win2019"* | "win2016"* | "win2012"* )
+      echo "32G" ;;
+    "win81"* | "win7"* | "winvista"* )
+      echo "16G" ;;
+    "win2008"* )
+      echo "10G" ;;
+    "win2003"* )
+      echo "4G" ;;
+    "winxp"* )
+      echo "2G" ;;
+    "win2k"* )
+      echo "1G" ;;
+    "win9x"* )
+      echo "512M" ;;
+    "win98"* )
+      echo "256M" ;;
+    "win95"* )
+      echo "100M" ;;
+    "winnt4"* )
+      echo "128M" ;;
+    "reactos"* )
+      echo "512M" ;;
+    * )
+      echo "100M" ;;
   esac
 
   return 0
