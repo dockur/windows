@@ -20,10 +20,7 @@ startWindows() {
 
   local rc=0
   startInstall || rc=$?
-
-  if (( rc > 1 )); then
-    exit "$rc"
-  fi
+  (( rc > 1 )) && exit "$rc"
 
   if (( rc )); then
 
@@ -37,10 +34,12 @@ startWindows() {
   fi
 
   if ! hasImage "$ISO"; then
+
     if ! downloadImage "$ISO" "$VERSION" "$LANGUAGE"; then
       removeImage "$ISO" || :
       exit 68
     fi
+
   fi
 
   local boot="$BOOT"
@@ -172,12 +171,15 @@ configureMachine() {
   fi
 
   if ! supportsUnattended "$DETECTED"; then
+
     skipUnattended "$dir" "$iso" "$boot" "N" || {
       error "Failed to fall back to manual installation!"
       return 83
     }
+  
     handled=1
     return 0
+
   fi
 
   return 0
@@ -343,10 +345,7 @@ startInstall() {
   local rc=0
   skipInstall "$BOOT" "$previousBase" || rc=$?
 
-  if (( rc > 1 )); then
-    return "$rc"
-  fi
-
+  (( rc > 1 )) && return "$rc"
   (( rc )) || return 1
 
   if [ -z "$previousBase" ] && hasData; then
