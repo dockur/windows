@@ -774,18 +774,20 @@ getEditionPolicy() {
 normalizeEdition() {
 
   local source="${1,,}"
-
-  local edition
+  local edition transliterated
 
   source="${source//evaluation/}"
-  source=$(printf '%s' "$source" |
-    uconv -x 'Any-Latin; Latin-ASCII' 2>/dev/null) || return 1
+
+  if transliterated=$(printf '%s' "$source" |
+    uconv -x 'Any-Latin; Latin-ASCII' 2>/dev/null); then
+    source="$transliterated"
+  fi
 
   edition=$(sed -E \
     -e 's/[^a-z0-9]+/-/g' \
     -e 's/^-+//' \
     -e 's/-+$//' \
-    <<< "$source")
+    <<< "$source") || edition=""
 
   echo "$edition"
   return 0
