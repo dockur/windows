@@ -177,3 +177,4 @@ Also see [Dynamic memory allocation](https://github.com/qemus/qemu/blob/master/d
 | `LOG`   | `N` | Saves all output from `install.bat` to `C:\OEM\install.log` for troubleshooting. |
 | `SERIAL` | `mon:stdio` | QEMU serial device configuration. |
 | `MONITOR` |  | QEMU monitor configuration. |
+| `QMP` |  | QEMU Machine Protocol configuration. |
