@@ -353,6 +353,169 @@ getImageSize() {
   printf '%s\n' "$size"
 }
 
+getArchiveSize() {
+
+  local file="$1"
+  local result_name="$2"
+  local -n result="$result_name"
+
+  local found=0 listing line value rc
+
+  result=0
+
+  listing=$(7z l -slt "$file" 2>/dev/null) || {
+    rc=$?
+    error "Failed to read archive information: $file"
+    return "$rc"
+  }
+
+  while IFS= read -r line; do
+
+    [[ "$line" == "Size = "* ]] || continue
+
+    value="${line#Size = }"
+    [[ "$value" =~ ^[0-9]+$ ]] || continue
+
+    result=$(( result + value ))
+    found=1
+
+  done <<< "$listing"
+
+  if (( ! found )); then
+    error "Failed to determine archive contents size: $file"
+    return 1
+  fi
+
+  return 0
+}
+
+extractImage() {
+
+  local iso="$1"
+  local dir="$2"
+  local version="$3"
+
+  local target="$dir"
+  local desc="local ISO"
+  local archive="${dir}.archive"
+  local file size required archiveSize rc
+
+  if [ -z "$CUSTOM" ]; then
+    desc="downloaded ISO"
+    if [[ "$version" != "http"* ]]; then
+      desc=$(printVariant "$version" "$desc")
+    fi
+  fi
+
+  if [[ "${iso,,}" == *".esd" ]]; then
+    extractESD "$iso" "$dir" "$version" "$desc" || return
+    return 0
+  fi
+
+  local msg="Extracting $desc image"
+  info "$msg..." && html "$msg..."
+
+  enabled "${UNPACK:-}" && target="$archive"
+
+  if ! rm -rf -- "$dir" "$archive"; then
+    error "Failed to remove extraction directories!"
+    return 1
+  fi
+
+  if ! makeDir "$target"; then
+    error "Failed to create directory \"$target\" !"
+    return 1
+  fi
+
+  if ! size=$(stat -c%s "$iso"); then
+    error "Failed to determine ISO file size: $iso"
+    return 1
+  fi
+
+  if (( size < 10000000 )); then
+    error "Invalid ISO file: Size of \"$iso\" is smaller than 10 MB"
+    return 1
+  fi
+
+  required="$size"
+
+  if enabled "${UNPACK:-}"; then
+    getArchiveSize "$iso" archiveSize || return
+    required="$archiveSize"
+  fi
+
+  checkFreeSpace "$target" "$required" || return 1
+
+  if ! rm -rf -- "$target"; then
+    error "Failed to remove directory \"$target\" !"
+    return 1
+  fi
+
+  /run/progress.sh "$target" "$size" "$msg ([P])..." &
+
+  7z x "$iso" -o"$target" > /dev/null || {
+    rc=$?
+    fKill "progress.sh"
+    error "Failed to extract ISO file: $iso"
+    return "$rc"
+  }
+
+  fKill "progress.sh"
+
+  if ! enabled "${UNPACK:-}"; then
+
+    LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p') || LABEL=""
+
+  else
+
+    # Locate the first root-level ISO in the downloaded archive
+    if ! file=$(find "$archive" -maxdepth 1 -type f -iname "*.iso" -print -quit); then
+      error "Failed to search for a nested ISO in the extracted archive!"
+      return 1
+    fi
+
+    if [ -z "$file" ]; then
+      error "Failed to find any nested ISO files in the archive!"
+      return 1
+    fi
+
+    if ! mv -f -- "$file" "$iso"; then
+      error "Failed to preserve extracted ISO file: $file"
+      return 1
+    fi
+
+    if ! rm -rf -- "$archive"; then
+      error "Failed to remove directory \"$archive\" !"
+      return 1
+    fi
+
+    if ! makeDir "$dir"; then
+      error "Failed to create directory \"$dir\" !"
+      return 1
+    fi
+
+    if ! size=$(stat -c%s "$iso"); then
+      error "Failed to determine nested ISO file size: $iso"
+      return 1
+    fi
+
+    checkFreeSpace "$dir" "$size" || return 1
+
+    7z x "$iso" -o"$dir" > /dev/null || {
+      rc=$?
+      error "Failed to extract nested ISO file: $iso"
+      return "$rc"
+    }
+
+    LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p') || LABEL=""
+
+    UNPACK=""
+
+  fi
+
+  return 0
+}
+
 checkPlatform() {
 
   local xml="$1"
