@@ -110,6 +110,35 @@ setMachine() {
   return 0
 }
 
+restoreMachine() {
+
+  # Restore the saved machine only when q35 is still the default;
+  # an explicit user-selected machine must remain untouched.
+  [[ "${MACHINE,,}" != "q35" ]] && return 0
+  [[ "${PLATFORM,,}" != "x64" ]] && return 0
+
+  MACHINE=""
+  restoreState "MACHINE" "old" || return 1
+  [ -z "$MACHINE" ] && MACHINE="q35"
+
+  return 0
+}
+
+restoreMachineState() {
+
+  restoreState "VGA" "vga" || return 1
+  restoreState "USB" "usb" || return 1
+  restoreState "SOUND" "sound" || return 1
+  restoreState "ADAPTER" "net" || return 1
+  restoreState "CPU_MODEL" "cpu" || return 1
+  restoreState "DISK_TYPE" "type" || return 1
+
+  mergeState "CPU_FLAGS" "flag" "," || return 1
+  mergeState "ARGUMENTS" "args" " " || return 1
+
+  return 0
+}
+
 extractDrivers() {
 
   local drivers="$1"
