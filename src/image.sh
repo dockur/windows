@@ -1417,24 +1417,6 @@ detectESDImage() {
   return 0
 }
 
-baseDir() {
-
-  # TODO: Can be removed with base image 7.45+
-
-  local path="${1%/}"
-
-  [[ -z "$path" || "$path" == "/" ]] && {
-    echo "/"
-    return 0
-  }
-
-  path="${path#/}"
-  path="${path%%/*}"
-
-  echo "/$path"
-  return 0
-}
-
 checkFreeSpace() {
 
   local dir="$1"
