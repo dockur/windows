@@ -18,7 +18,14 @@ startWindows() {
     exit 64
   }
 
-  if ! startInstall; then
+  local rc=0
+  startInstall || rc=$?
+
+  if (( rc > 1 )); then
+    exit "$rc"
+  fi
+
+  if (( rc )); then
 
     bootWindows || {
       error "Failed to boot Windows!"
@@ -289,7 +296,7 @@ startInstall() {
       case "${boot,,}" in
         "windows."* )
           error "The download filename \"$file\" uses the reserved \"windows.*\" namespace!"
-          exit 58 ;;
+          return 58 ;;
       esac
 
     else
@@ -297,7 +304,7 @@ startInstall() {
       local language
       if ! language=$(getLanguage "$LANGUAGE" "culture"); then
         error "Failed to determine the Windows language!"
-        exit 62
+        return 62
       fi
 
       language="${language%%-*}"
@@ -317,28 +324,35 @@ startInstall() {
 
   if ! rm -rf -- "$TMP"; then
     error "Failed to remove directory \"$TMP\" !"
-    exit 50
+    return 50
   fi
 
   local setup="$STORAGE/setup.img"
 
   if ! rm -f -- "$setup" "${setup}.tmp"; then
     error "Failed to remove setup image \"$setup\" !"
-    exit 50
+    return 50
   fi
 
   local previousBase
   if ! previousBase=$(readState "base"); then
     error "Failed to read the previous installation state!"
-    exit 50
+    return 50
   fi
 
-  skipInstall "$BOOT" "$previousBase" && return 1
+  local rc=0
+  skipInstall "$BOOT" "$previousBase" || rc=$?
+
+  if (( rc > 1 )); then
+    return "$rc"
+  fi
+
+  (( rc )) || return 1
 
   if [ -z "$previousBase" ] && hasData; then
 
     if enabled "$SHUTDOWN" && [ ! -f "$STORAGE/windows.boot" ]; then
-      discardPrevious "" || exit 50
+      discardPrevious "" || return 50
     else
       if ! backupPrevious ""; then
         warn "the backup was incomplete, continuing with installation..."
@@ -349,7 +363,7 @@ startInstall() {
 
   if ! makeDir "$TMP"; then
     error "Failed to create directory \"$TMP\" !"
-    exit 50
+    return 50
   fi
 
   if [ -z "$CUSTOM" ]; then
@@ -367,27 +381,27 @@ startInstall() {
   if [ -n "$CUSTOM" ] || [ ! -s "$BOOT" ]; then
     if ! rm -f -- "$BOOT"; then
       error "Failed to remove obsolete ISO file \"$BOOT\" !"
-      exit 50
+      return 50
     fi
   fi
 
   if ! find "$STORAGE" -maxdepth 1 -type f -iname 'data.*' -not -iname '*.iso' -delete; then
     error "Failed to remove obsolete disk files from \"$STORAGE\" !"
-    exit 50
+    return 50
   fi
 
   if ! find "$STORAGE" -maxdepth 1 -type f -iname 'windows.*' -not -iname '*.iso' -delete; then
     error "Failed to remove obsolete Windows files from \"$STORAGE\" !"
-    exit 50
+    return 50
   fi
 
   if ! find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete; then
     error "Failed to remove obsolete firmware files from \"$STORAGE\" !"
-    exit 50
+    return 50
   fi
 
   if [ -z "$CUSTOM" ] && [[ "${VERSION,,}" != "http"* ]]; then
-    checkMemory "$VERSION" || exit 67
+    checkMemory "$VERSION" || return 67
   fi
 
   # Work from the temporary directory so the persistent source path can
@@ -395,7 +409,7 @@ startInstall() {
   if [ -z "$CUSTOM" ] && [ -f "$BOOT" ] && [ -s "$BOOT" ]; then
     if ! mv -f -- "$BOOT" "$ISO"; then
       error "Failed to move ISO file from \"$BOOT\" to \"$ISO\" !"
-      exit 50
+      return 50
     fi
   fi
 
@@ -464,7 +478,7 @@ skipInstall() {
 
       if ! writeState "base" "$previousBase"; then
         error "Failed to migrate the previous installation state!"
-        exit 50
+        return 50
       fi
 
     fi
@@ -475,7 +489,7 @@ skipInstall() {
 
       if ! rm -f -- "$STORAGE/$previousBase"; then
         error "Failed to remove obsolete ISO file \"$STORAGE/$previousBase\" !"
-        exit 50
+        return 50
       fi
 
     fi
@@ -488,7 +502,7 @@ skipInstall() {
 
         if ! rm -f -- "$STORAGE/$previousBase"; then
           error "Failed to remove ISO file \"$STORAGE/$previousBase\" !"
-          exit 50
+          return 50
         fi
 
         return 1
@@ -514,7 +528,7 @@ skipInstall() {
       fi
 
       if enabled "$SHUTDOWN" && [ ! -f "$marker" ]; then
-        discardPrevious "$STORAGE/$previousBase" || exit 50
+        discardPrevious "$STORAGE/$previousBase" || return 50
         return 1
       fi
 
