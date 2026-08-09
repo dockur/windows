@@ -110,116 +110,6 @@ setMachine() {
   return 0
 }
 
-validateLegacyText() {
-
-  local name="$1"
-  local value="$2"
-  local desc="${3:-}"
-
-  local suffix=""
-  [ -n "$desc" ] && suffix=" for $desc"
-
-  if [[ "$value" =~ [[:cntrl:]] ]]; then
-    error "The $name variable cannot contain control characters$suffix!"
-    return 1
-  fi
-
-  if [[ "$value" == *'"'* ]]; then
-    error "The $name variable cannot contain double quotes$suffix!"
-    return 1
-  fi
-
-  return 0
-}
-
-validateLegacyUsername() {
-
-  local value="$1"
-  local desc="${2:-}"
-
-  local suffix=""
-  [ -n "$desc" ] && suffix=" for $desc"
-
-  if [ -z "$value" ]; then
-    error "The USERNAME variable cannot be empty$suffix!"
-    return 1
-  fi
-
-  if [ "${#value}" -gt 20 ]; then
-    error "The USERNAME variable cannot contain more than 20 characters$suffix!"
-    return 1
-  fi
-
-  if [[ "$value" =~ [[:cntrl:]] ]]; then
-    error "The USERNAME variable cannot contain control characters$suffix!"
-    return 1
-  fi
-
-  case "$value" in
-    *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | \
-    *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* | *'%'* )
-      error "The USERNAME variable contains unsupported characters$suffix!"
-      return 1 ;;
-  esac
-
-  if [[ "$value" == *"." ]]; then
-    error "The USERNAME variable cannot end with a period$suffix!"
-    return 1
-  fi
-
-  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
-    error "The USERNAME variable cannot consist only of spaces or periods$suffix!"
-    return 1
-  fi
-
-  case "${value^^}" in
-
-    "NONE" )
-      error "The USERNAME value \"NONE\" is reserved by Windows$suffix!"
-      return 1 ;;
-
-    "ADMINISTRATOR" | "GUEST" | "DEFAULTACCOUNT" | "WDAGUTILITYACCOUNT" | "WSIACCOUNT" )
-      error "The USERNAME value \"$value\" is reserved for a built-in Windows account$suffix!"
-      return 1 ;;
-
-  esac
-
-  return 0
-}
-
-validateLegacyEncoding() {
-
-  local name="$1"
-  local value="$2"
-  local desc="${3:-}"
-
-  local suffix=""
-  [ -n "$desc" ] && suffix=" for $desc"
-
-  if LC_ALL=C grep -q '[^ -~]' <<< "$value"; then
-    error "The $name variable may only contain printable ASCII characters$suffix!"
-    return 1
-  fi
-
-  return 0
-}
-
-escapeSIFValue() {
-
-  local s="$1"
-
-  s=${s//%/%%}
-  s=${s//\"/\"\"}
-
-  printf '%s' "$s"
-  return 0
-}
-
-escapeRegistryValue() {
-
-  printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
-}
-
 extractDrivers() {
 
   local drivers="$1"
@@ -927,6 +817,116 @@ legacyInstall() {
 
   appendRegistry "$dir" "$driver" || return 1
   writeVBS "$dir" "$username" "$shortcut" || return 1
+
+  return 0
+}
+
+escapeSIFValue() {
+
+  local s="$1"
+
+  s=${s//%/%%}
+  s=${s//\"/\"\"}
+
+  printf '%s' "$s"
+  return 0
+}
+
+escapeRegistryValue() {
+
+  printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
+}
+
+validateLegacyText() {
+
+  local name="$1"
+  local value="$2"
+  local desc="${3:-}"
+
+  local suffix=""
+  [ -n "$desc" ] && suffix=" for $desc"
+
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    error "The $name variable cannot contain control characters$suffix!"
+    return 1
+  fi
+
+  if [[ "$value" == *'"'* ]]; then
+    error "The $name variable cannot contain double quotes$suffix!"
+    return 1
+  fi
+
+  return 0
+}
+
+validateLegacyUsername() {
+
+  local value="$1"
+  local desc="${2:-}"
+
+  local suffix=""
+  [ -n "$desc" ] && suffix=" for $desc"
+
+  if [ -z "$value" ]; then
+    error "The USERNAME variable cannot be empty$suffix!"
+    return 1
+  fi
+
+  if [ "${#value}" -gt 20 ]; then
+    error "The USERNAME variable cannot contain more than 20 characters$suffix!"
+    return 1
+  fi
+
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    error "The USERNAME variable cannot contain control characters$suffix!"
+    return 1
+  fi
+
+  case "$value" in
+    *'"'* | *'/'* | *\\* | *'['* | *']'* | *':'* | *';'* | *'|'* | *'='* | \
+    *','* | *'+'* | *'*'* | *'?'* | *'<'* | *'>'* | *'%'* )
+      error "The USERNAME variable contains unsupported characters$suffix!"
+      return 1 ;;
+  esac
+
+  if [[ "$value" == *"." ]]; then
+    error "The USERNAME variable cannot end with a period$suffix!"
+    return 1
+  fi
+
+  if [[ "$value" =~ ^[.[:space:]]+$ ]]; then
+    error "The USERNAME variable cannot consist only of spaces or periods$suffix!"
+    return 1
+  fi
+
+  case "${value^^}" in
+
+    "NONE" )
+      error "The USERNAME value \"NONE\" is reserved by Windows$suffix!"
+      return 1 ;;
+
+    "ADMINISTRATOR" | "GUEST" | "DEFAULTACCOUNT" | "WDAGUTILITYACCOUNT" | "WSIACCOUNT" )
+      error "The USERNAME value \"$value\" is reserved for a built-in Windows account$suffix!"
+      return 1 ;;
+
+  esac
+
+  return 0
+}
+
+validateLegacyEncoding() {
+
+  local name="$1"
+  local value="$2"
+  local desc="${3:-}"
+
+  local suffix=""
+  [ -n "$desc" ] && suffix=" for $desc"
+
+  if LC_ALL=C grep -q '[^ -~]' <<< "$value"; then
+    error "The $name variable may only contain printable ASCII characters$suffix!"
+    return 1
+  fi
 
   return 0
 }
