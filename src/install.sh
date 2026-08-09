@@ -160,6 +160,8 @@ configureMachine() {
     return 79
   fi
 
+  setDiskMinimum "$DETECTED" || return 79
+
   if ! setMachine "$DETECTED" "$iso" "$dir" "$desc"; then
     error "Failed to configure the virtual machine for $desc!"
     return 80
@@ -401,6 +403,7 @@ startInstall() {
 
   if [ -z "$CUSTOM" ] && [[ "${VERSION,,}" != "http"* ]]; then
     checkMemory "$VERSION" || return 67
+    setDiskMinimum "$VERSION" || return 67
   fi
 
   # Work from the temporary directory so the persistent source path can
@@ -1450,6 +1453,17 @@ checkMemory() {
 
   name=$(printVersion "$id" "") || return
   checkMemoryRequirement "$name" || return
+
+  return 0
+}
+
+setDiskMinimum() {
+
+  local id="$1"
+  local required
+
+  required=$(getRequiredDisk "$id") || return
+  DISK_MINIMUM="$required"
 
   return 0
 }
