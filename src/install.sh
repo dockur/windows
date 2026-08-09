@@ -1468,30 +1468,6 @@ setDiskMinimum() {
   return 0
 }
 
-restoreBootMode() {
-
-  local current="${BOOT_MODE:-}"
-
-  local mode
-  mode=$(readState "mode") || return 1
-
-  [ -n "$mode" ] || return 0
-
-  # A saved legacy mode always wins. A saved modern mode only replaces the
-  # default mode and never an explicit user-selected boot configuration.
-  if [[ "${mode,,}" == "windows_legacy" ]]; then
-    BOOT_MODE="$mode"
-    return 0
-  fi
-
-  case "${current,,}" in
-    "" | "windows" | "windows_plain" )
-      BOOT_MODE="$mode" ;;
-  esac
-
-  return 0
-}
-
 startWindows
 
 return 0
