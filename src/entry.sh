@@ -16,6 +16,7 @@ cd /run
 . define.sh     # Define versions
 . mido.sh       # Download Windows
 . answer.sh     # Setup answer files
+. legacy.sh     # Legacy versions
 . image.sh      # Detect image files
 . install.sh    # Run installation
 . disk.sh       # Initialize disks
