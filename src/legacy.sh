@@ -44,9 +44,9 @@ setMachine() {
     "win9"* | "winnt4" )
 
       writeState "old" "pc" || return 1
-      writeState "usb" "N" || return 1
       writeState "net" "pcnet" || return 1
-      writeState "type" "auto" || return 1 ;;
+      writeState "type" "auto" || return 1
+      writeState "usb" "pci-ohci" || return 1 ;;
 
     "win2k"* )
 
@@ -129,7 +129,7 @@ restoreMachine() {
   # Migrate existing WinXP installs to QEMU 10
   if [[ "${MACHINE,,}" == "pc-q35-2.10" ]]; then
     MACHINE=""
-    rm -f -- "$(stateFile "old")"
+    removeState "old" || return 1
   fi
 
   [ -z "$MACHINE" ] && MACHINE="q35"

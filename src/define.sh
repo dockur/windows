@@ -1069,7 +1069,7 @@ supportsBootKey() {
       return 0 ;;
   esac
 
-  return 1
+  return 0
 }
 
 supportsXML() {
