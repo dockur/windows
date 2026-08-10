@@ -1058,6 +1058,20 @@ supportsUnattended() {
   return 0
 }
 
+supportsBootKey() {
+
+  local id="$1"
+
+  case "${id,,}" in
+    "win9"* | "winnt4" | "reactos" )
+      return 1 ;;
+    "win"* | "tiny"* | "core"* )
+      return 0 ;;
+  esac
+
+  return 1
+}
+
 supportsXML() {
 
   local id="$1"
