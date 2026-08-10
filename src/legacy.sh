@@ -107,12 +107,6 @@ setMachine() {
 
   esac
 
-  case "${id,,}" in
-    "win9"* | "winnt4" | "reactos" )
-      # Do not press enter on boot
-      KEYPRESS="N" ;;
-  esac
-
   return 0
 }
 
