@@ -43,10 +43,10 @@ setMachine() {
 
     "win9"* | "winnt4" )
 
-      writeState "old" "pc" || return 1 ;;
+      writeState "old" "pc" || return 1
       writeState "usb" "N" || return 1
       writeState "net" "pcnet" || return 1
-      writeState "type" "auto" || return 1
+      writeState "type" "auto" || return 1 ;;
 
     "win2k"* )
 
