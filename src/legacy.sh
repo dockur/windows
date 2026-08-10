@@ -177,10 +177,10 @@ setMachine() {
 
     "win9"* | "winnt4" )
 
+      writeState "old" "pc" || return 1 ;;
       writeState "usb" "N" || return 1
       writeState "net" "pcnet" || return 1
       writeState "type" "auto" || return 1
-      writeState "old" "pc-i440fx-2.4" || return 1 ;;
 
     "win2k"* )
 
@@ -241,6 +241,12 @@ setMachine() {
 
   esac
 
+  case "${id,,}" in
+    "win9"* | "winnt4" | "reactos" )
+      # Do not press enter on boot
+      KEYPRESS="N" ;;
+  esac
+
   return 0
 }
 
@@ -253,6 +259,13 @@ restoreMachine() {
 
   MACHINE=""
   restoreState "MACHINE" "old" || return 1
+
+  # Migrate existing Win9x installs to QEMU 11
+  if [[ "${MACHINE,,}" == "pc-i440fx-2.4" ]]; then
+    MACHINE="pc"
+    writeState "old" "$MACHINE" || return 1
+  fi
+
   [ -z "$MACHINE" ] && MACHINE="q35"
 
   return 0
