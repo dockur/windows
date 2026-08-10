@@ -352,6 +352,8 @@ supportsBootKey() {
 
 needsBootKey() {
 
+  disabled "${KEYPRESS:-}" && return 1
+
   [ ! -s "$BOOT" ] && return 1
   [[ "${BOOT,,}" != *".iso" ]] && return 1
   [ -f "$STORAGE/windows.boot" ] && return 1
