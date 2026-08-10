@@ -343,20 +343,14 @@ sendKey() {
   return 0
 }
 
-supportsBootKey() {
-
-  local id="$1"
-
-  [[ "${id,,}" == "win"* ]]
-}
-
 needsBootKey() {
 
   [ ! -s "$BOOT" ] && return 1
-  [[ "${BOOT,,}" != *".iso" ]] && return 1
   [ -f "$STORAGE/windows.boot" ] && return 1
 
   supportsBootKey "$DETECTED"
+
+  return $?
 }
 
 bootKeyReady() {
@@ -423,8 +417,7 @@ finish() {
 
   local reason=$1 failed=0
 
-  # QEMU_END distinguishes an expected shutdown path from an unexpected QEMU
-  # exit carrying the same process status.
+  # A nonzero exit is unexpected only when QEMU_END is missing.
   if [ ! -f "$QEMU_END" ] && (( reason != 0 )); then
     failed=1
   fi
