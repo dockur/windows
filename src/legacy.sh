@@ -129,7 +129,7 @@ restoreMachine() {
   # Migrate existing WinXP installs to QEMU 10
   if [[ "${MACHINE,,}" == "pc-q35-2.10" ]]; then
     MACHINE=""
-    rm -f -- "$(stateFile "old")"
+    removeState "old" "$MACHINE" || return 1
   fi
 
   [ -z "$MACHINE" ] && MACHINE="q35"
