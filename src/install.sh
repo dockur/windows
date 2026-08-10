@@ -813,169 +813,6 @@ needsExtraction() {
   return 1
 }
 
-getArchiveSize() {
-
-  local file="$1"
-  local result_name="$2"
-  local -n result="$result_name"
-
-  local found=0 listing line value rc
-
-  result=0
-
-  listing=$(7z l -slt "$file" 2>/dev/null) || {
-    rc=$?
-    error "Failed to read archive information: $file"
-    return "$rc"
-  }
-
-  while IFS= read -r line; do
-
-    [[ "$line" == "Size = "* ]] || continue
-
-    value="${line#Size = }"
-    [[ "$value" =~ ^[0-9]+$ ]] || continue
-
-    result=$(( result + value ))
-    found=1
-
-  done <<< "$listing"
-
-  if (( ! found )); then
-    error "Failed to determine archive contents size: $file"
-    return 1
-  fi
-
-  return 0
-}
-
-extractImage() {
-
-  local iso="$1"
-  local dir="$2"
-  local version="$3"
-
-  local target="$dir"
-  local desc="local ISO"
-  local archive="${dir}.archive"
-  local file size required archiveSize rc
-
-  if [ -z "$CUSTOM" ]; then
-    desc="downloaded ISO"
-    if [[ "$version" != "http"* ]]; then
-      desc=$(printVariant "$version" "$desc")
-    fi
-  fi
-
-  if [[ "${iso,,}" == *".esd" ]]; then
-    extractESD "$iso" "$dir" "$version" "$desc" || return
-    return 0
-  fi
-
-  local msg="Extracting $desc image"
-  info "$msg..." && html "$msg..."
-
-  enabled "${UNPACK:-}" && target="$archive"
-
-  if ! rm -rf -- "$dir" "$archive"; then
-    error "Failed to remove extraction directories!"
-    return 1
-  fi
-
-  if ! makeDir "$target"; then
-    error "Failed to create directory \"$target\" !"
-    return 1
-  fi
-
-  if ! size=$(stat -c%s "$iso"); then
-    error "Failed to determine ISO file size: $iso"
-    return 1
-  fi
-
-  if (( size < 10000000 )); then
-    error "Invalid ISO file: Size of \"$iso\" is smaller than 10 MB"
-    return 1
-  fi
-
-  required="$size"
-
-  if enabled "${UNPACK:-}"; then
-    getArchiveSize "$iso" archiveSize || return
-    required="$archiveSize"
-  fi
-
-  checkFreeSpace "$target" "$required" || return 1
-
-  if ! rm -rf -- "$target"; then
-    error "Failed to remove directory \"$target\" !"
-    return 1
-  fi
-
-  /run/progress.sh "$target" "$size" "$msg ([P])..." &
-
-  7z x "$iso" -o"$target" > /dev/null || {
-    rc=$?
-    fKill "progress.sh"
-    error "Failed to extract ISO file: $iso"
-    return "$rc"
-  }
-
-  fKill "progress.sh"
-
-  if ! enabled "${UNPACK:-}"; then
-
-    LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p') || LABEL=""
-
-  else
-
-    # Locate the first root-level ISO in the downloaded archive
-    if ! file=$(find "$archive" -maxdepth 1 -type f -iname "*.iso" -print -quit); then
-      error "Failed to search for a nested ISO in the extracted archive!"
-      return 1
-    fi
-
-    if [ -z "$file" ]; then
-      error "Failed to find any nested ISO files in the archive!"
-      return 1
-    fi
-
-    if ! mv -f -- "$file" "$iso"; then
-      error "Failed to preserve extracted ISO file: $file"
-      return 1
-    fi
-
-    if ! rm -rf -- "$archive"; then
-      error "Failed to remove directory \"$archive\" !"
-      return 1
-    fi
-
-    if ! makeDir "$dir"; then
-      error "Failed to create directory \"$dir\" !"
-      return 1
-    fi
-
-    if ! size=$(stat -c%s "$iso"); then
-      error "Failed to determine nested ISO file size: $iso"
-      return 1
-    fi
-
-    checkFreeSpace "$dir" "$size" || return 1
-
-    7z x "$iso" -o"$dir" > /dev/null || {
-      rc=$?
-      error "Failed to extract nested ISO file: $iso"
-      return "$rc"
-    }
-
-    LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p') || LABEL=""
-
-    UNPACK=""
-
-  fi
-
-  return 0
-}
-
 detectImage() {
 
   local dir="$1"
@@ -1306,6 +1143,175 @@ addDrivers() {
   return 0
 }
 
+normalizeBatch() {
+
+  local file="$1"
+  local bom tmp encoding
+
+  [ ! -s "$file" ] && return 0
+
+  bom=$(od -An -N2 -tx1 "$file" | tr -d ' \n') || return 1
+
+  # Convert only BOM-marked UTF-16 files; unmarked ANSI and UTF-8 batch files
+  # are deliberately left unchanged.
+  case "$bom" in
+    "fffe" ) encoding="UTF-16LE" ;;
+    "feff" ) encoding="UTF-16BE" ;;
+    * ) return 0 ;;
+  esac
+
+  if ! tmp=$(mktemp "${file}.XXXXXX"); then
+    error "Failed to create temporary batch file!"
+    return 1
+  fi
+
+  if ! tail -c +3 "$file" | iconv -f "$encoding" -t UTF-8 > "$tmp"; then
+    rm -f "$tmp"
+    error "Failed to convert $file from $encoding to UTF-8!"
+    return 1
+  fi
+
+  if ! chmod --reference="$file" "$tmp" || ! mv -f "$tmp" "$file"; then
+    rm -f "$tmp"
+    error "Failed to replace batch file: $file"
+    return 1
+  fi
+
+  return 0
+}
+
+reportBatchMatches() {
+
+  local file="$1"
+  local source="$2"
+  local pattern="$3"
+  local message="$4"
+  local suggestion="$5"
+
+  local matches line
+  matches=$(grep -Pin "$pattern" "$file" || true)
+
+  [ -n "$matches" ] || return 0
+
+  warn "$message in $source:"
+
+  while IFS= read -r line; do
+    printf '  %s\n' "$line" >&2
+  done <<< "$matches"
+
+  printf '  %s\n\n' "$suggestion" >&2
+
+  return 0
+}
+
+checkBatch() {
+
+  local file="$1"
+
+  local tmp output
+  local matches line
+  local enabled_rules
+
+  [ -s "$file" ] || return 0
+
+  if ! tmp=$(mktemp -d /tmp/blinter.XXXXXX); then
+    warn "failed to create temporary Blinter directory."
+    return 0
+  fi
+
+  local source="your install.bat file"
+  [ -n "${COMMAND:-}" ] && source="your COMMAND variable"
+
+  # Only check rules that indicate likely execution or behavioural failures.
+  enabled_rules="E001,E002,E003,E004,E005,E006,E007,E008"
+  enabled_rules+=",E009,E010,E011,E012,E013,E014,E015,E016"
+  enabled_rules+=",E017,E018,E019,E020,E021,E022,E023,E024"
+  enabled_rules+=",E025,E027,E028,E029,E030,E031,E032,E033,E034"
+  enabled_rules+=",W004,W005,W013,W017,W021,W022,W034,W038,W040"
+
+  if enabled "$DEBUG"; then
+    if LC_ALL=C grep -Pq '[^\x09\x0D\x20-\x7E]' "$file"; then
+      warn "non-ASCII characters were detected in $source and may not execute correctly in Windows Command Prompt."
+    fi
+  fi
+
+  cat > "$tmp/blinter.ini" <<EOC
+[general]
+min_severity = warning
+show_summary = false
+
+[rules]
+enabled_rules = $enabled_rules
+EOC
+
+  output=$(
+    cd "$tmp"
+    python3 -m blinter "$file" 2>&1 || true
+  )
+
+  # Remove header.
+  output=$(
+    awk '
+      /^DETAILED ISSUES:/ {
+        found = 1
+        next
+      }
+
+      found && !started {
+        if (/^-+$/) {
+          started = 1
+        }
+        next
+      }
+
+      started {
+        print
+      }
+    ' <<< "$output"
+  )
+
+  output="${output#"${output%%[!$'\r\n ']*}"}"
+  output="${output%"${output##*[!$'\r\n ']}"}"
+
+  if grep -Eq '^(ERROR|WARNING|SECURITY) LEVEL ISSUES:$' <<< "$output"; then
+
+    warn "possible issues were detected in $source:"
+    printf '\n%s\n\n' "$output" >&2
+  fi
+
+  rm -rf "$tmp" || true
+
+  reportBatchMatches \
+    "$file" \
+    "$source" \
+    '(?<!\\)\\host[.]lan[\\]' \
+    "invalid single-backslash UNC path detected" \
+    'Use "\\host.lan\Data\..." instead of "\host.lan\Data\...".'
+
+  reportBatchMatches \
+    "$file" \
+    "$source" \
+    '(?<![\\[:alnum:]._-])host[.]lan[\\]' \
+    "UNC path without leading backslashes detected" \
+    'Use "\\host.lan\Data\..." instead of "host.lan\Data\...".'
+
+  reportBatchMatches \
+    "$file" \
+    "$source" \
+    '//host[.]lan/' \
+    "invalid forward-slash UNC path detected" \
+    'Use "\\host.lan\Data\..." instead of "//host.lan/Data/...".'
+
+  reportBatchMatches \
+    "$file" \
+    "$source" \
+    '\\\\host[.]lan\\shared(?:[\\/]|$)' \
+    "invalid Samba share name detected" \
+    'The "/shared" folder is exposed to Windows as "\\host.lan\Data".'
+
+  return 0
+}
+
 createOverlay() {
 
   local asset="$1"
@@ -1464,168 +1470,6 @@ setDiskMinimum() {
 
   required=$(getRequiredDisk "$id") || return
   DISK_MINIMUM="$required"
-
-  return 0
-}
-
-restoreBootMode() {
-
-  local current="${BOOT_MODE:-}"
-
-  local mode
-  mode=$(readState "mode") || return 1
-
-  [ -n "$mode" ] || return 0
-
-  # A saved legacy mode always wins. A saved modern mode only replaces the
-  # default mode and never an explicit user-selected boot configuration.
-  if [[ "${mode,,}" == "windows_legacy" ]]; then
-    BOOT_MODE="$mode"
-    return 0
-  fi
-
-  case "${current,,}" in
-    "" | "windows" | "windows_plain" )
-      BOOT_MODE="$mode" ;;
-  esac
-
-  return 0
-}
-
-restoreMachine() {
-
-  # Restore the saved machine only when q35 is still the default;
-  # an explicit user-selected machine must remain untouched.
-  [[ "${MACHINE,,}" != "q35" ]] && return 0
-  [[ "${PLATFORM,,}" != "x64" ]] && return 0
-
-  MACHINE=""
-  restoreState "MACHINE" "old" || return 1
-  [ -z "$MACHINE" ] && MACHINE="q35"
-
-  return 0
-}
-
-restoreMachineState() {
-
-  restoreState "VGA" "vga" || return 1
-  restoreState "USB" "usb" || return 1
-  restoreState "SOUND" "sound" || return 1
-  restoreState "ADAPTER" "net" || return 1
-  restoreState "CPU_MODEL" "cpu" || return 1
-  restoreState "DISK_TYPE" "type" || return 1
-
-  mergeState "CPU_FLAGS" "flag" "," || return 1
-  mergeState "ARGUMENTS" "args" " " || return 1
-
-  return 0
-}
-
-setMachine() {
-
-  local id="$1"
-  local iso="$2"
-  local dir="$3"
-  local desc="$4"
-  local version=""
-
-  case "${id,,}" in
-    "win2k"* )   version="2k" ;;
-    "winxp"* )   version="xp" ;;
-    "win2003"* ) version="2k3" ;;
-  esac
-
-  if [ -n "$version" ]; then
-
-    if ! legacyInstall "$iso" "$dir" "$desc" "$version"; then
-      error "Failed to prepare $desc ISO!"
-      return 1
-    fi
-
-  fi
-
-  if isLegacy "$id"; then
-
-    writeState "mode" "windows_legacy" || return 1
-
-    case "${id,,}" in
-      "win9"* | "win2k"* | "reactos" )
-        writeState "vga" "cirrus" || return 1 ;;
-      * )
-        writeState "vga" "std" || return 1 ;;
-    esac
-
-  fi
-
-  restoreBootMode || return 1
-
-  case "${id,,}" in
-
-    "win9"* | "winnt4" )
-
-      writeState "usb" "N" || return 1
-      writeState "net" "pcnet" || return 1
-      writeState "type" "auto" || return 1
-      writeState "old" "pc-i440fx-2.4" || return 1 ;;
-
-    "win2k"* )
-
-      writeState "old" "pc" || return 1
-      writeState "type" "auto" || return 1
-      writeState "net" "rtl8139" || return 1
-      writeState "usb" "pci-ohci" || return 1 ;;
-
-    "winxpx"* | "win2003"* )
-
-      writeState "type" "blk" || return 1
-      writeState "net" "rtl8139" || return 1
-      writeState "sound" "usb-audio" || return 1 ;;
-
-    "reactos" )
-
-      writeState "old" "pc" || return 1
-      writeState "type" "auto" || return 1
-      writeState "net" "rtl8139" || return 1
-      writeState "usb" "pci-ohci" || return 1 ;;
-
-  esac
-
-  if [[ "${id,,}" == "reactos" ]] && [ -z "$CUSTOM" ]; then
-    # The ISO is a Live-CD so we need to disable the data disk
-    # as it will be always wiped during the next runs currently.
-    DISK_DISABLE="Y"
-  fi
-
-  restoreMachine || return 1
-
-  case "${id,,}" in
-
-    "win9"* | "winnt4" | "win2k"* | *"x86"* | "reactos" )
-
-      # Legacy 32-bit Windows may enter an incompatible PAE/DEP path when the
-      # NX flag is exposed, causing installation failures or repeated resets.
-
-      writeState "flag" "nx=off" || return 1 ;;
-
-  esac
-
-  case "${id,,}" in
-
-    "win9"* | "winnt4" | "win2k"* | "winxp"* | "win2003"* | \
-    "winvistax86"* | "win7x86"* | "reactos" )
-
-      if isQ35 "$MACHINE"; then
-
-        # pc-q35-2.11 began advertising a synthetic 64-bit PCI MMIO aperture.
-        # Older Windows ACPI implementations may reject that resource layout,
-        # so retain the pre-2.11 behavior for these guests to prevent a
-        # blue screen on XP and others if the 64 bit PCI hole size is >2G.
-
-        writeState "args" "-global q35-pcihost.x-pci-hole64-fix=false" || return 1
-
-      fi ;;
-
-  esac
 
   return 0
 }

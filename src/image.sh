@@ -353,6 +353,169 @@ getImageSize() {
   printf '%s\n' "$size"
 }
 
+getArchiveSize() {
+
+  local file="$1"
+  local result_name="$2"
+  local -n result="$result_name"
+
+  local found=0 listing line value rc
+
+  result=0
+
+  listing=$(7z l -slt "$file" 2>/dev/null) || {
+    rc=$?
+    error "Failed to read archive information: $file"
+    return "$rc"
+  }
+
+  while IFS= read -r line; do
+
+    [[ "$line" == "Size = "* ]] || continue
+
+    value="${line#Size = }"
+    [[ "$value" =~ ^[0-9]+$ ]] || continue
+
+    result=$(( result + value ))
+    found=1
+
+  done <<< "$listing"
+
+  if (( ! found )); then
+    error "Failed to determine archive contents size: $file"
+    return 1
+  fi
+
+  return 0
+}
+
+extractImage() {
+
+  local iso="$1"
+  local dir="$2"
+  local version="$3"
+
+  local target="$dir"
+  local desc="local ISO"
+  local archive="${dir}.archive"
+  local file size required archiveSize rc
+
+  if [ -z "$CUSTOM" ]; then
+    desc="downloaded ISO"
+    if [[ "$version" != "http"* ]]; then
+      desc=$(printVariant "$version" "$desc")
+    fi
+  fi
+
+  if [[ "${iso,,}" == *".esd" ]]; then
+    extractESD "$iso" "$dir" "$version" "$desc" || return
+    return 0
+  fi
+
+  local msg="Extracting $desc image"
+  info "$msg..." && html "$msg..."
+
+  enabled "${UNPACK:-}" && target="$archive"
+
+  if ! rm -rf -- "$dir" "$archive"; then
+    error "Failed to remove extraction directories!"
+    return 1
+  fi
+
+  if ! makeDir "$target"; then
+    error "Failed to create directory \"$target\" !"
+    return 1
+  fi
+
+  if ! size=$(stat -c%s "$iso"); then
+    error "Failed to determine ISO file size: $iso"
+    return 1
+  fi
+
+  if (( size < 10000000 )); then
+    error "Invalid ISO file: Size of \"$iso\" is smaller than 10 MB"
+    return 1
+  fi
+
+  required="$size"
+
+  if enabled "${UNPACK:-}"; then
+    getArchiveSize "$iso" archiveSize || return
+    required="$archiveSize"
+  fi
+
+  checkFreeSpace "$target" "$required" || return 1
+
+  if ! rm -rf -- "$target"; then
+    error "Failed to remove directory \"$target\" !"
+    return 1
+  fi
+
+  /run/progress.sh "$target" "$size" "$msg ([P])..." &
+
+  7z x "$iso" -o"$target" > /dev/null || {
+    rc=$?
+    fKill "progress.sh"
+    error "Failed to extract ISO file: $iso"
+    return "$rc"
+  }
+
+  fKill "progress.sh"
+
+  if ! enabled "${UNPACK:-}"; then
+
+    LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p') || LABEL=""
+
+  else
+
+    # Locate the first root-level ISO in the downloaded archive
+    if ! file=$(find "$archive" -maxdepth 1 -type f -iname "*.iso" -print -quit); then
+      error "Failed to search for a nested ISO in the extracted archive!"
+      return 1
+    fi
+
+    if [ -z "$file" ]; then
+      error "Failed to find any nested ISO files in the archive!"
+      return 1
+    fi
+
+    if ! mv -f -- "$file" "$iso"; then
+      error "Failed to preserve extracted ISO file: $file"
+      return 1
+    fi
+
+    if ! rm -rf -- "$archive"; then
+      error "Failed to remove directory \"$archive\" !"
+      return 1
+    fi
+
+    if ! makeDir "$dir"; then
+      error "Failed to create directory \"$dir\" !"
+      return 1
+    fi
+
+    if ! size=$(stat -c%s "$iso"); then
+      error "Failed to determine nested ISO file size: $iso"
+      return 1
+    fi
+
+    checkFreeSpace "$dir" "$size" || return 1
+
+    7z x "$iso" -o"$dir" > /dev/null || {
+      rc=$?
+      error "Failed to extract nested ISO file: $iso"
+      return "$rc"
+    }
+
+    LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p') || LABEL=""
+
+    UNPACK=""
+
+  fi
+
+  return 0
+}
+
 checkPlatform() {
 
   local xml="$1"
@@ -604,140 +767,6 @@ createSetupImage() {
     warn "Failed to set the owner for \"$image\" !"
   fi
 
-  return 0
-}
-
-detectLegacy() {
-
-  local dir="$1"
-
-  local marker
-
-  [[ "${PLATFORM,,}" == "x64" ]] || return 1
-
-  # Legacy media is identified from setup marker files rather than WIM
-  # metadata. The order is intentional because several releases share markers.
-  marker=$(find "$dir" -maxdepth 1 -type d -iname 'ia64' -print -quit) || return 2
-
-  if [ -n "$marker" ]; then
-    error "Windows IA-64 (Itanium) images are not supported by this container!"
-    return 2
-  fi
-
-  marker=$(find "$dir" -maxdepth 1 -type d -iname WIN95 -print -quit) || return 2
-
-  if [ -n "$marker" ]; then
-    DETECTED="win95"
-    return 0
-  fi
-
-  marker=$(find "$dir" -maxdepth 1 -type d -iname WIN98 -print -quit) || return 2
-
-  if [ -n "$marker" ]; then
-    DETECTED="win98"
-    return 0
-  fi
-
-  marker=$(find "$dir" -maxdepth 1 -type d -iname WIN9X -print -quit) || return 2
-
-  if [ -n "$marker" ]; then
-    DETECTED="win9x"
-    return 0
-  fi
-
-  marker=$(find "$dir" -maxdepth 1 -type f \
-    \( \
-      -iname CDROM_W.40 -o \
-      -iname CDROM_S.40 -o \
-      -iname CDROM_TS.40 \
-    \) \
-    -print -quit) || return 2
-
-  if [ -n "$marker" ]; then
-    DETECTED="winnt4"
-    return 0
-  fi
-
-  marker=$(find "$dir" -maxdepth 1 -type f -iname CDROM_NT.5 -print -quit) || return 2
-
-  if [ -n "$marker" ]; then
-
-    marker=$(find "$dir" -maxdepth 1 -type f \
-      \( \
-        -iname CDROM_IA.5 -o \
-        -iname CDROM_ID.5 -o \
-        -iname CDROM_IP.5 -o \
-        -iname CDROM_IS.5 \
-      \) \
-      -print -quit) || return 2
-
-    if [ -n "$marker" ]; then
-      DETECTED="win2k"
-      return 0
-    fi
-
-  fi
-
-  # WIN51 identifies the NT 5.1/5.2 media family; the companion marker then
-  # distinguishes XP x86, XP x64, and Server 2003.
-  marker=$(find "$dir" -maxdepth 1 -iname WIN51 -print -quit) || return 2
-  [ -n "$marker" ] || return 1
-
-  marker=$(find "$dir" -maxdepth 1 -type f -iname WIN51AP -print -quit) || return 2
-
-  if [ -n "$marker" ]; then
-    DETECTED="winxpx64"
-    return 0
-  fi
-
-  marker=$(find "$dir" -maxdepth 1 -type f \
-    \( \
-      -iname WIN51IC -o \
-      -iname WIN51IP -o \
-      -iname setupxp.htm \
-    \) \
-    -print -quit) || return 2
-
-  if [ -n "$marker" ]; then
-    DETECTED="winxpx86"
-    return 0
-  fi
-
-  marker=$(find "$dir" -maxdepth 1 -type f \
-    \( \
-      -iname WIN51IS -o \
-      -iname WIN51IA -o \
-      -iname WIN51IB -o \
-      -iname WIN51ID -o \
-      -iname WIN51IL -o \
-      -iname WIN51AA -o \
-      -iname WIN51AD -o \
-      -iname WIN51AS -o \
-      -iname WIN51MA -o \
-      -iname WIN51MD -o \
-      -iname WIN51MP \
-    \) \
-    -print -quit) || return 2
-
-  if [ -n "$marker" ]; then
-    DETECTED="win2003r2"
-    return 0
-  fi
-
-  return 1
-}
-
-detectReactOS() {
-
-  local dir="$1"
-  local marker
-
-  marker=$(find "$dir" -maxdepth 2 -type f \
-    \( -ipath '*/reactos/reactos.inf' -o -ipath '*/reactos/unattend.inf' \) -print -quit) || return 2
-
-  [ -n "$marker" ] || return 1
-
-  DETECTED="reactos"
   return 0
 }
 
@@ -1723,175 +1752,6 @@ extractESD() {
     error "Prepared install.esd does not contain only '$edition' at index 1!"
     return 1
   fi
-
-  return 0
-}
-
-normalizeBatch() {
-
-  local file="$1"
-  local bom tmp encoding
-
-  [ ! -s "$file" ] && return 0
-
-  bom=$(od -An -N2 -tx1 "$file" | tr -d ' \n') || return 1
-
-  # Convert only BOM-marked UTF-16 files; unmarked ANSI and UTF-8 batch files
-  # are deliberately left unchanged.
-  case "$bom" in
-    "fffe" ) encoding="UTF-16LE" ;;
-    "feff" ) encoding="UTF-16BE" ;;
-    * ) return 0 ;;
-  esac
-
-  if ! tmp=$(mktemp "${file}.XXXXXX"); then
-    error "Failed to create temporary batch file!"
-    return 1
-  fi
-
-  if ! tail -c +3 "$file" | iconv -f "$encoding" -t UTF-8 > "$tmp"; then
-    rm -f "$tmp"
-    error "Failed to convert $file from $encoding to UTF-8!"
-    return 1
-  fi
-
-  if ! chmod --reference="$file" "$tmp" || ! mv -f "$tmp" "$file"; then
-    rm -f "$tmp"
-    error "Failed to replace batch file: $file"
-    return 1
-  fi
-
-  return 0
-}
-
-reportBatchMatches() {
-
-  local file="$1"
-  local source="$2"
-  local pattern="$3"
-  local message="$4"
-  local suggestion="$5"
-
-  local matches line
-  matches=$(grep -Pin "$pattern" "$file" || true)
-
-  [ -n "$matches" ] || return 0
-
-  warn "$message in $source:"
-
-  while IFS= read -r line; do
-    printf '  %s\n' "$line" >&2
-  done <<< "$matches"
-
-  printf '  %s\n\n' "$suggestion" >&2
-
-  return 0
-}
-
-checkBatch() {
-
-  local file="$1"
-
-  local tmp output
-  local matches line
-  local enabled_rules
-
-  [ -s "$file" ] || return 0
-
-  if ! tmp=$(mktemp -d /tmp/blinter.XXXXXX); then
-    warn "failed to create temporary Blinter directory."
-    return 0
-  fi
-
-  local source="your install.bat file"
-  [ -n "${COMMAND:-}" ] && source="your COMMAND variable"
-
-  # Only check rules that indicate likely execution or behavioural failures.
-  enabled_rules="E001,E002,E003,E004,E005,E006,E007,E008"
-  enabled_rules+=",E009,E010,E011,E012,E013,E014,E015,E016"
-  enabled_rules+=",E017,E018,E019,E020,E021,E022,E023,E024"
-  enabled_rules+=",E025,E027,E028,E029,E030,E031,E032,E033,E034"
-  enabled_rules+=",W004,W005,W013,W017,W021,W022,W034,W038,W040"
-
-  if enabled "$DEBUG"; then
-    if LC_ALL=C grep -Pq '[^\x09\x0D\x20-\x7E]' "$file"; then
-      warn "non-ASCII characters were detected in $source and may not execute correctly in Windows Command Prompt."
-    fi
-  fi
-
-  cat > "$tmp/blinter.ini" <<EOC
-[general]
-min_severity = warning
-show_summary = false
-
-[rules]
-enabled_rules = $enabled_rules
-EOC
-
-  output=$(
-    cd "$tmp"
-    python3 -m blinter "$file" 2>&1 || true
-  )
-
-  # Remove header.
-  output=$(
-    awk '
-      /^DETAILED ISSUES:/ {
-        found = 1
-        next
-      }
-
-      found && !started {
-        if (/^-+$/) {
-          started = 1
-        }
-        next
-      }
-
-      started {
-        print
-      }
-    ' <<< "$output"
-  )
-
-  output="${output#"${output%%[!$'\r\n ']*}"}"
-  output="${output%"${output##*[!$'\r\n ']}"}"
-
-  if grep -Eq '^(ERROR|WARNING|SECURITY) LEVEL ISSUES:$' <<< "$output"; then
-
-    warn "possible issues were detected in $source:"
-    printf '\n%s\n\n' "$output" >&2
-  fi
-
-  rm -rf "$tmp" || true
-
-  reportBatchMatches \
-    "$file" \
-    "$source" \
-    '(?<!\\)\\host[.]lan[\\]' \
-    "invalid single-backslash UNC path detected" \
-    'Use "\\host.lan\Data\..." instead of "\host.lan\Data\...".'
-
-  reportBatchMatches \
-    "$file" \
-    "$source" \
-    '(?<![\\[:alnum:]._-])host[.]lan[\\]' \
-    "UNC path without leading backslashes detected" \
-    'Use "\\host.lan\Data\..." instead of "host.lan\Data\...".'
-
-  reportBatchMatches \
-    "$file" \
-    "$source" \
-    '//host[.]lan/' \
-    "invalid forward-slash UNC path detected" \
-    'Use "\\host.lan\Data\..." instead of "//host.lan/Data/...".'
-
-  reportBatchMatches \
-    "$file" \
-    "$source" \
-    '\\\\host[.]lan\\shared(?:[\\/]|$)' \
-    "invalid Samba share name detected" \
-    'The "/shared" folder is exposed to Windows as "\\host.lan\Data".'
 
   return 0
 }
