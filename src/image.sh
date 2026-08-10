@@ -1360,11 +1360,7 @@ detectIsoImage() {
 
   # Return 1 only when no directly inspectable WIM/ESD payload is available so
   # the caller may extract the media. Metadata parsing/configuration errors use 2.
-  image=$(findIsoImage "$iso") || {
-    rc=$?
-    enabled "$DEBUG" && echo "ISO image lookup failed (status $rc)." >&2
-    return "$rc"
-  }
+  image=$(findIsoImage "$iso") || return $?
 
   header=$(readWimHeader "$iso" "$image") || {
     error "Failed to read the Windows image header!"
