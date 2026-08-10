@@ -4,7 +4,6 @@ set -Eeuo pipefail
 detectLegacy() {
 
   local dir="$1"
-
   local marker
 
   [[ "${PLATFORM,,}" == "x64" ]] || return 1
@@ -264,6 +263,12 @@ restoreMachine() {
   if [[ "${MACHINE,,}" == "pc-i440fx-2.4" ]]; then
     MACHINE="pc"
     writeState "old" "$MACHINE" || return 1
+  fi
+
+  # Migrate existing WinXP installs to QEMU 10
+  if [[ "${MACHINE,,}" == "pc-q35-2.10" ]]; then
+    MACHINE=""
+    rm -f -- "$(stateFile "old")"
   fi
 
   [ -z "$MACHINE" ] && MACHINE="q35"
