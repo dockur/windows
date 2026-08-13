@@ -1142,6 +1142,7 @@ selectDrivers() {
     viofs
     sriov
     smbus
+    qxldod
     viorng
     viostor
     viomem
