@@ -71,6 +71,10 @@ netsh advfirewall firewall set rule group="@FirewallAPI.dll,-32752" new enable=Y
 rem Enable File Sharing.
 netsh advfirewall firewall set rule group="@FirewallAPI.dll,-28502" new enable=Yes
 
+rem Install the VirtIO Balloon service once.
+sc.exe query BalloonService >nul 2>&1
+if errorlevel 1 "%SystemRoot%\Drivers\Balloon\blnsvr.exe" -i
+
 rem BEGIN PRODUCT_KEY
 rem Install the product key without activating Windows immediately.
 cscript.exe //B //Nologo "%SystemRoot%\System32\slmgr.vbs" /ipk "XXX"
