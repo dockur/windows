@@ -66,9 +66,8 @@ selectWindowsImage() {
   local dir="$2"
   local boot="$3"
 
-  local rc
-
   XML=""
+  SYSTEM=""
   FB="falling back to manual installation!"
 
   normalizeDetected || :
@@ -80,8 +79,10 @@ selectWindowsImage() {
       return 70
     fi
 
-    if ! needsExtraction "$DETECTED" "$iso"; then
-      return 0
+    if ! needsExtraction "$iso"; then
+
+      needsPreparation "$DETECTED" || return 0
+
     fi
 
     if ! extractImage "$iso" "$dir" "$VERSION"; then
@@ -96,11 +97,11 @@ selectWindowsImage() {
   fi
 
   # Inspect unknown bootable media directly before falling back to extraction.
-  if isDirectImage "$iso"; then
+  if ! needsExtraction "$iso"; then
 
     detectIsoImage "$iso" && return 0
 
-    rc=$?
+    local rc=$?
     if (( rc != 1 )); then
       error "Failed to inspect the Windows installation ISO!"
       return 76
@@ -124,7 +125,7 @@ selectWindowsImage() {
 
   detectImage "$dir" && return 0
 
-  rc=$?
+  local rc=$?
   if (( rc != 1 )); then
     error "Failed to detect the extracted Windows installation image!"
     return 76
@@ -193,6 +194,23 @@ prepareWindowsImage() {
   local dir="$2"
   local boot="$3"
 
+  if [ -n "$SYSTEM" ]; then
+
+    hasImage "$SYSTEM" || {
+      error "Failed to find the generated Windows system image!"
+      return 94
+    }
+
+    removeImage "$iso" || {
+      error "Failed to remove the source installation image!"
+      return 96
+    }
+
+    BOOT="$SYSTEM"
+    return 0
+
+  fi
+
   # Keep all run-specific automation on the setup image for XML-capable media.
   if supportsXML "$DETECTED"; then
 
@@ -207,7 +225,7 @@ prepareWindowsImage() {
     fi
 
     # Bootable ISOs can be reused unchanged with the generated setup image.
-    if (( ! extracted )) && isDirectImage "$iso"; then
+    if (( ! extracted )); then
 
       useOriginalImage "$iso" || {
         error "Failed to preserve the original installation image!"
@@ -350,9 +368,9 @@ startInstall() {
   (( rc > 1 )) && return "$rc"
   (( rc )) || return 1
 
-  if [ -z "$previousBase" ] && hasData; then
+  if [ -z "$previousBase" ] && hasInstalledDisk; then
 
-    if enabled "$SHUTDOWN" && [ ! -f "$STORAGE/windows.boot" ]; then
+    if ! hasCompletedInstall && ! disabled "${SHUTDOWN:-}"; then
       discardPrevious "" || return 50
     else
       if ! backupPrevious ""; then
@@ -429,7 +447,7 @@ skipUnattended() {
 
   # Standalone ESD files and nested archives are not directly bootable media,
   # so they cannot use the manual-install fallback.
-  if ! isDirectImage "$iso"; then
+  if needsExtraction "$iso"; then
     error "Failed to boot \"$iso\" because it is not a directly bootable ISO image!"
     return 1
   fi
@@ -464,6 +482,7 @@ skipInstall() {
   local iso="$1"
   local previousBase="$2"
   local marker="$STORAGE/windows.boot"
+  local system
 
   if [ -n "$previousBase" ]; then
 
@@ -487,7 +506,7 @@ skipInstall() {
 
     # Older releases may have left a rebuilt custom ISO at its synthetic source
     # identity. A completed installation no longer needs that installation media.
-    if [[ "${previousBase,,}" == "windows."* ]] && hasData && [ -f "$marker" ]; then
+    if [[ "${previousBase,,}" == "windows."* ]] && hasCompletedInstall; then
 
       if ! rm -f -- "$STORAGE/$previousBase"; then
         error "Failed to remove obsolete ISO file \"$STORAGE/$previousBase\" !"
@@ -500,7 +519,7 @@ skipInstall() {
     # existing installation, but discard stale media when no disk exists yet.
     if [[ "${STORAGE,,}/${previousBase,,}" != "${iso,,}" ]]; then
 
-      if ! hasData; then
+      if ! hasInstalledDisk; then
 
         if ! rm -f -- "$STORAGE/$previousBase"; then
           error "Failed to remove ISO file \"$STORAGE/$previousBase\" !"
@@ -521,7 +540,7 @@ skipInstall() {
         else
           method="your custom .iso file was removed"
 
-          if hasData && [ -f "$marker" ]; then
+          if hasCompletedInstall; then
             info "Detected that $method, will be ignored."
             return 0
           fi
@@ -529,7 +548,7 @@ skipInstall() {
         fi
       fi
 
-      if enabled "$SHUTDOWN" && [ ! -f "$marker" ]; then
+      if ! hasCompletedInstall && ! disabled "${SHUTDOWN:-}"; then
         discardPrevious "$STORAGE/$previousBase" || return 50
         return 1
       fi
@@ -543,6 +562,11 @@ skipInstall() {
       return 1
 
     fi
+  fi
+
+  if [ -n "$previousBase" ] && system=$(getSystemImage); then
+    BOOT="$system"
+    return 0
   fi
 
   hasData && [ -f "$marker" ] && return 0
@@ -624,6 +648,33 @@ finishInstall() {
     return 1
   }
 
+  if [ -n "$SYSTEM" ]; then
+
+    if [[ "$SYSTEM" == "$TMP/"* ]]; then
+
+      if ! mv -f -- "$SYSTEM" "$STORAGE/windows.img"; then
+        error "Failed to finalize the Windows system image!"
+        return 1
+      fi
+
+      BOOT="$STORAGE/windows.img"
+
+    else
+
+      if ! hasImage "$SYSTEM"; then
+        error "Failed to find the Windows system image!"
+        return 1
+      fi
+
+      writeState "system" "$SYSTEM" || {
+        error "Failed to save the Windows system image!"
+        return 1
+      }
+
+      BOOT="$SYSTEM"
+    fi
+  fi
+
   if ! rm -rf -- "$TMP"; then
     error "Failed to remove directory \"$TMP\" !"
     return 1
@@ -636,7 +687,7 @@ findFile() {
 
   local fname="$1"
   local dir file base
-  local boot="$STORAGE/windows.boot"
+  local marker="$STORAGE/windows.boot"
 
   dir=$(find / -maxdepth 1 -type d -iname "$fname" -print -quit) || return 1
 
@@ -645,7 +696,7 @@ findFile() {
   fi
 
   if [ -d "$dir" ]; then
-    if ! hasDisk || [ ! -f "$boot" ]; then
+    if ! hasSystemImage && { ! hasDisk || [ ! -f "$marker" ]; }; then
       error "The bind $dir maps to a file that does not exist!" && return 1
     fi
   fi
@@ -723,11 +774,63 @@ hasImage() {
   [ -f "$iso" ] && [ -s "$iso" ]
 }
 
-isDirectImage() {
+getSystemImage() {
+
+  local image
+
+  image=$(readState "system") || return 1
+
+  if [ -n "$image" ]; then
+    # Older development builds stored only the basename in windows.system.
+    [[ "$image" == /* ]] || image="$STORAGE/$image"
+    hasImage "$image" || return 1
+
+    echo "$image"
+    return 0
+  fi
+
+  image="$STORAGE/windows.img"
+  hasImage "$image" || return 1
+
+  echo "$image"
+  return 0
+}
+
+hasSystemImage() {
+
+  getSystemImage >/dev/null
+}
+
+hasInstalledDisk() {
+
+  hasData || hasSystemImage
+}
+
+hasCompletedInstall() {
+
+  hasSystemImage && return 0
+  hasData && [ -f "$STORAGE/windows.boot" ]
+}
+
+needsExtraction() {
 
   local iso="$1"
 
-  ! enabled "${UNPACK:-}" && [[ "${iso,,}" != *.esd ]]
+  enabled "${UNPACK:-}" || [[ "${iso,,}" == *.esd ]]
+}
+
+needsPreparation() {
+
+  local id="$1"
+
+  supportsSIF "$id" && return 0
+
+  case "${id,,}" in
+    "win9"* )
+      supportsUnattended "$id" && return 0 ;;
+  esac
+
+  return 1
 }
 
 useOriginalImage() {
@@ -736,14 +839,16 @@ useOriginalImage() {
 
   if [ -n "$CUSTOM" ]; then
     BOOT="$iso"
-    return 0
-  fi
-
-  if [[ "$iso" != "$BOOT" ]]; then
+  elif [[ "$iso" != "$BOOT" ]]; then
     if ! mv -f -- "$iso" "$BOOT"; then
       error "Failed to move ISO file: $iso"
       return 1
     fi
+  fi
+
+  # Keep SYSTEM pointing at the same image when preserving it changes its path.
+  if [[ "${SYSTEM:-}" == "$iso" ]]; then
+    SYSTEM="$BOOT"
   fi
 
   return 0
@@ -787,30 +892,6 @@ setImage() {
 
   warn "the answer file for $desc was not found ($DETECTED.xml), $FB."
   return 0
-}
-
-needsExtraction() {
-
-  local id="$1"
-  local iso="$2"
-
-  # Nested archives must be extracted before they can be prepared.
-  if ! isDirectImage "$iso"; then
-    return 0
-  fi
-
-  # Media without unattended support boots directly from the original ISO.
-  if ! supportsUnattended "$id"; then
-    return 1
-  fi
-
-  # SIF-based legacy installers must be extracted and rebuilt.
-  if ! supportsXML "$id"; then
-    return 0
-  fi
-
-  # Modern bootable ISOs can use the original media with a setup overlay.
-  return 1
 }
 
 detectImage() {
@@ -923,6 +1004,10 @@ addFolder() {
   local file="" source="" folder
   local dest="$src/\$OEM\$/\$1/OEM"
   local install="$src/.overlay-install.bat"
+
+  if [ "$mode" = "win9x" ]; then
+    dest="$src/OEM"
+  fi
 
   folder=$(getOemFolder) || return 1
 
@@ -1057,7 +1142,6 @@ selectDrivers() {
     viofs
     sriov
     smbus
-    qxldod
     viorng
     viostor
     viomem
