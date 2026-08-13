@@ -13,6 +13,7 @@ cd /run
 . init.sh       # Initialize system
 . memory.sh     # Check memory
 . server.sh     # Start webserver
+. download.sh   # Load functions
 . define.sh     # Define versions
 . mido.sh       # Download Windows
 . answer.sh     # Setup answer files
