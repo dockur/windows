@@ -437,12 +437,8 @@ extractImage() {
     return 1
   fi
 
-  required="$size"
-
-  if enabled "${UNPACK:-}"; then
-    getArchiveSize "$iso" archiveSize || return
-    required="$archiveSize"
-  fi
+  getArchiveSize "$iso" archiveSize || return
+  required=$((archiveSize + (archiveSize + 99) / 100))
 
   checkFreeSpace "$target" "$required" || return 1
 
@@ -451,7 +447,7 @@ extractImage() {
     return 1
   fi
 
-  /run/progress.sh "$target" "$size" "$msg ([P])..." &
+  /run/progress.sh "$target" "$required" "$msg ([P])..." &
 
   7z x "$iso" -o"$target" > /dev/null || {
     rc=$?
@@ -631,6 +627,7 @@ createSetupImage() {
   local target="::/\$OEM\$/\$1/OEM"
   local install="$stage/.overlay-install.bat"
   local folder size sectors entry find_pid
+  local fs attributes
   local entries=()
 
   folder=$(getOemFolder) || return 1
@@ -650,6 +647,17 @@ createSetupImage() {
   rm -f -- "$tmp" || return 1
 
   checkFreeSpace "$(dirname "$image")" "$size" || return 1
+
+  fs=$(stat -f -c %T "$(dirname "$tmp")") || return 1
+
+  if [[ "${fs,,}" == "btrfs" ]]; then
+    touch "$tmp" || return 1
+    { chattr +C "$tmp"; } || :
+    attributes=$(lsattr "$tmp") || return 1
+    if [[ "$attributes" != *"C"* ]]; then
+      error "Failed to disable COW for setup image $tmp on ${fs^^} filesystem!"
+    fi
+  fi
 
   if ! mformat -i "$tmp" -C -F -T "$sectors" -v "SETUP" ::; then
     rm -f -- "$tmp"
@@ -755,6 +763,13 @@ createSetupImage() {
       return 1
     fi
 
+  fi
+
+  if [[ "${fs,,}" == "btrfs" ]]; then
+    attributes=$(lsattr "$tmp") || return 1
+    if [[ "$attributes" != *"C"* ]]; then
+      warn "COW (copy on write) is not disabled for setup image $tmp on ${fs^^} filesystem!"
+    fi
   fi
 
   if ! mv -f -- "$tmp" "$image"; then
