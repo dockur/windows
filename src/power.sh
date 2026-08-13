@@ -259,9 +259,10 @@ legacyBootReady() {
 
 ready() {
 
-  # The marker means installation completed previously, so shutdown no longer
-  # needs to infer guest readiness from firmware output.
+  # The marker means installation completed previously, so shutdown
+  # no longer needs to infer guest readiness from firmware output.
   [ -f "$STORAGE/windows.boot" ] && return 0
+
   [ ! -s "$QEMU_PTY" ] && return 1
 
   if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
@@ -346,11 +347,11 @@ sendKey() {
 needsBootKey() {
 
   [ ! -s "$BOOT" ] && return 1
-  [ -f "$STORAGE/windows.boot" ] && return 1
 
-  supportsBootKey "$DETECTED"
+  hasCompletedInstall && return 1
+  supportsBootKey "$DETECTED" || return 1
 
-  return $?
+  return 0
 }
 
 bootKeyReady() {
@@ -405,7 +406,10 @@ markWindowsBooted() {
   fi
 
   if ! disabled "$REMOVE"; then
-    removeImage "$BOOT" || :
+    case "${BOOT,,}" in
+      *.img | *.raw | *.qcow2 ) ;;
+      * ) removeImage "$BOOT" || : ;;
+    esac
   fi
 
   rm -f "$STORAGE/setup.img" 2>/dev/null || :
@@ -430,10 +434,7 @@ finish() {
     markWindowsBooted
   fi
 
-  cleanupHelpers \
-    "${SMB_PID:-}" \
-    "${NMB_PID:-}" \
-    "${DDN_PID:-}"
+  cleanupHelpers "${SMB_PID:-}" "${NMB_PID:-}" "${DDN_PID:-}"
 
   if ! waitQemuExit 10; then
     warn "Timed out while waiting for $(app) to exit!"
@@ -455,14 +456,14 @@ abortDuringSetup() {
 
   local code="$1"
 
-  # Before Windows boots from disk, ACPI may be ignored or interpreted by setup
-  # itself. Terminate QEMU directly instead of waiting for a graceful shutdown.
-  if [[ "${DETECTED,,}" != "reactos" ]] || [ -n "${CUSTOM:-}" ]; then
-    info "Cannot send ACPI signal during $(app) setup, terminating..."
-  else
+  if [[ "${DETECTED,,}" == "reactos" ]] && hasSystemImage; then
     info "ReactOS LiveCD does not support ACPI shutdown, terminating..."
+  else
+    info "Cannot send ACPI signal during $(app) setup, terminating..."
   fi
 
+  # Before Windows boots from disk, ACPI may be ignored or interpreted by setup
+  # itself. Terminate QEMU directly instead of waiting for a graceful shutdown.
   terminateQemu
 
   if ! waitQemuExit 10; then
@@ -518,6 +519,10 @@ gracefulShutdown() {
   if [ -z "$pid" ] || ! isAlive "$pid"; then
     warn "QEMU process with PID $pid does not exist?"
     finish "$code"
+  fi
+
+  if ! supportsACPI "$DETECTED"; then
+    abortDuringSetup "$code"
   fi
 
   if ! ready; then
