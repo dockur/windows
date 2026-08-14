@@ -151,7 +151,7 @@ configureMachine() {
 
   if ! checkMemory "$DETECTED"; then
 
-    if [ -z "$CUSTOM" ]; then
+    if ! isCustomImage; then
       useOriginalImage "$iso" || {
         error "Failed to preserve the original installation image!"
         return 79
@@ -295,12 +295,12 @@ startInstall() {
 
   html "Starting $APP..."
 
-  if [ -z "$CUSTOM" ]; then
+  if ! isCustomImage; then
 
     local file="${VERSION//\//}.iso"
     local boot="$file"
 
-    if [[ "${VERSION,,}" == "http"* ]]; then
+    if isURL "$VERSION"; then
 
       file=$(basename "${VERSION%%[\?#]*}")
       printf -v file '%b' "${file//%/\\x}"
@@ -385,7 +385,7 @@ startInstall() {
     return 50
   fi
 
-  if [ -z "$CUSTOM" ]; then
+  if ! isCustomImage; then
 
     if [ -s "$BOOT" ]; then
       ISO="$TMP/$(basename "$BOOT")"
@@ -397,7 +397,7 @@ startInstall() {
 
   # Keep existing media at its persistent path until all storage cleanup has
   # completed successfully, so a later failure cannot strand it under $TMP.
-  if [ -n "$CUSTOM" ] || [ ! -s "$BOOT" ]; then
+  if isCustomImage || [ ! -s "$BOOT" ]; then
     if ! rm -f -- "$BOOT"; then
       error "Failed to remove obsolete ISO file \"$BOOT\" !"
       return 50
@@ -419,14 +419,14 @@ startInstall() {
     return 50
   fi
 
-  if [ -z "$CUSTOM" ] && [[ "${VERSION,,}" != "http"* ]]; then
+  if ! isCustomImage && ! isURL "$VERSION"; then
     checkMemory "$VERSION" || return 67
     setDiskMinimum "$VERSION" || return 67
   fi
 
   # Work from the temporary directory so the persistent source path can
   # later contain either the preserved ISO or the rebuilt installation image.
-  if [ -z "$CUSTOM" ] && [ -f "$BOOT" ] && [ -s "$BOOT" ]; then
+  if ! isCustomImage && [ -f "$BOOT" ] && [ -s "$BOOT" ]; then
     if ! mv -f -- "$BOOT" "$ISO"; then
       error "Failed to move ISO file from \"$BOOT\" to \"$ISO\" !"
       return 50
@@ -603,7 +603,7 @@ finishInstall() {
   fi
 
   if [[ "$boot" == "$STORAGE/"* ]]; then
-    if [[ "$aborted" != [Yy1]* ]] || [ -z "$CUSTOM" ]; then
+    if [[ "$aborted" != [Yy1]* ]] || ! isCustomImage; then
 
       base=$(basename "$boot")
       writeState "base" "$base" || {
@@ -615,7 +615,7 @@ finishInstall() {
   fi
 
   if [[ "${PLATFORM,,}" == "x64" ]]; then
-    if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+    if isLegacyBoot; then
 
       writeState "mode" "$BOOT_MODE" || {
         error "Failed to save the Windows boot mode!"
@@ -707,7 +707,7 @@ findFile() {
     file=$(find "$STORAGE" -maxdepth 1 -type f -iname "$fname" -print -quit) || return 1
   fi
 
-  if [ ! -s "$file" ] && [[ "${VERSION,,}" != "http"* ]]; then
+  if [ ! -s "$file" ] && ! isURL "$VERSION"; then
     base=$(basename "$VERSION")
     file="$STORAGE/$base"
   fi
@@ -736,7 +736,7 @@ findFile() {
 normalizeDetected() {
 
   # Known catalog versions already provide the required image metadata.
-  if [ -z "$DETECTED" ] && [ -z "$CUSTOM" ] && [[ "${VERSION,,}" != "http"* ]]; then
+  if [ -z "$DETECTED" ] && ! isCustomImage && ! isURL "$VERSION"; then
     DETECTED="$VERSION"
   fi
 
@@ -752,14 +752,14 @@ detectCustom() {
 
   findFile "custom.iso" || return 1
 
-  if [ -n "$CUSTOM" ]; then
+  if isCustomImage; then
     DETECTED=""
     return 0
   fi
 
   findFile "boot.iso" || return 1
 
-  if [ -n "$CUSTOM" ]; then
+  if isCustomImage; then
     DETECTED=""
     return 0
   fi
@@ -837,7 +837,7 @@ useOriginalImage() {
 
   local iso="$1"
 
-  if [ -n "$CUSTOM" ]; then
+  if isCustomImage; then
     BOOT="$iso"
   elif [[ "$iso" != "$BOOT" ]]; then
     if ! mv -f -- "$iso" "$BOOT"; then
@@ -858,7 +858,7 @@ removeImage() {
 
   local iso="$1"
 
-  [ -n "$CUSTOM" ] && return 0
+  isCustomImage && return 0
 
   if ! rm -f -- "$iso" 2>/dev/null; then
     warn "failed to remove image \"$iso\"!"
@@ -953,7 +953,7 @@ prepareImage() {
   ETFS="${ETFS:-boot/etfsboot.com}"
 
   # Legacy rebuilt media must retain the source ISO's El Torito boot-load size.
-  if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+  if isLegacyBoot; then
 
     getBootLoadSize "$iso" "$dir" "$desc" || return 1
 
@@ -961,7 +961,7 @@ prepareImage() {
 
   supportsXML "$DETECTED" || return 0
 
-  if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+  if isLegacyBoot; then
 
     extractBootImage "$iso" "$dir" "$desc" && return 0
 
