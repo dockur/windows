@@ -1128,7 +1128,7 @@ createWin9xSystemImage() {
   local dir="$1"
   local image="$2"
   local desc="$3"
-  local setup="$4"
+  local source="$4"
   local options="$5"
   local mouse="$6"
 
@@ -1142,6 +1142,7 @@ createWin9xSystemImage() {
   local sectors=$((size / 512 - start))
   local offset=$((start * 512))
   local entry find_pid setup_dir
+  local setup="SETUP"
   local fs attributes
   local entries=()
 
@@ -1521,12 +1522,13 @@ createWin9xSystemImage() {
 
   # Setup only needs its release-specific source directory. Keeping the rest
   # of the optical-media root off C: avoids exposing unrelated CD contents in
-  # the installed system while retaining the common Win95/98/Me image path.
-  setup_dir=$(find "$dir" -mindepth 1 -maxdepth 1 -type d -iname "$setup" -print -quit) || return 1
+  # the installed system. Rename the retained source to C:\SETUP so it cannot
+  # be confused with the installed C:\WINDOWS directory.
+  setup_dir=$(find "$dir" -mindepth 1 -maxdepth 1 -type d -iname "$source" -print -quit) || return 1
 
   if [ -z "$setup_dir" ]; then
     rm -f -- "$tmp"
-    error "Failed to locate the $setup Setup folder in $desc ISO image!"
+    error "Failed to locate the $source Setup folder in $desc ISO image!"
     return 1
   fi
 
@@ -1542,6 +1544,13 @@ createWin9xSystemImage() {
     fi
 
   done
+
+  if ! MTOOLSRC="$config" mren "w:/$source" "w:/$setup" ||
+    ! MTOOLSRC="$config" mattrib +h +s "w:/$setup"; then
+    rm -f -- "$tmp"
+    error "Failed to rename or hide the $desc setup folder in the system image!"
+    return 1
+  fi
 
   if ! MTOOLSRC="$config" mcopy -o "$mouse/VBMOUSE.EXE" w:/VBMOUSE.EXE ||
     ! MTOOLSRC="$config" mcopy -o "$mouse/VBMOUSE.DRV" w:/VBMOUSE.DRV; then
@@ -1758,178 +1767,42 @@ integrateWin9xSetupMouse() {
   return 0
 }
 
-integrateWin9xLoginApplet() {
+stageWin9xLoginApplet() {
 
   local dir="$1"
   local desc="$2"
   local source="$3"
-
-  local layout source_entry disk subdir size mapping
-  local temp plain patched converted
-
-  layout=$(find "$dir" -maxdepth 1 -type f -iname 'LAYOUT.INF' -print -quit) || return 1
-
-  if [ -z "$layout" ]; then
-    error "Failed to locate LAYOUT.INF in $desc setup files!"
-    return 1
-  fi
 
   if [ ! -f "$source" ]; then
     error "Failed to locate LOGIN9X.CPL!"
     return 1
   fi
 
-  # LOGIN9X.CPL lives beside SETUP.EXE in the flat Win9x setup source. Reuse
-  # SETUP.EXE's existing source-disk location instead of inventing media data.
-  source_entry=$(awk '
-    BEGIN {
-      files = 0
-    }
-    {
-      sub(/\r$/, "")
-      line = $0
-      section = tolower(line)
-      gsub(/[[:space:]]/, "", section)
-
-      if (section ~ /^\[[^]]+\]$/) {
-        files = (section == "[sourcedisksfiles]")
-        next
-      }
-
-      if (!files) {
-        next
-      }
-
-      pos = index(line, "=")
-      if (!pos) {
-        next
-      }
-
-      key = substr(line, 1, pos - 1)
-      gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
-
-      if (tolower(key) == "setup.exe") {
-        value = substr(line, pos + 1)
-        sub(/[[:space:]]*;.*/, "", value)
-        print value
-        exit
-      }
-    }
-  ' "$layout") || return 1
-
-  if [ -z "$source_entry" ]; then
-    error "Failed to locate SETUP.EXE in the $desc LAYOUT.INF source map!"
-    return 1
-  fi
-
-  disk=$(cut -d',' -f1 <<< "$source_entry" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-  subdir=$(cut -s -d',' -f2 <<< "$source_entry" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-
-  if ! [[ "$disk" =~ ^[0-9]+$ ]]; then
-    error "Invalid SETUP.EXE source-disk mapping in $desc LAYOUT.INF!"
-    return 1
-  fi
-
-  size=$(stat -c %s -- "$source") || return 1
-  mapping="LOGIN9X.CPL=$disk,$subdir,$size"
-
-  temp="$TMP/win9x-login9x"
-  plain="$temp/LAYOUT.INF"
-  patched="$temp/LAYOUT.NEW"
-  converted="$temp/LAYOUT.DOS"
-
-  rm -rf -- "$temp" || return 1
-  mkdir -p "$temp" || return 1
-
-  if ! dos2unix -n "$layout" "$plain" >/dev/null 2>&1; then
-    rm -rf -- "$temp" || :
-    error "Failed to read $desc LAYOUT.INF!"
-    return 1
-  fi
-
-  if ! awk -v mapping="$mapping" '
-    BEGIN {
-      files = 0
-      found = 0
-    }
-    {
-      line = $0
-      section = tolower(line)
-      gsub(/[[:space:]]/, "", section)
-
-      if (section ~ /^\[[^]]+\]$/) {
-        files = (section == "[sourcedisksfiles]")
-        print line
-
-        if (files && !found) {
-          print mapping
-          found = 1
-        }
-
-        next
-      }
-
-      if (files && tolower(line) ~ /^[[:space:]]*login9x\.cpl[[:space:]]*=/) {
-        next
-      }
-
-      print line
-    }
-    END {
-      if (!found) {
-        exit 1
-      }
-    }
-  ' "$plain" > "$patched"; then
-    rm -rf -- "$temp" || :
-    error "Failed to add LOGIN9X.CPL to $desc LAYOUT.INF!"
-    return 1
-  fi
-
-  if ! unix2dos -n "$patched" "$converted" >/dev/null 2>&1 ||
-    ! chmod --reference="$layout" "$converted" ||
-    ! mv -f -- "$converted" "$layout" ||
-    ! cp -f -- "$source" "$dir/LOGIN9X.CPL" ||
+  if ! cp -f -- "$source" "$dir/LOGIN9X.CPL" ||
     ! cmp -s -- "$source" "$dir/LOGIN9X.CPL"; then
-    rm -rf -- "$temp" || :
-    error "Failed to integrate LOGIN9X.CPL into $desc setup files!"
+    error "Failed to stage LOGIN9X.CPL in $desc setup files!"
     return 1
   fi
 
-  if ! awk -v expected="$mapping" '
-    BEGIN {
-      files = 0
-      count = 0
-      exact = 0
-    }
-    {
-      sub(/\r$/, "")
-      line = $0
-      section = tolower(line)
-      gsub(/[[:space:]]/, "", section)
+  return 0
+}
 
-      if (section ~ /^\[[^]]+\]$/) {
-        files = (section == "[sourcedisksfiles]")
-        next
-      }
+stageWin9xMouseExecutable() {
 
-      if (files && tolower(line) ~ /^[[:space:]]*login9x\.cpl[[:space:]]*=/) {
-        count++
-        if (line == expected) {
-          exact = 1
-        }
-      }
-    }
-    END {
-      exit (count == 1 && exact) ? 0 : 1
-    }
-  ' "$layout"; then
-    rm -rf -- "$temp" || :
-    error "Failed to verify LOGIN9X.CPL in $desc LAYOUT.INF!"
+  local dir="$1"
+  local desc="$2"
+  local source="$3"
+
+  if [ ! -f "$source" ]; then
+    error "Failed to locate VBMOUSE.EXE!"
     return 1
   fi
 
-  rm -rf -- "$temp" || :
+  if ! cp -f -- "$source" "$dir/VBMOUSE.EXE" ||
+    ! cmp -s -- "$source" "$dir/VBMOUSE.EXE"; then
+    error "Failed to stage VBMOUSE.EXE in $desc setup files!"
+    return 1
+  fi
 
   return 0
 }
@@ -1942,7 +1815,7 @@ writeWin9xUserRegistry() {
     'HKCU,"Control Panel\Desktop","ScreenSaveActive",,"0"' \
     'HKCU,"Control Panel\Desktop","DragFullWindows",,"1"' \
     'HKCU,"Control Panel\Desktop","MenuShowDelay",,"100"' \
-    'HKCU,"Control Panel\Desktop","FontSmoothing",,"2"' \
+    'HKCU,"Control Panel\Desktop","FontSmoothing",,"1"' \
     'HKCU,"Control Panel\Desktop","SmoothScroll",0x00010001,0' \
     'HKCU,"Control Panel\Desktop\WindowMetrics","MinAnimate",,"0"' \
     'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","HideFileExt",0x00010001,0' \
@@ -1954,6 +1827,11 @@ writeWin9xMachineRegistry() {
 
   printf '%s\n' \
     '[Win9x.Machine]' \
+    'HKLM,"Software\Microsoft\Windows\CurrentVersion\FS Templates\Server","NameCache",1,a9,0a,00,00' \
+    'HKLM,"Software\Microsoft\Windows\CurrentVersion\FS Templates\Server","PathCache",1,40,00,00,00' \
+    'HKLM,"System\CurrentControlSet\Control\FileSystem","NameCache",1,a9,0a,00,00' \
+    'HKLM,"System\CurrentControlSet\Control\FileSystem","PathCache",1,40,00,00,00' \
+    'HKLM,"System\CurrentControlSet\Control\FileSystem","ReadAheadThreshold",1,00,00,01,00' \
     'HKLM,"System\CurrentControlSet\Control\FileSystem\CDFS","CacheSize",1,ac,09,00,00' \
     'HKLM,"System\CurrentControlSet\Control\FileSystem\CDFS","Prefetch",1,e4,00,00,00'
 }
@@ -2014,7 +1892,7 @@ writeWin9xAnswerFile() {
 
   local target="$1"
   local id="$2"
-  local folder="$3"
+  local setup="$3"
   local monitor="$4"
   local batchHost="$5"
   local batchUsername="$6"
@@ -2062,8 +1940,15 @@ writeWin9xAnswerFile() {
       'AdvancedINF=2.5' \
       'LayoutFile=layout.inf' \
       '' \
+      '[SourceDisksNames]' \
+      '22="Windows Setup",,0' \
+      '' \
+      '[SourceDisksFiles]' \
+      'LOGIN9X.CPL=22' \
+      'VBMOUSE.EXE=22' \
+      '' \
       '[Install]' \
-      'CopyFiles=Win9x.Login' \
+      'CopyFiles=Win9x.Login,Win9x.Mouse' \
       'UpdateInis=Win9x.SystemIni,Win9x.SystemCb' \
       "AddReg=$addReg" \
       '' \
@@ -2110,7 +1995,7 @@ writeWin9xAnswerFile() {
       printf '%s\n' \
         '' \
         '[OEMDrivers]' \
-        "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\",\"OtherDevicePath\",,\"C:\\WINDOWS\\INF\\OTHER;C:\\$folder\""
+        "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\",\"OtherDevicePath\",,\"C:\\WINDOWS\\INF\\OTHER;C:\\$setup\""
     fi
 
     printf '%s\n' \
@@ -2148,8 +2033,12 @@ writeWin9xAnswerFile() {
       '[Win9x.Login]' \
       'LOGIN9X.CPL' \
       '' \
+      '[Win9x.Mouse]' \
+      'VBMOUSE.EXE' \
+      '' \
       '[DestinationDirs]' \
-      'Win9x.Login=11'
+      'Win9x.Login=11' \
+      'Win9x.Mouse=10'
 
     if [[ "${id,,}" == "win98"* ]]; then
       printf '%s\n' \
@@ -2275,6 +2164,7 @@ prepareWin9xInstall() {
   local desc="$4"
 
   local folder monitor="Plug and Play Monitor" options="/IS /IQ /IT" target
+  local setup="SETUP"
   local shortcut="Y"
 
   if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
@@ -2353,7 +2243,7 @@ prepareWin9xInstall() {
   fi
 
   writeWin9xAnswerFile \
-    "$target" "$id" "$folder" "$monitor" \
+    "$target" "$id" "$setup" "$monitor" \
     "$batchHost" "$batchUsername" "$batchOrganization" "$batchWorkgroup" \
     "$batchKey" "$shortcut" "$install" || return 1
 
@@ -2391,7 +2281,12 @@ prepareWin9xInstall() {
     return 1
   fi
 
-  if ! integrateWin9xLoginApplet "$target" "$desc" "$logon"; then
+  if ! stageWin9xLoginApplet "$target" "$desc" "$logon"; then
+    rm -rf "$drivers" || :
+    return 1
+  fi
+
+  if ! stageWin9xMouseExecutable "$target" "$desc" "$mouse/VBMOUSE.EXE"; then
     rm -rf "$drivers" || :
     return 1
   fi
