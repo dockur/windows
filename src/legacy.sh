@@ -1851,7 +1851,6 @@ prepareWin9xInstall() {
 
   local firstLogonAddReg="Win9x.User"
   local firstLogonDelReg=""
-  local firstLogonDelFiles=""
 
   if ! disabled "$AUTOLOGIN"; then
     firstLogonDelReg="Win9x.Logon"
@@ -1860,8 +1859,7 @@ prepareWin9xInstall() {
   if [[ "${id,,}" == "win98"* ]]; then
     firstLogonAddReg+=",Win98.User"
     [ -n "$firstLogonDelReg" ] && firstLogonDelReg+=","
-    firstLogonDelReg+="Win98.Welcome,Win98.MSN"
-    firstLogonDelFiles="Win98.Connect"
+    firstLogonDelReg+="Win98.Welcome"
   fi
 
   # Cap the memory Win9x itself can address at 4 GiB without changing QEMU's
@@ -1889,15 +1887,17 @@ prepareWin9xInstall() {
       "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce\",\"Win9xSetup\",,\"%25%\\rundll.exe setupx.dll,InstallHinfSection Win9x.FirstLogon 4 %10%\\msbatch.inf\""
 
     if [[ "${id,,}" == "win98"* ]]; then
+      # Windows 98 can recreate its online-service desktop items late in setup.
+      # Schedule one cleanup from Run so it executes after the setup RunOnce work.
       printf '%s\n' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","Win98Online",,"C:\WINDOWS\RUNDLL32.EXE ADVPACK.DLL,DelNodeRunDLL32 C:\WINDOWS\Desktop\Online~1"'
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","Win98Cleanup",,"%25%\RunDll32.exe advpack.dll,LaunchINFSection %10%\msbatch.inf,Win98.Cleanup,5"'
     fi
 
     if enabled "$shortcut"; then
       # Win9x remaps the share at every logon instead of depending on the XP
       # NET USE /persistent switch.
       printf '%s\n' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","SharedDrive",,"%25%\NET.EXE USE Z: \\host.lan\Data"'
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","SharedDrive",,"C:\COMMAND.COM /C %25%\NET.EXE USE Z: \\host.lan\Data >NUL"'
     fi
 
     if [ -n "$install" ]; then
@@ -1936,10 +1936,6 @@ prepareWin9xInstall() {
       printf '%s\n' "DelReg=$firstLogonDelReg"
     fi
 
-    if [ -n "$firstLogonDelFiles" ]; then
-      printf '%s\n' "DelFiles=$firstLogonDelFiles"
-    fi
-
     if enabled "$shortcut"; then
       printf '%s\n' 'UpdateInis=Win9x.Shortcut'
     fi
@@ -1949,6 +1945,7 @@ prepareWin9xInstall() {
       '[Win9x.User]' \
       'HKCU,"Control Panel\Desktop","SCRNSAVE.EXE",,""' \
       'HKCU,"Control Panel\Desktop","ScreenSaveActive",,"0"' \
+      'HKCU,"Control Panel\Desktop","DragFullWindows",,"1"' \
       'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","HideFileExt",0x00010001,0'
 
     if ! disabled "$AUTOLOGIN"; then
@@ -1964,25 +1961,41 @@ prepareWin9xInstall() {
         '[Win98.User]' \
         'HKCU,"Software\Microsoft\Internet Connection Wizard","Completed",0x00010001,1' \
         'HKCU,"Software\Microsoft\Internet Explorer\Main","Start Page",,"http://www.google.com"' \
+        'HKCU,"Software\Microsoft\Internet Explorer\Main","First Home Page",,"http://www.google.com"' \
         'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Page",,"http://www.google.com"' \
         'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Bar",,"http://www.google.com"' \
         '' \
         '[Win98.Welcome]' \
         'HKLM,"Software\Microsoft\Windows\CurrentVersion\Run","Welcome",,,' \
         '' \
+        '[Win98.Cleanup]' \
+        'DelReg=Win98.MSN,Win98.CleanupRun' \
+        'DelFiles=Win98.Connect,Win98.ConnectAll' \
+        'RunPostSetupCommands=Win98.CleanupDirs' \
+        '' \
+        '[Win98.CleanupRun]' \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","Win98Cleanup"' \
+        '' \
         '[Win98.MSN]' \
         'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{4B876A40-4EE8-11D1-811E-00C04FB98EEC}",,,' \
         'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{88667D10-10F0-11D0-8150-00AA00BF8457}",,,' \
         '' \
         '[Win98.Connect]' \
-        'connec~1.lnk'
+        'connec~1.lnk' \
+        '' \
+        '[Win98.ConnectAll]' \
+        'connec~1.lnk' \
+        '' \
+        '[Win98.CleanupDirs]' \
+        '%25%\rundll32.exe advpack.dll,DelNodeRunDLL32 %10%\Desktop\Online~1'
     fi
 
     if [[ "${id,,}" == "win98"* ]]; then
       printf '%s\n' \
         '' \
         '[DestinationDirs]' \
-        'Win98.Connect=10,Desktop'
+        'Win98.Connect=10,Desktop' \
+        'Win98.ConnectAll=10,alluse~1\desktop'
     fi
 
     if enabled "$shortcut"; then
@@ -1991,7 +2004,7 @@ prepareWin9xInstall() {
         '[Win9x.Shortcut]'
       printf 'setup.ini, progman.groups,, "group1=""%s"""\n' "$desktop"
       printf '%s\n' \
-        'setup.ini, group1,,"""Shared"",""\\host.lan\Data"",""%10%\EXPLORER.EXE"",0,,,""Shared folder"""'
+        'setup.ini, group1,,"""Shared"",""\\host.lan\Data"",""%11%\SHELL32.DLL"",3,,,""Shared folder"""'
     fi
 
     printf '%s\n' \
