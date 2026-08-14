@@ -1551,14 +1551,10 @@ createWin9xSystemImage() {
     return 1
   fi
 
-  if ! disabled "$AUTOLOGIN"; then
-
-    if ! MTOOLSRC="$config" mcopy -o "$logon" w:/WIN9XLOG.EXE; then
-      rm -f -- "$tmp"
-      error "Failed to add automatic logon support to the $desc system image!"
-      return 1
-    fi
-
+  if ! MTOOLSRC="$config" mcopy -o "$logon" "w:/$setup/LOGIN9X.CPL"; then
+    rm -f -- "$tmp"
+    error "Failed to add the autologin helper to the $desc system image!"
+    return 1
   fi
 
   {
@@ -1577,8 +1573,15 @@ createWin9xSystemImage() {
       "C:\\${setup}\\SETUP.EXE $options" \
       'GOTO END' \
       ':WINDOWS' \
-      'IF EXIST C:\WINDOWS\SYSTEM\VBMOUSE.DRV GOTO START' \
-      'COPY C:\VBMOUSE.DRV C:\WINDOWS\SYSTEM\VBMOUSE.DRV >NUL' \
+      'IF EXIST C:\WINDOWS\SYSTEM\VBMOUSE.DRV GOTO LOGON' \
+      'COPY C:\VBMOUSE.DRV C:\WINDOWS\SYSTEM\VBMOUSE.DRV >NUL'
+
+    printf '%s\n' \
+      ':LOGON' \
+      'IF EXIST C:\WINDOWS\SYSTEM\LOGIN9X.CPL GOTO START' \
+      "COPY C:\\${setup}\\LOGIN9X.CPL C:\\WINDOWS\\SYSTEM\\LOGIN9X.CPL >NUL"
+
+    printf '%s\n' \
       ':START' \
       'C:\VBMOUSE.EXE >NUL' \
       'C:\WINDOWS\WIN.COM' \
@@ -1647,9 +1650,24 @@ stageWin9xDisplayDriver() {
     return 1
   fi
 
-  # BOXV9X is the source-media tag named by the upstream INF. Keep the INF
-  # unchanged and provide that tag beside the driver files so Setup never asks
-  # for a separate driver disk while installing the exact QEMU PCI match.
+  # The virtual display driver's DDC flag makes Win9x enumerate a Plug and
+  # Play monitor after the display driver starts. The unattended setup already
+  # selects the monitor and display mode, and BOXV9X carries a fixed mode list,
+  # so disable DDC in our staged copy to avoid a second monitor PnP pass.
+  if ! grep -Eq '^[[:space:]]*HKR,DEFAULT,DDC,,1[[:space:]]*$' "$dest/boxv9x.inf"; then
+    error "Failed to locate the DDC setting in the Windows 9x display driver!"
+    return 1
+  fi
+
+  if ! sed -i 's/HKR,DEFAULT,DDC,,1/HKR,DEFAULT,DDC,,0/' "$dest/boxv9x.inf" ||
+    ! grep -Eq '^[[:space:]]*HKR,DEFAULT,DDC,,0[[:space:]]*$' "$dest/boxv9x.inf"; then
+    error "Failed to disable DDC in the Windows 9x display driver!"
+    return 1
+  fi
+
+  # BOXV9X is the source-media tag named by the upstream INF. Provide that tag
+  # beside the driver files so Setup never asks for a separate driver disk while
+  # installing the exact QEMU PCI match.
   : > "$dest/BOXV9X" || return 1
 
   return 0
@@ -1766,7 +1784,7 @@ writeWin9xUserRegistry() {
     'HKCU,"Control Panel\Desktop","SmoothScroll",0x00010001,0' \
     'HKCU,"Control Panel\Desktop\WindowMetrics","MinAnimate",,"0"' \
     'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","HideFileExt",0x00010001,0' \
-    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoActiveDesktop",1,01,00,00,00' \
+    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoActiveDesktop",0x00010001,1' \
     'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer","link",1,00,00,00,00'
 }
 
@@ -1796,7 +1814,6 @@ writeWin98Registry() {
     'AddReg=Win98.User' \
     'DelReg=Win98.MSN,Win98.ICWDesktop' \
     'DelFiles=Win98.Connect,Win98.ConnectAll' \
-    'RunPostSetupCommands=Win98.CleanupDirs' \
     '' \
     '[Win98.PowerUser]' \
     'HKCU,"Control Panel\PowerCfg","CurrentPowerPolicy",,"0"' \
@@ -1829,9 +1846,6 @@ writeWin98Registry() {
     '[Win98.ConnectAll]' \
     'connec~1.lnk' \
     '"Connect to the Internet.lnk"' \
-    '' \
-    '[Win98.CleanupDirs]' \
-    '%25%\rundll32.exe advpack.dll,DelNodeRunDLL32 %10%\Desktop\Online~1' \
     '' \
     '[DestinationDirs]' \
     'Win98.Connect=10,Desktop' \
@@ -1921,12 +1935,13 @@ writeWin9xAnswerFile() {
     fi
 
     if ! disabled "$AUTOLOGIN"; then
-      # Windows Logon only becomes silent with a blank password when Win9x user
-      # profiles are disabled. Keep that common Win95/98/Me prerequisite beside
-      # the helper that completes the one-time initial logon.
       printf '%s\n' \
-        'HKLM,"Network\Logon","UserProfiles",1,00' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices","Win9xLogon",,"C:\WIN9XLOG.EXE"'
+        'HKLM,"Network\Logon","UserProfiles",0x00010001,0' \
+        "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Winlogon\",\"DefaultUserName\",,\"$batchUsername\"" \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Winlogon","DefaultPassword",,""' \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Winlogon","AutoAdminLogon",,"1"' \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Winlogon","DontDisplayLastUserName",,"0"' \
+        "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunServices\",\"Tweak UI\",,\"RUNDLL32.EXE %11%\\LOGIN9X.CPL,TweakLogon\""
     fi
 
     printf '%s\n' ''
@@ -1959,7 +1974,9 @@ writeWin9xAnswerFile() {
       printf '%s\n' \
         '' \
         '[Win9x.Logon]' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices","Win9xLogon",,,'
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices","Login9x",,,' \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Winlogon","AutoAdminLogon",,,' \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Winlogon","DefaultPassword",,,'
     fi
 
     if [[ "${id,,}" == "win98"* ]]; then
@@ -2008,6 +2025,7 @@ writeWin9xAnswerFile() {
       '' \
       '[OptionalComponents]' \
       '"The Microsoft Network"=0' \
+      '"Online Services"=0' \
       '' \
       '[NameAndOrg]' \
       "Name=\"$batchUsername\"" \
@@ -2173,7 +2191,7 @@ prepareWin9xInstall() {
   local patcher="$win9x/patcher9x/patcher9x"
   local mouse="$win9x/mouse"
   local display="$win9x/boxv9x"
-  local logon="$win9x/win9xlog/WIN9XLOG.EXE"
+  local logon="$win9x/login9x/login9x.cpl"
 
   extractDrivers "$drivers" || return 1
 
@@ -2189,9 +2207,9 @@ prepareWin9xInstall() {
     return 1
   fi
 
-  if ! disabled "$AUTOLOGIN" && [ ! -f "$logon" ]; then
+  if [ ! -f "$logon" ]; then
     rm -rf "$drivers" || :
-    error "Failed to locate Windows 9x automatic logon helper!"
+    error "Failed to locate the autologin helper!"
     return 1
   fi
 
