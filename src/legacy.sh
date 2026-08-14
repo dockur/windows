@@ -1142,7 +1142,7 @@ createWin9xSystemImage() {
   local start=63
   local sectors=$((size / 512 - start))
   local offset=$((start * 512))
-  local entry base find_pid
+  local entry find_pid setup_dir
   local fs attributes
   local entries=()
 
@@ -1520,26 +1520,21 @@ createWin9xSystemImage() {
   # Windows is started explicitly from AUTOEXEC.BAT so the DOS environment stays
   # available for the mouse TSR.
 
-  mapfile -d '' entries < <(
-    find "$dir" -mindepth 1 -maxdepth 1 -print0
-  )
+  # Setup only needs its release-specific source directory. Keeping the rest
+  # of the optical-media root off C: avoids exposing unrelated CD contents in
+  # the installed system while retaining the common Win95/98/Me image path.
+  setup_dir=$(find "$dir" -mindepth 1 -maxdepth 1 -type d -iname "$setup" -print -quit) || return 1
 
-  find_pid=$!
-
-  if ! wait "$find_pid"; then
+  if [ -z "$setup_dir" ]; then
     rm -f -- "$tmp"
-    error "Failed to enumerate $desc files!"
+    error "Failed to locate the $setup Setup folder in $desc ISO image!"
     return 1
   fi
 
+  entries=("$setup_dir")
+  [ -d "$dir/OEM" ] && entries+=("$dir/OEM")
+
   for entry in "${entries[@]}"; do
-
-    base=$(basename "$entry")
-
-    case "${base,,}" in
-      "io.sys" | "msdos.sys" | "command.com" | "autoexec.bat" | "config.sys" )
-        continue ;;
-    esac
 
     if ! MTOOLSRC="$config" mcopy -Q -s "$entry" w:/; then
       rm -f -- "$tmp"
@@ -1765,7 +1760,7 @@ prepareWin9xInstall() {
   local dir="$3"
   local desc="$4"
 
-  local folder options="/IS /IQ /IT" target
+  local folder monitor="Plug and Play Monitor" options="/IS /IQ /IT" target
   local shortcut="Y"
 
   if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
@@ -1779,7 +1774,8 @@ prepareWin9xInstall() {
 
   case "${id,,}" in
     "win95"* )
-      folder="WIN95" ;;
+      folder="WIN95"
+      monitor="Plug and Play Monitor (VESA DDC)" ;;
     "win98"* )
       folder="WIN98"
       options="/P I /IE /NF $options" ;;
@@ -1849,6 +1845,13 @@ prepareWin9xInstall() {
     addReg+=",OEMDrivers"
   fi
 
+  if [[ "${id,,}" == "win98"* ]]; then
+    # Batch.Update must remain last: Windows 98 creates some Internet desktop
+    # items late in Setup, so register their delayed cleanup after other AddReg
+    # work. Active Setup reapplies browser defaults after IE initializes users.
+    addReg+=",Win98.Power,Win98.ActiveSetup,Win98.BatchUpdate"
+  fi
+
   local firstLogonAddReg="Win9x.User"
   local firstLogonDelReg=""
 
@@ -1857,7 +1860,7 @@ prepareWin9xInstall() {
   fi
 
   if [[ "${id,,}" == "win98"* ]]; then
-    firstLogonAddReg+=",Win98.User"
+    firstLogonAddReg+=",Win98.User,Win98.PowerUser"
     [ -n "$firstLogonDelReg" ] && firstLogonDelReg+=","
     firstLogonDelReg+="Win98.Welcome"
   fi
@@ -1886,13 +1889,6 @@ prepareWin9xInstall() {
       "HKLM,\"SOFTWARE\Microsoft\Windows\CurrentVersion\",\"RegisteredOrganization\",,\"$batchOrganization\"" \
       "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce\",\"Win9xSetup\",,\"%25%\\rundll.exe setupx.dll,InstallHinfSection Win9x.FirstLogon 4 %10%\\msbatch.inf\""
 
-    if [[ "${id,,}" == "win98"* ]]; then
-      # Windows 98 can recreate its online-service desktop items late in setup.
-      # Schedule one cleanup from Run so it executes after the setup RunOnce work.
-      printf '%s\n' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","Win98Cleanup",,"%25%\RunDll32.exe advpack.dll,LaunchINFSection %10%\msbatch.inf,Win98.Cleanup,5"'
-    fi
-
     if enabled "$shortcut"; then
       # Win9x remaps the share at every logon instead of depending on the XP
       # NET USE /persistent switch.
@@ -1913,10 +1909,11 @@ prepareWin9xInstall() {
     fi
 
     if ! disabled "$AUTOLOGIN"; then
-      # A first Windows Logon with a blank password creates the Win9x credential
-      # state that makes later Windows Logon startups silent. Run the small helper
-      # before interactive logon so that one-time dialog can be completed unattended.
+      # Windows Logon only becomes silent with a blank password when Win9x user
+      # profiles are disabled. Keep that common Win95/98/Me prerequisite beside
+      # the helper that completes the one-time initial logon.
       printf '%s\n' \
+        'HKLM,"Network\Logon","UserProfiles",1,00' \
         'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices","Win9xLogon",,"C:\WIN9XLOG.EXE"'
     fi
 
@@ -1958,10 +1955,32 @@ prepareWin9xInstall() {
     if [[ "${id,,}" == "win98"* ]]; then
       printf '%s\n' \
         '' \
+        '[Win98.Power]' \
+        'HKLM,"Software\Microsoft\Windows\CurrentVersion\Controls Folder\PowerCfg\PowerPolicies\0","Policies",0x00000001,01,00,00,00,02,00,00,00,02,00,00,00,02,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,02,00,00,00,04,00,00,c0,00,00,00,00,02,00,00,00,04,00,00,c0,00,00,00,00' \
+        'HKU,".DEFAULT\Control Panel\PowerCfg","CurrentPowerPolicy",,"0"' \
+        'HKU,".DEFAULT\Control Panel\PowerCfg\PowerPolicies\0","Policies",0x00000001,01,00,00,00,00,00,00,00,01,00,00,00,00,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,3c,00,00,00,32,32,8c,82,02,00,00,00,02,00,00,00,00,00,00,00,f0,3b,91,81,00,00,00,00,78,00,00,00,00,00,00,00,58,02,00,00,00,00,64,64,64,64,8c,82' \
+        '' \
+        '[Win98.ActiveSetup]' \
+        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx",,,">Batch 98 - General Settings"' \
+        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx","IsInstalled",0x00000001,01,00,00,00' \
+        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx","Version",,"3,0,0,0"' \
+        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx","StubPath",,"%25%\rundll.exe setupx.dll,InstallHinfSection Win98.Browser 4 %10%\msbatch.inf"' \
+        '' \
+        '[Win98.BatchUpdate]' \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","Win98Cleanup",,"%25%\RunDll32.exe advpack.dll,LaunchINFSection %10%\msbatch.inf,Win98.Cleanup,5"' \
+        '' \
+        '[Win98.Browser]' \
+        'AddReg=Win98.User' \
+        '' \
+        '[Win98.PowerUser]' \
+        'HKCU,"Control Panel\PowerCfg","CurrentPowerPolicy",,"0"' \
+        'HKCU,"Control Panel\PowerCfg\PowerPolicies\0","Policies",0x00000001,01,00,00,00,00,00,00,00,01,00,00,00,00,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,3c,00,00,00,32,32,8c,82,02,00,00,00,02,00,00,00,00,00,00,00,f0,3b,91,81,00,00,00,00,78,00,00,00,00,00,00,00,58,02,00,00,00,00,64,64,64,64,8c,82' \
+        '' \
         '[Win98.User]' \
         'HKCU,"Software\Microsoft\Internet Connection Wizard","Completed",0x00010001,1' \
         'HKCU,"Software\Microsoft\Internet Explorer\Main","Start Page",,"http://www.google.com"' \
         'HKCU,"Software\Microsoft\Internet Explorer\Main","First Home Page",,"http://www.google.com"' \
+        'HKCU,"Software\Microsoft\Internet Explorer\Main","Default_Page_URL",,"http://www.google.com"' \
         'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Page",,"http://www.google.com"' \
         'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Bar",,"http://www.google.com"' \
         '' \
@@ -2042,10 +2061,9 @@ prepareWin9xInstall() {
       "Org=\"$batchOrganization\"" \
       'Display=0' \
       '' \
-      '[Display]' \
-      'BitsPerPel=16' \
-      "XResolution=$WIDTH" \
-      "YResolution=$HEIGHT" \
+      '[System]' \
+      "DisplChar=16,$WIDTH,$HEIGHT" \
+      "Monitor=\"$monitor\"" \
       '' \
       '[Network]' \
       "ComputerName=\"$batchHost\"" \
