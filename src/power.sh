@@ -452,27 +452,6 @@ finish() {
   exit "$reason"
 }
 
-abortDuringSetup() {
-
-  local code="$1"
-
-  if [[ "${DETECTED,,}" == "reactos" ]] && hasSystemImage; then
-    info "ReactOS LiveCD does not support ACPI shutdown, terminating..."
-  else
-    info "Cannot send ACPI signal during $(app) setup, terminating..."
-  fi
-
-  # Before Windows boots from disk, ACPI may be ignored or interpreted by setup
-  # itself. Terminate QEMU directly instead of waiting for a graceful shutdown.
-  terminateQemu
-
-  if ! waitQemuExit 10; then
-    warn "Timed out while waiting for $(app) to exit!"
-  fi
-
-  finish "$code"
-}
-
 gracefulShutdown() {
 
   local sig="$1"
@@ -522,11 +501,18 @@ gracefulShutdown() {
   fi
 
   if ! supportsACPI "$DETECTED"; then
-    abortDuringSetup "$code"
-  fi
-
-  if ! ready; then
-    abortDuringSetup "$code"
+    if [[ "${DETECTED,,}" != "reactos" ]]; then
+      info "This $(app) version does not support ACPI shutdown, decreasing timeout to 10 seconds..."
+      TIMEOUT=13
+    else
+      if hasSystemImage; then
+        info "ReactOS LiveCD does not support ACPI shutdown, decreasing timeout to 1 second..."
+        TIMEOUT=7
+      fi
+    fi
+  elif ! ready; then
+    info "$(app) will ignore ACPI signals during setup, decreasing timeout to 10 seconds..."
+    TIMEOUT=13
   fi
 
   normalizeTimeout 105
