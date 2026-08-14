@@ -231,7 +231,7 @@ jobs:
           set -Eeuo pipefail
 
           case "$CALLBACK" in
-            powershell | legacy)
+            powershell | legacy | basic)
               ;;
             *)
               echo "Unsupported guest script type: $CALLBACK"
@@ -249,6 +249,7 @@ jobs:
           printf '%s\n' "$token" > "$RUNNER_TEMP/data/validation.token"
           printf '%s\n' "$token" > "$RUNNER_TEMP/oem/validation.token"
 
+          if [[ "$CALLBACK" != "basic" ]]; then
           cat > "$RUNNER_TEMP/oem/sync-log.bat" <<'BATCH'
           @echo off
           setlocal
@@ -327,6 +328,7 @@ jobs:
 
           shell.Run "cmd.exe /C echo VALIDATION_CALLBACK_FAILED^>COM1", 0, True
           VBSCRIPT
+          fi
 
           case "$CALLBACK" in
             powershell)
@@ -764,6 +766,34 @@ jobs:
           exit /B %result%
           EOF
               ;;
+
+            basic)
+              cat > "$RUNNER_TEMP/oem/install.bat" <<'BATCH'
+          @echo off
+
+          :retry
+          if not exist \\host.lan\Data\validation.token goto wait
+
+          echo TOKEN> C:\OEM\validation.result
+          type C:\OEM\validation.token >> C:\OEM\validation.result
+          echo SHARE>> C:\OEM\validation.result
+          type \\host.lan\Data\validation.token >> C:\OEM\validation.result
+          echo VERSION>> C:\OEM\validation.result
+          ver >> C:\OEM\validation.result
+
+          if exist \\host.lan\Data\validation.result del \\host.lan\Data\validation.result >nul
+          copy C:\OEM\validation.result \\host.lan\Data\validation.result >nul
+          if errorlevel 1 goto wait
+
+          goto end
+
+          :wait
+          ping 127.0.0.1 -n 6 >nul
+          goto retry
+
+          :end
+          BATCH
+              ;;
           esac
 
           echo "token=$token" >> "$GITHUB_OUTPUT"
@@ -890,6 +920,7 @@ jobs:
       - name: Install and validate Windows
         shell: bash
         env:
+          CALLBACK: ${{ inputs.callback }}
           KILL_ON_FAILURE: ${{ inputs.kill_on_failure }}
           INSTALL_TIMEOUT: ${{ inputs.install_timeout }}
           REBOOT_TIMEOUT: ${{ inputs.reboot_timeout }}
@@ -1128,6 +1159,101 @@ jobs:
               echo "BOOTMGR failures: $bootmgr_missing"
 
               exit 1
+            fi
+
+            basic_result="$RUNNER_TEMP/data/validation.result"
+
+            if [[ "$CALLBACK" == "basic" && -s "$basic_result" ]]; then
+              basic_response="$(tr -d '\r' < "$basic_result")"
+
+              oem_file="$(
+                awk '$0 == "TOKEN" { getline; print; exit }' <<< "$basic_response"
+              )"
+
+              share="$(
+                awk '$0 == "SHARE" { getline; print; exit }' <<< "$basic_response"
+              )"
+
+              version="$(
+                awk '
+                  $0 == "VERSION" { found = 1; next }
+                  found && NF { print; exit }
+                ' <<< "$basic_response"
+              )"
+
+              if [[ -z "$oem_file" || -z "$share" || -z "$version" ]] ||
+                 ! grep -Eq '[0-9]+\.[0-9]+\.[0-9]+' <<< "$version"; then
+                sleep 1
+                continue
+              fi
+
+              stop_logs
+              trap - EXIT
+
+              echo
+              echo "------------------------------------------------------------"
+              echo "Received response:"
+              printf '%s\n' "$basic_response"
+
+              if [[ "$oem_file" != "$EXPECTED_TOKEN" ]]; then
+                echo "Failed to read C:\\OEM\\validation.token."
+                echo "Expected contents:"
+                echo "  $EXPECTED_TOKEN"
+                echo "Received:"
+                echo "  ${oem_file:-empty}"
+                exit 1
+              fi
+
+              if [[ "$share" != "$EXPECTED_TOKEN" ]]; then
+                echo "Failed to read \\\\host.lan\\Data\\validation.token."
+                echo "Expected contents:"
+                echo "  $EXPECTED_TOKEN"
+                echo "Received:"
+                echo "  ${share:-empty}"
+                exit 1
+              fi
+
+              normalized_caption="${version//\(R\)/}"
+              normalized_expected_caption="${EXPECTED_CAPTION//\(R\)/}"
+
+              if [[ "$normalized_caption" != *"$normalized_expected_caption"* ]]; then
+                echo "Expected caption containing:"
+                echo "  $EXPECTED_CAPTION"
+                echo "Received:"
+                echo "  $version"
+                exit 1
+              fi
+
+              version_number="$(
+                grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' <<< "$version" |
+                  head -n 1 || true
+              )"
+
+              if [[ ! "$version_number" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                echo "Unexpected Windows version: $version"
+                exit 1
+              fi
+
+              build="${version_number##*.}"
+
+              if [[ ! "$build" =~ ^[0-9]+$ ]]; then
+                echo "Invalid Windows build number: $build"
+                exit 1
+              fi
+
+              if (( build < MINIMUM_BUILD )); then
+                echo "Expected build $MINIMUM_BUILD or newer."
+                echo "Received build: $build"
+                exit 1
+              fi
+
+              echo
+              echo "$DISPLAY_NAME installed successfully."
+              echo "Version: $version_number"
+              echo "Build: $build"
+              echo "OEM files: copied successfully"
+              echo "Shared folder: readable and writable"
+              exit 0
             fi
 
             response="$(
