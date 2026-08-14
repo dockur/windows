@@ -1767,20 +1767,43 @@ integrateWin9xSetupMouse() {
   return 0
 }
 
-stageWin9xLoginApplet() {
+stageWin9xPasswordList() {
 
   local dir="$1"
   local desc="$2"
-  local source="$3"
+  local target="$dir/DOCKER.PWL"
 
-  if [ ! -f "$source" ]; then
-    error "Failed to locate LOGIN9X.CPL!"
+  if ! xxd -r -p > "$target" <<'EOF'
+e382859601000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000
+000000000000000000ffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffff520200000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000001000000000075ad273deae8e3a155a623d2cd02
+c4c9833636fb9ed100c68322dd0c92fb04d4c6119aaaada60ebe2972e0286df6
+3bcab4ebf885df9a413ea245fa9f5b5e81f6e70d2fd5d0d06ca06e18c328d88f
+9a26b992331d22e76ab135b9851b3d9b
+EOF
+  then
+    error "Failed to create DOCKER.PWL in $desc setup files!"
     return 1
   fi
 
-  if ! cp -f -- "$source" "$dir/LOGIN9X.CPL" ||
-    ! cmp -s -- "$source" "$dir/LOGIN9X.CPL"; then
-    error "Failed to stage LOGIN9X.CPL in $desc setup files!"
+  if [ "$(wc -c < "$target")" -ne 688 ]; then
+    error "Failed to verify DOCKER.PWL in $desc setup files!"
     return 1
   fi
 
@@ -1904,8 +1927,13 @@ writeWin9xAnswerFile() {
 
   local desktop="%10%\Desktop"
   local addReg="OPKInstall,Win9x.Machine"
+  local copyFiles="Win9x.Mouse"
   local firstLogonAddReg="Win9x.User"
   local firstLogonDelReg=""
+
+  if ! disabled "$AUTOLOGIN"; then
+    copyFiles+=",Win9x.Password"
+  fi
 
   if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
     addReg+=",OEMDrivers"
@@ -1915,10 +1943,6 @@ writeWin9xAnswerFile() {
     # Active Setup reapplies browser defaults after IE initializes users and
     # removes the Internet desktop items before Explorer lays out the desktop.
     addReg+=",Win98.Power,Win98.ActiveSetup"
-  fi
-
-  if ! disabled "$AUTOLOGIN"; then
-    firstLogonDelReg="Win9x.Logon"
   fi
 
   if [[ "${id,,}" == "win98"* ]]; then
@@ -1944,11 +1968,16 @@ writeWin9xAnswerFile() {
       '22="Windows Setup",,0' \
       '' \
       '[SourceDisksFiles]' \
-      'LOGIN9X.CPL=22' \
-      'VBMOUSE.EXE=22' \
+      'VBMOUSE.EXE=22'
+
+    if ! disabled "$AUTOLOGIN"; then
+      printf '%s\n' 'DOCKER.PWL=22'
+    fi
+
+    printf '%s\n' \
       '' \
       '[Install]' \
-      'CopyFiles=Win9x.Login,Win9x.Mouse' \
+      "CopyFiles=$copyFiles" \
       'UpdateInis=Win9x.SystemIni,Win9x.SystemCb' \
       "AddReg=$addReg" \
       '' \
@@ -1981,11 +2010,7 @@ writeWin9xAnswerFile() {
     if ! disabled "$AUTOLOGIN"; then
       printf '%s\n' \
         'HKLM,"Network\Logon","UserProfiles",0x00010001,0' \
-        "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Winlogon\",\"DefaultUserName\",,\"$batchUsername\"" \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Winlogon","DefaultPassword",,""' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Winlogon","AutoAdminLogon",,"1"' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Winlogon","DontDisplayLastUserName",,"0"' \
-        "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunServices\",\"Login9x\",,\"RUNDLL32.EXE %11%\\LOGIN9X.CPL,TweakLogon\""
+        'HKLM,"Network\Logon","username",,"Docker"'
     fi
 
     printf '%s\n' ''
@@ -2014,15 +2039,6 @@ writeWin9xAnswerFile() {
     printf '%s\n' ''
     writeWin9xUserRegistry
 
-    if ! disabled "$AUTOLOGIN"; then
-      printf '%s\n' \
-        '' \
-        '[Win9x.Logon]' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices","Login9x",,,' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Winlogon","AutoAdminLogon",,,' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Winlogon","DefaultPassword",,,'
-    fi
-
     if [[ "${id,,}" == "win98"* ]]; then
       printf '%s\n' ''
       writeWin98Registry
@@ -2030,15 +2046,24 @@ writeWin9xAnswerFile() {
 
     printf '%s\n' \
       '' \
-      '[Win9x.Login]' \
-      'LOGIN9X.CPL' \
-      '' \
       '[Win9x.Mouse]' \
-      'VBMOUSE.EXE' \
+      'VBMOUSE.EXE'
+
+    if ! disabled "$AUTOLOGIN"; then
+      printf '%s\n' \
+        '' \
+        '[Win9x.Password]' \
+        'DOCKER.PWL'
+    fi
+
+    printf '%s\n' \
       '' \
       '[DestinationDirs]' \
-      'Win9x.Login=11' \
       'Win9x.Mouse=10'
+
+    if ! disabled "$AUTOLOGIN"; then
+      printf '%s\n' 'Win9x.Password=10'
+    fi
 
     if [[ "${id,,}" == "win98"* ]]; then
       printf '%s\n' \
@@ -2060,7 +2085,13 @@ writeWin9xAnswerFile() {
       '[Win9x.SystemIni]' \
       '%10%\system.ini,boot,"mouse.drv=mouse.drv","mouse.drv=vbmouse.drv"' \
       '%10%\system.ini,386Enh,,"MaxPhysPage=100000"' \
-      '%10%\system.ini,vcache,,"MaxFileCache=65536"' \
+      '%10%\system.ini,vcache,,"MaxFileCache=65536"'
+
+    if ! disabled "$AUTOLOGIN"; then
+      printf '%s\n' '%10%\system.ini,"Password Lists",,"DOCKER=C:\WINDOWS\DOCKER.PWL"'
+    fi
+
+    printf '%s\n' \
       '' \
       '[Win9x.SystemCb]' \
       '%10%\system.cb,386Enh,,"MaxPhysPage=100000"' \
@@ -2183,7 +2214,7 @@ prepareWin9xInstall() {
     "win98"* )
       folder="WIN98"
       monitor="Plug and Play Monitor (VESA DDC)"
-      options="/P I /IE /NF $options" ;;
+      options="/P J /IE /NF $options" ;;
     "win9x"* )
       folder="WIN9X"
       options="/IE /NF $options" ;;
@@ -2212,6 +2243,10 @@ prepareWin9xInstall() {
   local host="${HOST:-Docker}"
   local username="${USERNAME:-Docker}"
   local workgroup="${WORKGROUP:-WORKGROUP}"
+
+  if ! disabled "$AUTOLOGIN"; then
+    username="Docker"
+  fi
 
   validateComputerName "$host" || return 1
 
@@ -2242,6 +2277,10 @@ prepareWin9xInstall() {
     batchKey=$(escapeSIFValue "$KEY") || return 1
   fi
 
+  if ! disabled "$AUTOLOGIN"; then
+    stageWin9xPasswordList "$target" "$desc" || return 1
+  fi
+
   writeWin9xAnswerFile \
     "$target" "$id" "$setup" "$monitor" \
     "$batchHost" "$batchUsername" "$batchOrganization" "$batchWorkgroup" \
@@ -2254,7 +2293,6 @@ prepareWin9xInstall() {
   local patcher="$win9x/patcher9x/patcher9x"
   local mouse="$win9x/mouse"
   local display="$win9x/boxv9x"
-  local logon="$win9x/login9x/login9x.cpl"
 
   extractDrivers "$drivers" || return 1
 
@@ -2270,18 +2308,7 @@ prepareWin9xInstall() {
     return 1
   fi
 
-  if [ ! -f "$logon" ]; then
-    rm -rf "$drivers" || :
-    error "Failed to locate LOGIN9X control panel applet!"
-    return 1
-  fi
-
   if ! patchWin9xSetupFiles "$id" "$target" "$desc" "$patcher" "$mouse" "$display"; then
-    rm -rf "$drivers" || :
-    return 1
-  fi
-
-  if ! stageWin9xLoginApplet "$target" "$desc" "$logon"; then
     rm -rf "$drivers" || :
     return 1
   fi
