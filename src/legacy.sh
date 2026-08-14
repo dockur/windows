@@ -1131,7 +1131,6 @@ createWin9xSystemImage() {
   local setup="$4"
   local options="$5"
   local mouse="$6"
-  local logon="$7"
 
   local temp="$TMP/win9x-image"
   local config="$temp/mtools.conf"
@@ -1551,12 +1550,6 @@ createWin9xSystemImage() {
     return 1
   fi
 
-  if ! MTOOLSRC="$config" mcopy -o "$logon" "w:/$setup/LOGIN9X.CPL"; then
-    rm -f -- "$tmp"
-    error "Failed to add the autologin helper to the $desc system image!"
-    return 1
-  fi
-
   {
     printf '%s\n' \
       '@ECHO OFF' \
@@ -1573,15 +1566,8 @@ createWin9xSystemImage() {
       "C:\\${setup}\\SETUP.EXE $options" \
       'GOTO END' \
       ':WINDOWS' \
-      'IF EXIST C:\WINDOWS\SYSTEM\VBMOUSE.DRV GOTO LOGON' \
-      'COPY C:\VBMOUSE.DRV C:\WINDOWS\SYSTEM\VBMOUSE.DRV >NUL'
-
-    printf '%s\n' \
-      ':LOGON' \
-      'IF EXIST C:\WINDOWS\SYSTEM\LOGIN9X.CPL GOTO START' \
-      "COPY C:\\${setup}\\LOGIN9X.CPL C:\\WINDOWS\\SYSTEM\\LOGIN9X.CPL >NUL"
-
-    printf '%s\n' \
+      'IF EXIST C:\WINDOWS\SYSTEM\VBMOUSE.DRV GOTO START' \
+      'COPY C:\VBMOUSE.DRV C:\WINDOWS\SYSTEM\VBMOUSE.DRV >NUL' \
       ':START' \
       'C:\VBMOUSE.EXE >NUL' \
       'C:\WINDOWS\WIN.COM' \
@@ -1772,6 +1758,182 @@ integrateWin9xSetupMouse() {
   return 0
 }
 
+integrateWin9xLoginApplet() {
+
+  local dir="$1"
+  local desc="$2"
+  local source="$3"
+
+  local layout source_entry disk subdir size mapping
+  local temp plain patched converted
+
+  layout=$(find "$dir" -maxdepth 1 -type f -iname 'LAYOUT.INF' -print -quit) || return 1
+
+  if [ -z "$layout" ]; then
+    error "Failed to locate LAYOUT.INF in $desc setup files!"
+    return 1
+  fi
+
+  if [ ! -f "$source" ]; then
+    error "Failed to locate LOGIN9X.CPL!"
+    return 1
+  fi
+
+  # LOGIN9X.CPL lives beside SETUP.EXE in the flat Win9x setup source. Reuse
+  # SETUP.EXE's existing source-disk location instead of inventing media data.
+  source_entry=$(awk '
+    BEGIN {
+      files = 0
+    }
+    {
+      sub(/\r$/, "")
+      line = $0
+      section = tolower(line)
+      gsub(/[[:space:]]/, "", section)
+
+      if (section ~ /^\[[^]]+\]$/) {
+        files = (section == "[sourcedisksfiles]")
+        next
+      }
+
+      if (!files) {
+        next
+      }
+
+      pos = index(line, "=")
+      if (!pos) {
+        next
+      }
+
+      key = substr(line, 1, pos - 1)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
+
+      if (tolower(key) == "setup.exe") {
+        value = substr(line, pos + 1)
+        sub(/[[:space:]]*;.*/, "", value)
+        print value
+        exit
+      }
+    }
+  ' "$layout") || return 1
+
+  if [ -z "$source_entry" ]; then
+    error "Failed to locate SETUP.EXE in the $desc LAYOUT.INF source map!"
+    return 1
+  fi
+
+  disk=$(cut -d',' -f1 <<< "$source_entry" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  subdir=$(cut -s -d',' -f2 <<< "$source_entry" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+  if ! [[ "$disk" =~ ^[0-9]+$ ]]; then
+    error "Invalid SETUP.EXE source-disk mapping in $desc LAYOUT.INF!"
+    return 1
+  fi
+
+  size=$(stat -c %s -- "$source") || return 1
+  mapping="LOGIN9X.CPL=$disk,$subdir,$size"
+
+  temp="$TMP/win9x-login9x"
+  plain="$temp/LAYOUT.INF"
+  patched="$temp/LAYOUT.NEW"
+  converted="$temp/LAYOUT.DOS"
+
+  rm -rf -- "$temp" || return 1
+  mkdir -p "$temp" || return 1
+
+  if ! dos2unix -n "$layout" "$plain" >/dev/null 2>&1; then
+    rm -rf -- "$temp" || :
+    error "Failed to read $desc LAYOUT.INF!"
+    return 1
+  fi
+
+  if ! awk -v mapping="$mapping" '
+    BEGIN {
+      files = 0
+      found = 0
+    }
+    {
+      line = $0
+      section = tolower(line)
+      gsub(/[[:space:]]/, "", section)
+
+      if (section ~ /^\[[^]]+\]$/) {
+        files = (section == "[sourcedisksfiles]")
+        print line
+
+        if (files && !found) {
+          print mapping
+          found = 1
+        }
+
+        next
+      }
+
+      if (files && tolower(line) ~ /^[[:space:]]*login9x\.cpl[[:space:]]*=/) {
+        next
+      }
+
+      print line
+    }
+    END {
+      if (!found) {
+        exit 1
+      }
+    }
+  ' "$plain" > "$patched"; then
+    rm -rf -- "$temp" || :
+    error "Failed to add LOGIN9X.CPL to $desc LAYOUT.INF!"
+    return 1
+  fi
+
+  if ! unix2dos -n "$patched" "$converted" >/dev/null 2>&1 ||
+    ! chmod --reference="$layout" "$converted" ||
+    ! mv -f -- "$converted" "$layout" ||
+    ! cp -f -- "$source" "$dir/LOGIN9X.CPL" ||
+    ! cmp -s -- "$source" "$dir/LOGIN9X.CPL"; then
+    rm -rf -- "$temp" || :
+    error "Failed to integrate LOGIN9X.CPL into $desc setup files!"
+    return 1
+  fi
+
+  if ! awk -v expected="$mapping" '
+    BEGIN {
+      files = 0
+      count = 0
+      exact = 0
+    }
+    {
+      sub(/\r$/, "")
+      line = $0
+      section = tolower(line)
+      gsub(/[[:space:]]/, "", section)
+
+      if (section ~ /^\[[^]]+\]$/) {
+        files = (section == "[sourcedisksfiles]")
+        next
+      }
+
+      if (files && tolower(line) ~ /^[[:space:]]*login9x\.cpl[[:space:]]*=/) {
+        count++
+        if (line == expected) {
+          exact = 1
+        }
+      }
+    }
+    END {
+      exit (count == 1 && exact) ? 0 : 1
+    }
+  ' "$layout"; then
+    rm -rf -- "$temp" || :
+    error "Failed to verify LOGIN9X.CPL in $desc LAYOUT.INF!"
+    return 1
+  fi
+
+  rm -rf -- "$temp" || :
+
+  return 0
+}
+
 writeWin9xUserRegistry() {
 
   printf '%s\n' \
@@ -1845,11 +2007,7 @@ writeWin98Registry() {
     '' \
     '[Win98.ConnectAll]' \
     'connec~1.lnk' \
-    '"Connect to the Internet.lnk"' \
-    '' \
-    '[DestinationDirs]' \
-    'Win98.Connect=10,Desktop' \
-    'Win98.ConnectAll=10,alluse~1\desktop'
+    '"Connect to the Internet.lnk"'
 }
 
 writeWin9xAnswerFile() {
@@ -1905,6 +2063,7 @@ writeWin9xAnswerFile() {
       'LayoutFile=layout.inf' \
       '' \
       '[Install]' \
+      'CopyFiles=Win9x.Login' \
       'UpdateInis=Win9x.SystemIni,Win9x.SystemCb' \
       "AddReg=$addReg" \
       '' \
@@ -1941,7 +2100,7 @@ writeWin9xAnswerFile() {
         'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Winlogon","DefaultPassword",,""' \
         'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Winlogon","AutoAdminLogon",,"1"' \
         'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Winlogon","DontDisplayLastUserName",,"0"' \
-        "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunServices\",\"Tweak UI\",,\"RUNDLL32.EXE %11%\\LOGIN9X.CPL,TweakLogon\""
+        "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunServices\",\"Login9x\",,\"RUNDLL32.EXE %11%\\LOGIN9X.CPL,TweakLogon\""
     fi
 
     printf '%s\n' ''
@@ -1982,6 +2141,20 @@ writeWin9xAnswerFile() {
     if [[ "${id,,}" == "win98"* ]]; then
       printf '%s\n' ''
       writeWin98Registry
+    fi
+
+    printf '%s\n' \
+      '' \
+      '[Win9x.Login]' \
+      'LOGIN9X.CPL' \
+      '' \
+      '[DestinationDirs]' \
+      'Win9x.Login=11'
+
+    if [[ "${id,,}" == "win98"* ]]; then
+      printf '%s\n' \
+        'Win98.Connect=10,Desktop' \
+        'Win98.ConnectAll=10,alluse~1\desktop'
     fi
 
     if enabled "$shortcut"; then
@@ -2209,11 +2382,16 @@ prepareWin9xInstall() {
 
   if [ ! -f "$logon" ]; then
     rm -rf "$drivers" || :
-    error "Failed to locate the autologin helper!"
+    error "Failed to locate LOGIN9X control panel applet!"
     return 1
   fi
 
   if ! patchWin9xSetupFiles "$id" "$target" "$desc" "$patcher" "$mouse" "$display"; then
+    rm -rf "$drivers" || :
+    return 1
+  fi
+
+  if ! integrateWin9xLoginApplet "$target" "$desc" "$logon"; then
     rm -rf "$drivers" || :
     return 1
   fi
@@ -2226,7 +2404,7 @@ prepareWin9xInstall() {
   # on a particular El Torito floppy-image filename: some perfectly valid Win9x
   # discs expose a differently named boot image, while the required DOS system
   # files are already present in the installation cabinets.
-  if ! createWin9xSystemImage "$dir" "$TMP/windows.img" "$desc" "$folder" "$options" "$mouse" "$logon"; then
+  if ! createWin9xSystemImage "$dir" "$TMP/windows.img" "$desc" "$folder" "$options" "$mouse"; then
     rm -rf "$drivers" || :
     return 1
   fi
