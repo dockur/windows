@@ -95,6 +95,14 @@ parseVersion() {
       VERSION="winxpx64" ;;
     "2k" | "2000" | "win2k" | "win2000" | "windows2k" | "windows2000" )
       VERSION="win2kx86" ;;
+    "me" | "winme" | "win9x" | "windowsme" | "windows me" )
+      VERSION="win9x" ;;
+    "98" | "98se" | "win98" | "win98se" | "windows98" | "windows98se" | "windows 98" | "windows 98 se" )
+      VERSION="win98" ;;
+    "95" | "95c" | "win95" | "win95c" | "windows95" | "windows 95" )
+      VERSION="win95" ;;
+    "nt4" | "nt40" | "winnt4" | "windowsnt4" | "windows nt4" | "windows nt 4" )
+      VERSION="winnt4" ;;
     "25" | "2025" | "win25" | "win2025" | "windows2025" | "windows 2025" )
       VERSION="win2025-eval" ;;
     "22" | "2022" | "win22" | "win2022" | "windows2022" | "windows 2022" )
@@ -510,6 +518,8 @@ printEdition() {
       ;;
     "winxp"* )
       edition="Professional" ;;
+    "winnt4"* )
+      edition="Workstation" ;;
     "win2019-hv"* )
       edition="2019" ;;
     "win20"* )
@@ -570,6 +580,14 @@ fromFile() {
       id="win11${arch}" ;;
     *"winxp"* | *"win_xp"* | *"windowsxp"* | *"windows_xp"* )
       id="winxpx86" ;;
+    *"winme"* | *"win_me"* | *"win9x"* | *"windowsme"* | *"windows_me"* )
+      id="win9x" ;;
+    *"win98"* | *"win_98"* | *"windows98"* | *"windows_98"* )
+      id="win98" ;;
+    *"win95"* | *"win_95"* | *"windows95"* | *"windows_95"* )
+      id="win95" ;;
+    *"winnt4"* | *"win_nt4"* | *"windowsnt4"* | *"windows_nt4"* | *"windows_nt_4"* )
+      id="winnt4" ;;
     *"winvista"* | *"win_vista"* | *"windowsvista"* | *"windows_vista"* )
       id="winvista${arch}" ;;
     "tiny11core"* | "tiny11_core"* | "tiny_11_core"* )
@@ -1038,7 +1056,7 @@ isLegacy() {
   local id="$1"
 
   case "${id,,}" in
-    "win9"* | "winnt4"* | "win2k"* | "winxp"* | "win2003"* | \
+    "win9"* | "winnt4" | "win2k"* | "winxp"* | "win2003"* | \
     "winvista"* | "win7"* | "win2008"* | "reactos" )
       return 0 ;;
   esac
@@ -1051,8 +1069,57 @@ supportsUnattended() {
   local id="$1"
 
   case "${id,,}" in
-    "win9"* | "winnt4"* | "reactos" )
+    "winnt4" | "reactos" )
       return 1 ;;
+  esac
+
+  return 0
+}
+
+supportsXML() {
+
+  local id="$1"
+
+  supportsSIF "$id" && return 1
+  supportsUnattended "$id" || return 1
+
+  case "${id,,}" in
+    "win9"* )
+      return 1 ;;
+  esac
+
+  return 0
+}
+
+supportsSIF() {
+
+  local id="$1"
+
+  case "${id,,}" in
+    "win2k"* | "winxp"* | "win2003"* )
+      return 0 ;;
+  esac
+
+  return 1
+}
+
+supportsACPI() {
+
+  local id="$1"
+
+  case "${id,,}" in
+
+    "win9"* | "winnt4" )
+
+      # Windows 9x does not respond to ACPI during setup,
+      # so disable it during the first run of the container.
+      hasBootMarker || return 1 ;;
+
+    "reactos" )
+
+      # If the ISO is a Live-CD it will ignore ACPI signals.
+      hasSystemImage && return 1 ;;
+
   esac
 
   return 0
@@ -1067,20 +1134,6 @@ supportsBootKey() {
       return 1 ;;
     "win"* | "tiny"* | "core"* )
       return 0 ;;
-  esac
-
-  return 0
-}
-
-supportsXML() {
-
-  local id="$1"
-
-  supportsUnattended "$id" || return 1
-
-  case "${id,,}" in
-    "win2k"* | "winxp"* | "win2003"* )
-      return 1 ;;
   esac
 
   return 0
@@ -1336,6 +1389,26 @@ getLink1() {
       size=331701982
       sum="a93251b31f92316411bb48458a695d9051b13cdeba714c46f105012fdda45bf3"
       url="2000/5.00.2195.6717_x86fre_client-professional_retail_en-us.7z"
+      ;;
+    "win9x" )
+      size=448957271
+      sum="36e75592cf89e072e165da60100f91ca59b7667be90494f1aa4a78091011cfea"
+      url="9x/me/Windows%20Me_en.zip"
+      ;;
+    "win98" )
+      size=558263127
+      sum="980bfc9abc93c3104d1a00690c5db702efda7a377de7e06cda61889a972e2e08"
+      url="9x/98/se/Microsoft%20Windows%2098%20Second%20Edition%20%284.10.2222%29.rar"
+      ;;
+    "win95" )
+      size=422127699
+      sum="5456632a73a3c70f8e5ee566374876266a81f61968e623ef5500028dec8e2979"
+      url="9x/95/Microsoft%20Windows%2095C%20%284.03.1216.osr2.5%29.zip"
+      ;;
+    "winnt4" )
+      size=323070637
+      sum="30b93288e3cd17bf91b915b951e6ff25e6cdf26b062352341e066b985229a731"
+      url="nt/Microsoft%20Windows%20NT%204.0%20Workstation%20%284.00.1381.1.sp1%29.rar"
       ;;
   esac
 
@@ -1615,6 +1688,26 @@ getLink4() {
       size=386859008
       sum="e3816f6e80b66ff686ead03eeafffe9daf020a5e4717b8bd4736b7c51733ba22"
       url="MicrosoftWindows2000BuildCollection/5.00.2195.6717_x86fre_client-professional_retail_en-us-ZRMPFPP_EN.iso"
+      ;;
+    "win9x" )
+      size=523665408
+      sum="bff3e9e69e625d2fdffd01b326988c45be8b9285465a4dabbae96ac550de611e"
+      url="windows-me_202209/Windows%20ME.ISO"
+      ;;
+    "win98" )
+      size=655591424
+      sum="2adfb46df8a9c7bbd2f67bff07461cc2f9d9ec8e01f0e112cb044c9e3e62f607"
+      url="windows-98-se-isofile/Windows%2098%20Second%20Edition.iso"
+      ;;
+    "win95" )
+      size=618229760
+      sum="493212b2a3cd391269e55a8fde5ee0a35e29ddece4b5910ec49df69ab62f5e26"
+      url="win-95-osr-25_202103/Win95_OSR25.iso"
+      ;;
+    "winnt4" )
+      size=605820928
+      sum="4b397a3d60cab870d0b27c4fe2fe1f2942343cda5494733dfd268ae0d3695f42"
+      url="winnt40wks_sp1_en/winnt40wks_sp1_en.iso"
       ;;
     "core11" )
       size=3304132608
