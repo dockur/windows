@@ -481,7 +481,6 @@ skipInstall() {
 
   local iso="$1"
   local previousBase="$2"
-  local marker="$STORAGE/windows.boot"
   local system
 
   if [ -n "$previousBase" ]; then
@@ -569,7 +568,7 @@ skipInstall() {
     return 0
   fi
 
-  hasData && [ -f "$marker" ] && return 0
+  hasData && hasBootMarker && return 0
 
   return 1
 }
@@ -687,7 +686,6 @@ findFile() {
 
   local fname="$1"
   local dir file base
-  local marker="$STORAGE/windows.boot"
 
   dir=$(find / -maxdepth 1 -type d -iname "$fname" -print -quit) || return 1
 
@@ -696,7 +694,7 @@ findFile() {
   fi
 
   if [ -d "$dir" ]; then
-    if ! hasSystemImage && { ! hasDisk || [ ! -f "$marker" ]; }; then
+    if ! hasSystemImage && { ! hasDisk || ! hasBootMarker; }; then
       error "The bind $dir maps to a file that does not exist!" && return 1
     fi
   fi
@@ -786,6 +784,11 @@ isLegacyBoot() {
   [[ "${mode,,}" == "windows_legacy" ]]
 }
 
+hasBootMarker() {
+
+  [ -f "$STORAGE/windows.boot" ]
+}
+
 hasImage() {
 
   local iso="$1"
@@ -828,7 +831,7 @@ hasInstalledDisk() {
 hasCompletedInstall() {
 
   hasSystemImage && return 0
-  hasData && [ -f "$STORAGE/windows.boot" ]
+  hasData && hasBootMarker
 }
 
 needsExtraction() {

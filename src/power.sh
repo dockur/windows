@@ -261,7 +261,7 @@ ready() {
 
   # The marker means installation completed previously, so shutdown
   # no longer needs to infer guest readiness from firmware output.
-  [ -f "$STORAGE/windows.boot" ] && return 0
+  hasBootMarker && return 0
 
   [ ! -s "$QEMU_PTY" ] && return 1
 
@@ -384,9 +384,7 @@ getBootMarker() {
 
 markWindowsBooted() {
 
-  local file="$STORAGE/windows.boot"
-
-  if [ -f "$file" ] || [ ! -f "$BOOT" ]; then
+  if hasBootMarker || [ ! -f "$BOOT" ]; then
     return 0
   fi
 
@@ -394,14 +392,16 @@ markWindowsBooted() {
   # now booting from the installed disk rather than from setup media.
   ready || return 0
 
-  if ! touch "$file"; then
+  local marker="$STORAGE/windows.boot"
+
+  if ! touch "$marker"; then
     warn "failed to create Windows installation marker!"
     return 0
   fi
 
-  if ! setOwner "$file"; then
-    rm -f "$file"
-    warn "failed to set the owner for \"$file\" !"
+  if ! setOwner "$marker"; then
+    rm -f "$marker"
+    warn "failed to set the owner for \"$marker\" !"
     return 0
   fi
 
@@ -430,7 +430,7 @@ finish() {
 
   forceKillQemu "$reason"
 
-  if [ ! -f "$STORAGE/windows.boot" ]; then
+  if ! hasBootMarker; then
     markWindowsBooted
   fi
 
