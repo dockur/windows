@@ -101,8 +101,6 @@ parseVersion() {
       VERSION="win98" ;;
     "95" | "95c" | "win95" | "win95c" | "windows95" | "windows 95" )
       VERSION="win95" ;;
-    "nt4" | "nt40" | "winnt4" | "windowsnt4" | "windows nt4" | "windows nt 4" )
-      VERSION="winnt4" ;;
     "25" | "2025" | "win25" | "win2025" | "windows2025" | "windows 2025" )
       VERSION="win2025-eval" ;;
     "22" | "2022" | "win22" | "win2022" | "windows2022" | "windows 2022" )
@@ -1405,11 +1403,6 @@ getLink1() {
       sum="5456632a73a3c70f8e5ee566374876266a81f61968e623ef5500028dec8e2979"
       url="9x/95/Microsoft%20Windows%2095C%20%284.03.1216.osr2.5%29.zip"
       ;;
-    "winnt4" )
-      size=323070637
-      sum="30b93288e3cd17bf91b915b951e6ff25e6cdf26b062352341e066b985229a731"
-      url="nt/Microsoft%20Windows%20NT%204.0%20Workstation%20%284.00.1381.1.sp1%29.rar"
-      ;;
   esac
 
   case "${ret,,}" in
@@ -1703,11 +1696,6 @@ getLink4() {
       size=618229760
       sum="493212b2a3cd391269e55a8fde5ee0a35e29ddece4b5910ec49df69ab62f5e26"
       url="win-95-osr-25_202103/Win95_OSR25.iso"
-      ;;
-    "winnt4" )
-      size=605820928
-      sum="4b397a3d60cab870d0b27c4fe2fe1f2942343cda5494733dfd268ae0d3695f42"
-      url="winnt40wks_sp1_en/winnt40wks_sp1_en.iso"
       ;;
     "core11" )
       size=3304132608
