@@ -1813,7 +1813,6 @@ stageWin9xPostSetup() {
 
   local dir="$1"
   local desc="$2"
-  local id="$3"
   local shortcut="$4"
   local install="$5"
   local target="$dir/POST9X.BAT"
@@ -1824,12 +1823,6 @@ stageWin9xPostSetup() {
       'IF NOT EXIST C:\WINDOWS\POST9X.RDY GOTO END' \
       'C:\WINDOWS\RUNDLL.EXE SETUPX.DLL,InstallHinfSection Win9x.PostDesktop 4 C:\WINDOWS\MSBATCH.INF' \
       'DEL C:\WINDOWS\POST9X.RDY >NUL'
-
-    if [[ "${id,,}" == "win98"* ]]; then
-      printf '%s\n' \
-        'C:\WINDOWS\RUNDLL32.EXE ADVPACK.DLL,DelNodeRunDLL32 "C:\WINDOWS\Desktop\Online Services"' \
-        'C:\WINDOWS\RUNDLL32.EXE ADVPACK.DLL,DelNodeRunDLL32 "C:\WINDOWS\All Users\Desktop\Online Services"'
-    fi
 
     if enabled "$shortcut"; then
       printf '%s\n' \
@@ -1963,7 +1956,20 @@ writeWin98Registry() {
     '' \
     '[Win98.ConnectAll]' \
     'connec~1.lnk' \
-    '"Connect to the Internet.lnk"'
+    '"Connect to the Internet.lnk"' \
+    '' \
+    '[Win98.OnlineServices]' \
+    'americ~1.lnk' \
+    'at&two~1.lnk' \
+    'compus~1.lnk' \
+    'prodig~1.lnk' \
+    'themic~1.lnk' \
+    'aboutt~1.lnk' \
+    'abouto~1.txt' \
+    'services.txt' \
+    '' \
+    '[Win98.OnlineServicesFolder]' \
+    '%10%\wininit.ini,DIRNUL,,"C:\WINDOWS\Desktop\Online~1=1"'
 }
 
 writeWin9xAnswerFile() {
@@ -1985,6 +1991,7 @@ writeWin9xAnswerFile() {
   local copyFiles="Win9x.Mouse"
   local firstLogonAddReg="Win9x.User"
   local firstLogonDelReg=""
+  local firstLogonDelFiles=""
   local firstLogonUpdateInis=""
   local post=""
 
@@ -2011,6 +2018,8 @@ writeWin9xAnswerFile() {
     firstLogonAddReg+=",Win98.User,Win98.PowerUser"
     [ -n "$firstLogonDelReg" ] && firstLogonDelReg+=","
     firstLogonDelReg+="Win98.Welcome"
+    firstLogonDelFiles="Win98.OnlineServices"
+    firstLogonUpdateInis="Win98.OnlineServicesFolder"
   fi
 
   # Cap the memory Win9x itself can address at 4 GiB without changing QEMU's
@@ -2085,8 +2094,13 @@ writeWin9xAnswerFile() {
       printf '%s\n' "DelReg=$firstLogonDelReg"
     fi
 
+    if [ -n "$firstLogonDelFiles" ]; then
+      printf '%s\n' "DelFiles=$firstLogonDelFiles"
+    fi
+
     if enabled "$post"; then
-      firstLogonUpdateInis="Win9x.PostMarker"
+      [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
+      firstLogonUpdateInis+="Win9x.PostMarker"
     fi
 
     if enabled "$shortcut"; then
@@ -2170,7 +2184,8 @@ writeWin9xAnswerFile() {
     if [[ "${id,,}" == "win98"* ]]; then
       printf '%s\n' \
         'Win98.Connect=10,Desktop' \
-        'Win98.ConnectAll=10,alluse~1\desktop'
+        'Win98.ConnectAll=10,alluse~1\desktop' \
+        'Win98.OnlineServices=10,Desktop\Online~1'
     fi
 
     if enabled "$shortcut"; then
@@ -2218,7 +2233,17 @@ writeWin9xAnswerFile() {
       'NoPrompt2Boot=1' \
       'TimeZone=Pacific' \
       '' \
-      '[OptionalComponents]' \
+      '[OptionalComponents]'
+
+    if [[ "${id,,}" == "win98"* ]]; then
+      printf '%s\n' \
+        '"America Online"=0' \
+        '"AT&T WorldNet Service"=0' \
+        '"CompuServe"=0' \
+        '"Prodigy Internet"=0'
+    fi
+
+    printf '%s\n' \
       '"The Microsoft Network"=0' \
       '"Online Services"=0' \
       '' \
