@@ -1105,19 +1105,13 @@ supportsACPI() {
 
   case "${id,,}" in
 
-    "win9"* | "winnt4" )
-
-      # Windows 9x does not respond to ACPI during setup,
-      # so disable it during the first run of the container.
-      hasBootMarker || return 1 ;;
-
     "reactos" )
 
       # If the ISO is a Live-CD it will ignore ACPI signals.
       hasSystemImage && return 1 ;;
 
   esac
-
+ 
   return 0
 }
 
