@@ -767,6 +767,25 @@ detectCustom() {
   return 0
 }
 
+isCustomImage() {
+
+  [ -n "${CUSTOM:-}" ]
+}
+
+isURL() {
+
+  local value="$1"
+
+  [[ "${value,,}" == "http"* ]]
+}
+
+isLegacyBoot() {
+
+  local mode="${BOOT_MODE:-}"
+
+  [[ "${mode,,}" == "windows_legacy" ]]
+}
+
 hasImage() {
 
   local iso="$1"
