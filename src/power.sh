@@ -28,7 +28,7 @@ bootStatus() {
 
   [ ! -s "$QEMU_PTY" ] && return 1
 
-  if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+  if isLegacyBoot; then
     local line last recent
 
     # Only inspect output produced after the most recent BIOS boot attempt so
@@ -130,7 +130,7 @@ waitForBoot() {
       elif bootKeyReady; then
         (( keyWait += 1 ))
 
-        if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+        if isLegacyBoot; then
           # Keep the legacy fallback at about one second after the DVD marker.
           if (( keyWait >= 5 )); then
             if sendKey ret 0 100 6 0.25; then
@@ -265,7 +265,7 @@ ready() {
 
   [ ! -s "$QEMU_PTY" ] && return 1
 
-  if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+  if isLegacyBoot; then
     legacyBootReady && return 0
     return 1
   fi
@@ -358,7 +358,7 @@ bootKeyReady() {
 
   [ ! -s "$QEMU_PTY" ] && return 1
 
-  if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+  if isLegacyBoot; then
     grep -Fq "Booting from DVD/CD" "$QEMU_PTY"
     return $?
   fi
@@ -372,7 +372,7 @@ bootKeyReady() {
 
 getBootMarker() {
 
-  if [[ "${BOOT_MODE,,}" == "windows_legacy" ]]; then
+  if isLegacyBoot; then
     grep -nE "$LEGACY_BOOT_PATTERN" "$QEMU_PTY" | tail -1
     return 0
   fi

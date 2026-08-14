@@ -400,9 +400,9 @@ extractImage() {
   local archive="${dir}.archive"
   local file size required archiveSize rc
 
-  if [ -z "$CUSTOM" ]; then
+  if ! isCustomImage; then
     desc="downloaded ISO"
-    if [[ "$version" != "http"* ]]; then
+    if ! isURL "$version"; then
       desc=$(printVariant "$version" "$desc")
     fi
   fi
@@ -1652,7 +1652,7 @@ extractESD() {
 
   index=""
 
-  if [[ "${version,,}" == "http"* ]]; then
+  if isURL "$version"; then
 
     # Direct ESD URLs have no catalog identity. Restrict automatic detection
     # to installable images because indexes 1-3 contain setup components.
@@ -1758,7 +1758,7 @@ extractESD() {
     return 1
   fi
 
-  if [[ "${version,,}" != "http"* ]] &&
+  if ! isURL "$version" &&
       [[ "${resultEdition,,}" != "${edition,,}" ]]; then
     error "Prepared install.esd does not contain only '$edition' at index 1!"
     return 1
@@ -1925,7 +1925,7 @@ buildImage() {
 
   checkFreeSpace "$TMP" "$size" || return 1
 
-  if [[ "${BOOT_MODE,,}" == "windows_legacy" ]] && [ -z "${BOOT_LOAD_SIZE:-}" ]; then
+  if isLegacyBoot && [ -z "${BOOT_LOAD_SIZE:-}" ]; then
     if [[ "${DETECTED,,}" != "win9"* && "${DETECTED,,}" != "winnt4" ]]; then
       error "Failed to determine the boot image load size!"
       return 1
@@ -1951,7 +1951,7 @@ buildImage() {
 
   # Use separate layouts for modern hybrid media, NT 5.x legacy media, Win9x,
   # and other legacy releases because their El Torito requirements differ.
-  if [[ "${BOOT_MODE,,}" != "windows_legacy" ]]; then
+  if ! isLegacyBoot; then
 
     args+=(
       -no-emul-boot

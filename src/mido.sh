@@ -1277,7 +1277,7 @@ downloadImage() {
   local tried="n" success="n" seconds="5"
   local i url sum size base language desc web_desc rc
 
-  if [[ "${version,,}" == "http"* ]]; then
+  if isURL "$version"; then
 
     base=$(basename "$iso")
     desc=$(fromFile "$base")

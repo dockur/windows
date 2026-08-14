@@ -388,7 +388,7 @@ isUserMode && return 0
 
 # Older Windows versions discover shares through NetBIOS, while modern Windows
 # uses Web Services Discovery.
-if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
+if isLegacyBoot; then
   startNetbios || :
 else
   startWsddn || :
