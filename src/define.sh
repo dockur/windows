@@ -516,8 +516,6 @@ printEdition() {
       ;;
     "winxp"* )
       edition="Professional" ;;
-    "winnt4"* )
-      edition="Workstation" ;;
     "win2019-hv"* )
       edition="2019" ;;
     "win20"* )
