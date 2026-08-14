@@ -404,7 +404,7 @@ printVersion() {
 
   if [ -z "$desc" ]; then
     desc="Windows"
-    [[ "${PLATFORM,,}" != "x64" ]] && desc+=" for ${PLATFORM}"
+    isPlatform "x64" || desc+=" for ${PLATFORM}"
   fi
 
   echo "$desc"
