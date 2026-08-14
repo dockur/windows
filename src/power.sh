@@ -505,10 +505,8 @@ gracefulShutdown() {
       info "This $(app) version does not support ACPI shutdown, decreasing timeout to 10 seconds..."
       TIMEOUT=13
     else
-      if hasSystemImage; then
-        info "ReactOS LiveCD does not support ACPI shutdown, decreasing timeout to 1 second..."
-        TIMEOUT=7
-      fi
+      info "ReactOS LiveCD does not support ACPI shutdown, decreasing timeout to 1 second..."
+      TIMEOUT=7
     fi
   elif ! ready; then
     info "$(app) will ignore ACPI signals during setup, decreasing timeout to 10 seconds..."
