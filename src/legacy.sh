@@ -163,7 +163,7 @@ restoreBootMode() {
 
   # A saved legacy mode always wins. A saved modern mode only replaces the
   # default mode and never an explicit user-selected boot configuration.
-  if isLegacyBoot "$mode"; then
+  if [[ "${mode,,}" == "windows_legacy" ]]; then
     BOOT_MODE="$mode"
     return 0
   fi
