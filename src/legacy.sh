@@ -70,7 +70,7 @@ setMachine() {
 
   esac
 
-  if [[ "${id,,}" == "reactos" ]] && [ -z "$CUSTOM" ]; then
+  if [[ "${id,,}" == "reactos" ]] && ! isCustomImage; then
     # The ISO is a Live-CD so we need to disable the data disk
     # as it will be always wiped during the next runs currently.
     DISK_DISABLE="Y"
@@ -115,7 +115,7 @@ restoreMachine() {
   # Restore the saved machine only when q35 is still the default;
   # an explicit user-selected machine must remain untouched.
   [[ "${MACHINE,,}" != "q35" ]] && return 0
-  [[ "${PLATFORM,,}" != "x64" ]] && return 0
+  isPlatform "x64" || return 0
 
   MACHINE=""
   restoreState "MACHINE" "old" || return 1
@@ -1016,7 +1016,7 @@ detectLegacy() {
   local dir="$1"
   local marker
 
-  [[ "${PLATFORM,,}" == "x64" ]] || return 1
+  isPlatform "x64" || return 1
 
   # Legacy media is identified from setup marker files rather than WIM
   # metadata. The order is intentional because several releases share markers.

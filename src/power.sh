@@ -346,7 +346,7 @@ sendKey() {
 
 needsBootKey() {
 
-  [ ! -s "$BOOT" ] && return 1
+  hasImage "$BOOT" || return 1
 
   hasCompletedInstall && return 1
   supportsBootKey "$DETECTED" || return 1
@@ -363,7 +363,7 @@ bootKeyReady() {
     return $?
   fi
 
-  if [[ "${PLATFORM,,}" == "arm64" ]]; then
+  if isPlatform "arm64"; then
     grep -Eq "$UEFI_USB_BOOT_PATTERN" "$QEMU_PTY"
   else
     grep -Eq "$UEFI_DVD_BOOT_PATTERN" "$QEMU_PTY"

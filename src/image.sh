@@ -1644,7 +1644,7 @@ extractESD() {
   fKill "progress.sh"
   html "$msg..."
 
-  if [[ "${PLATFORM,,}" == "x64" ]]; then
+  if isPlatform "x64"; then
     LABEL="CCCOMA_X64FRE_EN-US_DV9"
   else
     LABEL="CPBA_A64FRE_EN-US_DV9"

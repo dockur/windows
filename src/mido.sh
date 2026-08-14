@@ -320,7 +320,7 @@ downloadWindowsEval() {
       type="iot"
       winVer="windows-11-iot-enterprise-ltsc-eval" ;;
     "win11${PLATFORM,,}-enterprise-ltsc-eval" )
-      if [[ "${PLATFORM,,}" == "arm64" ]]; then
+      if isPlatform "arm64"; then
         type="iot"
         winVer="windows-11-iot-enterprise-ltsc-eval"
       else
@@ -595,7 +595,7 @@ getWindows() {
     "win11${PLATFORM,,}-enterprise"* ) ;;
     * )
 
-      if [[ "${PLATFORM,,}" != "x64" ]]; then
+      if ! isPlatform "x64"; then
         error "No download for the ${PLATFORM^^} platform available for $edition!"
         MIDO_URL=""
         return 1

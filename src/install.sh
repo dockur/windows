@@ -387,7 +387,7 @@ startInstall() {
 
   if ! isCustomImage; then
 
-    if [ -s "$BOOT" ]; then
+    if hasImage "$BOOT"; then
       ISO="$TMP/$(basename "$BOOT")"
     else
       ISO="$TMP/$file"
@@ -397,7 +397,7 @@ startInstall() {
 
   # Keep existing media at its persistent path until all storage cleanup has
   # completed successfully, so a later failure cannot strand it under $TMP.
-  if isCustomImage || [ ! -s "$BOOT" ]; then
+  if isCustomImage || ! hasImage "$BOOT"; then
     if ! rm -f -- "$BOOT"; then
       error "Failed to remove obsolete ISO file \"$BOOT\" !"
       return 50
@@ -426,7 +426,7 @@ startInstall() {
 
   # Work from the temporary directory so the persistent source path can
   # later contain either the preserved ISO or the rebuilt installation image.
-  if ! isCustomImage && [ -f "$BOOT" ] && [ -s "$BOOT" ]; then
+  if ! isCustomImage && hasImage "$BOOT"; then
     if ! mv -f -- "$BOOT" "$ISO"; then
       error "Failed to move ISO file from \"$BOOT\" to \"$ISO\" !"
       return 50
@@ -454,7 +454,7 @@ skipUnattended() {
 
   # When automatic preparation fails, inspect extracted media to determine
   # whether it can still be booted manually using legacy firmware.
-  if enabled "$aborted" && [[ "${PLATFORM,,}" == "x64" ]] && [ -d "$dir" ]; then
+  if enabled "$aborted" && isPlatform "x64" && [ -d "$dir" ]; then
 
     efi=$(find "$dir" -maxdepth 1 -type d -iname efi -print -quit) || return 1
     efi32=$(find "$dir" -maxdepth 3 -type f -ipath '*/efi/boot/bootia32.efi' -print -quit) || return 1
@@ -581,7 +581,7 @@ finishInstall() {
 
   local base secure=0
 
-  if [ ! -s "$iso" ] || [ ! -f "$iso" ]; then
+  if ! hasImage "$iso"; then
     error "Failed to find ISO file: $iso" && return 1
   fi
 
@@ -613,7 +613,7 @@ finishInstall() {
     fi
   fi
 
-  if [[ "${PLATFORM,,}" == "x64" ]]; then
+  if isPlatform "x64"; then
     if isLegacyBoot; then
 
       writeState "mode" "$BOOT_MODE" || {
@@ -710,7 +710,7 @@ findFile() {
     file="$STORAGE/$base"
   fi
 
-  if [ ! -f "$file" ] || [ ! -s "$file" ]; then
+  if ! hasImage "$file"; then
     return 0
   fi
 
@@ -777,11 +777,16 @@ isURL() {
   [[ "${value,,}" == "http"* ]]
 }
 
+isPlatform() {
+
+  local platform="$1"
+
+  [[ "${PLATFORM,,}" == "${platform,,}" ]]
+}
+
 isLegacyBoot() {
 
-  local mode="${BOOT_MODE:-}"
-
-  [[ "${mode,,}" == "windows_legacy" ]]
+  [[ "${BOOT_MODE,,}" == "windows_legacy" ]]
 }
 
 hasBootMarker() {
