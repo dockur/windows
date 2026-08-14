@@ -7,75 +7,75 @@ setMachine() {
   local iso="$2"
   local dir="$3"
   local desc="$4"
-  local version=""
 
-  case "${id,,}" in
-    "win2k"* )   version="2k" ;;
-    "winxp"* )   version="xp" ;;
-    "win2003"* ) version="2k3" ;;
-  esac
+  if isLegacy "$id"; then
 
-  if [ -n "$version" ]; then
-
-    if ! legacyInstall "$iso" "$dir" "$desc" "$version"; then
+    if ! prepareLegacyInstall "$id" "$iso" "$dir" "$desc"; then
       error "Failed to prepare $desc ISO!"
       return 1
     fi
 
-  fi
-
-  if isLegacy "$id"; then
-
     writeState "mode" "windows_legacy" || return 1
 
     case "${id,,}" in
-      "win9"* | "win2k"* | "reactos" )
-        writeState "vga" "cirrus" || return 1 ;;
-      * )
-        writeState "vga" "std" || return 1 ;;
+
+      "win9"* | "winnt4" | "win2k"* | "reactos" )
+
+        writeState "old" "pc" || return 1
+        writeState "type" "auto" || return 1
+
     esac
 
+    case "${id,,}" in
+
+      "winnt4" )
+
+        writeState "vga" "cirrus" || return 1 ;;
+
+      * )
+
+        writeState "vga" "std" || return 1 ;;
+
+    esac
+
+    case "${id,,}" in
+
+      "win95" | "winnt4" )
+
+        writeState "usb" "N" || return 1
+        writeState "port" "on" || return 1
+        writeState "net" "pcnet" || return 1 ;;
+
+      "win98" | "win9x" )
+
+        writeState "port" "on" || return 1
+        writeState "net" "pcnet" || return 1
+        writeState "usb" "pci-ohci" || return 1 ;;
+
+      "win2k"* )
+
+        writeState "net" "rtl8139" || return 1
+        writeState "usb" "pci-ohci" || return 1 ;;
+
+      "winxpx"* | "win2003"* )
+
+        writeState "type" "blk" || return 1
+        writeState "net" "rtl8139" || return 1
+        writeState "sound" "usb-audio" || return 1 ;;
+
+      "reactos" )
+
+        writeState "net" "rtl8139" || return 1
+        writeState "usb" "pci-ohci" || return 1
+
+        if isReactOSLiveCD "$iso"; then
+          SYSTEM="$iso"
+        fi ;;
+
+    esac
   fi
 
   restoreBootMode || return 1
-
-  case "${id,,}" in
-
-    "win9"* | "winnt4" )
-
-      writeState "old" "pc" || return 1
-      writeState "net" "pcnet" || return 1
-      writeState "type" "auto" || return 1
-      writeState "usb" "pci-ohci" || return 1 ;;
-
-    "win2k"* )
-
-      writeState "old" "pc" || return 1
-      writeState "type" "auto" || return 1
-      writeState "net" "rtl8139" || return 1
-      writeState "usb" "pci-ohci" || return 1 ;;
-
-    "winxpx"* | "win2003"* )
-
-      writeState "type" "blk" || return 1
-      writeState "net" "rtl8139" || return 1
-      writeState "sound" "usb-audio" || return 1 ;;
-
-    "reactos" )
-
-      writeState "old" "pc" || return 1
-      writeState "type" "auto" || return 1
-      writeState "net" "rtl8139" || return 1
-      writeState "usb" "pci-ohci" || return 1 ;;
-
-  esac
-
-  if [[ "${id,,}" == "reactos" ]] && ! isCustomImage; then
-    # The ISO is a Live-CD so we need to disable the data disk
-    # as it will be always wiped during the next runs currently.
-    DISK_DISABLE="Y"
-  fi
-
   restoreMachine || return 1
 
   case "${id,,}" in
@@ -112,10 +112,11 @@ setMachine() {
 
 restoreMachine() {
 
+  isPlatform "x64" || return 0
+
   # Restore the saved machine only when q35 is still the default;
   # an explicit user-selected machine must remain untouched.
   [[ "${MACHINE,,}" != "q35" ]] && return 0
-  isPlatform "x64" || return 0
 
   MACHINE=""
   restoreState "MACHINE" "old" || return 1
@@ -143,6 +144,7 @@ restoreMachineState() {
   restoreState "USB" "usb" || return 1
   restoreState "SOUND" "sound" || return 1
   restoreState "ADAPTER" "net" || return 1
+  restoreState "VMPORT" "port" || return 1
   restoreState "CPU_MODEL" "cpu" || return 1
   restoreState "DISK_TYPE" "type" || return 1
 
@@ -234,6 +236,68 @@ addNetworkDriver() {
   cp -L "$drivers/NetKVM/$driver/$arch/netkvm.cat" "$destination" || return 1
   cp -L "$drivers/NetKVM/$driver/$arch/netkvm.inf" "$destination" || return 1
   cp -L "$drivers/NetKVM/$driver/$arch/netkvm.sys" "$destination" || return 1
+
+  return 0
+}
+
+addDisplayDriver() {
+
+  local dir="$1"
+  local driver="$2"
+  local arch="$3"
+  local drivers="$4"
+
+  local source="$drivers/qxl/$driver/$arch"
+  local destination="$dir/\$OEM\$/\$1/Drivers/QXL"
+
+  # The legacy QXL package is named for XP but its x86 INF targets XP and
+  # later NT x86 releases, so it is also suitable to keep around for 2003 x86.
+  if [ ! -d "$source" ] && [[ "${arch,,}" == "x86" ]]; then
+    source="$drivers/qxl/xp/x86"
+  fi
+
+  [ -d "$source" ] || return 0
+
+  local file
+
+  for file in qxl.cat qxl.inf qxl.sys qxldd.dll; do
+
+    if [ ! -f "$source/$file" ]; then
+      error "Failed to locate required QXL display driver file: $file"
+      return 1
+    fi
+
+  done
+
+  mkdir -p "$destination" || return 1
+  cp -Lr "$source/." "$destination" || return 1
+
+  return 0
+}
+
+addBalloonDriver() {
+
+  local dir="$1"
+  local driver="$2"
+  local arch="$3"
+  local drivers="$4"
+
+  local source="$drivers/Balloon/$driver/$arch"
+  local destination="$dir/\$OEM\$/\$1/Drivers/Balloon"
+
+  local file
+
+  for file in balloon.cat balloon.inf balloon.sys blnsvr.exe; do
+
+    if [ ! -f "$source/$file" ]; then
+      error "Failed to locate required Balloon driver file: $file"
+      return 1
+    fi
+
+  done
+
+  mkdir -p "$destination" || return 1
+  cp -Lr "$source/." "$destination" || return 1
 
   return 0
 }
@@ -344,6 +408,8 @@ addLegacyDrivers() {
   extractDrivers "$drivers" || return 1
   copyStorageDriver "$dir" "$target" "$driver" "$arch" "$drivers" || return 1
   addNetworkDriver "$dir" "$driver" "$arch" "$drivers" || return 1
+  addDisplayDriver "$dir" "$driver" "$arch" "$drivers" || return 1
+  addBalloonDriver "$dir" "$driver" "$arch" "$drivers" || return 1
 
   local file
   file=$(find "$target" -maxdepth 1 -type f -iname TXTSETUP.SIF -print -quit) || return 1
@@ -514,7 +580,7 @@ writeSIF() {
       '    WaitForReboot="No"' \
       '    DriverSigningPolicy="Ignore"' \
       '    NonDriverSigningPolicy="Ignore"' \
-      '    OemPnPDriversPath="Drivers\viostor;Drivers\NetKVM;Drivers\sata"' \
+      '    OemPnPDriversPath="Drivers\viostor;Drivers\NetKVM;Drivers\sata;Drivers\QXL;Drivers\Balloon"' \
       '    NoWaitAfterTextMode=1' \
       '    NoWaitAfterGUIMode=1' \
       '    FileSystem=ConvertNTFS' \
@@ -522,13 +588,18 @@ writeSIF() {
       '    Hibernation="No"' \
       '' \
       '[GuiUnattended]' \
-      '    OEMSkipRegional=1' '    OemSkipWelcome=1' "    AdminPassword=\"$sifPassword\"" '    TimeZone=0'
+      '    OEMSkipRegional=1' \
+      '    OemSkipWelcome=1' \
+      "    AdminPassword=\"$sifPassword\"" \
+      '    TimeZone=4'
 
     if disabled "$AUTOLOGIN"; then
-      printf '%s\n' '    AutoLogon=No'
+      printf '%s\n' \
+        '    AutoLogon=No'
     else
       printf '%s\n' \
-        '    AutoLogon=Yes' '    AutoLogonCount=65432'
+        '    AutoLogon=Yes' \
+        '    AutoLogonCount=65432'
     fi
 
     printf '%s\n' \
@@ -555,14 +626,23 @@ writeSIF() {
       '' \
       '[URL]' \
       '    Home_Page = http://www.google.com' \
-      '    Search_Page = http://www.google.com' '' '[TerminalServices]' '    AllowConnections=1' ''
+      '    Search_Page = http://www.google.com' \
+      '' \
+      '[TerminalServices]' \
+      '    AllowConnections=1' \
+      ''
   } | unix2dos > "$target/WINNT.SIF" || return 1
 
   if [[ "$driver" == "2k3" ]]; then
     {
       printf '%s\n' \
         '[Components]' \
-        '    TerminalServer=On' '' '[LicenseFilePrintData]' '    AutoMode=PerServer' '    AutoUsers=5' ''
+        '    TerminalServer=On' \
+        '' \
+        '[LicenseFilePrintData]' \
+        '    AutoMode=PerServer' \
+        '    AutoUsers=5' \
+        ''
     } | unix2dos >> "$target/WINNT.SIF" || return 1
   fi
 
@@ -658,7 +738,10 @@ appendRegistry() {
         '@=dword:00000000' \
         '' \
         '[HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\ServerOOBE\SecurityOOBE]' \
-        '"DontLaunchSecurityOOBE"=dword:00000000' ''
+        '"DontLaunchSecurityOOBE"=dword:00000000' \
+        '' \
+        '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\R2Setup]' \
+        '"cd2chain"=dword:00000000' ''
     } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
   fi
 
@@ -670,6 +753,8 @@ writeVBS() {
   local dir="$1"
   local username="$2"
   local shortcut="$3"
+  local balloon="$dir/\$OEM\$/balloon.cmd"
+  local balloonExe="$dir/\$OEM\$/\$1/Drivers/Balloon/blnsvr.exe"
 
   # Locate the built-in Administrator by its RID 500 SID rather than its
   # localized display name, then rename that account to the requested username.
@@ -721,9 +806,29 @@ writeVBS() {
     fi
   } | unix2dos > "$dir/\$OEM\$/install.vbs" || return 1
 
+  if [ -f "$balloonExe" ]; then
+    {
+      printf '%s\n' \
+        '@echo off' \
+        'sc.exe query BalloonService >nul 2>&1' \
+        'if errorlevel 1 "C:\Drivers\Balloon\blnsvr.exe" -i' \
+        ''
+    } | unix2dos > "$balloon" || return 1
+  else
+    rm -f -- "$balloon" || return 1
+  fi
+
   {
     printf '%s\n' \
-      '[COMMANDS]' '"REGEDIT /s install.reg"' '"Wscript install.vbs"' ''
+      '[COMMANDS]' \
+      '"REGEDIT /s install.reg"' \
+      '"Wscript install.vbs"'
+
+    if [ -f "$balloon" ]; then
+      printf '%s\n' '"cmd /C balloon.cmd"'
+    fi
+
+    printf '%s\n' ''
   } | unix2dos > "$dir/\$OEM\$/cmdlines.txt" || return 1
 
   return 0
@@ -761,7 +866,28 @@ disableAutoReboot() {
   return 0
 }
 
-legacyInstall() {
+prepareLegacyInstall() {
+
+  local id="$1"
+  local iso="$2"
+  local dir="$3"
+  local desc="$4"
+
+  case "${id,,}" in
+    "win9"* )
+      prepareWin9xInstall "$id" "$iso" "$dir" "$desc" || return 1 ;;
+    "win2k"* )
+      prepareSIFInstall "$iso" "$dir" "$desc" "2k" || return 1 ;;
+    "winxp"* )
+      prepareSIFInstall "$iso" "$dir" "$desc" "xp" || return 1 ;;
+    "win2003"* )
+      prepareSIFInstall "$iso" "$dir" "$desc" "2k3" || return 1 ;;
+  esac
+
+  return 0
+}
+
+prepareSIFInstall() {
 
   local dir="$2"
   local desc="$3"
@@ -995,6 +1121,1028 @@ validateLegacyEncoding() {
   fi
 
   return 0
+}
+
+createWin9xSystemImage() {
+
+  local dir="$1"
+  local image="$2"
+  local desc="$3"
+  local setup="$4"
+  local options="$5"
+  local mouse="$6"
+  local logon="$7"
+
+  local temp="$TMP/win9x-image"
+  local config="$temp/mtools.conf"
+  local autoexec="$temp/AUTOEXEC.BAT"
+  local msdos="$temp/MSDOS.SYS"
+  local tmp="${image}.tmp"
+  local size=$((261 * 255 * 63 * 512))
+  local start=63
+  local sectors=$((size / 512 - start))
+  local offset=$((start * 512))
+  local entry base find_pid
+  local fs attributes
+  local entries=()
+
+  local msg="Creating system image..."
+  info "$msg" && html "$msg"
+
+  rm -rf -- "$temp" || return 1
+  mkdir -p "$temp" || return 1
+  rm -f -- "$tmp" || return 1
+
+  # mtools can create a perfectly valid FAT32 filesystem, including its BPB,
+  # FSInfo sector and backup boot area, but its generic boot code cannot start
+  # Windows 9x. Microsoft FORMAT.COM carries the matching DOS FAT32 bootstrap
+  # as a three-sector template, so use the copy supplied by the installation
+  # media instead of embedding Microsoft's boot code in this script.
+  #
+  # Do not assume where FORMAT.COM lives. Windows 95 OSR2, Windows 98 and
+  # Windows Me media use different setup layouts, and customized media may move
+  # the file again. Search all FORMAT.COM copies and select the first one that
+  # contains a structurally valid FAT32 boot template.
+  local format=""
+  local template=""
+  local template_base=0
+  local format_size sig boot_sig fsinfo_lead fsinfo_struct
+  local -a formats=() signatures=()
+
+  mapfile -d '' formats < <(
+    find "$dir" -type f -iname 'FORMAT.COM' -print0
+  )
+
+  find_pid=$!
+
+  if ! wait "$find_pid"; then
+    error "Failed to enumerate FORMAT.COM files in $desc ISO image!"
+    return 1
+  fi
+
+  if (( ${#formats[@]} == 0 )); then
+    error "Failed to locate FORMAT.COM in $desc ISO image!"
+    return 1
+  fi
+
+  for format in "${formats[@]}"; do
+
+    format_size=$(stat -c %s -- "$format") || return 1
+    signatures=()
+
+    # FAT32 places the filesystem type string at offset 0x52 in the extended
+    # BPB. Searching for only this standard marker intentionally avoids tying
+    # the code to the exact Windows 98 machine-code bytes that follow it; a
+    # Windows 95 OSR2 or Windows Me FORMAT.COM may contain a different loader.
+    mapfile -t signatures < <(
+      LC_ALL=C grep -aobF 'FAT32   ' "$format" | cut -d: -f1
+    )
+
+    for sig in "${signatures[@]}"; do
+
+      [[ "$sig" =~ ^[0-9]+$ ]] || continue
+      (( sig >= 0x52 )) || continue
+
+      local candidate=$((sig - 0x52))
+
+      # The Microsoft Win9x FAT32 bootstrap occupies three 512-byte sectors.
+      # Reject truncated matches before probing the fixed signatures below.
+      (( candidate + 0x600 <= format_size )) || continue
+
+      # Validate the candidate by FAT32 structure rather than by one particular
+      # release's loader bytes:
+      #
+      #   +0x1fe  boot-sector signature (55 aa)
+      #   +0x200  FSInfo lead signature (RRaA)
+      #   +0x3e4  FSInfo structure signature (rrAa)
+      #   +0x3fe  FSInfo-sector signature (55 aa)
+      #   +0x5fe  third boot-sector signature (55 aa)
+      #
+      # Requiring all five makes an accidental "FAT32   " string elsewhere in
+      # FORMAT.COM extremely unlikely to be mistaken for the boot template.
+      boot_sig=$(dd if="$format" bs=1 skip="$((candidate + 0x1fe))" count=2 status=none | xxd -p) || return 1
+      [[ "$boot_sig" == "55aa" ]] || continue
+
+      fsinfo_lead=$(dd if="$format" bs=1 skip="$((candidate + 0x200))" count=4 status=none | xxd -p) || return 1
+      [[ "$fsinfo_lead" == "52526141" ]] || continue
+
+      fsinfo_struct=$(dd if="$format" bs=1 skip="$((candidate + 0x3e4))" count=4 status=none | xxd -p) || return 1
+      [[ "$fsinfo_struct" == "72724161" ]] || continue
+
+      boot_sig=$(dd if="$format" bs=1 skip="$((candidate + 0x3fe))" count=2 status=none | xxd -p) || return 1
+      [[ "$boot_sig" == "55aa" ]] || continue
+
+      boot_sig=$(dd if="$format" bs=1 skip="$((candidate + 0x5fe))" count=2 status=none | xxd -p) || return 1
+      [[ "$boot_sig" == "55aa" ]] || continue
+
+      template="$format"
+      template_base="$candidate"
+      break 2
+
+    done
+
+  done
+
+  if [ -z "$template" ]; then
+    error "Failed to locate a Windows 9x FAT32 boot template in FORMAT.COM!"
+    return 1
+  fi
+
+  checkFreeSpace "$(dirname "$image")" "$size" || return 1
+
+  fs=$(stat -f -c %T "$(dirname "$tmp")") || return 1
+
+  if [[ "${fs,,}" == "btrfs" ]]; then
+    touch "$tmp" || return 1
+    { chattr +C "$tmp"; } || :
+    attributes=$(lsattr "$tmp") || return 1
+    if [[ "$attributes" != *"C"* ]]; then
+      error "Failed to disable COW for $desc system image $tmp on ${fs^^} filesystem!"
+    fi
+  fi
+
+  truncate -s "$size" "$tmp" || return 1
+
+  printf 'drive w: file="%s" partition=1 fat_bits=32 cylinders=261 heads=255 sectors=63 mformat_only\n' \
+    "$tmp" > "$config" || return 1
+
+  # Let mtools create all volume-specific FAT32 data. In particular, the BPB
+  # contains the geometry, FAT size, root cluster, FSInfo sector and backup boot
+  # sector locations for this image. Those values must survive the Microsoft
+  # boot-code transplant below, so FORMAT.COM is deliberately not passed to
+  # mformat as a whole-sector template.
+  if ! MTOOLSRC="$config" mpartition -I -c -a -T 0x0c -b "$start" -l "$sectors" w: ||
+    ! MTOOLSRC="$config" mformat -F -m 0xf8 -H "$start" w:; then
+
+    rm -f -- "$tmp"
+    error "Failed to create the $desc FAT32 system image!"
+    return 1
+  fi
+
+  # BIOS loads the MBR at physical address 0000:7c00, which is also the address
+  # where a partition boot sector (VBR) expects to run. We therefore cannot read
+  # the VBR directly on top of the MBR and then continue executing the MBR:
+  # INT 13h completes the disk transfer before returning, so the instructions
+  # following that interrupt would already have been replaced by VBR bytes.
+  #
+  # Relocate the complete 512-byte MBR from 0000:7c00 to 0000:0600 first. The
+  # far jump below continues at offset 0x1e in that relocated copy (0000:061e).
+  # Only then do we read CHS 0/1/1 -- LBA 63 with this 63-sector geometry -- back
+  # into 0000:7c00 and transfer control to the Microsoft FAT32 boot sector.
+  #
+  # DL is deliberately left untouched: BIOS supplies the boot drive number in
+  # DL, and the INT 13h read must use that same hard disk.
+  printf '%b' \
+    '\xfa\x31\xc0\x8e\xd0\xbc\x00\x7c\x8e\xd8\x8e\xc0\xfb\xfc' \
+    '\xbe\x00\x7c\xbf\x00\x06\xb9\x00\x01\xf3\xa5' \
+    '\xea\x1e\x06\x00\x00' \
+    '\x31\xc0\x8e\xc0\xbb\x00\x7c\xb8\x01\x02\xb9\x01\x00\xb6\x01' \
+    '\xcd\x13\x72\x05\xea\x00\x7c\x00\x00\xcd\x18\xeb\xfe' |
+    dd of="$tmp" bs=1 seek=0 conv=notrunc status=none || return 1
+
+  # FAT32 stores the location of its backup boot sector in BPB_BkBootSec at
+  # offset 0x32. Read both the reserved-sector count and that pointer from the
+  # BPB generated by mformat rather than assuming Microsoft's usual sector 6.
+  # If a backup exists, patch it together with the primary boot area so recovery
+  # never falls back to mtools' non-Windows bootstrap.
+  local reserved_bytes backup_bytes reserved backup_sector backup_offset
+  local reserved_lo reserved_hi backup_lo backup_hi
+  local -a boot_targets=("$offset")
+
+  reserved_bytes=$(dd if="$tmp" bs=1 skip="$((offset + 0x0e))" count=2 status=none | od -An -tu1) || return 1
+  read -r reserved_lo reserved_hi <<< "$reserved_bytes"
+  [[ "$reserved_lo" =~ ^[0-9]+$ && "$reserved_hi" =~ ^[0-9]+$ ]] || return 1
+  reserved=$((reserved_lo | reserved_hi << 8))
+
+  backup_bytes=$(dd if="$tmp" bs=1 skip="$((offset + 0x32))" count=2 status=none | od -An -tu1) || return 1
+  read -r backup_lo backup_hi <<< "$backup_bytes"
+  [[ "$backup_lo" =~ ^[0-9]+$ && "$backup_hi" =~ ^[0-9]+$ ]] || return 1
+  backup_sector=$((backup_lo | backup_hi << 8))
+
+  if (( backup_sector != 0 && backup_sector != 0xffff )); then
+
+    # We copy three sectors of boot/FSInfo data starting at the backup pointer,
+    # therefore all three must fit inside the FAT32 reserved area.
+    if (( backup_sector + 2 >= reserved )); then
+      rm -f -- "$tmp"
+      error "Invalid FAT32 backup boot sector generated by mtools!"
+      return 1
+    fi
+
+    backup_offset=$((offset + backup_sector * 512))
+    boot_targets+=("$backup_offset")
+
+  fi
+
+  # ms-sys' Windows 95/98/Me FAT32 writer does not overwrite the complete
+  # 1536-byte template. It deliberately preserves the volume-specific fields
+  # created by the formatter and replaces only these three ranges:
+  #
+  #   0x000..0x00a  jump instruction + OEM identifier        (11 bytes)
+  #   0x052..0x3e7  boot code + static FSInfo data           (918 bytes)
+  #   0x3f0..0x5ff  FSInfo trailer + second-stage boot code   (528 bytes)
+  #
+  # Two regions are intentionally left untouched:
+  #
+  #   0x00b..0x051  FAT32 BPB/extended BPB generated by mformat
+  #   0x3e8..0x3ef  current free-cluster and next-free hints from mformat
+  #
+  # The source offsets are relative to the FAT32 template we located inside
+  # FORMAT.COM, so neither the ISO layout nor FORMAT.COM's internal layout is
+  # hardcoded. Apply the same transplant to the backup boot area when present.
+  local target_base
+
+  for target_base in "${boot_targets[@]}"; do
+
+    dd if="$template" of="$tmp" bs=1 \
+      skip="$template_base" seek="$target_base" count=11 \
+      conv=notrunc status=none || return 1
+
+    dd if="$template" of="$tmp" bs=1 \
+      skip="$((template_base + 0x52))" seek="$((target_base + 0x52))" count=918 \
+      conv=notrunc status=none || return 1
+
+    dd if="$template" of="$tmp" bs=1 \
+      skip="$((template_base + 0x3f0))" seek="$((target_base + 0x3f0))" count=528 \
+      conv=notrunc status=none || return 1
+
+    # The Microsoft template intentionally leaves the FAT32 extended BPB alone.
+    # Set its BIOS drive number explicitly because QEMU exposes the system image as
+    # hard disk 0x80, regardless of what default mformat happened to write there.
+    printf '%b' '\x80' |
+      dd of="$tmp" bs=1 seek="$((target_base + 0x40))" conv=notrunc status=none || return 1
+
+  done
+
+  # Verify both the partition table and the FAT32 structures after patching.
+  # The checks cover all three Microsoft boot sectors, not only sector zero, so
+  # a wrong FORMAT.COM match or an off-by-one copy cannot silently produce an
+  # image that merely looks bootable from its first 55 aa signature.
+  local active mbrsig vbrsig stage2sig fstype target_fsinfo_lead target_fsinfo_struct drive
+  active=$(dd if="$tmp" bs=1 skip=446 count=1 status=none | od -An -tu1 | tr -d ' ') || return 1
+  mbrsig=$(dd if="$tmp" bs=1 skip=510 count=2 status=none | xxd -p) || return 1
+  vbrsig=$(dd if="$tmp" bs=1 skip="$((offset + 0x1fe))" count=2 status=none | xxd -p) || return 1
+  stage2sig=$(dd if="$tmp" bs=1 skip="$((offset + 0x5fe))" count=2 status=none | xxd -p) || return 1
+  fstype=$(dd if="$tmp" bs=1 skip="$((offset + 0x52))" count=8 status=none) || return 1
+  target_fsinfo_lead=$(dd if="$tmp" bs=1 skip="$((offset + 0x200))" count=4 status=none | xxd -p) || return 1
+  target_fsinfo_struct=$(dd if="$tmp" bs=1 skip="$((offset + 0x3e4))" count=4 status=none | xxd -p) || return 1
+  drive=$(dd if="$tmp" bs=1 skip="$((offset + 0x40))" count=1 status=none | od -An -tu1 | tr -d ' ') || return 1
+
+  if [[ "$active" != "128" || "$mbrsig" != "55aa" || "$vbrsig" != "55aa" ||
+        "$stage2sig" != "55aa" || "$fstype" != "FAT32   " ||
+        "$target_fsinfo_lead" != "52526141" || "$target_fsinfo_struct" != "72724161" ||
+        "$drive" != "128" ]]; then
+    rm -f -- "$tmp"
+    error "Failed to make the $desc FAT32 system image bootable!"
+    return 1
+  fi
+
+  if (( backup_sector != 0 && backup_sector != 0xffff )); then
+
+    vbrsig=$(dd if="$tmp" bs=1 skip="$((backup_offset + 0x1fe))" count=2 status=none | xxd -p) || return 1
+    stage2sig=$(dd if="$tmp" bs=1 skip="$((backup_offset + 0x5fe))" count=2 status=none | xxd -p) || return 1
+    fstype=$(dd if="$tmp" bs=1 skip="$((backup_offset + 0x52))" count=8 status=none) || return 1
+    drive=$(dd if="$tmp" bs=1 skip="$((backup_offset + 0x40))" count=1 status=none | od -An -tu1 | tr -d ' ') || return 1
+
+    if [[ "$vbrsig" != "55aa" || "$stage2sig" != "55aa" ||
+          "$fstype" != "FAT32   " || "$drive" != "128" ]]; then
+      rm -f -- "$tmp"
+      error "Failed to update the $desc FAT32 backup boot record!"
+      return 1
+    fi
+
+  fi
+
+  # The CD boot image is not part of the Windows 9x installation contract.
+  # Retail, OEM and repacked discs may use a differently named El Torito image
+  # or omit an extracted floppy image entirely. The setup cabinets are a much
+  # better source for the DOS kernel files because Setup itself ships them.
+  #
+  # The exact cabinet containing COMMAND.COM and WINBOOT.SYS varies between
+  # Windows 9x releases, so do not hardcode a cabinet number. Search every
+  # PRECOPY cabinet first and only fall back to the remaining CABs for unusual
+  # OEM/repacked media.
+  #
+  # WINBOOT.SYS is the setup-media form of IO.SYS. Copy it as IO.SYS on the
+  # generated boot volume; COMMAND.COM keeps its original name. cabextract can
+  # follow multi-part cabinet sets automatically, which also covers a file that
+  # happens to span into the next cabinet.
+  local cab source_name target_name extracted
+  local cab_temp="$temp/cab"
+  local -a precopy_cabs=() other_cabs=()
+
+  mapfile -d '' precopy_cabs < <(
+    find "$dir" -type f -iname 'PRECOPY*.CAB' -print0
+  )
+
+  find_pid=$!
+
+  if ! wait "$find_pid"; then
+    rm -f -- "$tmp"
+    error "Failed to enumerate Windows 9x setup cabinets!"
+    return 1
+  fi
+
+  mapfile -d '' other_cabs < <(
+    find "$dir" -type f -iname '*.CAB' ! -iname 'PRECOPY*.CAB' -print0
+  )
+
+  find_pid=$!
+
+  if ! wait "$find_pid"; then
+    rm -f -- "$tmp"
+    error "Failed to enumerate Windows 9x setup cabinets!"
+    return 1
+  fi
+
+  if (( ${#precopy_cabs[@]} == 0 && ${#other_cabs[@]} == 0 )); then
+    rm -f -- "$tmp"
+    error "Failed to locate Windows 9x setup cabinets in $desc ISO image!"
+    return 1
+  fi
+
+  for source_name in COMMAND.COM WINBOOT.SYS; do
+
+    target_name="$source_name"
+    [[ "$source_name" == "WINBOOT.SYS" ]] && target_name="IO.SYS"
+    extracted=""
+
+    for cab in "${precopy_cabs[@]}" "${other_cabs[@]}"; do
+
+      rm -rf -- "$cab_temp" || return 1
+      mkdir -p "$cab_temp" || return 1
+
+      # -F avoids unpacking a complete cabinet just to obtain one small system
+      # file. -L normalizes the extracted name so case differences in localized
+      # or repacked media do not matter; find below remains case-insensitive as
+      # an additional safeguard. A cabinet that simply lacks the requested file
+      # is not an error here: continue with the next candidate.
+      if ! cabextract -q -L -F "$source_name" -d "$cab_temp" "$cab" >/dev/null 2>&1; then
+        continue
+      fi
+
+      extracted=$(find "$cab_temp" -type f -iname "$source_name" -print -quit) || return 1
+
+      if [ -n "$extracted" ] && [ -s "$extracted" ]; then
+        cp -f -- "$extracted" "$temp/$target_name" || return 1
+        break
+      fi
+
+    done
+
+    if [ ! -s "$temp/$target_name" ]; then
+      rm -f -- "$tmp"
+      error "Failed to extract $source_name from the Windows 9x setup cabinets!"
+      return 1
+    fi
+
+  done
+
+  rm -rf -- "$cab_temp" || :
+
+  {
+    printf '%s\n' \
+      '[Options]' \
+      'BootGUI=0' \
+      'BootDelay=0' \
+      'Logo=0' \
+      ''
+  } | unix2dos > "$msdos" || return 1
+
+  # Copy the DOS system files before anything else. Older DOS boot sectors
+  # expect IO.SYS and MSDOS.SYS at the start of a freshly formatted volume.
+  MTOOLSRC="$config" mcopy "$temp/IO.SYS" w:/IO.SYS || return 1
+  MTOOLSRC="$config" mcopy "$msdos" w:/MSDOS.SYS || return 1
+  MTOOLSRC="$config" mcopy "$temp/COMMAND.COM" w:/COMMAND.COM || return 1
+
+  MTOOLSRC="$config" mattrib +h +s +r w:/IO.SYS w:/MSDOS.SYS || return 1
+
+  # Windows is started explicitly from AUTOEXEC.BAT so the DOS environment stays
+  # available for the mouse TSR.
+
+  mapfile -d '' entries < <(
+    find "$dir" -mindepth 1 -maxdepth 1 -print0
+  )
+
+  find_pid=$!
+
+  if ! wait "$find_pid"; then
+    rm -f -- "$tmp"
+    error "Failed to enumerate $desc files!"
+    return 1
+  fi
+
+  for entry in "${entries[@]}"; do
+
+    base=$(basename "$entry")
+
+    case "${base,,}" in
+      "io.sys" | "msdos.sys" | "command.com" | "autoexec.bat" | "config.sys" )
+        continue ;;
+    esac
+
+    if ! MTOOLSRC="$config" mcopy -Q -s "$entry" w:/; then
+      rm -f -- "$tmp"
+      error "Failed to copy $desc file: $entry"
+      return 1
+    fi
+
+  done
+
+  if ! MTOOLSRC="$config" mcopy -o "$mouse/VBMOUSE.EXE" w:/VBMOUSE.EXE ||
+    ! MTOOLSRC="$config" mcopy -o "$mouse/VBMOUSE.DRV" w:/VBMOUSE.DRV; then
+    rm -f -- "$tmp"
+    error "Failed to add mouse integration to the $desc system image!"
+    return 1
+  fi
+
+  if ! disabled "$AUTOLOGIN"; then
+
+    if ! MTOOLSRC="$config" mcopy -o "$logon" w:/WIN9XLOG.EXE; then
+      rm -f -- "$tmp"
+      error "Failed to add automatic logon support to the $desc system image!"
+      return 1
+    fi
+
+  fi
+
+  {
+    printf '%s\n' \
+      '@ECHO OFF' \
+      'IF EXIST C:\WINDOWS\WIN.COM GOTO WINDOWS' \
+      'ECHO.' \
+      'ECHO Starting Windows Setup, please wait...' \
+      'ECHO.' \
+      'C:\VBMOUSE.EXE >NUL' \
+      "IF NOT EXIST C:\\${setup}\\XMSMMGR.EXE GOTO SETUP" \
+      "IF NOT EXIST C:\\${setup}\\SMARTDRV.EXE GOTO SETUP" \
+      "C:\\${setup}\\XMSMMGR.EXE >NUL" \
+      "C:\\${setup}\\SMARTDRV.EXE C+ /Q 16384 16384 >NUL" \
+      ':SETUP' \
+      "C:\\${setup}\\SETUP.EXE $options" \
+      'GOTO END' \
+      ':WINDOWS' \
+      'IF EXIST C:\WINDOWS\SYSTEM\VBMOUSE.DRV GOTO START' \
+      'COPY C:\VBMOUSE.DRV C:\WINDOWS\SYSTEM\VBMOUSE.DRV >NUL' \
+      ':START' \
+      'C:\VBMOUSE.EXE >NUL' \
+      'C:\WINDOWS\WIN.COM' \
+      ':END' \
+      ''
+  } | unix2dos > "$autoexec" || return 1
+
+  MTOOLSRC="$config" mcopy -o "$autoexec" w:/AUTOEXEC.BAT || return 1
+
+  if ! MTOOLSRC="$config" mdir "w:/$setup/SETUP.EXE" >/dev/null; then
+    rm -f -- "$tmp"
+    error "Failed to verify the $desc system image!"
+    return 1
+  fi
+
+  if [[ "${fs,,}" == "btrfs" ]]; then
+    attributes=$(lsattr "$tmp") || return 1
+    if [[ "$attributes" != *"C"* ]]; then
+      warn "COW (copy on write) is not disabled for $desc system image $tmp on ${fs^^} filesystem!"
+    fi
+  fi
+
+  if ! mv -f -- "$tmp" "$image"; then
+    rm -f -- "$tmp"
+    error "Failed to save $desc system image: $image"
+    return 1
+  fi
+
+  if ! setOwner "$image"; then
+    warn "Failed to set the owner for \"$image\" !"
+  fi
+
+  rm -rf -- "$temp" || :
+
+  return 0
+}
+
+stageWin9xDisplayDriver() {
+
+  local target="$1"
+  local source="$2"
+  local desc="$3"
+
+  local dest="$target/BOXV9X"
+  local file
+
+  for file in boxv9x.inf boxvmini.drv boxvmini.vxd; do
+
+    if [ ! -f "$source/$file" ]; then
+      error "Failed to locate required Windows 9x display driver file: $file"
+      return 1
+    fi
+
+  done
+
+  rm -rf -- "$dest" || return 1
+  mkdir -p "$dest" || return 1
+
+  if ! cp -f -- \
+    "$source/boxv9x.inf" \
+    "$source/boxvmini.drv" \
+    "$source/boxvmini.vxd" \
+    "$dest/"; then
+
+    error "Failed to add the display driver to $desc setup files!"
+    return 1
+  fi
+
+  # BOXV9X is the source-media tag named by the upstream INF. Keep the INF
+  # unchanged and provide that tag beside the driver files so Setup never asks
+  # for a separate driver disk while installing the exact QEMU PCI match.
+  : > "$dest/BOXV9X" || return 1
+
+  return 0
+}
+
+integrateWin9xSetupMouse() {
+
+  local dir="$1"
+  local desc="$2"
+  local driver="$3"
+
+  local cab
+  cab=$(find "$dir" -maxdepth 1 -type f -iname 'MINI.CAB' -print -quit) || return 1
+
+  if [ -z "$cab" ]; then
+    error "Failed to locate MINI.CAB in $desc ISO image!"
+    return 1
+  fi
+
+  if [ ! -f "$driver" ]; then
+    error "Failed to locate the mouse driver for $desc MINI.CAB!"
+    return 1
+  fi
+
+  local temp="$TMP/win9x-mini"
+  local files="$temp/files"
+  local rebuilt="$temp/MINI.CAB"
+  local system
+  local -a entries=()
+
+  rm -rf -- "$temp" || return 1
+  mkdir -p "$files" || return 1
+
+  if ! cabextract -q -d "$files" "$cab"; then
+    rm -rf -- "$temp" || :
+    error "Failed to extract MINI.CAB from $desc ISO image!"
+    return 1
+  fi
+
+  system=$(find "$files" -type f -iname 'SYSTEM.INI' -print -quit) || return 1
+
+  if [ -z "$system" ]; then
+    rm -rf -- "$temp" || :
+    error "Failed to locate SYSTEM.INI in $desc MINI.CAB!"
+    return 1
+  fi
+
+  if ! cp -f -- "$driver" "$files/VBMOUSE.DRV"; then
+    rm -rf -- "$temp" || :
+    error "Failed to add the mouse driver to $desc MINI.CAB!"
+    return 1
+  fi
+
+  if ! grep -Eqi '^[[:space:]]*mouse\.drv[[:space:]]*=' "$system"; then
+    rm -rf -- "$temp" || :
+    error "Failed to locate the mouse driver setting in $desc MINI.CAB!"
+    return 1
+  fi
+
+  if ! dos2unix "$system" >/dev/null 2>&1 ||
+    ! sed -i -E 's/^([[:space:]]*mouse\.drv[[:space:]]*=[[:space:]]*).*$/\1vbmouse.drv/I' "$system" ||
+    ! unix2dos "$system" >/dev/null 2>&1; then
+    rm -rf -- "$temp" || :
+    error "Failed to configure the mouse driver in $desc mini-Windows setup!"
+    return 1
+  fi
+
+  if ! grep -Eqi '^[[:space:]]*mouse\.drv[[:space:]]*=[[:space:]]*vbmouse\.drv[[:space:]]*$' "$system"; then
+    rm -rf -- "$temp" || :
+    error "Failed to verify the mouse driver setting in $desc MINI.CAB!"
+    return 1
+  fi
+
+  mapfile -d '' entries < <(find "$files" -type f -print0)
+
+  if (( ${#entries[@]} == 0 )); then
+    rm -rf -- "$temp" || :
+    error "Failed to enumerate files from $desc MINI.CAB!"
+    return 1
+  fi
+
+  if ! gcab -c -z -n "$rebuilt" "${entries[@]}" >/dev/null; then
+    rm -rf -- "$temp" || :
+    error "Failed to rebuild $desc MINI.CAB!"
+    return 1
+  fi
+
+  if ! cabextract -q -l "$rebuilt" >/dev/null 2>&1; then
+    rm -rf -- "$temp" || :
+    error "Failed to verify the rebuilt $desc MINI.CAB!"
+    return 1
+  fi
+
+  if ! mv -f -- "$rebuilt" "$cab"; then
+    rm -rf -- "$temp" || :
+    error "Failed to replace $desc MINI.CAB!"
+    return 1
+  fi
+
+  rm -rf -- "$temp" || :
+
+  return 0
+}
+
+prepareWin9xInstall() {
+
+  local id="$1"
+  local dir="$3"
+  local desc="$4"
+
+  local folder options="/IS /IQ /IT" target
+  local shortcut="Y"
+
+  if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
+    shortcut="N"
+  fi
+
+  if [ -n "$DOMAIN" ]; then
+    error "The DOMAIN variable is not supported for $desc!"
+    return 1
+  fi
+
+  case "${id,,}" in
+    "win95"* )
+      folder="WIN95" ;;
+    "win98"* )
+      folder="WIN98"
+      options="/P I /IE /NF $options" ;;
+    "win9x"* )
+      folder="WIN9X"
+      options="/IE /NF $options" ;;
+    * )
+      return 0 ;;
+  esac
+
+  target=$(find "$dir" -maxdepth 1 -type d -iname "$folder" -print -quit) || return 1
+
+  if [ -z "$target" ]; then
+    error "Failed to locate the $folder Setup folder in $desc ISO image!"
+    return 1
+  fi
+
+  [ -z "$WIDTH" ] && WIDTH="1280"
+  [ -z "$HEIGHT" ] && HEIGHT="720"
+
+  validateResolution "WIDTH" "$WIDTH" 320 || return 1
+  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
+
+  # Express setup still needs concrete identity values. If NameAndOrg is absent,
+  # Windows 9x stops during GUI setup for the user's name/company; if Network is
+  # missing the identity fields, it later stops for the computer name/workgroup.
+  # Win9x has no useful "*" computer-name generator, so provide a valid default
+  # when HOST was not configured.
+  local host="${HOST:-Docker}"
+  local username="${USERNAME:-Docker}"
+  local workgroup="${WORKGROUP:-WORKGROUP}"
+
+  validateComputerName "$host" || return 1
+
+  # Reuse the normal OEM-folder preparation so /OEM and COMMAND behave like the
+  # other Windows paths, but place the user payload directly at C:\OEM in the
+  # generated Win9x system image.
+  local win9x_oem="$dir/OEM"
+  local install=""
+
+  if ! addFolder "$dir" "win9x"; then
+    error "Failed to add OEM folder to image!"
+    return 1
+  fi
+
+  if [ -d "$win9x_oem" ]; then
+    install=$(find "$win9x_oem" -maxdepth 1 -type f -iname install.bat -print -quit) || return 1
+  fi
+
+  # MSBATCH.INF and WINNT.SIF both use quoted INF-style values. Reuse the SIF
+  # escaping helper so quotes and percent signs cannot alter the answer file.
+  local batchHost batchUsername batchOrganization batchWorkgroup batchKey=""
+  batchHost=$(escapeSIFValue "$host") || return 1
+  batchUsername=$(escapeSIFValue "$username") || return 1
+  batchOrganization=$(escapeSIFValue "$APP for $ENGINE") || return 1
+  batchWorkgroup=$(escapeSIFValue "$workgroup") || return 1
+
+  if [ -n "$KEY" ]; then
+    batchKey=$(escapeSIFValue "$KEY") || return 1
+  fi
+
+  local desktop="%10%\Desktop"
+
+  local addReg="OPKInstall"
+
+  if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
+    addReg+=",OEMDrivers"
+  fi
+
+  local firstLogonAddReg="Win9x.User"
+  local firstLogonDelReg=""
+  local firstLogonDelFiles=""
+
+  if ! disabled "$AUTOLOGIN"; then
+    firstLogonDelReg="Win9x.Logon"
+  fi
+
+  if [[ "${id,,}" == "win98"* ]]; then
+    firstLogonAddReg+=",Win98.User"
+    [ -n "$firstLogonDelReg" ] && firstLogonDelReg+=","
+    firstLogonDelReg+="Win98.Welcome,Win98.MSN"
+    firstLogonDelFiles="Win98.Connect"
+  fi
+
+  # Cap the memory Win9x itself can address at 4 GiB without changing QEMU's
+  # RAM_SIZE. Setup may use SYSTEM.CB for its minimal protected-mode/fallback
+  # startup, so keep the limit in both SYSTEM.INI and SYSTEM.CB.
+  {
+    printf '%s\n' \
+      '[BatchSetup]' \
+      'Version=3.0 (32-bit)' \
+      '' \
+      '[Version]' \
+      'Signature="$CHICAGO$"' \
+      'AdvancedINF=2.5' \
+      'LayoutFile=layout.inf' \
+      '' \
+      '[Install]' \
+      'UpdateInis=Win9x.SystemIni,Win9x.SystemCb' \
+      "AddReg=$addReg" \
+      '' \
+      '[OPKInstall]' \
+      'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion","ProductId",,"12345-OEM-1234567-12345"' \
+      'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion","ProductKey",,"CDKey"' \
+      "HKLM,\"SOFTWARE\Microsoft\Windows\CurrentVersion\",\"RegisteredOwner\",,\"$batchUsername\"" \
+      "HKLM,\"SOFTWARE\Microsoft\Windows\CurrentVersion\",\"RegisteredOrganization\",,\"$batchOrganization\"" \
+      "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce\",\"Win9xSetup\",,\"%25%\\rundll.exe setupx.dll,InstallHinfSection Win9x.FirstLogon 4 %10%\\msbatch.inf\""
+
+    if [[ "${id,,}" == "win98"* ]]; then
+      printf '%s\n' \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","Win98Online",,"C:\WINDOWS\RUNDLL32.EXE ADVPACK.DLL,DelNodeRunDLL32 C:\WINDOWS\Desktop\Online~1"'
+    fi
+
+    if enabled "$shortcut"; then
+      # Win9x remaps the share at every logon instead of depending on the XP
+      # NET USE /persistent switch.
+      printf '%s\n' \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","SharedDrive",,"%25%\NET.EXE USE Z: \\host.lan\Data"'
+    fi
+
+    if [ -n "$install" ]; then
+
+      if enabled "${LOG:-}"; then
+        printf '%s\n' \
+          'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","Install",,"C:\COMMAND.COM /C C:\OEM\install.bat > C:\OEM\install.log"'
+      else
+        printf '%s\n' \
+          'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","Install",,"C:\COMMAND.COM /C C:\OEM\install.bat"'
+      fi
+
+    fi
+
+    if ! disabled "$AUTOLOGIN"; then
+      # A first Windows Logon with a blank password creates the Win9x credential
+      # state that makes later Windows Logon startups silent. Run the small helper
+      # before interactive logon so that one-time dialog can be completed unattended.
+      printf '%s\n' \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices","Win9xLogon",,"C:\WIN9XLOG.EXE"'
+    fi
+
+    if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' \
+        '' \
+        '[OEMDrivers]' \
+        "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\",\"OtherDevicePath\",,\"C:\\WINDOWS\\INF\\OTHER;C:\\$folder\""
+    fi
+
+    printf '%s\n' \
+      '' \
+      '[Win9x.FirstLogon]' \
+      "AddReg=$firstLogonAddReg"
+
+    if [ -n "$firstLogonDelReg" ]; then
+      printf '%s\n' "DelReg=$firstLogonDelReg"
+    fi
+
+    if [ -n "$firstLogonDelFiles" ]; then
+      printf '%s\n' "DelFiles=$firstLogonDelFiles"
+    fi
+
+    if enabled "$shortcut"; then
+      printf '%s\n' 'UpdateInis=Win9x.Shortcut'
+    fi
+
+    printf '%s\n' \
+      '' \
+      '[Win9x.User]' \
+      'HKCU,"Control Panel\Desktop","SCRNSAVE.EXE",,""' \
+      'HKCU,"Control Panel\Desktop","ScreenSaveActive",,"0"' \
+      'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","HideFileExt",0x00010001,0'
+
+    if ! disabled "$AUTOLOGIN"; then
+      printf '%s\n' \
+        '' \
+        '[Win9x.Logon]' \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices","Win9xLogon",,,'
+    fi
+
+    if [[ "${id,,}" == "win98"* ]]; then
+      printf '%s\n' \
+        '' \
+        '[Win98.User]' \
+        'HKCU,"Software\Microsoft\Internet Connection Wizard","Completed",0x00010001,1' \
+        'HKCU,"Software\Microsoft\Internet Explorer\Main","Start Page",,"http://www.google.com"' \
+        'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Page",,"http://www.google.com"' \
+        'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Bar",,"http://www.google.com"' \
+        '' \
+        '[Win98.Welcome]' \
+        'HKLM,"Software\Microsoft\Windows\CurrentVersion\Run","Welcome",,,' \
+        '' \
+        '[Win98.MSN]' \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{4B876A40-4EE8-11D1-811E-00C04FB98EEC}",,,' \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{88667D10-10F0-11D0-8150-00AA00BF8457}",,,' \
+        '' \
+        '[Win98.Connect]' \
+        'connec~1.lnk'
+    fi
+
+    if [[ "${id,,}" == "win98"* ]]; then
+      printf '%s\n' \
+        '' \
+        '[DestinationDirs]' \
+        'Win98.Connect=10,Desktop'
+    fi
+
+    if enabled "$shortcut"; then
+      printf '%s\n' \
+        '' \
+        '[Win9x.Shortcut]'
+      printf 'setup.ini, progman.groups,, "group1=""%s"""\n' "$desktop"
+      printf '%s\n' \
+        'setup.ini, group1,,"""Shared"",""\\host.lan\Data"",""%10%\EXPLORER.EXE"",0,,,""Shared folder"""'
+    fi
+
+    printf '%s\n' \
+      '' \
+      '[Win9x.SystemIni]' \
+      '%10%\system.ini,boot,"mouse.drv=mouse.drv","mouse.drv=vbmouse.drv"' \
+      '%10%\system.ini,386Enh,,"MaxPhysPage=100000"' \
+      '%10%\system.ini,vcache,,"MaxFileCache=65536"' \
+      '' \
+      '[Win9x.SystemCb]' \
+      '%10%\system.cb,386Enh,,"MaxPhysPage=100000"' \
+      '' \
+      '[Setup]' \
+      'Express=1' \
+      'InstallDir="C:\WINDOWS"' \
+      'InstallType=3'
+
+    # When KEY is supplied, pass it through so retail media does not stop later
+    # for the product-key dialog. Leave it absent otherwise because some OEM
+    # media handles its product identification differently.
+    if [ -n "$batchKey" ]; then
+      printf 'ProductKey="%s"\n' "$batchKey"
+    fi
+
+    printf '%s\n' \
+      'EBD=0' \
+      'ShowEula=0' \
+      'Network=1' \
+      'DevicePath=1' \
+      'NoPrompt2Boot=1' \
+      'TimeZone=Pacific' \
+      '' \
+      '[NameAndOrg]' \
+      "Name=\"$batchUsername\"" \
+      "Org=\"$batchOrganization\"" \
+      'Display=0' \
+      '' \
+      '[Display]' \
+      'BitsPerPel=16' \
+      "XResolution=$WIDTH" \
+      "YResolution=$HEIGHT" \
+      '' \
+      '[Network]' \
+      "ComputerName=\"$batchHost\"" \
+      "Workgroup=\"$batchWorkgroup\"" \
+      'PrimaryLogon=Windows' \
+      'Display=0' \
+      ''
+  } | unix2dos > "$target/MSBATCH.INF" || return 1
+
+  # Reuse the same driver archive extraction used by the XP/2003 path. All
+  # Windows 9x support files live together under win9x/ in that archive.
+  local drivers="/tmp/drivers"
+  local win9x="$drivers/win9x"
+  local patcher="$win9x/patcher9x/patcher9x"
+  local mouse="$win9x/mouse"
+  local display="$win9x/boxv9x"
+  local logon="$win9x/win9xlog/WIN9XLOG.EXE"
+
+  extractDrivers "$drivers" || return 1
+
+  if [ ! -f "$patcher" ]; then
+    rm -rf "$drivers" || :
+    error "Failed to locate Patcher9x!"
+    return 1
+  fi
+
+  if [ ! -f "$mouse/VBMOUSE.EXE" ] || [ ! -f "$mouse/VBMOUSE.DRV" ]; then
+    rm -rf "$drivers" || :
+    error "Failed to locate required Windows 9x mouse drivers!"
+    return 1
+  fi
+
+  if ! disabled "$AUTOLOGIN" && [ ! -f "$logon" ]; then
+    rm -rf "$drivers" || :
+    error "Failed to locate Windows 9x automatic logon helper!"
+    return 1
+  fi
+
+  chmod 755 "$patcher" || {
+    rm -rf "$drivers" || :
+    error "Failed to make Patcher9x executable!"
+    return 1
+  }
+
+  local msg="Patching Windows setup..."
+  info "$msg" && html "$msg"
+
+  local patch_output
+
+  if ! patch_output=$("$patcher" -auto -unselect creg "$target" 2>&1); then
+    [ -z "$patch_output" ] || printf '%s\n' "$patch_output" >&2
+    rm -rf "$drivers" || :
+    error "Failed to patch $desc setup files!"
+    return 1
+  fi
+
+  if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
+    stageWin9xDisplayDriver "$target" "$display" "$desc" || {
+      rm -rf "$drivers" || :
+      return 1
+    }
+
+    if ! mv -f -- \
+      "$target/BOXV9X/boxv9x.inf" \
+      "$target/BOXV9X/boxvmini.drv" \
+      "$target/BOXV9X/boxvmini.vxd" \
+      "$target/"; then
+      rm -rf "$drivers" || :
+      error "Failed to stage the Windows 9x display driver in the setup source!"
+      return 1
+    fi
+
+    rm -rf -- "$target/BOXV9X" || return 1
+    : > "$target/BOXV9X" || return 1
+  fi
+
+  if [[ "${id,,}" == "win98"* ]]; then
+    integrateWin9xSetupMouse "$target" "$desc" "$mouse/VBMOUSE.DRV" || {
+      rm -rf "$drivers" || :
+      return 1
+    }
+  fi
+
+  # Do not copy optical-media AutoRun metadata onto the system disk; Explorer
+  # otherwise treats C: like the installation CD and runs its default action.
+  find "$dir" -maxdepth 1 -type f -iname 'AUTORUN.INF' -delete || return 1
+
+  # Build the hard-disk system image from the setup files themselves. Do not rely
+  # on a particular El Torito floppy-image filename: some perfectly valid Win9x
+  # discs expose a differently named boot image, while the required DOS system
+  # files are already present in the installation cabinets.
+  if ! createWin9xSystemImage "$dir" "$TMP/windows.img" "$desc" "$folder" "$options" "$mouse" "$logon"; then
+    rm -rf "$drivers" || :
+    return 1
+  fi
+
+  rm -rf "$drivers" || :
+  SYSTEM="$TMP/windows.img"
+
+  return 0
+}
+
+isReactOSLiveCD() {
+
+  local iso="$1"
+  local files
+
+  files=$(bsdtar -tf "$iso" 2>/dev/null) || return 1
+
+  ! grep -Ei '(^|/)reactos/txtsetup\.sif(;1)?$' <<< "$files" >/dev/null
 }
 
 detectReactOS() {
