@@ -1754,106 +1754,118 @@ integrateWin9xSetupMouse() {
   return 0
 }
 
-prepareWin9xInstall() {
+writeWin9xUserRegistry() {
 
-  local id="$1"
-  local dir="$3"
-  local desc="$4"
+  printf '%s\n' \
+    '[Win9x.User]' \
+    'HKCU,"Control Panel\Desktop","SCRNSAVE.EXE",,""' \
+    'HKCU,"Control Panel\Desktop","ScreenSaveActive",,"0"' \
+    'HKCU,"Control Panel\Desktop","DragFullWindows",,"1"' \
+    'HKCU,"Control Panel\Desktop","MenuShowDelay",,"100"' \
+    'HKCU,"Control Panel\Desktop","FontSmoothing",,"2"' \
+    'HKCU,"Control Panel\Desktop","SmoothScroll",0x00010001,0' \
+    'HKCU,"Control Panel\Desktop\WindowMetrics","MinAnimate",,"0"' \
+    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","HideFileExt",0x00010001,0' \
+    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoActiveDesktop",1,01,00,00,00' \
+    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer","link",1,00,00,00,00'
+}
 
-  local folder monitor="Plug and Play Monitor" options="/IS /IQ /IT" target
-  local shortcut="Y"
+writeWin9xMachineRegistry() {
 
-  if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
-    shortcut="N"
-  fi
+  printf '%s\n' \
+    '[Win9x.Machine]' \
+    'HKLM,"System\CurrentControlSet\Control\FileSystem\CDFS","CacheSize",1,ac,09,00,00' \
+    'HKLM,"System\CurrentControlSet\Control\FileSystem\CDFS","Prefetch",1,e4,00,00,00'
+}
 
-  if [ -n "$DOMAIN" ]; then
-    error "The DOMAIN variable is not supported for $desc!"
-    return 1
-  fi
+writeWin98Registry() {
 
-  case "${id,,}" in
-    "win95"* )
-      folder="WIN95"
-      monitor="Plug and Play Monitor (VESA DDC)" ;;
-    "win98"* )
-      folder="WIN98"
-      options="/P I /IE /NF $options" ;;
-    "win9x"* )
-      folder="WIN9X"
-      options="/IE /NF $options" ;;
-    * )
-      return 0 ;;
-  esac
+  printf '%s\n' \
+    '[Win98.Power]' \
+    'HKLM,"Software\Microsoft\Windows\CurrentVersion\Controls Folder\PowerCfg\PowerPolicies\0","Policies",0x00000001,01,00,00,00,02,00,00,00,02,00,00,00,02,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,02,00,00,00,04,00,00,c0,00,00,00,00,02,00,00,00,04,00,00,c0,00,00,00,00' \
+    'HKU,".DEFAULT\Control Panel\PowerCfg","CurrentPowerPolicy",,"0"' \
+    'HKU,".DEFAULT\Control Panel\PowerCfg\PowerPolicies\0","Policies",0x00000001,01,00,00,00,00,00,00,00,01,00,00,00,00,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,3c,00,00,00,32,32,8c,82,02,00,00,00,02,00,00,00,00,00,00,00,f0,3b,91,81,00,00,00,00,78,00,00,00,00,00,00,00,58,02,00,00,00,00,64,64,64,64,8c,82' \
+    '' \
+    '[Win98.ActiveSetup]' \
+    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx",,,">Batch 98 - General Settings"' \
+    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx","IsInstalled",0x00000001,01,00,00,00' \
+    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx","Version",,"3,0,0,0"' \
+    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx","StubPath",,"%25%\rundll.exe setupx.dll,InstallHinfSection Win98.Browser 4 %10%\msbatch.inf"' \
+    '' \
+    '[Win98.Browser]' \
+    'AddReg=Win98.User' \
+    'DelReg=Win98.MSN,Win98.ICWDesktop' \
+    'DelFiles=Win98.Connect,Win98.ConnectAll' \
+    'RunPostSetupCommands=Win98.CleanupDirs' \
+    '' \
+    '[Win98.PowerUser]' \
+    'HKCU,"Control Panel\PowerCfg","CurrentPowerPolicy",,"0"' \
+    'HKCU,"Control Panel\PowerCfg\PowerPolicies\0","Policies",0x00000001,01,00,00,00,00,00,00,00,01,00,00,00,00,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,3c,00,00,00,32,32,8c,82,02,00,00,00,02,00,00,00,00,00,00,00,f0,3b,91,81,00,00,00,00,78,00,00,00,00,00,00,00,58,02,00,00,00,00,64,64,64,64,8c,82' \
+    '' \
+    '[Win98.User]' \
+    'HKCU,"Software\Microsoft\Internet Connection Wizard","Completed",0x00010001,1' \
+    'HKCU,"Software\Microsoft\Internet Explorer\Main","Start Page",,"http://www.google.com"' \
+    'HKCU,"Software\Microsoft\Internet Explorer\Main","First Home Page",,"http://www.google.com"' \
+    'HKCU,"Software\Microsoft\Internet Explorer\Main","Default_Page_URL",,"http://www.google.com"' \
+    'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Page",,"http://www.google.com"' \
+    'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Bar",,"http://www.google.com"' \
+    '' \
+    '[Win98.Welcome]' \
+    'HKLM,"Software\Microsoft\Windows\CurrentVersion\Run","Welcome",,,' \
+    '' \
+    '[Win98.MSN]' \
+    'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{4B876A40-4EE8-11D1-811E-00C04FB98EEC}",,,' \
+    'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{88667D10-10F0-11D0-8150-00AA00BF8457}",,,' \
+    '' \
+    '[Win98.ICWDesktop]' \
+    'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","^SetupICWDesktop",,,' \
+    'HKCU,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","^SetupICWDesktop",,,' \
+    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\RunOnce","^SetupICWDesktop",,,' \
+    '' \
+    '[Win98.Connect]' \
+    'connec~1.lnk' \
+    '"Connect to the Internet.lnk"' \
+    '' \
+    '[Win98.ConnectAll]' \
+    'connec~1.lnk' \
+    '"Connect to the Internet.lnk"' \
+    '' \
+    '[Win98.CleanupDirs]' \
+    '%25%\rundll32.exe advpack.dll,DelNodeRunDLL32 %10%\Desktop\Online~1' \
+    '' \
+    '[DestinationDirs]' \
+    'Win98.Connect=10,Desktop' \
+    'Win98.ConnectAll=10,alluse~1\desktop'
+}
 
-  target=$(find "$dir" -maxdepth 1 -type d -iname "$folder" -print -quit) || return 1
+writeWin9xAnswerFile() {
 
-  if [ -z "$target" ]; then
-    error "Failed to locate the $folder Setup folder in $desc ISO image!"
-    return 1
-  fi
-
-  [ -z "$WIDTH" ] && WIDTH="1280"
-  [ -z "$HEIGHT" ] && HEIGHT="720"
-
-  validateResolution "WIDTH" "$WIDTH" 320 || return 1
-  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
-
-  # Express setup still needs concrete identity values. If NameAndOrg is absent,
-  # Windows 9x stops during GUI setup for the user's name/company; if Network is
-  # missing the identity fields, it later stops for the computer name/workgroup.
-  # Win9x has no useful "*" computer-name generator, so provide a valid default
-  # when HOST was not configured.
-  local host="${HOST:-Docker}"
-  local username="${USERNAME:-Docker}"
-  local workgroup="${WORKGROUP:-WORKGROUP}"
-
-  validateComputerName "$host" || return 1
-
-  # Reuse the normal OEM-folder preparation so /OEM and COMMAND behave like the
-  # other Windows paths, but place the user payload directly at C:\OEM in the
-  # generated Win9x system image.
-  local win9x_oem="$dir/OEM"
-  local install=""
-
-  if ! addFolder "$dir" "win9x"; then
-    error "Failed to add OEM folder to image!"
-    return 1
-  fi
-
-  if [ -d "$win9x_oem" ]; then
-    install=$(find "$win9x_oem" -maxdepth 1 -type f -iname install.bat -print -quit) || return 1
-  fi
-
-  # MSBATCH.INF and WINNT.SIF both use quoted INF-style values. Reuse the SIF
-  # escaping helper so quotes and percent signs cannot alter the answer file.
-  local batchHost batchUsername batchOrganization batchWorkgroup batchKey=""
-  batchHost=$(escapeSIFValue "$host") || return 1
-  batchUsername=$(escapeSIFValue "$username") || return 1
-  batchOrganization=$(escapeSIFValue "$APP for $ENGINE") || return 1
-  batchWorkgroup=$(escapeSIFValue "$workgroup") || return 1
-
-  if [ -n "$KEY" ]; then
-    batchKey=$(escapeSIFValue "$KEY") || return 1
-  fi
+  local target="$1"
+  local id="$2"
+  local folder="$3"
+  local monitor="$4"
+  local batchHost="$5"
+  local batchUsername="$6"
+  local batchOrganization="$7"
+  local batchWorkgroup="$8"
+  local batchKey="$9"
+  local shortcut="${10}"
+  local install="${11}"
 
   local desktop="%10%\Desktop"
-
-  local addReg="OPKInstall"
+  local addReg="OPKInstall,Win9x.Machine"
+  local firstLogonAddReg="Win9x.User"
+  local firstLogonDelReg=""
 
   if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
     addReg+=",OEMDrivers"
   fi
 
   if [[ "${id,,}" == "win98"* ]]; then
-    # Batch.Update must remain last: Windows 98 creates some Internet desktop
-    # items late in Setup, so register their delayed cleanup after other AddReg
-    # work. Active Setup reapplies browser defaults after IE initializes users.
-    addReg+=",Win98.Power,Win98.ActiveSetup,Win98.BatchUpdate"
+    # Active Setup reapplies browser defaults after IE initializes users and
+    # removes the Internet desktop items before Explorer lays out the desktop.
+    addReg+=",Win98.Power,Win98.ActiveSetup"
   fi
-
-  local firstLogonAddReg="Win9x.User"
-  local firstLogonDelReg=""
 
   if ! disabled "$AUTOLOGIN"; then
     firstLogonDelReg="Win9x.Logon"
@@ -1917,6 +1929,9 @@ prepareWin9xInstall() {
         'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices","Win9xLogon",,"C:\WIN9XLOG.EXE"'
     fi
 
+    printf '%s\n' ''
+    writeWin9xMachineRegistry
+
     if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
         '' \
@@ -1937,13 +1952,8 @@ prepareWin9xInstall() {
       printf '%s\n' 'UpdateInis=Win9x.Shortcut'
     fi
 
-    printf '%s\n' \
-      '' \
-      '[Win9x.User]' \
-      'HKCU,"Control Panel\Desktop","SCRNSAVE.EXE",,""' \
-      'HKCU,"Control Panel\Desktop","ScreenSaveActive",,"0"' \
-      'HKCU,"Control Panel\Desktop","DragFullWindows",,"1"' \
-      'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","HideFileExt",0x00010001,0'
+    printf '%s\n' ''
+    writeWin9xUserRegistry
 
     if ! disabled "$AUTOLOGIN"; then
       printf '%s\n' \
@@ -1953,68 +1963,8 @@ prepareWin9xInstall() {
     fi
 
     if [[ "${id,,}" == "win98"* ]]; then
-      printf '%s\n' \
-        '' \
-        '[Win98.Power]' \
-        'HKLM,"Software\Microsoft\Windows\CurrentVersion\Controls Folder\PowerCfg\PowerPolicies\0","Policies",0x00000001,01,00,00,00,02,00,00,00,02,00,00,00,02,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,02,00,00,00,04,00,00,c0,00,00,00,00,02,00,00,00,04,00,00,c0,00,00,00,00' \
-        'HKU,".DEFAULT\Control Panel\PowerCfg","CurrentPowerPolicy",,"0"' \
-        'HKU,".DEFAULT\Control Panel\PowerCfg\PowerPolicies\0","Policies",0x00000001,01,00,00,00,00,00,00,00,01,00,00,00,00,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,3c,00,00,00,32,32,8c,82,02,00,00,00,02,00,00,00,00,00,00,00,f0,3b,91,81,00,00,00,00,78,00,00,00,00,00,00,00,58,02,00,00,00,00,64,64,64,64,8c,82' \
-        '' \
-        '[Win98.ActiveSetup]' \
-        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx",,,">Batch 98 - General Settings"' \
-        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx","IsInstalled",0x00000001,01,00,00,00' \
-        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx","Version",,"3,0,0,0"' \
-        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx","StubPath",,"%25%\rundll.exe setupx.dll,InstallHinfSection Win98.Browser 4 %10%\msbatch.inf"' \
-        '' \
-        '[Win98.BatchUpdate]' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","Win98Cleanup",,"%25%\RunDll32.exe advpack.dll,LaunchINFSection %10%\msbatch.inf,Win98.Cleanup,5"' \
-        '' \
-        '[Win98.Browser]' \
-        'AddReg=Win98.User' \
-        '' \
-        '[Win98.PowerUser]' \
-        'HKCU,"Control Panel\PowerCfg","CurrentPowerPolicy",,"0"' \
-        'HKCU,"Control Panel\PowerCfg\PowerPolicies\0","Policies",0x00000001,01,00,00,00,00,00,00,00,01,00,00,00,00,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,3c,00,00,00,32,32,8c,82,02,00,00,00,02,00,00,00,00,00,00,00,f0,3b,91,81,00,00,00,00,78,00,00,00,00,00,00,00,58,02,00,00,00,00,64,64,64,64,8c,82' \
-        '' \
-        '[Win98.User]' \
-        'HKCU,"Software\Microsoft\Internet Connection Wizard","Completed",0x00010001,1' \
-        'HKCU,"Software\Microsoft\Internet Explorer\Main","Start Page",,"http://www.google.com"' \
-        'HKCU,"Software\Microsoft\Internet Explorer\Main","First Home Page",,"http://www.google.com"' \
-        'HKCU,"Software\Microsoft\Internet Explorer\Main","Default_Page_URL",,"http://www.google.com"' \
-        'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Page",,"http://www.google.com"' \
-        'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Bar",,"http://www.google.com"' \
-        '' \
-        '[Win98.Welcome]' \
-        'HKLM,"Software\Microsoft\Windows\CurrentVersion\Run","Welcome",,,' \
-        '' \
-        '[Win98.Cleanup]' \
-        'DelReg=Win98.MSN,Win98.CleanupRun' \
-        'DelFiles=Win98.Connect,Win98.ConnectAll' \
-        'RunPostSetupCommands=Win98.CleanupDirs' \
-        '' \
-        '[Win98.CleanupRun]' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","Win98Cleanup"' \
-        '' \
-        '[Win98.MSN]' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{4B876A40-4EE8-11D1-811E-00C04FB98EEC}",,,' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{88667D10-10F0-11D0-8150-00AA00BF8457}",,,' \
-        '' \
-        '[Win98.Connect]' \
-        'connec~1.lnk' \
-        '' \
-        '[Win98.ConnectAll]' \
-        'connec~1.lnk' \
-        '' \
-        '[Win98.CleanupDirs]' \
-        '%25%\rundll32.exe advpack.dll,DelNodeRunDLL32 %10%\Desktop\Online~1'
-    fi
-
-    if [[ "${id,,}" == "win98"* ]]; then
-      printf '%s\n' \
-        '' \
-        '[DestinationDirs]' \
-        'Win98.Connect=10,Desktop' \
-        'Win98.ConnectAll=10,alluse~1\desktop'
+      printf '%s\n' ''
+      writeWin98Registry
     fi
 
     if enabled "$shortcut"; then
@@ -2056,6 +2006,9 @@ prepareWin9xInstall() {
       'NoPrompt2Boot=1' \
       'TimeZone=Pacific' \
       '' \
+      '[OptionalComponents]' \
+      '"The Microsoft Network"=0' \
+      '' \
       '[NameAndOrg]' \
       "Name=\"$batchUsername\"" \
       "Org=\"$batchOrganization\"" \
@@ -2072,6 +2025,146 @@ prepareWin9xInstall() {
       'Display=0' \
       ''
   } | unix2dos > "$target/MSBATCH.INF" || return 1
+
+  return 0
+}
+
+patchWin9xSetupFiles() {
+
+  local id="$1"
+  local target="$2"
+  local desc="$3"
+  local patcher="$4"
+  local mouse="$5"
+  local display="$6"
+
+  chmod 755 "$patcher" || {
+    error "Failed to make Patcher9x executable!"
+    return 1
+  }
+
+  local msg="Patching Windows setup..."
+  info "$msg" && html "$msg"
+
+  local patch_output
+
+  if ! patch_output=$("$patcher" -auto -unselect creg "$target" 2>&1); then
+    [ -z "$patch_output" ] || printf '%s\n' "$patch_output" >&2
+    error "Failed to patch $desc setup files!"
+    return 1
+  fi
+
+  if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
+    stageWin9xDisplayDriver "$target" "$display" "$desc" || return 1
+
+    if ! mv -f -- \
+      "$target/BOXV9X/boxv9x.inf" \
+      "$target/BOXV9X/boxvmini.drv" \
+      "$target/BOXV9X/boxvmini.vxd" \
+      "$target/"; then
+      error "Failed to stage the Windows 9x display driver in the setup source!"
+      return 1
+    fi
+
+    rm -rf -- "$target/BOXV9X" || return 1
+    : > "$target/BOXV9X" || return 1
+  fi
+
+  if [[ "${id,,}" == "win98"* ]]; then
+    integrateWin9xSetupMouse "$target" "$desc" "$mouse/VBMOUSE.DRV" || return 1
+  fi
+
+  return 0
+}
+
+prepareWin9xInstall() {
+
+  local id="$1"
+  local dir="$3"
+  local desc="$4"
+
+  local folder monitor="Plug and Play Monitor" options="/IS /IQ /IT" target
+  local shortcut="Y"
+
+  if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
+    shortcut="N"
+  fi
+
+  if [ -n "$DOMAIN" ]; then
+    error "The DOMAIN variable is not supported for $desc!"
+    return 1
+  fi
+
+  case "${id,,}" in
+    "win95"* )
+      folder="WIN95"
+      monitor="Plug and Play Monitor (VESA DDC)" ;;
+    "win98"* )
+      folder="WIN98"
+      monitor="Plug and Play Monitor (VESA DDC)"
+      options="/P I /IE /NF $options" ;;
+    "win9x"* )
+      folder="WIN9X"
+      options="/IE /NF $options" ;;
+    * )
+      return 0 ;;
+  esac
+
+  target=$(find "$dir" -maxdepth 1 -type d -iname "$folder" -print -quit) || return 1
+
+  if [ -z "$target" ]; then
+    error "Failed to locate the $folder Setup folder in $desc ISO image!"
+    return 1
+  fi
+
+  [ -z "$WIDTH" ] && WIDTH="1280"
+  [ -z "$HEIGHT" ] && HEIGHT="720"
+
+  validateResolution "WIDTH" "$WIDTH" 320 || return 1
+  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
+
+  # Express setup still needs concrete identity values. If NameAndOrg is absent,
+  # Windows 9x stops during GUI setup for the user's name/company; if Network is
+  # missing the identity fields, it later stops for the computer name/workgroup.
+  # Win9x has no useful "*" computer-name generator, so provide a valid default
+  # when HOST was not configured.
+  local host="${HOST:-Docker}"
+  local username="${USERNAME:-Docker}"
+  local workgroup="${WORKGROUP:-WORKGROUP}"
+
+  validateComputerName "$host" || return 1
+
+  # Reuse the normal OEM-folder preparation so /OEM and COMMAND behave like the
+  # other Windows paths, but place the user payload directly at C:\OEM in the
+  # generated Win9x system image.
+  local win9x_oem="$dir/OEM"
+  local install=""
+
+  if ! addFolder "$dir" "win9x"; then
+    error "Failed to add OEM folder to image!"
+    return 1
+  fi
+
+  if [ -d "$win9x_oem" ]; then
+    install=$(find "$win9x_oem" -maxdepth 1 -type f -iname install.bat -print -quit) || return 1
+  fi
+
+  # MSBATCH.INF and WINNT.SIF both use quoted INF-style values. Reuse the SIF
+  # escaping helper so quotes and percent signs cannot alter the answer file.
+  local batchHost batchUsername batchOrganization batchWorkgroup batchKey=""
+  batchHost=$(escapeSIFValue "$host") || return 1
+  batchUsername=$(escapeSIFValue "$username") || return 1
+  batchOrganization=$(escapeSIFValue "$APP for $ENGINE") || return 1
+  batchWorkgroup=$(escapeSIFValue "$workgroup") || return 1
+
+  if [ -n "$KEY" ]; then
+    batchKey=$(escapeSIFValue "$KEY") || return 1
+  fi
+
+  writeWin9xAnswerFile \
+    "$target" "$id" "$folder" "$monitor" \
+    "$batchHost" "$batchUsername" "$batchOrganization" "$batchWorkgroup" \
+    "$batchKey" "$shortcut" "$install" || return 1
 
   # Reuse the same driver archive extraction used by the XP/2003 path. All
   # Windows 9x support files live together under win9x/ in that archive.
@@ -2102,49 +2195,9 @@ prepareWin9xInstall() {
     return 1
   fi
 
-  chmod 755 "$patcher" || {
+  if ! patchWin9xSetupFiles "$id" "$target" "$desc" "$patcher" "$mouse" "$display"; then
     rm -rf "$drivers" || :
-    error "Failed to make Patcher9x executable!"
     return 1
-  }
-
-  local msg="Patching Windows setup..."
-  info "$msg" && html "$msg"
-
-  local patch_output
-
-  if ! patch_output=$("$patcher" -auto -unselect creg "$target" 2>&1); then
-    [ -z "$patch_output" ] || printf '%s\n' "$patch_output" >&2
-    rm -rf "$drivers" || :
-    error "Failed to patch $desc setup files!"
-    return 1
-  fi
-
-  if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
-    stageWin9xDisplayDriver "$target" "$display" "$desc" || {
-      rm -rf "$drivers" || :
-      return 1
-    }
-
-    if ! mv -f -- \
-      "$target/BOXV9X/boxv9x.inf" \
-      "$target/BOXV9X/boxvmini.drv" \
-      "$target/BOXV9X/boxvmini.vxd" \
-      "$target/"; then
-      rm -rf "$drivers" || :
-      error "Failed to stage the Windows 9x display driver in the setup source!"
-      return 1
-    fi
-
-    rm -rf -- "$target/BOXV9X" || return 1
-    : > "$target/BOXV9X" || return 1
-  fi
-
-  if [[ "${id,,}" == "win98"* ]]; then
-    integrateWin9xSetupMouse "$target" "$desc" "$mouse/VBMOUSE.DRV" || {
-      rm -rf "$drivers" || :
-      return 1
-    }
   fi
 
   # Do not copy optical-media AutoRun metadata onto the system disk; Explorer
