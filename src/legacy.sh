@@ -1552,8 +1552,7 @@ createWin9xSystemImage() {
     return 1
   fi
 
-  if ! MTOOLSRC="$config" mcopy -o "$mouse/VBMOUSE.EXE" w:/VBMOUSE.EXE ||
-    ! MTOOLSRC="$config" mcopy -o "$mouse/VBMOUSE.DRV" w:/VBMOUSE.DRV; then
+  if ! MTOOLSRC="$config" mcopy -o "$mouse/VBMOUSE.EXE" w:/VBMOUSE.EXE; then
     rm -f -- "$tmp"
     error "Failed to add mouse integration to the $desc system image!"
     return 1
@@ -1575,8 +1574,8 @@ createWin9xSystemImage() {
       "C:\\${setup}\\SETUP.EXE $options" \
       'GOTO END' \
       ':WINDOWS' \
-      'IF EXIST C:\WINDOWS\SYSTEM\VBMOUSE.DRV GOTO START' \
-      'COPY C:\VBMOUSE.DRV C:\WINDOWS\SYSTEM\VBMOUSE.DRV >NUL' \
+      'IF NOT EXIST C:\WINDOWS\POST9X.FLG GOTO START' \
+      'REN C:\WINDOWS\POST9X.FLG POST9X.RDY' \
       ':START' \
       'C:\VBMOUSE.EXE >NUL' \
       'C:\WINDOWS\WIN.COM' \
@@ -1810,22 +1809,76 @@ EOF
   return 0
 }
 
-stageWin9xMouseExecutable() {
+stageWin9xPostSetup() {
+
+  local dir="$1"
+  local desc="$2"
+  local id="$3"
+  local shortcut="$4"
+  local install="$5"
+  local target="$dir/POST9X.BAT"
+
+  {
+    printf '%s\n' \
+      '@ECHO OFF' \
+      'IF NOT EXIST C:\WINDOWS\POST9X.RDY GOTO END' \
+      'C:\WINDOWS\RUNDLL.EXE SETUPX.DLL,InstallHinfSection Win9x.PostDesktop 4 C:\WINDOWS\MSBATCH.INF' \
+      'DEL C:\WINDOWS\POST9X.RDY >NUL'
+
+    if [[ "${id,,}" == "win98"* ]]; then
+      printf '%s\n' \
+        'C:\WINDOWS\RUNDLL32.EXE ADVPACK.DLL,DelNodeRunDLL32 "C:\WINDOWS\Desktop\Online Services"' \
+        'C:\WINDOWS\RUNDLL32.EXE ADVPACK.DLL,DelNodeRunDLL32 "C:\WINDOWS\All Users\Desktop\Online Services"'
+    fi
+
+    if enabled "$shortcut"; then
+      printf '%s\n' \
+        'IF EXIST Z:\NUL GOTO SHARE_READY' \
+        'C:\WINDOWS\NET.EXE USE Z: \\host.lan\Data >NUL' \
+        ':SHARE_READY'
+    fi
+
+    if [ -n "$install" ]; then
+
+      if enabled "${LOG:-}"; then
+        printf '%s\n' 'CALL C:\OEM\install.bat > C:\OEM\install.log'
+      else
+        printf '%s\n' 'CALL C:\OEM\install.bat'
+      fi
+
+    fi
+
+    printf '%s\n' ':END'
+
+  } | unix2dos > "$target" || {
+    error "Failed to create post-desktop setup script for $desc!"
+    return 1
+  }
+
+  return 0
+}
+
+stageWin9xMouseFiles() {
 
   local dir="$1"
   local desc="$2"
   local source="$3"
+  local file
 
-  if [ ! -f "$source" ]; then
-    error "Failed to locate VBMOUSE.EXE!"
-    return 1
-  fi
+  for file in VBMOUSE.EXE VBMOUSE.DRV; do
 
-  if ! cp -f -- "$source" "$dir/VBMOUSE.EXE" ||
-    ! cmp -s -- "$source" "$dir/VBMOUSE.EXE"; then
-    error "Failed to stage VBMOUSE.EXE in $desc setup files!"
-    return 1
-  fi
+    if [ ! -f "$source/$file" ]; then
+      error "Failed to locate $file!"
+      return 1
+    fi
+
+    if ! cp -f -- "$source/$file" "$dir/$file" ||
+      ! cmp -s -- "$source/$file" "$dir/$file"; then
+      error "Failed to stage $file in $desc setup files!"
+      return 1
+    fi
+
+  done
 
   return 0
 }
@@ -1850,6 +1903,8 @@ writeWin9xMachineRegistry() {
 
   printf '%s\n' \
     '[Win9x.Machine]' \
+    'HKU,".DEFAULT\Control Panel\Desktop","FontSmoothing",,"1"' \
+    'HKLM,"Software\Microsoft\Windows\CurrentVersion\FS Templates",,,"Server"' \
     'HKLM,"Software\Microsoft\Windows\CurrentVersion\FS Templates\Server","NameCache",1,a9,0a,00,00' \
     'HKLM,"Software\Microsoft\Windows\CurrentVersion\FS Templates\Server","PathCache",1,40,00,00,00' \
     'HKLM,"System\CurrentControlSet\Control\FileSystem","NameCache",1,a9,0a,00,00' \
@@ -1930,9 +1985,16 @@ writeWin9xAnswerFile() {
   local copyFiles="Win9x.Mouse"
   local firstLogonAddReg="Win9x.User"
   local firstLogonDelReg=""
+  local firstLogonUpdateInis=""
+  local post=""
 
   if ! disabled "$AUTOLOGIN"; then
     copyFiles+=",Win9x.Password"
+  fi
+
+  if [[ "${id,,}" == "win98"* ]] || enabled "$shortcut" || [ -n "$install" ]; then
+    post="Y"
+    copyFiles+=",Win9x.Post"
   fi
 
   if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
@@ -1968,10 +2030,15 @@ writeWin9xAnswerFile() {
       '22="Windows Setup",,0' \
       '' \
       '[SourceDisksFiles]' \
-      'VBMOUSE.EXE=22'
+      'VBMOUSE.EXE=22' \
+      'VBMOUSE.DRV=22'
 
     if ! disabled "$AUTOLOGIN"; then
       printf '%s\n' 'DOCKER.PWL=22'
+    fi
+
+    if enabled "$post"; then
+      printf '%s\n' 'POST9X.BAT=22'
     fi
 
     printf '%s\n' \
@@ -1988,23 +2055,9 @@ writeWin9xAnswerFile() {
       "HKLM,\"SOFTWARE\Microsoft\Windows\CurrentVersion\",\"RegisteredOrganization\",,\"$batchOrganization\"" \
       "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce\",\"Win9xSetup\",,\"%25%\\rundll.exe setupx.dll,InstallHinfSection Win9x.FirstLogon 4 %10%\\msbatch.inf\""
 
-    if enabled "$shortcut"; then
-      # Win9x remaps the share at every logon instead of depending on the XP
-      # NET USE /persistent switch.
+    if enabled "$post"; then
       printf '%s\n' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","SharedDrive",,"C:\COMMAND.COM /C %25%\NET.EXE USE Z: \\host.lan\Data >NUL"'
-    fi
-
-    if [ -n "$install" ]; then
-
-      if enabled "${LOG:-}"; then
-        printf '%s\n' \
-          'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","Install",,"C:\COMMAND.COM /C C:\OEM\install.bat > C:\OEM\install.log"'
-      else
-        printf '%s\n' \
-          'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","Install",,"C:\COMMAND.COM /C C:\OEM\install.bat"'
-      fi
-
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","PostSetup",,"C:\WINDOWS\COMMAND.COM /C C:\WINDOWS\POST9X.BAT"'
     fi
 
     if ! disabled "$AUTOLOGIN"; then
@@ -2032,8 +2085,17 @@ writeWin9xAnswerFile() {
       printf '%s\n' "DelReg=$firstLogonDelReg"
     fi
 
+    if enabled "$post"; then
+      firstLogonUpdateInis="Win9x.PostMarker"
+    fi
+
     if enabled "$shortcut"; then
-      printf '%s\n' 'UpdateInis=Win9x.Shortcut'
+      [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
+      firstLogonUpdateInis+="Win9x.Shortcut"
+    fi
+
+    if [ -n "$firstLogonUpdateInis" ]; then
+      printf '%s\n' "UpdateInis=$firstLogonUpdateInis"
     fi
 
     printf '%s\n' ''
@@ -2044,10 +2106,36 @@ writeWin9xAnswerFile() {
       writeWin98Registry
     fi
 
+    if enabled "$post"; then
+      printf '%s\n' \
+        '' \
+        '[Win9x.PostDesktop]' \
+        'DelReg=Win9x.PostDesktopRun'
+
+      if enabled "$shortcut"; then
+        printf '%s\n' 'AddReg=Win9x.Share'
+      fi
+
+      printf '%s\n' \
+        '' \
+        '[Win9x.PostDesktopRun]' \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","PostSetup",,,'
+    fi
+
+    if enabled "$shortcut"; then
+      printf '%s\n' \
+        '' \
+        '[Win9x.Share]' \
+        'HKCU,"Network\Persistent\Z","RemotePath",,"\\host.lan\Data"' \
+        "HKCU,\"Network\\Persistent\\Z\",\"UserName\",,\"$batchUsername\"" \
+        'HKCU,"Network\Persistent\Z","ProviderName",,"Microsoft Network"'
+    fi
+
     printf '%s\n' \
       '' \
       '[Win9x.Mouse]' \
-      'VBMOUSE.EXE'
+      'VBMOUSE.EXE' \
+      'VBMOUSE.DRV'
 
     if ! disabled "$AUTOLOGIN"; then
       printf '%s\n' \
@@ -2056,13 +2144,27 @@ writeWin9xAnswerFile() {
         'DOCKER.PWL'
     fi
 
+    if enabled "$post"; then
+      printf '%s\n' \
+        '' \
+        '[Win9x.Post]' \
+        'POST9X.BAT' \
+        '' \
+        '[Win9x.PostMarker]' \
+        '%10%\POST9X.FLG,PostSetup,,"Ready=1"'
+    fi
+
     printf '%s\n' \
       '' \
       '[DestinationDirs]' \
-      'Win9x.Mouse=10'
+      'Win9x.Mouse=11'
 
     if ! disabled "$AUTOLOGIN"; then
       printf '%s\n' 'Win9x.Password=10'
+    fi
+
+    if enabled "$post"; then
+      printf '%s\n' 'Win9x.Post=10'
     fi
 
     if [[ "${id,,}" == "win98"* ]]; then
@@ -2281,6 +2383,10 @@ prepareWin9xInstall() {
     stageWin9xPasswordList "$target" "$desc" || return 1
   fi
 
+  if [[ "${id,,}" == "win98"* ]] || enabled "$shortcut" || [ -n "$install" ]; then
+    stageWin9xPostSetup "$target" "$desc" "$id" "$shortcut" "$install" || return 1
+  fi
+
   writeWin9xAnswerFile \
     "$target" "$id" "$setup" "$monitor" \
     "$batchHost" "$batchUsername" "$batchOrganization" "$batchWorkgroup" \
@@ -2313,7 +2419,7 @@ prepareWin9xInstall() {
     return 1
   fi
 
-  if ! stageWin9xMouseExecutable "$target" "$desc" "$mouse/VBMOUSE.EXE"; then
+  if ! stageWin9xMouseFiles "$target" "$desc" "$mouse"; then
     rm -rf "$drivers" || :
     return 1
   fi
