@@ -786,10 +786,7 @@ isPlatform() {
 
 isLegacyBoot() {
 
-  local mode="${BOOT_MODE:-}"
-  (( $# )) && mode="$1"
-
-  [[ "${mode,,}" == "windows_legacy" ]]
+  [[ "${BOOT_MODE,,}" == "windows_legacy" ]]
 }
 
 hasBootMarker() {
