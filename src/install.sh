@@ -1673,6 +1673,7 @@ setDiskMinimum() {
 
   return 0
 }
+
 reserveSambaPorts() {
 
   disabled "${SAMBA:-Y}" && return 0
@@ -1685,7 +1686,6 @@ reserveSambaPorts() {
 
   return 0
 }
-
 
 startWindows
 
