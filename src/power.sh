@@ -44,6 +44,8 @@ bootStatus() {
     if grep -Fq \
       -e "No bootable device." \
       -e "BOOTMGR is missing" \
+      -e "The following file is missing or corrupted:" \
+      -e "Type the name of the Windows loader" \
       <<< "$recent"; then
       return 2
     fi
@@ -253,6 +255,8 @@ legacyBootReady() {
   grep -Fq "BOOTMGR is missing" <<< "$recent" && return 1
   grep -Fq "Boot failed: not a bootable disk" <<< "$recent" && return 1
   grep -Fq "Boot failed: could not read the boot disk" <<< "$recent" && return 1
+  grep -Fq "The following file is missing or corrupted:" <<< "$recent" && return 1
+  grep -Fq "Type the name of the Windows loader" <<< "$recent" && return 1
 
   return 0
 }
@@ -508,6 +512,9 @@ gracefulShutdown() {
       info "ReactOS LiveCD does not support ACPI shutdown, decreasing timeout to 1 second..."
       TIMEOUT=7
     fi
+  elif hasSystemImage && ! hasBootMarker; then
+    info "$(app) will ignore ACPI signals during setup, decreasing timeout to 10 seconds..."
+    TIMEOUT=13
   elif ! ready; then
     info "$(app) will ignore ACPI signals during setup, decreasing timeout to 10 seconds..."
     TIMEOUT=13
