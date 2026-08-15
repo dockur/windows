@@ -1861,6 +1861,7 @@ stageWin9xPostSetup() {
   local desc="$2"
   local install="$3"
   local target="$dir/POST9X.BAT"
+  local marker="$dir/POST9X.NEW"
 
   {
     printf '%s\n' \
@@ -1881,6 +1882,15 @@ stageWin9xPostSetup() {
     error "Failed to create post-desktop setup script for $desc!"
     return 1
   }
+
+  # Stage a real file for Setup to copy into the Windows directory. The
+  # intermediate Win9x.FirstLogon phase renames it to POST9X.FLG, and the next
+  # AUTOEXEC pass promotes that to POST9X.RDY. This avoids relying on UpdateInis
+  # to create an arbitrary marker file.
+  if ! printf 'Ready\r\n' > "$marker"; then
+    error "Failed to create post-desktop marker for $desc!"
+    return 1
+  fi
 
   return 0
 }
@@ -2096,7 +2106,9 @@ writeWin9xAnswerFile() {
     fi
 
     if enabled "$post"; then
-      printf '%s\n' 'POST9X.BAT=22'
+      printf '%s\n' \
+        'POST9X.BAT=22' \
+        'POST9X.NEW=22'
     fi
 
     printf '%s\n' \
@@ -2153,8 +2165,7 @@ writeWin9xAnswerFile() {
     fi
 
     if enabled "$post"; then
-      [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
-      firstLogonUpdateInis+="Win9x.PostMarker"
+      printf '%s\n' 'RenFiles=Win9x.PostArm'
     fi
 
     if enabled "$shortcut"; then
@@ -2209,9 +2220,10 @@ writeWin9xAnswerFile() {
         '' \
         '[Win9x.Post]' \
         'POST9X.BAT' \
+        'POST9X.NEW' \
         '' \
-        '[Win9x.PostMarker]' \
-        '%10%\POST9X.FLG,PostSetup,,"Ready=1"'
+        '[Win9x.PostArm]' \
+        'POST9X.FLG,POST9X.NEW'
     fi
 
     printf '%s\n' \
@@ -2228,7 +2240,9 @@ writeWin9xAnswerFile() {
     fi
 
     if enabled "$post"; then
-      printf '%s\n' 'Win9x.Post=10'
+      printf '%s\n' \
+        'Win9x.Post=10' \
+        'Win9x.PostArm=10'
     fi
 
     if [[ "${id,,}" == "win98"* ]]; then
