@@ -1691,6 +1691,12 @@ createWin9xSystemImage() {
       "C:\\${setup}\\SETUP.EXE $options" \
       'GOTO END' \
       ':WINDOWS' \
+      'IF NOT EXIST C:\WINDOWS\SYSTEM\KERNEL32.DLL GOTO STARTWIN' \
+      'IF NOT EXIST C:\WINDOWS\SYSTEM\VMM32.VXD GOTO STARTWIN' \
+      'CD C:\SETUP' \
+      'PATCH9X.EXE -auto -unselect creg C:\WINDOWS\SYSTEM >NUL' \
+      'CD C:\' \
+      ':STARTWIN' \
       'C:\WINDOWS\SYSTEM\VBMOUSE.EXE >NUL' \
       'C:\WINDOWS\WIN.COM' \
       ':END' \
@@ -1723,6 +1729,36 @@ createWin9xSystemImage() {
   fi
 
   rm -rf -- "$temp" || :
+
+  return 0
+}
+
+stageWin9xDosPatcher() {
+
+  local dir="$1"
+  local desc="$2"
+  local image="$3"
+  local file
+
+  if [ ! -f "$image" ]; then
+    error "Failed to locate the Windows 9x DOS Patcher9x image!"
+    return 1
+  fi
+
+  # The official Patcher9x DOS image carries the DJGPP executable together with
+  # CWSDPMI. Keep both beside each other in the retained C:\SETUP source so the
+  # patcher can run from real mode before WIN.COM starts.
+  for file in PATCH9X.EXE CWSDPMI.EXE; do
+
+    rm -f -- "$dir/$file" || return 1
+
+    if ! mcopy -o -i "$image" "::/$file" "$dir/$file" >/dev/null 2>&1 ||
+      [ ! -s "$dir/$file" ]; then
+      error "Failed to stage $file for $desc!"
+      return 1
+    fi
+
+  done
 
   return 0
 }
@@ -2474,16 +2510,8 @@ writeWin9xAnswerFile() {
       "Org=\"$batchOrganization\"" \
       'Display=0' \
       '' \
-      '[System]'
-
-    # Windows Me is intentionally left on its stock VGA setup path while its
-    # final-reboot display failure is isolated. Do not request the BoxV9x-only
-    # 16-bpp custom resolution when the custom display driver is not installed.
-    if [[ "${id,,}" != "win9x"* ]]; then
-      printf '%s\n' "DisplChar=16,$WIDTH,$HEIGHT"
-    fi
-
-    printf '%s\n' \
+      '[System]' \
+      "DisplChar=16,$WIDTH,$HEIGHT" \
       "Monitor=\"$monitor\"" \
       '' \
       '[Network]' \
@@ -2522,10 +2550,7 @@ patchWin9xSetupFiles() {
     return 1
   fi
 
-  # Keep Windows Me on the built-in VGA driver for this diagnostic path. Setup
-  # currently reaches its final reboot and then stalls with BoxV9x installed;
-  # Windows 95/98 retain the existing, tested BoxV9x integration unchanged.
-  if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
+  if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
     stageWin9xDisplayDriver "$target" "$display" "$desc" || return 1
 
     if ! mv -f -- \
@@ -2663,12 +2688,13 @@ prepareWin9xInstall() {
   local drivers="/tmp/drivers"
   local win9x="$drivers/win9x"
   local patcher="$win9x/patcher9x/patcher9x"
+  local patcher_dos="$patcher.img"
   local mouse="$win9x/mouse"
   local display="$win9x/boxv9x"
 
   extractDrivers "$drivers" || return 1
 
-  if [ ! -f "$patcher" ]; then
+  if [ ! -f "$patcher" ] || [ ! -f "$patcher_dos" ]; then
     rm -rf "$drivers" || :
     error "Failed to locate Patcher9x!"
     return 1
@@ -2681,6 +2707,11 @@ prepareWin9xInstall() {
   fi
 
   if ! patchWin9xSetupFiles "$id" "$target" "$desc" "$patcher" "$mouse" "$display"; then
+    rm -rf "$drivers" || :
+    return 1
+  fi
+
+  if ! stageWin9xDosPatcher "$target" "$desc" "$patcher_dos"; then
     rm -rf "$drivers" || :
     return 1
   fi
