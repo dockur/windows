@@ -1930,13 +1930,13 @@ EOF
   return 0
 }
 
-stageWin98DMA() {
+stageWin9xDMA() {
 
   local dir="$1"
   local desc="$2"
-  local target="$dir/WIN98DMA.EXE"
+  local target="$dir/WIN9XDMA.EXE"
 
-  # Keep the Win98-only DMA helper embedded alongside QUIET.EXE so the driver
+  # Keep the Win9x DMA helper embedded alongside QUIET.EXE so the driver
   # archive stays unchanged. It only updates enumerated ESDI DiskDrive devices.
   if ! base64 -d <<'EOF' | gzip -dc > "$target"
 H4sIAAAAAAACA+1VTUgUcRR/s2610eKs4EKE4CgLUcTy//fpoWC2nUFEzcltFTKzzZ11dtsPm52N
@@ -1955,12 +1955,12 @@ Lh3WJDXRLyNcgE55wBtNJOVWeci0DJhoeEyrY1COoyWmC/bllKwOdQWiKdl0GT6frJU9rWLnJbHt
 93SGztO97fn30x8aoy/WAAoAAA==
 EOF
   then
-    error "Failed to create WIN98DMA.EXE in $desc setup files!"
+    error "Failed to create WIN9XDMA.EXE in $desc setup files!"
     return 1
   fi
 
   if [ "$(wc -c < "$target")" -ne 2560 ]; then
-    error "Failed to verify WIN98DMA.EXE in $desc setup files!"
+    error "Failed to verify WIN9XDMA.EXE in $desc setup files!"
     return 1
   fi
 
@@ -2069,41 +2069,61 @@ writeWin9xMachineRegistry() {
     'HKLM,"System\CurrentControlSet\Control\FileSystem\CDFS","Prefetch",1,e4,00,00,00'
 }
 
-writeWin98Registry() {
+writeWin98MeRegistry() {
+
+  local id="$1"
+  local browser_section="Win9x.Browser"
+
+  # Windows 98 needs the later Active Setup pass to repeat its ISP/ICW cleanup
+  # after IE has finished creating shell items. Windows Me gets only the common
+  # browser and power settings from the same Active Setup component.
+  if [[ "${id,,}" == "win98"* ]]; then
+    browser_section="Win98.Browser"
+  fi
 
   printf '%s\n' \
-    '[Win98.Power]' \
+    '[Win9x.Power]' \
     'HKLM,"Software\Microsoft\Windows\CurrentVersion\Controls Folder\PowerCfg\PowerPolicies\3","Policies",0x00000001,01,00,00,00,02,00,00,00,02,00,00,00,02,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,02,00,00,00,04,00,00,c0,00,00,00,00,02,00,00,00,04,00,00,c0,00,00,00,00' \
     'HKU,".DEFAULT\Control Panel\PowerCfg","CurrentPowerPolicy",,"3"' \
     'HKU,".DEFAULT\Control Panel\PowerCfg\PowerPolicies\3","Policies",0x00000001,01,00,00,00,02,00,00,00,01,00,00,00,00,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,04,00,00,00,05,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,01,64,64,64,64,00,00' \
     '' \
-    '[Win98.ActiveSetup]' \
-    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx",,,">Batch 98 - General Settings"' \
+    '[Win9x.ActiveSetup]' \
+    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx",,,">Batch 9x - General Settings"' \
     'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx","IsInstalled",0x00000001,01,00,00,00' \
     'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx","Version",,"3,0,0,0"' \
-    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx","StubPath",,"%25%\rundll.exe setupx.dll,InstallHinfSection Win98.Browser 4 %10%\msbatch.inf"' \
-    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex",,,">Batch 98 - Storage Settings"' \
+    "HKLM,\"SOFTWARE\\Microsoft\\Active Setup\\Installed Components\\>BatchSetupx\",\"StubPath\",,\"%25%\\rundll.exe setupx.dll,InstallHinfSection $browser_section 4 %10%\\msbatch.inf\"" \
+    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex",,,">Batch 9x - Storage Settings"' \
     'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex","IsInstalled",0x00000001,01,00,00,00' \
     'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex","Version",,"3,0,0,0"' \
-    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex","StubPath",,"%10%\WIN98DMA.EXE"' \
+    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex","StubPath",,"%10%\WIN9XDMA.EXE"' \
     '' \
-    '[Win98.Browser]' \
-    'AddReg=Win98.User,Win98.PowerUser' \
-    'DelReg=Win98.MSN,Win98.ICWDesktop' \
-    'DelFiles=Win98.Connect,Win98.ConnectAll' \
+    "[$browser_section]" \
+    'AddReg=Win9x.BrowserUser,Win9x.PowerUser'
+
+  if [[ "${id,,}" == "win98"* ]]; then
+    printf '%s\n' \
+      'DelReg=Win98.MSN,Win98.ICWDesktop' \
+      'DelFiles=Win98.Connect,Win98.ConnectAll'
+  fi
+
+  printf '%s\n' \
     '' \
-    '[Win98.PowerUser]' \
+    '[Win9x.PowerUser]' \
     'HKCU,"Control Panel\PowerCfg","CurrentPowerPolicy",,"3"' \
     'HKCU,"Control Panel\PowerCfg\PowerPolicies\3","Policies",0x00000001,01,00,00,00,02,00,00,00,01,00,00,00,00,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,04,00,00,00,05,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,01,64,64,64,64,00,00' \
     '' \
-    '[Win98.User]' \
+    '[Win9x.BrowserUser]' \
     'HKCU,"Software\Microsoft\Internet Connection Wizard","Completed",0x00010001,1' \
     'HKCU,"Software\Microsoft\Internet Explorer\Main","Start Page",,"http://www.google.com"' \
     'HKCU,"Software\Microsoft\Internet Explorer\Main","First Home Page",,"http://www.google.com"' \
     'HKCU,"Software\Microsoft\Internet Explorer\Main","Default_Page_URL",,"http://www.google.com"' \
     'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Page",,"http://www.google.com"' \
-    'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Bar",,"http://www.google.com"' \
-    '' \
+    'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Bar",,"http://www.google.com"'
+}
+
+writeWin98Registry() {
+
+  printf '%s\n' \
     '[Win98.Welcome]' \
     'HKLM,"Software\Microsoft\Windows\CurrentVersion\Run","Welcome",,,' \
     '' \
@@ -2180,16 +2200,16 @@ writeWin9xAnswerFile() {
     addReg+=",OEMDrivers"
   fi
 
-  if [[ "${id,,}" == "win98"* ]]; then
+  if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
     # Seed the machine/default Always On policy before user initialization.
     # Active Setup reapplies the user policy after IE/Setup finish resetting
     # per-user defaults, while the separate DMA helper runs after enumeration.
-    addReg+=",Win98.Power,Win98.ActiveSetup"
-    copyFiles+=",Win98.DMA"
+    addReg+=",Win9x.Power,Win9x.ActiveSetup"
+    copyFiles+=",Win9x.DMA"
+    firstLogonAddReg+=",Win9x.BrowserUser,Win9x.PowerUser"
   fi
 
   if [[ "${id,,}" == "win98"* ]]; then
-    firstLogonAddReg+=",Win98.User,Win98.PowerUser"
     [ -n "$firstLogonDelReg" ] && firstLogonDelReg+=","
     firstLogonDelReg+="Win98.Welcome"
     firstLogonDelFiles="Win98.OnlineServices"
@@ -2216,8 +2236,8 @@ writeWin9xAnswerFile() {
       'VBMOUSE.EXE=22' \
       'VBMOUSE.DRV=22'
 
-    if [[ "${id,,}" == "win98"* ]]; then
-      printf '%s\n' 'WIN98DMA.EXE=22'
+    if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' 'WIN9XDMA.EXE=22'
     fi
 
     if ! disabled "$AUTOLOGIN"; then
@@ -2304,6 +2324,11 @@ writeWin9xAnswerFile() {
     printf '%s\n' ''
     writeWin9xUserRegistry
 
+    if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' ''
+      writeWin98MeRegistry "$id"
+    fi
+
     if [[ "${id,,}" == "win98"* ]]; then
       printf '%s\n' ''
       writeWin98Registry
@@ -2350,11 +2375,11 @@ writeWin9xAnswerFile() {
         '%10%\wininit.ini,Rename,,"C:\WINDOWS\POST9X.RDY=C:\WINDOWS\POST9X.NEW"'
     fi
 
-    if [[ "${id,,}" == "win98"* ]]; then
+    if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
         '' \
-        '[Win98.DMA]' \
-        'WIN98DMA.EXE'
+        '[Win9x.DMA]' \
+        'WIN9XDMA.EXE'
     fi
 
     printf '%s\n' \
@@ -2374,8 +2399,11 @@ writeWin9xAnswerFile() {
       printf '%s\n' 'Win9x.Post=10'
     fi
 
+    if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' 'Win9x.DMA=10'
+    fi
+
     if [[ "${id,,}" == "win98"* ]]; then
-      printf '%s\n' 'Win98.DMA=10'
       printf '%s\n' \
         'Win98.Connect=10,Desktop' \
         'Win98.ConnectAll=10,alluse~1\desktop' \
@@ -2502,7 +2530,7 @@ patchWin9xSetupFiles() {
     : > "$target/BOXV9X" || return 1
   fi
 
-  if [[ "${id,,}" == "win98"* ]]; then
+  if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
     integrateWin9xSetupMouse "$target" "$desc" "$mouse/VBMOUSE.DRV" || return 1
   fi
 
@@ -2610,8 +2638,8 @@ prepareWin9xInstall() {
     stageWin9xPostSetup "$target" "$desc" "$install" || return 1
   fi
 
-  if [[ "${id,,}" == "win98"* ]]; then
-    stageWin98DMA "$target" "$desc" || return 1
+  if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
+    stageWin9xDMA "$target" "$desc" || return 1
   fi
 
   writeWin9xAnswerFile \
