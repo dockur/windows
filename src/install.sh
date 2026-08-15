@@ -26,11 +26,7 @@ startWindows() {
 
   else
 
-    bootWindows || {
-      error "Failed to boot Windows!"
-      exit 66
-    }
-
+    bootWindows || exit $?
     return 0
 
   fi
@@ -101,33 +97,33 @@ needsInstall() {
 
 bootWindows() {
 
-  setBoot || exit $?
-  cleanupTemp || exit $?
+  setBoot || return $?
+  cleanupTemp || return $?
 
   local previousBase
-  previousBase=$(readBase) || exit $?
+  previousBase=$(readBase) || return $?
 
-  cleanupSource "$previousBase" || exit $?
-  selectBoot "$BOOT" "$previousBase" || exit $?
+  cleanupSource "$previousBase" || return $?
+  selectBoot "$BOOT" "$previousBase" || return $?
 
   if ! restoreMachineState; then
     error "Failed to restore the saved machine state!"
-    return 1
+    return 66
   fi
 
   if ! restoreBootMode; then
     error "Failed to restore the saved boot mode!"
-    return 1
+    return 66
   fi
 
   if ! restoreMachine; then
     error "Failed to restore the saved machine type!"
-    return 1
+    return 66
   fi
 
   if ! reserveSambaPorts; then
     error "Failed to reserve Samba ports!"
-    return 1
+    return 66
   fi
 
   return 0
@@ -135,8 +131,8 @@ bootWindows() {
 
 startInstall() {
 
-  setBoot || exit $?
-  cleanupTemp || exit $?
+  setBoot || return $?
+  cleanupTemp || return $?
 
   local previousBase
   previousBase=$(readBase) || return $?
@@ -154,6 +150,8 @@ startInstall() {
     if hasImage "$BOOT"; then
       ISO="$TMP/$(basename "$BOOT")"
     else
+      local file
+      file=$(getInstallFile) || return $?
       ISO="$TMP/$file"
     fi
 
