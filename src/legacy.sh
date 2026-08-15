@@ -711,7 +711,7 @@ appendRegistry() {
   local dir="$1"
   local driver="$2"
 
-  if [[ "$driver" == "2k" || "$driver" == "xp" ]]; then
+  if [[ "$driver" == "2k" || "$driver" == "xp" || "$driver" == "2k3" ]]; then
     {
       printf '%s\n' \
         '[HKEY_CURRENT_USER\Control Panel\Desktop]' \
@@ -725,7 +725,7 @@ appendRegistry() {
     } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
   fi
 
-  if [[ "$driver" == "xp" ]]; then
+  if [[ "$driver" == "xp" || "$driver" == "2k3" ]]; then
     {
       printf '%s\n' \
         '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce]' \
@@ -737,8 +737,13 @@ appendRegistry() {
     {
       printf '%s\n' \
         '[HKEY_USERS\.DEFAULT\Software\Microsoft\Windows\CurrentVersion\Runonce]' \
-        '"^SetupICWDesktop"=-' \
-        '' \
+        '"^SetupICWDesktop"=-' ''
+    } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
+  fi
+
+  if [[ "$driver" == "2k" || "$driver" == "2k3" ]]; then
+    {
+      printf '%s\n' \
         '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer]' \
         '"NoActiveDesktop"=dword:00000001' ''
     } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
@@ -821,7 +826,7 @@ writeVBS() {
     fi
   } | unix2dos > "$dir/\$OEM\$/install.vbs" || return 1
 
-  if [[ "$driver" == "xp" ]]; then
+  if [[ "$driver" == "xp" || "$driver" == "2k3" ]]; then
     mkdir -p "$(dirname "$power")" || return 1
 
     {
