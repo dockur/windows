@@ -18,11 +18,13 @@ startWindows() {
     exit 64
   }
 
-  local rc=0
-  startInstall || rc=$?
-  (( rc > 1 )) && exit "$rc"
+  html "Starting $APP..."
 
-  if (( rc )); then
+  if needsInstall; then
+
+    startInstall || exit $?
+
+  else
 
     bootWindows || {
       error "Failed to boot Windows!"
@@ -268,6 +270,37 @@ prepareWindowsImage() {
 
 bootWindows() {
 
+  if ! isCustomImage; then
+
+    local file boot
+    file=$(getInstallFile) || exit $?
+    boot=$(getBootFile "$file") || exit $?
+
+    BOOT="$STORAGE/$boot"
+
+  fi
+
+  TMP="$STORAGE/tmp"
+
+  if ! rm -rf -- "$TMP"; then
+    error "Failed to remove directory \"$TMP\" !"
+    exit 50
+  fi
+
+  local setup="$STORAGE/setup.img"
+
+  if ! rm -f -- "$setup" "${setup}.tmp"; then
+    error "Failed to remove setup image \"$setup\" !"
+    exit 50
+  fi
+
+  local previousBase
+  previousBase=$(readBase) || exit $?
+
+  cleanupSource "$previousBase" || exit $?
+
+  selectBoot "$BOOT" "$previousBase" || exit $?
+
   if ! restoreMachineState; then
     error "Failed to restore the saved machine state!"
     return 1
@@ -293,50 +326,11 @@ bootWindows() {
 
 startInstall() {
 
-  html "Starting $APP..."
-
   if ! isCustomImage; then
 
-    local file="${VERSION//\//}.iso"
-    local boot="$file"
-
-    if isURL "$VERSION"; then
-
-      file=$(basename "${VERSION%%[\?#]*}")
-      printf -v file '%b' "${file//%/\\x}"
-      file="${file//[!A-Za-z0-9._-]/_}"
-
-      boot="$file"
-
-      if isCompressed "$VERSION" || [[ "${boot,,}" == *.esd ]]; then
-        boot="${boot%.*}"
-      fi
-
-      [ -n "$boot" ] || boot="download"
-      [[ "${boot,,}" == *.iso ]] || boot+=".iso"
-
-      case "${boot,,}" in
-        "windows."* )
-          error "The download filename \"$file\" uses the reserved \"windows.*\" namespace!"
-          return 58 ;;
-      esac
-
-    else
-
-      local language
-      if ! language=$(getLanguage "$LANGUAGE" "culture"); then
-        error "Failed to determine the Windows language!"
-        return 62
-      fi
-
-      language="${language%%-*}"
-
-      if [ -n "$language" ] && [[ "${language,,}" != "en" ]]; then
-        file="${VERSION//\//}_${language,,}.iso"
-        boot="$file"
-      fi
-
-    fi
+    local file boot
+    file=$(getInstallFile) || return $?
+    boot=$(getBootFile "$file") || return $?
 
     BOOT="$STORAGE/$boot"
 
@@ -361,11 +355,6 @@ startInstall() {
 
   cleanupSource "$previousBase" || return $?
 
-  if ! needsInstall "$BOOT" "$previousBase"; then
-    selectBoot "$BOOT" "$previousBase" || return $?
-    return 1
-  fi
-
   cleanupInstall "$BOOT" "$previousBase" || return $?
 
   if ! makeDir "$TMP"; then
@@ -383,11 +372,90 @@ startInstall() {
 
   fi
 
+  cleanupStorage "$BOOT" || return $?
+
+  if ! isCustomImage && ! isURL "$VERSION"; then
+    checkMemory "$VERSION" || return 67
+    setDiskMinimum "$VERSION" || return 67
+  fi
+
+  # Work from the temporary directory so the persistent source path can
+  # later contain either the preserved ISO or the rebuilt installation image.
+  if ! isCustomImage && hasImage "$BOOT"; then
+    if ! mv -f -- "$BOOT" "$ISO"; then
+      error "Failed to move ISO file from \"$BOOT\" to \"$ISO\" !"
+      return 50
+    fi
+  fi
+
+  return 0
+}
+
+getInstallFile() {
+
+  local file="${VERSION//\//}.iso"
+
+  if isURL "$VERSION"; then
+
+    file=$(basename "${VERSION%%[\?#]*}")
+    printf -v file '%b' "${file//%/\\x}"
+    file="${file//[!A-Za-z0-9._-]/_}"
+
+  else
+
+    local language
+    if ! language=$(getLanguage "$LANGUAGE" "culture"); then
+      error "Failed to determine the Windows language!"
+      return 62
+    fi
+
+    language="${language%%-*}"
+
+    if [ -n "$language" ] && [[ "${language,,}" != "en" ]]; then
+      file="${VERSION//\//}_${language,,}.iso"
+    fi
+
+  fi
+
+  printf '%s\n' "$file"
+  return 0
+}
+
+getBootFile() {
+
+  local file="$1"
+  local boot="$file"
+
+  if isURL "$VERSION"; then
+
+    if isCompressed "$VERSION" || [[ "${boot,,}" == *.esd ]]; then
+      boot="${boot%.*}"
+    fi
+
+    [ -n "$boot" ] || boot="download"
+    [[ "${boot,,}" == *.iso ]] || boot+=".iso"
+
+    case "${boot,,}" in
+      "windows."* )
+        error "The download filename \"$file\" uses the reserved \"windows.*\" namespace!"
+        return 58 ;;
+    esac
+
+  fi
+
+  printf '%s\n' "$boot"
+  return 0
+}
+
+cleanupStorage() {
+
+  local boot="$1"
+
   # Keep existing media at its persistent path until all storage cleanup has
   # completed successfully, so a later failure cannot strand it under $TMP.
-  if isCustomImage || ! hasImage "$BOOT"; then
-    if ! rm -f -- "$BOOT"; then
-      error "Failed to remove obsolete ISO file \"$BOOT\" !"
+  if isCustomImage || ! hasImage "$boot"; then
+    if ! rm -f -- "$boot"; then
+      error "Failed to remove obsolete ISO file \"$boot\" !"
       return 50
     fi
   fi
@@ -405,20 +473,6 @@ startInstall() {
   if ! find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete; then
     error "Failed to remove obsolete firmware files from \"$STORAGE\" !"
     return 50
-  fi
-
-  if ! isCustomImage && ! isURL "$VERSION"; then
-    checkMemory "$VERSION" || return 67
-    setDiskMinimum "$VERSION" || return 67
-  fi
-
-  # Work from the temporary directory so the persistent source path can
-  # later contain either the preserved ISO or the rebuilt installation image.
-  if ! isCustomImage && hasImage "$BOOT"; then
-    if ! mv -f -- "$BOOT" "$ISO"; then
-      error "Failed to move ISO file from \"$BOOT\" to \"$ISO\" !"
-      return 50
-    fi
   fi
 
   return 0
@@ -515,8 +569,19 @@ cleanupSource() {
 
 needsInstall() {
 
-  local iso="$1"
-  local previousBase="$2"
+  local iso previousBase
+
+  if isCustomImage; then
+    iso="$BOOT"
+  else
+    local file boot
+    file=$(getInstallFile) || exit $?
+    boot=$(getBootFile "$file") || exit $?
+
+    iso="$STORAGE/$boot"
+  fi
+
+  previousBase=$(readBase) || exit $?
 
   if [ -n "$previousBase" ] && [[ "${STORAGE,,}/${previousBase,,}" != "${iso,,}" ]]; then
 
