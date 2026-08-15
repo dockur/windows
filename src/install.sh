@@ -384,128 +384,6 @@ prepareWindowsImage() {
   return 0
 }
 
-getInstallFile() {
-
-  local file="${VERSION//\//}.iso"
-
-  if isURL "$VERSION"; then
-
-    file=$(basename "${VERSION%%[\?#]*}")
-    printf -v file '%b' "${file//%/\\x}"
-    file="${file//[!A-Za-z0-9._-]/_}"
-
-  else
-
-    local language
-    if ! language=$(getLanguage "$LANGUAGE" "culture"); then
-      error "Failed to determine the Windows language!"
-      return 62
-    fi
-
-    language="${language%%-*}"
-
-    if [ -n "$language" ] && [[ "${language,,}" != "en" ]]; then
-      file="${VERSION//\//}_${language,,}.iso"
-    fi
-
-  fi
-
-  printf '%s\n' "$file"
-  return 0
-}
-
-getBootFile() {
-
-  local file="$1"
-  local boot="$file"
-
-  if isURL "$VERSION"; then
-
-    if isCompressed "$VERSION" || [[ "${boot,,}" == *.esd ]]; then
-      boot="${boot%.*}"
-    fi
-
-    [ -n "$boot" ] || boot="download"
-    [[ "${boot,,}" == *.iso ]] || boot+=".iso"
-
-    case "${boot,,}" in
-      "windows."* )
-        error "The download filename \"$file\" uses the reserved \"windows.*\" namespace!"
-        return 58 ;;
-    esac
-
-  fi
-
-  printf '%s\n' "$boot"
-  return 0
-}
-
-setBoot() {
-
-  local file boot
-
-  if ! isCustomImage; then
-
-    file=$(getInstallFile) || return $?
-    boot=$(getBootFile "$file") || return $?
-
-    BOOT="$STORAGE/$boot"
-
-  fi
-
-  return 0
-}
-
-cleanupTemp() {
-
-  TMP="$STORAGE/tmp"
-
-  if ! rm -rf -- "$TMP"; then
-    error "Failed to remove directory \"$TMP\" !"
-    return 50
-  fi
-
-  local setup="$STORAGE/setup.img"
-
-  if ! rm -f -- "$setup" "${setup}.tmp"; then
-    error "Failed to remove setup image \"$setup\" !"
-    return 50
-  fi
-
-  return 0
-}
-
-cleanupStorage() {
-
-  local boot="$1"
-
-  # Keep existing media at its persistent path until all storage cleanup has
-  # completed successfully, so a later failure cannot strand it under $TMP.
-  if isCustomImage || ! hasImage "$boot"; then
-    if ! rm -f -- "$boot"; then
-      error "Failed to remove obsolete ISO file \"$boot\" !"
-      return 50
-    fi
-  fi
-
-  if ! find "$STORAGE" -maxdepth 1 -type f -iname 'data.*' -not -iname '*.iso' -delete; then
-    error "Failed to remove obsolete disk files from \"$STORAGE\" !"
-    return 50
-  fi
-
-  if ! find "$STORAGE" -maxdepth 1 -type f -iname 'windows.*' -not -iname '*.iso' -delete; then
-    error "Failed to remove obsolete Windows files from \"$STORAGE\" !"
-    return 50
-  fi
-
-  if ! find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete; then
-    error "Failed to remove obsolete firmware files from \"$STORAGE\" !"
-    return 50
-  fi
-
-  return 0
-}
-
 skipUnattended() {
 
   local dir="$1"
@@ -577,12 +455,120 @@ readBase() {
   return 0
 }
 
+setBoot() {
+
+  local file boot
+
+  if ! isCustomImage; then
+
+    file=$(getInstallFile) || return $?
+    boot=$(getBootFile "$file") || return $?
+
+    BOOT="$STORAGE/$boot"
+
+  fi
+
+  return 0
+}
+
+selectBoot() {
+
+  local iso="$1"
+  local previousBase="$2"
+
+  [ -n "$previousBase" ] || return 0
+  [[ "${STORAGE,,}/${previousBase,,}" == "${iso,,}" ]] || return 0
+
+  local system
+  if system=$(getSystemImage); then
+    BOOT="$system"
+  fi
+
+  return 0
+}
+
+getBootFile() {
+
+  local file="$1"
+  local boot="$file"
+
+  if isURL "$VERSION"; then
+
+    if isCompressed "$VERSION" || [[ "${boot,,}" == *.esd ]]; then
+      boot="${boot%.*}"
+    fi
+
+    [ -n "$boot" ] || boot="download"
+    [[ "${boot,,}" == *.iso ]] || boot+=".iso"
+
+    case "${boot,,}" in
+      "windows."* )
+        error "The download filename \"$file\" uses the reserved \"windows.*\" namespace!"
+        return 58 ;;
+    esac
+
+  fi
+
+  printf '%s\n' "$boot"
+  return 0
+}
+
+getInstallFile() {
+
+  local file="${VERSION//\//}.iso"
+
+  if isURL "$VERSION"; then
+
+    file=$(basename "${VERSION%%[\?#]*}")
+    printf -v file '%b' "${file//%/\\x}"
+    file="${file//[!A-Za-z0-9._-]/_}"
+
+  else
+
+    local language
+    if ! language=$(getLanguage "$LANGUAGE" "culture"); then
+      error "Failed to determine the Windows language!"
+      return 62
+    fi
+
+    language="${language%%-*}"
+
+    if [ -n "$language" ] && [[ "${language,,}" != "en" ]]; then
+      file="${VERSION//\//}_${language,,}.iso"
+    fi
+
+  fi
+
+  printf '%s\n' "$file"
+  return 0
+}
+
+cleanupTemp() {
+
+  TMP="$STORAGE/tmp"
+
+  if ! rm -rf -- "$TMP"; then
+    error "Failed to remove directory \"$TMP\" !"
+    return 50
+  fi
+
+  local setup="$STORAGE/setup.img"
+
+  if ! rm -f -- "$setup" "${setup}.tmp"; then
+    error "Failed to remove setup image \"$setup\" !"
+    return 50
+  fi
+
+  return 0
+}
+
 cleanupSource() {
 
   local previousBase="$1"
 
   [ -n "$previousBase" ] || return 0
   [[ "${previousBase,,}" == "windows."* ]] || return 0
+
   hasCompletedInstall || return 0
 
   # Older releases may have left a rebuilt custom ISO at its synthetic source
@@ -595,17 +581,32 @@ cleanupSource() {
   return 0
 }
 
-selectBoot() {
+cleanupStorage() {
 
-  local iso="$1"
-  local previousBase="$2"
-  local system
+  local boot="$1"
 
-  [ -n "$previousBase" ] || return 0
-  [[ "${STORAGE,,}/${previousBase,,}" == "${iso,,}" ]] || return 0
+  # Keep existing media at its persistent path until all storage cleanup has
+  # completed successfully, so a later failure cannot strand it under $TMP.
+  if isCustomImage || ! hasImage "$boot"; then
+    if ! rm -f -- "$boot"; then
+      error "Failed to remove obsolete ISO file \"$boot\" !"
+      return 50
+    fi
+  fi
 
-  if system=$(getSystemImage); then
-    BOOT="$system"
+  if ! find "$STORAGE" -maxdepth 1 -type f -iname 'data.*' -not -iname '*.iso' -delete; then
+    error "Failed to remove obsolete disk files from \"$STORAGE\" !"
+    return 50
+  fi
+
+  if ! find "$STORAGE" -maxdepth 1 -type f -iname 'windows.*' -not -iname '*.iso' -delete; then
+    error "Failed to remove obsolete Windows files from \"$STORAGE\" !"
+    return 50
+  fi
+
+  if ! find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete; then
+    error "Failed to remove obsolete firmware files from \"$STORAGE\" !"
+    return 50
   fi
 
   return 0
