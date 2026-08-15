@@ -711,10 +711,36 @@ appendRegistry() {
   local dir="$1"
   local driver="$2"
 
+  if [[ "$driver" == "2k" || "$driver" == "xp" ]]; then
+    {
+      printf '%s\n' \
+        '[HKEY_CURRENT_USER\Control Panel\Desktop]' \
+        '"MenuShowDelay"="100"' \
+        '' \
+        '[HKEY_CURRENT_USER\Control Panel\Desktop\WindowMetrics]' \
+        '"MinAnimate"="0"' \
+        '' \
+        '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer]' \
+        '"link"=hex:00,00,00,00' ''
+    } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
+  fi
+
+  if [[ "$driver" == "xp" ]]; then
+    {
+      printf '%s\n' \
+        '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce]' \
+        '"PowerPolicy"="Wscript.exe C:\\OEM\\NT5POWER.VBS"' ''
+    } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
+  fi
+
   if [[ "$driver" == "2k" ]]; then
     {
       printf '%s\n' \
-        '[HKEY_USERS\.DEFAULT\Software\Microsoft\Windows\CurrentVersion\Runonce]' '"^SetupICWDesktop"=-' ''
+        '[HKEY_USERS\.DEFAULT\Software\Microsoft\Windows\CurrentVersion\Runonce]' \
+        '"^SetupICWDesktop"=-' \
+        '' \
+        '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer]' \
+        '"NoActiveDesktop"=dword:00000001' ''
     } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
   fi
 
@@ -740,8 +766,10 @@ writeVBS() {
   local dir="$1"
   local username="$2"
   local shortcut="$3"
+  local driver="$4"
   local balloon="$dir/\$OEM\$/balloon.cmd"
   local balloonExe="$dir/\$OEM\$/\$1/Drivers/Balloon/blnsvr.exe"
+  local power="$dir/\$OEM\$/\$1/OEM/NT5POWER.VBS"
 
   # Locate the built-in Administrator by its RID 500 SID rather than its
   # localized display name, then rename that account to the requested username.
@@ -792,6 +820,32 @@ writeVBS() {
         'With oLink' '  .TargetPath = "\\host.lan\Data"' '  .Save' 'End With' 'Set oLink = Nothing' ''
     fi
   } | unix2dos > "$dir/\$OEM\$/install.vbs" || return 1
+
+  if [[ "$driver" == "xp" ]]; then
+    mkdir -p "$(dirname "$power")" || return 1
+
+    {
+      printf '%s\n' \
+        'On Error Resume Next' \
+        'Set Shell = WScript.CreateObject("WScript.Shell")' \
+        'Set FSO = WScript.CreateObject("Scripting.FileSystemObject")' \
+        'PowerCfg = Shell.ExpandEnvironmentStrings("%SystemRoot%\System32\POWERCFG.EXE")' \
+        '' \
+        'If FSO.FileExists(PowerCfg) Then' \
+        '  Err.Clear' \
+        '  Policy = Shell.RegRead("HKCU\Control Panel\PowerCfg\CurrentPowerPolicy")' \
+        '  If Err.Number = 0 Then' \
+        '    Cmd = Chr(34) & PowerCfg & Chr(34) & " /CHANGE " & Policy & " /NUMERICAL "' \
+        '    For Each Setting In Array("/monitor-timeout-ac", "/monitor-timeout-dc", "/disk-timeout-ac", "/disk-timeout-dc", "/standby-timeout-ac", "/standby-timeout-dc")' \
+        '      Shell.Run Cmd & Setting & " 0", 0, True' \
+        '    Next' \
+        '  End If' \
+        'End If' \
+        ''
+    } | unix2dos > "$power" || return 1
+  else
+    rm -f -- "$power" || return 1
+  fi
 
   if [ -f "$balloonExe" ]; then
     {
@@ -995,7 +1049,7 @@ prepareSIFInstall() {
   writeRegistry "$dir" "$shortcut" "$oem" "$regUsername" "$regPassword" || return 1
 
   appendRegistry "$dir" "$driver" || return 1
-  writeVBS "$dir" "$username" "$shortcut" || return 1
+  writeVBS "$dir" "$username" "$shortcut" "$driver" || return 1
 
   return 0
 }
