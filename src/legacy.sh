@@ -1169,6 +1169,62 @@ validateLegacyEncoding() {
   return 0
 }
 
+patchWinMeEmergencyKernel() {
+
+  local file="$1"
+  local desc="$2"
+
+  # The Windows Me Emergency Boot Disk kernel deliberately refuses to start
+  # from BIOS hard-disk 0x80. Keep the EBD real-mode kernel, but turn that one
+  # conditional jump into an unconditional jump so it can serve as the
+  # temporary hard-disk bootstrap used to launch Setup.
+  #
+  # Match the complete instruction boundary around the check and require one
+  # unique hit inside the four-sector MSLOAD prefix before changing anything:
+  #   cmp dl,80h ; jnz +09h ; lea ...
+  local pattern="80fa8075098d"
+  local hex prefix rest offset verify
+
+  hex=$(xxd -p -l 2048 "$file" | tr -d '\n') || {
+    error "Failed to inspect the $desc emergency boot kernel!"
+    return 1
+  }
+
+  if [[ "$hex" != *"$pattern"* ]]; then
+    error "Failed to locate the $desc emergency boot hard-disk check!"
+    return 1
+  fi
+
+  prefix="${hex%%$pattern*}"
+  rest="${hex#*$pattern}"
+
+  if [[ "$rest" == *"$pattern"* ]]; then
+    error "Found multiple $desc emergency boot hard-disk checks!"
+    return 1
+  fi
+
+  # The JNZ opcode (75h) is byte 3 of the matched instruction sequence.
+  offset=$(( ${#prefix} / 2 + 3 ))
+
+  printf '%b' '\xeb' |
+    dd of="$file" bs=1 seek="$offset" conv=notrunc status=none || {
+      error "Failed to patch the $desc emergency boot kernel!"
+      return 1
+    }
+
+  verify=$(dd if="$file" bs=1 skip="$offset" count=1 status=none | xxd -p) || {
+    error "Failed to verify the $desc emergency boot kernel!"
+    return 1
+  }
+
+  if [[ "$verify" != "eb" ]]; then
+    error "Failed to verify the $desc emergency boot kernel patch!"
+    return 1
+  fi
+
+  return 0
+}
+
 createWin9xSystemImage() {
 
   local dir="$1"
@@ -1176,6 +1232,7 @@ createWin9xSystemImage() {
   local desc="$3"
   local source="$4"
   local options="$5"
+  local id="$6"
 
   local temp="$TMP/win9x-image"
   local config="$temp/mtools.conf"
@@ -1463,18 +1520,26 @@ createWin9xSystemImage() {
   # or omit an extracted floppy image entirely. The setup cabinets are a much
   # better source for the DOS kernel files because Setup itself ships them.
   #
-  # The exact cabinet containing COMMAND.COM and WINBOOT.SYS varies between
-  # Windows 9x releases, so do not hardcode a cabinet number. Search every
-  # PRECOPY cabinet first and only fall back to the remaining CABs for unusual
-  # OEM/repacked media.
+  # The exact cabinet containing the DOS boot files varies between Windows 9x
+  # releases, so do not hardcode a cabinet number. Search every PRECOPY cabinet
+  # first and only fall back to the remaining CABs for unusual OEM/repacked
+  # media.
   #
-  # WINBOOT.SYS is the setup-media form of IO.SYS. Copy it as IO.SYS on the
-  # generated boot volume; COMMAND.COM keeps its original name. cabextract can
-  # follow multi-part cabinet sets automatically, which also covers a file that
-  # happens to span into the next cabinet.
+  # Windows 95/98 use the setup-media WINBOOT.SYS kernel together with
+  # COMMAND.COM. Windows Me uses its Emergency Boot Disk variants for this
+  # temporary real-mode setup bootstrap instead. In both cases publish the
+  # kernel as IO.SYS and the command interpreter as COMMAND.COM on the generated
+  # boot volume.
   local cab source_name target_name extracted
+  local kernel_source="WINBOOT.SYS"
+  local command_source="COMMAND.COM"
   local cab_temp="$temp/cab"
   local -a precopy_cabs=() other_cabs=()
+
+  if [[ "${id,,}" == "win9x"* ]]; then
+    kernel_source="WINBOOT.EBD"
+    command_source="COMMAND.EBD"
+  fi
 
   mapfile -d '' precopy_cabs < <(
     find "$dir" -type f -iname 'PRECOPY*.CAB' -print0
@@ -1506,10 +1571,14 @@ createWin9xSystemImage() {
     return 1
   fi
 
-  for source_name in COMMAND.COM WINBOOT.SYS; do
+  for source_name in "$command_source" "$kernel_source"; do
 
-    target_name="$source_name"
-    [[ "$source_name" == "WINBOOT.SYS" ]] && target_name="IO.SYS"
+    if [[ "$source_name" == "$kernel_source" ]]; then
+      target_name="IO.SYS"
+    else
+      target_name="COMMAND.COM"
+    fi
+
     extracted=""
 
     for cab in "${precopy_cabs[@]}" "${other_cabs[@]}"; do
@@ -1542,6 +1611,13 @@ createWin9xSystemImage() {
     fi
 
   done
+
+  if [[ "${id,,}" == "win9x"* ]]; then
+    if ! patchWinMeEmergencyKernel "$temp/IO.SYS" "$desc"; then
+      rm -f -- "$tmp"
+      return 1
+    fi
+  fi
 
   rm -rf -- "$cab_temp" || :
 
@@ -2581,7 +2657,7 @@ prepareWin9xInstall() {
   # on a particular El Torito floppy-image filename: some perfectly valid Win9x
   # discs expose a differently named boot image, while the required DOS system
   # files are already present in the installation cabinets.
-  if ! createWin9xSystemImage "$dir" "$TMP/windows.img" "$desc" "$folder" "$options"; then
+  if ! createWin9xSystemImage "$dir" "$TMP/windows.img" "$desc" "$folder" "$options" "$id"; then
     rm -rf "$drivers" || :
     return 1
   fi
