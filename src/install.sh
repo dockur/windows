@@ -62,6 +62,166 @@ startWindows() {
   return 0
 }
 
+needsInstall() {
+
+  local file boot iso
+
+  if isCustomImage; then
+    iso="$BOOT"
+  else
+    file=$(getInstallFile) || exit $?
+    boot=$(getBootFile "$file") || exit $?
+    iso="$STORAGE/$boot"
+  fi
+
+  local previousBase
+  previousBase=$(readBase) || exit $?
+
+  if [ -n "$previousBase" ] && [[ "${STORAGE,,}/${previousBase,,}" != "${iso,,}" ]]; then
+
+    # Removing custom installation media does not invalidate an installation
+    # that has already completed successfully.
+    if [[ "${previousBase,,}" == "windows."* ]] &&
+      [[ "${iso,,}" != "${STORAGE,,}/windows."* ]] && hasCompletedInstall; then
+      info "Detected that your custom .iso file was removed, will be ignored."
+      return 1
+    fi
+
+    return 0
+  fi
+
+  if [ -n "$previousBase" ] && hasSystemImage; then
+    return 1
+  fi
+
+  hasData && hasBootMarker && return 1
+
+  return 0
+}
+
+bootWindows() {
+
+  local file boot
+
+  if ! isCustomImage; then
+
+    file=$(getInstallFile) || exit $?
+    boot=$(getBootFile "$file") || exit $?
+
+    BOOT="$STORAGE/$boot"
+
+  fi
+
+  TMP="$STORAGE/tmp"
+
+  if ! rm -rf -- "$TMP"; then
+    error "Failed to remove directory \"$TMP\" !"
+    exit 50
+  fi
+
+  local setup="$STORAGE/setup.img"
+
+  if ! rm -f -- "$setup" "${setup}.tmp"; then
+    error "Failed to remove setup image \"$setup\" !"
+    exit 50
+  fi
+
+  local previousBase
+  previousBase=$(readBase) || exit $?
+
+  cleanupSource "$previousBase" || exit $?
+  selectBoot "$BOOT" "$previousBase" || exit $?
+
+  if ! restoreMachineState; then
+    error "Failed to restore the saved machine state!"
+    return 1
+  fi
+
+  if ! restoreBootMode; then
+    error "Failed to restore the saved boot mode!"
+    return 1
+  fi
+
+  if ! restoreMachine; then
+    error "Failed to restore the saved machine type!"
+    return 1
+  fi
+
+  if ! reserveSambaPorts; then
+    error "Failed to reserve Samba ports!"
+    return 1
+  fi
+
+  return 0
+}
+
+startInstall() {
+
+  local file boot
+
+  if ! isCustomImage; then
+
+    file=$(getInstallFile) || return $?
+    boot=$(getBootFile "$file") || return $?
+
+    BOOT="$STORAGE/$boot"
+
+  fi
+
+  TMP="$STORAGE/tmp"
+
+  if ! rm -rf -- "$TMP"; then
+    error "Failed to remove directory \"$TMP\" !"
+    return 50
+  fi
+
+  local setup="$STORAGE/setup.img"
+
+  if ! rm -f -- "$setup" "${setup}.tmp"; then
+    error "Failed to remove setup image \"$setup\" !"
+    return 50
+  fi
+
+  local previousBase
+  previousBase=$(readBase) || return $?
+
+  cleanupSource "$previousBase" || return $?
+  cleanupInstall "$BOOT" "$previousBase" || return $?
+
+  if ! makeDir "$TMP"; then
+    error "Failed to create directory \"$TMP\" !"
+    return 50
+  fi
+
+  if ! isCustomImage; then
+
+    if hasImage "$BOOT"; then
+      ISO="$TMP/$(basename "$BOOT")"
+    else
+      ISO="$TMP/$file"
+    fi
+
+  fi
+
+  cleanupStorage "$BOOT" || return $?
+
+  if ! isCustomImage && ! isURL "$VERSION"; then
+    checkMemory "$VERSION" || return 67
+    setDiskMinimum "$VERSION" || return 67
+  fi
+
+  # Work from the temporary directory so the persistent source path can
+  # later contain either the preserved ISO or the rebuilt installation image.
+  if ! isCustomImage && hasImage "$BOOT"; then
+    if ! mv -f -- "$BOOT" "$ISO"; then
+      error "Failed to move ISO file from \"$BOOT\" to \"$ISO\" !"
+      return 50
+    fi
+  fi
+
+  return 0
+}
+
 selectWindowsImage() {
 
   local iso="$1"
@@ -268,129 +428,6 @@ prepareWindowsImage() {
   return 0
 }
 
-bootWindows() {
-
-  if ! isCustomImage; then
-
-    local file boot
-    file=$(getInstallFile) || exit $?
-    boot=$(getBootFile "$file") || exit $?
-
-    BOOT="$STORAGE/$boot"
-
-  fi
-
-  TMP="$STORAGE/tmp"
-
-  if ! rm -rf -- "$TMP"; then
-    error "Failed to remove directory \"$TMP\" !"
-    exit 50
-  fi
-
-  local setup="$STORAGE/setup.img"
-
-  if ! rm -f -- "$setup" "${setup}.tmp"; then
-    error "Failed to remove setup image \"$setup\" !"
-    exit 50
-  fi
-
-  local previousBase
-  previousBase=$(readBase) || exit $?
-
-  cleanupSource "$previousBase" || exit $?
-
-  selectBoot "$BOOT" "$previousBase" || exit $?
-
-  if ! restoreMachineState; then
-    error "Failed to restore the saved machine state!"
-    return 1
-  fi
-
-  if ! restoreBootMode; then
-    error "Failed to restore the saved boot mode!"
-    return 1
-  fi
-
-  if ! restoreMachine; then
-    error "Failed to restore the saved machine type!"
-    return 1
-  fi
-
-  if ! reserveSambaPorts; then
-    error "Failed to reserve Samba ports!"
-    return 1
-  fi
-
-  return 0
-}
-
-startInstall() {
-
-  if ! isCustomImage; then
-
-    local file boot
-    file=$(getInstallFile) || return $?
-    boot=$(getBootFile "$file") || return $?
-
-    BOOT="$STORAGE/$boot"
-
-  fi
-
-  TMP="$STORAGE/tmp"
-
-  if ! rm -rf -- "$TMP"; then
-    error "Failed to remove directory \"$TMP\" !"
-    return 50
-  fi
-
-  local setup="$STORAGE/setup.img"
-
-  if ! rm -f -- "$setup" "${setup}.tmp"; then
-    error "Failed to remove setup image \"$setup\" !"
-    return 50
-  fi
-
-  local previousBase
-  previousBase=$(readBase) || return $?
-
-  cleanupSource "$previousBase" || return $?
-
-  cleanupInstall "$BOOT" "$previousBase" || return $?
-
-  if ! makeDir "$TMP"; then
-    error "Failed to create directory \"$TMP\" !"
-    return 50
-  fi
-
-  if ! isCustomImage; then
-
-    if hasImage "$BOOT"; then
-      ISO="$TMP/$(basename "$BOOT")"
-    else
-      ISO="$TMP/$file"
-    fi
-
-  fi
-
-  cleanupStorage "$BOOT" || return $?
-
-  if ! isCustomImage && ! isURL "$VERSION"; then
-    checkMemory "$VERSION" || return 67
-    setDiskMinimum "$VERSION" || return 67
-  fi
-
-  # Work from the temporary directory so the persistent source path can
-  # later contain either the preserved ISO or the rebuilt installation image.
-  if ! isCustomImage && hasImage "$BOOT"; then
-    if ! mv -f -- "$BOOT" "$ISO"; then
-      error "Failed to move ISO file from \"$BOOT\" to \"$ISO\" !"
-      return 50
-    fi
-  fi
-
-  return 0
-}
-
 getInstallFile() {
 
   local file="${VERSION//\//}.iso"
@@ -563,44 +600,6 @@ cleanupSource() {
     error "Failed to remove obsolete ISO file \"$STORAGE/$previousBase\" !"
     return 50
   fi
-
-  return 0
-}
-
-needsInstall() {
-
-  local iso previousBase
-
-  if isCustomImage; then
-    iso="$BOOT"
-  else
-    local file boot
-    file=$(getInstallFile) || exit $?
-    boot=$(getBootFile "$file") || exit $?
-
-    iso="$STORAGE/$boot"
-  fi
-
-  previousBase=$(readBase) || exit $?
-
-  if [ -n "$previousBase" ] && [[ "${STORAGE,,}/${previousBase,,}" != "${iso,,}" ]]; then
-
-    # Removing custom installation media does not invalidate an installation
-    # that has already completed successfully.
-    if [[ "${previousBase,,}" == "windows."* ]] &&
-      [[ "${iso,,}" != "${STORAGE,,}/windows."* ]] && hasCompletedInstall; then
-      info "Detected that your custom .iso file was removed, will be ignored."
-      return 1
-    fi
-
-    return 0
-  fi
-
-  if [ -n "$previousBase" ] && hasSystemImage; then
-    return 1
-  fi
-
-  hasData && hasBootMarker && return 1
 
   return 0
 }
