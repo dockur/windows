@@ -357,28 +357,16 @@ startInstall() {
   fi
 
   local previousBase
-  if ! previousBase=$(readState "base"); then
-    error "Failed to read the previous installation state!"
-    return 50
+  previousBase=$(readBase) || return $?
+
+  cleanupSource "$previousBase" || return $?
+
+  if ! needsInstall "$BOOT" "$previousBase"; then
+    selectBoot "$BOOT" "$previousBase" || return $?
+    return 1
   fi
 
-  local rc=0
-  skipInstall "$BOOT" "$previousBase" || rc=$?
-
-  (( rc > 1 )) && return "$rc"
-  (( rc )) || return 1
-
-  if [ -z "$previousBase" ] && hasInstalledDisk; then
-
-    if ! hasCompletedInstall && ! disabled "${SHUTDOWN:-}"; then
-      discardPrevious "" || return 50
-    else
-      if ! backupPrevious ""; then
-        warn "the backup was incomplete, continuing with installation..."
-      fi
-    fi
-
-  fi
+  cleanupInstall "$BOOT" "$previousBase" || return $?
 
   if ! makeDir "$TMP"; then
     error "Failed to create directory \"$TMP\" !"
@@ -477,100 +465,159 @@ skipUnattended() {
   return 1
 }
 
-skipInstall() {
+readBase() {
+
+  local previousBase
+  if ! previousBase=$(readState "base"); then
+    error "Failed to read the previous installation state!"
+    return 50
+  fi
+
+  # Older releases stored the original download name in windows.base. Current
+  # releases store an ISO source identity, so migrate legacy state once.
+  if [ -n "$previousBase" ] && [[ "${previousBase,,}" != *.iso ]]; then
+
+    if isCompressed "$previousBase" || [[ "${previousBase,,}" == *.esd ]]; then
+      previousBase="${previousBase%.*}"
+    fi
+
+    [ -n "$previousBase" ] || previousBase="download"
+    previousBase+=".iso"
+
+    if ! writeState "base" "$previousBase"; then
+      error "Failed to migrate the previous installation state!"
+      return 50
+    fi
+
+  fi
+
+  printf '%s\n' "$previousBase"
+  return 0
+}
+
+cleanupSource() {
+
+  local previousBase="$1"
+
+  [ -n "$previousBase" ] || return 0
+  [[ "${previousBase,,}" == "windows."* ]] || return 0
+  hasCompletedInstall || return 0
+
+  # Older releases may have left a rebuilt custom ISO at its synthetic source
+  # identity. A completed installation no longer needs that installation media.
+  if ! rm -f -- "$STORAGE/$previousBase"; then
+    error "Failed to remove obsolete ISO file \"$STORAGE/$previousBase\" !"
+    return 50
+  fi
+
+  return 0
+}
+
+needsInstall() {
+
+  local iso="$1"
+  local previousBase="$2"
+
+  if [ -n "$previousBase" ] && [[ "${STORAGE,,}/${previousBase,,}" != "${iso,,}" ]]; then
+
+    # Removing custom installation media does not invalidate an installation
+    # that has already completed successfully.
+    if [[ "${previousBase,,}" == "windows."* ]] &&
+      [[ "${iso,,}" != "${STORAGE,,}/windows."* ]] && hasCompletedInstall; then
+      info "Detected that your custom .iso file was removed, will be ignored."
+      return 1
+    fi
+
+    return 0
+  fi
+
+  if [ -n "$previousBase" ] && hasSystemImage; then
+    return 1
+  fi
+
+  hasData && hasBootMarker && return 1
+
+  return 0
+}
+
+selectBoot() {
 
   local iso="$1"
   local previousBase="$2"
   local system
 
-  if [ -n "$previousBase" ]; then
+  [ -n "$previousBase" ] || return 0
+  [[ "${STORAGE,,}/${previousBase,,}" == "${iso,,}" ]] || return 0
 
-    # Older releases stored the original download name in windows.base. Current
-    # releases store an ISO source identity, so migrate legacy state once.
-    if [[ "${previousBase,,}" != *.iso ]]; then
+  if system=$(getSystemImage); then
+    BOOT="$system"
+  fi
 
-      if isCompressed "$previousBase" || [[ "${previousBase,,}" == *.esd ]]; then
-        previousBase="${previousBase%.*}"
-      fi
+  return 0
+}
 
-      [ -n "$previousBase" ] || previousBase="download"
-      previousBase+=".iso"
+cleanupInstall() {
 
-      if ! writeState "base" "$previousBase"; then
-        error "Failed to migrate the previous installation state!"
-        return 50
-      fi
+  local iso="$1"
+  local previousBase="$2"
 
-    fi
-
-    # Older releases may have left a rebuilt custom ISO at its synthetic source
-    # identity. A completed installation no longer needs that installation media.
-    if [[ "${previousBase,,}" == "windows."* ]] && hasCompletedInstall; then
-
-      if ! rm -f -- "$STORAGE/$previousBase"; then
-        error "Failed to remove obsolete ISO file \"$STORAGE/$previousBase\" !"
-        return 50
-      fi
-
-    fi
+  if [ -n "$previousBase" ] && [[ "${STORAGE,,}/${previousBase,,}" != "${iso,,}" ]]; then
 
     # A changed source invalidates an unfinished installation. Back up an
     # existing installation, but discard stale media when no disk exists yet.
-    if [[ "${STORAGE,,}/${previousBase,,}" != "${iso,,}" ]]; then
+    if ! hasInstalledDisk; then
 
-      if ! hasInstalledDisk; then
-
-        if ! rm -f -- "$STORAGE/$previousBase"; then
-          error "Failed to remove ISO file \"$STORAGE/$previousBase\" !"
-          return 50
-        fi
-
-        return 1
-
+      if ! rm -f -- "$STORAGE/$previousBase"; then
+        error "Failed to remove ISO file \"$STORAGE/$previousBase\" !"
+        return 50
       fi
 
-      local method
-
-      if [[ "${iso,,}" == "${STORAGE,,}/windows."* ]]; then
-        method="your custom .iso file was changed"
-      else
-        if [[ "${previousBase,,}" != "windows."* ]]; then
-          method="the VERSION variable was changed"
-        else
-          method="your custom .iso file was removed"
-
-          if hasCompletedInstall; then
-            info "Detected that $method, will be ignored."
-            return 0
-          fi
-
-        fi
-      fi
-
-      if ! hasCompletedInstall && ! disabled "${SHUTDOWN:-}"; then
-        discardPrevious "$STORAGE/$previousBase" || return 50
-        return 1
-      fi
-
-      info "Detected that $method, a backup of your previous installation will be saved..."
-
-      if ! backupPrevious "$STORAGE/$previousBase"; then
-        warn "the backup was incomplete, continuing with installation..."
-      fi
-
-      return 1
+      return 0
 
     fi
-  fi
 
-  if [ -n "$previousBase" ] && system=$(getSystemImage); then
-    BOOT="$system"
+    local method
+
+    if [[ "${iso,,}" == "${STORAGE,,}/windows."* ]]; then
+      method="your custom .iso file was changed"
+    elif [[ "${previousBase,,}" != "windows."* ]]; then
+      method="the VERSION variable was changed"
+    else
+      method="your custom .iso file was removed"
+
+      if hasCompletedInstall; then
+        info "Detected that $method, will be ignored."
+        return 0
+      fi
+    fi
+
+    if ! hasCompletedInstall && ! disabled "${SHUTDOWN:-}"; then
+      discardPrevious "$STORAGE/$previousBase" || return 50
+      return 0
+    fi
+
+    info "Detected that $method, a backup of your previous installation will be saved..."
+
+    if ! backupPrevious "$STORAGE/$previousBase"; then
+      warn "the backup was incomplete, continuing with installation..."
+    fi
+
     return 0
   fi
 
-  hasData && hasBootMarker && return 0
+  if [ -z "$previousBase" ] && hasInstalledDisk; then
 
-  return 1
+    if ! hasCompletedInstall && ! disabled "${SHUTDOWN:-}"; then
+      discardPrevious "" || return 50
+    else
+      if ! backupPrevious ""; then
+        warn "the backup was incomplete, continuing with installation..."
+      fi
+    fi
+
+  fi
+
+  return 0
 }
 
 finishInstall() {
