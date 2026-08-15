@@ -382,6 +382,115 @@ prepareWindowsImage() {
   return 0
 }
 
+finishInstall() {
+
+  local iso="$1"
+  local aborted="$2"
+  local boot="$3"
+
+  local base secure=0
+
+  if ! hasImage "$iso"; then
+    error "Failed to find ISO file: $iso" && return 1
+  fi
+
+  if [[ "$iso" == "$STORAGE/"* ]]; then
+    if ! setOwner "$iso"; then
+      warn "failed to set the owner for \"$iso\" !"
+    fi
+  fi
+
+  local file="$STORAGE/windows.ver"
+  cp -f /etc/version "$file" || {
+    error "Failed to save the Windows installation version!"
+    return 1
+  }
+
+  if ! setOwner "$file"; then
+    warn "Failed to set the owner for \"$file\" !"
+  fi
+
+  if [[ "$boot" == "$STORAGE/"* ]]; then
+    if [[ "$aborted" != [Yy1]* ]] || ! isCustomImage; then
+
+      base=$(basename "$boot")
+      writeState "base" "$base" || {
+        error "Failed to save the Windows installation source!"
+        return 1
+      }
+
+    fi
+  fi
+
+  if isPlatform "x64"; then
+    if isLegacyBoot; then
+
+      writeState "mode" "$BOOT_MODE" || {
+        error "Failed to save the Windows boot mode!"
+        return 1
+      }
+
+    else
+
+      # Aborted Win11 installs boot without any answer file present,
+      # so enable Secure Boot and TPM to satisfy its hardware checks.
+      if enabled "$aborted" || enabled "$MANUAL"; then
+        [[ "${DETECTED,,}" == "win11"* ]] && secure=1
+      fi
+
+      if (( secure )); then
+
+        BOOT_MODE="windows_secure"
+        writeState "mode" "$BOOT_MODE" || {
+          error "Failed to save the Windows boot mode!"
+          return 1
+        }
+
+      fi
+
+    fi
+  fi
+
+  reserveSambaPorts || {
+    error "Failed to reserve Samba ports!"
+    return 1
+  }
+
+  if [ -n "$SYSTEM" ]; then
+
+    if [[ "$SYSTEM" == "$TMP/"* ]]; then
+
+      if ! mv -f -- "$SYSTEM" "$STORAGE/windows.img"; then
+        error "Failed to finalize the Windows system image!"
+        return 1
+      fi
+
+      BOOT="$STORAGE/windows.img"
+
+    else
+
+      if ! hasImage "$SYSTEM"; then
+        error "Failed to find the Windows system image!"
+        return 1
+      fi
+
+      writeState "system" "$SYSTEM" || {
+        error "Failed to save the Windows system image!"
+        return 1
+      }
+
+      BOOT="$SYSTEM"
+    fi
+  fi
+
+  if ! rm -rf -- "$TMP"; then
+    error "Failed to remove directory \"$TMP\" !"
+    return 1
+  fi
+
+  return 0
+}
+
 skipUnattended() {
 
   local dir="$1"
@@ -485,32 +594,6 @@ selectBoot() {
   return 0
 }
 
-getBootFile() {
-
-  local file="$1"
-  local boot="$file"
-
-  if isURL "$VERSION"; then
-
-    if isCompressed "$VERSION" || [[ "${boot,,}" == *.esd ]]; then
-      boot="${boot%.*}"
-    fi
-
-    [ -n "$boot" ] || boot="download"
-    [[ "${boot,,}" == *.iso ]] || boot+=".iso"
-
-    case "${boot,,}" in
-      "windows."* )
-        error "The download filename \"$file\" uses the reserved \"windows.*\" namespace!"
-        return 58 ;;
-    esac
-
-  fi
-
-  printf '%s\n' "$boot"
-  return 0
-}
-
 getInstallFile() {
 
   local file="${VERSION//\//}.iso"
@@ -538,6 +621,32 @@ getInstallFile() {
   fi
 
   printf '%s\n' "$file"
+  return 0
+}
+
+getBootFile() {
+
+  local file="$1"
+  local boot="$file"
+
+  if isURL "$VERSION"; then
+
+    if isCompressed "$VERSION" || [[ "${boot,,}" == *.esd ]]; then
+      boot="${boot%.*}"
+    fi
+
+    [ -n "$boot" ] || boot="download"
+    [[ "${boot,,}" == *.iso ]] || boot+=".iso"
+
+    case "${boot,,}" in
+      "windows."* )
+        error "The download filename \"$file\" uses the reserved \"windows.*\" namespace!"
+        return 58 ;;
+    esac
+
+  fi
+
+  printf '%s\n' "$boot"
   return 0
 }
 
@@ -674,110 +783,109 @@ cleanupInstall() {
   return 0
 }
 
-finishInstall() {
+discardPrevious() {
 
   local iso="$1"
-  local aborted="$2"
-  local boot="$3"
 
-  local base secure=0
-
-  if ! hasImage "$iso"; then
-    error "Failed to find ISO file: $iso" && return 1
-  fi
-
-  if [[ "$iso" == "$STORAGE/"* ]]; then
-    if ! setOwner "$iso"; then
-      warn "failed to set the owner for \"$iso\" !"
+  if [ -n "$iso" ] && [ -f "$iso" ]; then
+    if ! rm -f -- "$iso"; then
+      error "Failed to remove ISO file \"$iso\" !"
+      return 1
     fi
   fi
 
-  local file="$STORAGE/windows.ver"
-  cp -f /etc/version "$file" || {
-    error "Failed to save the Windows installation version!"
+  if ! find "$STORAGE" -maxdepth 1 -type f \
+    \( -iname 'data.*' -or -iname 'windows.*' -or -iname '*.rom' -or -iname '*.vars' \) \
+    -not -iname '*.iso' -delete; then
+    error "Failed to remove unfinished installation files from \"$STORAGE\" !"
     return 1
-  }
-
-  if ! setOwner "$file"; then
-    warn "Failed to set the owner for \"$file\" !"
   fi
 
-  if [[ "$boot" == "$STORAGE/"* ]]; then
-    if [[ "$aborted" != [Yy1]* ]] || ! isCustomImage; then
+  return 0
+}
 
-      base=$(basename "$boot")
-      writeState "base" "$base" || {
-        error "Failed to save the Windows installation source!"
-        return 1
-      }
+backupPrevious () {
 
-    fi
-  fi
+  local iso="$1"
 
-  if isPlatform "x64"; then
-    if isLegacyBoot; then
+  local count=1
+  local name="unknown"
+  local root="$STORAGE/backups"
+  local failed="" file previous
 
-      writeState "mode" "$BOOT_MODE" || {
-        error "Failed to save the Windows boot mode!"
-        return 1
-      }
+  previous=$(readState "base") || return 1
+  [ -n "$previous" ] && name="${previous%.*}"
 
-    else
-
-      # Aborted Win11 installs boot without any answer file present,
-      # so enable Secure Boot and TPM to satisfy its hardware checks.
-      if enabled "$aborted" || enabled "$MANUAL"; then
-        [[ "${DETECTED,,}" == "win11"* ]] && secure=1
-      fi
-
-      if (( secure )); then
-
-        BOOT_MODE="windows_secure"
-        writeState "mode" "$BOOT_MODE" || {
-          error "Failed to save the Windows boot mode!"
-          return 1
-        }
-
-      fi
-
-    fi
-  fi
-
-  reserveSambaPorts || {
-    error "Failed to reserve Samba ports!"
+  if ! makeDir "$root"; then
+    error "Failed to create directory \"$root\" !"
     return 1
-  }
+  fi
 
-  if [ -n "$SYSTEM" ]; then
+  local folder="$name"
+  local dir="$root/$folder"
 
-    if [[ "$SYSTEM" == "$TMP/"* ]]; then
+  while [ -d "$dir" ]; do
+    (( count++ ))
+    folder="${name}.${count}"
+    dir="$root/$folder"
+  done
 
-      if ! mv -f -- "$SYSTEM" "$STORAGE/windows.img"; then
-        error "Failed to finalize the Windows system image!"
-        return 1
-      fi
+  if ! makeDir "$dir"; then
+    error "Failed to create directory \"$dir\" !"
+    return 1
+  fi
 
-      BOOT="$STORAGE/windows.img"
-
-    else
-
-      if ! hasImage "$SYSTEM"; then
-        error "Failed to find the Windows system image!"
-        return 1
-      fi
-
-      writeState "system" "$SYSTEM" || {
-        error "Failed to save the Windows system image!"
-        return 1
-      }
-
-      BOOT="$SYSTEM"
+  if [ -f "$iso" ]; then
+    if ! mv -f -- "$iso" "$dir/"; then
+      error "Failed to move \"$iso\" to \"$dir\"."
+      failed="Y"
     fi
   fi
 
-  if ! rm -rf -- "$TMP"; then
-    error "Failed to remove directory \"$TMP\" !"
-    return 1
+  while IFS= read -r -d '' file; do
+    if ! mv -n -- "$file" "$dir/"; then
+      error "Failed to move \"$file\" to \"$dir\"."
+      failed="Y"
+    fi
+  done < <(
+    find "$STORAGE" -maxdepth 1 -type f \
+      \( -iname 'data.*' -or -iname 'windows.*' -or -iname '*.rom' -or -iname '*.vars' \) \
+      -not -iname '*.iso' -print0
+  )
+
+  # Wait for the process-substitution find command so enumeration failures are
+  # detected rather than being mistaken for a successful backup.
+  local find_pid=$!
+
+  if ! wait "$find_pid"; then
+    error "Failed to enumerate files in \"$STORAGE\"."
+    failed="Y"
+  fi
+
+  rmdir "$dir" 2>/dev/null || :
+  rmdir "$root" 2>/dev/null || :
+
+  [ -n "$failed" ] && return 1
+
+  return 0
+}
+
+detectCustom() {
+
+  CUSTOM=""
+
+  findFile "custom.iso" || return 1
+
+  if isCustomImage; then
+    DETECTED=""
+    return 0
+  fi
+
+  findFile "boot.iso" || return 1
+
+  if isCustomImage; then
+    DETECTED=""
+    return 0
   fi
 
   return 0
@@ -828,40 +936,6 @@ findFile() {
   # Encode the custom ISO size in a synthetic source identity so replacing a
   # bind-mounted ISO is detected as a different installation source.
   BOOT="$STORAGE/windows.$size.iso"
-
-  return 0
-}
-
-normalizeDetected() {
-
-  # Known catalog versions already provide the required image metadata.
-  if [ -z "$DETECTED" ] && ! isCustomImage && ! isURL "$VERSION"; then
-    DETECTED="$VERSION"
-  fi
-
-  DETECTED="${DETECTED/-enterprise-iot/-iot}"
-  DETECTED="${DETECTED/-enterprise-ltsc/-ltsc}"
-
-  return 0
-}
-
-detectCustom() {
-
-  CUSTOM=""
-
-  findFile "custom.iso" || return 1
-
-  if isCustomImage; then
-    DETECTED=""
-    return 0
-  fi
-
-  findFile "boot.iso" || return 1
-
-  if isCustomImage; then
-    DETECTED=""
-    return 0
-  fi
 
   return 0
 }
@@ -996,6 +1070,19 @@ removeImage() {
   return 0
 }
 
+normalizeDetected() {
+
+  # Known catalog versions already provide the required image metadata.
+  if [ -z "$DETECTED" ] && ! isCustomImage && ! isURL "$VERSION"; then
+    DETECTED="$VERSION"
+  fi
+
+  DETECTED="${DETECTED/-enterprise-iot/-iot}"
+  DETECTED="${DETECTED/-enterprise-ltsc/-ltsc}"
+
+  return 0
+}
+
 setImage() {
 
   local rc=0
@@ -1112,14 +1199,39 @@ prepareImage() {
   return 1
 }
 
-getOemFolder() {
+createOverlay() {
 
-  local folder="/oem"
+  local asset="$1"
+  local language="$2"
+  local stage="$3"
 
-  [ ! -d "$folder" ] && folder="/OEM"
-  [ ! -d "$folder" ] && folder="$STORAGE/oem"
-  [ ! -d "$folder" ] && folder="$STORAGE/OEM"
-  [ -d "$folder" ] && echo "$folder"
+  local msg="Creating overlay image..."
+  info "$msg" && html "$msg"
+
+  if ! rm -rf -- "$stage"; then
+    error "Failed to remove previous image files!"
+    return 1
+  fi
+
+  if ! mkdir -p "$stage"; then
+    error "Failed to create image staging directory!"
+    return 1
+  fi
+
+  if ! addDrivers "$stage" "$DETECTED"; then
+    error "Failed to include Windows drivers!"
+    return 1
+  fi
+
+  if ! addFolder "$stage" "overlay"; then
+    error "Failed to include OEM folder!"
+    return 1
+  fi
+
+  addAnswerFile "$asset" "$language" "$stage" || {
+    error "Failed to include the Windows answer file!"
+    return 1
+  }
 
   return 0
 }
@@ -1213,82 +1325,14 @@ addFolder() {
   return 0
 }
 
-addDriver() {
+getOemFolder() {
 
-  local id="$1"
-  local path="$2"
-  local target="$3"
-  local driver="$4"
+  local folder="/oem"
 
-  local folder desc
-
-  if [ -z "$id" ]; then
-    warn "no Windows version specified for \"$driver\" driver!"
-    return 1
-  fi
-
-  if ! folder=$(getDriverFolder "$id"); then
-    folder=""
-  fi
-
-  if [ -z "$folder" ]; then
-
-    desc=$(printVersion "$id" "$id")
-
-    if [[ "${id,,}" == *"x86"* ]]; then
-      warn "no \"$driver\" driver available for the 32-bit version of \"$desc\" !"
-    else
-      warn "no \"$driver\" driver available for \"$desc\" !"
-    fi
-
-    return 1
-  fi
-
-  [ -d "$path/$driver/$folder" ] || return 0
-
-  case "${id,,}" in
-    "winvista"* )
-      [[ "${driver,,}" == "viorng" ]] && return 0 ;;
-  esac
-
-  local dest="$path/$target/$driver"
-
-  mkdir -p "$dest" || return 1
-  cp -Lr "$path/$driver/$folder/." "$dest" || return 1
-
-  return 0
-}
-
-selectDrivers() {
-
-  local version="$1"
-  local drivers="$2"
-  local target="$3"
-
-  local driver_list=(
-    qxl
-    viofs
-    sriov
-    smbus
-    qxldod
-    viorng
-    viostor
-    viomem
-    NetKVM
-    Balloon
-    vioscsi
-    pvpanic
-    vioinput
-    viogpudo
-    vioserial
-    qemupciserial
-  )
-
-  local driver
-
-  for driver in "${driver_list[@]}"; do
-    addDriver "$version" "$drivers" "$target" "$driver" || return 1
-  done
+  [ ! -d "$folder" ] && folder="/OEM"
+  [ ! -d "$folder" ] && folder="$STORAGE/oem"
+  [ ! -d "$folder" ] && folder="$STORAGE/OEM"
+  [ -d "$folder" ] && echo "$folder"
 
   return 0
 }
@@ -1356,6 +1400,86 @@ addDrivers() {
   return 0
 }
 
+selectDrivers() {
+
+  local version="$1"
+  local drivers="$2"
+  local target="$3"
+
+  local driver_list=(
+    qxl
+    viofs
+    sriov
+    smbus
+    qxldod
+    viorng
+    viostor
+    viomem
+    NetKVM
+    Balloon
+    vioscsi
+    pvpanic
+    vioinput
+    viogpudo
+    vioserial
+    qemupciserial
+  )
+
+  local driver
+
+  for driver in "${driver_list[@]}"; do
+    addDriver "$version" "$drivers" "$target" "$driver" || return 1
+  done
+
+  return 0
+}
+
+addDriver() {
+
+  local id="$1"
+  local path="$2"
+  local target="$3"
+  local driver="$4"
+
+  local folder desc
+
+  if [ -z "$id" ]; then
+    warn "no Windows version specified for \"$driver\" driver!"
+    return 1
+  fi
+
+  if ! folder=$(getDriverFolder "$id"); then
+    folder=""
+  fi
+
+  if [ -z "$folder" ]; then
+
+    desc=$(printVersion "$id" "$id")
+
+    if [[ "${id,,}" == *"x86"* ]]; then
+      warn "no \"$driver\" driver available for the 32-bit version of \"$desc\" !"
+    else
+      warn "no \"$driver\" driver available for \"$desc\" !"
+    fi
+
+    return 1
+  fi
+
+  [ -d "$path/$driver/$folder" ] || return 0
+
+  case "${id,,}" in
+    "winvista"* )
+      [[ "${driver,,}" == "viorng" ]] && return 0 ;;
+  esac
+
+  local dest="$path/$target/$driver"
+
+  mkdir -p "$dest" || return 1
+  cp -Lr "$path/$driver/$folder/." "$dest" || return 1
+
+  return 0
+}
+
 normalizeBatch() {
 
   local file="$1"
@@ -1389,30 +1513,6 @@ normalizeBatch() {
     error "Failed to replace batch file: $file"
     return 1
   fi
-
-  return 0
-}
-
-reportBatchMatches() {
-
-  local file="$1"
-  local source="$2"
-  local pattern="$3"
-  local message="$4"
-  local suggestion="$5"
-
-  local matches line
-  matches=$(grep -Pin "$pattern" "$file" || true)
-
-  [ -n "$matches" ] || return 0
-
-  warn "$message in $source:"
-
-  while IFS= read -r line; do
-    printf '  %s\n' "$line" >&2
-  done <<< "$matches"
-
-  printf '  %s\n\n' "$suggestion" >&2
 
   return 0
 }
@@ -1525,139 +1625,26 @@ EOC
   return 0
 }
 
-createOverlay() {
+reportBatchMatches() {
 
-  local asset="$1"
-  local language="$2"
-  local stage="$3"
+  local file="$1"
+  local source="$2"
+  local pattern="$3"
+  local message="$4"
+  local suggestion="$5"
 
-  local msg="Creating overlay image..."
-  info "$msg" && html "$msg"
+  local matches line
+  matches=$(grep -Pin "$pattern" "$file" || true)
 
-  if ! rm -rf -- "$stage"; then
-    error "Failed to remove previous image files!"
-    return 1
-  fi
+  [ -n "$matches" ] || return 0
 
-  if ! mkdir -p "$stage"; then
-    error "Failed to create image staging directory!"
-    return 1
-  fi
+  warn "$message in $source:"
 
-  if ! addDrivers "$stage" "$DETECTED"; then
-    error "Failed to include Windows drivers!"
-    return 1
-  fi
+  while IFS= read -r line; do
+    printf '  %s\n' "$line" >&2
+  done <<< "$matches"
 
-  if ! addFolder "$stage" "overlay"; then
-    error "Failed to include OEM folder!"
-    return 1
-  fi
-
-  addAnswerFile "$asset" "$language" "$stage" || {
-    error "Failed to include the Windows answer file!"
-    return 1
-  }
-
-  return 0
-}
-
-reserveSambaPorts() {
-
-  disabled "${SAMBA:-Y}" && return 0
-  disabled "${NETWORK:-Y}" && return 0
-  enabled "${DHCP:-N}" && return 0
-
-  # NAT can fall back to user-mode networking after this point,
-  # so always protect the Samba listeners for non-DHCP networking.
-  HOST_PORTS="${HOST_PORTS:+$HOST_PORTS,}139/tcp,445/tcp"
-
-  return 0
-}
-
-discardPrevious() {
-
-  local iso="$1"
-
-  if [ -n "$iso" ] && [ -f "$iso" ]; then
-    if ! rm -f -- "$iso"; then
-      error "Failed to remove ISO file \"$iso\" !"
-      return 1
-    fi
-  fi
-
-  if ! find "$STORAGE" -maxdepth 1 -type f \
-    \( -iname 'data.*' -or -iname 'windows.*' -or -iname '*.rom' -or -iname '*.vars' \) \
-    -not -iname '*.iso' -delete; then
-    error "Failed to remove unfinished installation files from \"$STORAGE\" !"
-    return 1
-  fi
-
-  return 0
-}
-
-backupPrevious () {
-
-  local iso="$1"
-
-  local count=1
-  local name="unknown"
-  local root="$STORAGE/backups"
-  local failed="" file previous
-
-  previous=$(readState "base") || return 1
-  [ -n "$previous" ] && name="${previous%.*}"
-
-  if ! makeDir "$root"; then
-    error "Failed to create directory \"$root\" !"
-    return 1
-  fi
-
-  local folder="$name"
-  local dir="$root/$folder"
-
-  while [ -d "$dir" ]; do
-    (( count++ ))
-    folder="${name}.${count}"
-    dir="$root/$folder"
-  done
-
-  if ! makeDir "$dir"; then
-    error "Failed to create directory \"$dir\" !"
-    return 1
-  fi
-
-  if [ -f "$iso" ]; then
-    if ! mv -f -- "$iso" "$dir/"; then
-      error "Failed to move \"$iso\" to \"$dir\"."
-      failed="Y"
-    fi
-  fi
-
-  while IFS= read -r -d '' file; do
-    if ! mv -n -- "$file" "$dir/"; then
-      error "Failed to move \"$file\" to \"$dir\"."
-      failed="Y"
-    fi
-  done < <(
-    find "$STORAGE" -maxdepth 1 -type f \
-      \( -iname 'data.*' -or -iname 'windows.*' -or -iname '*.rom' -or -iname '*.vars' \) \
-      -not -iname '*.iso' -print0
-  )
-
-  # Wait for the process-substitution find command so enumeration failures are
-  # detected rather than being mistaken for a successful backup.
-  local find_pid=$!
-
-  if ! wait "$find_pid"; then
-    error "Failed to enumerate files in \"$STORAGE\"."
-    failed="Y"
-  fi
-
-  rmdir "$dir" 2>/dev/null || :
-  rmdir "$root" 2>/dev/null || :
-
-  [ -n "$failed" ] && return 1
+  printf '  %s\n\n' "$suggestion" >&2
 
   return 0
 }
@@ -1686,6 +1673,19 @@ setDiskMinimum() {
 
   return 0
 }
+reserveSambaPorts() {
+
+  disabled "${SAMBA:-Y}" && return 0
+  disabled "${NETWORK:-Y}" && return 0
+  enabled "${DHCP:-N}" && return 0
+
+  # NAT can fall back to user-mode networking after this point,
+  # so always protect the Samba listeners for non-DHCP networking.
+  HOST_PORTS="${HOST_PORTS:+$HOST_PORTS,}139/tcp,445/tcp"
+
+  return 0
+}
+
 
 startWindows
 
