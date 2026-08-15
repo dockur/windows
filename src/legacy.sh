@@ -1527,10 +1527,10 @@ createWin9xSystemImage() {
   # media.
   #
   # Windows 95/98 use the setup-media WINBOOT.SYS kernel together with
-  # COMMAND.COM. Windows Me uses its Emergency Boot Disk variants for this
-  # temporary real-mode setup bootstrap instead. In both cases publish the
-  # kernel as IO.SYS and the command interpreter as COMMAND.COM on the generated
-  # boot volume.
+  # COMMAND.COM. Windows Me uses its Emergency Boot Disk variants because the
+  # stock Me kernel skips the real-mode AUTOEXEC path required by VBMOUSE.EXE
+  # and the pre-Windows Patcher9x pass. The same patched Me pair is also staged
+  # into Setup below so hardware-detection reboots keep this handoff intact.
   local cab source_name target_name extracted
   local kernel_source="WINBOOT.SYS"
   local command_source="COMMAND.COM"
@@ -1655,6 +1655,28 @@ createWin9xSystemImage() {
     return 1
   fi
 
+  if [[ "${id,,}" == "win9x"* ]]; then
+
+    # Setup normally replaces the temporary Emergency Boot kernel with Me's
+    # stock WINBOOT.SYS, which bypasses AUTOEXEC.BAT on the following hardware
+    # detection reboot. Publish the exact same already-validated and Rufus-style
+    # patched EBD pair as loose Setup files. Win9x Setup prefers loose files over
+    # CAB members, so every reboot continues through AUTOEXEC.BAT before WIN.COM.
+    # Remove any differently-cased loose copies first because the Linux source
+    # tree is case-sensitive while the destination FAT filesystem is not.
+    if ! find "$setup_dir" -maxdepth 1 -type f \
+        \( -iname 'WINBOOT.SYS' -o -iname 'COMMAND.COM' \) -delete ||
+      ! cp -f -- "$temp/IO.SYS" "$setup_dir/WINBOOT.SYS" ||
+      ! cp -f -- "$temp/COMMAND.COM" "$setup_dir/COMMAND.COM" ||
+      ! cmp -s -- "$temp/IO.SYS" "$setup_dir/WINBOOT.SYS" ||
+      ! cmp -s -- "$temp/COMMAND.COM" "$setup_dir/COMMAND.COM"; then
+      rm -f -- "$tmp"
+      error "Failed to stage the Windows Me real-mode boot files for Setup!"
+      return 1
+    fi
+
+  fi
+
   entries=("$setup_dir")
   [ -d "$dir/OEM" ] && entries+=("$dir/OEM")
 
@@ -1693,9 +1715,13 @@ createWin9xSystemImage() {
       ':WINDOWS' \
       'IF NOT EXIST C:\WINDOWS\SYSTEM\KERNEL32.DLL GOTO STARTWIN' \
       'IF NOT EXIST C:\WINDOWS\SYSTEM\VMM32.VXD GOTO STARTWIN' \
+      'ECHO.' \
+      'ECHO Checking installed Windows files with Patcher9x...' \
       'CD C:\SETUP' \
-      'PATCH9X.EXE -auto -unselect creg C:\WINDOWS\SYSTEM >NUL' \
+      'PATCH9X.EXE -auto -unselect creg C:\WINDOWS\SYSTEM' \
       'CD C:\' \
+      'ECHO Patcher9x check complete.' \
+      'ECHO.' \
       ':STARTWIN' \
       'C:\WINDOWS\SYSTEM\VBMOUSE.EXE >NUL' \
       'C:\WINDOWS\WIN.COM' \
