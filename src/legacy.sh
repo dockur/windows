@@ -1567,9 +1567,6 @@ createWin9xSystemImage() {
       "C:\\${setup}\\SETUP.EXE $options" \
       'GOTO END' \
       ':WINDOWS' \
-      'IF NOT EXIST C:\WINDOWS\POST9X.FLG GOTO START' \
-      'REN C:\WINDOWS\POST9X.FLG POST9X.RDY' \
-      ':START' \
       'C:\WINDOWS\SYSTEM\VBMOUSE.EXE >NUL' \
       'C:\WINDOWS\WIN.COM' \
       ':END' \
@@ -1883,10 +1880,9 @@ stageWin9xPostSetup() {
     return 1
   }
 
-  # Stage a real file for Setup to copy into the Windows directory. The
-  # intermediate Win9x.FirstLogon phase renames it to POST9X.FLG, and the next
-  # AUTOEXEC pass promotes that to POST9X.RDY. This avoids relying on UpdateInis
-  # to create an arbitrary marker file.
+  # Stage a real marker file for Setup to copy into the Windows directory.
+  # Win9x.FirstLogon adds a WININIT.INI rename so the following reboot promotes
+  # POST9X.NEW to POST9X.RDY before the final desktop starts.
   if ! printf 'Ready\r\n' > "$marker"; then
     error "Failed to create post-desktop marker for $desc!"
     return 1
@@ -1932,7 +1928,9 @@ writeWin9xUserRegistry() {
     'HKCU,"Control Panel\Desktop","SmoothScroll",0x00010001,0' \
     'HKCU,"Control Panel\Desktop\WindowMetrics","MinAnimate",,"0"' \
     'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","HideFileExt",0x00010001,0' \
+    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer\CabinetState","Settings",1,0c,00,02,00,0a,01,00,00,60,00,00,00' \
     'HKCU,"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoActiveDesktop",0x00010001,1' \
+    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","ClassicShell",0x00010001,1' \
     'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer","link",1,00,00,00,00'
 
   if ! disabled "$AUTOLOGIN"; then
@@ -1960,9 +1958,9 @@ writeWin98Registry() {
 
   printf '%s\n' \
     '[Win98.Power]' \
-    'HKLM,"Software\Microsoft\Windows\CurrentVersion\Controls Folder\PowerCfg\PowerPolicies\0","Policies",0x00000001,01,00,00,00,02,00,00,00,02,00,00,00,02,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,02,00,00,00,04,00,00,c0,00,00,00,00,02,00,00,00,04,00,00,c0,00,00,00,00' \
-    'HKU,".DEFAULT\Control Panel\PowerCfg","CurrentPowerPolicy",,"0"' \
-    'HKU,".DEFAULT\Control Panel\PowerCfg\PowerPolicies\0","Policies",0x00000001,01,00,00,00,00,00,00,00,01,00,00,00,00,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,3c,00,00,00,32,32,8c,82,02,00,00,00,02,00,00,00,00,00,00,00,f0,3b,91,81,00,00,00,00,78,00,00,00,00,00,00,00,58,02,00,00,00,00,64,64,64,64,8c,82' \
+    'HKLM,"Software\Microsoft\Windows\CurrentVersion\Controls Folder\PowerCfg\PowerPolicies\3","Policies",0x00000001,01,00,00,00,02,00,00,00,02,00,00,00,02,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,02,00,00,00,04,00,00,c0,00,00,00,00,02,00,00,00,04,00,00,c0,00,00,00,00' \
+    'HKU,".DEFAULT\Control Panel\PowerCfg","CurrentPowerPolicy",,"3"' \
+    'HKU,".DEFAULT\Control Panel\PowerCfg\PowerPolicies\3","Policies",0x00000001,01,00,00,00,00,00,00,00,01,00,00,00,00,00,00,00,00,00,00,00,01,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,8c,82,02,00,00,00,02,00,00,00,00,00,00,00,f0,3b,91,81,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,64,64,64,64,8c,82' \
     '' \
     '[Win98.ActiveSetup]' \
     'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx",,,">Batch 98 - General Settings"' \
@@ -1976,8 +1974,8 @@ writeWin98Registry() {
     'DelFiles=Win98.Connect,Win98.ConnectAll' \
     '' \
     '[Win98.PowerUser]' \
-    'HKCU,"Control Panel\PowerCfg","CurrentPowerPolicy",,"0"' \
-    'HKCU,"Control Panel\PowerCfg\PowerPolicies\0","Policies",0x00000001,01,00,00,00,00,00,00,00,01,00,00,00,00,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,3c,00,00,00,32,32,8c,82,02,00,00,00,02,00,00,00,00,00,00,00,f0,3b,91,81,00,00,00,00,78,00,00,00,00,00,00,00,58,02,00,00,00,00,64,64,64,64,8c,82' \
+    'HKCU,"Control Panel\PowerCfg","CurrentPowerPolicy",,"3"' \
+    'HKCU,"Control Panel\PowerCfg\PowerPolicies\3","Policies",0x00000001,01,00,00,00,00,00,00,00,01,00,00,00,00,00,00,00,00,00,00,00,01,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,8c,82,02,00,00,00,02,00,00,00,00,00,00,00,f0,3b,91,81,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,64,64,64,64,8c,82' \
     '' \
     '[Win98.User]' \
     'HKCU,"Software\Microsoft\Internet Connection Wizard","Completed",0x00010001,1' \
@@ -2165,7 +2163,8 @@ writeWin9xAnswerFile() {
     fi
 
     if enabled "$post"; then
-      printf '%s\n' 'RenFiles=Win9x.PostArm'
+      [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
+      firstLogonUpdateInis+="Win9x.PostMarker"
     fi
 
     if enabled "$shortcut"; then
@@ -2222,8 +2221,8 @@ writeWin9xAnswerFile() {
         'POST9X.BAT' \
         'POST9X.NEW' \
         '' \
-        '[Win9x.PostArm]' \
-        'POST9X.FLG,POST9X.NEW'
+        '[Win9x.PostMarker]' \
+        '%10%\wininit.ini,Rename,,"C:\WINDOWS\POST9X.RDY=C:\WINDOWS\POST9X.NEW"'
     fi
 
     printf '%s\n' \
@@ -2240,9 +2239,7 @@ writeWin9xAnswerFile() {
     fi
 
     if enabled "$post"; then
-      printf '%s\n' \
-        'Win9x.Post=10' \
-        'Win9x.PostArm=10'
+      printf '%s\n' 'Win9x.Post=10'
     fi
 
     if [[ "${id,,}" == "win98"* ]]; then
