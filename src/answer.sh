@@ -242,25 +242,21 @@ generateAnswerFile() {
   local directory install_count install_to_count tmp
 
   if [ -n "$index" ] && [[ ! "$index" =~ ^[1-9][0-9]*$ ]]; then
-    enabled "$DEBUG" && echo "The $type answer file received an invalid image index: $index." >&2
     error "Invalid $type image index: $index"
     return 1
   fi
 
   directory=$(dirname "$target") || {
-    enabled "$DEBUG" && echo "dirname failed for the $type answer file target: $target" >&2
     error "Failed to determine the $type answer file directory!"
     return 1
   }
 
   if ! tmp=$(mktemp -p "$directory" ".${id}.XXXXXX"); then
-    enabled "$DEBUG" && echo "mktemp failed in the $type answer file directory: $directory" >&2
     error "Failed to create a temporary $type answer file!"
     return 1
   fi
 
   if ! cp -L -- "$source" "$tmp"; then
-    enabled "$DEBUG" && echo "Failed to copy the $type answer template from $source to $tmp." >&2
     rm -f "$tmp"
     error "Failed to generate $type answer file from $source!"
     return 1
@@ -269,7 +265,6 @@ generateAnswerFile() {
   # Keep empty ProductKey structures because some Windows installers require
   # the node to exist, but remove a concrete key that could select another edition.
   if ! removeEmbeddedProductKeys "$tmp"; then
-    enabled "$DEBUG" && echo "Failed while removing embedded product keys from the $type answer file." >&2
     rm -f "$tmp"
     error "Failed to remove the embedded $type product key!"
     return 1
@@ -278,7 +273,6 @@ generateAnswerFile() {
   if [ "$type" != "evaluation" ] || [ "$remove_selector" = "Y" ]; then
 
     if ! xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -d "$install_from" "$tmp"; then
-      enabled "$DEBUG" && echo "Failed to remove the existing InstallFrom selector from the $type answer file." >&2
       rm -f "$tmp"
       error "Failed to generate $type answer file from $source!"
       return 1
@@ -289,14 +283,12 @@ generateAnswerFile() {
   if [ -n "$index" ]; then
 
     install_count=$(getXMLNodeCount "$tmp" "$install_from") || {
-      enabled "$DEBUG" && echo "Failed to count InstallFrom selectors in the $type answer file." >&2
       rm -f "$tmp"
       error "Failed to read the $type image selector count!"
       return 1
     }
 
     if (( install_count > 1 )); then
-      enabled "$DEBUG" && echo "The $type answer file contains $install_count InstallFrom selectors." >&2
       rm -f "$tmp"
       error "Multiple $type image selectors were found!"
       return 1
@@ -307,14 +299,12 @@ generateAnswerFile() {
       # InstallFrom must be inserted before InstallTo to preserve the ordering
       # expected by the Windows Setup schema.
       install_to_count=$(getXMLNodeCount "$tmp" "$install_to") || {
-        enabled "$DEBUG" && echo "Failed to count InstallTo nodes in the $type answer file." >&2
         rm -f "$tmp"
         error "Failed to read the $type installation target count!"
         return 1
       }
 
       if [ "$install_to_count" != "1" ]; then
-        enabled "$DEBUG" && echo "The $type answer file contains $install_to_count InstallTo nodes instead of 1." >&2
         rm -f "$tmp"
         error "Failed to find a unique $type installation target!"
         return 1
@@ -330,7 +320,6 @@ generateAnswerFile() {
         -s "$os_image/*[local-name()='InstallFrom']/*[local-name()='MetaData']" -t elem -n 'Value' -v "$index" \
         "$tmp"; then
 
-        enabled "$DEBUG" && echo "xmlstarlet failed while inserting image index $index into the $type answer file." >&2
         rm -f "$tmp"
         error "Failed to select $type image index $index!"
         return 1
@@ -340,27 +329,24 @@ generateAnswerFile() {
   fi
 
   if ! markGeneratedXML "$tmp"; then
-    enabled "$DEBUG" && echo "Failed to mark the temporary $type answer file as generated: $tmp" >&2
     rm -f "$tmp"
     error "Failed to mark generated $type answer file!"
     return 1
   fi
 
   if ! validateGeneratedXML "$tmp"; then
-    enabled "$DEBUG" && echo "Validation failed for the generated $type answer file: $tmp" >&2
     rm -f "$tmp"
+    error "Validation failed for the generated $type answer file: $tmp"
     return 1
   fi
 
   if ! chmod 644 "$tmp"; then
-    enabled "$DEBUG" && echo "Failed to set mode 644 on the generated $type answer file: $tmp" >&2
     rm -f "$tmp"
     error "Failed to create $type answer file: $target"
     return 1
   fi
 
   if ! mv -f "$tmp" "$target"; then
-    enabled "$DEBUG" && echo "Failed to move the generated $type answer file from $tmp to $target." >&2
     rm -f "$tmp"
     error "Failed to create $type answer file: $target"
     return 1
