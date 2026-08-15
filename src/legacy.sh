@@ -2474,8 +2474,16 @@ writeWin9xAnswerFile() {
       "Org=\"$batchOrganization\"" \
       'Display=0' \
       '' \
-      '[System]' \
-      "DisplChar=16,$WIDTH,$HEIGHT" \
+      '[System]'
+
+    # Windows Me is intentionally left on its stock VGA setup path while its
+    # final-reboot display failure is isolated. Do not request the BoxV9x-only
+    # 16-bpp custom resolution when the custom display driver is not installed.
+    if [[ "${id,,}" != "win9x"* ]]; then
+      printf '%s\n' "DisplChar=16,$WIDTH,$HEIGHT"
+    fi
+
+    printf '%s\n' \
       "Monitor=\"$monitor\"" \
       '' \
       '[Network]' \
@@ -2514,7 +2522,10 @@ patchWin9xSetupFiles() {
     return 1
   fi
 
-  if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
+  # Keep Windows Me on the built-in VGA driver for this diagnostic path. Setup
+  # currently reaches its final reboot and then stalls with BoxV9x installed;
+  # Windows 95/98 retain the existing, tested BoxV9x integration unchanged.
+  if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
     stageWin9xDisplayDriver "$target" "$display" "$desc" || return 1
 
     if ! mv -f -- \
