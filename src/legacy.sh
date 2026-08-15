@@ -1169,62 +1169,6 @@ validateLegacyEncoding() {
   return 0
 }
 
-patchWinMeEmergencyKernel() {
-
-  local file="$1"
-  local desc="$2"
-
-  # The Windows Me Emergency Boot Disk kernel deliberately refuses to start
-  # from BIOS hard-disk 0x80. Keep the EBD real-mode kernel, but turn that one
-  # conditional jump into an unconditional jump so it can serve as the
-  # temporary hard-disk bootstrap used to launch Setup.
-  #
-  # Match the complete instruction boundary around the check and require one
-  # unique hit inside the four-sector MSLOAD prefix before changing anything:
-  #   cmp dl,80h ; jnz +09h ; lea ...
-  local pattern="80fa8075098d"
-  local hex prefix rest offset verify
-
-  hex=$(xxd -p -l 2048 "$file" | tr -d '\n') || {
-    error "Failed to inspect the $desc emergency boot kernel!"
-    return 1
-  }
-
-  if [[ "$hex" != *"$pattern"* ]]; then
-    error "Failed to locate the $desc emergency boot hard-disk check!"
-    return 1
-  fi
-
-  prefix="${hex%%$pattern*}"
-  rest="${hex#*$pattern}"
-
-  if [[ "$rest" == *"$pattern"* ]]; then
-    error "Found multiple $desc emergency boot hard-disk checks!"
-    return 1
-  fi
-
-  # The JNZ opcode (75h) is byte 3 of the matched instruction sequence.
-  offset=$(( ${#prefix} / 2 + 3 ))
-
-  printf '%b' '\xeb' |
-    dd of="$file" bs=1 seek="$offset" conv=notrunc status=none || {
-      error "Failed to patch the $desc emergency boot kernel!"
-      return 1
-    }
-
-  verify=$(dd if="$file" bs=1 skip="$offset" count=1 status=none | xxd -p) || {
-    error "Failed to verify the $desc emergency boot kernel!"
-    return 1
-  }
-
-  if [[ "$verify" != "eb" ]]; then
-    error "Failed to verify the $desc emergency boot kernel patch!"
-    return 1
-  fi
-
-  return 0
-}
-
 createWin9xSystemImage() {
 
   local dir="$1"
@@ -1526,10 +1470,11 @@ createWin9xSystemImage() {
   # media.
   #
   # Windows 95/98 use the setup-media WINBOOT.SYS kernel together with
-  # COMMAND.COM. Windows Me uses its Emergency Boot Disk variants for this
-  # temporary real-mode setup bootstrap instead. In both cases publish the
-  # kernel as IO.SYS and the command interpreter as COMMAND.COM on the generated
-  # boot volume.
+  # COMMAND.COM. For Windows Me, test the alternate WINBOOT.LF kernel while
+  # keeping the normal COMMAND.COM interpreter. This deliberately avoids the
+  # Emergency Boot Disk kernel and changes only the kernel selection for Me.
+  # In all cases publish the selected kernel as IO.SYS on the generated boot
+  # volume.
   local cab source_name target_name extracted
   local kernel_source="WINBOOT.SYS"
   local command_source="COMMAND.COM"
@@ -1537,8 +1482,7 @@ createWin9xSystemImage() {
   local -a precopy_cabs=() other_cabs=()
 
   if [[ "${id,,}" == "win9x"* ]]; then
-    kernel_source="WINBOOT.EBD"
-    command_source="COMMAND.EBD"
+    kernel_source="WINBOOT.LF"
   fi
 
   mapfile -d '' precopy_cabs < <(
@@ -1611,13 +1555,6 @@ createWin9xSystemImage() {
     fi
 
   done
-
-  if [[ "${id,,}" == "win9x"* ]]; then
-    if ! patchWinMeEmergencyKernel "$temp/IO.SYS" "$desc"; then
-      rm -f -- "$tmp"
-      return 1
-    fi
-  fi
 
   rm -rf -- "$cab_temp" || :
 
