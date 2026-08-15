@@ -125,6 +125,9 @@ For a complete graphical desktop experience, see [WinBoat](https://winboat.app),
   | `vu`   | Windows Vista Ultimate    | 3.0 GB   |
   | `xp`   | Windows XP Professional   | 0.6 GB   |
   | `2k`   | Windows 2000 Professional | 0.4 GB   | 
+  | `me`   | Windows ME                | 0.5 GB   |
+  | `98`   | Windows 98                | 0.7 GB   |
+  | `95`   | Windows 95                | 0.6 GB   |
   ||||  
   | `2025` | Windows Server 2025       | 7.6 GB   |
   | `2022` | Windows Server 2022       | 6.0 GB   |

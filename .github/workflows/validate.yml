@@ -206,6 +206,39 @@ jobs:
       minimum_build: ${{ matrix.minimum_build }}
       platform: ${{ matrix.platform }}
 
+  win9x:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows 95
+            version: "95"
+            expected_caption: Windows 95
+            minimum_build: 950
+            platform: x86
+
+          - name: Windows 98
+            version: "98"
+            expected_caption: Windows 98
+            minimum_build: 2222
+            platform: x86
+
+          - name: Windows ME
+            version: "me"
+            expected_caption: Windows Millennium
+            minimum_build: 3000
+            platform: x86
+
+    name: ${{ matrix.name }}
+    uses: ./.github/workflows/settings.yml
+    with:
+      name: ${{ matrix.name }}
+      version: ${{ matrix.version }}
+      callback: basic
+      expected_caption: ${{ matrix.expected_caption }}
+      minimum_build: ${{ matrix.minimum_build }}
+      platform: ${{ matrix.platform }}
+
   tiny:
     strategy:
       fail-fast: false
