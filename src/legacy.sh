@@ -2127,7 +2127,7 @@ writeWin9xAnswerFile() {
       'Version=3.0 (32-bit)' \
       '' \
       '[Version]' \
-      'Signature="$CHICAGO$"' \
+      "Signature=\"\$CHICAGO\$\"" \
       'AdvancedINF=2.5' \
       'LayoutFile=layout.inf' \
       '' \
