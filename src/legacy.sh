@@ -1169,6 +1169,63 @@ validateLegacyEncoding() {
   return 0
 }
 
+patchWinMeDosFile() {
+
+  local file="$1"
+  local name="$2"
+  local expected_size expected_offset expected_hex patch_offset
+  local actual_size actual_hex patched
+
+  case "$name" in
+    "IO.SYS" )
+      expected_size=116736
+      expected_offset=$((0x3a8))
+      expected_hex="fa8075098db69900"
+      patch_offset=$((0x3aa)) ;;
+
+    "COMMAND.COM" )
+      expected_size=93040
+      expected_offset=$((0x650c))
+      expected_hex="1580fa037510b80e"
+      patch_offset=$((0x6510)) ;;
+
+    * )
+      error "Unsupported Windows Me DOS bootstrap file: $name"
+      return 1 ;;
+  esac
+
+  actual_size=$(stat -c %s -- "$file") || return 1
+
+  if (( actual_size != expected_size )); then
+    error "Unexpected Windows Me $name size: $actual_size bytes (expected $expected_size)!"
+    return 1
+  fi
+
+  actual_hex=$(dd if="$file" bs=1 skip="$expected_offset" count=8 status=none | xxd -p -c 8) || return 1
+
+  if [[ "${actual_hex,,}" != "$expected_hex" ]]; then
+    error "Unexpected Windows Me $name bootstrap data at offset 0x$(printf '%X' "$expected_offset")!"
+    return 1
+  fi
+
+  # Windows Me deliberately disables its normal real-mode DOS path. Match the
+  # guarded patches used by Rufus: change the relevant conditional branch in
+  # each original Me DOS file to an unconditional jump.
+  if ! printf '\xeb' | dd of="$file" bs=1 seek="$patch_offset" count=1 conv=notrunc status=none; then
+    error "Failed to patch Windows Me $name!"
+    return 1
+  fi
+
+  patched=$(dd if="$file" bs=1 skip="$patch_offset" count=1 status=none | xxd -p) || return 1
+
+  if [[ "${patched,,}" != "eb" ]]; then
+    error "Failed to verify the Windows Me $name bootstrap patch!"
+    return 1
+  fi
+
+  return 0
+}
+
 createWin9xSystemImage() {
 
   local dir="$1"
@@ -1470,11 +1527,10 @@ createWin9xSystemImage() {
   # media.
   #
   # Windows 95/98 use the setup-media WINBOOT.SYS kernel together with
-  # COMMAND.COM. For Windows Me, test the alternate WINBOOT.LF kernel while
-  # keeping the normal COMMAND.COM interpreter. This deliberately avoids the
-  # Emergency Boot Disk kernel and changes only the kernel selection for Me.
-  # In all cases publish the selected kernel as IO.SYS on the generated boot
-  # volume.
+  # COMMAND.COM. Windows Me uses its Emergency Boot Disk variants for this
+  # temporary real-mode setup bootstrap instead. In both cases publish the
+  # kernel as IO.SYS and the command interpreter as COMMAND.COM on the generated
+  # boot volume.
   local cab source_name target_name extracted
   local kernel_source="WINBOOT.SYS"
   local command_source="COMMAND.COM"
@@ -1482,7 +1538,8 @@ createWin9xSystemImage() {
   local -a precopy_cabs=() other_cabs=()
 
   if [[ "${id,,}" == "win9x"* ]]; then
-    kernel_source="WINBOOT.LF"
+    kernel_source="WINBOOT.EBD"
+    command_source="COMMAND.EBD"
   fi
 
   mapfile -d '' precopy_cabs < <(
@@ -1557,6 +1614,14 @@ createWin9xSystemImage() {
   done
 
   rm -rf -- "$cab_temp" || :
+
+  if [[ "${id,,}" == "win9x"* ]]; then
+    if ! patchWinMeDosFile "$temp/IO.SYS" "IO.SYS" ||
+      ! patchWinMeDosFile "$temp/COMMAND.COM" "COMMAND.COM"; then
+      rm -f -- "$tmp"
+      return 1
+    fi
+  fi
 
   {
     printf '%s\n' \
