@@ -920,7 +920,11 @@ prepareLegacyInstall() {
   local desc="$4"
 
   case "${id,,}" in
-    "win9"* )
+    "win9x"* )
+      RAM_SIZE="256M"
+      info "Limiting Windows Me RAM to 256 MB for setup."
+      prepareWin9xInstall "$id" "$iso" "$dir" "$desc" || return 1 ;;
+    "win95"* | "win98"* )
       prepareWin9xInstall "$id" "$iso" "$dir" "$desc" || return 1 ;;
     "win2k"* )
       prepareSIFInstall "$iso" "$dir" "$desc" "2k" || return 1 ;;
@@ -1238,6 +1242,7 @@ createWin9xSystemImage() {
   local temp="$TMP/win9x-image"
   local config="$temp/mtools.conf"
   local autoexec="$temp/AUTOEXEC.BAT"
+  local configsys="$temp/CONFIG.SYS"
   local msdos="$temp/MSDOS.SYS"
   local tmp="${image}.tmp"
   local size=$((261 * 255 * 63 * 512))
@@ -1572,13 +1577,16 @@ createWin9xSystemImage() {
     return 1
   fi
 
-  for source_name in "$command_source" "$kernel_source"; do
+  local -a boot_sources=("$command_source" "$kernel_source")
+  [[ "${id,,}" == "win9x"* ]] && boot_sources+=("IFSHLP.SYS")
 
-    if [[ "$source_name" == "$kernel_source" ]]; then
-      target_name="IO.SYS"
-    else
-      target_name="COMMAND.COM"
-    fi
+  for source_name in "${boot_sources[@]}"; do
+
+    case "${source_name^^}" in
+      "${kernel_source^^}" ) target_name="IO.SYS" ;;
+      "IFSHLP.SYS" ) target_name="IFSHLP.SYS" ;;
+      * ) target_name="COMMAND.COM" ;;
+    esac
 
     extracted=""
 
@@ -1632,11 +1640,24 @@ createWin9xSystemImage() {
       ''
   } | unix2dos > "$msdos" || return 1
 
+  if [[ "${id,,}" == "win9x"* ]]; then
+    {
+      printf '%s\n' \
+        'DEVICE=C:\IFSHLP.SYS' \
+        ''
+    } | unix2dos > "$configsys" || return 1
+  fi
+
   # Copy the DOS system files before anything else. Older DOS boot sectors
   # expect IO.SYS and MSDOS.SYS at the start of a freshly formatted volume.
   MTOOLSRC="$config" mcopy "$temp/IO.SYS" w:/IO.SYS || return 1
   MTOOLSRC="$config" mcopy "$msdos" w:/MSDOS.SYS || return 1
   MTOOLSRC="$config" mcopy "$temp/COMMAND.COM" w:/COMMAND.COM || return 1
+
+  if [[ "${id,,}" == "win9x"* ]]; then
+    MTOOLSRC="$config" mcopy "$temp/IFSHLP.SYS" w:/IFSHLP.SYS || return 1
+    MTOOLSRC="$config" mcopy "$configsys" w:/CONFIG.SYS || return 1
+  fi
 
   MTOOLSRC="$config" mattrib +h +s +r w:/IO.SYS w:/MSDOS.SYS || return 1
 
@@ -1724,7 +1745,10 @@ createWin9xSystemImage() {
       'ECHO.' \
       ':STARTWIN' \
       'C:\WINDOWS\SYSTEM\VBMOUSE.EXE >NUL' \
+      'ECHO Starting Windows...' \
       'C:\WINDOWS\WIN.COM' \
+      'ECHO.' \
+      'ECHO ERROR: WIN.COM returned to DOS.' \
       ':END' \
       ''
   } | unix2dos > "$autoexec" || return 1
