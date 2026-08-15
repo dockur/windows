@@ -101,30 +101,8 @@ needsInstall() {
 
 bootWindows() {
 
-  local file boot
-
-  if ! isCustomImage; then
-
-    file=$(getInstallFile) || exit $?
-    boot=$(getBootFile "$file") || exit $?
-
-    BOOT="$STORAGE/$boot"
-
-  fi
-
-  TMP="$STORAGE/tmp"
-
-  if ! rm -rf -- "$TMP"; then
-    error "Failed to remove directory \"$TMP\" !"
-    exit 50
-  fi
-
-  local setup="$STORAGE/setup.img"
-
-  if ! rm -f -- "$setup" "${setup}.tmp"; then
-    error "Failed to remove setup image \"$setup\" !"
-    exit 50
-  fi
+  setBoot || exit $?
+  cleanupTemp || exit $?
 
   local previousBase
   previousBase=$(readBase) || exit $?
@@ -157,30 +135,8 @@ bootWindows() {
 
 startInstall() {
 
-  local file boot
-
-  if ! isCustomImage; then
-
-    file=$(getInstallFile) || return $?
-    boot=$(getBootFile "$file") || return $?
-
-    BOOT="$STORAGE/$boot"
-
-  fi
-
-  TMP="$STORAGE/tmp"
-
-  if ! rm -rf -- "$TMP"; then
-    error "Failed to remove directory \"$TMP\" !"
-    return 50
-  fi
-
-  local setup="$STORAGE/setup.img"
-
-  if ! rm -f -- "$setup" "${setup}.tmp"; then
-    error "Failed to remove setup image \"$setup\" !"
-    return 50
-  fi
+  setBoot || exit $?
+  cleanupTemp || exit $?
 
   local previousBase
   previousBase=$(readBase) || return $?
@@ -481,6 +437,41 @@ getBootFile() {
   fi
 
   printf '%s\n' "$boot"
+  return 0
+}
+
+setBoot() {
+
+  local file boot
+
+  if ! isCustomImage; then
+
+    file=$(getInstallFile) || return $?
+    boot=$(getBootFile "$file") || return $?
+
+    BOOT="$STORAGE/$boot"
+
+  fi
+
+  return 0
+}
+
+cleanupTemp() {
+
+  TMP="$STORAGE/tmp"
+
+  if ! rm -rf -- "$TMP"; then
+    error "Failed to remove directory \"$TMP\" !"
+    return 50
+  fi
+
+  local setup="$STORAGE/setup.img"
+
+  if ! rm -f -- "$setup" "${setup}.tmp"; then
+    error "Failed to remove setup image \"$setup\" !"
+    return 50
+  fi
+
   return 0
 }
 
