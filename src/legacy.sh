@@ -15,6 +15,7 @@ setMachine() {
       return 1
     fi
 
+    writeState "vga" "std" || return 1
     writeState "mode" "windows_legacy" || return 1
 
     case "${id,,}" in
@@ -23,18 +24,6 @@ setMachine() {
 
         writeState "old" "pc" || return 1
         writeState "type" "auto" || return 1
-
-    esac
-
-    case "${id,,}" in
-
-      "winnt4" )
-
-        writeState "vga" "cirrus" || return 1 ;;
-
-      * )
-
-        writeState "vga" "std" || return 1 ;;
 
     esac
 
