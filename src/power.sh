@@ -44,6 +44,7 @@ bootStatus() {
     if grep -Fq \
       -e "No bootable device." \
       -e "BOOTMGR is missing" \
+      -e "Replace the disk, and then press any key" \
       -e "The following file is missing or corrupted:" \
       -e "Type the name of the Windows loader" \
       <<< "$recent"; then
@@ -253,6 +254,7 @@ legacyBootReady() {
   grep -Fq "Loading FreeLoader..." <<< "$recent" && return 0
   grep -Fq "No bootable device." <<< "$recent" && return 1
   grep -Fq "BOOTMGR is missing" <<< "$recent" && return 1
+  grep -Fq "Replace the disk, and then press any key" <<< "$recent" && return 1
   grep -Fq "Boot failed: not a bootable disk" <<< "$recent" && return 1
   grep -Fq "Boot failed: could not read the boot disk" <<< "$recent" && return 1
   grep -Fq "The following file is missing or corrupted:" <<< "$recent" && return 1
