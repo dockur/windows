@@ -1130,7 +1130,6 @@ createWin9xSystemImage() {
   local desc="$3"
   local source="$4"
   local options="$5"
-  local mouse="$6"
 
   local temp="$TMP/win9x-image"
   local config="$temp/mtools.conf"
@@ -1552,12 +1551,6 @@ createWin9xSystemImage() {
     return 1
   fi
 
-  if ! MTOOLSRC="$config" mcopy -o "$mouse/VBMOUSE.EXE" w:/VBMOUSE.EXE; then
-    rm -f -- "$tmp"
-    error "Failed to add mouse integration to the $desc system image!"
-    return 1
-  fi
-
   {
     printf '%s\n' \
       '@ECHO OFF' \
@@ -1565,7 +1558,7 @@ createWin9xSystemImage() {
       'ECHO.' \
       'ECHO Starting Windows Setup, please wait...' \
       'ECHO.' \
-      'C:\VBMOUSE.EXE >NUL' \
+      "C:\\${setup}\\VBMOUSE.EXE >NUL" \
       "IF NOT EXIST C:\\${setup}\\XMSMMGR.EXE GOTO SETUP" \
       "IF NOT EXIST C:\\${setup}\\SMARTDRV.EXE GOTO SETUP" \
       "C:\\${setup}\\XMSMMGR.EXE >NUL" \
@@ -1577,7 +1570,7 @@ createWin9xSystemImage() {
       'IF NOT EXIST C:\WINDOWS\POST9X.FLG GOTO START' \
       'REN C:\WINDOWS\POST9X.FLG POST9X.RDY' \
       ':START' \
-      'C:\VBMOUSE.EXE >NUL' \
+      'C:\WINDOWS\SYSTEM\VBMOUSE.EXE >NUL' \
       'C:\WINDOWS\WIN.COM' \
       ':END' \
       ''
@@ -1809,12 +1802,64 @@ EOF
   return 0
 }
 
+stageWin9xQuiet() {
+
+  local dir="$1"
+  local desc="$2"
+  local target="$dir/QUIET.EXE"
+
+  if ! xxd -r -p > "$target" <<'EOF'
+4d5a000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000080000000
+0000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000
+504500004c010100000000000000000000000000e00002010b01010000020000
+0000000000000000001000000010000000100000000040000010000000020000
+0400000000000000040000000000000000200000000200000000000002000000
+0000100000100000000010000010000000000000100000000000000000000000
+8010000028000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000
+000000000000000000000000000000000000000000000000b810000010000000
+0000000000000000000000000000000000000000000000002e74657874000000
+0001000000100000000200000002000000000000000000000000000060000060
+0000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000
+ff15b810400089c6803e22751146803e007440803e22740346ebf346eb12803e
+007430803e207408803e09740346ebee803e207405803e09750346ebf3803e00
+74116a0056ff15bc1040006a00ff15c01040006a00ff15c01040000000000000
+0000000000000000000000000000000000000000000000000000000000000000
+a81000000000000000000000c8100000b8100000000000000000000000000000
+0000000000000000d6100000e8100000f210000000000000d6100000e8100000
+f2100000000000004b45524e454c33322e444c4c00000000476574436f6d6d61
+6e644c696e654100000057696e457865630000004578697450726f6365737300
+0000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000
+EOF
+  then
+    error "Failed to create QUIET.EXE in $desc setup files!"
+    return 1
+  fi
+
+  if [ "$(wc -c < "$target")" -ne 1024 ]; then
+    error "Failed to verify QUIET.EXE in $desc setup files!"
+    return 1
+  fi
+
+  return 0
+}
+
 stageWin9xPostSetup() {
 
   local dir="$1"
   local desc="$2"
-  local shortcut="$4"
-  local install="$5"
+  local install="$3"
   local target="$dir/POST9X.BAT"
 
   {
@@ -1824,21 +1869,10 @@ stageWin9xPostSetup() {
       'C:\WINDOWS\RUNDLL.EXE SETUPX.DLL,InstallHinfSection Win9x.PostDesktop 4 C:\WINDOWS\MSBATCH.INF' \
       'DEL C:\WINDOWS\POST9X.RDY >NUL'
 
-    if enabled "$shortcut"; then
-      printf '%s\n' \
-        'IF EXIST Z:\NUL GOTO SHARE_READY' \
-        'C:\WINDOWS\NET.EXE USE Z: \\host.lan\Data >NUL' \
-        ':SHARE_READY'
-    fi
-
-    if [ -n "$install" ]; then
-
-      if enabled "${LOG:-}"; then
-        printf '%s\n' 'CALL C:\OEM\install.bat > C:\OEM\install.log'
-      else
-        printf '%s\n' 'CALL C:\OEM\install.bat'
-      fi
-
+    if enabled "${LOG:-}"; then
+      printf '%s\n' 'CALL C:\OEM\install.bat > C:\OEM\install.log'
+    else
+      printf '%s\n' 'CALL C:\OEM\install.bat'
     fi
 
     printf '%s\n' ':END'
@@ -1890,6 +1924,11 @@ writeWin9xUserRegistry() {
     'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","HideFileExt",0x00010001,0' \
     'HKCU,"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoActiveDesktop",0x00010001,1' \
     'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer","link",1,00,00,00,00'
+
+  if ! disabled "$AUTOLOGIN"; then
+    printf '%s\n' \
+      'HKCU,"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoLogOff",0x00010001,1'
+  fi
 }
 
 writeWin9xMachineRegistry() {
@@ -1994,14 +2033,20 @@ writeWin9xAnswerFile() {
   local firstLogonDelFiles=""
   local firstLogonUpdateInis=""
   local post=""
+  local quiet=""
 
   if ! disabled "$AUTOLOGIN"; then
     copyFiles+=",Win9x.Password"
   fi
 
-  if [[ "${id,,}" == "win98"* ]] || enabled "$shortcut" || [ -n "$install" ]; then
+  if [ -n "$install" ]; then
     post="Y"
     copyFiles+=",Win9x.Post"
+  fi
+
+  if enabled "$shortcut"; then
+    quiet="Y"
+    copyFiles+=",Win9x.Quiet"
   fi
 
   if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
@@ -2046,6 +2091,10 @@ writeWin9xAnswerFile() {
       printf '%s\n' 'DOCKER.PWL=22'
     fi
 
+    if enabled "$quiet"; then
+      printf '%s\n' 'QUIET.EXE=22'
+    fi
+
     if enabled "$post"; then
       printf '%s\n' 'POST9X.BAT=22'
     fi
@@ -2063,6 +2112,11 @@ writeWin9xAnswerFile() {
       "HKLM,\"SOFTWARE\Microsoft\Windows\CurrentVersion\",\"RegisteredOwner\",,\"$batchUsername\"" \
       "HKLM,\"SOFTWARE\Microsoft\Windows\CurrentVersion\",\"RegisteredOrganization\",,\"$batchOrganization\"" \
       "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce\",\"Win9xSetup\",,\"%25%\\rundll.exe setupx.dll,InstallHinfSection Win9x.FirstLogon 4 %10%\\msbatch.inf\""
+
+    if enabled "$shortcut"; then
+      printf '%s\n' \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","SharedDrive",,"C:\WINDOWS\QUIET.EXE C:\WINDOWS\NET.EXE USE Z: \\host.lan\Data"'
+    fi
 
     if enabled "$post"; then
       printf '%s\n' \
@@ -2124,25 +2178,10 @@ writeWin9xAnswerFile() {
       printf '%s\n' \
         '' \
         '[Win9x.PostDesktop]' \
-        'DelReg=Win9x.PostDesktopRun'
-
-      if enabled "$shortcut"; then
-        printf '%s\n' 'AddReg=Win9x.Share'
-      fi
-
-      printf '%s\n' \
+        'DelReg=Win9x.PostDesktopRun' \
         '' \
         '[Win9x.PostDesktopRun]' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","PostSetup",,,'
-    fi
-
-    if enabled "$shortcut"; then
-      printf '%s\n' \
-        '' \
-        '[Win9x.Share]' \
-        'HKCU,"Network\Persistent\Z","RemotePath",,"\\host.lan\Data"' \
-        "HKCU,\"Network\\Persistent\\Z\",\"UserName\",,\"$batchUsername\"" \
-        'HKCU,"Network\Persistent\Z","ProviderName",,"Microsoft Network"'
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","PostSetup"'
     fi
 
     printf '%s\n' \
@@ -2156,6 +2195,13 @@ writeWin9xAnswerFile() {
         '' \
         '[Win9x.Password]' \
         'DOCKER.PWL'
+    fi
+
+    if enabled "$quiet"; then
+      printf '%s\n' \
+        '' \
+        '[Win9x.Quiet]' \
+        'QUIET.EXE'
     fi
 
     if enabled "$post"; then
@@ -2172,6 +2218,10 @@ writeWin9xAnswerFile() {
       '' \
       '[DestinationDirs]' \
       'Win9x.Mouse=11'
+
+    if enabled "$quiet"; then
+      printf '%s\n' 'Win9x.Quiet=10'
+    fi
 
     if ! disabled "$AUTOLOGIN"; then
       printf '%s\n' 'Win9x.Password=10'
@@ -2408,8 +2458,12 @@ prepareWin9xInstall() {
     stageWin9xPasswordList "$target" "$desc" || return 1
   fi
 
-  if [[ "${id,,}" == "win98"* ]] || enabled "$shortcut" || [ -n "$install" ]; then
-    stageWin9xPostSetup "$target" "$desc" "$id" "$shortcut" "$install" || return 1
+  if enabled "$shortcut"; then
+    stageWin9xQuiet "$target" "$desc" || return 1
+  fi
+
+  if [ -n "$install" ]; then
+    stageWin9xPostSetup "$target" "$desc" "$install" || return 1
   fi
 
   writeWin9xAnswerFile \
@@ -2457,7 +2511,7 @@ prepareWin9xInstall() {
   # on a particular El Torito floppy-image filename: some perfectly valid Win9x
   # discs expose a differently named boot image, while the required DOS system
   # files are already present in the installation cabinets.
-  if ! createWin9xSystemImage "$dir" "$TMP/windows.img" "$desc" "$folder" "$options" "$mouse"; then
+  if ! createWin9xSystemImage "$dir" "$TMP/windows.img" "$desc" "$folder" "$options"; then
     rm -rf "$drivers" || :
     return 1
   fi
