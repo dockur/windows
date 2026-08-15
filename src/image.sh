@@ -464,8 +464,8 @@ extractImage() {
 
   else
 
-    # Locate the first root-level ISO in the downloaded archive
-    if ! file=$(find "$archive" -maxdepth 1 -type f -iname "*.iso" -print -quit); then
+    # Locate the first ISO anywhere in the downloaded archive
+    if ! file=$(find "$archive" -type f -iname "*.iso" -print -quit); then
       error "Failed to search for a nested ISO in the extracted archive!"
       return 1
     fi
