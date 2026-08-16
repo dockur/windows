@@ -41,7 +41,7 @@ An empty default means the variable is unset and its value is determined automat
 |---|---|---|
 | `DISK_SIZE` | `64G` | Size of the primary disk. |
 | `DISK_FMT` | `raw` | Disk image format: `raw` or `qcow2`. |
-| `DISK_TYPE` | `scsi` | Disk device type, such as `sata`, `scsi`, `nvme`, or `blk`. |
+| `DISK_TYPE` | `scsi` | Disk device type, such as `ide`, `scsi`, or `blk`. |
 | `DISK_CACHE` | `none` | Disk cache mode, such as `none` or `writeback`. |
 | `DISK_IO` | `native` | Disk I/O mode, such as `native`, `threads`, or `io_uring`. |
 | `DISK_DISCARD` | `unmap` | Discard/TRIM mode for the primary disk. |
@@ -79,7 +79,6 @@ An empty default means the variable is unset and its value is determined automat
 | Variable | Default | Description |
 |---|---|---|
 | `DISPLAY` | `web` | Display backend, such as `web`, `vnc`, `disabled`, or `none`. |
-| `LOSSY` | `N` | Enables lossy VNC compression to reduce bandwidth usage. |
 | `VGA` | `virtio` | QEMU video adapter model. |
 | `WIDTH` | `1280` | Display width configured in Windows. |
 | `HEIGHT` | `720` | Display height configured in Windows. |
@@ -93,8 +92,8 @@ An empty default means the variable is unset and its value is determined automat
 | `WEB` | `Y` | Enables the web interface. |
 | `WEB_PORT` | `8006` | Port for the web interface. |
 | `VNC_PORT` | `5900` | Port for the VNC server. |
+| `LOSSY` | `N` | Enables lossy VNC compression to reduce bandwidth usage. |
 | `AUDIO` | `N` | Streams guest audio to the web viewer. |
-| `SOUND` | `intel-hda` | QEMU audio device used by the web viewer. |
 | `PROTECT` | `N` | Enables password protection for the web interface. |
 
 ## 📁 File Sharing
@@ -112,9 +111,11 @@ An empty default means the variable is unset and its value is determined automat
 |---|---|---|
 | `MACHINE` | `q35` | QEMU machine type. |
 | `PCI_BUS` | `pcie.0` | Overrides the PCI bus used for attached devices. |
+| `RNG` | `Y` | Adds the Virtio RNG device to the machine. |
 | `UUID` |  | UUID assigned to Windows. |
 | `HPET` | `off` | QEMU HPET timer setting. |
 | `VMPORT` | `off` | QEMU VMware port setting. |
+| `SOUND` | `intel-hda` | QEMU audio device used when `AUDIO=Y`. |
 | `SM_BIOS` |  | Additional arguments passed to QEMU’s `-smbios` option. |
 | `ARGUMENTS` |  | Additional raw arguments appended to the QEMU command line. |
 
