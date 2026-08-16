@@ -617,6 +617,7 @@ writeSIF() {
       '' \
       '[TerminalServices]' \
       '    AllowConnections=1' \
+      '    NoHelpPopup=1' \
       ''
   } | unix2dos > "$target/WINNT.SIF" || return 1
 
