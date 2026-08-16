@@ -2802,6 +2802,7 @@ writeWin9xAnswerFile() {
       'DevicePath=1' \
       'NoPrompt2Boot=1' \
       'TimeZone=Pacific' \
+      'System=0' \
       '' \
       '[OptionalComponents]'
 
@@ -2823,6 +2824,8 @@ writeWin9xAnswerFile() {
       'Display=0' \
       '' \
       '[System]' \
+      "Locale=L0409" \
+      "SelectedKeyboard=KEYBOARD_00000409" \
       "DisplChar=16,$WIDTH,$HEIGHT" \
       "Monitor=\"$monitor\"" \
       '' \
