@@ -1441,86 +1441,6 @@ stageWin9xFinalAutoexec() {
   return 0
 }
 
-stageWinMeFinalBootFiles() {
-
-  local dir="$1"
-  local target="$2"
-  local desc="$3"
-
-  local temp="$TMP/winme-final-boot"
-  local cbs winboot size signature
-
-  rm -rf -- "$temp" || return 1
-  mkdir -p "$temp/nettools" || return 1
-
-  cbs=$(find "$dir" -type f -ipath '*/TOOLS/NETTOOLS/FAC/CBS.DTA' -print -quit) || return 1
-
-  if [ -z "$cbs" ]; then
-    rm -rf -- "$temp" || :
-    error "Failed to locate the Windows Me NETTOOLS CBS.DTA archive!"
-    return 1
-  fi
-
-  if ! cabextract -q -L -F 'WINBOOT.SYS' -d "$temp/nettools" "$cbs" >/dev/null 2>&1; then
-    rm -rf -- "$temp" || :
-    error "Failed to extract the Windows Me NETTOOLS WINBOOT.SYS!"
-    return 1
-  fi
-
-  winboot=$(find "$temp/nettools" -type f -iname 'WINBOOT.SYS' -print -quit) || return 1
-
-  if [ -z "$winboot" ] || [ ! -s "$winboot" ]; then
-    rm -rf -- "$temp" || :
-    error "Failed to locate the extracted Windows Me NETTOOLS WINBOOT.SYS!"
-    return 1
-  fi
-
-  size=$(stat -c %s -- "$winboot") || return 1
-  signature=$(dd if="$winboot" bs=1 count=2 status=none | od -An -tx1 | tr -d ' \n') || return 1
-
-  if (( size != 118784 )) || [[ "${signature,,}" != "4d5a" ]]; then
-    rm -rf -- "$temp" || :
-    error "Unexpected Windows Me NETTOOLS WINBOOT.SYS format!"
-    return 1
-  fi
-
-  if ! cp -f -- "$winboot" "$target/MEIO.SYS" ||
-    ! cmp -s -- "$winboot" "$target/MEIO.SYS"; then
-    rm -rf -- "$temp" || :
-    error "Failed to stage the final Windows Me IO.SYS source file!"
-    return 1
-  fi
-
-  if ! extractWin9xCabFile "$target" 'COMMAND.COM' "$target/MECOM.COM" "$desc" ||
-    ! extractWin9xCabFile "$target" 'REGENV32.EXE' "$target/MEREGENV.EXE" "$desc"; then
-    rm -rf -- "$temp" || :
-    return 1
-  fi
-
-  # Enable the normal real-mode path in the localized Windows Me COMMAND.COM.
-  # These are the three guarded substitutions used by the established Me DOS
-  # mode patch; do not include its unrelated hidden-file display tweaks.
-  if ! patchWinMeBinaryPatterns "$target/MECOM.COM" 'Windows Me COMMAND.COM' \
-    '7510b80e' 'eb10b80e' \
-    '0300750b8b' '0300eb0b8b' \
-    '128b1608' '448b1608'; then
-    rm -rf -- "$temp" || :
-    return 1
-  fi
-
-  # REGENV32 otherwise rewrites CONFIG.SYS and AUTOEXEC.BAT on every restart.
-  # Redirect those writes to .WIN files so our real-mode startup remains intact.
-  if ! patchWinMeBinaryPatterns "$target/MEREGENV.EXE" 'Windows Me REGENV32.EXE' \
-    '434f4e4649472e535953' '434f4e4649472e57494e' \
-    '4155544f455845432e424154' '4155544f455845432e57494e'; then
-    rm -rf -- "$temp" || :
-    return 1
-  fi
-
-  rm -rf -- "$temp" || :
-  return 0
-}
-
 createWin9xSystemImage() {
 
   local dir="$1"
@@ -2559,12 +2479,6 @@ writeWin9xAnswerFile() {
   # reboots continue exactly as before this change.
   copyFiles+=",Win9x.PatcherEnable"
 
-  if [[ "${id,,}" == "win9x"* ]]; then
-    # These are copied during MSBATCH [Install], immediately before Me's
-    # [Restart] phase promotes COMMAND.NEW/WINBOOT.NEW into the live boot files.
-    copyFiles+=",WinMe.System,WinMe.Windows,WinMe.Boot"
-  fi
-
   # Restore the exact same final AUTOEXEC.BAT for Win95, Win98 and Me. It is
   # intentionally last so Setup cannot leave any release-specific startup edits.
   copyFiles+=",Win9x.Autoexec"
@@ -2590,13 +2504,6 @@ writeWin9xAnswerFile() {
       'VBMOUSE.DRV=22' \
       'PATCH9X.NEW=22' \
       'W9XAUTO.BAT=22'
-
-    if [[ "${id,,}" == "win9x"* ]]; then
-      printf '%s\n' \
-        'MEIO.SYS=22' \
-        'MECOM.COM=22' \
-        'MEREGENV.EXE=22'
-    fi
 
     if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
       printf '%s\n' 'WIN9XDMA.EXE=22'
@@ -2725,20 +2632,6 @@ writeWin9xAnswerFile() {
       '[Win9x.Autoexec]' \
       'AUTOEXEC.BAT,W9XAUTO.BAT,,4'
 
-    if [[ "${id,,}" == "win9x"* ]]; then
-      printf '%s\n' \
-        '' \
-        '[WinMe.System]' \
-        'REGENV32.EXE,MEREGENV.EXE,,4' \
-        '' \
-        '[WinMe.Windows]' \
-        'COMMAND.COM,MECOM.COM,,4' \
-        '' \
-        '[WinMe.Boot]' \
-        'COMMAND.NEW,MECOM.COM,,4' \
-        'WINBOOT.NEW,MEIO.SYS,,4'
-    fi
-
     if ! disabled "$AUTOLOGIN"; then
       printf '%s\n' \
         '' \
@@ -2782,13 +2675,6 @@ writeWin9xAnswerFile() {
       'Win9x.ConnectAll=10,alluse~1\desktop' \
       'Win9x.OnlineServices=10,Desktop\Online~1' \
       'Win9x.QuickLaunch=10,Applic~1\Micros~1\Intern~1\QuickL~1'
-
-    if [[ "${id,,}" == "win9x"* ]]; then
-      printf '%s\n' \
-        'WinMe.System=11' \
-        'WinMe.Windows=10' \
-        'WinMe.Boot=30'
-    fi
 
     if enabled "$quiet"; then
       printf '%s\n' 'Win9x.Quiet=10'
@@ -3100,13 +2986,6 @@ prepareWin9xInstall() {
   if ! stageWin9xFinalAutoexec "$target" "$setup" "$options" "$desc" "$id"; then
     rm -rf "$drivers" || :
     return 1
-  fi
-
-  if [[ "${id,,}" == "win9x"* ]]; then
-    if ! stageWinMeFinalBootFiles "$dir" "$target" "$desc"; then
-      rm -rf "$drivers" || :
-      return 1
-    fi
   fi
 
   # Do not copy optical-media AutoRun metadata onto the system disk; Explorer
