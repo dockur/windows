@@ -1521,68 +1521,42 @@ stageWinMeFinalBootFiles() {
   return 0
 }
 
-stageWinMeBootCounter() {
+stageWinMeBootActivation() {
 
   local dir="$1"
   local desc="$2"
   local target="$dir/MEBOOT.BAT"
 
-  # RunServices invokes this once per protected-mode Windows boot. The first
-  # successful invocation proves that Setup reached Windows services; activate
-  # the alternate real-mode boot files immediately so the next reboot does not
-  # depend on another stock Windows Me protected-mode startup succeeding.
+  # RunServices invokes this during the first protected-mode Windows boot.
+  # Activate the alternate real-mode boot files immediately so the next reboot
+  # does not depend on another stock Windows Me protected-mode startup.
   {
     printf '%s\n' \
       '@ECHO OFF' \
       'IF EXIST C:\SETUP\MEBOOT.RUN GOTO END' \
-      'IF EXIST C:\SETUP\MEBOOT1.RUN GOTO RETRY' \
-      'ECHO PASS 1>>C:\SETUP\MEBOOT.LOG' \
-      'ECHO Windows Me boot activation pass 1' \
-      'ECHO [WinMe] boot pass 1 > COM1' \
-      'ECHO 1>C:\SETUP\MEBOOT1.RUN' \
-      'GOTO ACTIVATE' \
-      ':RETRY' \
-      'ECHO RETRY>>C:\SETUP\MEBOOT.LOG' \
-      'ECHO Windows Me boot activation retry' \
-      'ECHO [WinMe] boot activation retry > COM1' \
-      ':ACTIVATE' \
-      'IF NOT EXIST C:\SETUP\MEREGENV.EXE GOTO MISSING' \
-      'IF NOT EXIST C:\SETUP\MECOM.COM GOTO MISSING' \
-      'IF NOT EXIST C:\SETUP\MEIO.SYS GOTO MISSING' \
-      'IF NOT EXIST C:\WINDOWS\COMMAND\ATTRIB.EXE GOTO MISSING' \
-      'ECHO ACTIVATING>>C:\SETUP\MEBOOT.LOG' \
+      'IF NOT EXIST C:\SETUP\MEREGENV.EXE GOTO END' \
+      'IF NOT EXIST C:\SETUP\MECOM.COM GOTO END' \
+      'IF NOT EXIST C:\SETUP\MEIO.SYS GOTO END' \
+      'IF NOT EXIST C:\WINDOWS\COMMAND\ATTRIB.EXE GOTO END' \
       'COPY /Y C:\SETUP\MEREGENV.EXE C:\WINDOWS\SYSTEM\REGENV32.EXE >NUL' \
-      'IF ERRORLEVEL 1 GOTO FAILED' \
+      'IF ERRORLEVEL 1 GOTO END' \
       'COPY /Y C:\SETUP\MECOM.COM C:\WINDOWS\COMMAND.COM >NUL' \
-      'IF ERRORLEVEL 1 GOTO FAILED' \
+      'IF ERRORLEVEL 1 GOTO END' \
       'COPY /Y C:\SETUP\MECOM.COM C:\COMMAND.COM >NUL' \
-      'IF ERRORLEVEL 1 GOTO FAILED' \
+      'IF ERRORLEVEL 1 GOTO END' \
       'C:\WINDOWS\COMMAND\ATTRIB.EXE -R -S -H C:\IO.SYS >NUL' \
-      'IF ERRORLEVEL 1 GOTO FAILED' \
+      'IF ERRORLEVEL 1 GOTO END' \
       'COPY /Y C:\SETUP\MEIO.SYS C:\IO.SYS >NUL' \
       'IF ERRORLEVEL 1 GOTO IOFAIL' \
       'C:\WINDOWS\COMMAND\ATTRIB.EXE +R +S +H C:\IO.SYS >NUL' \
       'ECHO 1>C:\SETUP\MEBOOT.RUN' \
-      'ECHO ACTIVATED>>C:\SETUP\MEBOOT.LOG' \
-      'ECHO Windows Me boot files activated' \
-      'ECHO [WinMe] boot files activated > COM1' \
       'GOTO END' \
       ':IOFAIL' \
       'C:\WINDOWS\COMMAND\ATTRIB.EXE +R +S +H C:\IO.SYS >NUL' \
-      'GOTO FAILED' \
-      ':MISSING' \
-      'ECHO MISSING FILE>>C:\SETUP\MEBOOT.LOG' \
-      'ECHO Windows Me boot activation missing a required file' \
-      'ECHO [WinMe] boot activation missing file > COM1' \
-      'GOTO END' \
-      ':FAILED' \
-      'ECHO FAILED>>C:\SETUP\MEBOOT.LOG' \
-      'ECHO Windows Me boot activation failed' \
-      'ECHO [WinMe] boot activation failed > COM1' \
       ':END' \
       ''
   } | unix2dos > "$target" || {
-    error "Failed to create the Windows Me boot counter script for $desc!"
+    error "Failed to create the Windows Me boot activation script for $desc!"
     return 1
   }
 
@@ -2731,7 +2705,7 @@ writeWin9xAnswerFile() {
       printf '%s\n' \
         '' \
         '[WinMe.BootService]' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices","WinMeBoot",,"C:\SETUP\MECOM.COM /C C:\SETUP\MEBOOT.BAT"'
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices","WinMeBoot",,"C:\SETUP\QUIET.EXE C:\SETUP\MECOM.COM /C C:\SETUP\MEBOOT.BAT"'
     fi
 
     printf '%s\n' \
@@ -3094,7 +3068,7 @@ prepareWin9xInstall() {
     stageWin9xPasswordList "$target" "$desc" || return 1
   fi
 
-  if enabled "$shortcut"; then
+  if enabled "$shortcut" || [[ "${id,,}" == "win9x"* ]]; then
     stageWin9xQuiet "$target" "$desc" || return 1
   fi
 
@@ -3156,7 +3130,7 @@ prepareWin9xInstall() {
 
   if [[ "${id,,}" == "win9x"* ]]; then
     if ! stageWinMeFinalBootFiles "$dir" "$target" "$desc" ||
-      ! stageWinMeBootCounter "$target" "$desc"; then
+      ! stageWinMeBootActivation "$target" "$desc"; then
       rm -rf "$drivers" || :
       return 1
     fi
