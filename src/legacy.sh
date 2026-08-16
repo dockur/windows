@@ -547,6 +547,9 @@ writeSIF() {
   local sifPassword="$6"
   local sifOrganization="$7"
   local sifWorkgroup="$8"
+  local localeID="$9"
+  local inputLocaleID="${10}"
+  local keyboardID="${11}"
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -delete || return 1
 
@@ -590,6 +593,11 @@ writeSIF() {
     fi
 
     printf '%s\n' \
+      '' \
+      '[RegionalSettings]' \
+      "    InputLocale=$inputLocaleID:$keyboardID" \
+      "    SystemLocale=$localeID" \
+      "    UserLocale=$localeID" \
       '' \
       '[UserData]' \
       "    FullName=\"$sifUsername\"" \
@@ -1024,6 +1032,15 @@ prepareSIFInstall() {
   local username="${USERNAME:-Docker}"
   local password="${PASSWORD:-admin}"
   local workgroup="${WORKGROUP:-WORKGROUP}"
+  local culture region keyboard localeID inputLocaleID keyboardID
+
+  culture=$(getLanguage "$LANGUAGE" "culture") || return 1
+  [ -z "$culture" ] && culture="en-US"
+  region="${REGION:-$culture}"
+  keyboard="${KEYBOARD:-en-US}"
+  localeID=$(getLocaleID "$region") || return 1
+  inputLocaleID=$(getInputLocaleID "$keyboard") || return 1
+  keyboardID=$(getKeyboardID "$keyboard") || return 1
 
   local sifHost sifUsername sifPassword sifOrganization sifWorkgroup
   local regUsername regPassword
@@ -1050,7 +1067,8 @@ prepareSIFInstall() {
   writeSIF \
     "$target" \
     "$driver" \
-    "$product" "$sifHost" "$sifUsername" "$sifPassword" "$sifOrganization" "$sifWorkgroup" || return 1
+    "$product" "$sifHost" "$sifUsername" "$sifPassword" "$sifOrganization" "$sifWorkgroup" \
+    "$localeID" "$inputLocaleID" "$keyboardID" || return 1
 
   writeRegistry "$dir" "$shortcut" "$oem" "$regUsername" "$regPassword" || return 1
 
@@ -1355,6 +1373,10 @@ writeWin9xAutoexec() {
   local output="$1"
   local setup="$2"
   local options="$3"
+  local id="$4"
+  local patch_args="-auto -unselect creg"
+
+  [[ "${id,,}" == "win9x"* ]] && patch_args="-auto"
 
   {
     printf '%s\n' \
@@ -1378,7 +1400,7 @@ writeWin9xAutoexec() {
       'IF NOT EXIST C:\SETUP\PATCH9X.EXE GOTO STARTWIN' \
       'IF NOT EXIST C:\SETUP\CWSDPMI.EXE GOTO STARTWIN' \
       'CD C:\SETUP' \
-      'PATCH9X.EXE -auto -unselect creg C:\WINDOWS\SYSTEM' \
+      "PATCH9X.EXE $patch_args C:\\WINDOWS\\SYSTEM" \
       'CD C:\' \
       ':STARTWIN' \
       'C:\WINDOWS\SYSTEM\VBMOUSE.EXE >NUL' \
@@ -1395,6 +1417,7 @@ stageWin9xFinalAutoexec() {
   local setup="$2"
   local options="$3"
   local desc="$4"
+  local id="$5"
 
   local temp="$TMP/win9x-final-autoexec"
   local autoexec="$temp/AUTOEXEC.BAT"
@@ -1402,7 +1425,7 @@ stageWin9xFinalAutoexec() {
   rm -rf -- "$temp" || return 1
   mkdir -p "$temp" || return 1
 
-  if ! writeWin9xAutoexec "$autoexec" "$setup" "$options"; then
+  if ! writeWin9xAutoexec "$autoexec" "$setup" "$options" "$id"; then
     rm -rf -- "$temp" || :
     return 1
   fi
@@ -1948,7 +1971,7 @@ createWin9xSystemImage() {
     return 1
   fi
 
-  writeWin9xAutoexec "$autoexec" "$setup" "$options" || return 1
+  writeWin9xAutoexec "$autoexec" "$setup" "$options" "$id" || return 1
 
   MTOOLSRC="$config" mcopy -o "$autoexec" w:/AUTOEXEC.BAT || return 1
 
@@ -2404,168 +2427,191 @@ writeWin9xStorageRegistry() {
     'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex","StubPath",,"%10%\WIN9XDMA.EXE"'
 }
 
-getWin9xLocale() {
+getLocaleID() {
 
   local input="${1//_/-}"
   input="${input,,}"
 
-  # Accept a native Win9x LCID directly as either Lxxxx or xxxx.
+  # Accept a native Windows locale ID directly as either Lxxxx or xxxx.
   if [[ "$input" =~ ^l([0-9a-f]{4})$ ]]; then
-    printf 'L%s\n' "${BASH_REMATCH[1]^^}"
+    printf '%s\n' "${BASH_REMATCH[1]^^}"
     return 0
   fi
 
   if [[ "$input" =~ ^([0-9a-f]{4})$ ]]; then
-    printf 'L%s\n' "${BASH_REMATCH[1]^^}"
+    printf '%s\n' "${BASH_REMATCH[1]^^}"
     return 0
   fi
 
-  # Win9x MSBATCH uses LCIDs instead of the BCP-47 locale names accepted by
-  # newer unattended installers. Keep the mapping local to the legacy path so
-  # REGION continues to use its normal BCP-47 form everywhere else.
+  # Translate the BCP-47-style REGION value to the four-digit Windows locale
+  # ID shared by Win9x MSBATCH and NT5 WINNT.SIF. Answer-file writers add any
+  # release-specific prefixes or separators themselves.
   case "$input" in
-    "ar" | "ar-sa" ) echo "L0401" ;;
-    "bg" | "bg-bg" ) echo "L0402" ;;
-    "ca" | "ca-es" ) echo "L0403" ;;
-    "zh-tw" ) echo "L0404" ;;
-    "cs" | "cs-cz" ) echo "L0405" ;;
-    "da" | "da-dk" ) echo "L0406" ;;
-    "de" | "de-de" ) echo "L0407" ;;
-    "de-ch" ) echo "L0807" ;;
-    "de-at" ) echo "L0C07" ;;
-    "de-lu" ) echo "L1007" ;;
-    "de-li" ) echo "L1407" ;;
-    "el" | "el-gr" ) echo "L0408" ;;
-    "en" | "en-us" ) echo "L0409" ;;
-    "en-gb" ) echo "L0809" ;;
-    "en-au" ) echo "L0C09" ;;
-    "en-ca" ) echo "L1009" ;;
-    "en-nz" ) echo "L1409" ;;
-    "en-ie" ) echo "L1809" ;;
-    "en-za" ) echo "L1C09" ;;
-    "en-jm" ) echo "L2009" ;;
-    "en-bz" ) echo "L2809" ;;
-    "en-tt" ) echo "L2C09" ;;
-    "en-zw" ) echo "L3009" ;;
-    "en-ph" ) echo "L3409" ;;
-    "es" | "es-es" ) echo "L0C0A" ;;
-    "es-mx" ) echo "L080A" ;;
-    "fi" | "fi-fi" ) echo "L040B" ;;
-    "fr" | "fr-fr" ) echo "L040C" ;;
-    "fr-be" ) echo "L080C" ;;
-    "fr-ca" ) echo "L0C0C" ;;
-    "fr-ch" ) echo "L100C" ;;
-    "fr-lu" ) echo "L140C" ;;
-    "fr-mc" ) echo "L180C" ;;
-    "he" | "he-il" ) echo "L040D" ;;
-    "hu" | "hu-hu" ) echo "L040E" ;;
-    "it" | "it-it" ) echo "L0410" ;;
-    "it-ch" ) echo "L0810" ;;
-    "ja" | "ja-jp" ) echo "L0411" ;;
-    "ko" | "ko-kr" ) echo "L0412" ;;
-    "nl" | "nl-nl" ) echo "L0413" ;;
-    "nl-be" ) echo "L0813" ;;
-    "nb" | "no" | "nb-no" ) echo "L0414" ;;
-    "nn" | "nn-no" ) echo "L0814" ;;
-    "pl" | "pl-pl" ) echo "L0415" ;;
-    "pt-br" ) echo "L0416" ;;
-    "pt" | "pt-pt" ) echo "L0816" ;;
-    "ro" | "ro-ro" ) echo "L0418" ;;
-    "ru" | "ru-ru" ) echo "L0419" ;;
-    "hr" | "hr-hr" ) echo "L041A" ;;
-    "sr" | "sr-latn-rs" ) echo "L081A" ;;
-    "sk" | "sk-sk" ) echo "L041B" ;;
-    "sv" | "sv-se" ) echo "L041D" ;;
-    "sv-fi" ) echo "L081D" ;;
-    "th" | "th-th" ) echo "L041E" ;;
-    "tr" | "tr-tr" ) echo "L041F" ;;
-    "uk" | "uk-ua" ) echo "L0422" ;;
-    "sl" | "sl-si" ) echo "L0424" ;;
-    "et" | "et-ee" ) echo "L0425" ;;
-    "lv" | "lv-lv" ) echo "L0426" ;;
-    "lt" | "lt-lt" ) echo "L0427" ;;
-    "zh" | "zh-cn" ) echo "L0804" ;;
-    "zh-hk" ) echo "L0C04" ;;
-    * ) echo "L0409" ;;
+    "ar" | "ar-sa" ) echo "0401" ;;
+    "bg" | "bg-bg" ) echo "0402" ;;
+    "ca" | "ca-es" ) echo "0403" ;;
+    "zh-tw" ) echo "0404" ;;
+    "cs" | "cs-cz" ) echo "0405" ;;
+    "da" | "da-dk" ) echo "0406" ;;
+    "de" | "de-de" ) echo "0407" ;;
+    "de-ch" ) echo "0807" ;;
+    "de-at" ) echo "0C07" ;;
+    "de-lu" ) echo "1007" ;;
+    "de-li" ) echo "1407" ;;
+    "el" | "el-gr" ) echo "0408" ;;
+    "en" | "en-us" ) echo "0409" ;;
+    "en-gb" ) echo "0809" ;;
+    "en-au" ) echo "0C09" ;;
+    "en-ca" ) echo "1009" ;;
+    "en-nz" ) echo "1409" ;;
+    "en-ie" ) echo "1809" ;;
+    "en-za" ) echo "1C09" ;;
+    "en-jm" ) echo "2009" ;;
+    "en-bz" ) echo "2809" ;;
+    "en-tt" ) echo "2C09" ;;
+    "en-zw" ) echo "3009" ;;
+    "en-ph" ) echo "3409" ;;
+    "es" | "es-es" ) echo "0C0A" ;;
+    "es-mx" ) echo "080A" ;;
+    "fi" | "fi-fi" ) echo "040B" ;;
+    "fr" | "fr-fr" ) echo "040C" ;;
+    "fr-be" ) echo "080C" ;;
+    "fr-ca" ) echo "0C0C" ;;
+    "fr-ch" ) echo "100C" ;;
+    "fr-lu" ) echo "140C" ;;
+    "fr-mc" ) echo "180C" ;;
+    "he" | "he-il" ) echo "040D" ;;
+    "hu" | "hu-hu" ) echo "040E" ;;
+    "it" | "it-it" ) echo "0410" ;;
+    "it-ch" ) echo "0810" ;;
+    "ja" | "ja-jp" ) echo "0411" ;;
+    "ko" | "ko-kr" ) echo "0412" ;;
+    "nl" | "nl-nl" ) echo "0413" ;;
+    "nl-be" ) echo "0813" ;;
+    "nb" | "no" | "nb-no" ) echo "0414" ;;
+    "nn" | "nn-no" ) echo "0814" ;;
+    "pl" | "pl-pl" ) echo "0415" ;;
+    "pt-br" ) echo "0416" ;;
+    "pt" | "pt-pt" ) echo "0816" ;;
+    "ro" | "ro-ro" ) echo "0418" ;;
+    "ru" | "ru-ru" ) echo "0419" ;;
+    "hr" | "hr-hr" ) echo "041A" ;;
+    "sr" | "sr-latn-rs" ) echo "081A" ;;
+    "sk" | "sk-sk" ) echo "041B" ;;
+    "sv" | "sv-se" ) echo "041D" ;;
+    "sv-fi" ) echo "081D" ;;
+    "th" | "th-th" ) echo "041E" ;;
+    "tr" | "tr-tr" ) echo "041F" ;;
+    "uk" | "uk-ua" ) echo "0422" ;;
+    "sl" | "sl-si" ) echo "0424" ;;
+    "et" | "et-ee" ) echo "0425" ;;
+    "lv" | "lv-lv" ) echo "0426" ;;
+    "lt" | "lt-lt" ) echo "0427" ;;
+    "zh" | "zh-cn" ) echo "0804" ;;
+    "zh-hk" ) echo "0C04" ;;
+    * ) echo "0409" ;;
   esac
 
   return 0
 }
 
-getWin9xKeyboard() {
+getKeyboardID() {
 
   local input="${1//_/-}"
   input="${input,,}"
 
-  # Accept either native MSBATCH syntax or a raw eight-digit keyboard layout ID.
+  # Accept either Win9x MSBATCH syntax or a raw eight-digit keyboard layout ID.
   if [[ "$input" =~ ^keyboard[-_]([0-9a-f]{8})$ ]]; then
-    printf 'KEYBOARD_%s\n' "${BASH_REMATCH[1]^^}"
+    printf '%s\n' "${BASH_REMATCH[1]^^}"
     return 0
   fi
 
   if [[ "$input" =~ ^([0-9a-f]{8})$ ]]; then
-    printf 'KEYBOARD_%s\n' "${BASH_REMATCH[1]^^}"
+    printf '%s\n' "${BASH_REMATCH[1]^^}"
     return 0
   fi
 
-  # The default national keyboard layout IDs track the corresponding locale
-  # IDs for the layouts supported by this legacy installer. Unknown values use
-  # the existing US keyboard default instead of making Setup interactive.
+  # Return the neutral eight-digit keyboard layout ID. Unknown values use the
+  # existing US keyboard default instead of making Setup interactive.
   case "$input" in
-    "ar" | "ar-sa" ) echo "KEYBOARD_00000401" ;;
-    "bg" | "bg-bg" ) echo "KEYBOARD_00000402" ;;
-    "ca" | "ca-es" ) echo "KEYBOARD_00000403" ;;
-    "zh-tw" ) echo "KEYBOARD_00000404" ;;
-    "cs" | "cs-cz" ) echo "KEYBOARD_00000405" ;;
-    "da" | "da-dk" ) echo "KEYBOARD_00000406" ;;
-    "de" | "de-de" ) echo "KEYBOARD_00000407" ;;
-    "de-ch" ) echo "KEYBOARD_00000807" ;;
-    "de-at" ) echo "KEYBOARD_00000C07" ;;
-    "el" | "el-gr" ) echo "KEYBOARD_00000408" ;;
-    "en" | "en-us" ) echo "KEYBOARD_00000409" ;;
-    "en-gb" ) echo "KEYBOARD_00000809" ;;
-    "en-au" ) echo "KEYBOARD_00000C09" ;;
-    "en-ca" ) echo "KEYBOARD_00001009" ;;
-    "es" | "es-es" ) echo "KEYBOARD_00000C0A" ;;
-    "es-mx" ) echo "KEYBOARD_0000080A" ;;
-    "fi" | "fi-fi" ) echo "KEYBOARD_0000040B" ;;
-    "fr" | "fr-fr" ) echo "KEYBOARD_0000040C" ;;
-    "fr-be" ) echo "KEYBOARD_0000080C" ;;
-    "fr-ca" ) echo "KEYBOARD_00000C0C" ;;
-    "fr-ch" ) echo "KEYBOARD_0000100C" ;;
-    "he" | "he-il" ) echo "KEYBOARD_0000040D" ;;
-    "hu" | "hu-hu" ) echo "KEYBOARD_0000040E" ;;
-    "it" | "it-it" ) echo "KEYBOARD_00000410" ;;
-    "it-ch" ) echo "KEYBOARD_00000810" ;;
-    "ja" | "ja-jp" ) echo "KEYBOARD_00000411" ;;
-    "ko" | "ko-kr" ) echo "KEYBOARD_00000412" ;;
-    "nl" | "nl-nl" ) echo "KEYBOARD_00000413" ;;
-    "nl-be" ) echo "KEYBOARD_00000813" ;;
-    "nb" | "no" | "nb-no" ) echo "KEYBOARD_00000414" ;;
-    "nn" | "nn-no" ) echo "KEYBOARD_00000814" ;;
-    "pl" | "pl-pl" ) echo "KEYBOARD_00000415" ;;
-    "pt-br" ) echo "KEYBOARD_00000416" ;;
-    "pt" | "pt-pt" ) echo "KEYBOARD_00000816" ;;
-    "ro" | "ro-ro" ) echo "KEYBOARD_00000418" ;;
-    "ru" | "ru-ru" ) echo "KEYBOARD_00000419" ;;
-    "hr" | "hr-hr" ) echo "KEYBOARD_0000041A" ;;
-    "sr" | "sr-latn-rs" ) echo "KEYBOARD_0000081A" ;;
-    "sk" | "sk-sk" ) echo "KEYBOARD_0000041B" ;;
-    "sv" | "sv-se" ) echo "KEYBOARD_0000041D" ;;
-    "sv-fi" ) echo "KEYBOARD_0000081D" ;;
-    "th" | "th-th" ) echo "KEYBOARD_0000041E" ;;
-    "tr" | "tr-tr" ) echo "KEYBOARD_0000041F" ;;
-    "uk" | "uk-ua" ) echo "KEYBOARD_00000422" ;;
-    "sl" | "sl-si" ) echo "KEYBOARD_00000424" ;;
-    "et" | "et-ee" ) echo "KEYBOARD_00000425" ;;
-    "lv" | "lv-lv" ) echo "KEYBOARD_00000426" ;;
-    "lt" | "lt-lt" ) echo "KEYBOARD_00000427" ;;
-    "zh" | "zh-cn" ) echo "KEYBOARD_00000804" ;;
-    "zh-hk" ) echo "KEYBOARD_00000C04" ;;
-    * ) echo "KEYBOARD_00000409" ;;
+    "ar" | "ar-sa" ) echo "00000401" ;;
+    "bg" | "bg-bg" ) echo "00000402" ;;
+    "ca" | "ca-es" ) echo "00000403" ;;
+    "zh-tw" ) echo "00000404" ;;
+    "cs" | "cs-cz" ) echo "00000405" ;;
+    "da" | "da-dk" ) echo "00000406" ;;
+    "de" | "de-de" ) echo "00000407" ;;
+    "de-ch" ) echo "00000807" ;;
+    "de-at" ) echo "00000C07" ;;
+    "el" | "el-gr" ) echo "00000408" ;;
+    "en" | "en-us" ) echo "00000409" ;;
+    "en-gb" ) echo "00000809" ;;
+    "en-au" ) echo "00000C09" ;;
+    "en-ca" ) echo "00001009" ;;
+    "es" | "es-es" ) echo "00000C0A" ;;
+    "es-mx" ) echo "0000080A" ;;
+    "fi" | "fi-fi" ) echo "0000040B" ;;
+    "fr" | "fr-fr" ) echo "0000040C" ;;
+    "fr-be" ) echo "0000080C" ;;
+    "fr-ca" ) echo "00000C0C" ;;
+    "fr-ch" ) echo "0000100C" ;;
+    "he" | "he-il" ) echo "0000040D" ;;
+    "hu" | "hu-hu" ) echo "0000040E" ;;
+    "it" | "it-it" ) echo "00000410" ;;
+    "it-ch" ) echo "00000810" ;;
+    "ja" | "ja-jp" ) echo "00000411" ;;
+    "ko" | "ko-kr" ) echo "00000412" ;;
+    "nl" | "nl-nl" ) echo "00000413" ;;
+    "nl-be" ) echo "00000813" ;;
+    "nb" | "no" | "nb-no" ) echo "00000414" ;;
+    "nn" | "nn-no" ) echo "00000814" ;;
+    "pl" | "pl-pl" ) echo "00000415" ;;
+    "pt-br" ) echo "00000416" ;;
+    "pt" | "pt-pt" ) echo "00000816" ;;
+    "ro" | "ro-ro" ) echo "00000418" ;;
+    "ru" | "ru-ru" ) echo "00000419" ;;
+    "hr" | "hr-hr" ) echo "0000041A" ;;
+    "sr" | "sr-latn-rs" ) echo "0000081A" ;;
+    "sk" | "sk-sk" ) echo "0000041B" ;;
+    "sv" | "sv-se" ) echo "0000041D" ;;
+    "sv-fi" ) echo "0000081D" ;;
+    "th" | "th-th" ) echo "0000041E" ;;
+    "tr" | "tr-tr" ) echo "0000041F" ;;
+    "uk" | "uk-ua" ) echo "00000422" ;;
+    "sl" | "sl-si" ) echo "00000424" ;;
+    "et" | "et-ee" ) echo "00000425" ;;
+    "lv" | "lv-lv" ) echo "00000426" ;;
+    "lt" | "lt-lt" ) echo "00000427" ;;
+    "zh" | "zh-cn" ) echo "00000804" ;;
+    "zh-hk" ) echo "00000C04" ;;
+    * ) echo "00000409" ;;
   esac
 
   return 0
+}
+
+getInputLocaleID() {
+
+  local input="${1//_/-}"
+  local result
+  input="${input,,}"
+
+  # NT5 InputLocale stores the input-language ID separately from the keyboard
+  # layout ID. For a raw KLID, its low word is the corresponding language ID.
+  if [[ "$input" =~ ^keyboard[-_]([0-9a-f]{8})$ ]]; then
+    result="${BASH_REMATCH[1]:4:4}"
+    printf '%s\n' "${result^^}"
+    return 0
+  fi
+
+  if [[ "$input" =~ ^([0-9a-f]{8})$ ]]; then
+    result="${BASH_REMATCH[1]:4:4}"
+    printf '%s\n' "${result^^}"
+    return 0
+  fi
+
+  getLocaleID "$input"
+  return $?
 }
 
 writeWin9xCleanupRegistry() {
@@ -2637,14 +2683,14 @@ writeWin9xAnswerFile() {
   local firstLogonUpdateInis="Win9x.OnlineServicesFolder"
   local post=""
   local quiet=""
-  local culture region keyboard locale selectedKeyboard
+  local culture region keyboard localeID keyboardID
 
   culture=$(getLanguage "$LANGUAGE" "culture") || return 1
   [ -z "$culture" ] && culture="en-US"
   region="${REGION:-$culture}"
   keyboard="${KEYBOARD:-en-US}"
-  locale=$(getWin9xLocale "$region") || return 1
-  selectedKeyboard=$(getWin9xKeyboard "$keyboard") || return 1
+  localeID=$(getLocaleID "$region") || return 1
+  keyboardID=$(getKeyboardID "$keyboard") || return 1
 
   if ! disabled "$AUTOLOGIN"; then
     copyFiles+=",Win9x.Password"
@@ -2991,8 +3037,8 @@ writeWin9xAnswerFile() {
       'Display=0' \
       '' \
       '[System]' \
-      "Locale=$locale" \
-      "SelectedKeyboard=$selectedKeyboard" \
+      "Locale=L$localeID" \
+      "SelectedKeyboard=KEYBOARD_$keyboardID" \
       "DisplChar=16,$WIDTH,$HEIGHT" \
       "Monitor=\"$monitor\"" \
       '' \
@@ -3033,8 +3079,11 @@ patchWin9xSetupFiles() {
   info "$msg" && html "$msg"
 
   local patch_output
+  local patch_args=(-auto -unselect creg)
 
-  if ! patch_output=$("$patcher" -auto -unselect creg "$target" 2>&1); then
+  [[ "${id,,}" == "win9x"* ]] && patch_args=(-auto)
+
+  if ! patch_output=$("$patcher" "${patch_args[@]}" "$target" 2>&1); then
     [ -z "$patch_output" ] || printf '%s\n' "$patch_output" >&2
     error "Failed to patch $desc setup files!"
     return 1
@@ -3211,7 +3260,7 @@ prepareWin9xInstall() {
     return 1
   fi
 
-  if ! stageWin9xFinalAutoexec "$target" "$setup" "$options" "$desc"; then
+  if ! stageWin9xFinalAutoexec "$target" "$setup" "$options" "$desc" "$id"; then
     rm -rf "$drivers" || :
     return 1
   fi
