@@ -36,26 +36,12 @@ setMachine() {
         writeState "net" "pcnet" || return 1
         writeState "sound" "sb16" || return 1 ;;
 
-      "win98" )
+      "win98" | "win9x" )
 
         writeState "port" "on" || return 1
         writeState "net" "pcnet" || return 1
         writeState "sound" "sb16" || return 1
         writeState "usb" "pci-ohci" || return 1 ;;
-
-      "win9x" )
-
-        # Diagnostic: expose only the core PC hardware while Windows Me Setup
-        # performs hardware detection. Keep this intentionally local to Me so
-        # the known-good Windows 95/98 machine profiles remain unchanged.
-        WINME_MINIMAL_HW="Y"
-        NETWORK="N"
-        AUDIO="N"
-        HV="N"
-        writeState "port" "off" || return 1
-        writeState "net" "pcnet" || return 1
-        writeState "sound" "sb16" || return 1
-        writeState "usb" "N" || return 1 ;;
 
       "win2k"* )
 
@@ -2221,6 +2207,62 @@ writeWin9xAnswerFile() {
   local batchKey="$9"
   local shortcut="${10}"
   local install="${11}"
+
+  # Windows Me uses MSBATCH.INF only for the ordinary unattended Setup answers
+  # during this diagnostic. Do not feed Setup our custom INF install sections,
+  # CopyFiles/AddReg/UpdateInis hooks, RunOnce entries, or post-Setup tweaks.
+  # Windows 95/98 continue through the existing full answer-file path below.
+  if [[ "${id,,}" == "win9x"* ]]; then
+    {
+      printf '%s\n' \
+        '[BatchSetup]' \
+        'Version=3.0 (32-bit)' \
+        '' \
+        '[Version]' \
+        "Signature=\"\$CHICAGO\$\"" \
+        'AdvancedINF=2.5' \
+        'LayoutFile=layout.inf' \
+        '' \
+        '[Setup]' \
+        'Express=1' \
+        'InstallDir="C:\WINDOWS"' \
+        'InstallType=3'
+
+      if [ -n "$batchKey" ]; then
+        printf 'ProductKey="%s"\n' "$batchKey"
+      fi
+
+      printf '%s\n' \
+        'EBD=0' \
+        'ShowEula=0' \
+        'Network=1' \
+        'DevicePath=1' \
+        'NoPrompt2Boot=1' \
+        'TimeZone=Pacific' \
+        '' \
+        '[OptionalComponents]' \
+        '"The Microsoft Network"=0' \
+        '"Online Services"=0' \
+        '' \
+        '[NameAndOrg]' \
+        "Name=\"$batchUsername\"" \
+        "Org=\"$batchOrganization\"" \
+        'Display=0' \
+        '' \
+        '[System]' \
+        "DisplChar=16,$WIDTH,$HEIGHT" \
+        "Monitor=\"$monitor\"" \
+        '' \
+        '[Network]' \
+        "ComputerName=\"$batchHost\"" \
+        "Workgroup=\"$batchWorkgroup\"" \
+        'PrimaryLogon=Windows' \
+        'Display=0' \
+        ''
+    } | unix2dos > "$target/MSBATCH.INF" || return 1
+
+    return 0
+  fi
 
   local desktop="%10%\Desktop"
   local addReg="OPKInstall,Win9x.Machine"
