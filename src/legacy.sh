@@ -2208,10 +2208,9 @@ writeWin9xAnswerFile() {
   local shortcut="${10}"
   local install="${11}"
 
-  # Windows Me uses MSBATCH.INF only for the ordinary unattended Setup answers
-  # during this diagnostic. Do not feed Setup our custom INF install sections,
-  # CopyFiles/AddReg/UpdateInis hooks, RunOnce entries, or post-Setup tweaks.
-  # Windows 95/98 continue through the existing full answer-file path below.
+  # Windows Me diagnostic: keep only the pieces required to reach hardware
+  # detection unattended and with a usable mouse. Later UI/registry/DMA/
+  # autologin/post-Setup customizations are intentionally excluded here.
   if [[ "${id,,}" == "win9x"* ]]; then
     {
       printf '%s\n' \
@@ -2223,11 +2222,50 @@ writeWin9xAnswerFile() {
         'AdvancedINF=2.5' \
         'LayoutFile=layout.inf' \
         '' \
+        '[SourceDisksNames]' \
+        '22="Windows Setup",,0' \
+        '' \
+        '[SourceDisksFiles]' \
+        'VBMOUSE.EXE=22' \
+        'VBMOUSE.DRV=22' \
+        '' \
+        '[Install]' \
+        'CopyFiles=Win9x.Mouse' \
+        'UpdateInis=Win9x.SystemIni,Win9x.SystemCb' \
+        'AddReg=OPKInstall,OEMDrivers' \
+        '' \
+        '[OPKInstall]' \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion","ProductId",,"12345-OEM-1234567-12345"' \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion","ProductKey",,"CDKey"' \
+        "HKLM,\"SOFTWARE\Microsoft\Windows\CurrentVersion\",\"RegisteredOwner\",,\"$batchUsername\"" \
+        "HKLM,\"SOFTWARE\Microsoft\Windows\CurrentVersion\",\"RegisteredOrganization\",,\"$batchOrganization\"" \
+        '' \
+        '[OEMDrivers]' \
+        "HKLM,\"SOFTWARE\Microsoft\Windows\CurrentVersion\",\"OtherDevicePath\",,\"C:\\WINDOWS\\INF\\OTHER;C:\\$setup\"" \
+        '' \
+        '[Win9x.Mouse]' \
+        'VBMOUSE.EXE' \
+        'VBMOUSE.DRV' \
+        '' \
+        '[DestinationDirs]' \
+        'Win9x.Mouse=11' \
+        '' \
+        '[Win9x.SystemIni]' \
+        '%10%\system.ini,boot,"mouse.drv=mouse.drv","mouse.drv=vbmouse.drv"' \
+        '%10%\system.ini,386Enh,,"MaxPhysPage=100000"' \
+        '%10%\system.ini,vcache,,"MaxFileCache=65536"' \
+        '' \
+        '[Win9x.SystemCb]' \
+        '%10%\system.cb,386Enh,,"MaxPhysPage=100000"' \
+        '' \
         '[Setup]' \
         'Express=1' \
         'InstallDir="C:\WINDOWS"' \
         'InstallType=3'
 
+      # Keep the normal explicit KEY behavior if the user supplied one. With no
+      # KEY, the OPKInstall ProductId/ProductKey entries above provide the same
+      # unattended bypass already used by the tested Win98 path.
       if [ -n "$batchKey" ]; then
         printf 'ProductKey="%s"\n' "$batchKey"
       fi
