@@ -1226,6 +1226,233 @@ patchWinMeDosFile() {
   return 0
 }
 
+
+patchWinMeBinaryPatterns() {
+
+  local file="$1"
+  local desc="$2"
+  shift 2
+
+  if (( $# == 0 || $# % 2 != 0 )); then
+    error "Invalid binary patch definition for $desc!"
+    return 1
+  fi
+
+  if ! python3 - "$file" "$desc" "$@" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+desc = sys.argv[2]
+args = sys.argv[3:]
+
+data = path.read_bytes()
+original = data
+
+for index in range(0, len(args), 2):
+    old = bytes.fromhex(args[index])
+    new = bytes.fromhex(args[index + 1])
+
+    if len(old) != len(new):
+        print(f"Invalid {desc} patch length.", file=sys.stderr)
+        raise SystemExit(1)
+
+    count = data.count(old)
+    if count != 1:
+        print(
+            f"Unexpected {desc} patch signature count for {args[index]}: {count} (expected 1).",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+
+    data = data.replace(old, new, 1)
+
+if data == original:
+    print(f"No changes were made while patching {desc}.", file=sys.stderr)
+    raise SystemExit(1)
+
+path.write_bytes(data)
+PY
+  then
+    error "Failed to patch $desc!"
+    return 1
+  fi
+
+  return 0
+}
+
+extractWin9xCabFile() {
+
+  local dir="$1"
+  local name="$2"
+  local output="$3"
+  local desc="$4"
+
+  local temp="$TMP/win9x-cab-file"
+  local cab extracted find_pid
+  local -a precopy_cabs=() other_cabs=()
+
+  rm -rf -- "$temp" || return 1
+  mkdir -p "$temp" || return 1
+  rm -f -- "$output" || return 1
+
+  mapfile -d '' precopy_cabs < <(
+    find "$dir" -maxdepth 1 -type f -iname 'PRECOPY*.CAB' -print0
+  )
+
+  find_pid=$!
+
+  if ! wait "$find_pid"; then
+    rm -rf -- "$temp" || :
+    error "Failed to enumerate $desc setup cabinets!"
+    return 1
+  fi
+
+  mapfile -d '' other_cabs < <(
+    find "$dir" -maxdepth 1 -type f -iname '*.CAB' ! -iname 'PRECOPY*.CAB' -print0
+  )
+
+  find_pid=$!
+
+  if ! wait "$find_pid"; then
+    rm -rf -- "$temp" || :
+    error "Failed to enumerate $desc setup cabinets!"
+    return 1
+  fi
+
+  for cab in "${precopy_cabs[@]}" "${other_cabs[@]}"; do
+
+    rm -rf -- "$temp/files" || return 1
+    mkdir -p "$temp/files" || return 1
+
+    if ! cabextract -q -L -F "$name" -d "$temp/files" "$cab" >/dev/null 2>&1; then
+      continue
+    fi
+
+    extracted=$(find "$temp/files" -type f -iname "$name" -print -quit) || return 1
+
+    if [ -n "$extracted" ] && [ -s "$extracted" ]; then
+      if ! cp -f -- "$extracted" "$output" || ! cmp -s -- "$extracted" "$output"; then
+        rm -rf -- "$temp" || :
+        error "Failed to extract $name from $desc setup files!"
+        return 1
+      fi
+
+      rm -rf -- "$temp" || :
+      return 0
+    fi
+
+  done
+
+  rm -rf -- "$temp" || :
+  error "Failed to locate $name in $desc setup cabinets!"
+  return 1
+}
+
+stageWinMeFinalBootFiles() {
+
+  local dir="$1"
+  local target="$2"
+  local desc="$3"
+
+  local temp="$TMP/winme-final-boot"
+  local cbs winboot size signature
+  local autoexec="$temp/MEAUTO.BAT"
+
+  rm -rf -- "$temp" || return 1
+  mkdir -p "$temp/nettools" || return 1
+
+  cbs=$(find "$dir" -type f -ipath '*/TOOLS/NETTOOLS/FAC/CBS.DTA' -print -quit) || return 1
+
+  if [ -z "$cbs" ]; then
+    rm -rf -- "$temp" || :
+    error "Failed to locate the Windows Me NETTOOLS CBS.DTA archive!"
+    return 1
+  fi
+
+  if ! cabextract -q -L -F 'WINBOOT.SYS' -d "$temp/nettools" "$cbs" >/dev/null 2>&1; then
+    rm -rf -- "$temp" || :
+    error "Failed to extract the Windows Me NETTOOLS WINBOOT.SYS!"
+    return 1
+  fi
+
+  winboot=$(find "$temp/nettools" -type f -iname 'WINBOOT.SYS' -print -quit) || return 1
+
+  if [ -z "$winboot" ] || [ ! -s "$winboot" ]; then
+    rm -rf -- "$temp" || :
+    error "Failed to locate the extracted Windows Me NETTOOLS WINBOOT.SYS!"
+    return 1
+  fi
+
+  size=$(stat -c %s -- "$winboot") || return 1
+  signature=$(dd if="$winboot" bs=1 count=2 status=none | od -An -tx1 | tr -d ' \n') || return 1
+
+  if (( size != 118784 )) || [[ "${signature,,}" != "4d5a" ]]; then
+    rm -rf -- "$temp" || :
+    error "Unexpected Windows Me NETTOOLS WINBOOT.SYS format!"
+    return 1
+  fi
+
+  if ! cp -f -- "$winboot" "$target/MEIO.SYS" ||
+    ! cmp -s -- "$winboot" "$target/MEIO.SYS"; then
+    rm -rf -- "$temp" || :
+    error "Failed to stage the final Windows Me IO.SYS source file!"
+    return 1
+  fi
+
+  if ! extractWin9xCabFile "$target" 'COMMAND.COM' "$target/MECOM.COM" "$desc" ||
+    ! extractWin9xCabFile "$target" 'REGENV32.EXE' "$target/MEREGENV.EXE" "$desc"; then
+    rm -rf -- "$temp" || :
+    return 1
+  fi
+
+  # Enable the normal real-mode path in the localized Windows Me COMMAND.COM.
+  # These are the three guarded substitutions used by the established Me DOS
+  # mode patch; do not include its unrelated hidden-file display tweaks.
+  if ! patchWinMeBinaryPatterns "$target/MECOM.COM" 'Windows Me COMMAND.COM' \
+    '7510b80e' 'eb10b80e' \
+    '0300750b8b' '0300eb0b8b' \
+    '128b1608' '448b1608'; then
+    rm -rf -- "$temp" || :
+    return 1
+  fi
+
+  # REGENV32 otherwise rewrites CONFIG.SYS and AUTOEXEC.BAT on every restart.
+  # Redirect those writes to .WIN files so our real-mode startup remains intact.
+  if ! patchWinMeBinaryPatterns "$target/MEREGENV.EXE" 'Windows Me REGENV32.EXE' \
+    '434f4e4649472e535953' '434f4e4649472e57494e' \
+    '4155544f455845432e424154' '4155544f455845432e57494e'; then
+    rm -rf -- "$temp" || :
+    return 1
+  fi
+
+  {
+    printf '%s\n' \
+      '@ECHO OFF' \
+      'IF NOT EXIST C:\WINDOWS\SYSTEM\KERNEL32.DLL GOTO MOUSE' \
+      'IF NOT EXIST C:\WINDOWS\SYSTEM\VMM32.VXD GOTO MOUSE' \
+      'IF NOT EXIST C:\SETUP\PATCH9X.RUN GOTO MOUSE' \
+      'IF NOT EXIST C:\SETUP\PATCH9X.EXE GOTO MOUSE' \
+      'IF NOT EXIST C:\SETUP\CWSDPMI.EXE GOTO MOUSE' \
+      'CD C:\SETUP' \
+      'PATCH9X.EXE -auto -unselect creg C:\WINDOWS\SYSTEM' \
+      'CD C:\' \
+      ':MOUSE' \
+      'C:\WINDOWS\SYSTEM\VBMOUSE.EXE >NUL' \
+      ''
+  } | unix2dos > "$autoexec" || return 1
+
+  if ! cp -f -- "$autoexec" "$target/MEAUTO.BAT" ||
+    ! cmp -s -- "$autoexec" "$target/MEAUTO.BAT"; then
+    rm -rf -- "$temp" || :
+    error "Failed to stage the final Windows Me AUTOEXEC.BAT source file!"
+    return 1
+  fi
+
+  rm -rf -- "$temp" || :
+  return 0
+}
+
 createWin9xSystemImage() {
 
   local dir="$1"
@@ -1691,6 +1918,15 @@ createWin9xSystemImage() {
       "C:\\${setup}\\SETUP.EXE $options" \
       'GOTO END' \
       ':WINDOWS' \
+      'IF NOT EXIST C:\WINDOWS\SYSTEM\KERNEL32.DLL GOTO STARTWIN' \
+      'IF NOT EXIST C:\WINDOWS\SYSTEM\VMM32.VXD GOTO STARTWIN' \
+      'IF NOT EXIST C:\SETUP\PATCH9X.RUN GOTO STARTWIN' \
+      'IF NOT EXIST C:\SETUP\PATCH9X.EXE GOTO STARTWIN' \
+      'IF NOT EXIST C:\SETUP\CWSDPMI.EXE GOTO STARTWIN' \
+      'CD C:\SETUP' \
+      'PATCH9X.EXE -auto -unselect creg C:\WINDOWS\SYSTEM' \
+      'CD C:\' \
+      ':STARTWIN' \
       'C:\WINDOWS\SYSTEM\VBMOUSE.EXE >NUL' \
       'C:\WINDOWS\WIN.COM' \
       ':END' \
@@ -1723,6 +1959,44 @@ createWin9xSystemImage() {
   fi
 
   rm -rf -- "$temp" || :
+
+  return 0
+}
+
+stageWin9xDosPatcher() {
+
+  local dir="$1"
+  local desc="$2"
+  local image="$3"
+  local file
+
+  if [ ! -f "$image" ]; then
+    error "Failed to locate the Windows 9x DOS Patcher9x image!"
+    return 1
+  fi
+
+  # The official Patcher9x DOS image carries the DJGPP executable together with
+  # CWSDPMI. Keep both beside each other in the retained C:\SETUP source so the
+  # patcher can run from real mode before Windows starts.
+  for file in PATCH9X.EXE CWSDPMI.EXE; do
+
+    rm -f -- "$dir/$file" || return 1
+
+    if ! mcopy -o -i "$image" "::/$file" "$dir/$file" >/dev/null 2>&1 ||
+      [ ! -s "$dir/$file" ]; then
+      error "Failed to stage $file for $desc!"
+      return 1
+    fi
+
+  done
+
+  # Stage the marker under a dormant name. MSBATCH promotes it to PATCH9X.RUN
+  # only during its late file-copy phase, leaving the already-working early
+  # Setup reboots untouched. Win9x.FirstLogon removes the active marker.
+  if ! printf 'Pending\r\n' > "$dir/PATCH9X.NEW"; then
+    error "Failed to stage the Patcher9x run marker for $desc!"
+    return 1
+  fi
 
   return 0
 }
@@ -2177,7 +2451,7 @@ writeWin9xAnswerFile() {
   local copyFiles="Win9x.Mouse"
   local firstLogonAddReg="Win9x.User"
   local firstLogonDelReg=""
-  local firstLogonDelFiles=""
+  local firstLogonDelFiles="Win9x.PatcherMarker"
   local firstLogonUpdateInis=""
   local post=""
   local quiet=""
@@ -2209,10 +2483,22 @@ writeWin9xAnswerFile() {
     firstLogonAddReg+=",Win9x.BrowserUser,Win9x.PowerUser"
   fi
 
+  # Enable the installed-system repatch only in the late MSBATCH file-copy
+  # phase. The temporary AUTOEXEC already checks PATCH9X.RUN, so earlier Setup
+  # reboots continue exactly as before this change.
+  copyFiles+=",Win9x.PatcherEnable"
+
+  if [[ "${id,,}" == "win9x"* ]]; then
+    # These are copied last during MSBATCH [Install], immediately before Me's
+    # [Restart] phase promotes COMMAND.NEW/WINBOOT.NEW into the live boot files.
+    copyFiles+=",WinMe.System,WinMe.Windows,WinMe.Boot,WinMe.Autoexec"
+  fi
+
   if [[ "${id,,}" == "win98"* ]]; then
     [ -n "$firstLogonDelReg" ] && firstLogonDelReg+=","
     firstLogonDelReg+="Win98.Welcome"
-    firstLogonDelFiles="Win98.OnlineServices"
+    [ -n "$firstLogonDelFiles" ] && firstLogonDelFiles+=","
+    firstLogonDelFiles+="Win98.OnlineServices"
     firstLogonUpdateInis="Win98.OnlineServicesFolder"
   fi
 
@@ -2234,7 +2520,16 @@ writeWin9xAnswerFile() {
       '' \
       '[SourceDisksFiles]' \
       'VBMOUSE.EXE=22' \
-      'VBMOUSE.DRV=22'
+      'VBMOUSE.DRV=22' \
+      'PATCH9X.NEW=22'
+
+    if [[ "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' \
+        'MEIO.SYS=22' \
+        'MECOM.COM=22' \
+        'MEREGENV.EXE=22' \
+        'MEAUTO.BAT=22'
+    fi
 
     if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
       printf '%s\n' 'WIN9XDMA.EXE=22'
@@ -2348,7 +2643,30 @@ writeWin9xAnswerFile() {
       '' \
       '[Win9x.Mouse]' \
       'VBMOUSE.EXE' \
-      'VBMOUSE.DRV'
+      'VBMOUSE.DRV' \
+      '' \
+      '[Win9x.PatcherEnable]' \
+      'PATCH9X.RUN,PATCH9X.NEW,,4' \
+      '' \
+      '[Win9x.PatcherMarker]' \
+      'PATCH9X.RUN'
+
+    if [[ "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' \
+        '' \
+        '[WinMe.System]' \
+        'REGENV32.EXE,MEREGENV.EXE,,4' \
+        '' \
+        '[WinMe.Windows]' \
+        'COMMAND.COM,MECOM.COM,,4' \
+        '' \
+        '[WinMe.Boot]' \
+        'COMMAND.NEW,MECOM.COM,,4' \
+        'WINBOOT.NEW,MEIO.SYS,,4' \
+        '' \
+        '[WinMe.Autoexec]' \
+        'AUTOEXEC.BAT,MEAUTO.BAT,,4'
+    fi
 
     if ! disabled "$AUTOLOGIN"; then
       printf '%s\n' \
@@ -2385,7 +2703,17 @@ writeWin9xAnswerFile() {
     printf '%s\n' \
       '' \
       '[DestinationDirs]' \
-      'Win9x.Mouse=11'
+      'Win9x.Mouse=11' \
+      'Win9x.PatcherEnable=30,SETUP' \
+      'Win9x.PatcherMarker=30,SETUP'
+
+    if [[ "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' \
+        'WinMe.System=11' \
+        'WinMe.Windows=10' \
+        'WinMe.Boot=30' \
+        'WinMe.Autoexec=30'
+    fi
 
     if enabled "$quiet"; then
       printf '%s\n' 'Win9x.Quiet=10'
@@ -2652,12 +2980,13 @@ prepareWin9xInstall() {
   local drivers="/tmp/drivers"
   local win9x="$drivers/win9x"
   local patcher="$win9x/patcher9x/patcher9x"
+  local patcher_dos="$patcher.img"
   local mouse="$win9x/mouse"
   local display="$win9x/boxv9x"
 
   extractDrivers "$drivers" || return 1
 
-  if [ ! -f "$patcher" ]; then
+  if [ ! -f "$patcher" ] || [ ! -f "$patcher_dos" ]; then
     rm -rf "$drivers" || :
     error "Failed to locate Patcher9x!"
     return 1
@@ -2674,9 +3003,21 @@ prepareWin9xInstall() {
     return 1
   fi
 
+  if ! stageWin9xDosPatcher "$target" "$desc" "$patcher_dos"; then
+    rm -rf "$drivers" || :
+    return 1
+  fi
+
   if ! stageWin9xMouseFiles "$target" "$desc" "$mouse"; then
     rm -rf "$drivers" || :
     return 1
+  fi
+
+  if [[ "${id,,}" == "win9x"* ]]; then
+    if ! stageWinMeFinalBootFiles "$dir" "$target" "$desc"; then
+      rm -rf "$drivers" || :
+      return 1
+    fi
   fi
 
   # Do not copy optical-media AutoRun metadata onto the system disk; Explorer
