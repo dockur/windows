@@ -1349,6 +1349,74 @@ extractWin9xCabFile() {
   return 1
 }
 
+writeWin9xAutoexec() {
+
+  local output="$1"
+  local setup="$2"
+  local options="$3"
+
+  {
+    printf '%s\n' \
+      '@ECHO OFF' \
+      'IF EXIST C:\WINDOWS\WIN.COM GOTO WINDOWS' \
+      'ECHO.' \
+      'ECHO Starting Windows Setup, please wait...' \
+      'ECHO.' \
+      "C:\\${setup}\\VBMOUSE.EXE >NUL" \
+      "IF NOT EXIST C:\\${setup}\\XMSMMGR.EXE GOTO SETUP" \
+      "IF NOT EXIST C:\\${setup}\\SMARTDRV.EXE GOTO SETUP" \
+      "C:\\${setup}\\XMSMMGR.EXE >NUL" \
+      "C:\\${setup}\\SMARTDRV.EXE C+ /Q 16384 16384 >NUL" \
+      ':SETUP' \
+      "C:\\${setup}\\SETUP.EXE $options" \
+      'GOTO END' \
+      ':WINDOWS' \
+      'IF NOT EXIST C:\WINDOWS\SYSTEM\KERNEL32.DLL GOTO STARTWIN' \
+      'IF NOT EXIST C:\WINDOWS\SYSTEM\VMM32.VXD GOTO STARTWIN' \
+      'IF NOT EXIST C:\SETUP\PATCH9X.RUN GOTO STARTWIN' \
+      'IF NOT EXIST C:\SETUP\PATCH9X.EXE GOTO STARTWIN' \
+      'IF NOT EXIST C:\SETUP\CWSDPMI.EXE GOTO STARTWIN' \
+      'CD C:\SETUP' \
+      'PATCH9X.EXE -auto -unselect creg C:\WINDOWS\SYSTEM' \
+      'CD C:\' \
+      ':STARTWIN' \
+      'C:\WINDOWS\SYSTEM\VBMOUSE.EXE >NUL' \
+      ':END' \
+      ''
+  } | unix2dos > "$output" || return 1
+
+  return 0
+}
+
+stageWin9xFinalAutoexec() {
+
+  local target="$1"
+  local setup="$2"
+  local options="$3"
+  local desc="$4"
+
+  local temp="$TMP/win9x-final-autoexec"
+  local autoexec="$temp/AUTOEXEC.BAT"
+
+  rm -rf -- "$temp" || return 1
+  mkdir -p "$temp" || return 1
+
+  if ! writeWin9xAutoexec "$autoexec" "$setup" "$options"; then
+    rm -rf -- "$temp" || :
+    return 1
+  fi
+
+  if ! cp -f -- "$autoexec" "$target/WIN9XAUTO.BAT" ||
+    ! cmp -s -- "$autoexec" "$target/WIN9XAUTO.BAT"; then
+    rm -rf -- "$temp" || :
+    error "Failed to stage the final $desc AUTOEXEC.BAT source file!"
+    return 1
+  fi
+
+  rm -rf -- "$temp" || :
+  return 0
+}
+
 stageWinMeFinalBootFiles() {
 
   local dir="$1"
@@ -1357,7 +1425,6 @@ stageWinMeFinalBootFiles() {
 
   local temp="$TMP/winme-final-boot"
   local cbs winboot size signature
-  local autoexec="$temp/MEAUTO.BAT"
 
   rm -rf -- "$temp" || return 1
   mkdir -p "$temp/nettools" || return 1
@@ -1423,29 +1490,6 @@ stageWinMeFinalBootFiles() {
     '434f4e4649472e535953' '434f4e4649472e57494e' \
     '4155544f455845432e424154' '4155544f455845432e57494e'; then
     rm -rf -- "$temp" || :
-    return 1
-  fi
-
-  {
-    printf '%s\n' \
-      '@ECHO OFF' \
-      'IF NOT EXIST C:\WINDOWS\SYSTEM\KERNEL32.DLL GOTO MOUSE' \
-      'IF NOT EXIST C:\WINDOWS\SYSTEM\VMM32.VXD GOTO MOUSE' \
-      'IF NOT EXIST C:\SETUP\PATCH9X.RUN GOTO MOUSE' \
-      'IF NOT EXIST C:\SETUP\PATCH9X.EXE GOTO MOUSE' \
-      'IF NOT EXIST C:\SETUP\CWSDPMI.EXE GOTO MOUSE' \
-      'CD C:\SETUP' \
-      'PATCH9X.EXE -auto -unselect creg C:\WINDOWS\SYSTEM' \
-      'CD C:\' \
-      ':MOUSE' \
-      'C:\WINDOWS\SYSTEM\VBMOUSE.EXE >NUL' \
-      ''
-  } | unix2dos > "$autoexec" || return 1
-
-  if ! cp -f -- "$autoexec" "$target/MEAUTO.BAT" ||
-    ! cmp -s -- "$autoexec" "$target/MEAUTO.BAT"; then
-    rm -rf -- "$temp" || :
-    error "Failed to stage the final Windows Me AUTOEXEC.BAT source file!"
     return 1
   fi
 
@@ -1853,7 +1897,7 @@ createWin9xSystemImage() {
   {
     printf '%s\n' \
       '[Options]' \
-      'BootGUI=0' \
+      'BootGUI=1' \
       'BootDelay=0' \
       'Logo=0' \
       ''
@@ -1867,8 +1911,9 @@ createWin9xSystemImage() {
 
   MTOOLSRC="$config" mattrib +h +s +r w:/IO.SYS w:/MSDOS.SYS || return 1
 
-  # Windows is started explicitly from AUTOEXEC.BAT so the DOS environment stays
-  # available for the mouse TSR.
+  # All Windows 9x variants use the normal BootGUI transition after AUTOEXEC.BAT
+  # returns. The mouse TSR and any late installed-system repatch therefore run
+  # first, without maintaining separate explicit WIN.COM paths per release.
 
   # Setup only needs its release-specific source directory. Keeping the rest
   # of the optical-media root off C: avoids exposing unrelated CD contents in
@@ -1902,36 +1947,7 @@ createWin9xSystemImage() {
     return 1
   fi
 
-  {
-    printf '%s\n' \
-      '@ECHO OFF' \
-      'IF EXIST C:\WINDOWS\WIN.COM GOTO WINDOWS' \
-      'ECHO.' \
-      'ECHO Starting Windows Setup, please wait...' \
-      'ECHO.' \
-      "C:\\${setup}\\VBMOUSE.EXE >NUL" \
-      "IF NOT EXIST C:\\${setup}\\XMSMMGR.EXE GOTO SETUP" \
-      "IF NOT EXIST C:\\${setup}\\SMARTDRV.EXE GOTO SETUP" \
-      "C:\\${setup}\\XMSMMGR.EXE >NUL" \
-      "C:\\${setup}\\SMARTDRV.EXE C+ /Q 16384 16384 >NUL" \
-      ':SETUP' \
-      "C:\\${setup}\\SETUP.EXE $options" \
-      'GOTO END' \
-      ':WINDOWS' \
-      'IF NOT EXIST C:\WINDOWS\SYSTEM\KERNEL32.DLL GOTO STARTWIN' \
-      'IF NOT EXIST C:\WINDOWS\SYSTEM\VMM32.VXD GOTO STARTWIN' \
-      'IF NOT EXIST C:\SETUP\PATCH9X.RUN GOTO STARTWIN' \
-      'IF NOT EXIST C:\SETUP\PATCH9X.EXE GOTO STARTWIN' \
-      'IF NOT EXIST C:\SETUP\CWSDPMI.EXE GOTO STARTWIN' \
-      'CD C:\SETUP' \
-      'PATCH9X.EXE -auto -unselect creg C:\WINDOWS\SYSTEM' \
-      'CD C:\' \
-      ':STARTWIN' \
-      'C:\WINDOWS\SYSTEM\VBMOUSE.EXE >NUL' \
-      'C:\WINDOWS\WIN.COM' \
-      ':END' \
-      ''
-  } | unix2dos > "$autoexec" || return 1
+  writeWin9xAutoexec "$autoexec" "$setup" "$options" || return 1
 
   MTOOLSRC="$config" mcopy -o "$autoexec" w:/AUTOEXEC.BAT || return 1
 
@@ -2489,10 +2505,14 @@ writeWin9xAnswerFile() {
   copyFiles+=",Win9x.PatcherEnable"
 
   if [[ "${id,,}" == "win9x"* ]]; then
-    # These are copied last during MSBATCH [Install], immediately before Me's
+    # These are copied during MSBATCH [Install], immediately before Me's
     # [Restart] phase promotes COMMAND.NEW/WINBOOT.NEW into the live boot files.
-    copyFiles+=",WinMe.System,WinMe.Windows,WinMe.Boot,WinMe.Autoexec"
+    copyFiles+=",WinMe.System,WinMe.Windows,WinMe.Boot"
   fi
+
+  # Restore the exact same final AUTOEXEC.BAT for Win95, Win98 and Me. It is
+  # intentionally last so Setup cannot leave any release-specific startup edits.
+  copyFiles+=",Win9x.Autoexec"
 
   if [[ "${id,,}" == "win98"* ]]; then
     [ -n "$firstLogonDelReg" ] && firstLogonDelReg+=","
@@ -2521,14 +2541,14 @@ writeWin9xAnswerFile() {
       '[SourceDisksFiles]' \
       'VBMOUSE.EXE=22' \
       'VBMOUSE.DRV=22' \
-      'PATCH9X.NEW=22'
+      'PATCH9X.NEW=22' \
+      'WIN9XAUTO.BAT=22'
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
         'MEIO.SYS=22' \
         'MECOM.COM=22' \
-        'MEREGENV.EXE=22' \
-        'MEAUTO.BAT=22'
+        'MEREGENV.EXE=22'
     fi
 
     if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
@@ -2649,7 +2669,10 @@ writeWin9xAnswerFile() {
       'PATCH9X.RUN,PATCH9X.NEW,,4' \
       '' \
       '[Win9x.PatcherMarker]' \
-      'PATCH9X.RUN'
+      'PATCH9X.RUN' \
+      '' \
+      '[Win9x.Autoexec]' \
+      'AUTOEXEC.BAT,WIN9XAUTO.BAT,,4'
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
@@ -2662,10 +2685,7 @@ writeWin9xAnswerFile() {
         '' \
         '[WinMe.Boot]' \
         'COMMAND.NEW,MECOM.COM,,4' \
-        'WINBOOT.NEW,MEIO.SYS,,4' \
-        '' \
-        '[WinMe.Autoexec]' \
-        'AUTOEXEC.BAT,MEAUTO.BAT,,4'
+        'WINBOOT.NEW,MEIO.SYS,,4'
     fi
 
     if ! disabled "$AUTOLOGIN"; then
@@ -2705,14 +2725,14 @@ writeWin9xAnswerFile() {
       '[DestinationDirs]' \
       'Win9x.Mouse=11' \
       'Win9x.PatcherEnable=30,SETUP' \
-      'Win9x.PatcherMarker=30,SETUP'
+      'Win9x.PatcherMarker=30,SETUP' \
+      'Win9x.Autoexec=30'
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
         'WinMe.System=11' \
         'WinMe.Windows=10' \
-        'WinMe.Boot=30' \
-        'WinMe.Autoexec=30'
+        'WinMe.Boot=30'
     fi
 
     if enabled "$quiet"; then
@@ -3009,6 +3029,11 @@ prepareWin9xInstall() {
   fi
 
   if ! stageWin9xMouseFiles "$target" "$desc" "$mouse"; then
+    rm -rf "$drivers" || :
+    return 1
+  fi
+
+  if ! stageWin9xFinalAutoexec "$target" "$setup" "$options" "$desc"; then
     rm -rf "$drivers" || :
     return 1
   fi
