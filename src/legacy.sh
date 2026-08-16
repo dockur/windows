@@ -1527,26 +1527,19 @@ stageWinMeBootCounter() {
   local desc="$2"
   local target="$dir/MEBOOT.BAT"
 
-  # RunServices invokes this once per protected-mode Windows boot. Keep the
-  # first two boots on the stock Me kernel; the second invocation only changes
-  # the on-disk files, so the alternate real-mode kernel starts on the next
-  # reboot. Marker files make the counter persistent without DOS arithmetic.
+  # RunServices invokes this once per protected-mode Windows boot. The first
+  # successful invocation proves that Setup reached Windows services; activate
+  # the alternate real-mode boot files immediately so the next reboot does not
+  # depend on another stock Windows Me protected-mode startup succeeding.
   {
     printf '%s\n' \
       '@ECHO OFF' \
       'IF EXIST C:\SETUP\MEBOOT.RUN GOTO END' \
-      'IF EXIST C:\SETUP\MEBOOT1.RUN GOTO PASS2' \
+      'IF EXIST C:\SETUP\MEBOOT1.RUN GOTO RETRY' \
       'ECHO PASS 1>>C:\SETUP\MEBOOT.LOG' \
       'ECHO Windows Me boot activation pass 1' \
       'ECHO [WinMe] boot pass 1 > COM1' \
       'ECHO 1>C:\SETUP\MEBOOT1.RUN' \
-      'GOTO END' \
-      ':PASS2' \
-      'IF EXIST C:\SETUP\MEBOOT2.RUN GOTO RETRY' \
-      'ECHO PASS 2>>C:\SETUP\MEBOOT.LOG' \
-      'ECHO Windows Me boot activation pass 2' \
-      'ECHO [WinMe] boot pass 2 > COM1' \
-      'ECHO 2>C:\SETUP\MEBOOT2.RUN' \
       'GOTO ACTIVATE' \
       ':RETRY' \
       'ECHO RETRY>>C:\SETUP\MEBOOT.LOG' \
@@ -1610,13 +1603,13 @@ createWin9xSystemImage() {
   local autoexec="$temp/AUTOEXEC.BAT"
   local msdos="$temp/MSDOS.SYS"
   local tmp="${image}.tmp"
-  local size=$((261 * 255 * 63 * 512))
+  local size=$((4177 * 255 * 63 * 512))
   local start=63
   local sectors=$((size / 512 - start))
   local offset=$((start * 512))
   local entry find_pid setup_dir
   local setup="SETUP"
-  local fs attributes
+  local fs attributes required
   local entries=()
 
   local msg="Creating system image..."
@@ -1721,7 +1714,14 @@ createWin9xSystemImage() {
     return 1
   fi
 
-  checkFreeSpace "$(dirname "$image")" "$size" || return 1
+  # The system image is sparse, so reserving its full logical 32 GiB size
+  # would reject valid hosts unnecessarily. The extracted ISO tree is a
+  # conservative upper bound for the files copied into this image; add 64 MiB
+  # for FAT metadata and other filesystem overhead.
+  required=$(du -sb -- "$dir" | cut -f1) || return 1
+  [[ "$required" =~ ^[0-9]+$ ]] || return 1
+  required=$((required + 64 * 1024 * 1024))
+  checkFreeSpace "$(dirname "$image")" "$required" || return 1
 
   fs=$(stat -f -c %T "$(dirname "$tmp")") || return 1
 
@@ -1736,7 +1736,7 @@ createWin9xSystemImage() {
 
   truncate -s "$size" "$tmp" || return 1
 
-  printf 'drive w: file="%s" partition=1 fat_bits=32 cylinders=261 heads=255 sectors=63 mformat_only\n' \
+  printf 'drive w: file="%s" partition=1 fat_bits=32 cylinders=4177 heads=255 sectors=63 mformat_only\n' \
     "$tmp" > "$config" || return 1
 
   # Let mtools create all volume-specific FAT32 data. In particular, the BPB
