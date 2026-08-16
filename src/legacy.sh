@@ -1395,7 +1395,38 @@ writeWin9xAutoexec() {
       'GOTO END' \
       ':WINDOWS' \
       'IF NOT EXIST C:\WINDOWS\SYSTEM\KERNEL32.DLL GOTO STARTWIN' \
-      'IF NOT EXIST C:\WINDOWS\SYSTEM\VMM32.VXD GOTO STARTWIN' \
+      'IF NOT EXIST C:\WINDOWS\SYSTEM\VMM32.VXD GOTO STARTWIN'
+
+    # Windows Me creates C:\DETLOG.TXT only after entering its first protected-mode
+    # hardware-detection pass. Keep that first boot on the stock Me kernel; on the
+    # following AUTOEXEC, replace the on-disk boot files for the next reboot.
+    # IO.SYS is already resident at this point, so this cannot alter the current boot.
+    if [[ "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' \
+        'IF NOT EXIST C:\DETLOG.TXT GOTO PATCH9X' \
+        'IF EXIST C:\SETUP\MEBOOT.RUN GOTO PATCH9X' \
+        'IF NOT EXIST C:\SETUP\MEIO.SYS GOTO PATCH9X' \
+        'IF NOT EXIST C:\SETUP\MECOM.COM GOTO PATCH9X' \
+        'IF NOT EXIST C:\SETUP\MEREGENV.EXE GOTO PATCH9X' \
+        'IF NOT EXIST C:\WINDOWS\COMMAND\ATTRIB.EXE GOTO PATCH9X' \
+        'COPY /Y C:\SETUP\MEREGENV.EXE C:\WINDOWS\SYSTEM\REGENV32.EXE >NUL' \
+        'IF ERRORLEVEL 1 GOTO PATCH9X' \
+        'COPY /Y C:\SETUP\MECOM.COM C:\WINDOWS\COMMAND.COM >NUL' \
+        'IF ERRORLEVEL 1 GOTO PATCH9X' \
+        'COPY /Y C:\SETUP\MECOM.COM C:\COMMAND.COM >NUL' \
+        'IF ERRORLEVEL 1 GOTO PATCH9X' \
+        'C:\WINDOWS\COMMAND\ATTRIB.EXE -R -S -H C:\IO.SYS >NUL' \
+        'COPY /Y C:\SETUP\MEIO.SYS C:\IO.SYS >NUL' \
+        'IF ERRORLEVEL 1 GOTO MEBOOTFAIL' \
+        'C:\WINDOWS\COMMAND\ATTRIB.EXE +R +S +H C:\IO.SYS >NUL' \
+        'ECHO 1>C:\SETUP\MEBOOT.RUN' \
+        'GOTO PATCH9X' \
+        ':MEBOOTFAIL' \
+        'C:\WINDOWS\COMMAND\ATTRIB.EXE +R +S +H C:\IO.SYS >NUL' \
+        ':PATCH9X'
+    fi
+
+    printf '%s\n' \
       'IF NOT EXIST C:\SETUP\PATCH9X.RUN GOTO STARTWIN' \
       'IF NOT EXIST C:\SETUP\PATCH9X.EXE GOTO STARTWIN' \
       'IF NOT EXIST C:\SETUP\CWSDPMI.EXE GOTO STARTWIN' \
@@ -1434,6 +1465,86 @@ stageWin9xFinalAutoexec() {
     ! cmp -s -- "$autoexec" "$target/W9XAUTO.BAT"; then
     rm -rf -- "$temp" || :
     error "Failed to stage the final $desc AUTOEXEC.BAT source file!"
+    return 1
+  fi
+
+  rm -rf -- "$temp" || :
+  return 0
+}
+
+stageWinMeFinalBootFiles() {
+
+  local dir="$1"
+  local target="$2"
+  local desc="$3"
+
+  local temp="$TMP/winme-final-boot"
+  local cbs winboot size signature
+
+  rm -rf -- "$temp" || return 1
+  mkdir -p "$temp/nettools" || return 1
+
+  cbs=$(find "$dir" -type f -ipath '*/TOOLS/NETTOOLS/FAC/CBS.DTA' -print -quit) || return 1
+
+  if [ -z "$cbs" ]; then
+    rm -rf -- "$temp" || :
+    error "Failed to locate the Windows Me NETTOOLS CBS.DTA archive!"
+    return 1
+  fi
+
+  if ! cabextract -q -L -F 'WINBOOT.SYS' -d "$temp/nettools" "$cbs" >/dev/null 2>&1; then
+    rm -rf -- "$temp" || :
+    error "Failed to extract the Windows Me NETTOOLS WINBOOT.SYS!"
+    return 1
+  fi
+
+  winboot=$(find "$temp/nettools" -type f -iname 'WINBOOT.SYS' -print -quit) || return 1
+
+  if [ -z "$winboot" ] || [ ! -s "$winboot" ]; then
+    rm -rf -- "$temp" || :
+    error "Failed to locate the extracted Windows Me NETTOOLS WINBOOT.SYS!"
+    return 1
+  fi
+
+  size=$(stat -c %s -- "$winboot") || return 1
+  signature=$(dd if="$winboot" bs=1 count=2 status=none | od -An -tx1 | tr -d ' \n') || return 1
+
+  if (( size != 118784 )) || [[ "${signature,,}" != "4d5a" ]]; then
+    rm -rf -- "$temp" || :
+    error "Unexpected Windows Me NETTOOLS WINBOOT.SYS format!"
+    return 1
+  fi
+
+  if ! cp -f -- "$winboot" "$target/MEIO.SYS" ||
+    ! cmp -s -- "$winboot" "$target/MEIO.SYS"; then
+    rm -rf -- "$temp" || :
+    error "Failed to stage the final Windows Me IO.SYS source file!"
+    return 1
+  fi
+
+  if ! extractWin9xCabFile "$target" 'COMMAND.COM' "$target/MECOM.COM" "$desc" ||
+    ! extractWin9xCabFile "$target" 'REGENV32.EXE' "$target/MEREGENV.EXE" "$desc"; then
+    rm -rf -- "$temp" || :
+    return 1
+  fi
+
+  # Enable the normal real-mode path in the localized Windows Me COMMAND.COM.
+  # These are the three guarded substitutions used by the established Me DOS
+  # mode patch; do not include its unrelated hidden-file display tweaks.
+  if ! patchWinMeBinaryPatterns "$target/MECOM.COM" 'Windows Me COMMAND.COM' \
+    '7510b80e' 'eb10b80e' \
+    '0300750b8b' '0300eb0b8b' \
+    '128b1608' '448b1608'; then
+    rm -rf -- "$temp" || :
+    return 1
+  fi
+
+  # REGENV32 otherwise rewrites CONFIG.SYS and AUTOEXEC.BAT on every restart.
+  # Redirect those writes to .WIN files so our real-mode startup remains intact.
+  if ! patchWinMeBinaryPatterns "$target/MEREGENV.EXE" 'Windows Me REGENV32.EXE' \
+    '434f4e4649472e535953' '434f4e4649472e57494e' \
+    '4155544f455845432e424154' '4155544f455845432e57494e'; then
+    rm -rf -- "$temp" || :
     return 1
   fi
 
@@ -2986,6 +3097,13 @@ prepareWin9xInstall() {
   if ! stageWin9xFinalAutoexec "$target" "$setup" "$options" "$desc" "$id"; then
     rm -rf "$drivers" || :
     return 1
+  fi
+
+  if [[ "${id,,}" == "win9x"* ]]; then
+    if ! stageWinMeFinalBootFiles "$dir" "$target" "$desc"; then
+      rm -rf "$drivers" || :
+      return 1
+    fi
   fi
 
   # Do not copy optical-media AutoRun metadata onto the system disk; Explorer
