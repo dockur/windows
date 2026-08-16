@@ -1804,4 +1804,167 @@ isCompatible() {
   return 0
 }
 
+getLocaleID() {
+
+  local input="${1//_/-}"
+  input="${input,,}"
+
+  # Accept a native Windows locale ID directly as either Lxxxx or xxxx.
+  if [[ "$input" =~ ^l([0-9a-f]{4})$ ]]; then
+    printf '%s\n' "${BASH_REMATCH[1]^^}"
+    return 0
+  fi
+
+  if [[ "$input" =~ ^([0-9a-f]{4})$ ]]; then
+    printf '%s\n' "${BASH_REMATCH[1]^^}"
+    return 0
+  fi
+
+  # Translate the BCP-47-style REGION value to the four-digit Windows locale
+  # ID shared by Win9x MSBATCH and NT5 WINNT.SIF. Answer-file writers add any
+  # release-specific prefixes or separators themselves.
+  case "$input" in
+    "ar" | "ar-sa" ) echo "0401" ;;
+    "bg" | "bg-bg" ) echo "0402" ;;
+    "ca" | "ca-es" ) echo "0403" ;;
+    "zh-tw" ) echo "0404" ;;
+    "cs" | "cs-cz" ) echo "0405" ;;
+    "da" | "da-dk" ) echo "0406" ;;
+    "de" | "de-de" ) echo "0407" ;;
+    "de-ch" ) echo "0807" ;;
+    "de-at" ) echo "0C07" ;;
+    "de-lu" ) echo "1007" ;;
+    "de-li" ) echo "1407" ;;
+    "el" | "el-gr" ) echo "0408" ;;
+    "en" | "en-us" ) echo "0409" ;;
+    "en-gb" ) echo "0809" ;;
+    "en-au" ) echo "0C09" ;;
+    "en-ca" ) echo "1009" ;;
+    "en-nz" ) echo "1409" ;;
+    "en-ie" ) echo "1809" ;;
+    "en-za" ) echo "1C09" ;;
+    "en-jm" ) echo "2009" ;;
+    "en-bz" ) echo "2809" ;;
+    "en-tt" ) echo "2C09" ;;
+    "en-zw" ) echo "3009" ;;
+    "en-ph" ) echo "3409" ;;
+    "es" | "es-es" ) echo "0C0A" ;;
+    "es-mx" ) echo "080A" ;;
+    "fi" | "fi-fi" ) echo "040B" ;;
+    "fr" | "fr-fr" ) echo "040C" ;;
+    "fr-be" ) echo "080C" ;;
+    "fr-ca" ) echo "0C0C" ;;
+    "fr-ch" ) echo "100C" ;;
+    "fr-lu" ) echo "140C" ;;
+    "fr-mc" ) echo "180C" ;;
+    "he" | "he-il" ) echo "040D" ;;
+    "hu" | "hu-hu" ) echo "040E" ;;
+    "it" | "it-it" ) echo "0410" ;;
+    "it-ch" ) echo "0810" ;;
+    "ja" | "ja-jp" ) echo "0411" ;;
+    "ko" | "ko-kr" ) echo "0412" ;;
+    "nl" | "nl-nl" ) echo "0413" ;;
+    "nl-be" ) echo "0813" ;;
+    "nb" | "no" | "nb-no" ) echo "0414" ;;
+    "nn" | "nn-no" ) echo "0814" ;;
+    "pl" | "pl-pl" ) echo "0415" ;;
+    "pt-br" ) echo "0416" ;;
+    "pt" | "pt-pt" ) echo "0816" ;;
+    "ro" | "ro-ro" ) echo "0418" ;;
+    "ru" | "ru-ru" ) echo "0419" ;;
+    "hr" | "hr-hr" ) echo "041A" ;;
+    "sr" | "sr-latn-rs" ) echo "081A" ;;
+    "sk" | "sk-sk" ) echo "041B" ;;
+    "sv" | "sv-se" ) echo "041D" ;;
+    "sv-fi" ) echo "081D" ;;
+    "th" | "th-th" ) echo "041E" ;;
+    "tr" | "tr-tr" ) echo "041F" ;;
+    "uk" | "uk-ua" ) echo "0422" ;;
+    "sl" | "sl-si" ) echo "0424" ;;
+    "et" | "et-ee" ) echo "0425" ;;
+    "lv" | "lv-lv" ) echo "0426" ;;
+    "lt" | "lt-lt" ) echo "0427" ;;
+    "zh" | "zh-cn" ) echo "0804" ;;
+    "zh-hk" ) echo "0C04" ;;
+    * ) echo "0409" ;;
+  esac
+
+  return 0
+}
+
+getKeyboardID() {
+
+  local input="${1//_/-}"
+  input="${input,,}"
+
+  # Accept either Win9x MSBATCH syntax or a raw eight-digit keyboard layout ID.
+  if [[ "$input" =~ ^keyboard[-_]([0-9a-f]{8})$ ]]; then
+    printf '%s\n' "${BASH_REMATCH[1]^^}"
+    return 0
+  fi
+
+  if [[ "$input" =~ ^([0-9a-f]{8})$ ]]; then
+    printf '%s\n' "${BASH_REMATCH[1]^^}"
+    return 0
+  fi
+
+  # Return the neutral eight-digit keyboard layout ID. Unknown values use the
+  # existing US keyboard default instead of making Setup interactive.
+  case "$input" in
+    "ar" | "ar-sa" ) echo "00000401" ;;
+    "bg" | "bg-bg" ) echo "00000402" ;;
+    "ca" | "ca-es" ) echo "00000403" ;;
+    "zh-tw" ) echo "00000404" ;;
+    "cs" | "cs-cz" ) echo "00000405" ;;
+    "da" | "da-dk" ) echo "00000406" ;;
+    "de" | "de-de" ) echo "00000407" ;;
+    "de-ch" ) echo "00000807" ;;
+    "de-at" ) echo "00000C07" ;;
+    "el" | "el-gr" ) echo "00000408" ;;
+    "en" | "en-us" ) echo "00000409" ;;
+    "en-gb" ) echo "00000809" ;;
+    "en-au" ) echo "00000C09" ;;
+    "en-ca" ) echo "00001009" ;;
+    "es" | "es-es" ) echo "00000C0A" ;;
+    "es-mx" ) echo "0000080A" ;;
+    "fi" | "fi-fi" ) echo "0000040B" ;;
+    "fr" | "fr-fr" ) echo "0000040C" ;;
+    "fr-be" ) echo "0000080C" ;;
+    "fr-ca" ) echo "00000C0C" ;;
+    "fr-ch" ) echo "0000100C" ;;
+    "he" | "he-il" ) echo "0000040D" ;;
+    "hu" | "hu-hu" ) echo "0000040E" ;;
+    "it" | "it-it" ) echo "00000410" ;;
+    "it-ch" ) echo "00000810" ;;
+    "ja" | "ja-jp" ) echo "00000411" ;;
+    "ko" | "ko-kr" ) echo "00000412" ;;
+    "nl" | "nl-nl" ) echo "00000413" ;;
+    "nl-be" ) echo "00000813" ;;
+    "nb" | "no" | "nb-no" ) echo "00000414" ;;
+    "nn" | "nn-no" ) echo "00000814" ;;
+    "pl" | "pl-pl" ) echo "00000415" ;;
+    "pt-br" ) echo "00000416" ;;
+    "pt" | "pt-pt" ) echo "00000816" ;;
+    "ro" | "ro-ro" ) echo "00000418" ;;
+    "ru" | "ru-ru" ) echo "00000419" ;;
+    "hr" | "hr-hr" ) echo "0000041A" ;;
+    "sr" | "sr-latn-rs" ) echo "0000081A" ;;
+    "sk" | "sk-sk" ) echo "0000041B" ;;
+    "sv" | "sv-se" ) echo "0000041D" ;;
+    "sv-fi" ) echo "0000081D" ;;
+    "th" | "th-th" ) echo "0000041E" ;;
+    "tr" | "tr-tr" ) echo "0000041F" ;;
+    "uk" | "uk-ua" ) echo "00000422" ;;
+    "sl" | "sl-si" ) echo "00000424" ;;
+    "et" | "et-ee" ) echo "00000425" ;;
+    "lv" | "lv-lv" ) echo "00000426" ;;
+    "lt" | "lt-lt" ) echo "00000427" ;;
+    "zh" | "zh-cn" ) echo "00000804" ;;
+    "zh-hk" ) echo "00000C04" ;;
+    * ) echo "00000409" ;;
+  esac
+
+  return 0
+}
+
 return 0
