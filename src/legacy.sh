@@ -2357,20 +2357,12 @@ writeWin9xMachineRegistry() {
     'HKLM,"System\CurrentControlSet\Control\FileSystem","PathCache",1,40,00,00,00' \
     'HKLM,"System\CurrentControlSet\Control\FileSystem","ReadAheadThreshold",1,00,00,01,00' \
     'HKLM,"System\CurrentControlSet\Control\FileSystem\CDFS","CacheSize",1,ac,09,00,00' \
-    'HKLM,"System\CurrentControlSet\Control\FileSystem\CDFS","Prefetch",1,e4,00,00,00'
+    'HKLM,"System\CurrentControlSet\Control\FileSystem\CDFS","Prefetch",1,e4,00,00,00' \
+    'HKLM,"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoDevMgrUpdate",0x00010001,1' \
+    'HKLM,"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoWindowsUpdate",0x00010001,1'
 }
 
-writeWin98MeRegistry() {
-
-  local id="$1"
-  local browser_section="Win9x.Browser"
-
-  # Windows 98 needs the later Active Setup pass to repeat its ISP/ICW cleanup
-  # after IE has finished creating shell items. Windows Me gets only the common
-  # browser and power settings from the same Active Setup component.
-  if [[ "${id,,}" == "win98"* ]]; then
-    browser_section="Win98.Browser"
-  fi
+writeWin9xBrowserPowerRegistry() {
 
   printf '%s\n' \
     '[Win9x.Power]' \
@@ -2382,22 +2374,12 @@ writeWin98MeRegistry() {
     'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx",,,">Batch 9x - General Settings"' \
     'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx","IsInstalled",0x00000001,01,00,00,00' \
     'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx","Version",,"3,0,0,0"' \
-    "HKLM,\"SOFTWARE\\Microsoft\\Active Setup\\Installed Components\\>BatchSetupx\",\"StubPath\",,\"%25%\\rundll.exe setupx.dll,InstallHinfSection $browser_section 4 %10%\\msbatch.inf\"" \
-    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex",,,">Batch 9x - Storage Settings"' \
-    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex","IsInstalled",0x00000001,01,00,00,00' \
-    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex","Version",,"3,0,0,0"' \
-    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex","StubPath",,"%10%\WIN9XDMA.EXE"' \
+    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx","StubPath",,"%25%\rundll.exe setupx.dll,InstallHinfSection Win9x.Browser 4 %10%\msbatch.inf"' \
     '' \
-    "[$browser_section]" \
-    'AddReg=Win9x.BrowserUser,Win9x.PowerUser'
-
-  if [[ "${id,,}" == "win98"* ]]; then
-    printf '%s\n' \
-      'DelReg=Win98.MSN,Win98.ICWDesktop' \
-      'DelFiles=Win98.Connect,Win98.ConnectAll'
-  fi
-
-  printf '%s\n' \
+    '[Win9x.Browser]' \
+    'AddReg=Win9x.BrowserUser,Win9x.PowerUser' \
+    'DelReg=Win9x.MSN,Win9x.ICWDesktop' \
+    'DelFiles=Win9x.Connect,Win9x.ConnectAll' \
     '' \
     '[Win9x.PowerUser]' \
     'HKCU,"Control Panel\PowerCfg","CurrentPowerPolicy",,"3"' \
@@ -2410,6 +2392,16 @@ writeWin98MeRegistry() {
     'HKCU,"Software\Microsoft\Internet Explorer\Main","Default_Page_URL",,"http://www.google.com"' \
     'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Page",,"http://www.google.com"' \
     'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Bar",,"http://www.google.com"'
+}
+
+writeWin9xStorageRegistry() {
+
+  printf '%s\n' \
+    '[Win9x.StorageActiveSetup]' \
+    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex",,,">Batch 9x - Storage Settings"' \
+    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex","IsInstalled",0x00000001,01,00,00,00' \
+    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex","Version",,"3,0,0,0"' \
+    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex","StubPath",,"%10%\WIN9XDMA.EXE"'
 }
 
 getWin9xLocale() {
@@ -2576,34 +2568,35 @@ getWin9xKeyboard() {
   return 0
 }
 
-writeWin98Registry() {
+writeWin9xCleanupRegistry() {
 
   printf '%s\n' \
-    '[Win98.Welcome]' \
+    '[Win9x.Welcome]' \
     'HKLM,"Software\Microsoft\Windows\CurrentVersion\Run","Welcome",,,' \
     '' \
-    '[Win98.Regwiz]' \
+    '[Win9x.Regwiz]' \
     'HKLM,"Software\Microsoft\Windows\CurrentVersion\Welcome\Regwiz",@,1,01,00,00,00' \
     'HKLM,"Software\Microsoft\Windows\CurrentVersion","RegDone",1,01,00,00,00' \
     '' \
-    '[Win98.MSN]' \
+    '[Win9x.MSN]' \
     'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{4B876A40-4EE8-11D1-811E-00C04FB98EEC}",,,' \
     'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{88667D10-10F0-11D0-8150-00AA00BF8457}",,,' \
     '' \
-    '[Win98.ICWDesktop]' \
+    '[Win9x.ICWDesktop]' \
     'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","^SetupICWDesktop",,,' \
     'HKCU,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","^SetupICWDesktop",,,' \
     'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\RunOnce","^SetupICWDesktop",,,' \
     '' \
-    '[Win98.Connect]' \
+    '[Win9x.Connect]' \
     'connec~1.lnk' \
     '"Connect to the Internet.lnk"' \
     '' \
-    '[Win98.ConnectAll]' \
+    '[Win9x.ConnectAll]' \
     'connec~1.lnk' \
     '"Connect to the Internet.lnk"' \
     '' \
-    '[Win98.OnlineServices]' \
+    '[Win9x.OnlineServices]' \
+    'aol.lnk' \
     'americ~1.lnk' \
     'at&two~1.lnk' \
     'compus~1.lnk' \
@@ -2613,10 +2606,11 @@ writeWin98Registry() {
     'abouto~1.txt' \
     'services.txt' \
     '' \
-    '[Win98.QuickLaunch]' \
+    '[Win9x.QuickLaunch]' \
+    'launch~1.lnk' \
     'viewch~1.scf' \
     '' \
-    '[Win98.OnlineServicesFolder]' \
+    '[Win9x.OnlineServicesFolder]' \
     '%10%\wininit.ini,DIRNUL,,"C:\WINDOWS\Desktop\Online~1=1"'
 }
 
@@ -2635,12 +2629,12 @@ writeWin9xAnswerFile() {
   local install="${11}"
 
   local desktop="%10%\Desktop"
-  local addReg="OPKInstall,Win9x.Machine,Win9x.PCMCIA"
+  local addReg="OPKInstall,Win9x.Machine,Win9x.PCMCIA,Win9x.Power,Win9x.ActiveSetup"
   local copyFiles="Win9x.Mouse"
-  local firstLogonAddReg="Win9x.User"
-  local firstLogonDelReg=""
-  local firstLogonDelFiles="Win9x.PatcherMarker"
-  local firstLogonUpdateInis=""
+  local firstLogonAddReg="Win9x.User,Win9x.Regwiz,Win9x.BrowserUser,Win9x.PowerUser"
+  local firstLogonDelReg="Win9x.Welcome,Win9x.MSN,Win9x.ICWDesktop"
+  local firstLogonDelFiles="Win9x.PatcherMarker,Win9x.Connect,Win9x.ConnectAll,Win9x.OnlineServices,Win9x.QuickLaunch"
+  local firstLogonUpdateInis="Win9x.OnlineServicesFolder"
   local post=""
   local quiet=""
   local culture region keyboard locale selectedKeyboard
@@ -2671,12 +2665,10 @@ writeWin9xAnswerFile() {
   fi
 
   if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
-    # Seed the machine/default Always On policy before user initialization.
-    # Active Setup reapplies the user policy after IE/Setup finish resetting
-    # per-user defaults, while the separate DMA helper runs after enumeration.
-    addReg+=",Win9x.Power,Win9x.ActiveSetup"
+    # The DMA helper executes code and is therefore kept to the releases it was
+    # built for. Registry/MSBATCH settings themselves are emitted for all Win9x.
+    addReg+=",Win9x.StorageActiveSetup"
     copyFiles+=",Win9x.DMA"
-    firstLogonAddReg+=",Win9x.BrowserUser,Win9x.PowerUser"
   fi
 
   # Enable the installed-system repatch only in the late MSBATCH file-copy
@@ -2693,15 +2685,6 @@ writeWin9xAnswerFile() {
   # Restore the exact same final AUTOEXEC.BAT for Win95, Win98 and Me. It is
   # intentionally last so Setup cannot leave any release-specific startup edits.
   copyFiles+=",Win9x.Autoexec"
-
-  if [[ "${id,,}" == "win98"* ]]; then
-    firstLogonAddReg+=",Win98.Regwiz"
-    [ -n "$firstLogonDelReg" ] && firstLogonDelReg+=","
-    firstLogonDelReg+="Win98.Welcome"
-    [ -n "$firstLogonDelFiles" ] && firstLogonDelFiles+=","
-    firstLogonDelFiles+="Win98.OnlineServices,Win98.QuickLaunch"
-    firstLogonUpdateInis="Win98.OnlineServicesFolder"
-  fi
 
   # Cap the memory Win9x itself can address at 4 GiB without changing QEMU's
   # RAM_SIZE. Setup may use SYSTEM.CB for its minimal protected-mode/fallback
@@ -2825,15 +2808,14 @@ writeWin9xAnswerFile() {
     printf '%s\n' ''
     writeWin9xUserRegistry
 
-    if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
-      printf '%s\n' ''
-      writeWin98MeRegistry "$id"
-    fi
+    printf '%s\n' ''
+    writeWin9xBrowserPowerRegistry
 
-    if [[ "${id,,}" == "win98"* ]]; then
-      printf '%s\n' ''
-      writeWin98Registry
-    fi
+    printf '%s\n' ''
+    writeWin9xStorageRegistry
+
+    printf '%s\n' ''
+    writeWin9xCleanupRegistry
 
     if enabled "$post"; then
       printf '%s\n' \
@@ -2912,7 +2894,11 @@ writeWin9xAnswerFile() {
       'Win9x.Mouse=11' \
       'Win9x.PatcherEnable=30,SETUP' \
       'Win9x.PatcherMarker=30,SETUP' \
-      'Win9x.Autoexec=30'
+      'Win9x.Autoexec=30' \
+      'Win9x.Connect=10,Desktop' \
+      'Win9x.ConnectAll=10,alluse~1\desktop' \
+      'Win9x.OnlineServices=10,Desktop\Online~1' \
+      'Win9x.QuickLaunch=10,Applic~1\Micros~1\Intern~1\QuickL~1'
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
@@ -2935,14 +2921,6 @@ writeWin9xAnswerFile() {
 
     if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
       printf '%s\n' 'Win9x.DMA=10'
-    fi
-
-    if [[ "${id,,}" == "win98"* ]]; then
-      printf '%s\n' \
-        'Win98.Connect=10,Desktop' \
-        'Win98.ConnectAll=10,alluse~1\desktop' \
-        'Win98.OnlineServices=10,Desktop\Online~1' \
-        'Win98.QuickLaunch=10,Applic~1\Micros~1\Intern~1\QuickL~1'
     fi
 
     if enabled "$shortcut"; then
