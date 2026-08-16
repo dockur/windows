@@ -2730,7 +2730,7 @@ writeWin9xAnswerFile() {
       printf '%s\n' \
         '' \
         '[WinMe.BootService]' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices","WinMeBoot",,"C:\SETUP\QUIET.EXE C:\SETUP\MECOM.COM /C C:\SETUP\MEBOOT.BAT"'
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices","WinMeBoot",,"C:\SETUP\MECOM.COM /C C:\SETUP\MEBOOT.BAT"'
     fi
 
     printf '%s\n' \
