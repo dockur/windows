@@ -30,18 +30,6 @@ cd /run
 . power.sh      # Configure shutdown
 . balloon.sh    # Initialize ballooning
 . config.sh     # Configure arguments
-
-# Windows Me hardware-detection diagnostic: config.sh from the QEMU base adds a
-# VirtIO RNG device unconditionally. Strip just that inherited device from the
-# completed argument list instead of overriding the base config implementation.
-if enabled "${WINME_MINIMAL_HW:-N}"; then
-  ARGS=$(printf '%s\n' "$ARGS" | sed -E \
-    -e 's/(^| )-object rng-random,id=objrng0,filename=\/dev\/urandom( |$)/ /' \
-    -e 's/(^| )-device virtio-rng-pci,rng=objrng0,id=rng0,bus=[^ ]+( |$)/ /' \
-    -e 's/[[:space:]]+/ /g' \
-    -e 's/^ //;s/ $//')
-fi
-
 . finish.sh     # Finish initialization
 
 trap - ERR
