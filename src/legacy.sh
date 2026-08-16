@@ -1402,8 +1402,11 @@ writeWin9xAutoexec() {
       "CD C:\\SETUP" \
       "PATCH9X.EXE $patch_args C:\\WINDOWS\\SYSTEM >NUL" \
       "CD C:\\" \
-      ':STARTWIN' \
-      'C:\WINDOWS\SYSTEM\VBMOUSE.EXE >NUL'
+      ':STARTWIN'
+
+    if [[ "${id,,}" != "win9x"* ]]; then
+      printf '%s\n' 'C:\WINDOWS\SYSTEM\VBMOUSE.EXE >NUL'
+    fi
 
     if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
       printf '%s\n' 'C:\WINDOWS\WIN.COM'
@@ -2649,6 +2652,7 @@ writeWin9xAnswerFile() {
 
   if [[ "${id,,}" == "win9x"* ]]; then
     addReg="${addReg%,Win9x.ActiveSetup}"
+    copyFiles=""
     firstLogonDelFiles="${firstLogonDelFiles/Win9x.PatcherMarker,/}"
   elif [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
     firstLogonDelFiles="${firstLogonDelFiles/Win9x.PatcherMarker,/}"
@@ -2698,6 +2702,11 @@ writeWin9xAnswerFile() {
   # Restore the exact same final AUTOEXEC.BAT for Win95, Win98 and Me. It is
   # intentionally last so Setup cannot leave any release-specific startup edits.
   copyFiles+=",Win9x.Autoexec"
+
+  # WinMe keeps VBMOUSE only in the initial Setup environment. Strip the
+  # leading separator left by the common CopyFiles append logic after removing
+  # Win9x.Mouse from the installed WinMe copy list.
+  copyFiles="${copyFiles#,}"
 
   # Cap the memory Win9x itself can address at 4 GiB without changing QEMU's
   # RAM_SIZE. Setup may use SYSTEM.CB for its minimal protected-mode/fallback
@@ -2930,8 +2939,13 @@ writeWin9xAnswerFile() {
 
     printf '%s\n' \
       '' \
-      '[Win9x.SystemIni]' \
-      '%10%\system.ini,boot,"mouse.drv=mouse.drv","mouse.drv=vbmouse.drv"' \
+      '[Win9x.SystemIni]'
+
+    if [[ "${id,,}" != "win9x"* ]]; then
+      printf '%s\n' '%10%\system.ini,boot,"mouse.drv=mouse.drv","mouse.drv=vbmouse.drv"'
+    fi
+
+    printf '%s\n' \
       '%10%\system.ini,386Enh,,"MaxPhysPage=100000"' \
       '%10%\system.ini,vcache,,"MaxFileCache=65536"'
 
