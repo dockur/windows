@@ -1691,12 +1691,6 @@ createWin9xSystemImage() {
       "C:\\${setup}\\SETUP.EXE $options" \
       'GOTO END' \
       ':WINDOWS' \
-      'IF NOT EXIST C:\WINDOWS\SYSTEM\KERNEL32.DLL GOTO STARTWIN' \
-      'IF NOT EXIST C:\WINDOWS\SYSTEM\VMM32.VXD GOTO STARTWIN' \
-      'CD C:\SETUP' \
-      'PATCH9X.EXE -auto -unselect creg C:\WINDOWS\SYSTEM >NUL' \
-      'CD C:\' \
-      ':STARTWIN' \
       'C:\WINDOWS\SYSTEM\VBMOUSE.EXE >NUL' \
       'C:\WINDOWS\WIN.COM' \
       ':END' \
@@ -1729,36 +1723,6 @@ createWin9xSystemImage() {
   fi
 
   rm -rf -- "$temp" || :
-
-  return 0
-}
-
-stageWin9xDosPatcher() {
-
-  local dir="$1"
-  local desc="$2"
-  local image="$3"
-  local file
-
-  if [ ! -f "$image" ]; then
-    error "Failed to locate the Windows 9x DOS Patcher9x image!"
-    return 1
-  fi
-
-  # The official Patcher9x DOS image carries the DJGPP executable together with
-  # CWSDPMI. Keep both beside each other in the retained C:\SETUP source so the
-  # patcher can run from real mode before WIN.COM starts.
-  for file in PATCH9X.EXE CWSDPMI.EXE; do
-
-    rm -f -- "$dir/$file" || return 1
-
-    if ! mcopy -o -i "$image" "::/$file" "$dir/$file" >/dev/null 2>&1 ||
-      [ ! -s "$dir/$file" ]; then
-      error "Failed to stage $file for $desc!"
-      return 1
-    fi
-
-  done
 
   return 0
 }
@@ -2207,100 +2171,6 @@ writeWin9xAnswerFile() {
   local batchKey="$9"
   local shortcut="${10}"
   local install="${11}"
-
-  # Windows Me diagnostic: keep only the pieces required to reach hardware
-  # detection unattended and with a usable mouse. Later UI/registry/DMA/
-  # autologin/post-Setup customizations are intentionally excluded here.
-  if [[ "${id,,}" == "win9x"* ]]; then
-    {
-      printf '%s\n' \
-        '[BatchSetup]' \
-        'Version=3.0 (32-bit)' \
-        '' \
-        '[Version]' \
-        "Signature=\"\$CHICAGO\$\"" \
-        'AdvancedINF=2.5' \
-        'LayoutFile=layout.inf' \
-        '' \
-        '[SourceDisksNames]' \
-        '22="Windows Setup",,0' \
-        '' \
-        '[SourceDisksFiles]' \
-        'VBMOUSE.EXE=22' \
-        'VBMOUSE.DRV=22' \
-        '' \
-        '[Install]' \
-        'CopyFiles=Win9x.Mouse' \
-        'UpdateInis=Win9x.SystemIni,Win9x.SystemCb' \
-        'AddReg=OPKInstall,OEMDrivers' \
-        '' \
-        '[OPKInstall]' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion","ProductId",,"12345-OEM-1234567-12345"' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion","ProductKey",,"CDKey"' \
-        "HKLM,\"SOFTWARE\Microsoft\Windows\CurrentVersion\",\"RegisteredOwner\",,\"$batchUsername\"" \
-        "HKLM,\"SOFTWARE\Microsoft\Windows\CurrentVersion\",\"RegisteredOrganization\",,\"$batchOrganization\"" \
-        '' \
-        '[OEMDrivers]' \
-        "HKLM,\"SOFTWARE\Microsoft\Windows\CurrentVersion\",\"OtherDevicePath\",,\"C:\\WINDOWS\\INF\\OTHER;C:\\$setup\"" \
-        '' \
-        '[Win9x.Mouse]' \
-        'VBMOUSE.EXE' \
-        'VBMOUSE.DRV' \
-        '' \
-        '[DestinationDirs]' \
-        'Win9x.Mouse=11' \
-        '' \
-        '[Win9x.SystemIni]' \
-        '%10%\system.ini,boot,"mouse.drv=mouse.drv","mouse.drv=vbmouse.drv"' \
-        '%10%\system.ini,386Enh,,"MaxPhysPage=100000"' \
-        '%10%\system.ini,vcache,,"MaxFileCache=65536"' \
-        '' \
-        '[Win9x.SystemCb]' \
-        '%10%\system.cb,386Enh,,"MaxPhysPage=100000"' \
-        '' \
-        '[Setup]' \
-        'Express=1' \
-        'InstallDir="C:\WINDOWS"' \
-        'InstallType=3'
-
-      # Keep the normal explicit KEY behavior if the user supplied one. With no
-      # KEY, the OPKInstall ProductId/ProductKey entries above provide the same
-      # unattended bypass already used by the tested Win98 path.
-      if [ -n "$batchKey" ]; then
-        printf 'ProductKey="%s"\n' "$batchKey"
-      fi
-
-      printf '%s\n' \
-        'EBD=0' \
-        'ShowEula=0' \
-        'Network=1' \
-        'DevicePath=1' \
-        'NoPrompt2Boot=1' \
-        'TimeZone=Pacific' \
-        '' \
-        '[OptionalComponents]' \
-        '"The Microsoft Network"=0' \
-        '"Online Services"=0' \
-        '' \
-        '[NameAndOrg]' \
-        "Name=\"$batchUsername\"" \
-        "Org=\"$batchOrganization\"" \
-        'Display=0' \
-        '' \
-        '[System]' \
-        "DisplChar=16,$WIDTH,$HEIGHT" \
-        "Monitor=\"$monitor\"" \
-        '' \
-        '[Network]' \
-        "ComputerName=\"$batchHost\"" \
-        "Workgroup=\"$batchWorkgroup\"" \
-        'PrimaryLogon=Windows' \
-        'Display=0' \
-        ''
-    } | unix2dos > "$target/MSBATCH.INF" || return 1
-
-    return 0
-  fi
 
   local desktop="%10%\Desktop"
   local addReg="OPKInstall,Win9x.Machine"
@@ -2782,13 +2652,12 @@ prepareWin9xInstall() {
   local drivers="/tmp/drivers"
   local win9x="$drivers/win9x"
   local patcher="$win9x/patcher9x/patcher9x"
-  local patcher_dos="$patcher.img"
   local mouse="$win9x/mouse"
   local display="$win9x/boxv9x"
 
   extractDrivers "$drivers" || return 1
 
-  if [ ! -f "$patcher" ] || [ ! -f "$patcher_dos" ]; then
+  if [ ! -f "$patcher" ]; then
     rm -rf "$drivers" || :
     error "Failed to locate Patcher9x!"
     return 1
@@ -2801,11 +2670,6 @@ prepareWin9xInstall() {
   fi
 
   if ! patchWin9xSetupFiles "$id" "$target" "$desc" "$patcher" "$mouse" "$display"; then
-    rm -rf "$drivers" || :
-    return 1
-  fi
-
-  if ! stageWin9xDosPatcher "$target" "$desc" "$patcher_dos"; then
     rm -rf "$drivers" || :
     return 1
   fi
