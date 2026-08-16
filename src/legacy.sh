@@ -36,12 +36,26 @@ setMachine() {
         writeState "net" "pcnet" || return 1
         writeState "sound" "sb16" || return 1 ;;
 
-      "win98" | "win9x" )
+      "win98" )
 
         writeState "port" "on" || return 1
         writeState "net" "pcnet" || return 1
         writeState "sound" "sb16" || return 1
         writeState "usb" "pci-ohci" || return 1 ;;
+
+      "win9x" )
+
+        # Diagnostic: expose only the core PC hardware while Windows Me Setup
+        # performs hardware detection. Keep this intentionally local to Me so
+        # the known-good Windows 95/98 machine profiles remain unchanged.
+        WINME_MINIMAL_HW="Y"
+        NETWORK="N"
+        AUDIO="N"
+        HV="N"
+        writeState "port" "off" || return 1
+        writeState "net" "pcnet" || return 1
+        writeState "sound" "sb16" || return 1
+        writeState "usb" "N" || return 1 ;;
 
       "win2k"* )
 
@@ -920,11 +934,7 @@ prepareLegacyInstall() {
   local desc="$4"
 
   case "${id,,}" in
-    "win9x"* )
-      RAM_SIZE="256M"
-      info "Limiting Windows Me RAM to 256 MB for setup."
-      prepareWin9xInstall "$id" "$iso" "$dir" "$desc" || return 1 ;;
-    "win95"* | "win98"* )
+    "win9"* )
       prepareWin9xInstall "$id" "$iso" "$dir" "$desc" || return 1 ;;
     "win2k"* )
       prepareSIFInstall "$iso" "$dir" "$desc" "2k" || return 1 ;;
