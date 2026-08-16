@@ -1395,38 +1395,7 @@ writeWin9xAutoexec() {
       'GOTO END' \
       ':WINDOWS' \
       'IF NOT EXIST C:\WINDOWS\SYSTEM\KERNEL32.DLL GOTO STARTWIN' \
-      'IF NOT EXIST C:\WINDOWS\SYSTEM\VMM32.VXD GOTO STARTWIN'
-
-    # Windows Me creates C:\DETLOG.TXT only after entering its first protected-mode
-    # hardware-detection pass. Keep that first boot on the stock Me kernel; on the
-    # following AUTOEXEC, replace the on-disk boot files for the next reboot.
-    # IO.SYS is already resident at this point, so this cannot alter the current boot.
-    if [[ "${id,,}" == "win9x"* ]]; then
-      printf '%s\n' \
-        'IF NOT EXIST C:\DETLOG.TXT GOTO PATCH9X' \
-        'IF EXIST C:\SETUP\MEBOOT.RUN GOTO PATCH9X' \
-        'IF NOT EXIST C:\SETUP\MEIO.SYS GOTO PATCH9X' \
-        'IF NOT EXIST C:\SETUP\MECOM.COM GOTO PATCH9X' \
-        'IF NOT EXIST C:\SETUP\MEREGENV.EXE GOTO PATCH9X' \
-        'IF NOT EXIST C:\WINDOWS\COMMAND\ATTRIB.EXE GOTO PATCH9X' \
-        'COPY /Y C:\SETUP\MEREGENV.EXE C:\WINDOWS\SYSTEM\REGENV32.EXE >NUL' \
-        'IF ERRORLEVEL 1 GOTO PATCH9X' \
-        'COPY /Y C:\SETUP\MECOM.COM C:\WINDOWS\COMMAND.COM >NUL' \
-        'IF ERRORLEVEL 1 GOTO PATCH9X' \
-        'COPY /Y C:\SETUP\MECOM.COM C:\COMMAND.COM >NUL' \
-        'IF ERRORLEVEL 1 GOTO PATCH9X' \
-        'C:\WINDOWS\COMMAND\ATTRIB.EXE -R -S -H C:\IO.SYS >NUL' \
-        'COPY /Y C:\SETUP\MEIO.SYS C:\IO.SYS >NUL' \
-        'IF ERRORLEVEL 1 GOTO MEBOOTFAIL' \
-        'C:\WINDOWS\COMMAND\ATTRIB.EXE +R +S +H C:\IO.SYS >NUL' \
-        'ECHO 1>C:\SETUP\MEBOOT.RUN' \
-        'GOTO PATCH9X' \
-        ':MEBOOTFAIL' \
-        'C:\WINDOWS\COMMAND\ATTRIB.EXE +R +S +H C:\IO.SYS >NUL' \
-        ':PATCH9X'
-    fi
-
-    printf '%s\n' \
+      'IF NOT EXIST C:\WINDOWS\SYSTEM\VMM32.VXD GOTO STARTWIN' \
       'IF NOT EXIST C:\SETUP\PATCH9X.RUN GOTO STARTWIN' \
       'IF NOT EXIST C:\SETUP\PATCH9X.EXE GOTO STARTWIN' \
       'IF NOT EXIST C:\SETUP\CWSDPMI.EXE GOTO STARTWIN' \
@@ -1549,6 +1518,81 @@ stageWinMeFinalBootFiles() {
   fi
 
   rm -rf -- "$temp" || :
+  return 0
+}
+
+stageWinMeBootCounter() {
+
+  local dir="$1"
+  local desc="$2"
+  local target="$dir/MEBOOT.BAT"
+
+  # RunServices invokes this once per protected-mode Windows boot. Keep the
+  # first two boots on the stock Me kernel; the second invocation only changes
+  # the on-disk files, so the alternate real-mode kernel starts on the next
+  # reboot. Marker files make the counter persistent without DOS arithmetic.
+  {
+    printf '%s\n' \
+      '@ECHO OFF' \
+      'IF EXIST C:\SETUP\MEBOOT.RUN GOTO END' \
+      'IF EXIST C:\SETUP\MEBOOT1.RUN GOTO PASS2' \
+      'ECHO PASS 1>>C:\SETUP\MEBOOT.LOG' \
+      'ECHO Windows Me boot activation pass 1' \
+      'ECHO [WinMe] boot pass 1 > COM1' \
+      'ECHO 1>C:\SETUP\MEBOOT1.RUN' \
+      'GOTO END' \
+      ':PASS2' \
+      'IF EXIST C:\SETUP\MEBOOT2.RUN GOTO RETRY' \
+      'ECHO PASS 2>>C:\SETUP\MEBOOT.LOG' \
+      'ECHO Windows Me boot activation pass 2' \
+      'ECHO [WinMe] boot pass 2 > COM1' \
+      'ECHO 2>C:\SETUP\MEBOOT2.RUN' \
+      'GOTO ACTIVATE' \
+      ':RETRY' \
+      'ECHO RETRY>>C:\SETUP\MEBOOT.LOG' \
+      'ECHO Windows Me boot activation retry' \
+      'ECHO [WinMe] boot activation retry > COM1' \
+      ':ACTIVATE' \
+      'IF NOT EXIST C:\SETUP\MEREGENV.EXE GOTO MISSING' \
+      'IF NOT EXIST C:\SETUP\MECOM.COM GOTO MISSING' \
+      'IF NOT EXIST C:\SETUP\MEIO.SYS GOTO MISSING' \
+      'IF NOT EXIST C:\WINDOWS\COMMAND\ATTRIB.EXE GOTO MISSING' \
+      'ECHO ACTIVATING>>C:\SETUP\MEBOOT.LOG' \
+      'COPY /Y C:\SETUP\MEREGENV.EXE C:\WINDOWS\SYSTEM\REGENV32.EXE >NUL' \
+      'IF ERRORLEVEL 1 GOTO FAILED' \
+      'COPY /Y C:\SETUP\MECOM.COM C:\WINDOWS\COMMAND.COM >NUL' \
+      'IF ERRORLEVEL 1 GOTO FAILED' \
+      'COPY /Y C:\SETUP\MECOM.COM C:\COMMAND.COM >NUL' \
+      'IF ERRORLEVEL 1 GOTO FAILED' \
+      'C:\WINDOWS\COMMAND\ATTRIB.EXE -R -S -H C:\IO.SYS >NUL' \
+      'IF ERRORLEVEL 1 GOTO FAILED' \
+      'COPY /Y C:\SETUP\MEIO.SYS C:\IO.SYS >NUL' \
+      'IF ERRORLEVEL 1 GOTO IOFAIL' \
+      'C:\WINDOWS\COMMAND\ATTRIB.EXE +R +S +H C:\IO.SYS >NUL' \
+      'ECHO 1>C:\SETUP\MEBOOT.RUN' \
+      'ECHO ACTIVATED>>C:\SETUP\MEBOOT.LOG' \
+      'ECHO Windows Me boot files activated' \
+      'ECHO [WinMe] boot files activated > COM1' \
+      'GOTO END' \
+      ':IOFAIL' \
+      'C:\WINDOWS\COMMAND\ATTRIB.EXE +R +S +H C:\IO.SYS >NUL' \
+      'GOTO FAILED' \
+      ':MISSING' \
+      'ECHO MISSING FILE>>C:\SETUP\MEBOOT.LOG' \
+      'ECHO Windows Me boot activation missing a required file' \
+      'ECHO [WinMe] boot activation missing file > COM1' \
+      'GOTO END' \
+      ':FAILED' \
+      'ECHO FAILED>>C:\SETUP\MEBOOT.LOG' \
+      'ECHO Windows Me boot activation failed' \
+      'ECHO [WinMe] boot activation failed > COM1' \
+      ':END' \
+      ''
+  } | unix2dos > "$target" || {
+    error "Failed to create the Windows Me boot counter script for $desc!"
+    return 1
+  }
+
   return 0
 }
 
@@ -2578,6 +2622,10 @@ writeWin9xAnswerFile() {
     addReg+=",OEMDrivers"
   fi
 
+  if [[ "${id,,}" == "win9x"* ]]; then
+    addReg+=",WinMe.BootService"
+  fi
+
   if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
     # The DMA helper executes code and is therefore kept to the releases it was
     # built for. Registry/MSBATCH settings themselves are emitted for all Win9x.
@@ -2677,6 +2725,13 @@ writeWin9xAnswerFile() {
         '' \
         '[OEMDrivers]' \
         "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\",\"OtherDevicePath\",,\"C:\\WINDOWS\\INF\\OTHER;C:\\$setup\""
+    fi
+
+    if [[ "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' \
+        '' \
+        '[WinMe.BootService]' \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices","WinMeBoot",,"C:\SETUP\MECOM.COM /C C:\SETUP\MEBOOT.BAT"'
     fi
 
     printf '%s\n' \
@@ -3100,7 +3155,8 @@ prepareWin9xInstall() {
   fi
 
   if [[ "${id,,}" == "win9x"* ]]; then
-    if ! stageWinMeFinalBootFiles "$dir" "$target" "$desc"; then
+    if ! stageWinMeFinalBootFiles "$dir" "$target" "$desc" ||
+      ! stageWinMeBootCounter "$target" "$desc"; then
       rm -rf "$drivers" || :
       return 1
     fi
