@@ -1400,10 +1400,16 @@ writeWin9xAutoexec() {
       'IF NOT EXIST C:\SETUP\PATCH9X.EXE GOTO STARTWIN' \
       'IF NOT EXIST C:\SETUP\CWSDPMI.EXE GOTO STARTWIN' \
       "CD C:\\SETUP" \
-      "PATCH9X.EXE $patch_args C:\\WINDOWS\\SYSTEM" \
+      "PATCH9X.EXE $patch_args C:\\WINDOWS\\SYSTEM >NUL" \
       "CD C:\\" \
       ':STARTWIN' \
-      'C:\WINDOWS\SYSTEM\VBMOUSE.EXE >NUL' \
+      'C:\WINDOWS\SYSTEM\VBMOUSE.EXE >NUL'
+
+    if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
+      printf '%s\n' 'C:\WINDOWS\WIN.COM'
+    fi
+
+    printf '%s\n' \
       ':END' \
       ''
   } | unix2dos > "$output" || return 1
@@ -1967,10 +1973,13 @@ createWin9xSystemImage() {
     fi
   fi
 
+  local boot_gui=0
+  [[ "${id,,}" == "win9x"* ]] && boot_gui=1
+
   {
     printf '%s\n' \
       '[Options]' \
-      'BootGUI=1' \
+      "BootGUI=$boot_gui" \
       'BootDelay=0' \
       'Logo=0' \
       ''
@@ -1984,9 +1993,9 @@ createWin9xSystemImage() {
 
   MTOOLSRC="$config" mattrib +h +s +r w:/IO.SYS w:/MSDOS.SYS || return 1
 
-  # All Windows 9x variants use the normal BootGUI transition after AUTOEXEC.BAT
-  # returns. The mouse TSR and any late installed-system repatch therefore run
-  # first, without maintaining separate explicit WIN.COM paths per release.
+  # Windows 95/98 keep BootGUI disabled and start WIN.COM explicitly from
+  # AUTOEXEC.BAT, matching the known-good setup path. Windows Me keeps its normal
+  # BootGUI transition because its alternate real-mode boot activation depends on it.
 
   # Setup only needs its release-specific source directory. Keeping the rest
   # of the optical-media root off C: avoids exposing unrelated CD contents in
@@ -2337,12 +2346,14 @@ stageWin9xPostSetup() {
   local install="$3"
   local target="$dir/POST9X.BAT"
   local marker="$dir/POST9X.NEW"
+  local cleanup="$dir/POST9X.REG"
 
   {
     printf '%s\n' \
       '@ECHO OFF' \
       'IF NOT EXIST C:\WINDOWS\POST9X.RDY GOTO END' \
-      'C:\WINDOWS\RUNDLL.EXE SETUPX.DLL,InstallHinfSection Win9x.PostDesktop 4 C:\WINDOWS\MSBATCH.INF' \
+      'C:\WINDOWS\REGEDIT.EXE /S C:\WINDOWS\POST9X.REG' \
+      'DEL C:\WINDOWS\POST9X.REG >NUL' \
       'DEL C:\WINDOWS\POST9X.RDY >NUL'
 
     if enabled "${LOG:-}"; then
@@ -2355,6 +2366,19 @@ stageWin9xPostSetup() {
 
   } | unix2dos > "$target" || {
     error "Failed to create post-desktop setup script for $desc!"
+    return 1
+  }
+
+  # Remove the persistent Run value without re-entering SETUPX.DLL from the
+  # desktop batch. REGEDIT /S performs the one registry cleanup silently.
+  {
+    printf '%s\n' \
+      'REGEDIT4' \
+      '' \
+      '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run]' \
+      '"PostSetup"=-'
+  } | unix2dos > "$cleanup" || {
+    error "Failed to create post-desktop registry cleanup for $desc!"
     return 1
   }
 
@@ -2587,7 +2611,7 @@ writeWin9xAnswerFile() {
     copyFiles+=",Win9x.Post"
   fi
 
-  if enabled "$shortcut"; then
+  if enabled "$shortcut" || enabled "$post"; then
     quiet="Y"
     copyFiles+=",Win9x.Quiet"
   fi
@@ -2653,7 +2677,8 @@ writeWin9xAnswerFile() {
     if enabled "$post"; then
       printf '%s\n' \
         'POST9X.BAT=22' \
-        'POST9X.NEW=22'
+        'POST9X.NEW=22' \
+        'POST9X.REG=22'
     fi
 
     printf '%s\n' \
@@ -2747,16 +2772,6 @@ writeWin9xAnswerFile() {
     printf '%s\n' ''
     writeWin9xCleanupRegistry
 
-    if enabled "$post"; then
-      printf '%s\n' \
-        '' \
-        '[Win9x.PostDesktop]' \
-        'DelReg=Win9x.PostDesktopRun' \
-        '' \
-        '[Win9x.PostDesktopRun]' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","PostSetup"'
-    fi
-
     printf '%s\n' \
       '' \
       '[Win9x.Mouse]' \
@@ -2792,6 +2807,7 @@ writeWin9xAnswerFile() {
         '[Win9x.Post]' \
         'POST9X.BAT' \
         'POST9X.NEW' \
+        'POST9X.REG' \
         '' \
         '[Win9x.PostMarker]' \
         '%10%\wininit.ini,Rename,,"C:\WINDOWS\POST9X.RDY=C:\WINDOWS\POST9X.NEW"'
@@ -3068,7 +3084,7 @@ prepareWin9xInstall() {
     stageWin9xPasswordList "$target" "$desc" || return 1
   fi
 
-  if enabled "$shortcut" || [[ "${id,,}" == "win9x"* ]]; then
+  if enabled "$shortcut" || [ -n "$install" ] || [[ "${id,,}" == "win9x"* ]]; then
     stageWin9xQuiet "$target" "$desc" || return 1
   fi
 
