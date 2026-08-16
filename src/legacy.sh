@@ -1242,7 +1242,6 @@ createWin9xSystemImage() {
   local temp="$TMP/win9x-image"
   local config="$temp/mtools.conf"
   local autoexec="$temp/AUTOEXEC.BAT"
-  local configsys="$temp/CONFIG.SYS"
   local msdos="$temp/MSDOS.SYS"
   local tmp="${image}.tmp"
   local size=$((261 * 255 * 63 * 512))
@@ -1532,10 +1531,10 @@ createWin9xSystemImage() {
   # media.
   #
   # Windows 95/98 use the setup-media WINBOOT.SYS kernel together with
-  # COMMAND.COM. Windows Me uses its Emergency Boot Disk variants because the
-  # stock Me kernel skips the real-mode AUTOEXEC path required by VBMOUSE.EXE
-  # and the pre-Windows Patcher9x pass. The same patched Me pair is also staged
-  # into Setup below so hardware-detection reboots keep this handoff intact.
+  # COMMAND.COM. Windows Me uses its Emergency Boot Disk variants for this
+  # temporary real-mode setup bootstrap instead. In both cases publish the
+  # kernel as IO.SYS and the command interpreter as COMMAND.COM on the generated
+  # boot volume.
   local cab source_name target_name extracted
   local kernel_source="WINBOOT.SYS"
   local command_source="COMMAND.COM"
@@ -1577,16 +1576,13 @@ createWin9xSystemImage() {
     return 1
   fi
 
-  local -a boot_sources=("$command_source" "$kernel_source")
-  [[ "${id,,}" == "win9x"* ]] && boot_sources+=("IFSHLP.SYS")
+  for source_name in "$command_source" "$kernel_source"; do
 
-  for source_name in "${boot_sources[@]}"; do
-
-    case "${source_name^^}" in
-      "${kernel_source^^}" ) target_name="IO.SYS" ;;
-      "IFSHLP.SYS" ) target_name="IFSHLP.SYS" ;;
-      * ) target_name="COMMAND.COM" ;;
-    esac
+    if [[ "$source_name" == "$kernel_source" ]]; then
+      target_name="IO.SYS"
+    else
+      target_name="COMMAND.COM"
+    fi
 
     extracted=""
 
@@ -1640,23 +1636,11 @@ createWin9xSystemImage() {
       ''
   } | unix2dos > "$msdos" || return 1
 
-  if [[ "${id,,}" == "win9x"* ]]; then
-    {
-      printf '%s\n' \
-        'DEVICE=C:\SETUP\IFSHLP.SYS' \
-        ''
-    } | unix2dos > "$configsys" || return 1
-  fi
-
   # Copy the DOS system files before anything else. Older DOS boot sectors
   # expect IO.SYS and MSDOS.SYS at the start of a freshly formatted volume.
   MTOOLSRC="$config" mcopy "$temp/IO.SYS" w:/IO.SYS || return 1
   MTOOLSRC="$config" mcopy "$msdos" w:/MSDOS.SYS || return 1
   MTOOLSRC="$config" mcopy "$temp/COMMAND.COM" w:/COMMAND.COM || return 1
-
-  if [[ "${id,,}" == "win9x"* ]]; then
-    MTOOLSRC="$config" mcopy "$configsys" w:/CONFIG.SYS || return 1
-  fi
 
   MTOOLSRC="$config" mattrib +h +s +r w:/IO.SYS w:/MSDOS.SYS || return 1
 
@@ -1673,30 +1657,6 @@ createWin9xSystemImage() {
     rm -f -- "$tmp"
     error "Failed to locate the $source Setup folder in $desc ISO image!"
     return 1
-  fi
-
-  if [[ "${id,,}" == "win9x"* ]]; then
-
-    # Setup normally replaces the temporary Emergency Boot kernel with Me's
-    # stock WINBOOT.SYS, which bypasses AUTOEXEC.BAT on the following hardware
-    # detection reboot. Publish the exact same already-validated and Rufus-style
-    # patched EBD pair as loose Setup files. Win9x Setup prefers loose files over
-    # CAB members, so every reboot continues through AUTOEXEC.BAT before WIN.COM.
-    # Remove any differently-cased loose copies first because the Linux source
-    # tree is case-sensitive while the destination FAT filesystem is not.
-    if ! find "$setup_dir" -maxdepth 1 -type f \
-        \( -iname 'WINBOOT.SYS' -o -iname 'COMMAND.COM' -o -iname 'IFSHLP.SYS' \) -delete ||
-      ! cp -f -- "$temp/IO.SYS" "$setup_dir/WINBOOT.SYS" ||
-      ! cp -f -- "$temp/COMMAND.COM" "$setup_dir/COMMAND.COM" ||
-      ! cp -f -- "$temp/IFSHLP.SYS" "$setup_dir/IFSHLP.SYS" ||
-      ! cmp -s -- "$temp/IO.SYS" "$setup_dir/WINBOOT.SYS" ||
-      ! cmp -s -- "$temp/COMMAND.COM" "$setup_dir/COMMAND.COM" ||
-      ! cmp -s -- "$temp/IFSHLP.SYS" "$setup_dir/IFSHLP.SYS"; then
-      rm -f -- "$tmp"
-      error "Failed to stage the Windows Me real-mode boot files for Setup!"
-      return 1
-    fi
-
   fi
 
   entries=("$setup_dir")
@@ -1719,26 +1679,6 @@ createWin9xSystemImage() {
     return 1
   fi
 
-  local resume_mouse='C:\WINDOWS\SYSTEM\VBMOUSE.EXE >NUL'
-  local -a resume_xms=() resume_xms_fail=()
-
-  if [[ "${id,,}" == "win9x"* ]]; then
-    # The retained Setup copy is guaranteed to exist before the first hardware
-    # reboot; the SYSTEM copy may not have been installed yet at that exact point.
-    resume_mouse='C:\SETUP\VBMOUSE.EXE >NUL'
-    resume_xms=(
-      'IF NOT EXIST C:\SETUP\XMSMMGR.EXE GOTO XMSFAIL'
-      'ECHO Loading Windows Me XMS manager...'
-      'C:\SETUP\XMSMMGR.EXE >NUL'
-    )
-    resume_xms_fail=(
-      ':XMSFAIL'
-      'ECHO.'
-      'ECHO ERROR: C:\SETUP\XMSMMGR.EXE is missing.'
-      'GOTO END'
-    )
-  fi
-
   {
     printf '%s\n' \
       '@ECHO OFF' \
@@ -1755,113 +1695,24 @@ createWin9xSystemImage() {
       "C:\\${setup}\\SETUP.EXE $options" \
       'GOTO END' \
       ':WINDOWS' \
-      "${resume_xms[@]}" \
       'IF NOT EXIST C:\WINDOWS\SYSTEM\KERNEL32.DLL GOTO STARTWIN' \
       'IF NOT EXIST C:\WINDOWS\SYSTEM\VMM32.VXD GOTO STARTWIN' \
-      'ECHO.' \
-      'ECHO Checking installed Windows files with Patcher9x...' \
       'CD C:\SETUP' \
-      'PATCH9X.EXE -auto -unselect creg C:\WINDOWS\SYSTEM' \
+      'PATCH9X.EXE -auto -unselect creg C:\WINDOWS\SYSTEM >NUL' \
       'CD C:\' \
-      'ECHO Patcher9x check complete.' \
-      'ECHO.' \
       ':STARTWIN' \
-      "$resume_mouse" \
-      'ECHO Starting Windows...' \
+      'C:\WINDOWS\SYSTEM\VBMOUSE.EXE >NUL' \
       'C:\WINDOWS\WIN.COM' \
-      'ECHO.' \
-      'ECHO ERROR: WIN.COM returned to DOS.' \
-      'GOTO END' \
-      "${resume_xms_fail[@]}" \
       ':END' \
       ''
   } | unix2dos > "$autoexec" || return 1
 
   MTOOLSRC="$config" mcopy -o "$autoexec" w:/AUTOEXEC.BAT || return 1
 
-  local required_file
-  local -a required_setup_files=(SETUP.EXE PATCH9X.EXE CWSDPMI.EXE VBMOUSE.EXE)
-
-  if [[ "${id,,}" == "win9x"* ]]; then
-    required_setup_files+=(WINBOOT.SYS COMMAND.COM IFSHLP.SYS XMSMMGR.EXE)
-  fi
-
-  # Round-trip the boot-critical files from the completed FAT image instead of
-  # trusting only mcopy's exit status or directory entries. A test run is too
-  # expensive to discover that a generated path contains the wrong file bytes.
-  local verify_dir="$temp/verify"
-  local verify_path verify_name source_path
-  rm -rf -- "$verify_dir" || return 1
-  mkdir -p "$verify_dir" || return 1
-
-  local -a verify_root_files=(IO.SYS MSDOS.SYS COMMAND.COM AUTOEXEC.BAT)
-
-  for required_file in "${verify_root_files[@]}"; do
-    verify_path="$verify_dir/root-$required_file"
-    if ! MTOOLSRC="$config" mcopy -o "w:/$required_file" "$verify_path" >/dev/null 2>&1 ||
-      [ ! -s "$verify_path" ]; then
-      rm -f -- "$tmp"
-      error "Failed to read back $desc system image file C:\\$required_file!"
-      return 1
-    fi
-  done
-
-  if ! cmp -s -- "$temp/IO.SYS" "$verify_dir/root-IO.SYS" ||
-    ! cmp -s -- "$msdos" "$verify_dir/root-MSDOS.SYS" ||
-    ! cmp -s -- "$temp/COMMAND.COM" "$verify_dir/root-COMMAND.COM" ||
-    ! cmp -s -- "$autoexec" "$verify_dir/root-AUTOEXEC.BAT"; then
+  if ! MTOOLSRC="$config" mdir "w:/$setup/SETUP.EXE" >/dev/null; then
     rm -f -- "$tmp"
-    error "Failed to verify the generated $desc DOS boot files byte-for-byte!"
+    error "Failed to verify the $desc system image!"
     return 1
-  fi
-
-  for required_file in "${required_setup_files[@]}"; do
-    verify_name="setup-$required_file"
-    verify_path="$verify_dir/$verify_name"
-    if ! MTOOLSRC="$config" mcopy -o "w:/$setup/$required_file" "$verify_path" >/dev/null 2>&1 ||
-      [ ! -s "$verify_path" ]; then
-      rm -f -- "$tmp"
-      error "Failed to read back $desc system image file C:\\$setup\\$required_file!"
-      return 1
-    fi
-
-    source_path=$(find "$setup_dir" -maxdepth 1 -type f -iname "$required_file" -print -quit) || return 1
-    if [ -n "$source_path" ] && [ -s "$source_path" ] && ! cmp -s -- "$source_path" "$verify_path"; then
-      rm -f -- "$tmp"
-      error "The generated $desc image contains incorrect bytes for C:\\$setup\\$required_file!"
-      return 1
-    fi
-  done
-
-  if [[ "${id,,}" == "win9x"* ]]; then
-    verify_path="$verify_dir/root-CONFIG.SYS"
-    if ! MTOOLSRC="$config" mcopy -o "w:/CONFIG.SYS" "$verify_path" >/dev/null 2>&1 ||
-      [ ! -s "$verify_path" ] ||
-      ! cmp -s -- "$configsys" "$verify_path" ||
-      ! cmp -s -- "$verify_dir/root-IO.SYS" "$verify_dir/setup-WINBOOT.SYS" ||
-      ! cmp -s -- "$verify_dir/root-COMMAND.COM" "$verify_dir/setup-COMMAND.COM" ||
-      ! cmp -s -- "$temp/IFSHLP.SYS" "$verify_dir/setup-IFSHLP.SYS"; then
-      rm -f -- "$tmp"
-      error "Failed to verify the Windows Me real-mode reboot files byte-for-byte!"
-      return 1
-    fi
-
-    if ! tr -d '\r' < "$verify_dir/root-CONFIG.SYS" |
-      grep -Fxq 'DEVICE=C:\SETUP\IFSHLP.SYS' ||
-      ! tr -d '\r' < "$verify_dir/root-AUTOEXEC.BAT" |
-      grep -Fxq 'C:\SETUP\XMSMMGR.EXE >NUL' ||
-      ! tr -d '\r' < "$verify_dir/root-AUTOEXEC.BAT" |
-      grep -Fxq 'C:\SETUP\VBMOUSE.EXE >NUL' ||
-      ! tr -d '\r' < "$verify_dir/root-AUTOEXEC.BAT" |
-      grep -Fxq 'PATCH9X.EXE -auto -unselect creg C:\WINDOWS\SYSTEM' ||
-      ! tr -d '\r' < "$verify_dir/root-AUTOEXEC.BAT" |
-      grep -Fxq 'C:\WINDOWS\WIN.COM'; then
-      rm -f -- "$tmp"
-      error "Failed to verify the Windows Me hardware-reboot command path!"
-      return 1
-    fi
-
-    info "Verified Windows Me DOS reboot files and hardware-reboot command path."
   fi
 
   if [[ "${fs,,}" == "btrfs" ]]; then
