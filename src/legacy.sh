@@ -2650,6 +2650,8 @@ writeWin9xAnswerFile() {
   if [[ "${id,,}" == "win9x"* ]]; then
     addReg="${addReg%,Win9x.ActiveSetup}"
     firstLogonDelFiles="${firstLogonDelFiles/Win9x.PatcherMarker,/}"
+  elif [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
+    firstLogonDelFiles="${firstLogonDelFiles/Win9x.PatcherMarker,/}"
   fi
 
   culture=$(getLanguage "$LANGUAGE" "culture") || return 1
@@ -2803,6 +2805,11 @@ writeWin9xAnswerFile() {
       printf '%s\n' "DelFiles=$firstLogonDelFiles"
     fi
 
+    if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
+      [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
+      firstLogonUpdateInis+="Win9x.PatcherCleanup"
+    fi
+
     if enabled "$post"; then
       [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
       firstLogonUpdateInis+="Win9x.PostMarker"
@@ -2856,6 +2863,13 @@ writeWin9xAnswerFile() {
         '' \
         '[Win9x.Fire]' \
         'FIRE.EXE'
+    fi
+
+    if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
+      printf '%s\n' \
+        '' \
+        '[Win9x.PatcherCleanup]' \
+        '%10%\wininit.ini,Rename,,"NUL=C:\SETUP\PATCH9X.RUN"'
     fi
 
     if enabled "$post"; then
