@@ -133,230 +133,6 @@ parseVersion() {
   return 0
 }
 
-getLanguage() {
-
-  local source="$1"
-  local input="${1,,}"
-  local ret="$2"
-
-  local id="$source" lang="" desc="" short="" culture=""
-
-  case "$input" in
-    "ar" | "ar-"* | "arabic" | "arab" )
-      [[ "$input" == "arabic" || "$input" == "arab" ]] && id="ar"
-      short="ar"
-      lang="Arabic"
-      culture="ar-SA" ;;
-    "bg" | "bg-"* | "bulgarian" | "bu" )
-      [[ "$input" == "bulgarian" || "$input" == "bu" ]] && id="bg"
-      short="bg"
-      lang="Bulgarian"
-      culture="bg-BG" ;;
-    "cs" | "cs-"* | "cz" | "cz-"* | "czech" | "cesky" )
-      [[ "$input" == "cz" || "$input" == "czech" || "$input" == "cesky" ]] && id="cs"
-      short="cs"
-      lang="Czech"
-      culture="cs-CZ" ;;
-    "da" | "da-"* | "dk" | "dk-"* | "danish" | "danske" )
-      [[ "$input" == "dk" || "$input" == "danish" || "$input" == "danske" ]] && id="da"
-      short="da"
-      lang="Danish"
-      culture="da-DK" ;;
-    "de" | "de-"* | "german" | "deutsch" )
-      [[ "$input" == "german" || "$input" == "deutsch" ]] && id="de"
-      short="de"
-      lang="German"
-      culture="de-DE" ;;
-    "el" | "el-"* | "gr" | "gr-"* | "greek" )
-      [[ "$input" == "gr" || "$input" == "greek" ]] && id="el"
-      short="el"
-      lang="Greek"
-      culture="el-GR" ;;
-    "gb" | "en-gb" | "british" )
-      [[ "$input" == "gb" || "$input" == "british" ]] && id="en-gb"
-      short="en-gb"
-      lang="English International"
-      desc="English"
-      culture="en-GB" ;;
-    "en" | "en-"* | "english" )
-      [[ "$input" == "english" ]] && id="en"
-      short="en"
-      lang="English"
-      culture="en-US" ;;
-    "mx" | "es-mx" )
-      short="mx"
-      lang="Spanish (Mexico)"
-      desc="Spanish"
-      culture="es-MX" ;;
-    "es" | "es-"* | "spanish" | "espanol" | "español" )
-      [[ "$input" == "spanish" || "$input" == "espanol" || "$input" == "español" ]] && id="es"
-      short="es"
-      lang="Spanish"
-      culture="es-ES" ;;
-    "et" | "et-"* | "estonian" | "eesti" )
-      [[ "$input" == "estonian" || "$input" == "eesti" ]] && id="et"
-      short="et"
-      lang="Estonian"
-      culture="et-EE" ;;
-    "fi" | "fi-"* | "finnish" | "suomi" )
-      [[ "$input" == "finnish" || "$input" == "suomi" ]] && id="fi"
-      short="fi"
-      lang="Finnish"
-      culture="fi-FI" ;;
-    "ca" | "fr-ca" )
-      short="ca"
-      lang="French Canadian"
-      desc="French"
-      culture="fr-CA" ;;
-    "fr" | "fr-"* | "french" | "français" | "francais" )
-      [[ "$input" == "french" || "$input" == "français" || "$input" == "francais" ]] && id="fr"
-      short="fr"
-      lang="French"
-      culture="fr-FR" ;;
-    "he" | "he-"* | "il" | "il-"* | "hebrew" )
-      [[ "$input" == "il" || "$input" == "hebrew" ]] && id="he"
-      short="he"
-      lang="Hebrew"
-      culture="he-IL" ;;
-    "hr" | "hr-"* | "cr" | "cr-"* | "croatian" | "hrvatski" )
-      [[ "$input" == "cr" || "$input" == "croatian" || "$input" == "hrvatski" ]] && id="hr"
-      short="hr"
-      lang="Croatian"
-      culture="hr-HR" ;;
-    "hu" | "hu-"* | "hungarian" | "magyar" )
-      [[ "$input" == "hungarian" || "$input" == "magyar" ]] && id="hu"
-      short="hu"
-      lang="Hungarian"
-      culture="hu-HU" ;;
-    "it" | "it-"* | "italian" | "italiano" )
-      [[ "$input" == "italian" || "$input" == "italiano" ]] && id="it"
-      short="it"
-      lang="Italian"
-      culture="it-IT" ;;
-    "ja" | "ja-"* | "jp" | "jp-"* | "japanese" )
-      [[ "$input" == "jp" || "$input" == "japanese" ]] && id="ja"
-      short="ja"
-      lang="Japanese"
-      culture="ja-JP" ;;
-    "ko" | "ko-"* | "kr" | "kr-"* | "korean" )
-      [[ "$input" == "kr" || "$input" == "korean" ]] && id="ko"
-      short="ko"
-      lang="Korean"
-      culture="ko-KR" ;;
-    "lt" | "lt-"* | "lithuanian" | "lietuvos" )
-      [[ "$input" == "lithuanian" || "$input" == "lietuvos" ]] && id="lt"
-      short="lt"
-      lang="Lithuanian"
-      culture="lt-LT" ;;
-    "lv" | "lv-"* | "latvian" | "latvijas" )
-      [[ "$input" == "latvian" || "$input" == "latvijas" ]] && id="lv"
-      short="lv"
-      lang="Latvian"
-      culture="lv-LV" ;;
-    "nb" | "nb-"* | "nn" | "nn-"* | "no" | "no-"* | "norwegian" | "norsk" )
-      [[ "$input" == "nb" || "$input" == "no" || "$input" == "norwegian" || "$input" == "norsk" ]] && id="nn"
-      short="no"
-      lang="Norwegian"
-      culture="nb-NO" ;;
-    "nl" | "nl-"* | "dutch" | "nederlands" )
-      [[ "$input" == "dutch" || "$input" == "nederlands" ]] && id="nl"
-      short="nl"
-      lang="Dutch"
-      culture="nl-NL" ;;
-    "pl" | "pl-"* | "polish" | "polski" )
-      [[ "$input" == "polish" || "$input" == "polski" ]] && id="pl"
-      short="pl"
-      lang="Polish"
-      culture="pl-PL" ;;
-    "br" | "pt" | "pt-br" | "portuguese" | "português" | "portugues" )
-      [[ "$input" == "pt-br" ]] || id="pt-br"
-      short="pt"
-      lang="Brazilian Portuguese"
-      desc="Portuguese"
-      culture="pt-BR" ;;
-    "pt-"* )
-      short="pp"
-      lang="Portuguese"
-      culture="pt-PT" ;;
-    "ro" | "ro-"* | "romanian" | "română" | "romana" )
-      [[ "$input" == "romanian" || "$input" == "română" || "$input" == "romana" ]] && id="ro"
-      short="ro"
-      lang="Romanian"
-      culture="ro-RO" ;;
-    "ru" | "ru-"* | "russian" | "ruski" )
-      [[ "$input" == "russian" || "$input" == "ruski" ]] && id="ru"
-      short="ru"
-      lang="Russian"
-      culture="ru-RU" ;;
-    "sk" | "sk-"* | "slovak" | "slovenský" | "slovensky" )
-      [[ "$input" == "slovak" || "$input" == "slovenský" || "$input" == "slovensky" ]] && id="sk"
-      short="sk"
-      lang="Slovak"
-      culture="sk-SK" ;;
-    "sl" | "sl-"* | "si" | "si-"* | "slovenian" | "slovenski" )
-      [[ "$input" == "si" || "$input" == "slovenian" || "$input" == "slovenski" ]] && id="sl"
-      short="sl"
-      lang="Slovenian"
-      culture="sl-SI" ;;
-    "sr" | "sr-"* | "serbian" | "serbian latin" )
-      [[ "$input" == "serbian" || "$input" == "serbian latin" ]] && id="sr"
-      short="sr"
-      lang="Serbian Latin"
-      desc="Serbian"
-      culture="sr-Latn-RS" ;;
-    "sv" | "sv-"* | "se" | "se-"* | "swedish" | "svenska" )
-      [[ "$input" == "se" || "$input" == "swedish" || "$input" == "svenska" ]] && id="sv"
-      short="sv"
-      lang="Swedish"
-      culture="sv-SE" ;;
-    "th" | "th-"* | "thai" )
-      [[ "$input" == "thai" ]] && id="th"
-      short="th"
-      lang="Thai"
-      culture="th-TH" ;;
-    "tr" | "tr-"* | "turkish" | "türk" | "turk" )
-      [[ "$input" == "turkish" || "$input" == "türk" || "$input" == "turk" ]] && id="tr"
-      short="tr"
-      lang="Turkish"
-      culture="tr-TR" ;;
-    "ua" | "ua-"* | "uk" | "uk-"* | "ukrainian" )
-      [[ "$input" == "ua" || "$input" == "ukrainian" ]] && id="uk"
-      short="uk"
-      lang="Ukrainian"
-      culture="uk-UA" ;;
-    "hk" | "zh-hk" | "cn-hk" )
-      short="hk"
-      lang="Chinese (Traditional)"
-      desc="Chinese HK"
-      culture="zh-TW" ;;
-    "tw" | "zh-tw" | "cn-tw" )
-      short="tw"
-      lang="Chinese (Traditional)"
-      desc="Chinese TW"
-      culture="zh-TW" ;;
-    "zh" | "zh-"* | "cn" | "cn-"* | "chinese" )
-      [[ "$input" == "cn" || "$input" == "chinese" ]] && id="zh"
-      short="cn"
-      lang="Chinese (Simplified)"
-      desc="Chinese"
-      culture="zh-CN" ;;
-  esac
-
-  [ -z "$lang" ] && return 0
-  [ -z "$desc" ] && desc="$lang"
-
-  case "${ret,,}" in
-    "id" ) echo "$id" ;;
-    "desc" ) echo "$desc" ;;
-    "name" ) echo "$lang" ;;
-    "code" ) echo "$short" ;;
-    "culture" ) echo "$culture" ;;
-    * ) echo "$desc";;
-  esac
-
-  return 0
-}
-
 parseLanguage() {
 
   REGION="${REGION//_/-}"
@@ -1801,6 +1577,230 @@ validVersion() {
 }
 
 isCompatible() {
+  return 0
+}
+
+getLanguage() {
+
+  local source="$1"
+  local input="${1,,}"
+  local ret="$2"
+
+  local id="$source" lang="" desc="" short="" culture=""
+
+  case "$input" in
+    "ar" | "ar-"* | "arabic" | "arab" )
+      [[ "$input" == "arabic" || "$input" == "arab" ]] && id="ar"
+      short="ar"
+      lang="Arabic"
+      culture="ar-SA" ;;
+    "bg" | "bg-"* | "bulgarian" | "bu" )
+      [[ "$input" == "bulgarian" || "$input" == "bu" ]] && id="bg"
+      short="bg"
+      lang="Bulgarian"
+      culture="bg-BG" ;;
+    "cs" | "cs-"* | "cz" | "cz-"* | "czech" | "cesky" )
+      [[ "$input" == "cz" || "$input" == "czech" || "$input" == "cesky" ]] && id="cs"
+      short="cs"
+      lang="Czech"
+      culture="cs-CZ" ;;
+    "da" | "da-"* | "dk" | "dk-"* | "danish" | "danske" )
+      [[ "$input" == "dk" || "$input" == "danish" || "$input" == "danske" ]] && id="da"
+      short="da"
+      lang="Danish"
+      culture="da-DK" ;;
+    "de" | "de-"* | "german" | "deutsch" )
+      [[ "$input" == "german" || "$input" == "deutsch" ]] && id="de"
+      short="de"
+      lang="German"
+      culture="de-DE" ;;
+    "el" | "el-"* | "gr" | "gr-"* | "greek" )
+      [[ "$input" == "gr" || "$input" == "greek" ]] && id="el"
+      short="el"
+      lang="Greek"
+      culture="el-GR" ;;
+    "gb" | "en-gb" | "british" )
+      [[ "$input" == "gb" || "$input" == "british" ]] && id="en-gb"
+      short="en-gb"
+      lang="English International"
+      desc="English"
+      culture="en-GB" ;;
+    "en" | "en-"* | "english" )
+      [[ "$input" == "english" ]] && id="en"
+      short="en"
+      lang="English"
+      culture="en-US" ;;
+    "mx" | "es-mx" )
+      short="mx"
+      lang="Spanish (Mexico)"
+      desc="Spanish"
+      culture="es-MX" ;;
+    "es" | "es-"* | "spanish" | "espanol" | "español" )
+      [[ "$input" == "spanish" || "$input" == "espanol" || "$input" == "español" ]] && id="es"
+      short="es"
+      lang="Spanish"
+      culture="es-ES" ;;
+    "et" | "et-"* | "estonian" | "eesti" )
+      [[ "$input" == "estonian" || "$input" == "eesti" ]] && id="et"
+      short="et"
+      lang="Estonian"
+      culture="et-EE" ;;
+    "fi" | "fi-"* | "finnish" | "suomi" )
+      [[ "$input" == "finnish" || "$input" == "suomi" ]] && id="fi"
+      short="fi"
+      lang="Finnish"
+      culture="fi-FI" ;;
+    "ca" | "fr-ca" )
+      short="ca"
+      lang="French Canadian"
+      desc="French"
+      culture="fr-CA" ;;
+    "fr" | "fr-"* | "french" | "français" | "francais" )
+      [[ "$input" == "french" || "$input" == "français" || "$input" == "francais" ]] && id="fr"
+      short="fr"
+      lang="French"
+      culture="fr-FR" ;;
+    "he" | "he-"* | "il" | "il-"* | "hebrew" )
+      [[ "$input" == "il" || "$input" == "hebrew" ]] && id="he"
+      short="he"
+      lang="Hebrew"
+      culture="he-IL" ;;
+    "hr" | "hr-"* | "cr" | "cr-"* | "croatian" | "hrvatski" )
+      [[ "$input" == "cr" || "$input" == "croatian" || "$input" == "hrvatski" ]] && id="hr"
+      short="hr"
+      lang="Croatian"
+      culture="hr-HR" ;;
+    "hu" | "hu-"* | "hungarian" | "magyar" )
+      [[ "$input" == "hungarian" || "$input" == "magyar" ]] && id="hu"
+      short="hu"
+      lang="Hungarian"
+      culture="hu-HU" ;;
+    "it" | "it-"* | "italian" | "italiano" )
+      [[ "$input" == "italian" || "$input" == "italiano" ]] && id="it"
+      short="it"
+      lang="Italian"
+      culture="it-IT" ;;
+    "ja" | "ja-"* | "jp" | "jp-"* | "japanese" )
+      [[ "$input" == "jp" || "$input" == "japanese" ]] && id="ja"
+      short="ja"
+      lang="Japanese"
+      culture="ja-JP" ;;
+    "ko" | "ko-"* | "kr" | "kr-"* | "korean" )
+      [[ "$input" == "kr" || "$input" == "korean" ]] && id="ko"
+      short="ko"
+      lang="Korean"
+      culture="ko-KR" ;;
+    "lt" | "lt-"* | "lithuanian" | "lietuvos" )
+      [[ "$input" == "lithuanian" || "$input" == "lietuvos" ]] && id="lt"
+      short="lt"
+      lang="Lithuanian"
+      culture="lt-LT" ;;
+    "lv" | "lv-"* | "latvian" | "latvijas" )
+      [[ "$input" == "latvian" || "$input" == "latvijas" ]] && id="lv"
+      short="lv"
+      lang="Latvian"
+      culture="lv-LV" ;;
+    "nb" | "nb-"* | "nn" | "nn-"* | "no" | "no-"* | "norwegian" | "norsk" )
+      [[ "$input" == "nb" || "$input" == "no" || "$input" == "norwegian" || "$input" == "norsk" ]] && id="nn"
+      short="no"
+      lang="Norwegian"
+      culture="nb-NO" ;;
+    "nl" | "nl-"* | "dutch" | "nederlands" )
+      [[ "$input" == "dutch" || "$input" == "nederlands" ]] && id="nl"
+      short="nl"
+      lang="Dutch"
+      culture="nl-NL" ;;
+    "pl" | "pl-"* | "polish" | "polski" )
+      [[ "$input" == "polish" || "$input" == "polski" ]] && id="pl"
+      short="pl"
+      lang="Polish"
+      culture="pl-PL" ;;
+    "br" | "pt" | "pt-br" | "portuguese" | "português" | "portugues" )
+      [[ "$input" == "pt-br" ]] || id="pt-br"
+      short="pt"
+      lang="Brazilian Portuguese"
+      desc="Portuguese"
+      culture="pt-BR" ;;
+    "pt-"* )
+      short="pp"
+      lang="Portuguese"
+      culture="pt-PT" ;;
+    "ro" | "ro-"* | "romanian" | "română" | "romana" )
+      [[ "$input" == "romanian" || "$input" == "română" || "$input" == "romana" ]] && id="ro"
+      short="ro"
+      lang="Romanian"
+      culture="ro-RO" ;;
+    "ru" | "ru-"* | "russian" | "ruski" )
+      [[ "$input" == "russian" || "$input" == "ruski" ]] && id="ru"
+      short="ru"
+      lang="Russian"
+      culture="ru-RU" ;;
+    "sk" | "sk-"* | "slovak" | "slovenský" | "slovensky" )
+      [[ "$input" == "slovak" || "$input" == "slovenský" || "$input" == "slovensky" ]] && id="sk"
+      short="sk"
+      lang="Slovak"
+      culture="sk-SK" ;;
+    "sl" | "sl-"* | "si" | "si-"* | "slovenian" | "slovenski" )
+      [[ "$input" == "si" || "$input" == "slovenian" || "$input" == "slovenski" ]] && id="sl"
+      short="sl"
+      lang="Slovenian"
+      culture="sl-SI" ;;
+    "sr" | "sr-"* | "serbian" | "serbian latin" )
+      [[ "$input" == "serbian" || "$input" == "serbian latin" ]] && id="sr"
+      short="sr"
+      lang="Serbian Latin"
+      desc="Serbian"
+      culture="sr-Latn-RS" ;;
+    "sv" | "sv-"* | "se" | "se-"* | "swedish" | "svenska" )
+      [[ "$input" == "se" || "$input" == "swedish" || "$input" == "svenska" ]] && id="sv"
+      short="sv"
+      lang="Swedish"
+      culture="sv-SE" ;;
+    "th" | "th-"* | "thai" )
+      [[ "$input" == "thai" ]] && id="th"
+      short="th"
+      lang="Thai"
+      culture="th-TH" ;;
+    "tr" | "tr-"* | "turkish" | "türk" | "turk" )
+      [[ "$input" == "turkish" || "$input" == "türk" || "$input" == "turk" ]] && id="tr"
+      short="tr"
+      lang="Turkish"
+      culture="tr-TR" ;;
+    "ua" | "ua-"* | "uk" | "uk-"* | "ukrainian" )
+      [[ "$input" == "ua" || "$input" == "ukrainian" ]] && id="uk"
+      short="uk"
+      lang="Ukrainian"
+      culture="uk-UA" ;;
+    "hk" | "zh-hk" | "cn-hk" )
+      short="hk"
+      lang="Chinese (Traditional)"
+      desc="Chinese HK"
+      culture="zh-TW" ;;
+    "tw" | "zh-tw" | "cn-tw" )
+      short="tw"
+      lang="Chinese (Traditional)"
+      desc="Chinese TW"
+      culture="zh-TW" ;;
+    "zh" | "zh-"* | "cn" | "cn-"* | "chinese" )
+      [[ "$input" == "cn" || "$input" == "chinese" ]] && id="zh"
+      short="cn"
+      lang="Chinese (Simplified)"
+      desc="Chinese"
+      culture="zh-CN" ;;
+  esac
+
+  [ -z "$lang" ] && return 0
+  [ -z "$desc" ] && desc="$lang"
+
+  case "${ret,,}" in
+    "id" ) echo "$id" ;;
+    "desc" ) echo "$desc" ;;
+    "name" ) echo "$lang" ;;
+    "code" ) echo "$short" ;;
+    "culture" ) echo "$culture" ;;
+    * ) echo "$desc";;
+  esac
+
   return 0
 }
 
