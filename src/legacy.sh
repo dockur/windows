@@ -2412,11 +2412,179 @@ writeWin98MeRegistry() {
     'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Bar",,"http://www.google.com"'
 }
 
+getWin9xLocale() {
+
+  local input="${1//_/-}"
+  input="${input,,}"
+
+  # Accept a native Win9x LCID directly as either Lxxxx or xxxx.
+  if [[ "$input" =~ ^l([0-9a-f]{4})$ ]]; then
+    printf 'L%s\n' "${BASH_REMATCH[1]^^}"
+    return 0
+  fi
+
+  if [[ "$input" =~ ^([0-9a-f]{4})$ ]]; then
+    printf 'L%s\n' "${BASH_REMATCH[1]^^}"
+    return 0
+  fi
+
+  # Win9x MSBATCH uses LCIDs instead of the BCP-47 locale names accepted by
+  # newer unattended installers. Keep the mapping local to the legacy path so
+  # REGION continues to use its normal BCP-47 form everywhere else.
+  case "$input" in
+    "ar" | "ar-sa" ) echo "L0401" ;;
+    "bg" | "bg-bg" ) echo "L0402" ;;
+    "ca" | "ca-es" ) echo "L0403" ;;
+    "zh-tw" ) echo "L0404" ;;
+    "cs" | "cs-cz" ) echo "L0405" ;;
+    "da" | "da-dk" ) echo "L0406" ;;
+    "de" | "de-de" ) echo "L0407" ;;
+    "de-ch" ) echo "L0807" ;;
+    "de-at" ) echo "L0C07" ;;
+    "de-lu" ) echo "L1007" ;;
+    "de-li" ) echo "L1407" ;;
+    "el" | "el-gr" ) echo "L0408" ;;
+    "en" | "en-us" ) echo "L0409" ;;
+    "en-gb" ) echo "L0809" ;;
+    "en-au" ) echo "L0C09" ;;
+    "en-ca" ) echo "L1009" ;;
+    "en-nz" ) echo "L1409" ;;
+    "en-ie" ) echo "L1809" ;;
+    "en-za" ) echo "L1C09" ;;
+    "en-jm" ) echo "L2009" ;;
+    "en-bz" ) echo "L2809" ;;
+    "en-tt" ) echo "L2C09" ;;
+    "en-zw" ) echo "L3009" ;;
+    "en-ph" ) echo "L3409" ;;
+    "es" | "es-es" ) echo "L0C0A" ;;
+    "es-mx" ) echo "L080A" ;;
+    "fi" | "fi-fi" ) echo "L040B" ;;
+    "fr" | "fr-fr" ) echo "L040C" ;;
+    "fr-be" ) echo "L080C" ;;
+    "fr-ca" ) echo "L0C0C" ;;
+    "fr-ch" ) echo "L100C" ;;
+    "fr-lu" ) echo "L140C" ;;
+    "fr-mc" ) echo "L180C" ;;
+    "he" | "he-il" ) echo "L040D" ;;
+    "hu" | "hu-hu" ) echo "L040E" ;;
+    "it" | "it-it" ) echo "L0410" ;;
+    "it-ch" ) echo "L0810" ;;
+    "ja" | "ja-jp" ) echo "L0411" ;;
+    "ko" | "ko-kr" ) echo "L0412" ;;
+    "nl" | "nl-nl" ) echo "L0413" ;;
+    "nl-be" ) echo "L0813" ;;
+    "nb" | "no" | "nb-no" ) echo "L0414" ;;
+    "nn" | "nn-no" ) echo "L0814" ;;
+    "pl" | "pl-pl" ) echo "L0415" ;;
+    "pt-br" ) echo "L0416" ;;
+    "pt" | "pt-pt" ) echo "L0816" ;;
+    "ro" | "ro-ro" ) echo "L0418" ;;
+    "ru" | "ru-ru" ) echo "L0419" ;;
+    "hr" | "hr-hr" ) echo "L041A" ;;
+    "sr" | "sr-latn-rs" ) echo "L081A" ;;
+    "sk" | "sk-sk" ) echo "L041B" ;;
+    "sv" | "sv-se" ) echo "L041D" ;;
+    "sv-fi" ) echo "L081D" ;;
+    "th" | "th-th" ) echo "L041E" ;;
+    "tr" | "tr-tr" ) echo "L041F" ;;
+    "uk" | "uk-ua" ) echo "L0422" ;;
+    "sl" | "sl-si" ) echo "L0424" ;;
+    "et" | "et-ee" ) echo "L0425" ;;
+    "lv" | "lv-lv" ) echo "L0426" ;;
+    "lt" | "lt-lt" ) echo "L0427" ;;
+    "zh" | "zh-cn" ) echo "L0804" ;;
+    "zh-hk" ) echo "L0C04" ;;
+    * ) echo "L0409" ;;
+  esac
+
+  return 0
+}
+
+getWin9xKeyboard() {
+
+  local input="${1//_/-}"
+  input="${input,,}"
+
+  # Accept either native MSBATCH syntax or a raw eight-digit keyboard layout ID.
+  if [[ "$input" =~ ^keyboard[-_]([0-9a-f]{8})$ ]]; then
+    printf 'KEYBOARD_%s\n' "${BASH_REMATCH[1]^^}"
+    return 0
+  fi
+
+  if [[ "$input" =~ ^([0-9a-f]{8})$ ]]; then
+    printf 'KEYBOARD_%s\n' "${BASH_REMATCH[1]^^}"
+    return 0
+  fi
+
+  # The default national keyboard layout IDs track the corresponding locale
+  # IDs for the layouts supported by this legacy installer. Unknown values use
+  # the existing US keyboard default instead of making Setup interactive.
+  case "$input" in
+    "ar" | "ar-sa" ) echo "KEYBOARD_00000401" ;;
+    "bg" | "bg-bg" ) echo "KEYBOARD_00000402" ;;
+    "ca" | "ca-es" ) echo "KEYBOARD_00000403" ;;
+    "zh-tw" ) echo "KEYBOARD_00000404" ;;
+    "cs" | "cs-cz" ) echo "KEYBOARD_00000405" ;;
+    "da" | "da-dk" ) echo "KEYBOARD_00000406" ;;
+    "de" | "de-de" ) echo "KEYBOARD_00000407" ;;
+    "de-ch" ) echo "KEYBOARD_00000807" ;;
+    "de-at" ) echo "KEYBOARD_00000C07" ;;
+    "el" | "el-gr" ) echo "KEYBOARD_00000408" ;;
+    "en" | "en-us" ) echo "KEYBOARD_00000409" ;;
+    "en-gb" ) echo "KEYBOARD_00000809" ;;
+    "en-au" ) echo "KEYBOARD_00000C09" ;;
+    "en-ca" ) echo "KEYBOARD_00001009" ;;
+    "es" | "es-es" ) echo "KEYBOARD_00000C0A" ;;
+    "es-mx" ) echo "KEYBOARD_0000080A" ;;
+    "fi" | "fi-fi" ) echo "KEYBOARD_0000040B" ;;
+    "fr" | "fr-fr" ) echo "KEYBOARD_0000040C" ;;
+    "fr-be" ) echo "KEYBOARD_0000080C" ;;
+    "fr-ca" ) echo "KEYBOARD_00000C0C" ;;
+    "fr-ch" ) echo "KEYBOARD_0000100C" ;;
+    "he" | "he-il" ) echo "KEYBOARD_0000040D" ;;
+    "hu" | "hu-hu" ) echo "KEYBOARD_0000040E" ;;
+    "it" | "it-it" ) echo "KEYBOARD_00000410" ;;
+    "it-ch" ) echo "KEYBOARD_00000810" ;;
+    "ja" | "ja-jp" ) echo "KEYBOARD_00000411" ;;
+    "ko" | "ko-kr" ) echo "KEYBOARD_00000412" ;;
+    "nl" | "nl-nl" ) echo "KEYBOARD_00000413" ;;
+    "nl-be" ) echo "KEYBOARD_00000813" ;;
+    "nb" | "no" | "nb-no" ) echo "KEYBOARD_00000414" ;;
+    "nn" | "nn-no" ) echo "KEYBOARD_00000814" ;;
+    "pl" | "pl-pl" ) echo "KEYBOARD_00000415" ;;
+    "pt-br" ) echo "KEYBOARD_00000416" ;;
+    "pt" | "pt-pt" ) echo "KEYBOARD_00000816" ;;
+    "ro" | "ro-ro" ) echo "KEYBOARD_00000418" ;;
+    "ru" | "ru-ru" ) echo "KEYBOARD_00000419" ;;
+    "hr" | "hr-hr" ) echo "KEYBOARD_0000041A" ;;
+    "sr" | "sr-latn-rs" ) echo "KEYBOARD_0000081A" ;;
+    "sk" | "sk-sk" ) echo "KEYBOARD_0000041B" ;;
+    "sv" | "sv-se" ) echo "KEYBOARD_0000041D" ;;
+    "sv-fi" ) echo "KEYBOARD_0000081D" ;;
+    "th" | "th-th" ) echo "KEYBOARD_0000041E" ;;
+    "tr" | "tr-tr" ) echo "KEYBOARD_0000041F" ;;
+    "uk" | "uk-ua" ) echo "KEYBOARD_00000422" ;;
+    "sl" | "sl-si" ) echo "KEYBOARD_00000424" ;;
+    "et" | "et-ee" ) echo "KEYBOARD_00000425" ;;
+    "lv" | "lv-lv" ) echo "KEYBOARD_00000426" ;;
+    "lt" | "lt-lt" ) echo "KEYBOARD_00000427" ;;
+    "zh" | "zh-cn" ) echo "KEYBOARD_00000804" ;;
+    "zh-hk" ) echo "KEYBOARD_00000C04" ;;
+    * ) echo "KEYBOARD_00000409" ;;
+  esac
+
+  return 0
+}
+
 writeWin98Registry() {
 
   printf '%s\n' \
     '[Win98.Welcome]' \
     'HKLM,"Software\Microsoft\Windows\CurrentVersion\Run","Welcome",,,' \
+    '' \
+    '[Win98.Regwiz]' \
+    'HKLM,"Software\Microsoft\Windows\CurrentVersion\Welcome\Regwiz",@,1,01,00,00,00' \
+    'HKLM,"Software\Microsoft\Windows\CurrentVersion","RegDone",1,01,00,00,00' \
     '' \
     '[Win98.MSN]' \
     'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{4B876A40-4EE8-11D1-811E-00C04FB98EEC}",,,' \
@@ -2445,228 +2613,11 @@ writeWin98Registry() {
     'abouto~1.txt' \
     'services.txt' \
     '' \
+    '[Win98.QuickLaunch]' \
+    'viewch~1.scf' \
+    '' \
     '[Win98.OnlineServicesFolder]' \
     '%10%\wininit.ini,DIRNUL,,"C:\WINDOWS\Desktop\Online~1=1"'
-}
-
-getWin9xLocale() {
-
-  local input="${1//_/-}"
-  local locale="0409"
-  input="${input,,}"
-
-  # Also accept an LCID directly. MSBATCH expects the leading L prefix.
-  if [[ "$input" =~ ^l?([0-9a-f]{4})$ ]]; then
-    printf 'L%s\n' "${BASH_REMATCH[1]^^}"
-    return 0
-  fi
-
-  # Windows locale-name to LCID lookup. Keep legacy aliases alongside the
-  # regional forms because REGION may be supplied independently of LANGUAGE.
-  case "$input" in
-    "ar" | "ar-sa" ) locale="0401" ;;
-    "ar-iq" ) locale="0801" ;;
-    "ar-eg" ) locale="0C01" ;;
-    "ar-ly" ) locale="1001" ;;
-    "ar-dz" ) locale="1401" ;;
-    "ar-ma" ) locale="1801" ;;
-    "ar-tn" ) locale="1C01" ;;
-    "ar-om" ) locale="2001" ;;
-    "ar-ye" ) locale="2401" ;;
-    "ar-sy" ) locale="2801" ;;
-    "ar-jo" ) locale="2C01" ;;
-    "ar-lb" ) locale="3001" ;;
-    "ar-kw" ) locale="3401" ;;
-    "ar-ae" ) locale="3801" ;;
-    "ar-bh" ) locale="3C01" ;;
-    "ar-qa" ) locale="4001" ;;
-    "bg" | "bg-bg" ) locale="0402" ;;
-    "ca" | "ca-es" ) locale="0403" ;;
-    "zh-tw" | "zh-hant" ) locale="0404" ;;
-    "zh" | "zh-cn" | "zh-hans" ) locale="0804" ;;
-    "zh-hk" ) locale="0C04" ;;
-    "zh-sg" ) locale="1004" ;;
-    "zh-mo" ) locale="1404" ;;
-    "cs" | "cs-cz" ) locale="0405" ;;
-    "da" | "da-dk" ) locale="0406" ;;
-    "de" | "de-de" ) locale="0407" ;;
-    "de-ch" ) locale="0807" ;;
-    "de-at" ) locale="0C07" ;;
-    "de-lu" ) locale="1007" ;;
-    "de-li" ) locale="1407" ;;
-    "el" | "el-gr" ) locale="0408" ;;
-    "en" | "en-us" ) locale="0409" ;;
-    "en-gb" ) locale="0809" ;;
-    "en-au" ) locale="0C09" ;;
-    "en-ca" ) locale="1009" ;;
-    "en-nz" ) locale="1409" ;;
-    "en-ie" ) locale="1809" ;;
-    "en-za" ) locale="1C09" ;;
-    "en-jm" ) locale="2009" ;;
-    "en-029" ) locale="2409" ;;
-    "en-bz" ) locale="2809" ;;
-    "en-tt" ) locale="2C09" ;;
-    "en-zw" ) locale="3009" ;;
-    "en-ph" ) locale="3409" ;;
-    "es-mx" ) locale="080A" ;;
-    "es-gt" ) locale="100A" ;;
-    "es-cr" ) locale="140A" ;;
-    "es-pa" ) locale="180A" ;;
-    "es-do" ) locale="1C0A" ;;
-    "es-ve" ) locale="200A" ;;
-    "es-co" ) locale="240A" ;;
-    "es-pe" ) locale="280A" ;;
-    "es-ar" ) locale="2C0A" ;;
-    "es-ec" ) locale="300A" ;;
-    "es-cl" ) locale="340A" ;;
-    "es-uy" ) locale="380A" ;;
-    "es-py" ) locale="3C0A" ;;
-    "es-bo" ) locale="400A" ;;
-    "es-sv" ) locale="440A" ;;
-    "es-hn" ) locale="480A" ;;
-    "es-ni" ) locale="4C0A" ;;
-    "es-pr" ) locale="500A" ;;
-    "es" | "es-es" ) locale="0C0A" ;;
-    "fi" | "fi-fi" ) locale="040B" ;;
-    "fr" | "fr-fr" ) locale="040C" ;;
-    "fr-be" ) locale="080C" ;;
-    "fr-ca" ) locale="0C0C" ;;
-    "fr-ch" ) locale="100C" ;;
-    "fr-lu" ) locale="140C" ;;
-    "fr-mc" ) locale="180C" ;;
-    "he" | "he-il" ) locale="040D" ;;
-    "hu" | "hu-hu" ) locale="040E" ;;
-    "is" | "is-is" ) locale="040F" ;;
-    "it" | "it-it" ) locale="0410" ;;
-    "it-ch" ) locale="0810" ;;
-    "ja" | "ja-jp" ) locale="0411" ;;
-    "ko" | "ko-kr" ) locale="0412" ;;
-    "nl" | "nl-nl" ) locale="0413" ;;
-    "nl-be" ) locale="0813" ;;
-    "nb" | "no" | "nb-no" ) locale="0414" ;;
-    "nn" | "nn-no" ) locale="0814" ;;
-    "pl" | "pl-pl" ) locale="0415" ;;
-    "pt" | "pt-br" ) locale="0416" ;;
-    "pt-pt" ) locale="0816" ;;
-    "ro" | "ro-ro" ) locale="0418" ;;
-    "ru" | "ru-ru" ) locale="0419" ;;
-    "hr" | "hr-hr" ) locale="041A" ;;
-    "sr" | "sr-latn-rs" ) locale="081A" ;;
-    "sr-cyrl-rs" ) locale="0C1A" ;;
-    "sr-latn-ba" ) locale="181A" ;;
-    "sr-cyrl-ba" ) locale="1C1A" ;;
-    "sk" | "sk-sk" ) locale="041B" ;;
-    "sv" | "sv-se" ) locale="041D" ;;
-    "sv-fi" ) locale="081D" ;;
-    "th" | "th-th" ) locale="041E" ;;
-    "tr" | "tr-tr" ) locale="041F" ;;
-    "id" | "id-id" ) locale="0421" ;;
-    "uk" | "uk-ua" ) locale="0422" ;;
-    "be" | "be-by" ) locale="0423" ;;
-    "sl" | "sl-si" ) locale="0424" ;;
-    "et" | "et-ee" ) locale="0425" ;;
-    "lv" | "lv-lv" ) locale="0426" ;;
-    "lt" | "lt-lt" ) locale="0427" ;;
-    "fa" | "fa-ir" ) locale="0429" ;;
-    "vi" | "vi-vn" ) locale="042A" ;;
-    "hy" | "hy-am" ) locale="042B" ;;
-    "az" | "az-latn-az" ) locale="042C" ;;
-    "az-cyrl-az" ) locale="082C" ;;
-    "eu" | "eu-es" ) locale="042D" ;;
-    "mk" | "mk-mk" ) locale="042F" ;;
-    "af" | "af-za" ) locale="0436" ;;
-    "ka" | "ka-ge" ) locale="0437" ;;
-    "fo" | "fo-fo" ) locale="0438" ;;
-    "hi" | "hi-in" ) locale="0439" ;;
-    "ms" | "ms-my" ) locale="043E" ;;
-    "ms-bn" ) locale="083E" ;;
-    "kk" | "kk-kz" ) locale="043F" ;;
-    "ky" | "ky-kg" ) locale="0440" ;;
-    "sw" | "sw-ke" ) locale="0441" ;;
-    "tk" | "tk-tm" ) locale="0442" ;;
-    "uz" | "uz-latn-uz" ) locale="0443" ;;
-    "uz-cyrl-uz" ) locale="0843" ;;
-    "tt" | "tt-ru" ) locale="0444" ;;
-    * ) locale="0409" ;;
-  esac
-
-  printf 'L%s\n' "${locale^^}"
-  return 0
-}
-
-getWin9xKeyboard() {
-
-  local input="${1//_/-}"
-  local keyboard="00000409"
-  input="${input,,}"
-
-  # Permit an explicit KEYBOARD_xxxxxxxx (normalized to a hyphen by parseLanguage)
-  # or a raw eight-digit layout ID too.
-  if [[ "$input" =~ ^keyboard[-_]([0-9a-f]{8})$ ]]; then
-    printf 'KEYBOARD_%s\n' "${BASH_REMATCH[1]^^}"
-    return 0
-  fi
-
-  if [[ "$input" =~ ^[0-9a-f]{8}$ ]]; then
-    printf 'KEYBOARD_%s\n' "${input^^}"
-    return 0
-  fi
-
-  # Default keyboard layout for an explicit KEYBOARD tag. Keep keyboard choice
-  # independent from REGION and preserve the legacy US default when KEYBOARD
-  # is not supplied.
-  case "$input" in
-    "ar" | "ar-sa" | "ar-iq" | "ar-eg" | "ar-ly" | "ar-om" | "ar-ye" | "ar-sy" | "ar-jo" | "ar-lb" | "ar-kw" | "ar-ae" | "ar-bh" | "ar-qa" ) keyboard="00000401" ;;
-    "ar-dz" | "ar-ma" | "ar-tn" ) keyboard="00020401" ;;
-    "bg" | "bg-bg" ) keyboard="00030402" ;;
-    "cs" | "cs-cz" ) keyboard="00000405" ;;
-    "da" | "da-dk" ) keyboard="00000406" ;;
-    "de" | "de-de" | "de-at" | "de-lu" ) keyboard="00000407" ;;
-    "de-ch" | "de-li" ) keyboard="00000807" ;;
-    "el" | "el-gr" ) keyboard="00000408" ;;
-    "en" | "en-us" | "en-au" | "en-ca" | "en-jm" | "en-029" | "en-bz" | "en-tt" | "en-za" | "en-zw" | "en-ph" ) keyboard="00000409" ;;
-    "en-gb" ) keyboard="00000809" ;;
-    "en-ie" ) keyboard="00001809" ;;
-    "en-nz" ) keyboard="00001409" ;;
-    "es" | "es-es" ) keyboard="0000040A" ;;
-    "es-mx" | "es-gt" | "es-cr" | "es-pa" | "es-do" | "es-ve" | "es-co" | "es-pe" | "es-ar" | "es-ec" | "es-cl" | "es-uy" | "es-py" | "es-bo" | "es-sv" | "es-hn" | "es-ni" | "es-pr" ) keyboard="0000080A" ;;
-    "et" | "et-ee" ) keyboard="00000425" ;;
-    "fi" | "fi-fi" ) keyboard="0000040B" ;;
-    "fr" | "fr-fr" | "fr-mc" ) keyboard="0000040C" ;;
-    "fr-be" ) keyboard="0000080C" ;;
-    "fr-ca" ) keyboard="00001009" ;;
-    "fr-ch" | "fr-lu" ) keyboard="0000100C" ;;
-    "he" | "he-il" ) keyboard="0002040D" ;;
-    "hr" | "hr-hr" ) keyboard="0000041A" ;;
-    "hu" | "hu-hu" ) keyboard="0000040E" ;;
-    "it" | "it-it" ) keyboard="00000410" ;;
-    "ja" | "ja-jp" ) keyboard="00000411" ;;
-    "ko" | "ko-kr" ) keyboard="00000412" ;;
-    "lt" | "lt-lt" ) keyboard="00010427" ;;
-    "lv" | "lv-lv" ) keyboard="00020426" ;;
-    "nb" | "no" | "nb-no" | "nn" | "nn-no" ) keyboard="00000414" ;;
-    "nl" | "nl-nl" ) keyboard="00020409" ;;
-    "nl-be" ) keyboard="00000813" ;;
-    "pl" | "pl-pl" ) keyboard="00000415" ;;
-    "pt" | "pt-br" ) keyboard="00000416" ;;
-    "pt-pt" ) keyboard="00000816" ;;
-    "ro" | "ro-ro" ) keyboard="00010418" ;;
-    "ru" | "ru-ru" ) keyboard="00000419" ;;
-    "sk" | "sk-sk" ) keyboard="0000041B" ;;
-    "sl" | "sl-si" ) keyboard="00000424" ;;
-    "sr" | "sr-latn-rs" | "sr-latn-ba" ) keyboard="0000081A" ;;
-    "sr-cyrl-rs" | "sr-cyrl-ba" ) keyboard="00000C1A" ;;
-    "sv" | "sv-se" | "sv-fi" ) keyboard="0000041D" ;;
-    "th" | "th-th" ) keyboard="0000041E" ;;
-    "tr" | "tr-tr" ) keyboard="0000041F" ;;
-    "uk" | "uk-ua" ) keyboard="00020422" ;;
-    "zh-tw" | "zh-hant" ) keyboard="00000404" ;;
-    "zh" | "zh-cn" | "zh-hans" ) keyboard="00000804" ;;
-    * ) keyboard="00000409" ;;
-  esac
-
-  printf 'KEYBOARD_%s\n' "${keyboard^^}"
-  return 0
 }
 
 writeWin9xAnswerFile() {
@@ -2684,8 +2635,7 @@ writeWin9xAnswerFile() {
   local install="${11}"
 
   local desktop="%10%\Desktop"
-  local culture region keyboard locale selectedKeyboard
-  local addReg="OPKInstall,Win9x.Machine"
+  local addReg="OPKInstall,Win9x.Machine,Win9x.PCMCIA"
   local copyFiles="Win9x.Mouse"
   local firstLogonAddReg="Win9x.User"
   local firstLogonDelReg=""
@@ -2693,8 +2643,10 @@ writeWin9xAnswerFile() {
   local firstLogonUpdateInis=""
   local post=""
   local quiet=""
+  local culture region keyboard locale selectedKeyboard
 
   culture=$(getLanguage "$LANGUAGE" "culture") || return 1
+  [ -z "$culture" ] && culture="en-US"
   region="${REGION:-$culture}"
   keyboard="${KEYBOARD:-en-US}"
   locale=$(getWin9xLocale "$region") || return 1
@@ -2743,10 +2695,11 @@ writeWin9xAnswerFile() {
   copyFiles+=",Win9x.Autoexec"
 
   if [[ "${id,,}" == "win98"* ]]; then
+    firstLogonAddReg+=",Win98.Regwiz"
     [ -n "$firstLogonDelReg" ] && firstLogonDelReg+=","
     firstLogonDelReg+="Win98.Welcome"
     [ -n "$firstLogonDelFiles" ] && firstLogonDelFiles+=","
-    firstLogonDelFiles+="Win98.OnlineServices"
+    firstLogonDelFiles+="Win98.OnlineServices,Win98.QuickLaunch"
     firstLogonUpdateInis="Win98.OnlineServicesFolder"
   fi
 
@@ -2829,6 +2782,11 @@ writeWin9xAnswerFile() {
 
     printf '%s\n' ''
     writeWin9xMachineRegistry
+
+    printf '%s\n' \
+      '' \
+      '[Win9x.PCMCIA]' \
+      'HKLM,"System\CurrentControlSet\Services\Class\PCMCIA","SkipWizardForBatchSetup",,1'
 
     if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
@@ -2983,7 +2941,8 @@ writeWin9xAnswerFile() {
       printf '%s\n' \
         'Win98.Connect=10,Desktop' \
         'Win98.ConnectAll=10,alluse~1\desktop' \
-        'Win98.OnlineServices=10,Desktop\Online~1'
+        'Win98.OnlineServices=10,Desktop\Online~1' \
+        'Win98.QuickLaunch=10,Applic~1\Micros~1\Intern~1\QuickL~1'
     fi
 
     if enabled "$shortcut"; then
@@ -3031,6 +2990,8 @@ writeWin9xAnswerFile() {
       'NoPrompt2Boot=1' \
       'TimeZone=Pacific' \
       'System=0' \
+      'Display=0' \
+      'PenWinWarning=0' \
       '' \
       '[OptionalComponents]'
 
@@ -3061,7 +3022,15 @@ writeWin9xAnswerFile() {
       "ComputerName=\"$batchHost\"" \
       "Workgroup=\"$batchWorkgroup\"" \
       'PrimaryLogon=Windows' \
+      'Clients=VREDIR' \
+      'Protocols=MSTCP' \
       'Display=0' \
+      '' \
+      '[MSTCP]' \
+      'DHCP=1' \
+      '' \
+      '[VREDIR]' \
+      'ValidatedLogon=0' \
       ''
   } | unix2dos > "$target/MSBATCH.INF" || return 1
 
