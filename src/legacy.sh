@@ -1407,8 +1407,8 @@ stageWin9xFinalAutoexec() {
     return 1
   fi
 
-  if ! cp -f -- "$autoexec" "$target/WIN9XAUTO.BAT" ||
-    ! cmp -s -- "$autoexec" "$target/WIN9XAUTO.BAT"; then
+  if ! cp -f -- "$autoexec" "$target/W9XAUTO.BAT" ||
+    ! cmp -s -- "$autoexec" "$target/W9XAUTO.BAT"; then
     rm -rf -- "$temp" || :
     error "Failed to stage the final $desc AUTOEXEC.BAT source file!"
     return 1
@@ -2449,6 +2449,226 @@ writeWin98Registry() {
     '%10%\wininit.ini,DIRNUL,,"C:\WINDOWS\Desktop\Online~1=1"'
 }
 
+getWin9xLocale() {
+
+  local input="${1//_/-}"
+  local locale="0409"
+  input="${input,,}"
+
+  # Also accept an LCID directly. MSBATCH expects the leading L prefix.
+  if [[ "$input" =~ ^l?([0-9a-f]{4})$ ]]; then
+    printf 'L%s\n' "${BASH_REMATCH[1]^^}"
+    return 0
+  fi
+
+  # Windows locale-name to LCID lookup. Keep legacy aliases alongside the
+  # regional forms because REGION may be supplied independently of LANGUAGE.
+  case "$input" in
+    "ar" | "ar-sa" ) locale="0401" ;;
+    "ar-iq" ) locale="0801" ;;
+    "ar-eg" ) locale="0C01" ;;
+    "ar-ly" ) locale="1001" ;;
+    "ar-dz" ) locale="1401" ;;
+    "ar-ma" ) locale="1801" ;;
+    "ar-tn" ) locale="1C01" ;;
+    "ar-om" ) locale="2001" ;;
+    "ar-ye" ) locale="2401" ;;
+    "ar-sy" ) locale="2801" ;;
+    "ar-jo" ) locale="2C01" ;;
+    "ar-lb" ) locale="3001" ;;
+    "ar-kw" ) locale="3401" ;;
+    "ar-ae" ) locale="3801" ;;
+    "ar-bh" ) locale="3C01" ;;
+    "ar-qa" ) locale="4001" ;;
+    "bg" | "bg-bg" ) locale="0402" ;;
+    "ca" | "ca-es" ) locale="0403" ;;
+    "zh-tw" | "zh-hant" ) locale="0404" ;;
+    "zh" | "zh-cn" | "zh-hans" ) locale="0804" ;;
+    "zh-hk" ) locale="0C04" ;;
+    "zh-sg" ) locale="1004" ;;
+    "zh-mo" ) locale="1404" ;;
+    "cs" | "cs-cz" ) locale="0405" ;;
+    "da" | "da-dk" ) locale="0406" ;;
+    "de" | "de-de" ) locale="0407" ;;
+    "de-ch" ) locale="0807" ;;
+    "de-at" ) locale="0C07" ;;
+    "de-lu" ) locale="1007" ;;
+    "de-li" ) locale="1407" ;;
+    "el" | "el-gr" ) locale="0408" ;;
+    "en" | "en-us" ) locale="0409" ;;
+    "en-gb" ) locale="0809" ;;
+    "en-au" ) locale="0C09" ;;
+    "en-ca" ) locale="1009" ;;
+    "en-nz" ) locale="1409" ;;
+    "en-ie" ) locale="1809" ;;
+    "en-za" ) locale="1C09" ;;
+    "en-jm" ) locale="2009" ;;
+    "en-029" ) locale="2409" ;;
+    "en-bz" ) locale="2809" ;;
+    "en-tt" ) locale="2C09" ;;
+    "en-zw" ) locale="3009" ;;
+    "en-ph" ) locale="3409" ;;
+    "es-mx" ) locale="080A" ;;
+    "es-gt" ) locale="100A" ;;
+    "es-cr" ) locale="140A" ;;
+    "es-pa" ) locale="180A" ;;
+    "es-do" ) locale="1C0A" ;;
+    "es-ve" ) locale="200A" ;;
+    "es-co" ) locale="240A" ;;
+    "es-pe" ) locale="280A" ;;
+    "es-ar" ) locale="2C0A" ;;
+    "es-ec" ) locale="300A" ;;
+    "es-cl" ) locale="340A" ;;
+    "es-uy" ) locale="380A" ;;
+    "es-py" ) locale="3C0A" ;;
+    "es-bo" ) locale="400A" ;;
+    "es-sv" ) locale="440A" ;;
+    "es-hn" ) locale="480A" ;;
+    "es-ni" ) locale="4C0A" ;;
+    "es-pr" ) locale="500A" ;;
+    "es" | "es-es" ) locale="0C0A" ;;
+    "fi" | "fi-fi" ) locale="040B" ;;
+    "fr" | "fr-fr" ) locale="040C" ;;
+    "fr-be" ) locale="080C" ;;
+    "fr-ca" ) locale="0C0C" ;;
+    "fr-ch" ) locale="100C" ;;
+    "fr-lu" ) locale="140C" ;;
+    "fr-mc" ) locale="180C" ;;
+    "he" | "he-il" ) locale="040D" ;;
+    "hu" | "hu-hu" ) locale="040E" ;;
+    "is" | "is-is" ) locale="040F" ;;
+    "it" | "it-it" ) locale="0410" ;;
+    "it-ch" ) locale="0810" ;;
+    "ja" | "ja-jp" ) locale="0411" ;;
+    "ko" | "ko-kr" ) locale="0412" ;;
+    "nl" | "nl-nl" ) locale="0413" ;;
+    "nl-be" ) locale="0813" ;;
+    "nb" | "no" | "nb-no" ) locale="0414" ;;
+    "nn" | "nn-no" ) locale="0814" ;;
+    "pl" | "pl-pl" ) locale="0415" ;;
+    "pt" | "pt-br" ) locale="0416" ;;
+    "pt-pt" ) locale="0816" ;;
+    "ro" | "ro-ro" ) locale="0418" ;;
+    "ru" | "ru-ru" ) locale="0419" ;;
+    "hr" | "hr-hr" ) locale="041A" ;;
+    "sr" | "sr-latn-rs" ) locale="081A" ;;
+    "sr-cyrl-rs" ) locale="0C1A" ;;
+    "sr-latn-ba" ) locale="181A" ;;
+    "sr-cyrl-ba" ) locale="1C1A" ;;
+    "sk" | "sk-sk" ) locale="041B" ;;
+    "sv" | "sv-se" ) locale="041D" ;;
+    "sv-fi" ) locale="081D" ;;
+    "th" | "th-th" ) locale="041E" ;;
+    "tr" | "tr-tr" ) locale="041F" ;;
+    "id" | "id-id" ) locale="0421" ;;
+    "uk" | "uk-ua" ) locale="0422" ;;
+    "be" | "be-by" ) locale="0423" ;;
+    "sl" | "sl-si" ) locale="0424" ;;
+    "et" | "et-ee" ) locale="0425" ;;
+    "lv" | "lv-lv" ) locale="0426" ;;
+    "lt" | "lt-lt" ) locale="0427" ;;
+    "fa" | "fa-ir" ) locale="0429" ;;
+    "vi" | "vi-vn" ) locale="042A" ;;
+    "hy" | "hy-am" ) locale="042B" ;;
+    "az" | "az-latn-az" ) locale="042C" ;;
+    "az-cyrl-az" ) locale="082C" ;;
+    "eu" | "eu-es" ) locale="042D" ;;
+    "mk" | "mk-mk" ) locale="042F" ;;
+    "af" | "af-za" ) locale="0436" ;;
+    "ka" | "ka-ge" ) locale="0437" ;;
+    "fo" | "fo-fo" ) locale="0438" ;;
+    "hi" | "hi-in" ) locale="0439" ;;
+    "ms" | "ms-my" ) locale="043E" ;;
+    "ms-bn" ) locale="083E" ;;
+    "kk" | "kk-kz" ) locale="043F" ;;
+    "ky" | "ky-kg" ) locale="0440" ;;
+    "sw" | "sw-ke" ) locale="0441" ;;
+    "tk" | "tk-tm" ) locale="0442" ;;
+    "uz" | "uz-latn-uz" ) locale="0443" ;;
+    "uz-cyrl-uz" ) locale="0843" ;;
+    "tt" | "tt-ru" ) locale="0444" ;;
+    * ) locale="0409" ;;
+  esac
+
+  printf 'L%s\n' "${locale^^}"
+  return 0
+}
+
+getWin9xKeyboard() {
+
+  local input="${1//_/-}"
+  local keyboard="00000409"
+  input="${input,,}"
+
+  # Permit an explicit KEYBOARD_xxxxxxxx (normalized to a hyphen by parseLanguage)
+  # or a raw eight-digit layout ID too.
+  if [[ "$input" =~ ^keyboard[-_]([0-9a-f]{8})$ ]]; then
+    printf 'KEYBOARD_%s\n' "${BASH_REMATCH[1]^^}"
+    return 0
+  fi
+
+  if [[ "$input" =~ ^[0-9a-f]{8}$ ]]; then
+    printf 'KEYBOARD_%s\n' "${input^^}"
+    return 0
+  fi
+
+  # Default keyboard layout for an explicit KEYBOARD tag. Keep keyboard choice
+  # independent from REGION and preserve the legacy US default when KEYBOARD
+  # is not supplied.
+  case "$input" in
+    "ar" | "ar-sa" | "ar-iq" | "ar-eg" | "ar-ly" | "ar-om" | "ar-ye" | "ar-sy" | "ar-jo" | "ar-lb" | "ar-kw" | "ar-ae" | "ar-bh" | "ar-qa" ) keyboard="00000401" ;;
+    "ar-dz" | "ar-ma" | "ar-tn" ) keyboard="00020401" ;;
+    "bg" | "bg-bg" ) keyboard="00030402" ;;
+    "cs" | "cs-cz" ) keyboard="00000405" ;;
+    "da" | "da-dk" ) keyboard="00000406" ;;
+    "de" | "de-de" | "de-at" | "de-lu" ) keyboard="00000407" ;;
+    "de-ch" | "de-li" ) keyboard="00000807" ;;
+    "el" | "el-gr" ) keyboard="00000408" ;;
+    "en" | "en-us" | "en-au" | "en-ca" | "en-jm" | "en-029" | "en-bz" | "en-tt" | "en-za" | "en-zw" | "en-ph" ) keyboard="00000409" ;;
+    "en-gb" ) keyboard="00000809" ;;
+    "en-ie" ) keyboard="00001809" ;;
+    "en-nz" ) keyboard="00001409" ;;
+    "es" | "es-es" ) keyboard="0000040A" ;;
+    "es-mx" | "es-gt" | "es-cr" | "es-pa" | "es-do" | "es-ve" | "es-co" | "es-pe" | "es-ar" | "es-ec" | "es-cl" | "es-uy" | "es-py" | "es-bo" | "es-sv" | "es-hn" | "es-ni" | "es-pr" ) keyboard="0000080A" ;;
+    "et" | "et-ee" ) keyboard="00000425" ;;
+    "fi" | "fi-fi" ) keyboard="0000040B" ;;
+    "fr" | "fr-fr" | "fr-mc" ) keyboard="0000040C" ;;
+    "fr-be" ) keyboard="0000080C" ;;
+    "fr-ca" ) keyboard="00001009" ;;
+    "fr-ch" | "fr-lu" ) keyboard="0000100C" ;;
+    "he" | "he-il" ) keyboard="0002040D" ;;
+    "hr" | "hr-hr" ) keyboard="0000041A" ;;
+    "hu" | "hu-hu" ) keyboard="0000040E" ;;
+    "it" | "it-it" ) keyboard="00000410" ;;
+    "ja" | "ja-jp" ) keyboard="00000411" ;;
+    "ko" | "ko-kr" ) keyboard="00000412" ;;
+    "lt" | "lt-lt" ) keyboard="00010427" ;;
+    "lv" | "lv-lv" ) keyboard="00020426" ;;
+    "nb" | "no" | "nb-no" | "nn" | "nn-no" ) keyboard="00000414" ;;
+    "nl" | "nl-nl" ) keyboard="00020409" ;;
+    "nl-be" ) keyboard="00000813" ;;
+    "pl" | "pl-pl" ) keyboard="00000415" ;;
+    "pt" | "pt-br" ) keyboard="00000416" ;;
+    "pt-pt" ) keyboard="00000816" ;;
+    "ro" | "ro-ro" ) keyboard="00010418" ;;
+    "ru" | "ru-ru" ) keyboard="00000419" ;;
+    "sk" | "sk-sk" ) keyboard="0000041B" ;;
+    "sl" | "sl-si" ) keyboard="00000424" ;;
+    "sr" | "sr-latn-rs" | "sr-latn-ba" ) keyboard="0000081A" ;;
+    "sr-cyrl-rs" | "sr-cyrl-ba" ) keyboard="00000C1A" ;;
+    "sv" | "sv-se" | "sv-fi" ) keyboard="0000041D" ;;
+    "th" | "th-th" ) keyboard="0000041E" ;;
+    "tr" | "tr-tr" ) keyboard="0000041F" ;;
+    "uk" | "uk-ua" ) keyboard="00020422" ;;
+    "zh-tw" | "zh-hant" ) keyboard="00000404" ;;
+    "zh" | "zh-cn" | "zh-hans" ) keyboard="00000804" ;;
+    * ) keyboard="00000409" ;;
+  esac
+
+  printf 'KEYBOARD_%s\n' "${keyboard^^}"
+  return 0
+}
+
 writeWin9xAnswerFile() {
 
   local target="$1"
@@ -2464,6 +2684,7 @@ writeWin9xAnswerFile() {
   local install="${11}"
 
   local desktop="%10%\Desktop"
+  local culture region keyboard locale selectedKeyboard
   local addReg="OPKInstall,Win9x.Machine"
   local copyFiles="Win9x.Mouse"
   local firstLogonAddReg="Win9x.User"
@@ -2472,6 +2693,12 @@ writeWin9xAnswerFile() {
   local firstLogonUpdateInis=""
   local post=""
   local quiet=""
+
+  culture=$(getLanguage "$LANGUAGE" "culture") || return 1
+  region="${REGION:-$culture}"
+  keyboard="${KEYBOARD:-en-US}"
+  locale=$(getWin9xLocale "$region") || return 1
+  selectedKeyboard=$(getWin9xKeyboard "$keyboard") || return 1
 
   if ! disabled "$AUTOLOGIN"; then
     copyFiles+=",Win9x.Password"
@@ -2543,7 +2770,7 @@ writeWin9xAnswerFile() {
       'VBMOUSE.EXE=22' \
       'VBMOUSE.DRV=22' \
       'PATCH9X.NEW=22' \
-      'WIN9XAUTO.BAT=22'
+      'W9XAUTO.BAT=22'
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
@@ -2673,7 +2900,7 @@ writeWin9xAnswerFile() {
       'PATCH9X.RUN' \
       '' \
       '[Win9x.Autoexec]' \
-      'AUTOEXEC.BAT,WIN9XAUTO.BAT,,4'
+      'AUTOEXEC.BAT,W9XAUTO.BAT,,4'
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
@@ -2825,8 +3052,8 @@ writeWin9xAnswerFile() {
       'Display=0' \
       '' \
       '[System]' \
-      "Locale=L0409" \
-      "SelectedKeyboard=KEYBOARD_00000409" \
+      "Locale=$locale" \
+      "SelectedKeyboard=$selectedKeyboard" \
       "DisplChar=16,$WIDTH,$HEIGHT" \
       "Monitor=\"$monitor\"" \
       '' \
