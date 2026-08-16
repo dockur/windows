@@ -41,7 +41,7 @@ An empty default means the variable is unset and its value is determined automat
 |---|---|---|
 | `DISK_SIZE` | `64G` | Size of the primary disk. |
 | `DISK_FMT` | `raw` | Disk image format: `raw` or `qcow2`. |
-| `DISK_TYPE` | `scsi` | Disk device type, such as `sata`, `scsi`, or `blk`. |
+| `DISK_TYPE` | `scsi` | Disk device type, such as `ide`, `scsi`, or `blk`. |
 | `DISK_CACHE` | `none` | Disk cache mode, such as `none` or `writeback`. |
 | `DISK_IO` | `native` | Disk I/O mode, such as `native`, `threads`, or `io_uring`. |
 | `DISK_DISCARD` | `unmap` | Discard/TRIM mode for the primary disk. |
