@@ -2090,7 +2090,8 @@ stageWin9xDosPatcher() {
 
   # Stage the marker under a dormant name. MSBATCH promotes it to PATCH9X.RUN
   # only during its late file-copy phase, leaving the already-working early
-  # Setup reboots untouched. Win9x.FirstLogon removes the active marker.
+  # Setup reboots untouched. Win95/98 remove it in Win9x.FirstLogon; WinMe
+  # keeps it through Setup and removes it from the post-setup stage.
   if ! printf 'Pending\r\n' > "$dir/PATCH9X.NEW"; then
     error "Failed to stage the Patcher9x run marker for $desc!"
     return 1
@@ -2378,6 +2379,7 @@ stageWin9xPostSetup() {
   local dir="$1"
   local desc="$2"
   local install="$3"
+  local id="$4"
   local target="$dir/POST9X.BAT"
   local marker="$dir/POST9X.NEW"
   local cleanup="$dir/POST9X.REG"
@@ -2390,10 +2392,16 @@ stageWin9xPostSetup() {
       'DEL C:\WINDOWS\POST9X.REG >NUL' \
       'DEL C:\WINDOWS\POST9X.RDY >NUL'
 
-    if enabled "${LOG:-}"; then
-      printf '%s\n' 'CALL C:\OEM\install.bat > C:\OEM\install.log'
-    else
-      printf '%s\n' 'CALL C:\OEM\install.bat'
+    if [[ "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' 'DEL C:\SETUP\PATCH9X.RUN >NUL'
+    fi
+
+    if [ -n "$install" ]; then
+      if enabled "${LOG:-}"; then
+        printf '%s\n' 'CALL C:\OEM\install.bat > C:\OEM\install.log'
+      else
+        printf '%s\n' 'CALL C:\OEM\install.bat'
+      fi
     fi
 
     printf '%s\n' ':END'
@@ -2411,6 +2419,16 @@ stageWin9xPostSetup() {
       '' \
       '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run]' \
       '"PostSetup"=-'
+
+    if [[ "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' \
+        '' \
+        '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx]' \
+        '@=">Batch 9x - General Settings"' \
+        '"IsInstalled"=hex:01,00,00,00' \
+        '"Version"="3,0,0,0"' \
+        '"StubPath"="C:\\WINDOWS\\RUNDLL.EXE SETUPX.DLL,InstallHinfSection Win9x.Browser 4 C:\\WINDOWS\\MSBATCH.INF"'
+    fi
   } | unix2dos > "$cleanup" || {
     error "Failed to create post-desktop registry cleanup for $desc!"
     return 1
@@ -2629,6 +2647,11 @@ writeWin9xAnswerFile() {
   local fire=""
   local culture region keyboard localeID keyboardID
 
+  if [[ "${id,,}" == "win9x"* ]]; then
+    addReg="${addReg%,Win9x.ActiveSetup}"
+    firstLogonDelFiles="${firstLogonDelFiles/Win9x.PatcherMarker,/}"
+  fi
+
   culture=$(getLanguage "$LANGUAGE" "culture") || return 1
   [ -z "$culture" ] && culture="en-US"
   region="${REGION:-$culture}"
@@ -2640,12 +2663,12 @@ writeWin9xAnswerFile() {
     copyFiles+=",Win9x.Password"
   fi
 
-  if [ -n "$install" ]; then
+  if [ -n "$install" ] || [[ "${id,,}" == "win9x"* ]]; then
     post="Y"
     copyFiles+=",Win9x.Post"
   fi
 
-  if enabled "$shortcut" || enabled "$post"; then
+  if enabled "$shortcut" || [ -n "$install" ]; then
     fire="Y"
     copyFiles+=",Win9x.Fire"
   fi
@@ -3122,8 +3145,8 @@ prepareWin9xInstall() {
     stageWin9xFire "$target" "$desc" || return 1
   fi
 
-  if [ -n "$install" ]; then
-    stageWin9xPostSetup "$target" "$desc" "$install" || return 1
+  if [ -n "$install" ] || [[ "${id,,}" == "win9x"* ]]; then
+    stageWin9xPostSetup "$target" "$desc" "$install" "$id" || return 1
   fi
 
   if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
