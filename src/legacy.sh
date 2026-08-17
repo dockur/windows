@@ -1404,10 +1404,6 @@ writeWin9xAutoexec() {
       "CD C:\\" \
       ':STARTWIN'
 
-    if [[ "${id,,}" != "win9x"* ]]; then
-      printf '%s\n' 'C:\WINDOWS\SYSTEM\VBMOUSE.EXE >NUL'
-    fi
-
     if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
       printf '%s\n' 'C:\WINDOWS\WIN.COM'
     fi
@@ -2390,8 +2386,15 @@ stageWin9xPostSetup() {
   {
     printf '%s\n' \
       '@ECHO OFF' \
-      'IF NOT EXIST C:\WINDOWS\POST9X.RDY GOTO END' \
-      'C:\WINDOWS\REGEDIT.EXE /S C:\WINDOWS\POST9X.REG' \
+      'IF NOT EXIST C:\WINDOWS\POST9X.RDY GOTO END'
+
+    if [[ "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' 'C:\SETUP\HIDE.EXE C:\WINDOWS\REGEDIT.EXE /S C:\WINDOWS\POST9X.REG'
+    else
+      printf '%s\n' 'C:\WINDOWS\REGEDIT.EXE /S C:\WINDOWS\POST9X.REG'
+    fi
+
+    printf '%s\n' \
       'DEL C:\WINDOWS\POST9X.REG >NUL' \
       'DEL C:\WINDOWS\POST9X.RDY >NUL'
 
@@ -2452,18 +2455,43 @@ stageWin9xMouseFiles() {
 
   local dir="$1"
   local desc="$2"
-  local source="$3"
-  local file
+  local vbmouse="$3"
+  local vmmouse="$4"
+  local file source target
 
+  # VBADOS is required only by the initial mini-Windows Setup environment.
+  # Keep both files in C:\SETUP, but do not copy or load them in the installed OS.
   for file in VBMOUSE.EXE VBMOUSE.DRV; do
 
-    if [ ! -f "$source/$file" ]; then
+    source="$vbmouse/$file"
+    target="$dir/$file"
+
+    if [ ! -f "$source" ]; then
       error "Failed to locate $file!"
       return 1
     fi
 
-    if ! cp -f -- "$source/$file" "$dir/$file" ||
-      ! cmp -s -- "$source/$file" "$dir/$file"; then
+    if ! cp -f -- "$source" "$target" || ! cmp -s -- "$source" "$target"; then
+      error "Failed to stage $file in $desc setup files!"
+      return 1
+    fi
+
+  done
+
+  # The finished Win9x system uses VMware VMMouse instead. Its INF binds to the
+  # emulated PS/2 mouse during hardware detection; C:\SETUP is already part of
+  # OtherDevicePath, so Setup can discover this package like the other OEM drivers.
+  for file in vmmouse.inf vmmouse.vxd; do
+
+    source="$vmmouse/$file"
+    target="$dir/${file^^}"
+
+    if [ ! -f "$source" ]; then
+      error "Failed to locate $file!"
+      return 1
+    fi
+
+    if ! cp -f -- "$source" "$target" || ! cmp -s -- "$source" "$target"; then
       error "Failed to stage $file in $desc setup files!"
       return 1
     fi
@@ -2641,7 +2669,7 @@ writeWin9xAnswerFile() {
 
   local desktop="%10%\Desktop"
   local addReg="OPKInstall,Win9x.Machine,Win9x.PCMCIA,Win9x.Power,Win9x.ActiveSetup"
-  local copyFiles="Win9x.Mouse"
+  local copyFiles=""
   local firstLogonAddReg="Win9x.User,Win9x.Regwiz,Win9x.BrowserUser,Win9x.PowerUser"
   local firstLogonDelReg="Win9x.Welcome,Win9x.MSN,Win9x.ICWDesktop"
   local firstLogonDelFiles="Win9x.PatcherMarker,Win9x.Connect,Win9x.ConnectAll,Win9x.OnlineServices,Win9x.QuickLaunch"
@@ -2652,7 +2680,6 @@ writeWin9xAnswerFile() {
 
   if [[ "${id,,}" == "win9x"* ]]; then
     addReg="${addReg%,Win9x.ActiveSetup}"
-    copyFiles=""
     firstLogonDelFiles="${firstLogonDelFiles/Win9x.PatcherMarker,/}"
   elif [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
     firstLogonDelFiles="${firstLogonDelFiles/Win9x.PatcherMarker,/}"
@@ -2703,9 +2730,7 @@ writeWin9xAnswerFile() {
   # intentionally last so Setup cannot leave any release-specific startup edits.
   copyFiles+=",Win9x.Autoexec"
 
-  # WinMe keeps VBMOUSE only in the initial Setup environment. Strip the
-  # leading separator left by the common CopyFiles append logic after removing
-  # Win9x.Mouse from the installed WinMe copy list.
+  # Strip the leading separator left by the common CopyFiles append logic.
   copyFiles="${copyFiles#,}"
 
   # Cap the memory Win9x itself can address at 4 GiB without changing QEMU's
@@ -2725,8 +2750,6 @@ writeWin9xAnswerFile() {
       '22="Windows Setup",,0' \
       '' \
       '[SourceDisksFiles]' \
-      'VBMOUSE.EXE=22' \
-      'VBMOUSE.DRV=22' \
       'PATCH9X.NEW=22' \
       'W9XAUTO.BAT=22'
 
@@ -2847,10 +2870,6 @@ writeWin9xAnswerFile() {
 
     printf '%s\n' \
       '' \
-      '[Win9x.Mouse]' \
-      'VBMOUSE.EXE' \
-      'VBMOUSE.DRV' \
-      '' \
       '[Win9x.PatcherEnable]' \
       'PATCH9X.RUN,PATCH9X.NEW,,4' \
       '' \
@@ -2903,7 +2922,6 @@ writeWin9xAnswerFile() {
     printf '%s\n' \
       '' \
       '[DestinationDirs]' \
-      'Win9x.Mouse=11' \
       'Win9x.PatcherEnable=30,SETUP' \
       'Win9x.PatcherMarker=30,SETUP' \
       'Win9x.Autoexec=30' \
@@ -2940,10 +2958,6 @@ writeWin9xAnswerFile() {
     printf '%s\n' \
       '' \
       '[Win9x.SystemIni]'
-
-    if [[ "${id,,}" != "win9x"* ]]; then
-      printf '%s\n' '%10%\system.ini,boot,"mouse.drv=mouse.drv","mouse.drv=vbmouse.drv"'
-    fi
 
     printf '%s\n' \
       '%10%\system.ini,386Enh,,"MaxPhysPage=100000"' \
@@ -3031,7 +3045,7 @@ patchWin9xSetupFiles() {
   local target="$2"
   local desc="$3"
   local patcher="$4"
-  local mouse="$5"
+  local vbmouse="$5"
   local display="$6"
 
   chmod 755 "$patcher" || {
@@ -3070,7 +3084,7 @@ patchWin9xSetupFiles() {
   fi
 
   if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
-    integrateWin9xSetupMouse "$target" "$desc" "$mouse/VBMOUSE.DRV" || return 1
+    integrateWin9xSetupMouse "$target" "$desc" "$vbmouse/VBMOUSE.DRV" || return 1
   fi
 
   return 0
@@ -3192,7 +3206,8 @@ prepareWin9xInstall() {
   local win9x="$drivers/win9x"
   local patcher="$win9x/patcher9x/patcher9x"
   local patcher_dos="$patcher.img"
-  local mouse="$win9x/mouse"
+  local vbmouse="$win9x/vbmouse"
+  local vmmouse="$win9x/vmmouse"
   local display="$win9x/boxv9x"
 
   extractDrivers "$drivers" || return 1
@@ -3203,13 +3218,14 @@ prepareWin9xInstall() {
     return 1
   fi
 
-  if [ ! -f "$mouse/VBMOUSE.EXE" ] || [ ! -f "$mouse/VBMOUSE.DRV" ]; then
+  if [ ! -f "$vbmouse/VBMOUSE.EXE" ] || [ ! -f "$vbmouse/VBMOUSE.DRV" ] ||
+    [ ! -f "$vmmouse/vmmouse.inf" ] || [ ! -f "$vmmouse/vmmouse.vxd" ]; then
     rm -rf "$drivers" || :
     error "Failed to locate required Windows 9x mouse drivers!"
     return 1
   fi
 
-  if ! patchWin9xSetupFiles "$id" "$target" "$desc" "$patcher" "$mouse" "$display"; then
+  if ! patchWin9xSetupFiles "$id" "$target" "$desc" "$patcher" "$vbmouse" "$display"; then
     rm -rf "$drivers" || :
     return 1
   fi
@@ -3219,7 +3235,7 @@ prepareWin9xInstall() {
     return 1
   fi
 
-  if ! stageWin9xMouseFiles "$target" "$desc" "$mouse"; then
+  if ! stageWin9xMouseFiles "$target" "$desc" "$vbmouse" "$vmmouse"; then
     rm -rf "$drivers" || :
     return 1
   fi
