@@ -2456,7 +2456,7 @@ stageWin9xMouseFiles() {
   local dir="$1"
   local desc="$2"
   local vbmouse="$3"
-  local vmmouse="$4"
+  local qemouse="$4"
   local file source target
 
   # VBADOS is required only by the initial mini-Windows Setup environment.
@@ -2478,25 +2478,22 @@ stageWin9xMouseFiles() {
 
   done
 
-  # The finished Win9x system uses VMware VMMouse instead. Its INF binds to the
-  # emulated PS/2 mouse during hardware detection; C:\SETUP is already part of
-  # OtherDevicePath, so Setup can discover this package like the other OEM drivers.
-  for file in vmmouse.inf vmmouse.vxd; do
+  # QEMouse is a Windows MOUSE.DRV rather than a Plug and Play VxD package.
+  # Stage the driver in C:\SETUP so MSBATCH.INF can copy it into the Windows
+  # System directory and select it through SYSTEM.INI during the normal install.
+  file="qemouse.drv"
+  source="$qemouse/$file"
+  target="$dir/${file^^}"
 
-    source="$vmmouse/$file"
-    target="$dir/${file^^}"
+  if [ ! -f "$source" ]; then
+    error "Failed to locate $file!"
+    return 1
+  fi
 
-    if [ ! -f "$source" ]; then
-      error "Failed to locate $file!"
-      return 1
-    fi
-
-    if ! cp -f -- "$source" "$target" || ! cmp -s -- "$source" "$target"; then
-      error "Failed to stage $file in $desc setup files!"
-      return 1
-    fi
-
-  done
+  if ! cp -f -- "$source" "$target" || ! cmp -s -- "$source" "$target"; then
+    error "Failed to stage $file in $desc setup files!"
+    return 1
+  fi
 
   return 0
 }
@@ -2729,6 +2726,10 @@ writeWin9xAnswerFile() {
   # intentionally last so Setup cannot leave any release-specific startup edits.
   copyFiles+=",Win9x.Autoexec"
 
+  # QEMouse is the installed Windows mouse driver. VBMouse remains limited to the
+  # mini-Windows Setup environment and is never copied into the installed system.
+  copyFiles+=",Win9x.QEMouse"
+
   # Strip the leading separator left by the common CopyFiles append logic.
   copyFiles="${copyFiles#,}"
 
@@ -2750,7 +2751,8 @@ writeWin9xAnswerFile() {
       '' \
       '[SourceDisksFiles]' \
       'PATCH9X.NEW=22' \
-      'W9XAUTO.BAT=22'
+      'W9XAUTO.BAT=22' \
+      'QEMOUSE.DRV=22'
 
     if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
       printf '%s\n' 'WIN9XDMA.EXE=22'
@@ -2876,7 +2878,10 @@ writeWin9xAnswerFile() {
       'PATCH9X.RUN' \
       '' \
       '[Win9x.Autoexec]' \
-      'AUTOEXEC.BAT,W9XAUTO.BAT,,4'
+      'AUTOEXEC.BAT,W9XAUTO.BAT,,4' \
+      '' \
+      '[Win9x.QEMouse]' \
+      'QEMOUSE.DRV'
 
     if ! disabled "$AUTOLOGIN"; then
       printf '%s\n' \
@@ -2924,6 +2929,7 @@ writeWin9xAnswerFile() {
       'Win9x.PatcherEnable=30,SETUP' \
       'Win9x.PatcherMarker=30,SETUP' \
       'Win9x.Autoexec=30' \
+      'Win9x.QEMouse=11' \
       'Win9x.Connect=10,Desktop' \
       'Win9x.ConnectAll=10,alluse~1\desktop' \
       'Win9x.OnlineServices=10,Desktop\Online~1' \
@@ -2959,6 +2965,7 @@ writeWin9xAnswerFile() {
       '[Win9x.SystemIni]'
 
     printf '%s\n' \
+      '%10%\system.ini,boot,"mouse.drv=*","mouse.drv=qemouse.drv"' \
       '%10%\system.ini,386Enh,,"MaxPhysPage=100000"' \
       '%10%\system.ini,vcache,,"MaxFileCache=65536"'
 
@@ -3206,7 +3213,7 @@ prepareWin9xInstall() {
   local patcher="$win9x/patcher9x/patcher9x"
   local patcher_dos="$patcher.img"
   local vbmouse="$win9x/vbmouse"
-  local vmmouse="$win9x/vmmouse"
+  local qemouse="$win9x/qemouse"
   local display="$win9x/boxv9x"
 
   extractDrivers "$drivers" || return 1
@@ -3218,7 +3225,7 @@ prepareWin9xInstall() {
   fi
 
   if [ ! -f "$vbmouse/VBMOUSE.EXE" ] || [ ! -f "$vbmouse/VBMOUSE.DRV" ] ||
-    [ ! -f "$vmmouse/vmmouse.inf" ] || [ ! -f "$vmmouse/vmmouse.vxd" ]; then
+    [ ! -f "$qemouse/qemouse.drv" ]; then
     rm -rf "$drivers" || :
     error "Failed to locate required Windows 9x mouse drivers!"
     return 1
@@ -3234,7 +3241,7 @@ prepareWin9xInstall() {
     return 1
   fi
 
-  if ! stageWin9xMouseFiles "$target" "$desc" "$vbmouse" "$vmmouse"; then
+  if ! stageWin9xMouseFiles "$target" "$desc" "$vbmouse" "$qemouse"; then
     rm -rf "$drivers" || :
     return 1
   fi
