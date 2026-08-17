@@ -2515,7 +2515,6 @@ writeWin9xUserRegistry() {
     'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","HideFileExt",0x00010001,0' \
     'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer\CabinetState","Settings",1,0c,00,02,00,0a,01,00,00,60,00,00,00' \
     'HKCU,"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoActiveDesktop",0x00010001,1' \
-    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","ClassicShell",0x00010001,1' \
     'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer","link",1,00,00,00,00'
 
   if ! disabled "$AUTOLOGIN"; then
