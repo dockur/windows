@@ -2657,6 +2657,8 @@ writeWin9xAnswerFile() {
     firstLogonDelFiles="${firstLogonDelFiles/Win9x.PatcherMarker,/}"
   fi
 
+  addReg+=",Win9x.Shutdown"
+
   culture=$(getLanguage "$LANGUAGE" "culture") || return 1
   [ -z "$culture" ] && culture="en-US"
   region="${REGION:-$culture}"
@@ -2678,9 +2680,7 @@ writeWin9xAnswerFile() {
     copyFiles+=",Win9x.Fire"
   fi
 
-  if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
-    addReg+=",OEMDrivers"
-  fi
+  addReg+=",OEMDrivers"
 
   if [[ "${id,,}" == "win9x"* ]]; then
     addReg+=",WinMe.BootService"
@@ -2784,15 +2784,18 @@ writeWin9xAnswerFile() {
 
     printf '%s\n' \
       '' \
+      '[Win9x.Shutdown]' \
+      'HKLM,"System\CurrentControlSet\Control\Shutdown","FastReboot",,"0"'
+
+    printf '%s\n' \
+      '' \
       '[Win9x.PCMCIA]' \
       'HKLM,"System\CurrentControlSet\Services\Class\PCMCIA","SkipWizardForBatchSetup",,1'
 
-    if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
-      printf '%s\n' \
-        '' \
-        '[OEMDrivers]' \
-        "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\",\"OtherDevicePath\",,\"C:\\WINDOWS\\INF\\OTHER;C:\\$setup\""
-    fi
+    printf '%s\n' \
+      '' \
+      '[OEMDrivers]' \
+      "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\",\"OtherDevicePath\",,\"C:\\WINDOWS\\INF\\OTHER;C:\\$setup\""
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
