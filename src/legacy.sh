@@ -3172,19 +3172,20 @@ prepareWin9xInstall() {
     return 1
   fi
 
+  monitor="Plug and Play Monitor (VESA DDC)"
+
   case "${id,,}" in
     "win95"* )
-      folder="WIN95"
-      monitor="Plug and Play Monitor (VESA DDC)" ;;
+      folder="WIN95" ;;
     "win98"* )
       folder="WIN98"
-      monitor="Plug and Play Monitor (VESA DDC)"
       options="/P J /IE /NF $options" ;;
     "win9x"* )
       folder="WIN9X"
-      options="/IE /NF $options" ;;
+      options="/P J /IE /NF $options" ;;
     * )
-      return 0 ;;
+      error "Unknown version: $id"
+      return 1 ;;
   esac
 
   target=$(find "$dir" -maxdepth 1 -type d -iname "$folder" -print -quit) || return 1
