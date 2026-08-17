@@ -1395,7 +1395,15 @@ writeWin9xAutoexec() {
       'GOTO END' \
       ':WINDOWS' \
       'IF NOT EXIST C:\WINDOWS\SYSTEM\KERNEL32.DLL GOTO STARTWIN' \
-      'IF NOT EXIST C:\WINDOWS\SYSTEM\VMM32.VXD GOTO STARTWIN' \
+      'IF NOT EXIST C:\WINDOWS\SYSTEM\VMM32.VXD GOTO STARTWIN'
+
+    # WinMe RunServices may invoke WinMeBoot more than once during one Setup boot.
+    # Clear its same-boot latch only here, at the next real AUTOEXEC boot boundary.
+    if [[ "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' 'IF EXIST C:\SETUP\MEBOOT.BOOT DEL C:\SETUP\MEBOOT.BOOT >NUL'
+    fi
+
+    printf '%s\n' \
       'IF NOT EXIST C:\SETUP\PATCH9X.RUN GOTO STARTWIN' \
       'IF NOT EXIST C:\SETUP\PATCH9X.EXE GOTO STARTWIN' \
       'IF NOT EXIST C:\SETUP\CWSDPMI.EXE GOTO STARTWIN' \
@@ -1532,13 +1540,19 @@ stageWinMeBootActivation() {
   local desc="$2"
   local target="$dir/MEBOOT.BAT"
 
-  # RunServices invokes this during the first protected-mode Windows boot.
-  # Activate the alternate real-mode boot files immediately so the next reboot
-  # does not depend on another stock Windows Me protected-mode startup.
+  # RunServices can invoke this more than once during a single Setup boot.
+  # MEBOOT.BOOT is a same-boot latch cleared by AUTOEXEC on the next real reboot;
+  # MEBOOT1.RUN persists across that boundary so activation occurs only then.
   {
     printf '%s\n' \
       '@ECHO OFF' \
       'IF EXIST C:\SETUP\MEBOOT.RUN GOTO END' \
+      'IF EXIST C:\SETUP\MEBOOT.BOOT GOTO END' \
+      'ECHO 1>C:\SETUP\MEBOOT.BOOT' \
+      'IF EXIST C:\SETUP\MEBOOT1.RUN GOTO ACTIVATE' \
+      'ECHO 1>C:\SETUP\MEBOOT1.RUN' \
+      'GOTO END' \
+      ':ACTIVATE' \
       'IF NOT EXIST C:\SETUP\MEREGENV.EXE GOTO END' \
       'IF NOT EXIST C:\SETUP\MECOM.COM GOTO END' \
       'IF NOT EXIST C:\SETUP\MEIO.SYS GOTO END' \
