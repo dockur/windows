@@ -2909,8 +2909,7 @@ writeWin9xAnswerFile() {
       'Win9x.QEMouse=11' \
       'Win9x.Connect=10,Desktop' \
       'Win9x.ConnectAll=10,alluse~1\desktop' \
-      'Win9x.OnlineServices=10,Desktop\Online~1' \
-      'Win9x.QuickLaunch=10,Applic~1\Micros~1\Intern~1\QuickL~1'
+      'Win9x.OnlineServices=10,Desktop\Online~1'
 
     if enabled "$hide"; then
       printf '%s\n' 'Win9x.Hide=10'
