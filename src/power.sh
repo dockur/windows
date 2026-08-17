@@ -11,7 +11,7 @@ SHUTDOWN_SIGNAL=0
 
 QEMU_PTY="$QEMU_DIR/qemu.pty"
 QEMU_END="$QEMU_DIR/qemu.end"
-ACPI_SOCKET="$QEMU_DIR/acpi.sock"
+ACPI_SOCKET="$QEMU_DIR/monitor.sock"
 CONSOLE_PID="$QEMU_DIR/console.pid"
 CONSOLE_SOCKET="$QEMU_DIR/console.sock"
 QEMU_START_PID="$QEMU_DIR/qemu.start.pid"
