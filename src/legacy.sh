@@ -2316,40 +2316,6 @@ EOF
   return 0
 }
 
-stageWin9xHide() {
-
-  local dir="$1"
-  local desc="$2"
-  local target="$dir/HIDE.EXE"
-
-  # Source: src/hide.c. Unlike FIRE.EXE, HIDE.EXE waits for the hidden child
-  # process to terminate and returns its exit code. WinMe boot-file activation
-  # must finish before RunServices is allowed to continue.
-  if ! base64 -d <<'EOF' | gzip -dc > "$target"
-H4sIAAAAAAACA+1VXWvTUBh+s3WdxdH2YgVBwbNSYRcS6sfuOsloWgvGLbii4oUsa49rSppIeoq9
-LGTC1gt/gz9CingVUFaE7Qd4t9vRO72wV8b3NOnHtDgvvBH6hDfn/XjOk/ckJ8nDZ00QACAE5yHB
-xWiiRa9/iMK7yMnKe0E5WSlW9Dp5aVt7tlYjJc00LUZ2KbEbJtFNIm9tk5pVpmIKQM0BKML8Ob1T
-mBcuC1GAOfCNIx7YsKu4Xxv2O+pbHQdzw4nxyXFChoMArMK/h4y61/5QFxltMhzXBRit5debjxI7
-ol3WmAbwJUgMeOHfnpEk+jQocq309Gsiz4UZZpiCx6qXUIkEh0dtyCQbiXysE847/SQLvXYb3zJJ
-dnWzd2XfZcuxjuv0I2zJ6RO22M4L+d4Z5/LwOy987YZSfE+37kHjUlXwEgqq3nLbS+H9zyy+/iMG
-8CpycABpCaTe2VGLO9DKhIGN2N0FkCSQUaS7cBM9LvfCuZFGFyoyniu8Xp04KlylCl6igNOx4ZGU
-t1ZAqpeQ0a963po8iJ4OWGx5GA+qwYzDU3WYLvpii8GKJtne3ZRPdz6Fnn88/v+xSsZ74Zj4369p
-2MG8idZCe4P2Fq1DLq4BZA2rTguaWTYoj2yqMaraVonW6xu8nmvqLIgxuk9Z1qrVkK7oJt3wM5yS
-xR/HmAZPNJ3lLXtbN/cMurVbpSUGD3KPNnPKndti2TBmb/bf4Se5qyibAAgAAA==
-EOF
-  then
-    error "Failed to create HIDE.EXE in $desc setup files!"
-    return 1
-  fi
-
-  if [ "$(wc -c < "$target")" -ne 2048 ]; then
-    error "Failed to verify HIDE.EXE in $desc setup files!"
-    return 1
-  fi
-
-  return 0
-}
-
 stageWin9xDMA() {
 
   local dir="$1"
@@ -2402,11 +2368,7 @@ stageWin9xPostSetup() {
       '@ECHO OFF' \
       'IF NOT EXIST C:\WINDOWS\POST9X.RDY GOTO END'
 
-    if [[ "${id,,}" == "win9x"* ]]; then
-      printf '%s\n' 'C:\SETUP\HIDE.EXE C:\WINDOWS\REGEDIT.EXE /S C:\WINDOWS\POST9X.REG'
-    else
-      printf '%s\n' 'C:\WINDOWS\REGEDIT.EXE /S C:\WINDOWS\POST9X.REG'
-    fi
+    printf '%s\n' 'START /W C:\WINDOWS\REGEDIT.EXE /S C:\WINDOWS\POST9X.REG'
 
     printf '%s\n' \
       'DEL C:\WINDOWS\POST9X.REG >NUL' \
@@ -2836,7 +2798,7 @@ writeWin9xAnswerFile() {
       printf '%s\n' \
         '' \
         '[WinMe.BootService]' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices","WinMeBoot",,"C:\SETUP\HIDE.EXE C:\SETUP\MECOM.COM /C C:\SETUP\MEBOOT.BAT"'
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices","WinMeBoot",,"C:\SETUP\FIRE.EXE C:\SETUP\MECOM.COM /C C:\SETUP\MEBOOT.BAT"'
     fi
 
     printf '%s\n' \
@@ -3266,8 +3228,7 @@ prepareWin9xInstall() {
   fi
 
   if [[ "${id,,}" == "win9x"* ]]; then
-    if ! stageWin9xHide "$target" "$desc" ||
-      ! stageWinMeFinalBootFiles "$dir" "$target" "$desc" ||
+    if ! stageWinMeFinalBootFiles "$dir" "$target" "$desc" ||
       ! stageWinMeBootActivation "$target" "$desc"; then
       rm -rf "$drivers" || :
       return 1
