@@ -2814,6 +2814,11 @@ writeWin9xAnswerFile() {
       printf '%s\n' "DelFiles=$firstLogonDelFiles"
     fi
 
+    if [[ "${id,,}" == "win98"* ]]; then
+      [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
+      firstLogonUpdateInis+="Win9x.MouseStack"
+    fi
+
     if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
       [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
       firstLogonUpdateInis+="Win9x.PatcherCleanup"
@@ -2871,6 +2876,13 @@ writeWin9xAnswerFile() {
         '' \
         '[Win9x.Fire]' \
         'FIRE.EXE'
+    fi
+
+    if [[ "${id,,}" == "win98"* ]]; then
+      printf '%s\n' \
+        '' \
+        '[Win9x.MouseStack]' \
+        '%10%\system.ini,386Enh,"mouse=*","mouse=*vmouse, msmouse.vxd"'
     fi
 
     if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
