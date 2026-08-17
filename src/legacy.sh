@@ -2290,11 +2290,11 @@ EOF
   return 0
 }
 
-stageWin9xFire() {
+stageWin9xHide() {
 
   local dir="$1"
   local desc="$2"
-  local target="$dir/FIRE.EXE"
+  local target="$dir/HIDE.EXE"
 
   if ! base64 -d <<'EOF' | gzip -dc > "$target"
 H4sIAAAAAAACA/ONYiAbNDBQDgJcGRh8GBlRxB4wMDFyg8SYkAQFkDCDA4QGyrNApWE0gwIDXB8T
@@ -2304,12 +2304,12 @@ BCDhhg1cA4q/AOJPAtj53q5Bfq4+xkZ6Lj4+IL57aolzfm5uYl6KT2ZeqiNQJDwzz7UiNRnIcq3I
 LAkoyk9OLS5mGOkAAN77EFsABAAA
 EOF
   then
-    error "Failed to create FIRE.EXE in $desc setup files!"
+    error "Failed to create HIDE.EXE in $desc setup files!"
     return 1
   fi
 
   if [ "$(wc -c < "$target")" -ne 1024 ]; then
-    error "Failed to verify FIRE.EXE in $desc setup files!"
+    error "Failed to verify HIDE.EXE in $desc setup files!"
     return 1
   fi
 
@@ -2322,7 +2322,7 @@ stageWin9xDMA() {
   local desc="$2"
   local target="$dir/WIN9XDMA.EXE"
 
-  # Keep the Win9x DMA helper embedded alongside FIRE.EXE so the driver
+  # Keep the Win9x DMA helper embedded alongside HIDE.EXE so the driver
   # archive stays unchanged. It only updates enumerated ESDI DiskDrive devices.
   if ! base64 -d <<'EOF' | gzip -dc > "$target"
 H4sIAAAAAAACA+1VTUgUcRR/s2610eKs4EKE4CgLUcTy//fpoWC2nUFEzcltFTKzzZ11dtsPm52N
@@ -2455,8 +2455,9 @@ stageWin9xMouseFiles() {
   done
 
   # QEMouse is a Windows MOUSE.DRV rather than a Plug and Play VxD package.
-  # Stage the driver in C:\SETUP so MSBATCH.INF can copy it into the Windows
-  # System directory and select it through SYSTEM.INI during the normal install.
+  # Stage it under its own source name in C:\SETUP. MSBATCH.INF installs this
+  # binary as MOUSE.DRV so Windows can keep its stock mouse configuration and
+  # enhanced-mode VxD stack unchanged.
   file="qemouse.drv"
   source="$qemouse/$file"
   target="$dir/${file^^}"
@@ -2647,7 +2648,7 @@ writeWin9xAnswerFile() {
   local firstLogonDelFiles="Win9x.PatcherMarker,Win9x.Connect,Win9x.ConnectAll,Win9x.OnlineServices,Win9x.QuickLaunch"
   local firstLogonUpdateInis="Win9x.OnlineServicesFolder"
   local post=""
-  local fire=""
+  local hide=""
   local culture region keyboard localeID keyboardID
 
   if [[ "${id,,}" == "win9x"* ]]; then
@@ -2676,8 +2677,8 @@ writeWin9xAnswerFile() {
   fi
 
   if enabled "$shortcut" || [ -n "$install" ]; then
-    fire="Y"
-    copyFiles+=",Win9x.Fire"
+    hide="Y"
+    copyFiles+=",Win9x.Hide"
   fi
 
   addReg+=",OEMDrivers"
@@ -2702,7 +2703,8 @@ writeWin9xAnswerFile() {
   # intentionally last so Setup cannot leave any release-specific startup edits.
   copyFiles+=",Win9x.Autoexec"
 
-  # QEMouse is the installed Windows mouse driver. VBMouse remains limited to the
+  # Replace the stock MOUSE.DRV binary during Setup without changing its installed
+  # filename or Windows' mouse configuration. VBMouse remains limited to the
   # mini-Windows Setup environment and is never copied into the installed system.
   copyFiles+=",Win9x.QEMouse"
 
@@ -2738,8 +2740,8 @@ writeWin9xAnswerFile() {
       printf '%s\n' 'DOCKER.PWL=22'
     fi
 
-    if enabled "$fire"; then
-      printf '%s\n' 'FIRE.EXE=22'
+    if enabled "$hide"; then
+      printf '%s\n' 'HIDE.EXE=22'
     fi
 
     if enabled "$post"; then
@@ -2765,7 +2767,7 @@ writeWin9xAnswerFile() {
 
     if enabled "$shortcut"; then
       printf '%s\n' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","SharedDrive",,"C:\WINDOWS\FIRE.EXE C:\WINDOWS\NET.EXE USE Z: \\host.lan\Data"'
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","SharedDrive",,"C:\WINDOWS\HIDE.EXE C:\WINDOWS\NET.EXE USE Z: \\host.lan\Data"'
     fi
 
     if enabled "$post"; then
@@ -2801,7 +2803,7 @@ writeWin9xAnswerFile() {
       printf '%s\n' \
         '' \
         '[WinMe.BootService]' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices","WinMeBoot",,"C:\SETUP\FIRE.EXE C:\SETUP\MECOM.COM /C C:\SETUP\MEBOOT.BAT"'
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices","WinMeBoot",,"C:\SETUP\HIDE.EXE C:\SETUP\MECOM.COM /C C:\SETUP\MEBOOT.BAT"'
     fi
 
     printf '%s\n' \
@@ -2815,11 +2817,6 @@ writeWin9xAnswerFile() {
 
     if [ -n "$firstLogonDelFiles" ]; then
       printf '%s\n' "DelFiles=$firstLogonDelFiles"
-    fi
-
-    if [[ "${id,,}" == "win98"* ]]; then
-      [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
-      firstLogonUpdateInis+="Win9x.MouseStack"
     fi
 
     if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
@@ -2865,7 +2862,7 @@ writeWin9xAnswerFile() {
       'AUTOEXEC.BAT,W9XAUTO.BAT,,4' \
       '' \
       '[Win9x.QEMouse]' \
-      'QEMOUSE.DRV'
+      'MOUSE.DRV,QEMOUSE.DRV,,4'
 
     if ! disabled "$AUTOLOGIN"; then
       printf '%s\n' \
@@ -2874,18 +2871,11 @@ writeWin9xAnswerFile() {
         'DOCKER.PWL'
     fi
 
-    if enabled "$fire"; then
+    if enabled "$hide"; then
       printf '%s\n' \
         '' \
-        '[Win9x.Fire]' \
-        'FIRE.EXE'
-    fi
-
-    if [[ "${id,,}" == "win98"* ]]; then
-      printf '%s\n' \
-        '' \
-        '[Win9x.MouseStack]' \
-        '%10%\system.ini,386Enh,"mouse=*","mouse=*vmouse, msmouse.vxd"'
+        '[Win9x.Hide]' \
+        'HIDE.EXE'
     fi
 
     if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
@@ -2926,8 +2916,8 @@ writeWin9xAnswerFile() {
       'Win9x.OnlineServices=10,Desktop\Online~1' \
       'Win9x.QuickLaunch=10,Applic~1\Micros~1\Intern~1\QuickL~1'
 
-    if enabled "$fire"; then
-      printf '%s\n' 'Win9x.Fire=10'
+    if enabled "$hide"; then
+      printf '%s\n' 'Win9x.Hide=10'
     fi
 
     if ! disabled "$AUTOLOGIN"; then
@@ -2956,7 +2946,6 @@ writeWin9xAnswerFile() {
       '[Win9x.SystemIni]'
 
     printf '%s\n' \
-      '%10%\system.ini,boot,"mouse.drv=*","mouse.drv=qemouse.drv"' \
       '%10%\system.ini,386Enh,,"MaxPhysPage=100000"' \
       '%10%\system.ini,vcache,,"MaxFileCache=65536"'
 
@@ -3036,72 +3025,6 @@ writeWin9xAnswerFile() {
   return 0
 }
 
-verifyWin9xAnswerFile() {
-
-  local file="$1"
-  local id="$2"
-  local desc="$3"
-
-  if [ ! -s "$file" ]; then
-    error "Failed to verify $desc answer file: $file is missing or empty!"
-    return 1
-  fi
-
-  # Win98 is deliberately forced back onto its native enhanced-mode mouse VxD
-  # stack at FirstLogon. Verify both the section itself and the FirstLogon
-  # reference so a generated-but-unreferenced section cannot pass preflight.
-  if [[ "${id,,}" == "win98"* ]]; then
-    if ! grep -Fq '[Win9x.MouseStack]' "$file" ||
-      ! grep -Fq '%10%\system.ini,386Enh,"mouse=*","mouse=*vmouse, msmouse.vxd"' "$file" ||
-      ! awk '
-          BEGIN { section = 0; found = 0 }
-          /^\[Win9x\.FirstLogon\]\r?$/ { section = 1; next }
-          /^\[/ { section = 0 }
-          section && /^UpdateInis=/ {
-            line = $0
-            sub(/\r$/, "", line)
-            sub(/^UpdateInis=/, "", line)
-            if (line ~ /(^|,)Win9x\.MouseStack(,|$)/) found = 1
-          }
-          END { exit(found ? 0 : 1) }
-        ' "$file"; then
-      error "Failed to verify the Win98 mouse-stack override in $desc answer file!"
-      return 1
-    fi
-  fi
-
-  return 0
-}
-
-verifyWin9xImageAnswerFile() {
-
-  local image="$1"
-  local id="$2"
-  local desc="$3"
-  local temp="$TMP/win9x-msbatch-verify.inf"
-  local config="$TMP/win9x-msbatch-verify.conf"
-
-  rm -f -- "$temp" "$config" || return 1
-
-  # Use the partition table rather than a hard-coded byte offset. This reads the
-  # exact C:\SETUP\MSBATCH.INF that QEMU will expose to Windows Setup.
-  printf 'drive w: file="%s" partition=1\n' "$image" > "$config" || return 1
-
-  if ! MTOOLSRC="$config" mtype w:/SETUP/MSBATCH.INF > "$temp"; then
-    rm -f -- "$temp" "$config" || :
-    error "Failed to read MSBATCH.INF back from the $desc system image!"
-    return 1
-  fi
-
-  if ! verifyWin9xAnswerFile "$temp" "$id" "$desc system-image"; then
-    rm -f -- "$temp" "$config" || :
-    return 1
-  fi
-
-  rm -f -- "$temp" "$config" || return 1
-  return 0
-}
-
 patchWin9xSetupFiles() {
 
   local id="$1"
@@ -3130,21 +3053,19 @@ patchWin9xSetupFiles() {
     return 1
   fi
 
-  if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
-    stageWin9xDisplayDriver "$target" "$display" "$desc" || return 1
+  stageWin9xDisplayDriver "$target" "$display" "$desc" || return 1
 
-    if ! mv -f -- \
-      "$target/BOXV9X/boxv9x.inf" \
-      "$target/BOXV9X/boxvmini.drv" \
-      "$target/BOXV9X/boxvmini.vxd" \
-      "$target/"; then
-      error "Failed to stage the Windows 9x display driver in the setup source!"
-      return 1
-    fi
-
-    rm -rf -- "$target/BOXV9X" || return 1
-    : > "$target/BOXV9X" || return 1
+  if ! mv -f -- \
+    "$target/BOXV9X/boxv9x.inf" \
+    "$target/BOXV9X/boxvmini.drv" \
+    "$target/BOXV9X/boxvmini.vxd" \
+    "$target/"; then
+    error "Failed to stage the Windows 9x display driver in the setup source!"
+    return 1
   fi
+
+  rm -rf -- "$target/BOXV9X" || return 1
+  : > "$target/BOXV9X" || return 1
 
   if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
     integrateWin9xSetupMouse "$target" "$desc" "$vbmouse/VBMOUSE.DRV" || return 1
@@ -3248,7 +3169,7 @@ prepareWin9xInstall() {
   fi
 
   if enabled "$shortcut" || [ -n "$install" ] || [[ "${id,,}" == "win9x"* ]]; then
-    stageWin9xFire "$target" "$desc" || return 1
+    stageWin9xHide "$target" "$desc" || return 1
   fi
 
   if [ -n "$install" ] || [[ "${id,,}" == "win9x"* ]]; then
@@ -3258,10 +3179,6 @@ prepareWin9xInstall() {
   if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
     stageWin9xDMA "$target" "$desc" || return 1
   fi
-
-  # Generate MSBATCH.INF only after every Setup-source mutation below has
-  # finished. Keeping it out of the mutable phase prevents patch/staging code
-  # from silently replacing a freshly generated answer file.
 
   # Reuse the same driver archive extraction used by the XP/2003 path. All
   # Windows 9x support files live together under win9x/ in that archive.
@@ -3320,29 +3237,17 @@ prepareWin9xInstall() {
   # otherwise treats C: like the installation CD and runs its default action.
   find "$dir" -maxdepth 1 -type f -iname 'AUTORUN.INF' -delete || return 1
 
-  # MSBATCH.INF is intentionally generated last, after Patcher9x, mouse/display
-  # integration and every other Setup-source mutation. Verify the source copy
-  # immediately before image creation so a stale/overwritten Win98 answer file
-  # can never consume another VM test cycle.
+  # Generate MSBATCH.INF after the Setup-source staging is complete.
   writeWin9xAnswerFile \
     "$target" "$id" "$setup" "$monitor" \
     "$batchHost" "$batchUsername" "$batchOrganization" "$batchWorkgroup" \
     "$batchKey" "$shortcut" "$install" || return 1
-
-  verifyWin9xAnswerFile "$target/MSBATCH.INF" "$id" "$desc source" || return 1
 
   # Build the hard-disk system image from the setup files themselves. Do not rely
   # on a particular El Torito floppy-image filename: some perfectly valid Win9x
   # discs expose a differently named boot image, while the required DOS system
   # files are already present in the installation cabinets.
   if ! createWin9xSystemImage "$dir" "$TMP/windows.img" "$desc" "$folder" "$options" "$id"; then
-    rm -rf "$drivers" || :
-    return 1
-  fi
-
-  # Read MSBATCH.INF back from C:\SETUP in the completed image. This closes the
-  # gap between "generated correctly" and "actually copied into windows.img".
-  if ! verifyWin9xImageAnswerFile "$TMP/windows.img" "$id" "$desc"; then
     rm -rf "$drivers" || :
     return 1
   fi
