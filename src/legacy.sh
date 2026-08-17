@@ -2593,6 +2593,10 @@ writeWin9xCleanupRegistry() {
     '[Win9x.MSN]' \
     'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{4B876A40-4EE8-11D1-811E-00C04FB98EEC}",,,' \
     'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{88667D10-10F0-11D0-8150-00AA00BF8457}",,,' \
+    'HKCU,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{4B876A40-4EE8-11D1-811E-00C04FB98EEC}",,,' \
+    'HKCU,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{88667D10-10F0-11D0-8150-00AA00BF8457}",,,' \
+    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{4B876A40-4EE8-11D1-811E-00C04FB98EEC}",,,' \
+    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{88667D10-10F0-11D0-8150-00AA00BF8457}",,,' \
     '' \
     '[Win9x.ICWDesktop]' \
     'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","^SetupICWDesktop",,,' \
@@ -2619,7 +2623,7 @@ writeWin9xCleanupRegistry() {
     'services.txt' \
     '' \
     '[Win9x.OnlineServicesFolder]' \
-    '%10%\wininit.ini,DIRNUL,,"C:\WINDOWS\Desktop\Online~1=1"'
+    '%10%\wininit.ini,Rename,,"DIRNUL=C:\WINDOWS\Desktop\Online~1"'
 }
 
 writeWin9xAnswerFile() {
@@ -2650,6 +2654,7 @@ writeWin9xAnswerFile() {
   if [[ "${id,,}" == "win9x"* ]]; then
     addReg="${addReg%,Win9x.ActiveSetup}"
     firstLogonDelFiles="${firstLogonDelFiles/Win9x.PatcherMarker,/}"
+    firstLogonDelFiles+=",WinMe.MediaPlayer,WinMe.MediaPlayerAll"
   elif [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
     firstLogonDelFiles="${firstLogonDelFiles/Win9x.PatcherMarker,/}"
   fi
@@ -2846,6 +2851,16 @@ writeWin9xAnswerFile() {
     printf '%s\n' ''
     writeWin9xCleanupRegistry
 
+    if [[ "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' \
+        '' \
+        '[WinMe.MediaPlayer]' \
+        '"Windows Media Player.lnk"' \
+        '' \
+        '[WinMe.MediaPlayerAll]' \
+        '"Windows Media Player.lnk"'
+    fi
+
     printf '%s\n' \
       '' \
       '[Win9x.PatcherEnable]' \
@@ -2910,6 +2925,12 @@ writeWin9xAnswerFile() {
       'Win9x.Connect=10,Desktop' \
       'Win9x.ConnectAll=10,alluse~1\desktop' \
       'Win9x.OnlineServices=10,Desktop\Online~1'
+
+    if [[ "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' \
+        'WinMe.MediaPlayer=10,Desktop' \
+        'WinMe.MediaPlayerAll=10,alluse~1\desktop'
+    fi
 
     if enabled "$hide"; then
       printf '%s\n' 'Win9x.Hide=10'
