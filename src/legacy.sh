@@ -2618,10 +2618,6 @@ writeWin9xCleanupRegistry() {
     'abouto~1.txt' \
     'services.txt' \
     '' \
-    '[Win9x.QuickLaunch]' \
-    'launch~1.lnk' \
-    'viewch~1.scf' \
-    '' \
     '[Win9x.OnlineServicesFolder]' \
     '%10%\wininit.ini,DIRNUL,,"C:\WINDOWS\Desktop\Online~1=1"'
 }
@@ -2645,7 +2641,7 @@ writeWin9xAnswerFile() {
   local copyFiles=""
   local firstLogonAddReg="Win9x.User,Win9x.Regwiz,Win9x.BrowserUser,Win9x.PowerUser"
   local firstLogonDelReg="Win9x.Welcome,Win9x.MSN,Win9x.ICWDesktop"
-  local firstLogonDelFiles="Win9x.PatcherMarker,Win9x.Connect,Win9x.ConnectAll,Win9x.OnlineServices,Win9x.QuickLaunch"
+  local firstLogonDelFiles="Win9x.PatcherMarker,Win9x.Connect,Win9x.ConnectAll,Win9x.OnlineServices"
   local firstLogonUpdateInis="Win9x.OnlineServicesFolder"
   local post=""
   local hide=""
