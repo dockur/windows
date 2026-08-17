@@ -1385,7 +1385,6 @@ writeWin9xAutoexec() {
       'ECHO.' \
       'ECHO Starting Windows Setup, please wait...' \
       'ECHO.' \
-      "C:\\${setup}\\VBMOUSE.EXE >NUL" \
       "IF NOT EXIST C:\\${setup}\\XMSMMGR.EXE GOTO SETUP" \
       "IF NOT EXIST C:\\${setup}\\SMARTDRV.EXE GOTO SETUP" \
       "C:\\${setup}\\XMSMMGR.EXE >NUL" \
@@ -2209,7 +2208,7 @@ integrateWin9xSetupMouse() {
     return 1
   fi
 
-  if ! cp -f -- "$driver" "$files/VBMOUSE.DRV"; then
+  if ! cp -f -- "$driver" "$files/QEMOUSE.DRV"; then
     rm -rf -- "$temp" || :
     error "Failed to add the mouse driver to $desc MINI.CAB!"
     return 1
@@ -2222,14 +2221,14 @@ integrateWin9xSetupMouse() {
   fi
 
   if ! dos2unix "$system" >/dev/null 2>&1 ||
-    ! sed -i -E 's/^([[:space:]]*mouse\.drv[[:space:]]*=[[:space:]]*).*$/\1vbmouse.drv/I' "$system" ||
+    ! sed -i -E 's/^([[:space:]]*mouse\.drv[[:space:]]*=[[:space:]]*).*$/\1qemouse.drv/I' "$system" ||
     ! unix2dos "$system" >/dev/null 2>&1; then
     rm -rf -- "$temp" || :
     error "Failed to configure the mouse driver in $desc mini-Windows setup!"
     return 1
   fi
 
-  if ! grep -Eqi '^[[:space:]]*mouse\.drv[[:space:]]*=[[:space:]]*vbmouse\.drv[[:space:]]*$' "$system"; then
+  if ! grep -Eqi '^[[:space:]]*mouse\.drv[[:space:]]*=[[:space:]]*qemouse\.drv[[:space:]]*$' "$system"; then
     rm -rf -- "$temp" || :
     error "Failed to verify the mouse driver setting in $desc MINI.CAB!"
     return 1
@@ -2431,37 +2430,14 @@ stageWin9xMouseFiles() {
 
   local dir="$1"
   local desc="$2"
-  local vbmouse="$3"
-  local qemouse="$4"
-  local file source target
+  local qemouse="$3"
+  local file="qemouse.drv"
+  local source="$qemouse/$file"
+  local target="$dir/${file^^}"
 
-  # VBADOS is required only by the initial mini-Windows Setup environment.
-  # Keep both files in C:\SETUP, but do not copy or load them in the installed OS.
-  for file in VBMOUSE.EXE VBMOUSE.DRV; do
-
-    source="$vbmouse/$file"
-    target="$dir/$file"
-
-    if [ ! -f "$source" ]; then
-      error "Failed to locate $file!"
-      return 1
-    fi
-
-    if ! cp -f -- "$source" "$target" || ! cmp -s -- "$source" "$target"; then
-      error "Failed to stage $file in $desc setup files!"
-      return 1
-    fi
-
-  done
-
-  # QEMouse is a Windows MOUSE.DRV rather than a Plug and Play VxD package.
-  # Stage it under its own source name in C:\SETUP. MSBATCH.INF installs this
-  # binary as MOUSE.DRV so Windows can keep its stock mouse configuration and
-  # enhanced-mode VxD stack unchanged.
-  file="qemouse.drv"
-  source="$qemouse/$file"
-  target="$dir/${file^^}"
-
+  # QEMouse is used both by MINI.CAB during GUI Setup and by the installed OS.
+  # Keep one source copy in C:\SETUP; MSBATCH.INF installs the same binary as
+  # MOUSE.DRV so Windows can retain its stock mouse configuration and VxD stack.
   if [ ! -f "$source" ]; then
     error "Failed to locate $file!"
     return 1
@@ -2643,6 +2619,7 @@ writeWin9xAnswerFile() {
   local desktop="%10%\Desktop"
   local addReg="OPKInstall,Win9x.Machine,Win9x.PCMCIA,Win9x.Power,Win9x.ActiveSetup"
   local copyFiles=""
+  local updateInis="Win9x.SystemIni,Win9x.SystemCb"
   local firstLogonAddReg="Win9x.User,Win9x.Regwiz,Win9x.BrowserUser,Win9x.PowerUser"
   local firstLogonDelReg="Win9x.Welcome,Win9x.MSN,Win9x.ICWDesktop"
   local firstLogonDelFiles="Win9x.PatcherMarker,Win9x.Connect,Win9x.ConnectAll,Win9x.OnlineServices"
@@ -2655,6 +2632,7 @@ writeWin9xAnswerFile() {
     addReg="${addReg%,Win9x.ActiveSetup}"
     firstLogonDelFiles="${firstLogonDelFiles/Win9x.PatcherMarker,/}"
     firstLogonDelFiles+=",WinMe.MediaPlayer,WinMe.MediaPlayerAll"
+    updateInis+=",WinMe.MouseInf"
   elif [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
     firstLogonDelFiles="${firstLogonDelFiles/Win9x.PatcherMarker,/}"
   fi
@@ -2705,8 +2683,8 @@ writeWin9xAnswerFile() {
   copyFiles+=",Win9x.Autoexec"
 
   # Replace the stock MOUSE.DRV binary during Setup without changing its installed
-  # filename or Windows' mouse configuration. VBMouse remains limited to the
-  # mini-Windows Setup environment and is never copied into the installed system.
+  # filename or Windows' mouse configuration. The same QEMouse binary is also
+  # used directly by the MINI.CAB GUI Setup environment.
   copyFiles+=",Win9x.QEMouse"
 
   # Strip the leading separator left by the common CopyFiles append logic.
@@ -2756,7 +2734,7 @@ writeWin9xAnswerFile() {
       '' \
       '[Install]' \
       "CopyFiles=$copyFiles" \
-      'UpdateInis=Win9x.SystemIni,Win9x.SystemCb' \
+      "UpdateInis=$updateInis" \
       "AddReg=$addReg" \
       '' \
       '[OPKInstall]' \
@@ -2853,6 +2831,9 @@ writeWin9xAnswerFile() {
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
+        '' \
+        '[WinMe.MouseInf]' \
+        '%17%\msmouse.inf,Std.Copy,"mouse.drv"' \
         '' \
         '[WinMe.MediaPlayer]' \
         '"Windows Media Player.lnk"' \
@@ -3047,7 +3028,7 @@ patchWin9xSetupFiles() {
   local target="$2"
   local desc="$3"
   local patcher="$4"
-  local vbmouse="$5"
+  local qemouse="$5"
   local display="$6"
 
   chmod 755 "$patcher" || {
@@ -3083,9 +3064,9 @@ patchWin9xSetupFiles() {
   rm -rf -- "$target/BOXV9X" || return 1
   : > "$target/BOXV9X" || return 1
 
-  if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
-    integrateWin9xSetupMouse "$target" "$desc" "$vbmouse/VBMOUSE.DRV" || return 1
-  fi
+  # Use QEMouse directly in the MINI.CAB GUI Setup environment for every Win9x
+  # release, so the setup mouse path does not depend on a DOS INT 33h TSR.
+  integrateWin9xSetupMouse "$target" "$desc" "$qemouse/qemouse.drv" || return 1
 
   return 0
 }
@@ -3202,7 +3183,6 @@ prepareWin9xInstall() {
   local win9x="$drivers/win9x"
   local patcher="$win9x/patcher9x/patcher9x"
   local patcher_dos="$patcher.img"
-  local vbmouse="$win9x/vbmouse"
   local qemouse="$win9x/qemouse"
   local display="$win9x/boxv9x"
 
@@ -3214,14 +3194,13 @@ prepareWin9xInstall() {
     return 1
   fi
 
-  if [ ! -f "$vbmouse/VBMOUSE.EXE" ] || [ ! -f "$vbmouse/VBMOUSE.DRV" ] ||
-    [ ! -f "$qemouse/qemouse.drv" ]; then
+  if [ ! -f "$qemouse/qemouse.drv" ]; then
     rm -rf "$drivers" || :
-    error "Failed to locate required Windows 9x mouse drivers!"
+    error "Failed to locate the Windows 9x QEMouse driver!"
     return 1
   fi
 
-  if ! patchWin9xSetupFiles "$id" "$target" "$desc" "$patcher" "$vbmouse" "$display"; then
+  if ! patchWin9xSetupFiles "$id" "$target" "$desc" "$patcher" "$qemouse" "$display"; then
     rm -rf "$drivers" || :
     return 1
   fi
@@ -3231,7 +3210,7 @@ prepareWin9xInstall() {
     return 1
   fi
 
-  if ! stageWin9xMouseFiles "$target" "$desc" "$vbmouse" "$qemouse"; then
+  if ! stageWin9xMouseFiles "$target" "$desc" "$qemouse"; then
     rm -rf "$drivers" || :
     return 1
   fi
