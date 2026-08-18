@@ -204,17 +204,6 @@ legacyInstall() {
   return 0
 }
 
-escapeSIFValue() {
-
-  local s="$1"
-
-  s=${s//%/%%}
-  s=${s//\"/\"\"}
-
-  printf '%s' "$s"
-  return 0
-}
-
 isReactOSLiveCD() {
 
   local iso="$1"
