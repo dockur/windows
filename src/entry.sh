@@ -16,8 +16,10 @@ cd /run
 . download.sh   # Load functions
 . define.sh     # Define versions
 . mido.sh       # Download Windows
-. answer.sh     # Setup answer files
-. legacy.sh     # Legacy installation
+. answer.sh     # Modern unattended
+. batch.sh      # Win9x unattended
+. sif.sh        # NT5 unattended
+. legacy.sh     # Legacy installs
 . image.sh      # Detect image files
 . install.sh    # Run installation
 . disk.sh       # Initialize disks
