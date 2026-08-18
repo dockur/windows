@@ -174,6 +174,11 @@ Win9xInstall() {
     return 1
   fi
 
+  if ! stageWin9xFinalizer "$target" "$desc" "$id"; then
+    rm -rf "$drivers" || :
+    return 1
+  fi
+
   if [[ "${id,,}" == "win9x"* ]]; then
     if ! stageWinMeFinalBootFiles "$dir" "$target" "$desc" ||
       ! stageWinMeBootActivation "$target" "$desc" ||
@@ -930,8 +935,8 @@ stageWin9xMouseFiles() {
   local target="$dir/${file^^}"
 
   # QEMouse is used both by MINI.CAB during GUI Setup and by the installed OS.
-  # Keep one source copy in C:\SETUP; MSBATCH.INF installs the same binary as
-  # MOUSE.DRV so Windows can retain its stock mouse configuration and VxD stack.
+  # Keep one source copy in C:\SETUP; the late real-mode finalizer installs the
+  # same binary as MOUSE.DRV after Setup has finished writing its stock file.
   if [ ! -f "$source" ]; then
     error "Failed to locate $file!"
     return 1
@@ -972,6 +977,51 @@ stageWin9xFinalAutoexec() {
   fi
 
   rm -rf -- "$temp" || :
+  return 0
+}
+
+stageWin9xFinalizer() {
+
+  local dir="$1"
+  local desc="$2"
+  local id="$3"
+  local target="$dir/W9XFINAL.BAT"
+
+  # Windows Setup owns all three destination files below and may copy or rewrite
+  # them after processing MSBATCH.INF. Finalize them from real mode only after
+  # PATCH9X.RUN marks the late Setup phase, immediately before Windows starts.
+  # This batch is chained from AUTOEXEC.BAT rather than CALLed so COMMAND.COM no
+  # longer has the AUTOEXEC.BAT batch context active when that file is replaced.
+  {
+    printf '%s\n' \
+      '@ECHO OFF' \
+      'IF NOT EXIST C:\SETUP\QEMOUSE.DRV GOTO STARTWIN' \
+      'IF NOT EXIST C:\SETUP\W9XSCAN.INI GOTO STARTWIN' \
+      'IF NOT EXIST C:\SETUP\W9XAUTO.BAT GOTO STARTWIN' \
+      'IF NOT EXIST C:\WINDOWS\COMMAND\ATTRIB.EXE GOTO STARTWIN' \
+      'C:\WINDOWS\COMMAND\ATTRIB.EXE -R -S -H C:\WINDOWS\SYSTEM\MOUSE.DRV >NUL' \
+      'COPY /Y C:\SETUP\QEMOUSE.DRV C:\WINDOWS\SYSTEM\MOUSE.DRV >NUL' \
+      'IF ERRORLEVEL 1 GOTO STARTWIN' \
+      'C:\WINDOWS\COMMAND\ATTRIB.EXE -R -S -H C:\WINDOWS\COMMAND\SCANDISK.INI >NUL' \
+      'COPY /Y C:\SETUP\W9XSCAN.INI C:\WINDOWS\COMMAND\SCANDISK.INI >NUL' \
+      'IF ERRORLEVEL 1 GOTO STARTWIN' \
+      'C:\WINDOWS\COMMAND\ATTRIB.EXE -R -S -H C:\AUTOEXEC.BAT >NUL' \
+      'COPY /Y C:\SETUP\W9XAUTO.BAT C:\AUTOEXEC.BAT >NUL' \
+      'IF ERRORLEVEL 1 GOTO STARTWIN' \
+      ':STARTWIN'
+
+    if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
+      printf '%s\n' 'C:\WINDOWS\WIN.COM'
+    fi
+
+    printf '%s\n' \
+      ':END' \
+      ''
+  } | unix2dos > "$target" || {
+    error "Failed to create the late $desc file finalizer!"
+    return 1
+  }
+
   return 0
 }
 
@@ -1016,6 +1066,9 @@ writeWin9xAutoexec() {
       "CD C:\\SETUP" \
       "PATCH9X.EXE $patch_options C:\\WINDOWS\\SYSTEM >NUL" \
       "CD C:\\" \
+      'IF NOT EXIST C:\SETUP\W9XFINAL.BAT GOTO STARTWIN' \
+      'C:\SETUP\W9XFINAL.BAT' \
+      'GOTO END' \
       ':STARTWIN'
 
     if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
@@ -1410,21 +1463,13 @@ writeWin9xAnswerFile() {
   # Every supported Windows 95 release is OSR2 or newer, so the same DMA
   # helper is used for Windows 95, Windows 98 and Windows Me.
   addReg+=",Win9x.StorageActiveSetup"
-  copyFiles+=",Win9x.DMA,Win9x.ScanDisk"
+  copyFiles+=",Win9x.DMA"
 
   # Enable the installed-system repatch only in the late MSBATCH file-copy
   # phase. The temporary AUTOEXEC already checks PATCH9X.RUN, so earlier Setup
-  # reboots continue exactly as before this change.
+  # reboots continue exactly as before this change. That same marker gates the
+  # real-mode finalizer for Setup-owned files.
   copyFiles+=",Win9x.PatcherEnable"
-
-  # Restore the exact same final AUTOEXEC.BAT for Win95, Win98 and Me. It is
-  # intentionally last so Setup cannot leave any release-specific startup edits.
-  copyFiles+=",Win9x.Autoexec"
-
-  # Replace the stock MOUSE.DRV binary during Setup without changing its installed
-  # filename or Windows' mouse configuration. The same QEMouse binary is also
-  # used directly by the MINI.CAB GUI Setup environment.
-  copyFiles+=",Win9x.QEMouse"
 
   # Strip the leading separator left by the common CopyFiles append logic.
   copyFiles="${copyFiles#,}"
@@ -1447,10 +1492,7 @@ writeWin9xAnswerFile() {
       '' \
       '[SourceDisksFiles]' \
       'PATCH9X.NEW=22' \
-      'W9XAUTO.BAT=22' \
-      'QEMOUSE.DRV=22' \
-      'WIN9XDMA.EXE=22' \
-      'W9XSCAN.INI=22'
+      'WIN9XDMA.EXE=22'
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
@@ -1619,13 +1661,7 @@ writeWin9xAnswerFile() {
       'PATCH9X.RUN,PATCH9X.NEW,,4' \
       '' \
       '[Win9x.PatcherMarker]' \
-      'PATCH9X.RUN' \
-      '' \
-      '[Win9x.Autoexec]' \
-      'AUTOEXEC.BAT,W9XAUTO.BAT,,4' \
-      '' \
-      '[Win9x.QEMouse]' \
-      'MOUSE.DRV,QEMOUSE.DRV,,4'
+      'PATCH9X.RUN'
 
     if ! disabled "$AUTOLOGIN"; then
       printf '%s\n' \
@@ -1665,15 +1701,9 @@ writeWin9xAnswerFile() {
       '[Win9x.DMA]' \
       'WIN9XDMA.EXE' \
       '' \
-      '[Win9x.ScanDisk]' \
-      'SCANDISK.INI,W9XSCAN.INI,,4' \
-      '' \
       '[DestinationDirs]' \
       'Win9x.PatcherEnable=30,SETUP' \
       'Win9x.PatcherMarker=30,SETUP' \
-      'Win9x.Autoexec=30' \
-      'Win9x.QEMouse=11' \
-      'Win9x.ScanDisk=10,COMMAND' \
       'Win9x.Connect=10,Desktop' \
       'Win9x.ConnectAll=10,alluse~1\desktop' \
       'Win9x.OnlineServices=10,Desktop\Online~1'
