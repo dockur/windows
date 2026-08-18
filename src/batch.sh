@@ -575,498 +575,6 @@ stageWinMeBootActivation() {
   return 0
 }
 
-createWin9xSystemImage() {
-
-  local dir="$1"
-  local image="$2"
-  local desc="$3"
-  local source="$4"
-  local options="$5"
-  local id="$6"
-
-  local temp="$TMP/win9x-image"
-  local config="$temp/mtools.conf"
-  local autoexec="$temp/AUTOEXEC.BAT"
-  local msdos="$temp/MSDOS.SYS"
-  local tmp="${image}.tmp"
-  local size=$((4177 * 255 * 63 * 512))
-  local start=63
-  local sectors=$((size / 512 - start))
-  local offset=$((start * 512))
-  local entry find_pid setup_dir
-  local setup="SETUP"
-  local fs attributes required
-  local entries=()
-
-  local msg="Creating system image..."
-  info "$msg" && html "$msg"
-
-  rm -rf -- "$temp" || return 1
-  mkdir -p "$temp" || return 1
-  rm -f -- "$tmp" || return 1
-
-  # mtools can create a perfectly valid FAT32 filesystem, including its BPB,
-  # FSInfo sector and backup boot area, but its generic boot code cannot start
-  # Windows 9x. Microsoft FORMAT.COM carries the matching DOS FAT32 bootstrap
-  # as a three-sector template, so use the copy supplied by the installation
-  # media instead of embedding Microsoft's boot code in this script.
-  #
-  # Do not assume where FORMAT.COM lives. Windows 95 OSR2, Windows 98 and
-  # Windows Me media use different setup layouts, and customized media may move
-  # the file again. Search all FORMAT.COM copies and select the first one that
-  # contains a structurally valid FAT32 boot template.
-  local format=""
-  local template=""
-  local template_base=0
-  local format_size sig boot_sig fsinfo_lead fsinfo_struct
-  local -a formats=() signatures=()
-
-  mapfile -d '' formats < <(
-    find "$dir" -type f -iname 'FORMAT.COM' -print0
-  )
-
-  find_pid=$!
-
-  if ! wait "$find_pid"; then
-    error "Failed to enumerate FORMAT.COM files in $desc ISO image!"
-    return 1
-  fi
-
-  if (( ${#formats[@]} == 0 )); then
-    error "Failed to locate FORMAT.COM in $desc ISO image!"
-    return 1
-  fi
-
-  for format in "${formats[@]}"; do
-
-    format_size=$(stat -c %s -- "$format") || return 1
-    signatures=()
-
-    # FAT32 places the filesystem type string at offset 0x52 in the extended
-    # BPB. Searching for only this standard marker intentionally avoids tying
-    # the code to the exact Windows 98 machine-code bytes that follow it; a
-    # Windows 95 OSR2 or Windows Me FORMAT.COM may contain a different loader.
-    mapfile -t signatures < <(
-      LC_ALL=C grep -aobF 'FAT32   ' "$format" | cut -d: -f1
-    )
-
-    for sig in "${signatures[@]}"; do
-
-      [[ "$sig" =~ ^[0-9]+$ ]] || continue
-      (( sig >= 0x52 )) || continue
-
-      local candidate=$((sig - 0x52))
-
-      # The Microsoft Win9x FAT32 bootstrap occupies three 512-byte sectors.
-      # Reject truncated matches before probing the fixed signatures below.
-      (( candidate + 0x600 <= format_size )) || continue
-
-      # Validate the candidate by FAT32 structure rather than by one particular
-      # release's loader bytes:
-      #
-      #   +0x1fe  boot-sector signature (55 aa)
-      #   +0x200  FSInfo lead signature (RRaA)
-      #   +0x3e4  FSInfo structure signature (rrAa)
-      #   +0x3fe  FSInfo-sector signature (55 aa)
-      #   +0x5fe  third boot-sector signature (55 aa)
-      #
-      # Requiring all five makes an accidental "FAT32   " string elsewhere in
-      # FORMAT.COM extremely unlikely to be mistaken for the boot template.
-      boot_sig=$(dd if="$format" bs=1 skip="$((candidate + 0x1fe))" count=2 status=none | xxd -p) || return 1
-      [[ "$boot_sig" == "55aa" ]] || continue
-
-      fsinfo_lead=$(dd if="$format" bs=1 skip="$((candidate + 0x200))" count=4 status=none | xxd -p) || return 1
-      [[ "$fsinfo_lead" == "52526141" ]] || continue
-
-      fsinfo_struct=$(dd if="$format" bs=1 skip="$((candidate + 0x3e4))" count=4 status=none | xxd -p) || return 1
-      [[ "$fsinfo_struct" == "72724161" ]] || continue
-
-      boot_sig=$(dd if="$format" bs=1 skip="$((candidate + 0x3fe))" count=2 status=none | xxd -p) || return 1
-      [[ "$boot_sig" == "55aa" ]] || continue
-
-      boot_sig=$(dd if="$format" bs=1 skip="$((candidate + 0x5fe))" count=2 status=none | xxd -p) || return 1
-      [[ "$boot_sig" == "55aa" ]] || continue
-
-      template="$format"
-      template_base="$candidate"
-      break 2
-
-    done
-
-  done
-
-  if [ -z "$template" ]; then
-    error "Failed to locate a Windows 9x FAT32 boot template in FORMAT.COM!"
-    return 1
-  fi
-
-  # The system image is sparse, so reserving its full logical 32 GiB size
-  # would reject valid hosts unnecessarily. The extracted ISO tree is a
-  # conservative upper bound for the files copied into this image; add 64 MiB
-  # for FAT metadata and other filesystem overhead.
-  required=$(du -sb -- "$dir" | cut -f1) || return 1
-  [[ "$required" =~ ^[0-9]+$ ]] || return 1
-  required=$((required + 64 * 1024 * 1024))
-  checkFreeSpace "$(dirname "$image")" "$required" || return 1
-
-  fs=$(stat -f -c %T "$(dirname "$tmp")") || return 1
-
-  if [[ "${fs,,}" == "btrfs" ]]; then
-    touch "$tmp" || return 1
-    { chattr +C "$tmp"; } || :
-    attributes=$(lsattr "$tmp") || return 1
-    if [[ "$attributes" != *"C"* ]]; then
-      error "Failed to disable COW for $desc system image $tmp on ${fs^^} filesystem!"
-    fi
-  fi
-
-  truncate -s "$size" "$tmp" || return 1
-
-  printf 'drive w: file="%s" partition=1 fat_bits=32 cylinders=4177 heads=255 sectors=63 mformat_only\n' \
-    "$tmp" > "$config" || return 1
-
-  # Let mtools create all volume-specific FAT32 data. In particular, the BPB
-  # contains the geometry, FAT size, root cluster, FSInfo sector and backup boot
-  # sector locations for this image. Those values must survive the Microsoft
-  # boot-code transplant below, so FORMAT.COM is deliberately not passed to
-  # mformat as a whole-sector template.
-  if ! MTOOLSRC="$config" mpartition -I -c -a -T 0x0c -b "$start" -l "$sectors" w: ||
-    ! MTOOLSRC="$config" mformat -F -m 0xf8 -H "$start" w:; then
-
-    rm -f -- "$tmp"
-    error "Failed to create the $desc FAT32 system image!"
-    return 1
-  fi
-
-  # BIOS loads the MBR at physical address 0000:7c00, which is also the address
-  # where a partition boot sector (VBR) expects to run. We therefore cannot read
-  # the VBR directly on top of the MBR and then continue executing the MBR:
-  # INT 13h completes the disk transfer before returning, so the instructions
-  # following that interrupt would already have been replaced by VBR bytes.
-  #
-  # Relocate the complete 512-byte MBR from 0000:7c00 to 0000:0600 first. The
-  # far jump below continues at offset 0x1e in that relocated copy (0000:061e).
-  # Only then do we read CHS 0/1/1 -- LBA 63 with this 63-sector geometry -- back
-  # into 0000:7c00 and transfer control to the Microsoft FAT32 boot sector.
-  #
-  # DL is deliberately left untouched: BIOS supplies the boot drive number in
-  # DL, and the INT 13h read must use that same hard disk.
-  printf '%b' \
-    '\xfa\x31\xc0\x8e\xd0\xbc\x00\x7c\x8e\xd8\x8e\xc0\xfb\xfc' \
-    '\xbe\x00\x7c\xbf\x00\x06\xb9\x00\x01\xf3\xa5' \
-    '\xea\x1e\x06\x00\x00' \
-    '\x31\xc0\x8e\xc0\xbb\x00\x7c\xb8\x01\x02\xb9\x01\x00\xb6\x01' \
-    '\xcd\x13\x72\x05\xea\x00\x7c\x00\x00\xcd\x18\xeb\xfe' |
-    dd of="$tmp" bs=1 seek=0 conv=notrunc status=none || return 1
-
-  # FAT32 stores the location of its backup boot sector in BPB_BkBootSec at
-  # offset 0x32. Read both the reserved-sector count and that pointer from the
-  # BPB generated by mformat rather than assuming Microsoft's usual sector 6.
-  # If a backup exists, patch it together with the primary boot area so recovery
-  # never falls back to mtools' non-Windows bootstrap.
-  local reserved_bytes backup_bytes reserved backup_sector backup_offset
-  local reserved_lo reserved_hi backup_lo backup_hi
-  local -a boot_targets=("$offset")
-
-  reserved_bytes=$(dd if="$tmp" bs=1 skip="$((offset + 0x0e))" count=2 status=none | od -An -tu1) || return 1
-  read -r reserved_lo reserved_hi <<< "$reserved_bytes"
-  [[ "$reserved_lo" =~ ^[0-9]+$ && "$reserved_hi" =~ ^[0-9]+$ ]] || return 1
-  reserved=$((reserved_lo | reserved_hi << 8))
-
-  backup_bytes=$(dd if="$tmp" bs=1 skip="$((offset + 0x32))" count=2 status=none | od -An -tu1) || return 1
-  read -r backup_lo backup_hi <<< "$backup_bytes"
-  [[ "$backup_lo" =~ ^[0-9]+$ && "$backup_hi" =~ ^[0-9]+$ ]] || return 1
-  backup_sector=$((backup_lo | backup_hi << 8))
-
-  if (( backup_sector != 0 && backup_sector != 0xffff )); then
-
-    # We copy three sectors of boot/FSInfo data starting at the backup pointer,
-    # therefore all three must fit inside the FAT32 reserved area.
-    if (( backup_sector + 2 >= reserved )); then
-      rm -f -- "$tmp"
-      error "Invalid FAT32 backup boot sector generated by mtools!"
-      return 1
-    fi
-
-    backup_offset=$((offset + backup_sector * 512))
-    boot_targets+=("$backup_offset")
-
-  fi
-
-  # ms-sys' Windows 95/98/Me FAT32 writer does not overwrite the complete
-  # 1536-byte template. It deliberately preserves the volume-specific fields
-  # created by the formatter and replaces only these three ranges:
-  #
-  #   0x000..0x00a  jump instruction + OEM identifier        (11 bytes)
-  #   0x052..0x3e7  boot code + static FSInfo data           (918 bytes)
-  #   0x3f0..0x5ff  FSInfo trailer + second-stage boot code   (528 bytes)
-  #
-  # Two regions are intentionally left untouched:
-  #
-  #   0x00b..0x051  FAT32 BPB/extended BPB generated by mformat
-  #   0x3e8..0x3ef  current free-cluster and next-free hints from mformat
-  #
-  # The source offsets are relative to the FAT32 template we located inside
-  # FORMAT.COM, so neither the ISO layout nor FORMAT.COM's internal layout is
-  # hardcoded. Apply the same transplant to the backup boot area when present.
-  local target_base
-
-  for target_base in "${boot_targets[@]}"; do
-
-    dd if="$template" of="$tmp" bs=1 \
-      skip="$template_base" seek="$target_base" count=11 \
-      conv=notrunc status=none || return 1
-
-    dd if="$template" of="$tmp" bs=1 \
-      skip="$((template_base + 0x52))" seek="$((target_base + 0x52))" count=918 \
-      conv=notrunc status=none || return 1
-
-    dd if="$template" of="$tmp" bs=1 \
-      skip="$((template_base + 0x3f0))" seek="$((target_base + 0x3f0))" count=528 \
-      conv=notrunc status=none || return 1
-
-    # The Microsoft template intentionally leaves the FAT32 extended BPB alone.
-    # Set its BIOS drive number explicitly because QEMU exposes the system image as
-    # hard disk 0x80, regardless of what default mformat happened to write there.
-    printf '%b' '\x80' |
-      dd of="$tmp" bs=1 seek="$((target_base + 0x40))" conv=notrunc status=none || return 1
-
-  done
-
-  # Verify both the partition table and the FAT32 structures after patching.
-  # The checks cover all three Microsoft boot sectors, not only sector zero, so
-  # a wrong FORMAT.COM match or an off-by-one copy cannot silently produce an
-  # image that merely looks bootable from its first 55 aa signature.
-  local active mbrsig vbrsig stage2sig fstype target_fsinfo_lead target_fsinfo_struct drive
-  active=$(dd if="$tmp" bs=1 skip=446 count=1 status=none | od -An -tu1 | tr -d ' ') || return 1
-  mbrsig=$(dd if="$tmp" bs=1 skip=510 count=2 status=none | xxd -p) || return 1
-  vbrsig=$(dd if="$tmp" bs=1 skip="$((offset + 0x1fe))" count=2 status=none | xxd -p) || return 1
-  stage2sig=$(dd if="$tmp" bs=1 skip="$((offset + 0x5fe))" count=2 status=none | xxd -p) || return 1
-  fstype=$(dd if="$tmp" bs=1 skip="$((offset + 0x52))" count=8 status=none) || return 1
-  target_fsinfo_lead=$(dd if="$tmp" bs=1 skip="$((offset + 0x200))" count=4 status=none | xxd -p) || return 1
-  target_fsinfo_struct=$(dd if="$tmp" bs=1 skip="$((offset + 0x3e4))" count=4 status=none | xxd -p) || return 1
-  drive=$(dd if="$tmp" bs=1 skip="$((offset + 0x40))" count=1 status=none | od -An -tu1 | tr -d ' ') || return 1
-
-  if [[ "$active" != "128" || "$mbrsig" != "55aa" || "$vbrsig" != "55aa" ||
-        "$stage2sig" != "55aa" || "$fstype" != "FAT32   " ||
-        "$target_fsinfo_lead" != "52526141" || "$target_fsinfo_struct" != "72724161" ||
-        "$drive" != "128" ]]; then
-    rm -f -- "$tmp"
-    error "Failed to make the $desc FAT32 system image bootable!"
-    return 1
-  fi
-
-  if (( backup_sector != 0 && backup_sector != 0xffff )); then
-
-    vbrsig=$(dd if="$tmp" bs=1 skip="$((backup_offset + 0x1fe))" count=2 status=none | xxd -p) || return 1
-    stage2sig=$(dd if="$tmp" bs=1 skip="$((backup_offset + 0x5fe))" count=2 status=none | xxd -p) || return 1
-    fstype=$(dd if="$tmp" bs=1 skip="$((backup_offset + 0x52))" count=8 status=none) || return 1
-    drive=$(dd if="$tmp" bs=1 skip="$((backup_offset + 0x40))" count=1 status=none | od -An -tu1 | tr -d ' ') || return 1
-
-    if [[ "$vbrsig" != "55aa" || "$stage2sig" != "55aa" ||
-          "$fstype" != "FAT32   " || "$drive" != "128" ]]; then
-      rm -f -- "$tmp"
-      error "Failed to update the $desc FAT32 backup boot record!"
-      return 1
-    fi
-
-  fi
-
-  # The CD boot image is not part of the Windows 9x installation contract.
-  # Retail, OEM and repacked discs may use a differently named El Torito image
-  # or omit an extracted floppy image entirely. The setup cabinets are a much
-  # better source for the DOS kernel files because Setup itself ships them.
-  #
-  # The exact cabinet containing the DOS boot files varies between Windows 9x
-  # releases, so do not hardcode a cabinet number. Search every PRECOPY cabinet
-  # first and only fall back to the remaining CABs for unusual OEM/repacked
-  # media.
-  #
-  # Windows 95/98 use the setup-media WINBOOT.SYS kernel together with
-  # COMMAND.COM. Windows Me uses its Emergency Boot Disk variants for this
-  # temporary real-mode setup bootstrap instead. In both cases publish the
-  # kernel as IO.SYS and the command interpreter as COMMAND.COM on the generated
-  # boot volume.
-  local cab source_name target_name extracted
-  local kernel_source="WINBOOT.SYS"
-  local command_source="COMMAND.COM"
-  local cab_temp="$temp/cab"
-  local -a precopy_cabs=() other_cabs=()
-
-  if [[ "${id,,}" == "win9x"* ]]; then
-    kernel_source="WINBOOT.EBD"
-    command_source="COMMAND.EBD"
-  fi
-
-  mapfile -d '' precopy_cabs < <(
-    find "$dir" -type f -iname 'PRECOPY*.CAB' -print0
-  )
-
-  find_pid=$!
-
-  if ! wait "$find_pid"; then
-    rm -f -- "$tmp"
-    error "Failed to enumerate Windows 9x setup cabinets!"
-    return 1
-  fi
-
-  mapfile -d '' other_cabs < <(
-    find "$dir" -type f -iname '*.CAB' ! -iname 'PRECOPY*.CAB' -print0
-  )
-
-  find_pid=$!
-
-  if ! wait "$find_pid"; then
-    rm -f -- "$tmp"
-    error "Failed to enumerate Windows 9x setup cabinets!"
-    return 1
-  fi
-
-  if (( ${#precopy_cabs[@]} == 0 && ${#other_cabs[@]} == 0 )); then
-    rm -f -- "$tmp"
-    error "Failed to locate Windows 9x setup cabinets in $desc ISO image!"
-    return 1
-  fi
-
-  for source_name in "$command_source" "$kernel_source"; do
-
-    if [[ "$source_name" == "$kernel_source" ]]; then
-      target_name="IO.SYS"
-    else
-      target_name="COMMAND.COM"
-    fi
-
-    extracted=""
-
-    for cab in "${precopy_cabs[@]}" "${other_cabs[@]}"; do
-
-      rm -rf -- "$cab_temp" || return 1
-      mkdir -p "$cab_temp" || return 1
-
-      # -F avoids unpacking a complete cabinet just to obtain one small system
-      # file. -L normalizes the extracted name so case differences in localized
-      # or repacked media do not matter; find below remains case-insensitive as
-      # an additional safeguard. A cabinet that simply lacks the requested file
-      # is not an error here: continue with the next candidate.
-      if ! cabextract -q -L -F "$source_name" -d "$cab_temp" "$cab" >/dev/null 2>&1; then
-        continue
-      fi
-
-      extracted=$(find "$cab_temp" -type f -iname "$source_name" -print -quit) || return 1
-
-      if [ -n "$extracted" ] && [ -s "$extracted" ]; then
-        cp -f -- "$extracted" "$temp/$target_name" || return 1
-        break
-      fi
-
-    done
-
-    if [ ! -s "$temp/$target_name" ]; then
-      rm -f -- "$tmp"
-      error "Failed to extract $source_name from the Windows 9x setup cabinets!"
-      return 1
-    fi
-
-  done
-
-  rm -rf -- "$cab_temp" || :
-
-  if [[ "${id,,}" == "win9x"* ]]; then
-    if ! patchWinMeDosFile "$temp/IO.SYS" "IO.SYS" ||
-      ! patchWinMeDosFile "$temp/COMMAND.COM" "COMMAND.COM"; then
-      rm -f -- "$tmp"
-      return 1
-    fi
-  fi
-
-  local boot_gui=0
-  [[ "${id,,}" == "win9x"* ]] && boot_gui=1
-
-  {
-    printf '%s\n' \
-      '[Options]' \
-      "BootGUI=$boot_gui" \
-      'BootDelay=0' \
-      'Logo=0' \
-      ''
-  } | unix2dos > "$msdos" || return 1
-
-  # Copy the DOS system files before anything else. Older DOS boot sectors
-  # expect IO.SYS and MSDOS.SYS at the start of a freshly formatted volume.
-  MTOOLSRC="$config" mcopy "$temp/IO.SYS" w:/IO.SYS || return 1
-  MTOOLSRC="$config" mcopy "$msdos" w:/MSDOS.SYS || return 1
-  MTOOLSRC="$config" mcopy "$temp/COMMAND.COM" w:/COMMAND.COM || return 1
-
-  MTOOLSRC="$config" mattrib +h +s +r w:/IO.SYS w:/MSDOS.SYS || return 1
-
-  # Windows 95/98 keep BootGUI disabled and start WIN.COM explicitly from
-  # AUTOEXEC.BAT, matching the known-good setup path. Windows Me keeps its normal
-  # BootGUI transition because its alternate real-mode boot activation depends on it.
-
-  # Setup only needs its release-specific source directory. Keeping the rest
-  # of the optical-media root off C: avoids exposing unrelated CD contents in
-  # the installed system. Rename the retained source to C:\SETUP so it cannot
-  # be confused with the installed C:\WINDOWS directory.
-  setup_dir=$(find "$dir" -mindepth 1 -maxdepth 1 -type d -iname "$source" -print -quit) || return 1
-
-  if [ -z "$setup_dir" ]; then
-    rm -f -- "$tmp"
-    error "Failed to locate the $source Setup folder in $desc ISO image!"
-    return 1
-  fi
-
-  entries=("$setup_dir")
-  [ -d "$dir/OEM" ] && entries+=("$dir/OEM")
-
-  for entry in "${entries[@]}"; do
-
-    if ! MTOOLSRC="$config" mcopy -Q -s "$entry" w:/; then
-      rm -f -- "$tmp"
-      error "Failed to copy $desc file: $entry"
-      return 1
-    fi
-
-  done
-
-  if ! MTOOLSRC="$config" mren "w:/$source" "w:/$setup" ||
-    ! MTOOLSRC="$config" mattrib +h +s "w:/$setup"; then
-    rm -f -- "$tmp"
-    error "Failed to rename or hide the $desc setup folder in the system image!"
-    return 1
-  fi
-
-  writeWin9xAutoexec "$autoexec" "$setup" "$options" "$id" || return 1
-
-  MTOOLSRC="$config" mcopy -o "$autoexec" w:/AUTOEXEC.BAT || return 1
-
-  if ! MTOOLSRC="$config" mdir "w:/$setup/SETUP.EXE" >/dev/null; then
-    rm -f -- "$tmp"
-    error "Failed to verify the $desc system image!"
-    return 1
-  fi
-
-  if [[ "${fs,,}" == "btrfs" ]]; then
-    attributes=$(lsattr "$tmp") || return 1
-    if [[ "$attributes" != *"C"* ]]; then
-      warn "COW (copy on write) is not disabled for $desc system image $tmp on ${fs^^} filesystem!"
-    fi
-  fi
-
-  if ! mv -f -- "$tmp" "$image"; then
-    rm -f -- "$tmp"
-    error "Failed to save $desc system image: $image"
-    return 1
-  fi
-
-  if ! setOwner "$image"; then
-    warn "Failed to set the owner for \"$image\" !"
-  fi
-
-  rm -rf -- "$temp" || :
-
-  return 0
-}
-
 stageWin9xDosPatcher() {
 
   local dir="$1"
@@ -1678,14 +1186,12 @@ writeWin9xAnswerFile() {
 
   local desktop="%10%\Desktop"
   local addReg="OPKInstall,Win9x.Machine,Win9x.PCMCIA,Win9x.Power,Win9x.UserDefault,Win9x.BrowserDefault,Win9x.ActiveSetup"
-  local copyFiles=""
   local updateInis="Win9x.SystemIni,Win9x.SystemCb"
   local firstLogonAddReg="Win9x.User,Win9x.Regwiz,Win9x.BrowserUser,Win9x.PowerUser"
   local firstLogonDelReg="Win9x.Welcome,Win9x.MSN,Win9x.ICWDesktop"
   local firstLogonDelFiles="Win9x.PatcherMarker,Win9x.Connect,Win9x.ConnectAll,Win9x.OnlineServices"
   local firstLogonUpdateInis="Win9x.OnlineServicesFolder"
-  local post=""
-  local hide=""
+  local copyFiles="" post="" hide=""
   local culture region keyboard localeID keyboardID
 
   if [[ "${id,,}" == "win9x"* ]]; then
@@ -2140,6 +1646,498 @@ patchWin9xSetupFiles() {
   # Use QEMouse directly in the MINI.CAB GUI Setup environment for every Win9x
   # release, so the setup mouse path does not depend on a DOS INT 33h TSR.
   integrateWin9xSetupMouse "$target" "$desc" "$qemouse/qemouse.drv" || return 1
+
+  return 0
+}
+
+createWin9xSystemImage() {
+
+  local dir="$1"
+  local image="$2"
+  local desc="$3"
+  local source="$4"
+  local options="$5"
+  local id="$6"
+
+  local temp="$TMP/win9x-image"
+  local config="$temp/mtools.conf"
+  local autoexec="$temp/AUTOEXEC.BAT"
+  local msdos="$temp/MSDOS.SYS"
+  local tmp="${image}.tmp"
+  local size=$((4177 * 255 * 63 * 512))
+  local start=63
+  local sectors=$((size / 512 - start))
+  local offset=$((start * 512))
+  local entry find_pid setup_dir
+  local fs attributes required
+  local setup="SETUP"
+  local entries=()
+
+  local msg="Creating system image..."
+  info "$msg" && html "$msg"
+
+  rm -rf -- "$temp" || return 1
+  mkdir -p "$temp" || return 1
+  rm -f -- "$tmp" || return 1
+
+  # mtools can create a perfectly valid FAT32 filesystem, including its BPB,
+  # FSInfo sector and backup boot area, but its generic boot code cannot start
+  # Windows 9x. Microsoft FORMAT.COM carries the matching DOS FAT32 bootstrap
+  # as a three-sector template, so use the copy supplied by the installation
+  # media instead of embedding Microsoft's boot code in this script.
+  #
+  # Do not assume where FORMAT.COM lives. Windows 95 OSR2, Windows 98 and
+  # Windows Me media use different setup layouts, and customized media may move
+  # the file again. Search all FORMAT.COM copies and select the first one that
+  # contains a structurally valid FAT32 boot template.
+  local format=""
+  local template=""
+  local template_base=0
+  local format_size sig boot_sig fsinfo_lead fsinfo_struct
+  local -a formats=() signatures=()
+
+  mapfile -d '' formats < <(
+    find "$dir" -type f -iname 'FORMAT.COM' -print0
+  )
+
+  find_pid=$!
+
+  if ! wait "$find_pid"; then
+    error "Failed to enumerate FORMAT.COM files in $desc ISO image!"
+    return 1
+  fi
+
+  if (( ${#formats[@]} == 0 )); then
+    error "Failed to locate FORMAT.COM in $desc ISO image!"
+    return 1
+  fi
+
+  for format in "${formats[@]}"; do
+
+    format_size=$(stat -c %s -- "$format") || return 1
+    signatures=()
+
+    # FAT32 places the filesystem type string at offset 0x52 in the extended
+    # BPB. Searching for only this standard marker intentionally avoids tying
+    # the code to the exact Windows 98 machine-code bytes that follow it; a
+    # Windows 95 OSR2 or Windows Me FORMAT.COM may contain a different loader.
+    mapfile -t signatures < <(
+      LC_ALL=C grep -aobF 'FAT32   ' "$format" | cut -d: -f1
+    )
+
+    for sig in "${signatures[@]}"; do
+
+      [[ "$sig" =~ ^[0-9]+$ ]] || continue
+      (( sig >= 0x52 )) || continue
+
+      local candidate=$((sig - 0x52))
+
+      # The Microsoft Win9x FAT32 bootstrap occupies three 512-byte sectors.
+      # Reject truncated matches before probing the fixed signatures below.
+      (( candidate + 0x600 <= format_size )) || continue
+
+      # Validate the candidate by FAT32 structure rather than by one particular
+      # release's loader bytes:
+      #
+      #   +0x1fe  boot-sector signature (55 aa)
+      #   +0x200  FSInfo lead signature (RRaA)
+      #   +0x3e4  FSInfo structure signature (rrAa)
+      #   +0x3fe  FSInfo-sector signature (55 aa)
+      #   +0x5fe  third boot-sector signature (55 aa)
+      #
+      # Requiring all five makes an accidental "FAT32   " string elsewhere in
+      # FORMAT.COM extremely unlikely to be mistaken for the boot template.
+      boot_sig=$(dd if="$format" bs=1 skip="$((candidate + 0x1fe))" count=2 status=none | xxd -p) || return 1
+      [[ "$boot_sig" == "55aa" ]] || continue
+
+      fsinfo_lead=$(dd if="$format" bs=1 skip="$((candidate + 0x200))" count=4 status=none | xxd -p) || return 1
+      [[ "$fsinfo_lead" == "52526141" ]] || continue
+
+      fsinfo_struct=$(dd if="$format" bs=1 skip="$((candidate + 0x3e4))" count=4 status=none | xxd -p) || return 1
+      [[ "$fsinfo_struct" == "72724161" ]] || continue
+
+      boot_sig=$(dd if="$format" bs=1 skip="$((candidate + 0x3fe))" count=2 status=none | xxd -p) || return 1
+      [[ "$boot_sig" == "55aa" ]] || continue
+
+      boot_sig=$(dd if="$format" bs=1 skip="$((candidate + 0x5fe))" count=2 status=none | xxd -p) || return 1
+      [[ "$boot_sig" == "55aa" ]] || continue
+
+      template="$format"
+      template_base="$candidate"
+      break 2
+
+    done
+
+  done
+
+  if [ -z "$template" ]; then
+    error "Failed to locate a Windows 9x FAT32 boot template in FORMAT.COM!"
+    return 1
+  fi
+
+  # The system image is sparse, so reserving its full logical 32 GiB size
+  # would reject valid hosts unnecessarily. The extracted ISO tree is a
+  # conservative upper bound for the files copied into this image; add 64 MiB
+  # for FAT metadata and other filesystem overhead.
+  required=$(du -sb -- "$dir" | cut -f1) || return 1
+  [[ "$required" =~ ^[0-9]+$ ]] || return 1
+  required=$((required + 64 * 1024 * 1024))
+  checkFreeSpace "$(dirname "$image")" "$required" || return 1
+
+  fs=$(stat -f -c %T "$(dirname "$tmp")") || return 1
+
+  if [[ "${fs,,}" == "btrfs" ]]; then
+    touch "$tmp" || return 1
+    { chattr +C "$tmp"; } || :
+    attributes=$(lsattr "$tmp") || return 1
+    if [[ "$attributes" != *"C"* ]]; then
+      error "Failed to disable COW for $desc system image $tmp on ${fs^^} filesystem!"
+    fi
+  fi
+
+  truncate -s "$size" "$tmp" || return 1
+
+  printf 'drive w: file="%s" partition=1 fat_bits=32 cylinders=4177 heads=255 sectors=63 mformat_only\n' \
+    "$tmp" > "$config" || return 1
+
+  # Let mtools create all volume-specific FAT32 data. In particular, the BPB
+  # contains the geometry, FAT size, root cluster, FSInfo sector and backup boot
+  # sector locations for this image. Those values must survive the Microsoft
+  # boot-code transplant below, so FORMAT.COM is deliberately not passed to
+  # mformat as a whole-sector template.
+  if ! MTOOLSRC="$config" mpartition -I -c -a -T 0x0c -b "$start" -l "$sectors" w: ||
+    ! MTOOLSRC="$config" mformat -F -m 0xf8 -H "$start" w:; then
+
+    rm -f -- "$tmp"
+    error "Failed to create the $desc FAT32 system image!"
+    return 1
+  fi
+
+  # BIOS loads the MBR at physical address 0000:7c00, which is also the address
+  # where a partition boot sector (VBR) expects to run. We therefore cannot read
+  # the VBR directly on top of the MBR and then continue executing the MBR:
+  # INT 13h completes the disk transfer before returning, so the instructions
+  # following that interrupt would already have been replaced by VBR bytes.
+  #
+  # Relocate the complete 512-byte MBR from 0000:7c00 to 0000:0600 first. The
+  # far jump below continues at offset 0x1e in that relocated copy (0000:061e).
+  # Only then do we read CHS 0/1/1 -- LBA 63 with this 63-sector geometry -- back
+  # into 0000:7c00 and transfer control to the Microsoft FAT32 boot sector.
+  #
+  # DL is deliberately left untouched: BIOS supplies the boot drive number in
+  # DL, and the INT 13h read must use that same hard disk.
+  printf '%b' \
+    '\xfa\x31\xc0\x8e\xd0\xbc\x00\x7c\x8e\xd8\x8e\xc0\xfb\xfc' \
+    '\xbe\x00\x7c\xbf\x00\x06\xb9\x00\x01\xf3\xa5' \
+    '\xea\x1e\x06\x00\x00' \
+    '\x31\xc0\x8e\xc0\xbb\x00\x7c\xb8\x01\x02\xb9\x01\x00\xb6\x01' \
+    '\xcd\x13\x72\x05\xea\x00\x7c\x00\x00\xcd\x18\xeb\xfe' |
+    dd of="$tmp" bs=1 seek=0 conv=notrunc status=none || return 1
+
+  # FAT32 stores the location of its backup boot sector in BPB_BkBootSec at
+  # offset 0x32. Read both the reserved-sector count and that pointer from the
+  # BPB generated by mformat rather than assuming Microsoft's usual sector 6.
+  # If a backup exists, patch it together with the primary boot area so recovery
+  # never falls back to mtools' non-Windows bootstrap.
+  local reserved_bytes backup_bytes reserved backup_sector backup_offset
+  local reserved_lo reserved_hi backup_lo backup_hi
+  local -a boot_targets=("$offset")
+
+  reserved_bytes=$(dd if="$tmp" bs=1 skip="$((offset + 0x0e))" count=2 status=none | od -An -tu1) || return 1
+  read -r reserved_lo reserved_hi <<< "$reserved_bytes"
+  [[ "$reserved_lo" =~ ^[0-9]+$ && "$reserved_hi" =~ ^[0-9]+$ ]] || return 1
+  reserved=$((reserved_lo | reserved_hi << 8))
+
+  backup_bytes=$(dd if="$tmp" bs=1 skip="$((offset + 0x32))" count=2 status=none | od -An -tu1) || return 1
+  read -r backup_lo backup_hi <<< "$backup_bytes"
+  [[ "$backup_lo" =~ ^[0-9]+$ && "$backup_hi" =~ ^[0-9]+$ ]] || return 1
+  backup_sector=$((backup_lo | backup_hi << 8))
+
+  if (( backup_sector != 0 && backup_sector != 0xffff )); then
+
+    # We copy three sectors of boot/FSInfo data starting at the backup pointer,
+    # therefore all three must fit inside the FAT32 reserved area.
+    if (( backup_sector + 2 >= reserved )); then
+      rm -f -- "$tmp"
+      error "Invalid FAT32 backup boot sector generated by mtools!"
+      return 1
+    fi
+
+    backup_offset=$((offset + backup_sector * 512))
+    boot_targets+=("$backup_offset")
+
+  fi
+
+  # ms-sys' Windows 95/98/Me FAT32 writer does not overwrite the complete
+  # 1536-byte template. It deliberately preserves the volume-specific fields
+  # created by the formatter and replaces only these three ranges:
+  #
+  #   0x000..0x00a  jump instruction + OEM identifier        (11 bytes)
+  #   0x052..0x3e7  boot code + static FSInfo data           (918 bytes)
+  #   0x3f0..0x5ff  FSInfo trailer + second-stage boot code   (528 bytes)
+  #
+  # Two regions are intentionally left untouched:
+  #
+  #   0x00b..0x051  FAT32 BPB/extended BPB generated by mformat
+  #   0x3e8..0x3ef  current free-cluster and next-free hints from mformat
+  #
+  # The source offsets are relative to the FAT32 template we located inside
+  # FORMAT.COM, so neither the ISO layout nor FORMAT.COM's internal layout is
+  # hardcoded. Apply the same transplant to the backup boot area when present.
+  local target_base
+
+  for target_base in "${boot_targets[@]}"; do
+
+    dd if="$template" of="$tmp" bs=1 \
+      skip="$template_base" seek="$target_base" count=11 \
+      conv=notrunc status=none || return 1
+
+    dd if="$template" of="$tmp" bs=1 \
+      skip="$((template_base + 0x52))" seek="$((target_base + 0x52))" count=918 \
+      conv=notrunc status=none || return 1
+
+    dd if="$template" of="$tmp" bs=1 \
+      skip="$((template_base + 0x3f0))" seek="$((target_base + 0x3f0))" count=528 \
+      conv=notrunc status=none || return 1
+
+    # The Microsoft template intentionally leaves the FAT32 extended BPB alone.
+    # Set its BIOS drive number explicitly because QEMU exposes the system image as
+    # hard disk 0x80, regardless of what default mformat happened to write there.
+    printf '%b' '\x80' |
+      dd of="$tmp" bs=1 seek="$((target_base + 0x40))" conv=notrunc status=none || return 1
+
+  done
+
+  # Verify both the partition table and the FAT32 structures after patching.
+  # The checks cover all three Microsoft boot sectors, not only sector zero, so
+  # a wrong FORMAT.COM match or an off-by-one copy cannot silently produce an
+  # image that merely looks bootable from its first 55 aa signature.
+  local active mbrsig vbrsig stage2sig fstype target_fsinfo_lead target_fsinfo_struct drive
+  active=$(dd if="$tmp" bs=1 skip=446 count=1 status=none | od -An -tu1 | tr -d ' ') || return 1
+  mbrsig=$(dd if="$tmp" bs=1 skip=510 count=2 status=none | xxd -p) || return 1
+  vbrsig=$(dd if="$tmp" bs=1 skip="$((offset + 0x1fe))" count=2 status=none | xxd -p) || return 1
+  stage2sig=$(dd if="$tmp" bs=1 skip="$((offset + 0x5fe))" count=2 status=none | xxd -p) || return 1
+  fstype=$(dd if="$tmp" bs=1 skip="$((offset + 0x52))" count=8 status=none) || return 1
+  target_fsinfo_lead=$(dd if="$tmp" bs=1 skip="$((offset + 0x200))" count=4 status=none | xxd -p) || return 1
+  target_fsinfo_struct=$(dd if="$tmp" bs=1 skip="$((offset + 0x3e4))" count=4 status=none | xxd -p) || return 1
+  drive=$(dd if="$tmp" bs=1 skip="$((offset + 0x40))" count=1 status=none | od -An -tu1 | tr -d ' ') || return 1
+
+  if [[ "$active" != "128" || "$mbrsig" != "55aa" || "$vbrsig" != "55aa" ||
+        "$stage2sig" != "55aa" || "$fstype" != "FAT32   " ||
+        "$target_fsinfo_lead" != "52526141" || "$target_fsinfo_struct" != "72724161" ||
+        "$drive" != "128" ]]; then
+    rm -f -- "$tmp"
+    error "Failed to make the $desc FAT32 system image bootable!"
+    return 1
+  fi
+
+  if (( backup_sector != 0 && backup_sector != 0xffff )); then
+
+    vbrsig=$(dd if="$tmp" bs=1 skip="$((backup_offset + 0x1fe))" count=2 status=none | xxd -p) || return 1
+    stage2sig=$(dd if="$tmp" bs=1 skip="$((backup_offset + 0x5fe))" count=2 status=none | xxd -p) || return 1
+    fstype=$(dd if="$tmp" bs=1 skip="$((backup_offset + 0x52))" count=8 status=none) || return 1
+    drive=$(dd if="$tmp" bs=1 skip="$((backup_offset + 0x40))" count=1 status=none | od -An -tu1 | tr -d ' ') || return 1
+
+    if [[ "$vbrsig" != "55aa" || "$stage2sig" != "55aa" ||
+          "$fstype" != "FAT32   " || "$drive" != "128" ]]; then
+      rm -f -- "$tmp"
+      error "Failed to update the $desc FAT32 backup boot record!"
+      return 1
+    fi
+
+  fi
+
+  # The CD boot image is not part of the Windows 9x installation contract.
+  # Retail, OEM and repacked discs may use a differently named El Torito image
+  # or omit an extracted floppy image entirely. The setup cabinets are a much
+  # better source for the DOS kernel files because Setup itself ships them.
+  #
+  # The exact cabinet containing the DOS boot files varies between Windows 9x
+  # releases, so do not hardcode a cabinet number. Search every PRECOPY cabinet
+  # first and only fall back to the remaining CABs for unusual OEM/repacked
+  # media.
+  #
+  # Windows 95/98 use the setup-media WINBOOT.SYS kernel together with
+  # COMMAND.COM. Windows Me uses its Emergency Boot Disk variants for this
+  # temporary real-mode setup bootstrap instead. In both cases publish the
+  # kernel as IO.SYS and the command interpreter as COMMAND.COM on the generated
+  # boot volume.
+  local cab source_name target_name extracted
+  local kernel_source="WINBOOT.SYS"
+  local command_source="COMMAND.COM"
+  local cab_temp="$temp/cab"
+  local -a precopy_cabs=() other_cabs=()
+
+  if [[ "${id,,}" == "win9x"* ]]; then
+    kernel_source="WINBOOT.EBD"
+    command_source="COMMAND.EBD"
+  fi
+
+  mapfile -d '' precopy_cabs < <(
+    find "$dir" -type f -iname 'PRECOPY*.CAB' -print0
+  )
+
+  find_pid=$!
+
+  if ! wait "$find_pid"; then
+    rm -f -- "$tmp"
+    error "Failed to enumerate Windows 9x setup cabinets!"
+    return 1
+  fi
+
+  mapfile -d '' other_cabs < <(
+    find "$dir" -type f -iname '*.CAB' ! -iname 'PRECOPY*.CAB' -print0
+  )
+
+  find_pid=$!
+
+  if ! wait "$find_pid"; then
+    rm -f -- "$tmp"
+    error "Failed to enumerate Windows 9x setup cabinets!"
+    return 1
+  fi
+
+  if (( ${#precopy_cabs[@]} == 0 && ${#other_cabs[@]} == 0 )); then
+    rm -f -- "$tmp"
+    error "Failed to locate Windows 9x setup cabinets in $desc ISO image!"
+    return 1
+  fi
+
+  for source_name in "$command_source" "$kernel_source"; do
+
+    if [[ "$source_name" == "$kernel_source" ]]; then
+      target_name="IO.SYS"
+    else
+      target_name="COMMAND.COM"
+    fi
+
+    extracted=""
+
+    for cab in "${precopy_cabs[@]}" "${other_cabs[@]}"; do
+
+      rm -rf -- "$cab_temp" || return 1
+      mkdir -p "$cab_temp" || return 1
+
+      # -F avoids unpacking a complete cabinet just to obtain one small system
+      # file. -L normalizes the extracted name so case differences in localized
+      # or repacked media do not matter; find below remains case-insensitive as
+      # an additional safeguard. A cabinet that simply lacks the requested file
+      # is not an error here: continue with the next candidate.
+      if ! cabextract -q -L -F "$source_name" -d "$cab_temp" "$cab" >/dev/null 2>&1; then
+        continue
+      fi
+
+      extracted=$(find "$cab_temp" -type f -iname "$source_name" -print -quit) || return 1
+
+      if [ -n "$extracted" ] && [ -s "$extracted" ]; then
+        cp -f -- "$extracted" "$temp/$target_name" || return 1
+        break
+      fi
+
+    done
+
+    if [ ! -s "$temp/$target_name" ]; then
+      rm -f -- "$tmp"
+      error "Failed to extract $source_name from the Windows 9x setup cabinets!"
+      return 1
+    fi
+
+  done
+
+  rm -rf -- "$cab_temp" || :
+
+  if [[ "${id,,}" == "win9x"* ]]; then
+    if ! patchWinMeDosFile "$temp/IO.SYS" "IO.SYS" ||
+      ! patchWinMeDosFile "$temp/COMMAND.COM" "COMMAND.COM"; then
+      rm -f -- "$tmp"
+      return 1
+    fi
+  fi
+
+  local boot_gui=0
+  [[ "${id,,}" == "win9x"* ]] && boot_gui=1
+
+  {
+    printf '%s\n' \
+      '[Options]' \
+      "BootGUI=$boot_gui" \
+      'BootDelay=0' \
+      'Logo=0' \
+      ''
+  } | unix2dos > "$msdos" || return 1
+
+  # Copy the DOS system files before anything else. Older DOS boot sectors
+  # expect IO.SYS and MSDOS.SYS at the start of a freshly formatted volume.
+  MTOOLSRC="$config" mcopy "$temp/IO.SYS" w:/IO.SYS || return 1
+  MTOOLSRC="$config" mcopy "$msdos" w:/MSDOS.SYS || return 1
+  MTOOLSRC="$config" mcopy "$temp/COMMAND.COM" w:/COMMAND.COM || return 1
+
+  MTOOLSRC="$config" mattrib +h +s +r w:/IO.SYS w:/MSDOS.SYS || return 1
+
+  # Windows 95/98 keep BootGUI disabled and start WIN.COM explicitly from
+  # AUTOEXEC.BAT, matching the known-good setup path. Windows Me keeps its normal
+  # BootGUI transition because its alternate real-mode boot activation depends on it.
+
+  # Setup only needs its release-specific source directory. Keeping the rest
+  # of the optical-media root off C: avoids exposing unrelated CD contents in
+  # the installed system. Rename the retained source to C:\SETUP so it cannot
+  # be confused with the installed C:\WINDOWS directory.
+  setup_dir=$(find "$dir" -mindepth 1 -maxdepth 1 -type d -iname "$source" -print -quit) || return 1
+
+  if [ -z "$setup_dir" ]; then
+    rm -f -- "$tmp"
+    error "Failed to locate the $source Setup folder in $desc ISO image!"
+    return 1
+  fi
+
+  entries=("$setup_dir")
+  [ -d "$dir/OEM" ] && entries+=("$dir/OEM")
+
+  for entry in "${entries[@]}"; do
+
+    if ! MTOOLSRC="$config" mcopy -Q -s "$entry" w:/; then
+      rm -f -- "$tmp"
+      error "Failed to copy $desc file: $entry"
+      return 1
+    fi
+
+  done
+
+  if ! MTOOLSRC="$config" mren "w:/$source" "w:/$setup" ||
+    ! MTOOLSRC="$config" mattrib +h +s "w:/$setup"; then
+    rm -f -- "$tmp"
+    error "Failed to rename or hide the $desc setup folder in the system image!"
+    return 1
+  fi
+
+  writeWin9xAutoexec "$autoexec" "$setup" "$options" "$id" || return 1
+
+  MTOOLSRC="$config" mcopy -o "$autoexec" w:/AUTOEXEC.BAT || return 1
+
+  if ! MTOOLSRC="$config" mdir "w:/$setup/SETUP.EXE" >/dev/null; then
+    rm -f -- "$tmp"
+    error "Failed to verify the $desc system image!"
+    return 1
+  fi
+
+  if [[ "${fs,,}" == "btrfs" ]]; then
+    attributes=$(lsattr "$tmp") || return 1
+    if [[ "$attributes" != *"C"* ]]; then
+      warn "COW (copy on write) is not disabled for $desc system image $tmp on ${fs^^} filesystem!"
+    fi
+  fi
+
+  if ! mv -f -- "$tmp" "$image"; then
+    rm -f -- "$tmp"
+    error "Failed to save $desc system image: $image"
+    return 1
+  fi
+
+  if ! setOwner "$image"; then
+    warn "Failed to set the owner for \"$image\" !"
+  fi
+
+  rm -rf -- "$temp" || :
 
   return 0
 }
