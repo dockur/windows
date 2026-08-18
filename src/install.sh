@@ -483,6 +483,31 @@ finishInstall() {
     fi
   fi
 
+  if [ -n "${BIOS:-}" ]; then
+
+    local bios="$(stateFile "bios")"
+    local target="${bios}.tmp"
+
+    if ! cp -f -- "$BIOS" "$target"; then
+      rm -f -- "$target"
+      error "Failed to copy the BIOS file!"
+      return 1
+    fi
+
+    if ! mv -f -- "$target" "$bios"; then
+      rm -f -- "$target"
+      error "Failed to finalize the BIOS file!"
+      return 1
+    fi
+
+    BIOS="$bios"
+
+    if ! setOwner "$BIOS"; then
+      warn "failed to set the owner for \"$BIOS\" !"
+    fi
+
+  fi
+
   if ! rm -rf -- "$TMP"; then
     error "Failed to remove directory \"$TMP\" !"
     return 1
@@ -1015,7 +1040,7 @@ getSystemImage() {
     return 0
   fi
 
-  image="$STORAGE/windows.img"
+  image="$(stateFile "img")"
   hasImage "$image" || return 1
 
   echo "$image"
