@@ -148,11 +148,11 @@ Win9xInstall() {
     return 1
   fi
 
-  # Win95 OEM media stores the product type in SETUPPP.INF. When no key was
-  # supplied, stage a loose copy and select the no-key product type so Setup
-  # does not stop at the Certificate of Authenticity dialog.
-  if [[ "${id,,}" == "win95"* ]] && [ -z "$batchKey" ]; then
-    patchWin95ProductType "$target" "$desc" || {
+  # Keep Win95's product-type and online-service changes together in the same
+  # loose SETUPPP.INF. This prevents MSN/Online Services from being installed
+  # at all, and also handles the no-key OEM product type when needed.
+  if [[ "${id,,}" == "win95"* ]]; then
+    patchWin95SetupComponents "$target" "$desc" "$batchKey" || {
       rm -rf "$drivers" || :
       return 1
     }
@@ -471,17 +471,17 @@ patchWin9xSetupFiles() {
   return 0
 }
 
-patchWin95ProductType() {
+patchWin95SetupComponents() {
 
   local target="$1"
   local desc="$2"
+  local batchKey="$3"
   local setuppp="$target/SETUPPP.INF"
   local layout="$target/LAYOUT.INF"
-  local product_count layout_count
 
-  # Win95A/B normally keep these files in PRECOPY*.CAB, while later media may
-  # already expose SETUPPP.INF in the setup directory. A loose setup file takes
-  # precedence once LAYOUT.INF marks it as a local source file.
+  # Win95 OSR2 normally keeps SETUPPP.INF in PRECOPY*.CAB, while some later
+  # media exposes it directly. A loose copy selected by LAYOUT.INF lets us
+  # suppress MSN/Online Services before Setup creates their desktop objects.
   if [ ! -s "$setuppp" ]; then
     extractWin9xCabFile "$target" 'SETUPPP.INF' "$setuppp" "$desc" || return 1
   fi
@@ -490,39 +490,125 @@ patchWin95ProductType() {
     extractWin9xCabFile "$target" 'LAYOUT.INF' "$layout" "$desc" || return 1
   fi
 
-  product_count=$(grep -Eic \
-    '^[[:space:]]*ProductType[[:space:]]*=[[:space:]]*9[[:space:]]*\r?$' "$setuppp" || :)
+  if ! python3 - "$setuppp" "$layout" "$batchKey" <<'PY'
+from pathlib import Path
+import re
+import sys
 
-  if [ "$product_count" -ne 1 ]; then
-    error "Failed to locate the Windows 95 OEM ProductType=9 setting in $desc setup files!"
-    return 1
-  fi
+setuppp = Path(sys.argv[1])
+layout = Path(sys.argv[2])
+has_key = bool(sys.argv[3])
 
-  layout_count=$(grep -Eic \
-    '^[[:space:]]*SETUPPP\.INF[[:space:]]*=[[:space:]]*[0-9]+,' "$layout" || :)
+setup_data = setuppp.read_bytes()
+setup_lines = setup_data.splitlines(keepends=True)
 
-  if [ "$layout_count" -ne 1 ]; then
-    error "Failed to locate the Windows 95 SETUPPP.INF layout entry in $desc setup files!"
-    return 1
-  fi
+if not has_key:
+    product_re = re.compile(
+        br'^([ \t]*ProductType[ \t]*=[ \t]*)9([ \t]*)(\r?\n)?$',
+        re.IGNORECASE,
+    )
+    matches = []
 
-  if ! sed -i -E \
-    's/^[[:space:]]*[Pp][Rr][Oo][Dd][Uu][Cc][Tt][Tt][Yy][Pp][Ee][[:space:]]*=[[:space:]]*9([[:space:]]*\r?)$/ProductType=1\1/' \
-    "$setuppp"; then
-    error "Failed to disable the Windows 95 Certificate of Authenticity prompt!"
-    return 1
-  fi
+    for index, line in enumerate(setup_lines):
+        match = product_re.match(line)
+        if match:
+            matches.append((index, match))
 
-  if ! sed -i -E \
-    's/^[[:space:]]*[Ss][Ee][Tt][Uu][Pp][Pp][Pp]\.[Ii][Nn][Ff][[:space:]]*=[[:space:]]*[0-9]+,/setuppp.inf=0,/' \
-    "$layout"; then
-    error "Failed to select the loose Windows 95 SETUPPP.INF file!"
-    return 1
-  fi
+    if len(matches) != 1:
+        print(
+            f"Unexpected Windows 95 ProductType=9 count: {len(matches)} (expected 1).",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
 
-  if [ "$(grep -Eic '^[[:space:]]*ProductType[[:space:]]*=[[:space:]]*1[[:space:]]*\r?$' "$setuppp")" -ne 1 ] ||
-    [ "$(grep -Eic '^[[:space:]]*SETUPPP\.INF[[:space:]]*=[[:space:]]*0,' "$layout")" -ne 1 ]; then
-    error "Failed to verify the Windows 95 product-type changes!"
+    index, match = matches[0]
+    setup_lines[index] = (
+        match.group(1)
+        + b'1'
+        + match.group(2)
+        + (match.group(3) or b'')
+    )
+
+# MOS.INF installs The Microsoft Network and online registration. MSINFO.INF
+# installs the OSR2 Online Services material. Remove every active reference but
+# preserve comments and every unrelated byte in SETUPPP.INF.
+blocked = (b'MOS.INF', b'MSINFO.INF')
+filtered = []
+
+for line in setup_lines:
+    stripped = line.lstrip(b' \t')
+    upper = stripped.upper()
+
+    if stripped.startswith(b';') or not any(name in upper for name in blocked):
+        filtered.append(line)
+
+setup_data = b''.join(filtered)
+
+for line in setup_data.splitlines():
+    stripped = line.lstrip(b' \t')
+    upper = stripped.upper()
+
+    if not stripped.startswith(b';') and any(name in upper for name in blocked):
+        print("Failed to remove a Windows 95 online-service setup reference.", file=sys.stderr)
+        raise SystemExit(1)
+
+if not has_key:
+    product_one = re.compile(
+        br'^[ \t]*ProductType[ \t]*=[ \t]*1[ \t]*$',
+        re.IGNORECASE,
+    )
+    if sum(bool(product_one.match(line.rstrip(b'\r'))) for line in setup_data.splitlines()) != 1:
+        print("Failed to verify the Windows 95 ProductType=1 change.", file=sys.stderr)
+        raise SystemExit(1)
+
+layout_data = layout.read_bytes()
+layout_lines = layout_data.splitlines(keepends=True)
+layout_re = re.compile(
+    br'^([ \t]*SETUPPP\.INF[ \t]*=[ \t]*)[0-9]+,([^,\r\n]*,)[0-9]+([^\r\n]*)(\r?\n)?$',
+    re.IGNORECASE,
+)
+layout_matches = []
+
+for index, line in enumerate(layout_lines):
+    match = layout_re.match(line)
+    if match:
+        layout_matches.append((index, match))
+
+if len(layout_matches) != 1:
+    print(
+        f"Unexpected Windows 95 SETUPPP.INF layout-entry count: {len(layout_matches)} (expected 1).",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+
+setuppp_size = len(setup_data)
+index, match = layout_matches[0]
+layout_lines[index] = (
+    match.group(1)
+    + b'0,'
+    + match.group(2)
+    + str(setuppp_size).encode('ascii')
+    + match.group(3)
+    + (match.group(4) or b'')
+)
+
+setuppp.write_bytes(setup_data)
+layout.write_bytes(b''.join(layout_lines))
+
+verify_layout = layout.read_bytes().splitlines()
+expected = re.compile(
+    br'^[ \t]*SETUPPP\.INF[ \t]*=[ \t]*0,[^,\r\n]*,'
+    + str(setuppp_size).encode('ascii')
+    + br'(?:,|[ \t]*$)',
+    re.IGNORECASE,
+)
+
+if sum(bool(expected.match(line)) for line in verify_layout) != 1:
+    print("Failed to verify the Windows 95 SETUPPP.INF layout entry.", file=sys.stderr)
+    raise SystemExit(1)
+PY
+  then
+    error "Failed to patch the Windows 95 setup components!"
     return 1
   fi
 
@@ -1240,7 +1326,7 @@ writeWin9xAnswerFile() {
   addReg+=",Win9x.Shutdown"
 
   if [[ "${id,,}" == "win95"* ]]; then
-    addReg+=",Win95.PCINIC"
+    addReg+=",Win95.PCINIC,Win95.Welcome"
   fi
 
   culture=$(getLanguage "$LANGUAGE" "culture") || return 1
@@ -1798,6 +1884,9 @@ writeWin9xStorageRegistry() {
 writeWin9xCleanupRegistry() {
 
   printf '%s\n' \
+    '[Win95.Welcome]' \
+    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer\Tips","Show",1,00' \
+    '' \
     '[Win9x.Welcome]' \
     'HKLM,"Software\Microsoft\Windows\CurrentVersion\Run","Welcome",,,' \
     '' \
