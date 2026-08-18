@@ -82,7 +82,7 @@ An empty default means the variable is unset and its value is determined automat
 | `VGA` | `virtio` | QEMU video adapter model. |
 | `WIDTH` | `1280` | Display width configured in Windows. |
 | `HEIGHT` | `720` | Display height configured in Windows. |
-| `GPU` | `N` | Enables experimental Intel iGPU acceleration. |
+| `GPU` | `N` | Enables experimental GPU acceleration. |
 | `RENDERNODE` | `/dev/dri/renderD128` | Render node used for GPU acceleration. |
 
 ## 🌍 Web UI
@@ -113,9 +113,10 @@ An empty default means the variable is unset and its value is determined automat
 | `PCI_BUS` | `pcie.0` | Overrides the PCI bus used for attached devices. |
 | `RNG` | `Y` | Adds the Virtio RNG device to the machine. |
 | `UUID` |  | UUID assigned to Windows. |
-| `HPET` | `off` | QEMU HPET timer setting. |
-| `VMPORT` | `off` | QEMU VMware port setting. |
-| `SOUND` | `intel-hda` | QEMU audio device used when `AUDIO=Y`. |
+| `HPET` | `off` | HPET timer setting. |
+| `VMPORT` | `off` | VMware port setting. |
+| `MOUSE` | `usb-tablet` | Pointing device used by the machine. |
+| `SOUND` | `intel-hda` | Audio device used when `AUDIO=Y`. |
 | `SM_BIOS` |  | Additional arguments passed to QEMU’s `-smbios` option. |
 | `ARGUMENTS` |  | Additional raw arguments appended to the QEMU command line. |
 
