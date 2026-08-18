@@ -52,6 +52,7 @@ jobs:
       version: ${{ inputs.version }}
       callback: ${{ inputs.callback }}
       enable_tunnel: false
+      tunnel_delay: 1800
       kill_on_failure: true
       install_timeout: 9000
       reboot_timeout: 1800
