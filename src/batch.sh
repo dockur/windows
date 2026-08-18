@@ -1663,6 +1663,10 @@ writeWin9xAnswerFile() {
       '[VREDIR]' \
       'ValidatedLogon=0' \
       ''
+
+    if [[ "${id,,}" == "win95"* ]]; then
+      printf '%s\n' '[Printers]'
+    fi
   } | unix2dos > "$target/MSBATCH.INF" || return 1
 
   return 0
