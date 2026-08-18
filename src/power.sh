@@ -496,16 +496,11 @@ gracefulShutdown() {
   fi
 
   if hasMarker "kill"; then
-  
+
     info "This $(app) version does not support ACPI shutdown, decreasing timeout to 1 second..."
     TIMEOUT=7
 
-  elif hasSystemImage && ! hasBootMarker; then
-
-    info "$(app) will ignore ACPI signals during setup, decreasing timeout to 10 seconds..."
-    TIMEOUT=13
-
-  elif ! ready; then
+  elif ! ready || { hasSystemImage && ! hasBootMarker; }; then
 
     info "$(app) will ignore ACPI signals during setup, decreasing timeout to 10 seconds..."
     TIMEOUT=13
