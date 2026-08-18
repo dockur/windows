@@ -366,6 +366,10 @@ patchWin9xSetupFiles() {
     return 1
   fi
 
+  if [[ "${id,,}" == "win9x"* ]]; then
+    patchWinMeBaseComponents "$target" "$desc" || return 1
+  fi
+
   stageWin9xDisplayDriver "$target" "$display" "$desc" || return 1
 
   if ! mv -f -- \
@@ -383,6 +387,47 @@ patchWin9xSetupFiles() {
   # Use QEMouse directly in the MINI.CAB GUI Setup environment for every Win9x
   # release, so the setup mouse path does not depend on a DOS INT 33h TSR.
   integrateWin9xSetupMouse "$target" "$desc" "$qemouse/qemouse.drv" || return 1
+
+  return 0
+}
+
+patchWinMeBaseComponents() {
+
+  local target="$1"
+  local desc="$2"
+  local wmp="$target/WMP.INF"
+  local ols="$target/OLS.INF"
+
+  # Windows Me installs WMP7 and the Online Services shell integration as base
+  # setup options, so MSBATCH optional-component flags cannot disable them.
+  # Stage loose modified INFs beside the cabinets; Win9x Setup prefers loose
+  # source files over same-named cabinet members.
+  extractWin9xCabFile "$target" 'WMP.INF' "$wmp" "$desc" || return 1
+  extractWin9xCabFile "$target" 'OLS.INF' "$ols" "$desc" || return 1
+
+  if [ "$(grep -Ec '^[[:space:]]*InstallWMP7[[:space:]]*$' "$wmp")" -ne 1 ]; then
+    error "Failed to locate the Windows Me WMP7 base setup option!"
+    return 1
+  fi
+
+  if [ "$(grep -Ec '^[[:space:]]*(ols\.base|core\.msn)[[:space:]]*$' "$ols")" -ne 2 ]; then
+    error "Failed to locate the Windows Me Online Services base setup options!"
+    return 1
+  fi
+
+  if ! sed -i \
+    -e '/^[[:space:]]*InstallWMP7[[:space:]]*$/d' "$wmp" \
+    -e '/^[[:space:]]*ols\.base[[:space:]]*$/d' \
+    -e '/^[[:space:]]*core\.msn[[:space:]]*$/d' "$ols"; then
+    error "Failed to disable Windows Me desktop components!"
+    return 1
+  fi
+
+  if grep -Eq '^[[:space:]]*InstallWMP7[[:space:]]*$' "$wmp" ||
+    grep -Eq '^[[:space:]]*(ols\.base|core\.msn)[[:space:]]*$' "$ols"; then
+    error "Failed to verify the Windows Me desktop component changes!"
+    return 1
+  fi
 
   return 0
 }
@@ -1049,7 +1094,7 @@ writeWin9xAnswerFile() {
     copyFiles+=",WinMe.Final,WinMe.Power"
   fi
 
-  if enabled "$shortcut" || [ -n "$install" ]; then
+  if enabled "$shortcut" || [ -n "$install" ] || [[ "${id,,}" == "win9x"* ]]; then
     hide="Y"
     copyFiles+=",Win9x.Hide"
   fi
@@ -1146,7 +1191,7 @@ writeWin9xAnswerFile() {
 
     if enabled "$post"; then
       printf '%s\n' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","PostSetup",,"C:\WINDOWS\COMMAND.COM /C C:\WINDOWS\POST9X.BAT"'
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","PostSetup",,"C:\WINDOWS\HIDE.EXE C:\WINDOWS\COMMAND.COM /C C:\WINDOWS\POST9X.BAT"'
     fi
 
     if ! disabled "$AUTOLOGIN"; then
@@ -1179,7 +1224,7 @@ writeWin9xAnswerFile() {
         'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\~BatchSetupx",,,">Batch 9x - General Settings"' \
         'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\~BatchSetupx","IsInstalled",0x00000001,01,00,00,00' \
         'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\~BatchSetupx","Version",,"3,0,0,0"' \
-        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\~BatchSetupx","StubPath",,"%10%\COMMAND.COM /C %10%\MEFINAL.BAT"'
+        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\~BatchSetupx","StubPath",,"%10%\HIDE.EXE %10%\COMMAND.COM /C %10%\MEFINAL.BAT"'
     fi
 
     printf '%s\n' \
@@ -1387,6 +1432,12 @@ writeWin9xAnswerFile() {
         '"AT&T WorldNet Service"=0' \
         '"CompuServe"=0' \
         '"Prodigy Internet"=0'
+    elif [[ "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' \
+        '"America Online"=0' \
+        '"AT&T WorldNet Service"=0' \
+        '"Prodigy Internet"=0' \
+        '"EarthLink"=0'
     fi
 
     printf '%s\n' \
@@ -1447,7 +1498,8 @@ writeWin9xUserRegistry() {
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
-        'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","StartMenuLogoff",0x00010001,0'
+        'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","StartMenuLogoff",0x00010001,0' \
+        'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","StartMenuLogOff",0x00010001,1'
     fi
   fi
 
@@ -1472,7 +1524,8 @@ writeWin9xUserRegistry() {
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
-        'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","StartMenuLogoff",0x00010001,0'
+        'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","StartMenuLogoff",0x00010001,0' \
+        'HKCU,"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","StartMenuLogOff",0x00010001,1'
     fi
   fi
 }
