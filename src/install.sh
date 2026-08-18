@@ -400,7 +400,7 @@ finishInstall() {
     fi
   fi
 
-  local file="$STORAGE/windows.ver"
+  local file="$(stateFile "ver")"
   cp -f /etc/version "$file" || {
     error "Failed to save the Windows installation version!"
     return 1
@@ -460,12 +460,12 @@ finishInstall() {
 
     if [[ "$SYSTEM" == "$TMP/"* ]]; then
 
-      if ! mv -f -- "$SYSTEM" "$STORAGE/windows.img"; then
+      if ! mv -f -- "$SYSTEM" "$(stateFile "img")"; then
         error "Failed to finalize the Windows system image!"
         return 1
       fi
 
-      BOOT="$STORAGE/windows.img"
+      BOOT="$(stateFile "img")"
 
     else
 
