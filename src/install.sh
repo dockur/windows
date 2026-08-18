@@ -964,9 +964,16 @@ isLegacyBoot() {
   [[ "${BOOT_MODE,,}" == "windows_legacy" ]]
 }
 
+hasMarker() {
+
+  [ -f "${STORAGE}/${PROCESS}.$1" ]
+}
+
 hasBootMarker() {
 
-  [ -f "${STORAGE}/${PROCESS}.boot" ]
+  hasMarker "boot" || return 1
+
+  return 0
 }
 
 createMarker() {
