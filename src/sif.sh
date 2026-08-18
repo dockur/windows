@@ -878,6 +878,17 @@ disableAutoReboot() {
   return 0
 }
 
+escapeSIFValue() {
+
+  local s="$1"
+
+  s=${s//%/%%}
+  s=${s//\"/\"\"}
+
+  printf '%s' "$s"
+  return 0
+}
+
 escapeRegistryValue() {
 
   printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
