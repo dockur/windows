@@ -507,19 +507,27 @@ gracefulShutdown() {
   fi
 
   if ! supportsACPI "$DETECTED"; then
-    if [[ "${DETECTED,,}" != "reactos" ]]; then
-      info "This $(app) version does not support ACPI shutdown, decreasing timeout to 10 seconds..."
-      TIMEOUT=13
-    else
+
+    if [[ "${DETECTED,,}" == "win95" ]]; then
+      info "Windows 95 does not support ACPI shutdown, decreasing timeout to 1 second..."
+    elif [[ "${DETECTED,,}" == "reactos" ]]; then
       info "ReactOS LiveCD does not support ACPI shutdown, decreasing timeout to 1 second..."
-      TIMEOUT=7
+    else
+      info "This $(app) version does not support ACPI shutdown, decreasing timeout to 1 second..."
     fi
+
+    TIMEOUT=7
+
   elif hasSystemImage && ! hasBootMarker; then
+
     info "$(app) will ignore ACPI signals during setup, decreasing timeout to 10 seconds..."
     TIMEOUT=13
+
   elif ! ready; then
+
     info "$(app) will ignore ACPI signals during setup, decreasing timeout to 10 seconds..."
     TIMEOUT=13
+
   fi
 
   normalizeTimeout 105
