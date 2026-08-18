@@ -144,6 +144,16 @@ Win9xInstall() {
     return 1
   fi
 
+  # Win95 OEM media stores the product type in SETUPPP.INF. When no key was
+  # supplied, stage a loose copy and select the no-key product type so Setup
+  # does not stop at the Certificate of Authenticity dialog.
+  if [[ "${id,,}" == "win95"* ]] && [ -z "$batchKey" ]; then
+    patchWin95ProductType "$target" "$desc" || {
+      rm -rf "$drivers" || :
+      return 1
+    }
+  fi
+
   if ! stageWin9xDosPatcher "$target" "$desc" "$patcher_dos"; then
     rm -rf "$drivers" || :
     return 1
@@ -428,6 +438,64 @@ patchWin9xSetupFiles() {
   # Use QEMouse directly in the MINI.CAB GUI Setup environment for every Win9x
   # release, so the setup mouse path does not depend on a DOS INT 33h TSR.
   integrateWin9xSetupMouse "$target" "$desc" "$qemouse/qemouse.drv" || return 1
+
+  return 0
+}
+
+patchWin95ProductType() {
+
+  local target="$1"
+  local desc="$2"
+  local setuppp="$target/SETUPPP.INF"
+  local layout="$target/LAYOUT.INF"
+  local product_count layout_count
+
+  # Win95A/B normally keep these files in PRECOPY*.CAB, while later media may
+  # already expose SETUPPP.INF in the setup directory. A loose setup file takes
+  # precedence once LAYOUT.INF marks it as a local source file.
+  if [ ! -s "$setuppp" ]; then
+    extractWin9xCabFile "$target" 'SETUPPP.INF' "$setuppp" "$desc" || return 1
+  fi
+
+  if [ ! -s "$layout" ]; then
+    extractWin9xCabFile "$target" 'LAYOUT.INF' "$layout" "$desc" || return 1
+  fi
+
+  product_count=$(grep -Eic \
+    '^[[:space:]]*ProductType[[:space:]]*=[[:space:]]*9[[:space:]]*\r?$' "$setuppp" || :)
+
+  if [ "$product_count" -ne 1 ]; then
+    error "Failed to locate the Windows 95 OEM ProductType=9 setting in $desc setup files!"
+    return 1
+  fi
+
+  layout_count=$(grep -Eic \
+    '^[[:space:]]*SETUPPP\.INF[[:space:]]*=[[:space:]]*[0-9]+,' "$layout" || :)
+
+  if [ "$layout_count" -ne 1 ]; then
+    error "Failed to locate the Windows 95 SETUPPP.INF layout entry in $desc setup files!"
+    return 1
+  fi
+
+  if ! sed -i -E \
+    's/^[[:space:]]*[Pp][Rr][Oo][Dd][Uu][Cc][Tt][Tt][Yy][Pp][Ee][[:space:]]*=[[:space:]]*9([[:space:]]*\r?)$/ProductType=1\1/' \
+    "$setuppp"; then
+    error "Failed to disable the Windows 95 Certificate of Authenticity prompt!"
+    return 1
+  fi
+
+  if ! sed -i -E \
+    's/^[[:space:]]*[Ss][Ee][Tt][Uu][Pp][Pp][Pp]\.[Ii][Nn][Ff][[:space:]]*=[[:space:]]*[0-9]+,/setuppp.inf=0,/' \
+    "$layout"; then
+    error "Failed to select the loose Windows 95 SETUPPP.INF file!"
+    return 1
+  fi
+
+  if [ "$(grep -Eic '^[[:space:]]*ProductType[[:space:]]*=[[:space:]]*1[[:space:]]*\r?$' "$setuppp")" -ne 1 ] ||
+    [ "$(grep -Eic '^[[:space:]]*SETUPPP\.INF[[:space:]]*=[[:space:]]*0,' "$layout")" -ne 1 ]; then
+    error "Failed to verify the Windows 95 product-type changes!"
+    return 1
+  fi
 
   return 0
 }
