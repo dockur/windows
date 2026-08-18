@@ -2352,6 +2352,37 @@ EOF
   return 0
 }
 
+stageWinMePowerPolicy() {
+
+  local dir="$1"
+  local desc="$2"
+  local target="$dir/MEPOWER.EXE"
+
+  # Read WinMe's existing global power policy through POWRPROF.DLL, change only
+  # the AC/DC power-button actions to ShutdownOff, then write the policy back.
+  # This preserves all other Setup-selected power-policy fields.
+  if ! base64 -d <<'EOF' | gzip -dc > "$target"
+H4sIAAAAAAACA/ONqmBgZGBgYGFABQ4MhEEFEPPJ7+Jj2MJ5VnEHo89ZxZCMzGKFgqL89KLEXIXk
+xLy8/BKFpFSFotI8hcw8BRf/YIXc/JRUPRUGhgBXBgYfRmaGGT+bs2DmPWBgYuRm5GNgYEJykAAU
+w1wFYjMhpFmQHQzlMME0CiDTSMaAgAIDgw0+zxkwMIgwkA4CFPDr0ytJrSgB0j4wBzFhBj7QiAS9
+opTEkkQGhl1QAbA6Now4ctArSs3JT4baaQBVx4GhzolhFIwCLCCs8c0BINX5LOy/aISCA0PLgVKO
+LMb/ogFA9g5Qeut0UWEBYgGgfAxMngkin8UAoRuPgIyIO3xmFAw5YKOASAsLFCDllwuS2FogO0IB
+e9pJgYoXAekOBdxiDAyuFZklAUX5yanFxUBeUGpiintOflJiTkB5UUB+TmZyJVA0vCizJBVD2Ns1
+yM/Vx9hILyUnhyHAPzwoIMjfDcwZBVQBApC6g8dAwkDHwMLAwWA0SEYSAACNZnNTAAoAAA==
+EOF
+  then
+    error "Failed to create MEPOWER.EXE in $desc setup files!"
+    return 1
+  fi
+
+  if [ "$(wc -c < "$target")" -ne 2560 ]; then
+    error "Failed to verify MEPOWER.EXE in $desc setup files!"
+    return 1
+  fi
+
+  return 0
+}
+
 stageWin9xPostSetup() {
 
   local dir="$1"
@@ -2427,6 +2458,8 @@ stageWinMeFinalSetup() {
     printf '%s\n' \
       '@ECHO OFF' \
       'C:\WINDOWS\RUNDLL.EXE SETUPX.DLL,InstallHinfSection WinMe.FinalSetup 4 C:\WINDOWS\MSBATCH.INF' \
+      'C:\WINDOWS\MEPOWER.EXE' \
+      'C:\WINDOWS\WIN9XDMA.EXE' \
       'IF EXIST C:\WINDOWS\DESKTOP\ONLINE~1 C:\WINDOWS\COMMAND\DELTREE.EXE /Y C:\WINDOWS\DESKTOP\ONLINE~1 >NUL'
 
   } | unix2dos > "$target" || {
@@ -2669,7 +2702,7 @@ writeWin9xAnswerFile() {
   fi
 
   if [[ "${id,,}" == "win9x"* ]]; then
-    copyFiles+=",WinMe.Final"
+    copyFiles+=",WinMe.Final,WinMe.Power"
   fi
 
   if enabled "$shortcut" || [ -n "$install" ]; then
@@ -2733,7 +2766,9 @@ writeWin9xAnswerFile() {
     fi
 
     if [[ "${id,,}" == "win9x"* ]]; then
-      printf '%s\n' 'MEFINAL.BAT=22'
+      printf '%s\n' \
+        'MEFINAL.BAT=22' \
+        'MEPOWER.EXE=22'
     fi
 
     if ! disabled "$AUTOLOGIN"; then
@@ -2878,7 +2913,10 @@ writeWin9xAnswerFile() {
       printf '%s\n' \
         '' \
         '[WinMe.Final]' \
-        'MEFINAL.BAT'
+        'MEFINAL.BAT' \
+        '' \
+        '[WinMe.Power]' \
+        'MEPOWER.EXE'
     fi
 
     printf '%s\n' \
@@ -2949,6 +2987,7 @@ writeWin9xAnswerFile() {
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
         'WinMe.Final=10' \
+        'WinMe.Power=10' \
         'WinMe.MediaPlayer=10,Desktop' \
         'WinMe.MediaPlayerAll=10,alluse~1\desktop'
     fi
@@ -3263,6 +3302,7 @@ prepareWin9xInstall() {
   if [[ "${id,,}" == "win9x"* ]]; then
     if ! stageWinMeFinalBootFiles "$dir" "$target" "$desc" ||
       ! stageWinMeBootActivation "$target" "$desc" ||
+      ! stageWinMePowerPolicy "$target" "$desc" ||
       ! stageWinMeFinalSetup "$target" "$desc"; then
       rm -rf "$drivers" || :
       return 1
