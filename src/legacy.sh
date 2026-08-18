@@ -2640,8 +2640,8 @@ writeWin9xAnswerFile() {
   local culture region keyboard localeID keyboardID
 
   if [[ "${id,,}" == "win9x"* ]]; then
-    addReg="${addReg%,Win9x.ActiveSetup}"
-    firstLogonAddReg="Win9x.Regwiz,WinMe.ActiveSetup"
+    addReg="${addReg%,Win9x.ActiveSetup},WinMe.ActiveSetup"
+    firstLogonAddReg="Win9x.Regwiz"
     firstLogonDelReg="Win9x.Welcome"
     firstLogonDelFiles=""
     firstLogonUpdateInis=""
