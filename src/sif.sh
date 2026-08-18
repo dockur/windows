@@ -690,13 +690,7 @@ writeRegistry() {
       "\"DefaultSettings.XResolution\"=dword:$XHEX" \
       "\"DefaultSettings.YResolution\"=dword:$YHEX" \
       '' \
-      '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce]' \
-      '"ScreenSaver"="reg add \"HKCU\\Control Panel\\Desktop\" /f /v \"SCRNSAVE.EXE\" /t REG_SZ /d \"off\""' \
-      '"ScreenSaverOff"="reg add \"HKCU\\Control Panel\\Desktop\" /f /v \"ScreenSaveActive\" /t REG_SZ /d \"0\""'
-
-    if enabled "$shortcut"; then
-      printf '%s\n' '"SharedDrive"="cmd /C net use Z: \\\\host.lan\\Data /persistent:yes"'
-    fi
+      '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce]'
 
     printf '%s\n' "$oem" ''
   } | unix2dos > "$dir/\$OEM\$/install.reg" || return 1
@@ -713,6 +707,8 @@ appendRegistry() {
     {
       printf '%s\n' \
         '[HKEY_CURRENT_USER\Control Panel\Desktop]' \
+        '"SCRNSAVE.EXE"="off"' \
+        '"ScreenSaveActive"="0"' \
         '"MenuShowDelay"="100"' \
         '' \
         '[HKEY_CURRENT_USER\Control Panel\Desktop\WindowMetrics]' \
@@ -770,7 +766,6 @@ writeVBS() {
   local username="$2"
   local shortcut="$3"
   local driver="$4"
-  local balloon="$dir/\$OEM\$/balloon.cmd"
   local balloonExe="$dir/\$OEM\$/\$1/Drivers/Balloon/blnsvr.exe"
   local power="$dir/\$OEM\$/\$1/OEM/NT5POWER.VBS"
 
@@ -822,6 +817,31 @@ writeVBS() {
         'Set oLink = WshShell.CreateShortcut(WshShell.SpecialFolders("Desktop") & "\Shared.lnk")' \
         'With oLink' '  .TargetPath = "\\host.lan\Data"' '  .Save' 'End With' 'Set oLink = Nothing' ''
     fi
+
+    if enabled "$shortcut"; then
+      printf '%s\n' \
+        'Set FSO = WScript.CreateObject("Scripting.FileSystemObject")' \
+        'TempDir = WshShell.ExpandEnvironmentStrings("%SystemRoot%\Temp")' \
+        'If Not FSO.FolderExists(TempDir) Then FSO.CreateFolder TempDir' \
+        'SharedScript = FSO.BuildPath(TempDir, "shared.vbs")' \
+        'Set SharedFile = FSO.CreateTextFile(SharedScript, True)' \
+        'SharedFile.WriteLine "On Error Resume Next"' \
+        'SharedFile.WriteLine "Set Network = WScript.CreateObject(""WScript.Network"")"' \
+        'SharedFile.WriteLine "Network.MapNetworkDrive ""Z:"", ""\\host.lan\Data"", True"' \
+        'SharedFile.WriteLine "CreateObject(""Scripting.FileSystemObject"").DeleteFile WScript.ScriptFullName, True"' \
+        'SharedFile.Close' \
+        'WshShell.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce\SharedDrive", "Wscript.exe " & Chr(34) & SharedScript & Chr(34), "REG_SZ"' \
+        ''
+    fi
+
+    if [ -f "$balloonExe" ]; then
+      printf '%s\n' \
+        'Result = WshShell.Run("sc.exe query BalloonService", 0, True)' \
+        'If Result <> 0 Then' \
+        '  Result = WshShell.Run(Chr(34) & "C:\Drivers\Balloon\blnsvr.exe" & Chr(34) & " -i", 0, True)' \
+        'End If' \
+        ''
+    fi
   } | unix2dos > "$dir/\$OEM\$/install.vbs" || return 1
 
   if [[ "$driver" == "xp" || "$driver" == "2k3" ]]; then
@@ -850,29 +870,12 @@ writeVBS() {
     rm -f -- "$power" || return 1
   fi
 
-  if [ -f "$balloonExe" ]; then
-    {
-      printf '%s\n' \
-        '@echo off' \
-        'sc.exe query BalloonService >nul 2>&1' \
-        'if errorlevel 1 "C:\Drivers\Balloon\blnsvr.exe" -i' \
-        ''
-    } | unix2dos > "$balloon" || return 1
-  else
-    rm -f -- "$balloon" || return 1
-  fi
-
   {
     printf '%s\n' \
       '[COMMANDS]' \
       '"REGEDIT /s install.reg"' \
-      '"Wscript install.vbs"'
-
-    if [ -f "$balloon" ]; then
-      printf '%s\n' '"cmd /C balloon.cmd"'
-    fi
-
-    printf '%s\n' ''
+      '"Wscript install.vbs"' \
+      ''
   } | unix2dos > "$dir/\$OEM\$/cmdlines.txt" || return 1
 
   return 0
