@@ -430,35 +430,44 @@ patchWinMeBaseComponents() {
   local target="$1"
   local desc="$2"
   local wmp="$target/WMP.INF"
-  local ols="$target/OLS.INF"
+  local setuppp="$target/SETUPPP.INF"
 
-  # Windows Me installs WMP7 and the Online Services shell integration as base
-  # setup options, so MSBATCH optional-component flags cannot disable them.
-  # Stage loose modified INFs beside the cabinets; Win9x Setup prefers loose
-  # source files over same-named cabinet members.
+  # Windows Me installs WMP7 as a base setup option. The Online Services/MSN
+  # setup path is pulled in by SETUPPP.INF, so suppress it at the source rather
+  # than installing those components and deleting their desktop objects later.
   extractWin9xCabFile "$target" 'WMP.INF' "$wmp" "$desc" || return 1
-  extractWin9xCabFile "$target" 'OLS.INF' "$ols" "$desc" || return 1
+
+  # Preserve a loose SETUPPP.INF if an earlier patcher already staged one.
+  if [ ! -s "$setuppp" ]; then
+    extractWin9xCabFile "$target" 'SETUPPP.INF' "$setuppp" "$desc" || return 1
+  fi
 
   if [ "$(grep -Ec '^[[:space:]]*InstallWMP7[[:space:]]*$' "$wmp")" -ne 1 ]; then
     error "Failed to locate the Windows Me WMP7 base setup option!"
     return 1
   fi
 
-  if [ "$(grep -Ec '^[[:space:]]*(ols\.base|core\.msn)[[:space:]]*$' "$ols")" -ne 2 ]; then
-    error "Failed to locate the Windows Me Online Services base setup options!"
+  if ! grep -Eiq '^[[:space:]]*([^;].*)?OLS\.INF' "$setuppp" ||
+    ! grep -Eiq '^[[:space:]]*([^;].*)?MSNCLNUP\.INF' "$setuppp"; then
+    error "Failed to locate the Windows Me Online Services setup references!"
     return 1
   fi
 
   if ! sed -i \
-    -e '/^[[:space:]]*InstallWMP7[[:space:]]*$/d' "$wmp" \
-    -e '/^[[:space:]]*ols\.base[[:space:]]*$/d' \
-    -e '/^[[:space:]]*core\.msn[[:space:]]*$/d' "$ols"; then
-    error "Failed to disable Windows Me desktop components!"
+    -e '/^[[:space:]]*InstallWMP7[[:space:]]*$/d' "$wmp"; then
+    error "Failed to disable Windows Me WMP7 setup!"
+    return 1
+  fi
+
+  if ! sed -i \
+    -E -e '/^[[:space:]]*([^;].*)?[Oo][Ll][Ss]\.[Ii][Nn][Ff]/d' \
+    -e '/^[[:space:]]*([^;].*)?[Mm][Ss][Nn][Cc][Ll][Nn][Uu][Pp]\.[Ii][Nn][Ff]/d' "$setuppp"; then
+    error "Failed to disable Windows Me Online Services setup!"
     return 1
   fi
 
   if grep -Eq '^[[:space:]]*InstallWMP7[[:space:]]*$' "$wmp" ||
-    grep -Eq '^[[:space:]]*(ols\.base|core\.msn)[[:space:]]*$' "$ols"; then
+    grep -Eiq '^[[:space:]]*([^;].*)?(OLS\.INF|MSNCLNUP\.INF)' "$setuppp"; then
     error "Failed to verify the Windows Me desktop component changes!"
     return 1
   fi
@@ -1481,7 +1490,8 @@ writeWin9xAnswerFile() {
         '"America Online"=0' \
         '"AT&T WorldNet Service"=0' \
         '"Prodigy Internet"=0' \
-        '"EarthLink"=0'
+        '"EarthLink"=0' \
+        '"Media Player"=0'
     fi
 
     printf '%s\n' \
