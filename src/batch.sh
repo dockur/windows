@@ -355,9 +355,6 @@ patchWin9xSetupFiles() {
     return 1
   }
 
-  local msg="Patching Windows setup..."
-  info "$msg" && html "$msg"
-
   local patch_output
   local patch_args=(-auto -unselect creg)
 
