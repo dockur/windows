@@ -526,17 +526,28 @@ updateAutologinXML() {
   return 0
 }
 
+usesWscriptLogonLauncher() {
+
+  case "${DETECTED,,}" in
+    "winvista"* | "win7"* | "win2008r2"* ) return 0 ;;
+  esac
+
+  return 1
+}
+
 updateLogonCommandXML() {
 
   local asset="$1"
 
-  case "${DETECTED,,}" in
-    "winvista"* ) return 0 ;;
-  esac
-
   local command="$XML_COMPONENT_SHELL_OOBE/u:FirstLogonCommands/u:SynchronousCommand/u:CommandLine"
   local expected='cmd.exe /d /c call "%WINDIR%\Setup\Scripts\SetupComplete.cmd" logon'
-  local hidden="powershell.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -Command \"& \$env:ComSpec /d /c ('call ' + [char]34 + \$env:WINDIR + '\Setup\Scripts\SetupComplete.cmd' + [char]34 + ' logon'); exit \$LASTEXITCODE\""
+  local hidden
+
+  if usesWscriptLogonLauncher; then
+    hidden='wscript.exe //B //NoLogo C:\Windows\Setup\Scripts\RunHidden.vbs'
+  else
+    hidden="powershell.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -Command \"\$cmd = 'call ' + [char]34 + \$env:WINDIR + '\Setup\Scripts\SetupComplete.cmd' + [char]34 + ' logon'; & \$env:ComSpec /d /c \$cmd; exit \$LASTEXITCODE\""
+  fi
 
   local count value
   count=$(getXMLNodeCount "$asset" "$command") || return 1
@@ -1957,8 +1968,45 @@ prepareSetupScript() {
 
   [ -n "$staged" ] || return 0
 
+  stageHiddenLogonLauncher "$stage" || return 1
   updateSetupScript "$staged" "$asset" || return 1
   finalizeSetupScript "$staged" || return 1
+
+  return 0
+}
+
+stageHiddenLogonLauncher() {
+
+  local stage="$1"
+
+  usesWscriptLogonLauncher || return 0
+
+  local target="$stage/\$OEM\$/\$\$/Setup/Scripts/RunHidden.vbs"
+
+  if ! mkdir -p "$(dirname "$target")"; then
+    error "Failed to create hidden logon launcher directory!"
+    return 1
+  fi
+
+  if ! cat > "$target" <<'EOF'
+Option Explicit
+
+Dim shell, command, result
+
+Set shell = CreateObject("WScript.Shell")
+command = shell.ExpandEnvironmentStrings("%ComSpec% /d /c call " & Chr(34) & "%WINDIR%\Setup\Scripts\SetupComplete.cmd" & Chr(34) & " logon")
+result = shell.Run(command, 0, True)
+WScript.Quit result
+EOF
+  then
+    error "Failed to create hidden logon launcher!"
+    return 1
+  fi
+
+  if ! unix2dos -q "$target"; then
+    error "Failed to convert hidden logon launcher to DOS format!"
+    return 1
+  fi
 
   return 0
 }
