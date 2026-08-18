@@ -31,6 +31,7 @@ setMachine() {
 
       "win95" | "winnt4" )
 
+        createMarker "kill" || return 1
         writeState "usb" "N" || return 1
         writeState "port" "on" || return 1
         writeState "net" "pcnet" || return 1
@@ -63,6 +64,7 @@ setMachine() {
 
         if isReactOSLiveCD "$iso"; then
           SYSTEM="$iso"
+          createMarker "kill" || return 1
         fi ;;
 
     esac
