@@ -398,7 +398,7 @@ markWindowsBooted() {
   # now booting from the installed disk rather than from setup media.
   ready || return 0
 
-  createMarker "windows.boot" || return 0
+  createMarker "boot" || return 0
 
   if ! disabled "$REMOVE"; then
     case "${BOOT,,}" in
