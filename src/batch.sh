@@ -7,7 +7,7 @@ Win9xInstall() {
   local dir="$3"
   local desc="$4"
 
-  local folder monitor="Plug and Play Monitor" options="/IS /IQ /IT" target
+  local folder monitor="Plug and Play Monitor" options="/ID /IS /IQ /IT" target
   local setup="SETUP"
   local shortcut="Y"
 
@@ -24,7 +24,8 @@ Win9xInstall() {
 
   case "${id,,}" in
     "win95"* )
-      folder="WIN95" ;;
+      folder="WIN95"
+      options="/IW $options" ;;
     "win98"* )
       folder="WIN98"
       options="/P J /IE /NF $options" ;;
