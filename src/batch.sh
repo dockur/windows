@@ -1409,7 +1409,7 @@ writeWin9xAnswerFile() {
   local firstLogonDelReg="Win9x.Welcome,Win9x.MSN,Win9x.ICWDesktop"
   local firstLogonDelFiles="Win9x.PatcherMarker,Win9x.Connect,Win9x.ConnectAll,Win9x.OnlineServices"
   local firstLogonUpdateInis="Win9x.OnlineServicesFolder"
-  local copyFiles="" post="" hide=""
+  local copyFiles="" post="" hide="" installDelReg=""
   local culture region keyboard localeID keyboardID
 
   if [[ "${id,,}" == "win9x"* ]]; then
@@ -1427,6 +1427,7 @@ writeWin9xAnswerFile() {
 
   if [[ "${id,,}" == "win95"* ]]; then
     addReg+=",Win95.PCINIC,Win95.Welcome"
+    installDelReg="Win95.InitShell,Win9x.Welcome"
   fi
 
   culture=$(getLanguage "$LANGUAGE" "culture") || return 1
@@ -1521,7 +1522,13 @@ writeWin9xAnswerFile() {
       '[Install]' \
       "CopyFiles=$copyFiles" \
       "UpdateInis=$updateInis" \
-      "AddReg=$addReg" \
+      "AddReg=$addReg"
+
+    if [ -n "$installDelReg" ]; then
+      printf '%s\n' "DelReg=$installDelReg"
+    fi
+
+    printf '%s\n' \
       '' \
       '[OPKInstall]' \
       'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion","ProductId",,"12345-OEM-1234567-12345"' \
@@ -1966,6 +1973,9 @@ writeWin9xStorageRegistry() {
 writeWin9xCleanupRegistry() {
 
   printf '%s\n' \
+    '[Win95.InitShell]' \
+    'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","InitShell",,,' \
+    '' \
     '[Win95.Welcome]' \
     'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer\Tips","Show",1,00' \
     '' \
