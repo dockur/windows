@@ -398,18 +398,7 @@ markWindowsBooted() {
   # now booting from the installed disk rather than from setup media.
   ready || return 0
 
-  local marker="$STORAGE/windows.boot"
-
-  if ! touch "$marker"; then
-    warn "failed to create Windows installation marker!"
-    return 0
-  fi
-
-  if ! setOwner "$marker"; then
-    rm -f "$marker"
-    warn "failed to set the owner for \"$marker\" !"
-    return 0
-  fi
+  createMarker "windows.boot" || return 0
 
   if ! disabled "$REMOVE"; then
     case "${BOOT,,}" in
