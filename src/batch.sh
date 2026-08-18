@@ -750,9 +750,9 @@ writeWin9xAutoexec() {
   local setup="$2"
   local options="$3"
   local id="$4"
-  local patch_args="-auto -unselect creg"
+  local patch_options="-auto -unselect creg"
 
-  [[ "${id,,}" == "win9x"* ]] && patch_args="-auto"
+  [[ "${id,,}" == "win9x"* ]] && patch_options="-auto"
 
   {
     printf '%s\n' \
@@ -783,7 +783,7 @@ writeWin9xAutoexec() {
       'IF NOT EXIST C:\SETUP\PATCH9X.EXE GOTO STARTWIN' \
       'IF NOT EXIST C:\SETUP\CWSDPMI.EXE GOTO STARTWIN' \
       "CD C:\\SETUP" \
-      "PATCH9X.EXE $patch_args C:\\WINDOWS\\SYSTEM >NUL" \
+      "PATCH9X.EXE $patch_options C:\\WINDOWS\\SYSTEM >NUL" \
       "CD C:\\" \
       ':STARTWIN'
 
