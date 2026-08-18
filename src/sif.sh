@@ -1,6 +1,142 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+SIFInstall() {
+
+  local dir="$2"
+  local desc="$3"
+  local driver="$4"
+
+  local shortcut="Y"
+  local drivers="/tmp/drivers"
+
+  if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
+    shortcut="N"
+  fi
+
+  if [ -n "$DOMAIN" ]; then
+    error "The DOMAIN variable is not supported for $desc!"
+    return 1
+  fi
+
+  ETFS="[BOOT]/Boot-NoEmul.img"
+
+  if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
+    error "Failed to locate file \"$ETFS\" in $desc ISO image!"
+    return 1
+  fi
+
+  # Legacy media uses directory names rather than metadata to identify the
+  # architecture and the text-mode setup source tree.
+  local arch="amd64"
+  [ ! -d "$dir/AMD64" ] && arch="x86"
+
+  local target="$dir/AMD64"
+  [[ "${arch,,}" == "x86" ]] && target="$dir/I386"
+
+  if [ ! -d "$target" ]; then
+    error "Failed to locate directory \"$target\" in $desc ISO image!"
+    return 1
+  fi
+
+  if [[ "${driver,,}" == "xp" || "${driver,,}" == "2k3" ]]; then
+    addLegacyDrivers "$dir" "$target" "$driver" "$arch" "$drivers" || return 1
+  fi
+
+  disableAutoReboot "$target" || return 1
+  setLegacyKey "$target" "$driver" "$arch" "$desc" || return 1
+  validateProductKey "$KEY" || return 1
+
+  local product=""
+  [ -n "$KEY" ] && product="ProductID=$KEY"
+
+  mkdir -p "$dir/\$OEM\$" || return 1
+
+  if ! addFolder "$dir"; then
+    error "Failed to add OEM folder to image!"
+    return 1
+  fi
+
+  local oem=""
+  local install=""
+  local oem_dir="$dir/\$OEM\$/\$1/OEM"
+
+  if [ -d "$oem_dir" ]; then
+    install=$(find \
+      "$oem_dir" -maxdepth 1 -type f -iname install.bat -print -quit
+    ) || return 1
+  fi
+
+  oem=$(writeCommand "$install") || return 1
+
+  [ -z "$WIDTH" ] && WIDTH="1280"
+  [ -z "$HEIGHT" ] && HEIGHT="720"
+
+  validateResolution "WIDTH" "$WIDTH" 320 || return 1
+  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
+  validateMembership || return 1
+  validateComputerName "$HOST" || return 1
+
+  validateLegacyText "APP" "$APP" "$desc" || return 1
+  validateLegacyText "ENGINE" "$ENGINE" "$desc" || return 1
+
+  if [[ "$driver" == "2k" ]]; then
+    validateLegacyEncoding "APP" "$APP" "$desc" || return 1
+    validateLegacyEncoding "ENGINE" "$ENGINE" "$desc" || return 1
+  fi
+
+  XHEX=$(printf '%08x\n' "$((10#$WIDTH))") || return 1
+  YHEX=$(printf '%08x\n' "$((10#$HEIGHT))") || return 1
+
+  local username="${USERNAME:-Docker}"
+  local password="${PASSWORD:-admin}"
+  local workgroup="${WORKGROUP:-WORKGROUP}"
+  local culture region keyboard localeID inputLocaleID keyboardID
+
+  culture=$(getLanguage "$LANGUAGE" "culture") || return 1
+  [ -z "$culture" ] && culture="en-US"
+  region="${REGION:-$culture}"
+  keyboard="${KEYBOARD:-en-US}"
+  localeID=$(getLocaleID "$region") || return 1
+  inputLocaleID=$(getInputLocaleID "$keyboard") || return 1
+  keyboardID=$(getKeyboardID "$keyboard") || return 1
+
+  local sifHost sifUsername sifPassword sifOrganization sifWorkgroup
+  local regUsername regPassword
+
+  validateLegacyUsername "$username" "$desc" || return 1
+  validatePassword "$password" "$desc" || return 1
+
+  if [[ "$driver" == "2k" ]]; then
+    validateLegacyEncoding "USERNAME" "$username" "$desc" || return 1
+    validateLegacyEncoding "PASSWORD" "$password" "$desc" || return 1
+    validateLegacyEncoding "WORKGROUP" "$workgroup" "$desc" || return 1
+  fi
+
+  # WINNT.SIF and .reg files use different escaping rules, so prepare their
+  # values independently before generating either file.
+  sifHost=$(escapeSIFValue "${HOST:-*}") || return 1
+  sifUsername=$(escapeSIFValue "$username") || return 1
+  sifPassword=$(escapeSIFValue "$password") || return 1
+  sifOrganization=$(escapeSIFValue "$APP for $ENGINE") || return 1
+  sifWorkgroup=$(escapeSIFValue "$workgroup") || return 1
+  regUsername=$(escapeRegistryValue "$username") || return 1
+  regPassword=$(escapeRegistryValue "$password") || return 1
+
+  writeSIF \
+    "$target" \
+    "$driver" \
+    "$product" "$sifHost" "$sifUsername" "$sifPassword" "$sifOrganization" "$sifWorkgroup" \
+    "$localeID" "$inputLocaleID" "$keyboardID" || return 1
+
+  writeRegistry "$dir" "$shortcut" "$oem" "$regUsername" "$regPassword" || return 1
+
+  appendRegistry "$dir" "$driver" || return 1
+  writeVBS "$dir" "$username" "$shortcut" "$driver" || return 1
+
+  return 0
+}
+
 copyStorageDriver() {
 
   local dir="$1"
@@ -738,142 +874,6 @@ disableAutoReboot() {
         unix2dos >> "$file" || :
       ;;
   esac
-
-  return 0
-}
-
-prepareSIFInstall() {
-
-  local dir="$2"
-  local desc="$3"
-  local driver="$4"
-
-  local shortcut="Y"
-  local drivers="/tmp/drivers"
-
-  if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
-    shortcut="N"
-  fi
-
-  if [ -n "$DOMAIN" ]; then
-    error "The DOMAIN variable is not supported for $desc!"
-    return 1
-  fi
-
-  ETFS="[BOOT]/Boot-NoEmul.img"
-
-  if [ ! -f "$dir/$ETFS" ] || [ ! -s "$dir/$ETFS" ]; then
-    error "Failed to locate file \"$ETFS\" in $desc ISO image!"
-    return 1
-  fi
-
-  # Legacy media uses directory names rather than metadata to identify the
-  # architecture and the text-mode setup source tree.
-  local arch="amd64"
-  [ ! -d "$dir/AMD64" ] && arch="x86"
-
-  local target="$dir/AMD64"
-  [[ "${arch,,}" == "x86" ]] && target="$dir/I386"
-
-  if [ ! -d "$target" ]; then
-    error "Failed to locate directory \"$target\" in $desc ISO image!"
-    return 1
-  fi
-
-  if [[ "${driver,,}" == "xp" || "${driver,,}" == "2k3" ]]; then
-    addLegacyDrivers "$dir" "$target" "$driver" "$arch" "$drivers" || return 1
-  fi
-
-  disableAutoReboot "$target" || return 1
-  setLegacyKey "$target" "$driver" "$arch" "$desc" || return 1
-  validateProductKey "$KEY" || return 1
-
-  local product=""
-  [ -n "$KEY" ] && product="ProductID=$KEY"
-
-  mkdir -p "$dir/\$OEM\$" || return 1
-
-  if ! addFolder "$dir"; then
-    error "Failed to add OEM folder to image!"
-    return 1
-  fi
-
-  local oem=""
-  local install=""
-  local oem_dir="$dir/\$OEM\$/\$1/OEM"
-
-  if [ -d "$oem_dir" ]; then
-    install=$(find \
-      "$oem_dir" -maxdepth 1 -type f -iname install.bat -print -quit
-    ) || return 1
-  fi
-
-  oem=$(writeCommand "$install") || return 1
-
-  [ -z "$WIDTH" ] && WIDTH="1280"
-  [ -z "$HEIGHT" ] && HEIGHT="720"
-
-  validateResolution "WIDTH" "$WIDTH" 320 || return 1
-  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
-  validateMembership || return 1
-  validateComputerName "$HOST" || return 1
-
-  validateLegacyText "APP" "$APP" "$desc" || return 1
-  validateLegacyText "ENGINE" "$ENGINE" "$desc" || return 1
-
-  if [[ "$driver" == "2k" ]]; then
-    validateLegacyEncoding "APP" "$APP" "$desc" || return 1
-    validateLegacyEncoding "ENGINE" "$ENGINE" "$desc" || return 1
-  fi
-
-  XHEX=$(printf '%08x\n' "$((10#$WIDTH))") || return 1
-  YHEX=$(printf '%08x\n' "$((10#$HEIGHT))") || return 1
-
-  local username="${USERNAME:-Docker}"
-  local password="${PASSWORD:-admin}"
-  local workgroup="${WORKGROUP:-WORKGROUP}"
-  local culture region keyboard localeID inputLocaleID keyboardID
-
-  culture=$(getLanguage "$LANGUAGE" "culture") || return 1
-  [ -z "$culture" ] && culture="en-US"
-  region="${REGION:-$culture}"
-  keyboard="${KEYBOARD:-en-US}"
-  localeID=$(getLocaleID "$region") || return 1
-  inputLocaleID=$(getInputLocaleID "$keyboard") || return 1
-  keyboardID=$(getKeyboardID "$keyboard") || return 1
-
-  local sifHost sifUsername sifPassword sifOrganization sifWorkgroup
-  local regUsername regPassword
-
-  validateLegacyUsername "$username" "$desc" || return 1
-  validatePassword "$password" "$desc" || return 1
-
-  if [[ "$driver" == "2k" ]]; then
-    validateLegacyEncoding "USERNAME" "$username" "$desc" || return 1
-    validateLegacyEncoding "PASSWORD" "$password" "$desc" || return 1
-    validateLegacyEncoding "WORKGROUP" "$workgroup" "$desc" || return 1
-  fi
-
-  # WINNT.SIF and .reg files use different escaping rules, so prepare their
-  # values independently before generating either file.
-  sifHost=$(escapeSIFValue "${HOST:-*}") || return 1
-  sifUsername=$(escapeSIFValue "$username") || return 1
-  sifPassword=$(escapeSIFValue "$password") || return 1
-  sifOrganization=$(escapeSIFValue "$APP for $ENGINE") || return 1
-  sifWorkgroup=$(escapeSIFValue "$workgroup") || return 1
-  regUsername=$(escapeRegistryValue "$username") || return 1
-  regPassword=$(escapeRegistryValue "$password") || return 1
-
-  writeSIF \
-    "$target" \
-    "$driver" \
-    "$product" "$sifHost" "$sifUsername" "$sifPassword" "$sifOrganization" "$sifWorkgroup" \
-    "$localeID" "$inputLocaleID" "$keyboardID" || return 1
-
-  writeRegistry "$dir" "$shortcut" "$oem" "$regUsername" "$regPassword" || return 1
-
-  appendRegistry "$dir" "$driver" || return 1
-  writeVBS "$dir" "$username" "$shortcut" "$driver" || return 1
 
   return 0
 }
