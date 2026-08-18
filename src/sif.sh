@@ -91,7 +91,8 @@ SIFInstall() {
   local username="${USERNAME:-Docker}"
   local password="${PASSWORD:-admin}"
   local workgroup="${WORKGROUP:-WORKGROUP}"
-  local culture region keyboard localeID inputLocaleID keyboardID
+  local culture region keyboard timezone
+  local localeID inputLocaleID keyboardID
 
   culture=$(getLanguage "$LANGUAGE" "culture") || return 1
   [ -z "$culture" ] && culture="en-US"
@@ -100,6 +101,7 @@ SIFInstall() {
   localeID=$(getLocaleID "$region") || return 1
   inputLocaleID=$(getInputLocaleID "$keyboard") || return 1
   keyboardID=$(getKeyboardID "$keyboard") || return 1
+  timezone=$(getTimeZone "$region" "nt5") || return 1
 
   local sifHost sifUsername sifPassword sifOrganization sifWorkgroup
   local regUsername regPassword
