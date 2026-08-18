@@ -369,6 +369,12 @@ jobs:
                       }
                   }
 
+                  if (-not (Test-Path -LiteralPath "Z:\" -PathType Container)) {
+                      throw "Mapped Z: drive is not available."
+                  }
+
+                  $driveZ = "ok"
+
                   $share = (
                       Get-Content `
                           -LiteralPath "\\host.lan\Data\validation.token" `
@@ -431,6 +437,7 @@ jobs:
                       version     = [string]$windows.Version
                       build       = [string]$windows.BuildNumber
                       platform    = $platform
+                      drive_z     = $driveZ
                       oem_file    = $oemFile
                       share       = $share
                       share_write = "ok"
@@ -590,6 +597,15 @@ jobs:
             TestSharedFolder = "ok"
           End Function
 
+          Function TestMappedDrive(filesystem)
+            If Not filesystem.DriveExists("Z:") Then
+              Err.Raise vbObjectError + 4, "TestMappedDrive", _
+                "Mapped Z: drive is not available."
+            End If
+
+            TestMappedDrive = "ok"
+          End Function
+
           Function TestInternet()
             Dim request
             Dim response
@@ -647,6 +663,7 @@ jobs:
           Dim oemFile
           Dim share
           Dim shareWrite
+          Dim driveZ
           Dim internet
 
           Dim json
@@ -685,6 +702,7 @@ jobs:
               oemFile = ReadTextFile(filesystem, "C:\OEM\validation.token")
               share = ReadTextFile(filesystem, "\\host.lan\Data\validation.token")
               shareWrite = TestSharedFolder(filesystem, token)
+              driveZ = TestMappedDrive(filesystem)
               internet = TestInternet()
             End If
 
@@ -700,6 +718,7 @@ jobs:
                 """oem_file"":""" & EscapeJson(oemFile) & """," & _
                 """share"":""" & EscapeJson(share) & """," & _
                 """share_write"":""" & EscapeJson(shareWrite) & """," & _
+                """drive_z"":""" & EscapeJson(driveZ) & """," & _
                 """internet"":""" & EscapeJson(internet) & """" & _
                 "}"
 
@@ -779,11 +798,14 @@ jobs:
 
           :retry
           if not exist \\host.lan\Data\validation.token goto wait
+          if not exist Z:\NUL goto wait
 
           echo TOKEN> C:\OEM\validation.result
           type C:\OEM\validation.token >> C:\OEM\validation.result
           echo SHARE>> C:\OEM\validation.result
           type \\host.lan\Data\validation.token >> C:\OEM\validation.result
+          echo DRIVE_Z>> C:\OEM\validation.result
+          echo ok>> C:\OEM\validation.result
           echo VERSION>> C:\OEM\validation.result
           ver >> C:\OEM\validation.result
 
@@ -1095,6 +1117,47 @@ jobs:
             return 0
           }
 
+          check_rdp_port() {
+            local container_ip
+            local attempt
+
+            container_ip="$(
+              docker inspect \
+                --format '{{range .NetworkSettings.Networks}}{{println .IPAddress}}{{end}}' \
+                "$CONTAINER" 2>/dev/null |
+                head -n 1 || true
+            )"
+
+            if [[ -z "$container_ip" ]]; then
+              echo "Could not determine the Windows container IP address."
+              return 1
+            fi
+
+            echo
+            echo "Checking TCP port 3389 at $container_ip..."
+
+            for attempt in {1..30}; do
+              if timeout 2 bash -c \
+                "exec 3<>/dev/tcp/$container_ip/3389; exec 3>&-; exec 3<&-" \
+                2>/dev/null; then
+                echo "TCP port 3389 is open."
+                return 0
+              fi
+
+              sleep 2
+            done
+
+            case "${VERSION,,}" in
+              95 | 98 | me)
+                echo "::warning::TCP port 3389 is not open for $DISPLAY_NAME; this is allowed."
+                return 0
+                ;;
+            esac
+
+            echo "TCP port 3389 is not open for $DISPLAY_NAME."
+            return 1
+          }
+
           deadline=$((SECONDS + INSTALL_TIMEOUT))
           reboot_timeout="$REBOOT_TIMEOUT"
           minimum_reboots="$MINIMUM_REBOOTS"
@@ -1269,6 +1332,10 @@ jobs:
                 awk '$0 == "SHARE" { getline; print; exit }' <<< "$basic_response"
               )"
 
+              drive_z="$(
+                awk '$0 == "DRIVE_Z" { getline; print; exit }' <<< "$basic_response"
+              )"
+
               version="$(
                 awk '
                   $0 == "VERSION" { found = 1; next }
@@ -1276,7 +1343,7 @@ jobs:
                 ' <<< "$basic_response"
               )"
 
-              if [[ -z "$oem_file" || -z "$share" || -z "$version" ]] ||
+              if [[ -z "$oem_file" || -z "$share" || -z "$drive_z" || -z "$version" ]] ||
                  ! grep -Eq '[0-9]+\.[0-9]+\.[0-9]+' <<< "$version"; then
                 sleep 1
                 continue
@@ -1305,6 +1372,11 @@ jobs:
                 echo "  $EXPECTED_TOKEN"
                 echo "Received:"
                 echo "  ${share:-empty}"
+                exit 1
+              fi
+
+              if [[ "$drive_z" != "ok" ]]; then
+                echo "The mapped Z: drive test did not succeed."
                 exit 1
               fi
 
@@ -1342,12 +1414,17 @@ jobs:
                 exit 1
               fi
 
+              if ! check_rdp_port; then
+                exit 1
+              fi
+
               echo
               echo "$DISPLAY_NAME installed successfully."
               echo "Version: $version_number"
               echo "Build: $build"
               echo "OEM files: copied successfully"
               echo "Shared folder: readable and writable"
+              echo "Mapped Z: drive: available"
               exit 0
             fi
 
@@ -1381,6 +1458,7 @@ jobs:
               oem_file="$(jq -r '.oem_file // empty' <<< "$response")"
               share="$(jq -r '.share // empty' <<< "$response")"
               share_write="$(jq -r '.share_write // empty' <<< "$response")"
+              drive_z="$(jq -r '.drive_z // empty' <<< "$response")"
               internet="$(jq -r '.internet // empty' <<< "$response")"
 
               if [[ "$token" != "$EXPECTED_TOKEN" ]]; then
@@ -1408,6 +1486,11 @@ jobs:
 
               if [[ "$share_write" != "ok" ]]; then
                 echo "The shared folder write test did not succeed."
+                exit 1
+              fi
+
+              if [[ "$drive_z" != "ok" ]]; then
+                echo "The mapped Z: drive test did not succeed."
                 exit 1
               fi
 
@@ -1461,6 +1544,10 @@ jobs:
                 exit 1
               fi
 
+              if ! check_rdp_port; then
+                exit 1
+              fi
+
               echo
               echo "$DISPLAY_NAME installed successfully."
               echo "Version: $version"
@@ -1468,6 +1555,7 @@ jobs:
               echo "Platform: $platform"
               echo "OEM files: copied successfully"
               echo "Shared folder: readable and writable"
+              echo "Mapped Z: drive: available"
               echo "Internet connection: accessible"
               exit 0
             fi
