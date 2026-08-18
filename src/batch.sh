@@ -99,6 +99,10 @@ Win9xInstall() {
     stageWin9xHide "$target" "$desc" || return 1
   fi
 
+  if [[ "${id,,}" == "win9x"* ]]; then
+    stageWin9xWait "$target" "$desc" || return 1
+  fi
+
   if [ -n "$install" ] || [[ "${id,,}" == "win9x"* ]]; then
     stageWin9xPostSetup "$target" "$desc" "$install" "$id" || return 1
   fi
@@ -227,6 +231,36 @@ EOF
 
   if [ "$(wc -c < "$target")" -ne 1024 ]; then
     error "Failed to verify HIDE.EXE in $desc setup files!"
+    return 1
+  fi
+
+  return 0
+}
+
+stageWin9xWait() {
+
+  local dir="$1"
+  local desc="$2"
+  local target="$dir/WAIT.EXE"
+
+  if ! base64 -d <<'EOF' | gzip -dc > "$target"
+H4sICEFjhGoCA1dBSVQtMjAyNjA4MTgtMTU1Ni5FWEUA842qYGBkYGBgYUAFDgyEQQUQ88nv4mPYwnlWcQejz1nFkIzMYoWC
+ovz0osRcheTEvLz8EoWkVIWi0jyFzDwFF/9ghdz8lFQ9FQaGAFcGBh9GFgbH5JYsmHkPGJgYuRn5GBiYkBwkAMUwV4HYTAhp
+uLsDEBwmmEYBZBrJGBBbgYFBA5/ngFbpMJAOfIDmiuCR1ytJrSgB0nKMDHC/oAc+0IgEvaKUxJJEBobVUAGwOjYMJzroQZQx
+sIDMM8DplQN6Rak5+clQPzlAzePAUOfEMApGFAgP+y8aoODA0MXR8FOpVNKBfxuHQ/NPpRKW1pOln3sL/gNF+V0+vBZp+KlY
+xNtbwNhQwajQ+aH862umzmNdbJ0H/510a/ipUPSl5UApdxbTf1EfkFlu//m3nWg5UBIGNKlUs4sNyPQ0vGSjVGLf+IsJmFDL
+zXu9GDuaGAyAal3EGDtPAXU/fK0BVKJYJANVIoJQwiIGVvHoNVvnxddMhiePNYKEGRpswVQpB8zeDBD/v2gIkNn843+pfLdp
+BJDZbQsSyHjBzMDw/xpEyXWgdMnbLAaItrj4w/9VQWHwX9UHTIaASZDeM8Me/AcCUDqA0RYKiLQxTwFSnmEDCUDxPCBuAOJp
+CrjFGBhcKzJLAoryk1OLi4E899QS5/zc3MS8FJ/MvFRHiIhbZk6qY0lJUWZSaUlqMUiQITgnNbWAwds1yM/Vx9hILyUnZzSv
+0gQIQOoEFoMAgxqD+QbbDPYanDA4a3DZ4J7BE4MPBv8NOAz5DEUMpQxHg2o4AgCe4TcIAAoAAA==
+EOF
+  then
+    error "Failed to create WAIT.EXE in $desc setup files!"
+    return 1
+  fi
+
+  if [ "$(wc -c < "$target")" -ne 2560 ]; then
+    error "Failed to verify WAIT.EXE in $desc setup files!"
     return 1
   fi
 
@@ -1027,7 +1061,8 @@ stageWinMeFinalSetup() {
       'C:\WINDOWS\RUNDLL.EXE SETUPX.DLL,InstallHinfSection WinMe.FinalSetup 4 C:\WINDOWS\MSBATCH.INF' \
       'C:\WINDOWS\MEPOWER.EXE' \
       'C:\WINDOWS\WIN9XDMA.EXE' \
-      'IF EXIST C:\WINDOWS\DESKTOP\ONLINE~1 C:\WINDOWS\COMMAND\DELTREE.EXE /Y C:\WINDOWS\DESKTOP\ONLINE~1 >NUL'
+      'IF EXIST C:\WINDOWS\DESKTOP\ONLINE~1 C:\WINDOWS\COMMAND\DELTREE.EXE /Y C:\WINDOWS\DESKTOP\ONLINE~1 >NUL' \
+      'ECHO DONE>C:\WINDOWS\MEFINAL.DONE'
 
   } | unix2dos > "$target" || {
     error "Failed to create final Windows Me setup script for $desc!"
@@ -1091,7 +1126,7 @@ writeWin9xAnswerFile() {
   fi
 
   if [[ "${id,,}" == "win9x"* ]]; then
-    copyFiles+=",WinMe.Final,WinMe.Power"
+    copyFiles+=",WinMe.Final,WinMe.Power,WinMe.Wait"
   fi
 
   if enabled "$shortcut" || [ -n "$install" ] || [[ "${id,,}" == "win9x"* ]]; then
@@ -1152,7 +1187,8 @@ writeWin9xAnswerFile() {
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
         'MEFINAL.BAT=22' \
-        'MEPOWER.EXE=22'
+        'MEPOWER.EXE=22' \
+        'WAIT.EXE=22'
     fi
 
     if ! disabled "$AUTOLOGIN"; then
@@ -1224,7 +1260,11 @@ writeWin9xAnswerFile() {
         'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\~BatchSetupx",,,">Batch 9x - General Settings"' \
         'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\~BatchSetupx","IsInstalled",0x00000001,01,00,00,00' \
         'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\~BatchSetupx","Version",,"3,0,0,0"' \
-        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\~BatchSetupx","StubPath",,"%10%\HIDE.EXE %10%\COMMAND.COM /C %10%\MEFINAL.BAT"'
+        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\~BatchSetupx","StubPath",,"%10%\HIDE.EXE %10%\COMMAND.COM /C %10%\MEFINAL.BAT"' \
+        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\~BatchWaitx",,,">Batch 9x - Final Settings Wait"' \
+        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\~BatchWaitx","IsInstalled",0x00000001,01,00,00,00' \
+        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\~BatchWaitx","Version",,"3,0,0,0"' \
+        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\~BatchWaitx","StubPath",,"%10%\WAIT.EXE C:\WINDOWS\MEFINAL.DONE"'
     fi
 
     printf '%s\n' \
@@ -1292,7 +1332,10 @@ writeWin9xAnswerFile() {
         'MEFINAL.BAT' \
         '' \
         '[WinMe.Power]' \
-        'MEPOWER.EXE'
+        'MEPOWER.EXE' \
+        '' \
+        '[WinMe.Wait]' \
+        'WAIT.EXE'
     fi
 
     printf '%s\n' \
@@ -1360,6 +1403,7 @@ writeWin9xAnswerFile() {
       printf '%s\n' \
         'WinMe.Final=10' \
         'WinMe.Power=10' \
+        'WinMe.Wait=10' \
         'WinMe.MediaPlayer=10,Desktop' \
         'WinMe.MediaPlayerAll=10,alluse~1\desktop'
     fi
