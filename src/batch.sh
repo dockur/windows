@@ -430,6 +430,7 @@ patchWinMeBaseComponents() {
   local target="$1"
   local desc="$2"
   local wmp="$target/WMP.INF"
+  local mplayer2="$target/MPLAYER2.INF"
   local setuppp="$target/SETUPPP.INF"
 
   # Windows Me installs WMP7 as a base setup option. The Online Services/MSN
@@ -437,13 +438,22 @@ patchWinMeBaseComponents() {
   # than installing those components and deleting their desktop objects later.
   extractWin9xCabFile "$target" 'WMP.INF' "$wmp" "$desc" || return 1
 
-  # Preserve a loose SETUPPP.INF if an earlier patcher already staged one.
+  # Preserve loose setup INFs if an earlier patcher already staged them.
+  if [ ! -s "$mplayer2" ]; then
+    extractWin9xCabFile "$target" 'MPLAYER2.INF' "$mplayer2" "$desc" || return 1
+  fi
+
   if [ ! -s "$setuppp" ]; then
     extractWin9xCabFile "$target" 'SETUPPP.INF' "$setuppp" "$desc" || return 1
   fi
 
   if [ "$(grep -Ec '^[[:space:]]*InstallWMP7[[:space:]]*$' "$wmp")" -ne 1 ]; then
     error "Failed to locate the Windows Me WMP7 base setup option!"
+    return 1
+  fi
+
+  if [ "$(grep -Eio '/Shortcuts' "$mplayer2" | wc -l)" -ne 2 ]; then
+    error "Failed to locate the Windows Me Media Player shortcut commands!"
     return 1
   fi
 
@@ -459,6 +469,11 @@ patchWinMeBaseComponents() {
     return 1
   fi
 
+  if ! sed -i -E 's/[[:space:]]+\/[Ss][Hh][Oo][Rr][Tt][Cc][Uu][Tt][Ss]//g' "$mplayer2"; then
+    error "Failed to disable Windows Me Media Player shortcuts!"
+    return 1
+  fi
+
   if ! sed -i \
     -E -e '/^[[:space:]]*([^;].*)?[Oo][Ll][Ss]\.[Ii][Nn][Ff]/d' \
     -e '/^[[:space:]]*([^;].*)?[Mm][Ss][Nn][Cc][Ll][Nn][Uu][Pp]\.[Ii][Nn][Ff]/d' "$setuppp"; then
@@ -467,6 +482,7 @@ patchWinMeBaseComponents() {
   fi
 
   if grep -Eq '^[[:space:]]*InstallWMP7[[:space:]]*$' "$wmp" ||
+    grep -Eiq '/Shortcuts' "$mplayer2" ||
     grep -Eiq '^[[:space:]]*([^;].*)?(OLS\.INF|MSNCLNUP\.INF)' "$setuppp"; then
     error "Failed to verify the Windows Me desktop component changes!"
     return 1
@@ -1490,8 +1506,7 @@ writeWin9xAnswerFile() {
         '"America Online"=0' \
         '"AT&T WorldNet Service"=0' \
         '"Prodigy Internet"=0' \
-        '"EarthLink"=0' \
-        '"Media Player"=0'
+        '"EarthLink"=0'
     fi
 
     printf '%s\n' \
