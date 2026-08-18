@@ -55,7 +55,7 @@ jobs:
       tunnel_delay: 1800
       kill_on_failure: true
       install_timeout: 9000
-      reboot_timeout: 1800
+      reboot_timeout: 18000
       minimum_reboots: 1
       boot_loop_limit: 10
       expected_caption: ${{ inputs.expected_caption }}
