@@ -966,7 +966,7 @@ isLegacyBoot() {
 
 hasBootMarker() {
 
-  [ -f "$STORAGE/windows.boot" ]
+  [ -f "${STORAGE}/${PROCESS}.boot" ]
 }
 
 createMarker() {
