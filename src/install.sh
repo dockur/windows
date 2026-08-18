@@ -969,6 +969,24 @@ hasBootMarker() {
   [ -f "$STORAGE/windows.boot" ]
 }
 
+createMarker() {
+
+  local marker="$STORAGE/$1"
+
+  if ! touch "$marker"; then
+    warn "failed to create marker \"$marker\" !"
+    return 1
+  fi
+
+  if ! setOwner "$marker"; then
+    rm -f "$marker"
+    warn "failed to set the owner for \"$marker\" !"
+    return 1
+  fi
+
+  return 0
+}
+
 hasImage() {
 
   local iso="$1"
