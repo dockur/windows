@@ -137,6 +137,41 @@ SIFInstall() {
   return 0
 }
 
+addLegacyDrivers() {
+
+  local dir="$1"
+  local target="$2"
+  local driver="$3"
+  local arch="$4"
+  local drivers="$5"
+
+  local msg="Adding drivers to image..."
+  info "$msg" && html "$msg"
+
+  extractDrivers "$drivers" || return 1
+  copyStorageDriver "$dir" "$target" "$driver" "$arch" "$drivers" || return 1
+  addNetworkDriver "$dir" "$driver" "$arch" "$drivers" || return 1
+  addDisplayDriver "$dir" "$driver" "$arch" "$drivers" || return 1
+  addBalloonDriver "$dir" "$driver" "$arch" "$drivers" || return 1
+
+  local file
+  file=$(find "$target" -maxdepth 1 -type f -iname TXTSETUP.SIF -print -quit) || return 1
+
+  if [ -z "$file" ]; then
+    error "The file TXTSETUP.SIF could not be found!"
+    return 1
+  fi
+
+  patchStorageDriver "$file" "$arch" || return 1
+  addSataDriver "$dir" "$target" "$arch" "$drivers" "$file" || return 1
+
+  if ! rm -rf "$drivers"; then
+    warn "failed to clean temporary driver files!"
+  fi
+
+  return 0
+}
+
 copyStorageDriver() {
 
   local dir="$1"
@@ -246,48 +281,6 @@ addBalloonDriver() {
   return 0
 }
 
-addSIFEntry() {
-
-  local file="$1"
-  local section="$2"
-  local entry="$3"
-
-  local header="[$section]"
-  local line ending="lf"
-
-  line=$(grep -Fnx -m 1 "$header" "$file" | cut -d: -f1) || line=""
-
-  if [ -z "$line" ]; then
-    line=$(grep -Fnx -m 1 "$header"$'\r' "$file" | cut -d: -f1) || line=""
-    ending="crlf"
-  fi
-
-  if [ -z "$line" ]; then
-    error "Failed to locate section \"$header\" in \"$file\" !"
-    return 1
-  fi
-
-  local rc=0
-  grep -Fqx -e "$entry" -e "$entry"$'\r' "$file" || rc=$?
-
-  if (( rc == 0 )); then
-    return 0
-  fi
-
-  if (( rc != 1 )); then
-    error "Failed to inspect section \"$header\" in \"$file\" !"
-    return 1
-  fi
-
-  if [[ "$ending" == "crlf" ]]; then
-    printf '%s\r\n' "$entry"
-  else
-    printf '%s\n' "$entry"
-  fi | sed -i "${line}r /dev/stdin" "$file" || return 1
-
-  return 0
-}
-
 patchStorageDriver() {
 
   local file="$1"
@@ -338,37 +331,76 @@ addSataDriver() {
   return 0
 }
 
-addLegacyDrivers() {
+addSIFEntry() {
 
-  local dir="$1"
-  local target="$2"
-  local driver="$3"
-  local arch="$4"
-  local drivers="$5"
+  local file="$1"
+  local section="$2"
+  local entry="$3"
 
-  local msg="Adding drivers to image..."
-  info "$msg" && html "$msg"
+  local header="[$section]"
+  local line ending="lf"
 
-  extractDrivers "$drivers" || return 1
-  copyStorageDriver "$dir" "$target" "$driver" "$arch" "$drivers" || return 1
-  addNetworkDriver "$dir" "$driver" "$arch" "$drivers" || return 1
-  addDisplayDriver "$dir" "$driver" "$arch" "$drivers" || return 1
-  addBalloonDriver "$dir" "$driver" "$arch" "$drivers" || return 1
+  line=$(grep -Fnx -m 1 "$header" "$file" | cut -d: -f1) || line=""
 
-  local file
-  file=$(find "$target" -maxdepth 1 -type f -iname TXTSETUP.SIF -print -quit) || return 1
+  if [ -z "$line" ]; then
+    line=$(grep -Fnx -m 1 "$header"$'\r' "$file" | cut -d: -f1) || line=""
+    ending="crlf"
+  fi
 
-  if [ -z "$file" ]; then
-    error "The file TXTSETUP.SIF could not be found!"
+  if [ -z "$line" ]; then
+    error "Failed to locate section \"$header\" in \"$file\" !"
     return 1
   fi
 
-  patchStorageDriver "$file" "$arch" || return 1
-  addSataDriver "$dir" "$target" "$arch" "$drivers" "$file" || return 1
+  local rc=0
+  grep -Fqx -e "$entry" -e "$entry"$'\r' "$file" || rc=$?
 
-  if ! rm -rf "$drivers"; then
-    warn "failed to clean temporary driver files!"
+  if (( rc == 0 )); then
+    return 0
   fi
+
+  if (( rc != 1 )); then
+    error "Failed to inspect section \"$header\" in \"$file\" !"
+    return 1
+  fi
+
+  if [[ "$ending" == "crlf" ]]; then
+    printf '%s\r\n' "$entry"
+  else
+    printf '%s\n' "$entry"
+  fi | sed -i "${line}r /dev/stdin" "$file" || return 1
+
+  return 0
+}
+
+disableAutoReboot() {
+
+  local target="$1"
+
+  local file rc=0
+  local pattern='^[[:space:]]*HKLM[[:space:]]*,[[:space:]]*"SYSTEM\\CurrentControlSet\\Control\\CrashControl"[[:space:]]*,[[:space:]]*"AutoReboot"[[:space:]]*,[[:space:]]*[^,]*,'
+
+  file=$(find "$target" -maxdepth 1 -type f -iname HIVESYS.INF -print -quit) || return 1
+
+  if [ -z "$file" ]; then
+    error "The file HIVESYS.INF could not be found!"
+    return 1
+  fi
+
+  # Keep setup crashes visible instead of immediately rebooting into an
+  # opaque installation loop.
+  grep -Eqi "${pattern}[[:space:]]*[^,;[:space:]]+" "$file" || rc=$?
+
+  case "$rc" in
+    0 )
+      sed -i -E "s|(${pattern})[[:space:]]*[^,;[:space:]]+|\\1 0|I" "$file" || :
+      ;;
+    1 )
+      printf '%s\n' \
+        'HKLM,"SYSTEM\CurrentControlSet\Control\CrashControl","AutoReboot",0x00010001,0' |
+        unix2dos >> "$file" || :
+      ;;
+  esac
 
   return 0
 }
@@ -842,38 +874,6 @@ writeVBS() {
 
     printf '%s\n' ''
   } | unix2dos > "$dir/\$OEM\$/cmdlines.txt" || return 1
-
-  return 0
-}
-
-disableAutoReboot() {
-
-  local target="$1"
-
-  local file rc=0
-  local pattern='^[[:space:]]*HKLM[[:space:]]*,[[:space:]]*"SYSTEM\\CurrentControlSet\\Control\\CrashControl"[[:space:]]*,[[:space:]]*"AutoReboot"[[:space:]]*,[[:space:]]*[^,]*,'
-
-  file=$(find "$target" -maxdepth 1 -type f -iname HIVESYS.INF -print -quit) || return 1
-
-  if [ -z "$file" ]; then
-    error "The file HIVESYS.INF could not be found!"
-    return 1
-  fi
-
-  # Keep setup crashes visible instead of immediately rebooting into an
-  # opaque installation loop.
-  grep -Eqi "${pattern}[[:space:]]*[^,;[:space:]]+" "$file" || rc=$?
-
-  case "$rc" in
-    0 )
-      sed -i -E "s|(${pattern})[[:space:]]*[^,;[:space:]]+|\\1 0|I" "$file" || :
-      ;;
-    1 )
-      printf '%s\n' \
-        'HKLM,"SYSTEM\CurrentControlSet\Control\CrashControl","AutoReboot",0x00010001,0' |
-        unix2dos >> "$file" || :
-      ;;
-  esac
 
   return 0
 }
