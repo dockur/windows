@@ -881,6 +881,11 @@ supportsACPI() {
 
   case "${id,,}" in
 
+    "win95" )
+
+      # Windows 95 has no ACPI support, so force kill the VM.
+      return 1 ;;
+ 
     "reactos" )
 
       # If the ISO is a Live-CD it will ignore ACPI signals.
