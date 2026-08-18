@@ -119,6 +119,7 @@ Win9xInstall() {
   fi
 
   stageWin9xDMA "$target" "$desc" || return 1
+  stageWin9xScandiskConfig "$target" "$desc" || return 1
 
   # Reuse the same driver archive extraction used by the XP/2003 path. All
   # Windows 9x support files live together under win9x/ in that archive.
@@ -417,6 +418,52 @@ EOF
     error "Failed to verify WIN9XDMA.EXE in $desc setup files!"
     return 1
   fi
+
+  return 0
+}
+
+stageWin9xScandiskConfig() {
+
+  local dir="$1"
+  local desc="$2"
+  local target="$dir/W9XSCAN.INI"
+
+  # Boot-time ScanDisk is started in /CUSTOM mode after an unclean shutdown.
+  # Keep filesystem repair enabled while removing every normal interactive
+  # decision and summary screen. A surface scan is intentionally excluded: it
+  # is unnecessary for routine forced-poweroff recovery and would make booting
+  # a large virtual disk take an excessive amount of time.
+  {
+    printf '%s\n' \
+      '[Environment]' \
+      'LfnCheck=On' \
+      '' \
+      '[Custom]' \
+      'DriveSummary=Off' \
+      'AllSummary=Off' \
+      'Surface=Never' \
+      'CheckHost=Never' \
+      'SaveLog=Append' \
+      'Undo=Never' \
+      'DS_Header=Fix' \
+      'FAT_Media=Fix' \
+      'Okay_Entries=Fix' \
+      'Bad_Chain=Fix' \
+      'Crosslinks=Fix' \
+      'Boot_Sector=Fix' \
+      'Invalid_MDFAT=Fix' \
+      'DS_Crosslinks=Fix' \
+      'DS_LostClust=Fix' \
+      'DS_Signatures=Fix' \
+      'Mismatch_FAT=Fix' \
+      'Bad_Clusters=Fix' \
+      'Bad_Entries=Delete' \
+      'LostClust=Save' \
+      ''
+  } | unix2dos > "$target" || {
+    error "Failed to create SCANDISK.INI in $desc setup files!"
+    return 1
+  }
 
   return 0
 }
@@ -1363,7 +1410,7 @@ writeWin9xAnswerFile() {
   # Every supported Windows 95 release is OSR2 or newer, so the same DMA
   # helper is used for Windows 95, Windows 98 and Windows Me.
   addReg+=",Win9x.StorageActiveSetup"
-  copyFiles+=",Win9x.DMA"
+  copyFiles+=",Win9x.DMA,Win9x.ScanDisk"
 
   # Enable the installed-system repatch only in the late MSBATCH file-copy
   # phase. The temporary AUTOEXEC already checks PATCH9X.RUN, so earlier Setup
@@ -1402,7 +1449,8 @@ writeWin9xAnswerFile() {
       'PATCH9X.NEW=22' \
       'W9XAUTO.BAT=22' \
       'QEMOUSE.DRV=22' \
-      'WIN9XDMA.EXE=22'
+      'WIN9XDMA.EXE=22' \
+      'W9XSCAN.INI=22'
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
@@ -1617,11 +1665,15 @@ writeWin9xAnswerFile() {
       '[Win9x.DMA]' \
       'WIN9XDMA.EXE' \
       '' \
+      '[Win9x.ScanDisk]' \
+      'SCANDISK.INI,W9XSCAN.INI,,4' \
+      '' \
       '[DestinationDirs]' \
       'Win9x.PatcherEnable=30,SETUP' \
       'Win9x.PatcherMarker=30,SETUP' \
       'Win9x.Autoexec=30' \
       'Win9x.QEMouse=11' \
+      'Win9x.ScanDisk=10,COMMAND' \
       'Win9x.Connect=10,Desktop' \
       'Win9x.ConnectAll=10,alluse~1\desktop' \
       'Win9x.OnlineServices=10,Desktop\Online~1'
@@ -2342,6 +2394,7 @@ createWin9xSystemImage() {
       '[Options]' \
       "BootGUI=$boot_gui" \
       'BootDelay=0' \
+      'AutoScan=2' \
       'Logo=0' \
       ''
   } | unix2dos > "$msdos" || return 1
