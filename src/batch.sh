@@ -164,7 +164,7 @@ Win9xInstall() {
     return 1
   fi
 
-  if ! stageWin9xMouseFiles "$target" "$desc" "$qemouse"; then
+  if ! stageWin9xSetupOverrides "$target" "$desc" "$qemouse"; then
     rm -rf "$drivers" || :
     return 1
   fi
@@ -920,28 +920,117 @@ stageWin9xDosPatcher() {
   return 0
 }
 
-stageWin9xMouseFiles() {
+stageWin9xSetupOverrides() {
 
   local dir="$1"
   local desc="$2"
   local qemouse="$3"
-  local file="qemouse.drv"
-  local source="$qemouse/$file"
-  local target="$dir/${file^^}"
+  local layout="$dir/LAYOUT.INF"
+  local mouse="$qemouse/qemouse.drv"
+  local scandisk="$dir/W9XSCAN.INI"
+  local mouse_target="$dir/MOUSE.DRV"
+  local scandisk_target="$dir/SCANDISK.INI"
+  local mouse_size scandisk_size
 
-  # QEMouse is used both by MINI.CAB during GUI Setup and by the installed OS.
-  # Keep one source copy in C:\SETUP; MSBATCH.INF installs the same binary as
-  # MOUSE.DRV so Windows can retain its stock mouse configuration and VxD stack.
-  if [ ! -f "$source" ]; then
-    error "Failed to locate $file!"
+  if [ ! -f "$mouse" ]; then
+    error "Failed to locate qemouse.drv!"
     return 1
   fi
 
-  if ! cp -f -- "$source" "$target" || ! cmp -s -- "$source" "$target"; then
-    error "Failed to stage $file in $desc setup files!"
+  if [ ! -f "$scandisk" ]; then
+    error "Failed to locate the staged SCANDISK.INI configuration!"
     return 1
   fi
 
+  # Make Setup's own source filenames contain our desired payloads. This avoids
+  # competing CopyFiles destinations entirely: every normal Setup copy or later
+  # reinstall of MOUSE.DRV/SCANDISK.INI resolves to these same loose files.
+  if [ ! -s "$layout" ]; then
+    extractWin9xCabFile "$dir" 'LAYOUT.INF' "$layout" "$desc" || return 1
+  fi
+
+  if ! cp -f -- "$mouse" "$mouse_target" ||
+    ! cmp -s -- "$mouse" "$mouse_target"; then
+    error "Failed to replace the $desc MOUSE.DRV setup source!"
+    return 1
+  fi
+
+  if ! cp -f -- "$scandisk" "$scandisk_target" ||
+    ! cmp -s -- "$scandisk" "$scandisk_target"; then
+    error "Failed to replace the $desc SCANDISK.INI setup source!"
+    return 1
+  fi
+
+  mouse_size=$(stat -c %s -- "$mouse_target") || return 1
+  scandisk_size=$(stat -c %s -- "$scandisk_target") || return 1
+
+  # LAYOUT.INF is the source map used by the system-supplied setup INFs. Point
+  # both stock filenames at disk 0 with no source subdirectory, matching the
+  # loose-file override already used for Win95 SETUPPP.INF, and record the new
+  # uncompressed sizes. Preserve every unrelated byte in LAYOUT.INF.
+  if ! python3 - "$layout" "$mouse_size" "$scandisk_size" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+layout = Path(sys.argv[1])
+replacements = {
+    b'MOUSE.DRV': int(sys.argv[2]),
+    b'SCANDISK.INI': int(sys.argv[3]),
+}
+
+data = layout.read_bytes()
+lines = data.splitlines(keepends=True)
+
+for name, size in replacements.items():
+    pattern = re.compile(
+        br'^([ \t]*' + re.escape(name) + br'[ \t]*=[ \t]*)'
+        br'[0-9]+,[^,\r\n]*,[0-9]+([^\r\n]*)(\r?\n)?$',
+        re.IGNORECASE,
+    )
+    matches = []
+
+    for index, line in enumerate(lines):
+        match = pattern.match(line)
+        if match:
+            matches.append((index, match))
+
+    if len(matches) != 1:
+        print(
+            f"Unexpected {name.decode('ascii')} layout-entry count: {len(matches)} (expected 1).",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+
+    index, match = matches[0]
+    lines[index] = (
+        match.group(1)
+        + b'0,,'
+        + str(size).encode('ascii')
+        + match.group(2)
+        + (match.group(3) or b'')
+    )
+
+layout.write_bytes(b''.join(lines))
+
+verify = layout.read_bytes().splitlines()
+for name, size in replacements.items():
+    expected = re.compile(
+        br'^[ \t]*' + re.escape(name) + br'[ \t]*=[ \t]*0,,'
+        + str(size).encode('ascii')
+        + br'(?:,|[ \t]*$)',
+        re.IGNORECASE,
+    )
+    if sum(bool(expected.match(line)) for line in verify) != 1:
+        print(f"Failed to verify the {name.decode('ascii')} layout override.", file=sys.stderr)
+        raise SystemExit(1)
+PY
+  then
+    error "Failed to update the $desc setup source layout!"
+    return 1
+  fi
+
+  rm -f -- "$scandisk" || return 1
   return 0
 }
 
@@ -1356,7 +1445,7 @@ writeWin9xAnswerFile() {
   local firstLogonDelReg="Win9x.Welcome,Win9x.MSN,Win9x.ICWDesktop"
   local firstLogonDelFiles="Win9x.PatcherMarker,Win9x.Connect,Win9x.ConnectAll,Win9x.OnlineServices"
   local firstLogonUpdateInis="Win9x.OnlineServicesFolder"
-  local copyFiles="" post="" hide=""
+  local copyFiles="" post="" hide="" installDelReg=""
   local culture region keyboard localeID keyboardID
 
   if [[ "${id,,}" == "win9x"* ]]; then
@@ -1374,6 +1463,7 @@ writeWin9xAnswerFile() {
 
   if [[ "${id,,}" == "win95"* ]]; then
     addReg+=",Win95.PCINIC,Win95.Welcome"
+    installDelReg="Win95.InitShell,Win9x.Welcome"
   fi
 
   culture=$(getLanguage "$LANGUAGE" "culture") || return 1
@@ -1410,21 +1500,12 @@ writeWin9xAnswerFile() {
   # Every supported Windows 95 release is OSR2 or newer, so the same DMA
   # helper is used for Windows 95, Windows 98 and Windows Me.
   addReg+=",Win9x.StorageActiveSetup"
-  copyFiles+=",Win9x.DMA,Win9x.ScanDisk"
+  copyFiles+=",Win9x.DMA"
 
   # Enable the installed-system repatch only in the late MSBATCH file-copy
   # phase. The temporary AUTOEXEC already checks PATCH9X.RUN, so earlier Setup
   # reboots continue exactly as before this change.
   copyFiles+=",Win9x.PatcherEnable"
-
-  # Restore the exact same final AUTOEXEC.BAT for Win95, Win98 and Me. It is
-  # intentionally last so Setup cannot leave any release-specific startup edits.
-  copyFiles+=",Win9x.Autoexec"
-
-  # Replace the stock MOUSE.DRV binary during Setup without changing its installed
-  # filename or Windows' mouse configuration. The same QEMouse binary is also
-  # used directly by the MINI.CAB GUI Setup environment.
-  copyFiles+=",Win9x.QEMouse"
 
   # Strip the leading separator left by the common CopyFiles append logic.
   copyFiles="${copyFiles#,}"
@@ -1447,10 +1528,7 @@ writeWin9xAnswerFile() {
       '' \
       '[SourceDisksFiles]' \
       'PATCH9X.NEW=22' \
-      'W9XAUTO.BAT=22' \
-      'QEMOUSE.DRV=22' \
-      'WIN9XDMA.EXE=22' \
-      'W9XSCAN.INI=22'
+      'WIN9XDMA.EXE=22'
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
@@ -1479,7 +1557,13 @@ writeWin9xAnswerFile() {
       '[Install]' \
       "CopyFiles=$copyFiles" \
       "UpdateInis=$updateInis" \
-      "AddReg=$addReg" \
+      "AddReg=$addReg"
+
+    if [ -n "$installDelReg" ]; then
+      printf '%s\n' "DelReg=$installDelReg"
+    fi
+
+    printf '%s\n' \
       '' \
       '[OPKInstall]' \
       'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion","ProductId",,"12345-OEM-1234567-12345"' \
@@ -1560,6 +1644,9 @@ writeWin9xAnswerFile() {
       firstLogonUpdateInis+="Win9x.PatcherCleanup"
     fi
 
+    [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
+    firstLogonUpdateInis+="Win9x.AutoexecFinal"
+
     if enabled "$post"; then
       [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
       firstLogonUpdateInis+="Win9x.PostMarker"
@@ -1621,11 +1708,8 @@ writeWin9xAnswerFile() {
       '[Win9x.PatcherMarker]' \
       'PATCH9X.RUN' \
       '' \
-      '[Win9x.Autoexec]' \
-      'AUTOEXEC.BAT,W9XAUTO.BAT,,4' \
-      '' \
-      '[Win9x.QEMouse]' \
-      'MOUSE.DRV,QEMOUSE.DRV,,4'
+      '[Win9x.AutoexecFinal]' \
+      '%10%\wininit.ini,Rename,,"C:\AUTOEXEC.BAT=C:\SETUP\W9XAUTO.BAT"'
 
     if ! disabled "$AUTOLOGIN"; then
       printf '%s\n' \
@@ -1665,15 +1749,9 @@ writeWin9xAnswerFile() {
       '[Win9x.DMA]' \
       'WIN9XDMA.EXE' \
       '' \
-      '[Win9x.ScanDisk]' \
-      'SCANDISK.INI,W9XSCAN.INI,,4' \
-      '' \
       '[DestinationDirs]' \
       'Win9x.PatcherEnable=30,SETUP' \
       'Win9x.PatcherMarker=30,SETUP' \
-      'Win9x.Autoexec=30' \
-      'Win9x.QEMouse=11' \
-      'Win9x.ScanDisk=10,COMMAND' \
       'Win9x.Connect=10,Desktop' \
       'Win9x.ConnectAll=10,alluse~1\desktop' \
       'Win9x.OnlineServices=10,Desktop\Online~1'
@@ -1936,6 +2014,9 @@ writeWin9xStorageRegistry() {
 writeWin9xCleanupRegistry() {
 
   printf '%s\n' \
+    '[Win95.InitShell]' \
+    'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","InitShell",,,' \
+    '' \
     '[Win95.Welcome]' \
     'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer\Tips","Show",1,00' \
     '' \
