@@ -2322,29 +2322,35 @@ stageWin9xDMA() {
   local target="$dir/WIN9XDMA.EXE"
 
   # Keep the Win9x DMA helper embedded alongside HIDE.EXE so the driver
-  # archive stays unchanged. It only updates enumerated ESDI DiskDrive devices.
+  # archive stays unchanged. It updates both enumerated ESDI disks and the
+  # persistent ESDI_506.PDR controller DMA flags used after a reboot.
   if ! base64 -d <<'EOF' | gzip -dc > "$target"
-H4sIAAAAAAACA+1VTUgUcRR/s2610eKs4EKE4CgLUcTy//fpoWC2nUFEzcltFTKzzZ11dtsPm52N
-FTosuEsaBGIdCjp4COpYERJ1UEiQKA28dPCQBB7Cuniw4/RmZ79U/LhWPni87/d+///+52371TQw
-AGCF9cTDzpRGrq5/Vw1vDs41vGXa5hquKOEkN6gmBtRAjOsPxOMJjbspc2oqzoXjnNDh42KJoOx2
-AUgiQBtjhdd9mUix3xJYmENMNYClApCjwEVUhm4ph0u4pbJhKRY6KmVFG6QTHMD57Q7H7xDfgkaw
-L7dN3K3JaQ3lVwZKZ9l4+Vh/w60GA1oAoJExHfm8/Zsg8m4zDSaMPLLlUabdqhxN9BfOxBf62Tbl
-XYQ9+q/I7+vuGv5Z+0BwWaWILQJKI8eDgo8jozsfo5qbTh1VMpioAOEhArrmcujORxi5UIVPLnUE
-HVbdOcblg84RlMMztdf7eno/0LXR5SnjWdLFlTP6aZeZNbocQnKz9dn8fG+5uW9Db+0ZDv/mz6My
-4hiuLYGaVYy1pWSKoOyVheP018o5dNrMkZXzxHKdf0MZm+3WdR17L+Jt2KRIVcTMM2EV5k7NCq78
-HkFpN75LzLVLSobyhnZYwhqGy9fU6c6n+Ro2dxv7Dt91ORg2FzJVO07rQZVOh0Lr7oOdHDN63X95
-AGuzC6zwpWmVFeezC9o+vmlVW8p9ZLONWBhhFDDu3ABZUxo4gdqPKgx/3i0x3mggmQQhnLwlqOE7
-MgjtHm9KVeW4Fh3yJ+UgiPFU7JroE1pAqVhstgZz1w1W+JzoG9ti+b0o+CdRziAvIH9HXuN2F8df
-Lh3WJDXRLyNcgE55wBtNJOVWeci0DJhoeEyrY1COoyWmC/bllKwOdQWiKdl0GT6frJU9rWLnJbHt
-1El3MBoFj9DlkVoKxj9ODvM/oYbUkePkLGkmHSRG7pFx8py8IlPkE1kiv4mF1tNjtJn6aC99SJ/Q
-93SGztO97fn30x8aoy/WAAoAAA==
+H4sIAAAAAAACA+1WT4gbZRR/yeaQtutm0A22a4sTnPViN8w3XYWqC0kzKQ1N7TRx41KjNSZDk5h/
+TGZKVtrSks0hHXIR60F69lxhKUtAGrpVD9oq4qoYkVzUDd3DwsIS8M/4vpmkpuxS9SII++DLzPu9
+N795v998zOTE6QrYAMABD4YP/j4quMaebI7B4q47niVb+I7n5XSmzJaU4lklkWeTiUKhqLJvyqyi
+FdhMgRVPRtl8MSV7OQApCBC2jUDHsZAd8HXAbttjG7OGGQzE9NdgKnpu/6vsGB64n9gHFzLDxyEa
+jGsswIsPE8fjfPDvo4e87EPqXlWuqHhct/cHcmw1H69/w6ukEmoC4B2bBZiinFuekc+ryLlisj8r
+3+/bvaXvCOzETmwTs9FXYpfXruMuq3ekrDMLaWB9kMZddMlwg8cHtZarZmAjaTdyHK/P/IblxiJ3
+HaH0JZPAULlR49taS2VmRpDHVfsI4e4t/GmInNMkncUeRp+ifMYKZXwfq/U4N0raafr6iVGScZNk
+l0mipe/l8GqHlB3JQgyLe+l1WkQPc47mbhwhy2J5XFotYHP1thMvPNgIc0yTwdrqBwgiMpG1pZ+h
+vciRnsATk8ft9JhnDsPdQyzQfdvAUDmnles4FVUa6B6g+DRnwXg3xvLn4FZ/vqFar5me6FPUIH2G
+lsim6VCUzr+fzn/foavUoffAMh2no/JZKl+7qI9yzTk6tA9vOS2tNmAg8DQK5JtJKvBjMAUeIy2f
+tEQlSksjCEmkJaVLltBxfcoUurJdz4V+j7FizXtf5tFuyHKDsfIsGG4GaS7fplvk9TOvvrZMd0x1
+zamf51j0aj/ZpM+pztd/ql/AzSDFIqcMt8M0Rnu8ep5z2DRGd3DHDvfKzk/EFwx05Wh9HRWZZMh1
+Zd9CWz3kd92wo6Ip142NxsWb9Y3qZ2zVmHAFfmyUbtY/rX7BVv/ArHf4V+2xI1f2+Rfa2l3SJq3n
+J1zvtu7ZSQvZlo1JU8skvbsxaaqfZMzfnonTZ/L5TjwQwYKWjwejYggCuUS5DGKm/JaoZM7JIJ7w
+BzRFkQtqbn62LKfAFp0vq3I+3kcDxYKqFHNRWY1HZeVcJimX4yZHPJ1KglRUVJNHAcp+5ln+OW8p
+pUBIDCKxGAnFgvxwQnBr0p0HQ8fvhj6kFY/1bV0fwmqIMZ7t32t7EX8a1zQuEddcvy/r+Wd1gIh8
+NpArluXj8ryVUasw8VvZyZJcwCxY6eenNFmZjyVymmxBFENvhpFgJaNKShGNKoNfjPml0CHBm8rl
+4Hgw8lIw3E/+42Cs/w6P8gd4wuf5Rf5LvsN3+Q3+d/4RwhGBzJAImSNXyYdkmXxFfiC/kE1iF/YI
+TwhPCTHhrvC18L3QEX4W1oSdr+n/L/4EP8bQ8wAMAAA=
 EOF
   then
     error "Failed to create WIN9XDMA.EXE in $desc setup files!"
     return 1
   fi
 
-  if [ "$(wc -c < "$target")" -ne 2560 ]; then
+  if [ "$(wc -c < "$target")" -ne 3072 ]; then
     error "Failed to verify WIN9XDMA.EXE in $desc setup files!"
     return 1
   fi
@@ -2497,7 +2503,34 @@ stageWin9xMouseFiles() {
 
 writeWin9xUserRegistry() {
 
+  local id="$1"
+
   printf '%s\n' \
+    '[Win9x.UserDefault]' \
+    'HKU,".DEFAULT\Control Panel\Desktop","SCRNSAVE.EXE",,""' \
+    'HKU,".DEFAULT\Control Panel\Desktop","ScreenSaveActive",,"0"' \
+    'HKU,".DEFAULT\Control Panel\Desktop","DragFullWindows",,"1"' \
+    'HKU,".DEFAULT\Control Panel\Desktop","MenuShowDelay",,"100"' \
+    'HKU,".DEFAULT\Control Panel\Desktop","FontSmoothing",,"1"' \
+    'HKU,".DEFAULT\Control Panel\Desktop","SmoothScroll",0x00010001,0' \
+    'HKU,".DEFAULT\Control Panel\Desktop\WindowMetrics","MinAnimate",,"0"' \
+    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","HideFileExt",0x00010001,0' \
+    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer\CabinetState","Settings",1,0c,00,02,00,0a,01,00,00,60,00,00,00' \
+    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoActiveDesktop",0x00010001,1' \
+    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer","link",1,00,00,00,00'
+
+  if ! disabled "$AUTOLOGIN"; then
+    printf '%s\n' \
+      'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoLogOff",0x00010001,1'
+
+    if [[ "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' \
+        'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","StartMenuLogoff",0x00010001,0'
+    fi
+  fi
+
+  printf '%s\n' \
+    '' \
     '[Win9x.User]' \
     'HKCU,"Control Panel\Desktop","SCRNSAVE.EXE",,""' \
     'HKCU,"Control Panel\Desktop","ScreenSaveActive",,"0"' \
@@ -2514,6 +2547,11 @@ writeWin9xUserRegistry() {
   if ! disabled "$AUTOLOGIN"; then
     printf '%s\n' \
       'HKCU,"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoLogOff",0x00010001,1'
+
+    if [[ "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' \
+        'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","StartMenuLogoff",0x00010001,0'
+    fi
   fi
 }
 
@@ -2541,6 +2579,14 @@ writeWin9xBrowserPowerRegistry() {
     'HKLM,"Software\Microsoft\Windows\CurrentVersion\Controls Folder\PowerCfg\PowerPolicies\3","Policies",0x00000001,01,00,00,00,02,00,00,00,02,00,00,00,02,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,02,00,00,00,04,00,00,c0,00,00,00,00,02,00,00,00,04,00,00,c0,00,00,00,00' \
     'HKU,".DEFAULT\Control Panel\PowerCfg","CurrentPowerPolicy",,"3"' \
     'HKU,".DEFAULT\Control Panel\PowerCfg\PowerPolicies\3","Policies",0x00000001,01,00,00,00,02,00,00,00,01,00,00,00,00,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,04,00,00,00,05,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,01,64,64,64,64,00,00' \
+    '' \
+    '[Win9x.BrowserDefault]' \
+    'HKU,".DEFAULT\Software\Microsoft\Internet Connection Wizard","Completed",0x00010001,1' \
+    'HKU,".DEFAULT\Software\Microsoft\Internet Explorer\Main","Start Page",,"http://www.google.com"' \
+    'HKU,".DEFAULT\Software\Microsoft\Internet Explorer\Main","First Home Page",,"http://www.google.com"' \
+    'HKU,".DEFAULT\Software\Microsoft\Internet Explorer\Main","Default_Page_URL",,"http://www.google.com"' \
+    'HKU,".DEFAULT\Software\Microsoft\Internet Explorer\Main","Search Page",,"http://www.google.com"' \
+    'HKU,".DEFAULT\Software\Microsoft\Internet Explorer\Main","Search Bar",,"http://www.google.com"' \
     '' \
     '[Win9x.ActiveSetup]' \
     'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx",,,">Batch 9x - General Settings"' \
@@ -2661,7 +2707,7 @@ writeWin9xAnswerFile() {
   local install="${11}"
 
   local desktop="%10%\Desktop"
-  local addReg="OPKInstall,Win9x.Machine,Win9x.PCMCIA,Win9x.Power,Win9x.ActiveSetup"
+  local addReg="OPKInstall,Win9x.Machine,Win9x.PCMCIA,Win9x.Power,Win9x.UserDefault,Win9x.BrowserDefault,Win9x.ActiveSetup"
   local copyFiles=""
   local updateInis="Win9x.SystemIni,Win9x.SystemCb"
   local firstLogonAddReg="Win9x.User,Win9x.Regwiz,Win9x.BrowserUser,Win9x.PowerUser"
@@ -2716,9 +2762,9 @@ writeWin9xAnswerFile() {
     addReg+=",WinMe.BootService"
   fi
 
-  if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
-    # The DMA helper executes code and is therefore kept to the releases it was
-    # built for. Registry/MSBATCH settings themselves are emitted for all Win9x.
+  if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
+    # Every supported Windows 95 release is OSR2 or newer, so the same DMA
+    # helper is used for Windows 95, Windows 98 and Windows Me.
     addReg+=",Win9x.StorageActiveSetup"
     copyFiles+=",Win9x.DMA"
   fi
@@ -2761,7 +2807,7 @@ writeWin9xAnswerFile() {
       'W9XAUTO.BAT=22' \
       'QEMOUSE.DRV=22'
 
-    if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
+    if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
       printf '%s\n' 'WIN9XDMA.EXE=22'
     fi
 
@@ -2880,7 +2926,7 @@ writeWin9xAnswerFile() {
     fi
 
     printf '%s\n' ''
-    writeWin9xUserRegistry
+    writeWin9xUserRegistry "$id"
 
     printf '%s\n' ''
     writeWin9xBrowserPowerRegistry
@@ -2966,7 +3012,7 @@ writeWin9xAnswerFile() {
         '%10%\wininit.ini,Rename,,"C:\WINDOWS\POST9X.RDY=C:\WINDOWS\POST9X.NEW"'
     fi
 
-    if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
+    if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
         '' \
         '[Win9x.DMA]' \
@@ -3004,7 +3050,7 @@ writeWin9xAnswerFile() {
       printf '%s\n' 'Win9x.Post=10'
     fi
 
-    if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
+    if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
       printf '%s\n' 'Win9x.DMA=10'
     fi
 
@@ -3252,7 +3298,7 @@ prepareWin9xInstall() {
     stageWin9xPostSetup "$target" "$desc" "$install" "$id" || return 1
   fi
 
-  if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
+  if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
     stageWin9xDMA "$target" "$desc" || return 1
   fi
 
