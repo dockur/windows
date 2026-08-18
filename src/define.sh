@@ -133,230 +133,6 @@ parseVersion() {
   return 0
 }
 
-getLanguage() {
-
-  local source="$1"
-  local input="${1,,}"
-  local ret="$2"
-
-  local id="$source" lang="" desc="" short="" culture=""
-
-  case "$input" in
-    "ar" | "ar-"* | "arabic" | "arab" )
-      [[ "$input" == "arabic" || "$input" == "arab" ]] && id="ar"
-      short="ar"
-      lang="Arabic"
-      culture="ar-SA" ;;
-    "bg" | "bg-"* | "bulgarian" | "bu" )
-      [[ "$input" == "bulgarian" || "$input" == "bu" ]] && id="bg"
-      short="bg"
-      lang="Bulgarian"
-      culture="bg-BG" ;;
-    "cs" | "cs-"* | "cz" | "cz-"* | "czech" | "cesky" )
-      [[ "$input" == "cz" || "$input" == "czech" || "$input" == "cesky" ]] && id="cs"
-      short="cs"
-      lang="Czech"
-      culture="cs-CZ" ;;
-    "da" | "da-"* | "dk" | "dk-"* | "danish" | "danske" )
-      [[ "$input" == "dk" || "$input" == "danish" || "$input" == "danske" ]] && id="da"
-      short="da"
-      lang="Danish"
-      culture="da-DK" ;;
-    "de" | "de-"* | "german" | "deutsch" )
-      [[ "$input" == "german" || "$input" == "deutsch" ]] && id="de"
-      short="de"
-      lang="German"
-      culture="de-DE" ;;
-    "el" | "el-"* | "gr" | "gr-"* | "greek" )
-      [[ "$input" == "gr" || "$input" == "greek" ]] && id="el"
-      short="el"
-      lang="Greek"
-      culture="el-GR" ;;
-    "gb" | "en-gb" | "british" )
-      [[ "$input" == "gb" || "$input" == "british" ]] && id="en-gb"
-      short="en-gb"
-      lang="English International"
-      desc="English"
-      culture="en-GB" ;;
-    "en" | "en-"* | "english" )
-      [[ "$input" == "english" ]] && id="en"
-      short="en"
-      lang="English"
-      culture="en-US" ;;
-    "mx" | "es-mx" )
-      short="mx"
-      lang="Spanish (Mexico)"
-      desc="Spanish"
-      culture="es-MX" ;;
-    "es" | "es-"* | "spanish" | "espanol" | "español" )
-      [[ "$input" == "spanish" || "$input" == "espanol" || "$input" == "español" ]] && id="es"
-      short="es"
-      lang="Spanish"
-      culture="es-ES" ;;
-    "et" | "et-"* | "estonian" | "eesti" )
-      [[ "$input" == "estonian" || "$input" == "eesti" ]] && id="et"
-      short="et"
-      lang="Estonian"
-      culture="et-EE" ;;
-    "fi" | "fi-"* | "finnish" | "suomi" )
-      [[ "$input" == "finnish" || "$input" == "suomi" ]] && id="fi"
-      short="fi"
-      lang="Finnish"
-      culture="fi-FI" ;;
-    "ca" | "fr-ca" )
-      short="ca"
-      lang="French Canadian"
-      desc="French"
-      culture="fr-CA" ;;
-    "fr" | "fr-"* | "french" | "français" | "francais" )
-      [[ "$input" == "french" || "$input" == "français" || "$input" == "francais" ]] && id="fr"
-      short="fr"
-      lang="French"
-      culture="fr-FR" ;;
-    "he" | "he-"* | "il" | "il-"* | "hebrew" )
-      [[ "$input" == "il" || "$input" == "hebrew" ]] && id="he"
-      short="he"
-      lang="Hebrew"
-      culture="he-IL" ;;
-    "hr" | "hr-"* | "cr" | "cr-"* | "croatian" | "hrvatski" )
-      [[ "$input" == "cr" || "$input" == "croatian" || "$input" == "hrvatski" ]] && id="hr"
-      short="hr"
-      lang="Croatian"
-      culture="hr-HR" ;;
-    "hu" | "hu-"* | "hungarian" | "magyar" )
-      [[ "$input" == "hungarian" || "$input" == "magyar" ]] && id="hu"
-      short="hu"
-      lang="Hungarian"
-      culture="hu-HU" ;;
-    "it" | "it-"* | "italian" | "italiano" )
-      [[ "$input" == "italian" || "$input" == "italiano" ]] && id="it"
-      short="it"
-      lang="Italian"
-      culture="it-IT" ;;
-    "ja" | "ja-"* | "jp" | "jp-"* | "japanese" )
-      [[ "$input" == "jp" || "$input" == "japanese" ]] && id="ja"
-      short="ja"
-      lang="Japanese"
-      culture="ja-JP" ;;
-    "ko" | "ko-"* | "kr" | "kr-"* | "korean" )
-      [[ "$input" == "kr" || "$input" == "korean" ]] && id="ko"
-      short="ko"
-      lang="Korean"
-      culture="ko-KR" ;;
-    "lt" | "lt-"* | "lithuanian" | "lietuvos" )
-      [[ "$input" == "lithuanian" || "$input" == "lietuvos" ]] && id="lt"
-      short="lt"
-      lang="Lithuanian"
-      culture="lt-LT" ;;
-    "lv" | "lv-"* | "latvian" | "latvijas" )
-      [[ "$input" == "latvian" || "$input" == "latvijas" ]] && id="lv"
-      short="lv"
-      lang="Latvian"
-      culture="lv-LV" ;;
-    "nb" | "nb-"* | "nn" | "nn-"* | "no" | "no-"* | "norwegian" | "norsk" )
-      [[ "$input" == "nb" || "$input" == "no" || "$input" == "norwegian" || "$input" == "norsk" ]] && id="nn"
-      short="no"
-      lang="Norwegian"
-      culture="nb-NO" ;;
-    "nl" | "nl-"* | "dutch" | "nederlands" )
-      [[ "$input" == "dutch" || "$input" == "nederlands" ]] && id="nl"
-      short="nl"
-      lang="Dutch"
-      culture="nl-NL" ;;
-    "pl" | "pl-"* | "polish" | "polski" )
-      [[ "$input" == "polish" || "$input" == "polski" ]] && id="pl"
-      short="pl"
-      lang="Polish"
-      culture="pl-PL" ;;
-    "br" | "pt" | "pt-br" | "portuguese" | "português" | "portugues" )
-      [[ "$input" == "pt-br" ]] || id="pt-br"
-      short="pt"
-      lang="Brazilian Portuguese"
-      desc="Portuguese"
-      culture="pt-BR" ;;
-    "pt-"* )
-      short="pp"
-      lang="Portuguese"
-      culture="pt-PT" ;;
-    "ro" | "ro-"* | "romanian" | "română" | "romana" )
-      [[ "$input" == "romanian" || "$input" == "română" || "$input" == "romana" ]] && id="ro"
-      short="ro"
-      lang="Romanian"
-      culture="ro-RO" ;;
-    "ru" | "ru-"* | "russian" | "ruski" )
-      [[ "$input" == "russian" || "$input" == "ruski" ]] && id="ru"
-      short="ru"
-      lang="Russian"
-      culture="ru-RU" ;;
-    "sk" | "sk-"* | "slovak" | "slovenský" | "slovensky" )
-      [[ "$input" == "slovak" || "$input" == "slovenský" || "$input" == "slovensky" ]] && id="sk"
-      short="sk"
-      lang="Slovak"
-      culture="sk-SK" ;;
-    "sl" | "sl-"* | "si" | "si-"* | "slovenian" | "slovenski" )
-      [[ "$input" == "si" || "$input" == "slovenian" || "$input" == "slovenski" ]] && id="sl"
-      short="sl"
-      lang="Slovenian"
-      culture="sl-SI" ;;
-    "sr" | "sr-"* | "serbian" | "serbian latin" )
-      [[ "$input" == "serbian" || "$input" == "serbian latin" ]] && id="sr"
-      short="sr"
-      lang="Serbian Latin"
-      desc="Serbian"
-      culture="sr-Latn-RS" ;;
-    "sv" | "sv-"* | "se" | "se-"* | "swedish" | "svenska" )
-      [[ "$input" == "se" || "$input" == "swedish" || "$input" == "svenska" ]] && id="sv"
-      short="sv"
-      lang="Swedish"
-      culture="sv-SE" ;;
-    "th" | "th-"* | "thai" )
-      [[ "$input" == "thai" ]] && id="th"
-      short="th"
-      lang="Thai"
-      culture="th-TH" ;;
-    "tr" | "tr-"* | "turkish" | "türk" | "turk" )
-      [[ "$input" == "turkish" || "$input" == "türk" || "$input" == "turk" ]] && id="tr"
-      short="tr"
-      lang="Turkish"
-      culture="tr-TR" ;;
-    "ua" | "ua-"* | "uk" | "uk-"* | "ukrainian" )
-      [[ "$input" == "ua" || "$input" == "ukrainian" ]] && id="uk"
-      short="uk"
-      lang="Ukrainian"
-      culture="uk-UA" ;;
-    "hk" | "zh-hk" | "cn-hk" )
-      short="hk"
-      lang="Chinese (Traditional)"
-      desc="Chinese HK"
-      culture="zh-TW" ;;
-    "tw" | "zh-tw" | "cn-tw" )
-      short="tw"
-      lang="Chinese (Traditional)"
-      desc="Chinese TW"
-      culture="zh-TW" ;;
-    "zh" | "zh-"* | "cn" | "cn-"* | "chinese" )
-      [[ "$input" == "cn" || "$input" == "chinese" ]] && id="zh"
-      short="cn"
-      lang="Chinese (Simplified)"
-      desc="Chinese"
-      culture="zh-CN" ;;
-  esac
-
-  [ -z "$lang" ] && return 0
-  [ -z "$desc" ] && desc="$lang"
-
-  case "${ret,,}" in
-    "id" ) echo "$id" ;;
-    "desc" ) echo "$desc" ;;
-    "name" ) echo "$lang" ;;
-    "code" ) echo "$short" ;;
-    "culture" ) echo "$culture" ;;
-    * ) echo "$desc";;
-  esac
-
-  return 0
-}
-
 parseLanguage() {
 
   REGION="${REGION//_/-}"
@@ -1801,6 +1577,461 @@ validVersion() {
 }
 
 isCompatible() {
+  return 0
+}
+
+getLanguage() {
+
+  local source="$1"
+  local input="${1,,}"
+  local ret="$2"
+
+  local id="$source" lang="" desc="" short="" culture=""
+
+  case "$input" in
+    "ar" | "ar-"* | "arabic" | "arab" )
+      [[ "$input" == "arabic" || "$input" == "arab" ]] && id="ar"
+      short="ar"
+      lang="Arabic"
+      culture="ar-SA" ;;
+    "bg" | "bg-"* | "bulgarian" | "bu" )
+      [[ "$input" == "bulgarian" || "$input" == "bu" ]] && id="bg"
+      short="bg"
+      lang="Bulgarian"
+      culture="bg-BG" ;;
+    "cs" | "cs-"* | "cz" | "cz-"* | "czech" | "cesky" )
+      [[ "$input" == "cz" || "$input" == "czech" || "$input" == "cesky" ]] && id="cs"
+      short="cs"
+      lang="Czech"
+      culture="cs-CZ" ;;
+    "da" | "da-"* | "dk" | "dk-"* | "danish" | "danske" )
+      [[ "$input" == "dk" || "$input" == "danish" || "$input" == "danske" ]] && id="da"
+      short="da"
+      lang="Danish"
+      culture="da-DK" ;;
+    "de" | "de-"* | "german" | "deutsch" )
+      [[ "$input" == "german" || "$input" == "deutsch" ]] && id="de"
+      short="de"
+      lang="German"
+      culture="de-DE" ;;
+    "el" | "el-"* | "gr" | "gr-"* | "greek" )
+      [[ "$input" == "gr" || "$input" == "greek" ]] && id="el"
+      short="el"
+      lang="Greek"
+      culture="el-GR" ;;
+    "gb" | "en-gb" | "british" )
+      [[ "$input" == "gb" || "$input" == "british" ]] && id="en-gb"
+      short="en-gb"
+      lang="English International"
+      desc="English"
+      culture="en-GB" ;;
+    "en" | "en-"* | "english" )
+      [[ "$input" == "english" ]] && id="en"
+      short="en"
+      lang="English"
+      culture="en-US" ;;
+    "mx" | "es-mx" )
+      short="mx"
+      lang="Spanish (Mexico)"
+      desc="Spanish"
+      culture="es-MX" ;;
+    "es" | "es-"* | "spanish" | "espanol" | "español" )
+      [[ "$input" == "spanish" || "$input" == "espanol" || "$input" == "español" ]] && id="es"
+      short="es"
+      lang="Spanish"
+      culture="es-ES" ;;
+    "et" | "et-"* | "estonian" | "eesti" )
+      [[ "$input" == "estonian" || "$input" == "eesti" ]] && id="et"
+      short="et"
+      lang="Estonian"
+      culture="et-EE" ;;
+    "fi" | "fi-"* | "finnish" | "suomi" )
+      [[ "$input" == "finnish" || "$input" == "suomi" ]] && id="fi"
+      short="fi"
+      lang="Finnish"
+      culture="fi-FI" ;;
+    "ca" | "fr-ca" )
+      short="ca"
+      lang="French Canadian"
+      desc="French"
+      culture="fr-CA" ;;
+    "fr" | "fr-"* | "french" | "français" | "francais" )
+      [[ "$input" == "french" || "$input" == "français" || "$input" == "francais" ]] && id="fr"
+      short="fr"
+      lang="French"
+      culture="fr-FR" ;;
+    "he" | "he-"* | "il" | "il-"* | "hebrew" )
+      [[ "$input" == "il" || "$input" == "hebrew" ]] && id="he"
+      short="he"
+      lang="Hebrew"
+      culture="he-IL" ;;
+    "hr" | "hr-"* | "cr" | "cr-"* | "croatian" | "hrvatski" )
+      [[ "$input" == "cr" || "$input" == "croatian" || "$input" == "hrvatski" ]] && id="hr"
+      short="hr"
+      lang="Croatian"
+      culture="hr-HR" ;;
+    "hu" | "hu-"* | "hungarian" | "magyar" )
+      [[ "$input" == "hungarian" || "$input" == "magyar" ]] && id="hu"
+      short="hu"
+      lang="Hungarian"
+      culture="hu-HU" ;;
+    "it" | "it-"* | "italian" | "italiano" )
+      [[ "$input" == "italian" || "$input" == "italiano" ]] && id="it"
+      short="it"
+      lang="Italian"
+      culture="it-IT" ;;
+    "ja" | "ja-"* | "jp" | "jp-"* | "japanese" )
+      [[ "$input" == "jp" || "$input" == "japanese" ]] && id="ja"
+      short="ja"
+      lang="Japanese"
+      culture="ja-JP" ;;
+    "ko" | "ko-"* | "kr" | "kr-"* | "korean" )
+      [[ "$input" == "kr" || "$input" == "korean" ]] && id="ko"
+      short="ko"
+      lang="Korean"
+      culture="ko-KR" ;;
+    "lt" | "lt-"* | "lithuanian" | "lietuvos" )
+      [[ "$input" == "lithuanian" || "$input" == "lietuvos" ]] && id="lt"
+      short="lt"
+      lang="Lithuanian"
+      culture="lt-LT" ;;
+    "lv" | "lv-"* | "latvian" | "latvijas" )
+      [[ "$input" == "latvian" || "$input" == "latvijas" ]] && id="lv"
+      short="lv"
+      lang="Latvian"
+      culture="lv-LV" ;;
+    "nb" | "nb-"* | "nn" | "nn-"* | "no" | "no-"* | "norwegian" | "norsk" )
+      [[ "$input" == "nb" || "$input" == "no" || "$input" == "norwegian" || "$input" == "norsk" ]] && id="nn"
+      short="no"
+      lang="Norwegian"
+      culture="nb-NO" ;;
+    "nl" | "nl-"* | "dutch" | "nederlands" )
+      [[ "$input" == "dutch" || "$input" == "nederlands" ]] && id="nl"
+      short="nl"
+      lang="Dutch"
+      culture="nl-NL" ;;
+    "pl" | "pl-"* | "polish" | "polski" )
+      [[ "$input" == "polish" || "$input" == "polski" ]] && id="pl"
+      short="pl"
+      lang="Polish"
+      culture="pl-PL" ;;
+    "br" | "pt" | "pt-br" | "portuguese" | "português" | "portugues" )
+      [[ "$input" == "pt-br" ]] || id="pt-br"
+      short="pt"
+      lang="Brazilian Portuguese"
+      desc="Portuguese"
+      culture="pt-BR" ;;
+    "pt-"* )
+      short="pp"
+      lang="Portuguese"
+      culture="pt-PT" ;;
+    "ro" | "ro-"* | "romanian" | "română" | "romana" )
+      [[ "$input" == "romanian" || "$input" == "română" || "$input" == "romana" ]] && id="ro"
+      short="ro"
+      lang="Romanian"
+      culture="ro-RO" ;;
+    "ru" | "ru-"* | "russian" | "ruski" )
+      [[ "$input" == "russian" || "$input" == "ruski" ]] && id="ru"
+      short="ru"
+      lang="Russian"
+      culture="ru-RU" ;;
+    "sk" | "sk-"* | "slovak" | "slovenský" | "slovensky" )
+      [[ "$input" == "slovak" || "$input" == "slovenský" || "$input" == "slovensky" ]] && id="sk"
+      short="sk"
+      lang="Slovak"
+      culture="sk-SK" ;;
+    "sl" | "sl-"* | "si" | "si-"* | "slovenian" | "slovenski" )
+      [[ "$input" == "si" || "$input" == "slovenian" || "$input" == "slovenski" ]] && id="sl"
+      short="sl"
+      lang="Slovenian"
+      culture="sl-SI" ;;
+    "sr" | "sr-"* | "serbian" | "serbian latin" )
+      [[ "$input" == "serbian" || "$input" == "serbian latin" ]] && id="sr"
+      short="sr"
+      lang="Serbian Latin"
+      desc="Serbian"
+      culture="sr-Latn-RS" ;;
+    "sv" | "sv-"* | "se" | "se-"* | "swedish" | "svenska" )
+      [[ "$input" == "se" || "$input" == "swedish" || "$input" == "svenska" ]] && id="sv"
+      short="sv"
+      lang="Swedish"
+      culture="sv-SE" ;;
+    "th" | "th-"* | "thai" )
+      [[ "$input" == "thai" ]] && id="th"
+      short="th"
+      lang="Thai"
+      culture="th-TH" ;;
+    "tr" | "tr-"* | "turkish" | "türk" | "turk" )
+      [[ "$input" == "turkish" || "$input" == "türk" || "$input" == "turk" ]] && id="tr"
+      short="tr"
+      lang="Turkish"
+      culture="tr-TR" ;;
+    "ua" | "ua-"* | "uk" | "uk-"* | "ukrainian" )
+      [[ "$input" == "ua" || "$input" == "ukrainian" ]] && id="uk"
+      short="uk"
+      lang="Ukrainian"
+      culture="uk-UA" ;;
+    "hk" | "zh-hk" | "cn-hk" )
+      short="hk"
+      lang="Chinese (Traditional)"
+      desc="Chinese HK"
+      culture="zh-TW" ;;
+    "tw" | "zh-tw" | "cn-tw" )
+      short="tw"
+      lang="Chinese (Traditional)"
+      desc="Chinese TW"
+      culture="zh-TW" ;;
+    "zh" | "zh-"* | "cn" | "cn-"* | "chinese" )
+      [[ "$input" == "cn" || "$input" == "chinese" ]] && id="zh"
+      short="cn"
+      lang="Chinese (Simplified)"
+      desc="Chinese"
+      culture="zh-CN" ;;
+  esac
+
+  [ -z "$lang" ] && return 0
+  [ -z "$desc" ] && desc="$lang"
+
+  case "${ret,,}" in
+    "id" ) echo "$id" ;;
+    "desc" ) echo "$desc" ;;
+    "name" ) echo "$lang" ;;
+    "code" ) echo "$short" ;;
+    "culture" ) echo "$culture" ;;
+    * ) echo "$desc";;
+  esac
+
+  return 0
+}
+
+getLocaleID() {
+
+  local input="${1//_/-}"
+  local mode="${2:-}"
+  input="${input,,}"
+
+  # Accept a native Windows locale ID directly as either Lxxxx or xxxx.
+  if [[ "$input" =~ ^l([0-9a-f]{4})$ ]]; then
+    printf '%s\n' "${BASH_REMATCH[1]^^}"
+    return 0
+  fi
+
+  if [[ "$input" =~ ^([0-9a-f]{4})$ ]]; then
+    printf '%s\n' "${BASH_REMATCH[1]^^}"
+    return 0
+  fi
+
+  # Translate the BCP-47-style REGION value to the four-digit Windows locale
+  # ID shared by Win9x MSBATCH and NT5 WINNT.SIF. Answer-file writers add any
+  # release-specific prefixes or separators themselves.
+  case "$input" in
+    "ar" | "ar-sa" ) echo "0401" ;;
+    "bg" | "bg-bg" ) echo "0402" ;;
+    "ca" | "ca-es" ) echo "0403" ;;
+    "zh-tw" ) echo "0404" ;;
+    "cs" | "cs-cz" ) echo "0405" ;;
+    "da" | "da-dk" ) echo "0406" ;;
+    "de" | "de-de" ) echo "0407" ;;
+    "de-ch" ) echo "0807" ;;
+    "de-at" ) echo "0C07" ;;
+    "de-lu" ) echo "1007" ;;
+    "de-li" ) echo "1407" ;;
+    "el" | "el-gr" ) echo "0408" ;;
+    "en" | "en-us" ) echo "0409" ;;
+    "en-gb" ) echo "0809" ;;
+    "en-au" ) echo "0C09" ;;
+    "en-ca" ) echo "1009" ;;
+    "en-nz" ) echo "1409" ;;
+    "en-ie" ) echo "1809" ;;
+    "en-za" ) echo "1C09" ;;
+    "en-jm" ) echo "2009" ;;
+    "en-bz" ) echo "2809" ;;
+    "en-tt" ) echo "2C09" ;;
+    "en-zw" ) echo "3009" ;;
+    "en-ph" ) echo "3409" ;;
+    "es" | "es-es" ) echo "0C0A" ;;
+    "es-mx" ) echo "080A" ;;
+    "fi" | "fi-fi" ) echo "040B" ;;
+    "fr" | "fr-fr" ) echo "040C" ;;
+    "fr-be" ) echo "080C" ;;
+    "fr-ca" ) echo "0C0C" ;;
+    "fr-ch" ) echo "100C" ;;
+    "fr-lu" ) echo "140C" ;;
+    "fr-mc" ) echo "180C" ;;
+    "he" | "he-il" ) echo "040D" ;;
+    "hu" | "hu-hu" ) echo "040E" ;;
+    "it" | "it-it" ) echo "0410" ;;
+    "it-ch" ) echo "0810" ;;
+    "ja" | "ja-jp" ) echo "0411" ;;
+    "ko" | "ko-kr" ) echo "0412" ;;
+    "nl" | "nl-nl" ) echo "0413" ;;
+    "nl-be" ) echo "0813" ;;
+    "nb" | "no" | "nb-no" ) echo "0414" ;;
+    "nn" | "nn-no" ) echo "0814" ;;
+    "pl" | "pl-pl" ) echo "0415" ;;
+    "pt-br" ) echo "0416" ;;
+    "pt" | "pt-pt" ) echo "0816" ;;
+    "ro" | "ro-ro" ) echo "0418" ;;
+    "ru" | "ru-ru" ) echo "0419" ;;
+    "hr" | "hr-hr" ) echo "041A" ;;
+    "sr" | "sr-latn-rs" ) echo "081A" ;;
+    "sk" | "sk-sk" ) echo "041B" ;;
+    "sv" | "sv-se" ) echo "041D" ;;
+    "sv-fi" ) echo "081D" ;;
+    "th" | "th-th" ) echo "041E" ;;
+    "tr" | "tr-tr" ) echo "041F" ;;
+    "uk" | "uk-ua" ) echo "0422" ;;
+    "sl" | "sl-si" ) echo "0424" ;;
+    "et" | "et-ee" ) echo "0425" ;;
+    "lv" | "lv-lv" ) echo "0426" ;;
+    "lt" | "lt-lt" ) echo "0427" ;;
+    "zh" | "zh-cn" ) echo "0804" ;;
+    "zh-hk" ) echo "0C04" ;;
+    * )
+      [[ "${mode,,}" == "strict" ]] && return 1
+      echo "0409" ;;
+  esac
+
+  return 0
+}
+
+getTimeZone() {
+
+  local localeID=""
+  local ret="${2,,}"
+  local nt5="4"
+  local win9x="Pacific"
+
+  # REGION only identifies a country/locale, not a precise geographic location.
+  # Use a representative time zone for each supported locale and retain the
+  # existing Pacific default for unknown values. Win9x names are restricted to
+  # strings accepted by Windows 95 so the same mapping also works on 98 and Me.
+  localeID=$(getLocaleID "$1" "strict") || localeID=""
+
+  case "$localeID" in
+    "0401" ) nt5="150"; win9x="Saudi Arabia" ;;
+    "0402" ) nt5="125"; win9x="GFT" ;;
+    "0403" | "0C0A" ) nt5="105"; win9x="Romance" ;;
+    "0404" ) nt5="220"; win9x="Taipei" ;;
+    "0405" ) nt5="95"; win9x="Czech" ;;
+    "0406" ) nt5="105"; win9x="Romance" ;;
+    "0407" | "0807" | "0C07" | "1007" | "1407" ) nt5="110"; win9x="W. Europe" ;;
+    "0408" ) nt5="130"; win9x="GFT" ;;
+    "0409" | "1009" ) nt5="35"; win9x="Eastern" ;;
+    "0809" | "1809" ) nt5="85"; win9x="GMT" ;;
+    "0C09" ) nt5="255"; win9x="Sydney" ;;
+    "1409" ) nt5="290"; win9x="New Zealand" ;;
+    "1C09" | "3009" ) nt5="140"; win9x="South Africa" ;;
+    "2009" ) nt5="45"; win9x="SA Pacific" ;;
+    "2809" ) nt5="33"; win9x="Canada Central" ;;
+    "2C09" ) nt5="55"; win9x="SA Western" ;;
+    "3409" ) nt5="215"; win9x="China" ;;
+    "080A" ) nt5="30"; win9x="Mexico" ;;
+    "040B" | "081D" ) nt5="125"; win9x="GFT" ;;
+    "040C" | "080C" ) nt5="105"; win9x="Romance" ;;
+    "0C0C" ) nt5="35"; win9x="Eastern" ;;
+    "100C" | "140C" | "180C" ) nt5="110"; win9x="W. Europe" ;;
+    "040D" ) nt5="135"; win9x="Israel" ;;
+    "040E" ) nt5="95"; win9x="Czech" ;;
+    "0410" | "0810" ) nt5="110"; win9x="W. Europe" ;;
+    "0411" ) nt5="235"; win9x="Tokyo" ;;
+    "0412" ) nt5="230"; win9x="Tokyo" ;;
+    "0413" ) nt5="110"; win9x="W. Europe" ;;
+    "0813" ) nt5="105"; win9x="Romance" ;;
+    "0414" | "0814" | "041D" ) nt5="110"; win9x="W. Europe" ;;
+    "0415" | "041A" ) nt5="100"; win9x="Czech" ;;
+    "0416" ) nt5="65"; win9x="E. South America" ;;
+    "0816" ) nt5="85"; win9x="GMT" ;;
+    "0418" ) nt5="115"; win9x="E. Europe" ;;
+    "0419" ) nt5="145"; win9x="Russian" ;;
+    "081A" | "041B" | "0424" ) nt5="95"; win9x="Czech" ;;
+    "041E" ) nt5="205"; win9x="Bangkok" ;;
+    "041F" ) nt5="130"; win9x="GFT" ;;
+    "0422" | "0425" | "0426" | "0427" ) nt5="125"; win9x="GFT" ;;
+    "0804" | "0C04" ) nt5="210"; win9x="China" ;;
+  esac
+
+  case "$ret" in
+    "nt5" | "" ) echo "$nt5" ;;
+    "win9x" ) echo "$win9x" ;;
+    * ) return 1 ;;
+  esac
+
+  return 0
+}
+
+getKeyboardID() {
+
+  local input="${1//_/-}"
+  input="${input,,}"
+
+  # Accept either Win9x MSBATCH syntax or a raw eight-digit keyboard layout ID.
+  if [[ "$input" =~ ^keyboard[-_]([0-9a-f]{8})$ ]]; then
+    printf '%s\n' "${BASH_REMATCH[1]^^}"
+    return 0
+  fi
+
+  if [[ "$input" =~ ^([0-9a-f]{8})$ ]]; then
+    printf '%s\n' "${BASH_REMATCH[1]^^}"
+    return 0
+  fi
+
+  # Return the neutral eight-digit keyboard layout ID. Unknown values use the
+  # existing US keyboard default instead of making Setup interactive.
+  case "$input" in
+    "ar" | "ar-sa" ) echo "00000401" ;;
+    "bg" | "bg-bg" ) echo "00000402" ;;
+    "ca" | "ca-es" ) echo "00000403" ;;
+    "zh-tw" ) echo "00000404" ;;
+    "cs" | "cs-cz" ) echo "00000405" ;;
+    "da" | "da-dk" ) echo "00000406" ;;
+    "de" | "de-de" ) echo "00000407" ;;
+    "de-ch" ) echo "00000807" ;;
+    "de-at" ) echo "00000C07" ;;
+    "el" | "el-gr" ) echo "00000408" ;;
+    "en" | "en-us" ) echo "00000409" ;;
+    "en-gb" ) echo "00000809" ;;
+    "en-au" ) echo "00000C09" ;;
+    "en-ca" ) echo "00001009" ;;
+    "es" | "es-es" ) echo "00000C0A" ;;
+    "es-mx" ) echo "0000080A" ;;
+    "fi" | "fi-fi" ) echo "0000040B" ;;
+    "fr" | "fr-fr" ) echo "0000040C" ;;
+    "fr-be" ) echo "0000080C" ;;
+    "fr-ca" ) echo "00000C0C" ;;
+    "fr-ch" ) echo "0000100C" ;;
+    "he" | "he-il" ) echo "0000040D" ;;
+    "hu" | "hu-hu" ) echo "0000040E" ;;
+    "it" | "it-it" ) echo "00000410" ;;
+    "it-ch" ) echo "00000810" ;;
+    "ja" | "ja-jp" ) echo "00000411" ;;
+    "ko" | "ko-kr" ) echo "00000412" ;;
+    "nl" | "nl-nl" ) echo "00000413" ;;
+    "nl-be" ) echo "00000813" ;;
+    "nb" | "no" | "nb-no" ) echo "00000414" ;;
+    "nn" | "nn-no" ) echo "00000814" ;;
+    "pl" | "pl-pl" ) echo "00000415" ;;
+    "pt-br" ) echo "00000416" ;;
+    "pt" | "pt-pt" ) echo "00000816" ;;
+    "ro" | "ro-ro" ) echo "00000418" ;;
+    "ru" | "ru-ru" ) echo "00000419" ;;
+    "hr" | "hr-hr" ) echo "0000041A" ;;
+    "sr" | "sr-latn-rs" ) echo "0000081A" ;;
+    "sk" | "sk-sk" ) echo "0000041B" ;;
+    "sv" | "sv-se" ) echo "0000041D" ;;
+    "sv-fi" ) echo "0000081D" ;;
+    "th" | "th-th" ) echo "0000041E" ;;
+    "tr" | "tr-tr" ) echo "0000041F" ;;
+    "uk" | "uk-ua" ) echo "00000422" ;;
+    "sl" | "sl-si" ) echo "00000424" ;;
+    "et" | "et-ee" ) echo "00000425" ;;
+    "lv" | "lv-lv" ) echo "00000426" ;;
+    "lt" | "lt-lt" ) echo "00000427" ;;
+    "zh" | "zh-cn" ) echo "00000804" ;;
+    "zh-hk" ) echo "00000C04" ;;
+    * ) echo "00000409" ;;
+  esac
+
   return 0
 }
 

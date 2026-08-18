@@ -1,8 +1,8 @@
 {
-  "name": "Tiny11 Nano",
+  "name": "Windows ME",
   "service": "windows",
   "containerEnv": {
-    "VERSION": "nano11"
+    "VERSION": "me"
   },
   "forwardPorts": [8006],
   "portsAttributes": {

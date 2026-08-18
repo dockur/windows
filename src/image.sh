@@ -1482,7 +1482,7 @@ checkFreeSpace() {
     size_gb=$(formatBytes "$size")
     space_gb=$(formatBytes "$space")
 
-    error "Not enough free space in $base, have $space_gb available but need at least $size_gb."
+    error "Insufficient free disk space in $base, have $space_gb available but need at least $size_gb."
     return 1
 
   fi
