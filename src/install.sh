@@ -971,7 +971,7 @@ hasBootMarker() {
 
 createMarker() {
 
-  local marker="$STORAGE/$1"
+  local marker="${STORAGE}/${PROCESS}.${1}"
 
   if ! touch "$marker"; then
     warn "failed to create marker \"$marker\" !"
