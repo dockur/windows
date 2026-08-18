@@ -940,6 +940,7 @@ jobs:
           EXPECTED_PLATFORM: ${{ inputs.platform }}
           MINIMUM_BUILD: ${{ inputs.minimum_build }}
           DISPLAY_NAME: ${{ inputs.name }}
+          VERSION: ${{ inputs.version }}
         run: |
           set -Eeuo pipefail
 
@@ -1099,6 +1100,15 @@ jobs:
           minimum_reboots="$MINIMUM_REBOOTS"
           boot_loop_limit="$BOOT_LOOP_LIMIT"
           first_bios_start=-1
+
+          version_lower="${VERSION,,}"
+
+          case "$version_lower" in
+            win95 | win98 | winme)
+              reboot_timeout=$((REBOOT_TIMEOUT * 2))
+              echo "Extended first reboot timeout to $((reboot_timeout / 60)) minutes for $DISPLAY_NAME."
+              ;;
+          esac
 
           while (( SECONDS < deadline )); do
             state="$(
