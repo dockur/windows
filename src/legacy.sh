@@ -140,6 +140,10 @@ restoreMachineState() {
   mergeState "CPU_FLAGS" "flag" "," || return 1
   mergeState "ARGUMENTS" "args" " " || return 1
 
+  if [ -s "$(stateFile "bios")" ]; then
+    BIOS="$(stateFile "bios")"
+  fi
+
   return 0
 }
 
