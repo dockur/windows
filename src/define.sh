@@ -1807,6 +1807,7 @@ getLanguage() {
 getLocaleID() {
 
   local input="${1//_/-}"
+  local mode="${2:-}"
   input="${input,,}"
 
   # Accept a native Windows locale ID directly as either Lxxxx or xxxx.
@@ -1886,7 +1887,74 @@ getLocaleID() {
     "lt" | "lt-lt" ) echo "0427" ;;
     "zh" | "zh-cn" ) echo "0804" ;;
     "zh-hk" ) echo "0C04" ;;
-    * ) echo "0409" ;;
+    * )
+      [[ "${mode,,}" == "strict" ]] && return 1
+      echo "0409" ;;
+  esac
+
+  return 0
+}
+
+getTimeZone() {
+
+  local localeID=""
+  local ret="${2,,}"
+  local nt5="4"
+  local win9x="Pacific"
+
+  # REGION only identifies a country/locale, not a precise geographic location.
+  # Use a representative time zone for each supported locale and retain the
+  # existing Pacific default for unknown values. Win9x names are restricted to
+  # strings accepted by Windows 95 so the same mapping also works on 98 and Me.
+  localeID=$(getLocaleID "$1" "strict") || localeID=""
+
+  case "$localeID" in
+    "0401" ) nt5="150"; win9x="Saudi Arabia" ;;
+    "0402" ) nt5="125"; win9x="GFT" ;;
+    "0403" | "0C0A" ) nt5="105"; win9x="Romance" ;;
+    "0404" ) nt5="220"; win9x="Taipei" ;;
+    "0405" ) nt5="95"; win9x="Czech" ;;
+    "0406" ) nt5="105"; win9x="Romance" ;;
+    "0407" | "0807" | "0C07" | "1007" | "1407" ) nt5="110"; win9x="W. Europe" ;;
+    "0408" ) nt5="130"; win9x="GFT" ;;
+    "0409" | "1009" ) nt5="35"; win9x="Eastern" ;;
+    "0809" | "1809" ) nt5="85"; win9x="GMT" ;;
+    "0C09" ) nt5="255"; win9x="Sydney" ;;
+    "1409" ) nt5="290"; win9x="New Zealand" ;;
+    "1C09" | "3009" ) nt5="140"; win9x="South Africa" ;;
+    "2009" ) nt5="45"; win9x="SA Pacific" ;;
+    "2809" ) nt5="33"; win9x="Canada Central" ;;
+    "2C09" ) nt5="55"; win9x="SA Western" ;;
+    "3409" ) nt5="215"; win9x="China" ;;
+    "080A" ) nt5="30"; win9x="Mexico" ;;
+    "040B" | "081D" ) nt5="125"; win9x="GFT" ;;
+    "040C" | "080C" ) nt5="105"; win9x="Romance" ;;
+    "0C0C" ) nt5="35"; win9x="Eastern" ;;
+    "100C" | "140C" | "180C" ) nt5="110"; win9x="W. Europe" ;;
+    "040D" ) nt5="135"; win9x="Israel" ;;
+    "040E" ) nt5="95"; win9x="Czech" ;;
+    "0410" | "0810" ) nt5="110"; win9x="W. Europe" ;;
+    "0411" ) nt5="235"; win9x="Tokyo" ;;
+    "0412" ) nt5="230"; win9x="Tokyo" ;;
+    "0413" ) nt5="110"; win9x="W. Europe" ;;
+    "0813" ) nt5="105"; win9x="Romance" ;;
+    "0414" | "0814" | "041D" ) nt5="110"; win9x="W. Europe" ;;
+    "0415" | "041A" ) nt5="100"; win9x="Czech" ;;
+    "0416" ) nt5="65"; win9x="E. South America" ;;
+    "0816" ) nt5="85"; win9x="GMT" ;;
+    "0418" ) nt5="115"; win9x="E. Europe" ;;
+    "0419" ) nt5="145"; win9x="Russian" ;;
+    "081A" | "041B" | "0424" ) nt5="95"; win9x="Czech" ;;
+    "041E" ) nt5="205"; win9x="Bangkok" ;;
+    "041F" ) nt5="130"; win9x="GFT" ;;
+    "0422" | "0425" | "0426" | "0427" ) nt5="125"; win9x="GFT" ;;
+    "0804" | "0C04" ) nt5="210"; win9x="China" ;;
+  esac
+
+  case "$ret" in
+    "nt5" | "" ) echo "$nt5" ;;
+    "win9x" ) echo "$win9x" ;;
+    * ) return 1 ;;
   esac
 
   return 0
