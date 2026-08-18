@@ -1176,10 +1176,10 @@ writeWin9xAnswerFile() {
         'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices","WinMeBoot",,"C:\SETUP\HIDE.EXE C:\SETUP\MECOM.COM /C C:\SETUP\MEBOOT.BAT"' \
         '' \
         '[WinMe.ActiveSetup]' \
-        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>~BatchSetupx",,,">Batch 9x - General Settings"' \
-        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>~BatchSetupx","IsInstalled",0x00000001,01,00,00,00' \
-        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>~BatchSetupx","Version",,"3,0,0,0"' \
-        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>~BatchSetupx","StubPath",,"%10%\COMMAND.COM /C %10%\MEFINAL.BAT"'
+        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\~BatchSetupx",,,">Batch 9x - General Settings"' \
+        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\~BatchSetupx","IsInstalled",0x00000001,01,00,00,00' \
+        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\~BatchSetupx","Version",,"3,0,0,0"' \
+        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\~BatchSetupx","StubPath",,"%10%\COMMAND.COM /C %10%\MEFINAL.BAT"'
     fi
 
     printf '%s\n' \
