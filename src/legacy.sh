@@ -2401,15 +2401,6 @@ stageWin9xPostSetup() {
       '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run]' \
       '"PostSetup"=-'
 
-    if [[ "${id,,}" == "win9x"* ]]; then
-      printf '%s\n' \
-        '' \
-        '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx]' \
-        '@=">Batch 9x - General Settings"' \
-        '"IsInstalled"=hex:01,00,00,00' \
-        '"Version"="3,0,0,0"' \
-        '"StubPath"="C:\\WINDOWS\\RUNDLL.EXE SETUPX.DLL,InstallHinfSection Win9x.Browser 4 C:\\WINDOWS\\MSBATCH.INF"'
-    fi
   } | unix2dos > "$cleanup" || {
     error "Failed to create post-desktop registry cleanup for $desc!"
     return 1
@@ -2422,6 +2413,26 @@ stageWin9xPostSetup() {
     error "Failed to create post-desktop marker for $desc!"
     return 1
   fi
+
+  return 0
+}
+
+stageWinMeFinalSetup() {
+
+  local dir="$1"
+  local desc="$2"
+  local target="$dir/MEFINAL.BAT"
+
+  {
+    printf '%s\n' \
+      '@ECHO OFF' \
+      'C:\WINDOWS\RUNDLL.EXE SETUPX.DLL,InstallHinfSection WinMe.FinalSetup 4 C:\WINDOWS\MSBATCH.INF' \
+      'IF EXIST C:\WINDOWS\DESKTOP\ONLINE~1 C:\WINDOWS\COMMAND\DELTREE.EXE /Y C:\WINDOWS\DESKTOP\ONLINE~1 >NUL'
+
+  } | unix2dos > "$target" || {
+    error "Failed to create final Windows Me setup script for $desc!"
+    return 1
+  }
 
   return 0
 }
@@ -2599,7 +2610,7 @@ writeWin9xCleanupRegistry() {
     'services.txt' \
     '' \
     '[Win9x.OnlineServicesFolder]' \
-    '%10%\wininit.ini,Rename,,"DIRNUL=C:\WINDOWS\Desktop\Online~1"'
+    'wininit.ini,DIRNUL,,"%25%\Desktop\Online~1=1"'
 }
 
 writeWin9xAnswerFile() {
@@ -2630,8 +2641,10 @@ writeWin9xAnswerFile() {
 
   if [[ "${id,,}" == "win9x"* ]]; then
     addReg="${addReg%,Win9x.ActiveSetup}"
-    firstLogonDelFiles="${firstLogonDelFiles/Win9x.PatcherMarker,/}"
-    firstLogonDelFiles+=",WinMe.MediaPlayer,WinMe.MediaPlayerAll"
+    firstLogonAddReg="Win9x.Regwiz,WinMe.ActiveSetup"
+    firstLogonDelReg="Win9x.Welcome"
+    firstLogonDelFiles=""
+    firstLogonUpdateInis=""
     updateInis+=",WinMe.MouseInf"
   elif [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
     firstLogonDelFiles="${firstLogonDelFiles/Win9x.PatcherMarker,/}"
@@ -2653,6 +2666,10 @@ writeWin9xAnswerFile() {
   if [ -n "$install" ] || [[ "${id,,}" == "win9x"* ]]; then
     post="Y"
     copyFiles+=",Win9x.Post"
+  fi
+
+  if [[ "${id,,}" == "win9x"* ]]; then
+    copyFiles+=",WinMe.Final"
   fi
 
   if enabled "$shortcut" || [ -n "$install" ]; then
@@ -2713,6 +2730,10 @@ writeWin9xAnswerFile() {
 
     if [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
       printf '%s\n' 'WIN9XDMA.EXE=22'
+    fi
+
+    if [[ "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' 'MEFINAL.BAT=22'
     fi
 
     if ! disabled "$AUTOLOGIN"; then
@@ -2782,7 +2803,13 @@ writeWin9xAnswerFile() {
       printf '%s\n' \
         '' \
         '[WinMe.BootService]' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices","WinMeBoot",,"C:\SETUP\HIDE.EXE C:\SETUP\MECOM.COM /C C:\SETUP\MEBOOT.BAT"'
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices","WinMeBoot",,"C:\SETUP\HIDE.EXE C:\SETUP\MECOM.COM /C C:\SETUP\MEBOOT.BAT"' \
+        '' \
+        '[WinMe.ActiveSetup]' \
+        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>~BatchSetupx",,,">Batch 9x - General Settings"' \
+        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>~BatchSetupx","IsInstalled",0x00000001,01,00,00,00' \
+        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>~BatchSetupx","Version",,"3,0,0,0"' \
+        'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>~BatchSetupx","StubPath",,"%10%\COMMAND.COM /C %10%\MEFINAL.BAT"'
     fi
 
     printf '%s\n' \
@@ -2832,6 +2859,11 @@ writeWin9xAnswerFile() {
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
         '' \
+        '[WinMe.FinalSetup]' \
+        'AddReg=Win9x.User,Win9x.BrowserUser,Win9x.PowerUser' \
+        'DelReg=Win9x.MSN,Win9x.ICWDesktop' \
+        'DelFiles=Win9x.Connect,Win9x.ConnectAll,Win9x.OnlineServices,WinMe.MediaPlayer,WinMe.MediaPlayerAll' \
+        '' \
         '[WinMe.MouseInf]' \
         '%17%\msmouse.inf,Std.Copy,"mouse.drv"' \
         '' \
@@ -2840,6 +2872,13 @@ writeWin9xAnswerFile() {
         '' \
         '[WinMe.MediaPlayerAll]' \
         '"Windows Media Player.lnk"'
+    fi
+
+    if [[ "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' \
+        '' \
+        '[WinMe.Final]' \
+        'MEFINAL.BAT'
     fi
 
     printf '%s\n' \
@@ -2909,6 +2948,7 @@ writeWin9xAnswerFile() {
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
+        'WinMe.Final=10' \
         'WinMe.MediaPlayer=10,Desktop' \
         'WinMe.MediaPlayerAll=10,alluse~1\desktop'
     fi
@@ -3222,7 +3262,8 @@ prepareWin9xInstall() {
 
   if [[ "${id,,}" == "win9x"* ]]; then
     if ! stageWinMeFinalBootFiles "$dir" "$target" "$desc" ||
-      ! stageWinMeBootActivation "$target" "$desc"; then
+      ! stageWinMeBootActivation "$target" "$desc" ||
+      ! stageWinMeFinalSetup "$target" "$desc"; then
       rm -rf "$drivers" || :
       return 1
     fi
