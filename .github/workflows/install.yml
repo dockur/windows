@@ -73,6 +73,12 @@ on:
         default: false
         type: boolean
 
+      tunnel_delay:
+        description: Automatically open the noVNC tunnel after this many seconds
+        required: false
+        default: 0
+        type: number
+
       kill_on_failure:
         description: Stop the workflow when an installation failure is detected
         required: false
@@ -921,6 +927,8 @@ jobs:
         shell: bash
         env:
           CALLBACK: ${{ inputs.callback }}
+          ENABLE_TUNNEL: ${{ inputs.enable_tunnel }}
+          TUNNEL_DELAY: ${{ inputs.tunnel_delay }}
           KILL_ON_FAILURE: ${{ inputs.kill_on_failure }}
           INSTALL_TIMEOUT: ${{ inputs.install_timeout }}
           REBOOT_TIMEOUT: ${{ inputs.reboot_timeout }}
@@ -985,8 +993,82 @@ jobs:
           ) &
 
           guest_logs_pid="$!"
+          tunnel_delay_pid=""
+
+          start_delayed_tunnel() {
+            local state
+            local novnc_url
+
+            sleep "$TUNNEL_DELAY"
+
+            state="$(
+              docker inspect \
+                --format '{{.State.Status}}' \
+                "$CONTAINER" 2>/dev/null || true
+            )"
+
+            if [[ "$state" != "running" ]]; then
+              return 0
+            fi
+
+            echo
+            echo "------------------------------------------------------------"
+            echo "Installation is still running after $((TUNNEL_DELAY / 60)) minutes."
+            echo "Starting temporary noVNC tunnel..."
+
+            if docker run --detach \
+              --name "$TUNNEL" \
+              --network "container:$CONTAINER" \
+              cloudflare/cloudflared:latest \
+              tunnel \
+              --no-autoupdate \
+              --url http://127.0.0.1:8006 > /dev/null 2>/dev/null; then
+              novnc_url=""
+
+              for _ in {1..30}; do
+                novnc_url="$(
+                  docker logs "$TUNNEL" 2>&1 |
+                    grep -Eo 'https://[-a-z0-9]+\.trycloudflare\.com' |
+                    tail -n 1 || true
+                )"
+
+                [ -n "$novnc_url" ] && break
+                sleep 2
+              done
+
+              if [ -n "$novnc_url" ]; then
+                echo
+                echo "::notice title=noVNC viewer::$novnc_url"
+                echo "noVNC viewer: $novnc_url"
+                echo "Warning: this temporary URL is publicly accessible."
+
+                {
+                  echo "### noVNC viewer"
+                  echo
+                  echo "[$novnc_url]($novnc_url)"
+                  echo
+                  echo "> This temporary URL is publicly accessible while the job is running."
+                } >> "$GITHUB_STEP_SUMMARY"
+              else
+                echo "::warning::Failed to obtain a noVNC tunnel URL."
+                docker logs "$TUNNEL" 2>&1 || true
+              fi
+            else
+              echo "::warning::Failed to start the noVNC tunnel."
+            fi
+          }
+
+          if [[ "$ENABLE_TUNNEL" != "true" ]] && (( TUNNEL_DELAY > 0 )); then
+            start_delayed_tunnel &
+            tunnel_delay_pid="$!"
+          fi
 
           stop_logs() {
+            if [[ -n "$tunnel_delay_pid" ]]; then
+              kill "$tunnel_delay_pid" 2>/dev/null || true
+              wait "$tunnel_delay_pid" 2>/dev/null || true
+            fi
+
             kill "$logs_pid" "$guest_logs_pid" 2>/dev/null || true
             wait "$logs_pid" "$guest_logs_pid" 2>/dev/null || true
             print_guest_log
@@ -1006,7 +1088,7 @@ jobs:
 
             echo
             echo "Automatic termination is disabled by kill_on_failure."
-            echo "The container and noVNC tunnel will remain available."
+            echo "The container will remain available for debugging."
             echo "::warning title=Failure detected::$message"
             failure_checks_disabled=1
             return 0
@@ -1054,7 +1136,7 @@ jobs:
               fi
 
               echo "Automatic termination is disabled by kill_on_failure."
-              echo "The container and noVNC tunnel will remain available."
+              echo "The container will remain available for debugging."
               echo "::warning title=Failure detected::The guest validation callback failed."
               failure_checks_disabled=1
             fi
@@ -1139,7 +1221,8 @@ jobs:
               fi
             fi
 
-            if (( bios_starts >= boot_loop_limit )) &&
+            if (( failure_checks_disabled == 0 &&
+                  bios_starts >= boot_loop_limit )) &&
                (( hard_disk_boots >= boot_loop_limit ||
                   dvd_boots >= boot_loop_limit ||
                   not_bootable_disk >= boot_loop_limit ||
@@ -1158,7 +1241,9 @@ jobs:
               echo "No-bootable-device failures: $no_bootable_device"
               echo "BOOTMGR failures: $bootmgr_missing"
 
-              exit 1
+              if ! handle_failure "Detected a repeated BIOS boot loop."; then
+                exit 1
+              fi
             fi
 
             basic_result="$RUNNER_TEMP/data/validation.result"
