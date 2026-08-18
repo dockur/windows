@@ -44,6 +44,10 @@ Win9xInstall() {
     return 1
   fi
 
+  if [[ "${id,,}" == "win95"* ]]; then
+    validateWin95OSR2 "$target" "$desc" || return 1
+  fi
+
   [ -z "$WIDTH" ] && WIDTH="1280"
   [ -z "$HEIGHT" ] && HEIGHT="720"
 
@@ -200,6 +204,31 @@ Win9xInstall() {
 
   rm -rf "$drivers" || :
   SYSTEM="$TMP/windows.img"
+
+  return 0
+}
+
+validateWin95OSR2() {
+
+  local dir="$1"
+  local desc="$2"
+  local format
+
+  format=$(find "$dir" -maxdepth 1 -type f -iname 'FORMAT.COM' -print -quit) || return 1
+
+  if [ -z "$format" ]; then
+    error "Failed to locate FORMAT.COM in $desc setup files!"
+    return 1
+  fi
+
+  # FAT32 support was introduced with Windows 95 OSR2. Require the setup
+  # FORMAT.COM itself to carry the FAT32 marker so pre-OSR2 media fail before
+  # any setup files are modified. The existing image builder performs the full
+  # structural validation of that FAT32 boot template later.
+  if ! LC_ALL=C grep -aFq 'FAT32   ' "$format"; then
+    error "Unsupported $desc ISO image: Windows 95 OSR2 or newer is required!"
+    return 1
+  fi
 
   return 0
 }
@@ -1210,6 +1239,10 @@ writeWin9xAnswerFile() {
 
   addReg+=",Win9x.Shutdown"
 
+  if [[ "${id,,}" == "win95"* ]]; then
+    addReg+=",Win95.PCINIC"
+  fi
+
   culture=$(getLanguage "$LANGUAGE" "culture") || return 1
   [ -z "$culture" ] && culture="en-US"
   region="${REGION:-$culture}"
@@ -1350,6 +1383,13 @@ writeWin9xAnswerFile() {
       '' \
       '[OEMDrivers]' \
       "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\",\"OtherDevicePath\",,\"C:\\WINDOWS\\INF\\OTHER;C:\\$setup\""
+
+    if [[ "${id,,}" == "win95"* ]]; then
+      printf '%s\n' \
+        '' \
+        '[Win95.PCINIC]' \
+        'HKLM,"System\CurrentControlSet\Services\Class\Net\0000","DisableWarning",,"1"'
+    fi
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
@@ -1605,7 +1645,16 @@ writeWin9xAnswerFile() {
       "Workgroup=\"$batchWorkgroup\"" \
       'PrimaryLogon=Windows' \
       'Clients=VREDIR' \
-      'Protocols=MSTCP' \
+      'Protocols=MSTCP'
+
+    if [[ "${id,,}" == "win95"* ]]; then
+      printf '%s\n' \
+        'NetCards=PCI\VEN_1022&DEV_2000' \
+        'IgnoreDetectedNetCards=1' \
+        'ValidateNetCardResources=0'
+    fi
+
+    printf '%s\n' \
       'Display=0' \
       '' \
       '[MSTCP]' \
