@@ -132,6 +132,24 @@ Win9xInstall() {
 
   extractDrivers "$drivers" || return 1
 
+  if [[ "${id,,}" == "win95"* ]] && [ -z "${BIOS:-}" ]; then
+    local bios="$win9x/bios/win95.bin"
+
+    if [ ! -s "$bios" ]; then
+      rm -rf "$drivers" || :
+      error "Failed to locate the Windows 95 BIOS!"
+      return 1
+    fi
+
+    BIOS="$TMP/win95.bin"
+
+    if ! cp -f -- "$bios" "$BIOS"; then
+      rm -rf "$drivers" || :
+      error "Failed to prepare the Windows 95 BIOS!"
+      return 1
+    fi
+  fi
+
   if [ ! -f "$patcher" ] || [ ! -f "$patcher_dos" ]; then
     rm -rf "$drivers" || :
     error "Failed to locate Patcher9x!"
