@@ -2803,9 +2803,8 @@ writeWin9xAnswerFile() {
       '[SourceDisksFiles]' \
       'PATCH9X.NEW=22' \
       'W9XAUTO.BAT=22' \
-      'QEMOUSE.DRV=22'
-
-    printf '%s\n' 'WIN9XDMA.EXE=22'
+      'QEMOUSE.DRV=22' \
+      'WIN9XDMA.EXE=22'
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
@@ -2864,14 +2863,10 @@ writeWin9xAnswerFile() {
     printf '%s\n' \
       '' \
       '[Win9x.Shutdown]' \
-      'HKLM,"System\CurrentControlSet\Control\Shutdown","FastReboot",,"0"'
-
-    printf '%s\n' \
+      'HKLM,"System\CurrentControlSet\Control\Shutdown","FastReboot",,"0"' \
       '' \
       '[Win9x.PCMCIA]' \
-      'HKLM,"System\CurrentControlSet\Services\Class\PCMCIA","SkipWizardForBatchSetup",,1'
-
-    printf '%s\n' \
+      'HKLM,"System\CurrentControlSet\Services\Class\PCMCIA","SkipWizardForBatchSetup",,1' \
       '' \
       '[OEMDrivers]' \
       "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\",\"OtherDevicePath\",,\"C:\\WINDOWS\\INF\\OTHER;C:\\$setup\""
@@ -2948,11 +2943,7 @@ writeWin9xAnswerFile() {
         '"Windows Media Player.lnk"' \
         '' \
         '[WinMe.MediaPlayerAll]' \
-        '"Windows Media Player.lnk"'
-    fi
-
-    if [[ "${id,,}" == "win9x"* ]]; then
-      printf '%s\n' \
+        '"Windows Media Player.lnk"' \
         '' \
         '[WinMe.Final]' \
         'MEFINAL.BAT' \
@@ -3011,9 +3002,7 @@ writeWin9xAnswerFile() {
     printf '%s\n' \
       '' \
       '[Win9x.DMA]' \
-      'WIN9XDMA.EXE'
-
-    printf '%s\n' \
+      'WIN9XDMA.EXE' \
       '' \
       '[DestinationDirs]' \
       'Win9x.PatcherEnable=30,SETUP' \
@@ -3049,17 +3038,14 @@ writeWin9xAnswerFile() {
     if enabled "$shortcut"; then
       printf '%s\n' \
         '' \
-        '[Win9x.Shortcut]'
-      printf 'setup.ini, progman.groups,, "group1=""%s"""\n' "$desktop"
-      printf '%s\n' \
+        '[Win9x.Shortcut]' \
+        "setup.ini, progman.groups,, \"group1=\"\"$desktop\"\"\"" \
         'setup.ini, group1,,"""Shared"",""\\host.lan\Data"",""%11%\SHELL32.DLL"",3,,,""Shared folder"""'
     fi
 
     printf '%s\n' \
       '' \
-      '[Win9x.SystemIni]'
-
-    printf '%s\n' \
+      '[Win9x.SystemIni]' \
       '%10%\system.ini,386Enh,,"MaxPhysPage=100000"' \
       '%10%\system.ini,vcache,,"MaxFileCache=65536"'
 
