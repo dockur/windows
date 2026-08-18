@@ -481,6 +481,11 @@ finishInstall() {
 
       BOOT="$SYSTEM"
     fi
+
+    if ! setOwner "$BOOT"; then
+      warn "failed to set the owner for \"$BOOT\" !"
+    fi
+
   fi
 
   if [ -n "${BIOS:-}" ]; then
