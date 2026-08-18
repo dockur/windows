@@ -1167,7 +1167,7 @@ jobs:
           version_lower="${VERSION,,}"
 
           case "$version_lower" in
-            win95 | win98 | winme)
+            95 | 98 | me)
               reboot_timeout=$((REBOOT_TIMEOUT * 2))
               echo "Extended first reboot timeout to $((reboot_timeout / 60)) minutes for $DISPLAY_NAME."
               ;;
