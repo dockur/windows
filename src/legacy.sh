@@ -13,7 +13,7 @@ setMachine() {
 
   if isLegacy "$id"; then
 
-    if ! prepareLegacyInstall "$id" "$iso" "$dir" "$desc"; then
+    if ! legacyInstall "$id" "$iso" "$dir" "$desc"; then
       error "Failed to prepare $desc ISO!"
       return 1
     fi
@@ -183,7 +183,7 @@ extractDrivers() {
   return 0
 }
 
-LegacyInstall() {
+legacyInstall() {
 
   local id="$1"
   local iso="$2"
