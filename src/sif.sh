@@ -129,7 +129,7 @@ SIFInstall() {
     "$target" \
     "$driver" \
     "$product" "$sifHost" "$sifUsername" "$sifPassword" "$sifOrganization" "$sifWorkgroup" \
-    "$localeID" "$inputLocaleID" "$keyboardID" || return 1
+    "$localeID" "$inputLocaleID" "$keyboardID" "$timezone" || return 1
 
   writeRegistry "$dir" "$shortcut" "$oem" "$regUsername" "$regPassword" || return 1
 
@@ -541,6 +541,7 @@ writeSIF() {
   local localeID="$9"
   local inputLocaleID="${10}"
   local keyboardID="${11}"
+  local timezone="${12}"
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -delete || return 1
 
@@ -572,7 +573,7 @@ writeSIF() {
       '    OEMSkipRegional=1' \
       '    OemSkipWelcome=1' \
       "    AdminPassword=\"$sifPassword\"" \
-      '    TimeZone=4'
+      "    TimeZone=$timezone"
 
     if disabled "$AUTOLOGIN"; then
       printf '%s\n' \
