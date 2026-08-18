@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-. sif.sh
-. batch.sh
-
 setMachine() {
 
   local id="$1"
