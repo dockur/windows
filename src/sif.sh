@@ -1001,3 +1001,4 @@ getInputLocaleID() {
   return $?
 }
 
+return 0
