@@ -57,12 +57,18 @@ Win9xInstall() {
   local host="${HOST:-Docker}"
   local username="${USERNAME:-Docker}"
   local workgroup="${WORKGROUP:-WORKGROUP}"
+  local culture region timezone
 
   if ! disabled "$AUTOLOGIN"; then
     username="Docker"
   fi
 
   validateComputerName "$host" || return 1
+
+  culture=$(getLanguage "$LANGUAGE" "culture") || return 1
+  [ -z "$culture" ] && culture="en-US"
+  region="${REGION:-$culture}"
+  timezone=$(getTimeZone "$region" "win9x") || return 1
 
   # Reuse the normal OEM-folder preparation so /OEM and COMMAND behave like the
   # other Windows paths, but place the user payload directly at C:\OEM in the
@@ -170,7 +176,7 @@ Win9xInstall() {
   writeWin9xAnswerFile \
     "$target" "$id" "$setup" "$monitor" \
     "$batchHost" "$batchUsername" "$batchOrganization" "$batchWorkgroup" \
-    "$batchKey" "$shortcut" "$install" || return 1
+    "$batchKey" "$shortcut" "$install" "$timezone" || return 1
 
   # Build the hard-disk system image from the setup files themselves. Do not rely
   # on a particular El Torito floppy-image filename: some perfectly valid Win9x
@@ -1110,6 +1116,7 @@ writeWin9xAnswerFile() {
   local batchKey="$9"
   local shortcut="${10}"
   local install="${11}"
+  local timezone="${12}"
 
   local desktop="%10%\Desktop"
   local addReg="OPKInstall,Win9x.Machine,Win9x.PCMCIA,Win9x.Power,Win9x.UserDefault,Win9x.BrowserDefault,Win9x.ActiveSetup"
@@ -1488,7 +1495,7 @@ writeWin9xAnswerFile() {
       'Network=1' \
       'DevicePath=1' \
       'NoPrompt2Boot=1' \
-      'TimeZone=Pacific' \
+      "TimeZone=$timezone" \
       'System=0' \
       'Display=0' \
       'PenWinWarning=0' \
