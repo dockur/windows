@@ -183,433 +183,209 @@ Win9xInstall() {
   return 0
 }
 
-patchWinMeDosFile() {
+stageWin9xPasswordList() {
 
-  local file="$1"
-  local name="$2"
-  local expected_size expected_offset expected_hex patch_offset
-  local actual_size actual_hex patched
-
-  case "$name" in
-    "IO.SYS" )
-      expected_size=116736
-      expected_offset=$((0x3a8))
-      expected_hex="fa8075098db69900"
-      patch_offset=$((0x3aa)) ;;
-
-    "COMMAND.COM" )
-      expected_size=93040
-      expected_offset=$((0x650c))
-      expected_hex="1580fa037510b80e"
-      patch_offset=$((0x6510)) ;;
-
-    * )
-      error "Unsupported Windows Me DOS bootstrap file: $name"
-      return 1 ;;
-  esac
-
-  actual_size=$(stat -c %s -- "$file") || return 1
-
-  if (( actual_size != expected_size )); then
-    error "Unexpected Windows Me $name size: $actual_size bytes (expected $expected_size)!"
-    return 1
-  fi
-
-  actual_hex=$(dd if="$file" bs=1 skip="$expected_offset" count=8 status=none | xxd -p -c 8) || return 1
-
-  if [[ "${actual_hex,,}" != "$expected_hex" ]]; then
-    error "Unexpected Windows Me $name bootstrap data at offset 0x$(printf '%X' "$expected_offset")!"
-    return 1
-  fi
-
-  # Windows Me deliberately disables its normal real-mode DOS path. Match the
-  # guarded patches used by Rufus: change the relevant conditional branch in
-  # each original Me DOS file to an unconditional jump.
-  if ! printf '\xeb' | dd of="$file" bs=1 seek="$patch_offset" count=1 conv=notrunc status=none; then
-    error "Failed to patch Windows Me $name!"
-    return 1
-  fi
-
-  patched=$(dd if="$file" bs=1 skip="$patch_offset" count=1 status=none | xxd -p) || return 1
-
-  if [[ "${patched,,}" != "eb" ]]; then
-    error "Failed to verify the Windows Me $name bootstrap patch!"
-    return 1
-  fi
-
-  return 0
-}
-
-patchWinMeBinaryPatterns() {
-
-  local file="$1"
+  local dir="$1"
   local desc="$2"
-  shift 2
+  local target="$dir/DOCKER.PWL"
 
-  if (( $# == 0 || $# % 2 != 0 )); then
-    error "Invalid binary patch definition for $desc!"
-    return 1
-  fi
-
-  if ! python3 - "$file" "$desc" "$@" <<'PY'
-from pathlib import Path
-import sys
-
-path = Path(sys.argv[1])
-desc = sys.argv[2]
-args = sys.argv[3:]
-
-data = path.read_bytes()
-original = data
-
-for index in range(0, len(args), 2):
-    old = bytes.fromhex(args[index])
-    new = bytes.fromhex(args[index + 1])
-
-    if len(old) != len(new):
-        print(f"Invalid {desc} patch length.", file=sys.stderr)
-        raise SystemExit(1)
-
-    count = data.count(old)
-    if count != 1:
-        print(
-            f"Unexpected {desc} patch signature count for {args[index]}: {count} (expected 1).",
-            file=sys.stderr,
-        )
-        raise SystemExit(1)
-
-    data = data.replace(old, new, 1)
-
-if data == original:
-    print(f"No changes were made while patching {desc}.", file=sys.stderr)
-    raise SystemExit(1)
-
-path.write_bytes(data)
-PY
+  if ! base64 -d <<'EOF' | gzip -dc > "$target"
+H4sIAAAAAAACA3vc1DqNkWEUMPwf2SCIifIghKSj0rXqtq9ePF4Yukz50lmmIyebzcx+z7vIcKxZ
+6S7PpN8sV44Jzlq1dhnfPs2iBxq536xPbXn9o/X+LEe7Ra6/5kfHNX57zqt/9cKFnAV5Eoc1bvTP
+Uts5yVhW6XnWRtOdrdK2swELaJAzsAIAAA==
+EOF
   then
-    error "Failed to patch $desc!"
+    error "Failed to create DOCKER.PWL in $desc setup files!"
+    return 1
+  fi
+
+  if [ "$(wc -c < "$target")" -ne 688 ]; then
+    error "Failed to verify DOCKER.PWL in $desc setup files!"
     return 1
   fi
 
   return 0
 }
 
-extractWin9xCabFile() {
-
-  local dir="$1"
-  local name="$2"
-  local output="$3"
-  local desc="$4"
-
-  local temp="$TMP/win9x-cab-file"
-  local cab extracted find_pid
-  local -a precopy_cabs=() other_cabs=()
-
-  rm -rf -- "$temp" || return 1
-  mkdir -p "$temp" || return 1
-  rm -f -- "$output" || return 1
-
-  mapfile -d '' precopy_cabs < <(
-    find "$dir" -maxdepth 1 -type f -iname 'PRECOPY*.CAB' -print0
-  )
-
-  find_pid=$!
-
-  if ! wait "$find_pid"; then
-    rm -rf -- "$temp" || :
-    error "Failed to enumerate $desc setup cabinets!"
-    return 1
-  fi
-
-  mapfile -d '' other_cabs < <(
-    find "$dir" -maxdepth 1 -type f -iname '*.CAB' ! -iname 'PRECOPY*.CAB' -print0
-  )
-
-  find_pid=$!
-
-  if ! wait "$find_pid"; then
-    rm -rf -- "$temp" || :
-    error "Failed to enumerate $desc setup cabinets!"
-    return 1
-  fi
-
-  for cab in "${precopy_cabs[@]}" "${other_cabs[@]}"; do
-
-    rm -rf -- "$temp/files" || return 1
-    mkdir -p "$temp/files" || return 1
-
-    if ! cabextract -q -L -F "$name" -d "$temp/files" "$cab" >/dev/null 2>&1; then
-      continue
-    fi
-
-    extracted=$(find "$temp/files" -type f -iname "$name" -print -quit) || return 1
-
-    if [ -n "$extracted" ] && [ -s "$extracted" ]; then
-      if ! cp -f -- "$extracted" "$output" || ! cmp -s -- "$extracted" "$output"; then
-        rm -rf -- "$temp" || :
-        error "Failed to extract $name from $desc setup files!"
-        return 1
-      fi
-
-      rm -rf -- "$temp" || :
-      return 0
-    fi
-
-  done
-
-  rm -rf -- "$temp" || :
-  error "Failed to locate $name in $desc setup cabinets!"
-  return 1
-}
-
-writeWin9xAutoexec() {
-
-  local output="$1"
-  local setup="$2"
-  local options="$3"
-  local id="$4"
-  local patch_args="-auto -unselect creg"
-
-  [[ "${id,,}" == "win9x"* ]] && patch_args="-auto"
-
-  {
-    printf '%s\n' \
-      '@ECHO OFF' \
-      'IF EXIST C:\WINDOWS\WIN.COM GOTO WINDOWS' \
-      'ECHO.' \
-      'ECHO Starting Windows Setup, please wait...' \
-      'ECHO.' \
-      "IF NOT EXIST C:\\${setup}\\XMSMMGR.EXE GOTO SETUP" \
-      "IF NOT EXIST C:\\${setup}\\SMARTDRV.EXE GOTO SETUP" \
-      "C:\\${setup}\\XMSMMGR.EXE >NUL" \
-      "C:\\${setup}\\SMARTDRV.EXE C+ /Q 16384 16384 >NUL" \
-      ':SETUP' \
-      "C:\\${setup}\\SETUP.EXE $options" \
-      'GOTO END' \
-      ':WINDOWS' \
-      'IF NOT EXIST C:\WINDOWS\SYSTEM\KERNEL32.DLL GOTO STARTWIN' \
-      'IF NOT EXIST C:\WINDOWS\SYSTEM\VMM32.VXD GOTO STARTWIN'
-
-    # WinMe RunServices may invoke WinMeBoot more than once during one Setup boot.
-    # Clear its same-boot latch only here, at the next real AUTOEXEC boot boundary.
-    if [[ "${id,,}" == "win9x"* ]]; then
-      printf '%s\n' 'IF EXIST C:\SETUP\MEBOOT.BOOT DEL C:\SETUP\MEBOOT.BOOT >NUL'
-    fi
-
-    printf '%s\n' \
-      'IF NOT EXIST C:\SETUP\PATCH9X.RUN GOTO STARTWIN' \
-      'IF NOT EXIST C:\SETUP\PATCH9X.EXE GOTO STARTWIN' \
-      'IF NOT EXIST C:\SETUP\CWSDPMI.EXE GOTO STARTWIN' \
-      "CD C:\\SETUP" \
-      "PATCH9X.EXE $patch_args C:\\WINDOWS\\SYSTEM >NUL" \
-      "CD C:\\" \
-      ':STARTWIN'
-
-    if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
-      printf '%s\n' 'C:\WINDOWS\WIN.COM'
-    fi
-
-    printf '%s\n' \
-      ':END' \
-      ''
-  } | unix2dos > "$output" || return 1
-
-  return 0
-}
-
-stageWin9xFinalAutoexec() {
-
-  local target="$1"
-  local setup="$2"
-  local options="$3"
-  local desc="$4"
-  local id="$5"
-
-  local temp="$TMP/win9x-final-autoexec"
-  local autoexec="$temp/AUTOEXEC.BAT"
-
-  rm -rf -- "$temp" || return 1
-  mkdir -p "$temp" || return 1
-
-  if ! writeWin9xAutoexec "$autoexec" "$setup" "$options" "$id"; then
-    rm -rf -- "$temp" || :
-    return 1
-  fi
-
-  if ! cp -f -- "$autoexec" "$target/W9XAUTO.BAT" ||
-    ! cmp -s -- "$autoexec" "$target/W9XAUTO.BAT"; then
-    rm -rf -- "$temp" || :
-    error "Failed to stage the final $desc AUTOEXEC.BAT source file!"
-    return 1
-  fi
-
-  rm -rf -- "$temp" || :
-  return 0
-}
-
-stageWinMeFinalBootFiles() {
-
-  local dir="$1"
-  local target="$2"
-  local desc="$3"
-
-  local temp="$TMP/winme-final-boot"
-  local cbs winboot size signature
-
-  rm -rf -- "$temp" || return 1
-  mkdir -p "$temp/nettools" || return 1
-
-  cbs=$(find "$dir" -type f -ipath '*/TOOLS/NETTOOLS/FAC/CBS.DTA' -print -quit) || return 1
-
-  if [ -z "$cbs" ]; then
-    rm -rf -- "$temp" || :
-    error "Failed to locate the Windows Me NETTOOLS CBS.DTA archive!"
-    return 1
-  fi
-
-  if ! cabextract -q -L -F 'WINBOOT.SYS' -d "$temp/nettools" "$cbs" >/dev/null 2>&1; then
-    rm -rf -- "$temp" || :
-    error "Failed to extract the Windows Me NETTOOLS WINBOOT.SYS!"
-    return 1
-  fi
-
-  winboot=$(find "$temp/nettools" -type f -iname 'WINBOOT.SYS' -print -quit) || return 1
-
-  if [ -z "$winboot" ] || [ ! -s "$winboot" ]; then
-    rm -rf -- "$temp" || :
-    error "Failed to locate the extracted Windows Me NETTOOLS WINBOOT.SYS!"
-    return 1
-  fi
-
-  size=$(stat -c %s -- "$winboot") || return 1
-  signature=$(dd if="$winboot" bs=1 count=2 status=none | od -An -tx1 | tr -d ' \n') || return 1
-
-  if (( size != 118784 )) || [[ "${signature,,}" != "4d5a" ]]; then
-    rm -rf -- "$temp" || :
-    error "Unexpected Windows Me NETTOOLS WINBOOT.SYS format!"
-    return 1
-  fi
-
-  if ! cp -f -- "$winboot" "$target/MEIO.SYS" ||
-    ! cmp -s -- "$winboot" "$target/MEIO.SYS"; then
-    rm -rf -- "$temp" || :
-    error "Failed to stage the final Windows Me IO.SYS source file!"
-    return 1
-  fi
-
-  if ! extractWin9xCabFile "$target" 'COMMAND.COM' "$target/MECOM.COM" "$desc" ||
-    ! extractWin9xCabFile "$target" 'REGENV32.EXE' "$target/MEREGENV.EXE" "$desc"; then
-    rm -rf -- "$temp" || :
-    return 1
-  fi
-
-  # Enable the normal real-mode path in the localized Windows Me COMMAND.COM.
-  # These are the three guarded substitutions used by the established Me DOS
-  # mode patch; do not include its unrelated hidden-file display tweaks.
-  if ! patchWinMeBinaryPatterns "$target/MECOM.COM" 'Windows Me COMMAND.COM' \
-    '7510b80e' 'eb10b80e' \
-    '0300750b8b' '0300eb0b8b' \
-    '128b1608' '448b1608'; then
-    rm -rf -- "$temp" || :
-    return 1
-  fi
-
-  # REGENV32 otherwise rewrites CONFIG.SYS and AUTOEXEC.BAT on every restart.
-  # Redirect those writes to .WIN files so our real-mode startup remains intact.
-  if ! patchWinMeBinaryPatterns "$target/MEREGENV.EXE" 'Windows Me REGENV32.EXE' \
-    '434f4e4649472e535953' '434f4e4649472e57494e' \
-    '4155544f455845432e424154' '4155544f455845432e57494e'; then
-    rm -rf -- "$temp" || :
-    return 1
-  fi
-
-  rm -rf -- "$temp" || :
-  return 0
-}
-
-stageWinMeBootActivation() {
+stageWin9xHide() {
 
   local dir="$1"
   local desc="$2"
-  local target="$dir/MEBOOT.BAT"
+  local target="$dir/HIDE.EXE"
 
-  # RunServices can invoke this more than once during a single Setup boot.
-  # MEBOOT.BOOT is a same-boot latch cleared by AUTOEXEC on the next real reboot;
-  # MEBOOT1.RUN persists across that boundary so activation occurs only then.
+  if ! base64 -d <<'EOF' | gzip -dc > "$target"
+H4sIAAAAAAACA/ONYiAbNDBQDgJcGRh8GBlRxB4wMDFyg8SYkAQFkDCDA4QGyrNApWE0gwIDXB8T
+TKMAMg2nIH4AcjQYqA92CKDagw70SlIrSkAMRga4X1D8CwQJYERb8F90h4ADQ+exBjulUkG3BjuG
+Egcgs4TZ7fVnt9dCIL5Bg51CCUeDHSdI8B2IwwrklIJUgKQFsxjC/ovuARqSBTTsABJNFFiBFEgn
+BCDhhg1cA4q/AOJPAtj53q5Bfq4+xkZ6Lj4+IL57aolzfm5uYl6KT2ZeqiNQJDwzz7UiNRnIcq3I
+LAkoyk9OLS5mGOkAAN77EFsABAAA
+EOF
+  then
+    error "Failed to create HIDE.EXE in $desc setup files!"
+    return 1
+  fi
+
+  if [ "$(wc -c < "$target")" -ne 1024 ]; then
+    error "Failed to verify HIDE.EXE in $desc setup files!"
+    return 1
+  fi
+
+  return 0
+}
+
+stageWin9xPostSetup() {
+
+  local dir="$1"
+  local desc="$2"
+  local install="$3"
+  local id="$4"
+  local target="$dir/POST9X.BAT"
+  local marker="$dir/POST9X.NEW"
+  local cleanup="$dir/POST9X.REG"
+
   {
     printf '%s\n' \
       '@ECHO OFF' \
-      'IF EXIST C:\SETUP\MEBOOT.RUN GOTO END' \
-      'IF EXIST C:\SETUP\MEBOOT.BOOT GOTO END' \
-      'ECHO 1>C:\SETUP\MEBOOT.BOOT' \
-      'IF EXIST C:\SETUP\MEBOOT1.RUN GOTO ACTIVATE' \
-      'ECHO 1>C:\SETUP\MEBOOT1.RUN' \
-      'GOTO END' \
-      ':ACTIVATE' \
-      'IF NOT EXIST C:\SETUP\MEREGENV.EXE GOTO END' \
-      'IF NOT EXIST C:\SETUP\MECOM.COM GOTO END' \
-      'IF NOT EXIST C:\SETUP\MEIO.SYS GOTO END' \
-      'IF NOT EXIST C:\WINDOWS\COMMAND\ATTRIB.EXE GOTO END' \
-      'COPY /Y C:\SETUP\MEREGENV.EXE C:\WINDOWS\SYSTEM\REGENV32.EXE >NUL' \
-      'IF ERRORLEVEL 1 GOTO END' \
-      'COPY /Y C:\SETUP\MECOM.COM C:\WINDOWS\COMMAND.COM >NUL' \
-      'IF ERRORLEVEL 1 GOTO END' \
-      'COPY /Y C:\SETUP\MECOM.COM C:\COMMAND.COM >NUL' \
-      'IF ERRORLEVEL 1 GOTO END' \
-      'C:\WINDOWS\COMMAND\ATTRIB.EXE -R -S -H C:\IO.SYS >NUL' \
-      'IF ERRORLEVEL 1 GOTO END' \
-      'COPY /Y C:\SETUP\MEIO.SYS C:\IO.SYS >NUL' \
-      'IF ERRORLEVEL 1 GOTO IOFAIL' \
-      'C:\WINDOWS\COMMAND\ATTRIB.EXE +R +S +H C:\IO.SYS >NUL' \
-      'ECHO 1>C:\SETUP\MEBOOT.RUN' \
-      'GOTO END' \
-      ':IOFAIL' \
-      'C:\WINDOWS\COMMAND\ATTRIB.EXE +R +S +H C:\IO.SYS >NUL' \
-      ':END' \
-      ''
+      'IF NOT EXIST C:\WINDOWS\POST9X.RDY GOTO END'
+
+    printf '%s\n' 'START /W C:\WINDOWS\REGEDIT.EXE /S C:\WINDOWS\POST9X.REG'
+
+    printf '%s\n' \
+      'DEL C:\WINDOWS\POST9X.REG >NUL' \
+      'DEL C:\WINDOWS\POST9X.RDY >NUL'
+
+    if [[ "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' 'DEL C:\SETUP\PATCH9X.RUN >NUL'
+    fi
+
+    if [ -n "$install" ]; then
+      if enabled "${LOG:-}"; then
+        printf '%s\n' 'CALL C:\OEM\install.bat > C:\OEM\install.log'
+      else
+        printf '%s\n' 'CALL C:\OEM\install.bat'
+      fi
+    fi
+
+    printf '%s\n' ':END'
+
   } | unix2dos > "$target" || {
-    error "Failed to create the Windows Me boot activation script for $desc!"
+    error "Failed to create post-desktop setup script for $desc!"
     return 1
   }
 
+  # Remove the persistent Run value without re-entering SETUPX.DLL from the
+  # desktop batch. REGEDIT /S performs the one registry cleanup silently.
+  {
+    printf '%s\n' \
+      'REGEDIT4' \
+      '' \
+      '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run]' \
+      '"PostSetup"=-'
+
+  } | unix2dos > "$cleanup" || {
+    error "Failed to create post-desktop registry cleanup for $desc!"
+    return 1
+  }
+
+  # Stage a real marker file for Setup to copy into the Windows directory.
+  # Win9x.FirstLogon adds a WININIT.INI rename so the following reboot promotes
+  # POST9X.NEW to POST9X.RDY before the final desktop starts.
+  if ! printf 'Ready\r\n' > "$marker"; then
+    error "Failed to create post-desktop marker for $desc!"
+    return 1
+  fi
+
   return 0
 }
 
-stageWin9xDosPatcher() {
+stageWin9xDMA() {
 
   local dir="$1"
   local desc="$2"
-  local image="$3"
-  local file
+  local target="$dir/WIN9XDMA.EXE"
 
-  if [ ! -f "$image" ]; then
-    error "Failed to locate the Windows 9x DOS Patcher9x image!"
+  # Keep the Win9x DMA helper embedded alongside HIDE.EXE so the driver
+  # archive stays unchanged. It updates both enumerated ESDI disks and the
+  # persistent ESDI_506.PDR controller DMA flags used after a reboot.
+  if ! base64 -d <<'EOF' | gzip -dc > "$target"
+H4sIAAAAAAACA+1WT4gbZRR/yeaQtutm0A22a4sTnPViN8w3XYWqC0kzKQ1N7TRx41KjNSZDk5h/
+TGZKVtrSks0hHXIR60F69lxhKUtAGrpVD9oq4qoYkVzUDd3DwsIS8M/4vpmkpuxS9SII++DLzPu9
+N795v998zOTE6QrYAMABD4YP/j4quMaebI7B4q47niVb+I7n5XSmzJaU4lklkWeTiUKhqLJvyqyi
+FdhMgRVPRtl8MSV7OQApCBC2jUDHsZAd8HXAbttjG7OGGQzE9NdgKnpu/6vsGB64n9gHFzLDxyEa
+jGsswIsPE8fjfPDvo4e87EPqXlWuqHhct/cHcmw1H69/w6ukEmoC4B2bBZiinFuekc+ryLlisj8r
+3+/bvaXvCOzETmwTs9FXYpfXruMuq3ekrDMLaWB9kMZddMlwg8cHtZarZmAjaTdyHK/P/IblxiJ3
+HaH0JZPAULlR49taS2VmRpDHVfsI4e4t/GmInNMkncUeRp+ifMYKZXwfq/U4N0raafr6iVGScZNk
+l0mipe/l8GqHlB3JQgyLe+l1WkQPc47mbhwhy2J5XFotYHP1thMvPNgIc0yTwdrqBwgiMpG1pZ+h
+vciRnsATk8ft9JhnDsPdQyzQfdvAUDmnles4FVUa6B6g+DRnwXg3xvLn4FZ/vqFar5me6FPUIH2G
+lsim6VCUzr+fzn/foavUoffAMh2no/JZKl+7qI9yzTk6tA9vOS2tNmAg8DQK5JtJKvBjMAUeIy2f
+tEQlSksjCEmkJaVLltBxfcoUurJdz4V+j7FizXtf5tFuyHKDsfIsGG4GaS7fplvk9TOvvrZMd0x1
+zamf51j0aj/ZpM+pztd/ql/AzSDFIqcMt8M0Rnu8ep5z2DRGd3DHDvfKzk/EFwx05Wh9HRWZZMh1
+Zd9CWz3kd92wo6Ip142NxsWb9Y3qZ2zVmHAFfmyUbtY/rX7BVv/ArHf4V+2xI1f2+Rfa2l3SJq3n
+J1zvtu7ZSQvZlo1JU8skvbsxaaqfZMzfnonTZ/L5TjwQwYKWjwejYggCuUS5DGKm/JaoZM7JIJ7w
+BzRFkQtqbn62LKfAFp0vq3I+3kcDxYKqFHNRWY1HZeVcJimX4yZHPJ1KglRUVJNHAcp+5ln+OW8p
+pUBIDCKxGAnFgvxwQnBr0p0HQ8fvhj6kFY/1bV0fwmqIMZ7t32t7EX8a1zQuEddcvy/r+Wd1gIh8
+NpArluXj8ryVUasw8VvZyZJcwCxY6eenNFmZjyVymmxBFENvhpFgJaNKShGNKoNfjPml0CHBm8rl
+4Hgw8lIw3E/+42Cs/w6P8gd4wuf5Rf5LvsN3+Q3+d/4RwhGBzJAImSNXyYdkmXxFfiC/kE1iF/YI
+TwhPCTHhrvC18L3QEX4W1oSdr+n/L/4EP8bQ8wAMAAA=
+EOF
+  then
+    error "Failed to create WIN9XDMA.EXE in $desc setup files!"
     return 1
   fi
 
-  # The official Patcher9x DOS image carries the DJGPP executable together with
-  # CWSDPMI. Keep both beside each other in the retained C:\SETUP source so the
-  # patcher can run from real mode before Windows starts.
-  for file in PATCH9X.EXE CWSDPMI.EXE; do
-
-    rm -f -- "$dir/$file" || return 1
-
-    if ! mcopy -o -i "$image" "::/$file" "$dir/$file" >/dev/null 2>&1 ||
-      [ ! -s "$dir/$file" ]; then
-      error "Failed to stage $file for $desc!"
-      return 1
-    fi
-
-  done
-
-  # Stage the marker under a dormant name. MSBATCH promotes it to PATCH9X.RUN
-  # only during its late file-copy phase, leaving the already-working early
-  # Setup reboots untouched. Win95/98 remove it in Win9x.FirstLogon; WinMe
-  # keeps it through Setup and removes it from the post-setup stage.
-  if ! printf 'Pending\r\n' > "$dir/PATCH9X.NEW"; then
-    error "Failed to stage the Patcher9x run marker for $desc!"
+  if [ "$(wc -c < "$target")" -ne 3072 ]; then
+    error "Failed to verify WIN9XDMA.EXE in $desc setup files!"
     return 1
   fi
+
+  return 0
+}
+
+patchWin9xSetupFiles() {
+
+  local id="$1"
+  local target="$2"
+  local desc="$3"
+  local patcher="$4"
+  local qemouse="$5"
+  local display="$6"
+
+  chmod 755 "$patcher" || {
+    error "Failed to make Patcher9x executable!"
+    return 1
+  }
+
+  local msg="Patching Windows setup..."
+  info "$msg" && html "$msg"
+
+  local patch_output
+  local patch_args=(-auto -unselect creg)
+
+  [[ "${id,,}" == "win9x"* ]] && patch_args=(-auto)
+
+  if ! patch_output=$("$patcher" "${patch_args[@]}" "$target" 2>&1); then
+    [ -z "$patch_output" ] || printf '%s\n' "$patch_output" >&2
+    error "Failed to patch $desc setup files!"
+    return 1
+  fi
+
+  stageWin9xDisplayDriver "$target" "$display" "$desc" || return 1
+
+  if ! mv -f -- \
+    "$target/BOXV9X/boxv9x.inf" \
+    "$target/BOXV9X/boxvmini.drv" \
+    "$target/BOXV9X/boxvmini.vxd" \
+    "$target/"; then
+    error "Failed to stage the Windows 9x display driver in the setup source!"
+    return 1
+  fi
+
+  rm -rf -- "$target/BOXV9X" || return 1
+  : > "$target/BOXV9X" || return 1
+
+  # Use QEMouse directly in the MINI.CAB GUI Setup environment for every Win9x
+  # release, so the setup mouse path does not depend on a DOS INT 33h TSR.
+  integrateWin9xSetupMouse "$target" "$desc" "$qemouse/qemouse.drv" || return 1
 
   return 0
 }
@@ -767,95 +543,401 @@ integrateWin9xSetupMouse() {
   return 0
 }
 
-stageWin9xPasswordList() {
+stageWin9xDosPatcher() {
 
   local dir="$1"
   local desc="$2"
-  local target="$dir/DOCKER.PWL"
+  local image="$3"
+  local file
 
-  if ! base64 -d <<'EOF' | gzip -dc > "$target"
-H4sIAAAAAAACA3vc1DqNkWEUMPwf2SCIifIghKSj0rXqtq9ePF4Yukz50lmmIyebzcx+z7vIcKxZ
-6S7PpN8sV44Jzlq1dhnfPs2iBxq536xPbXn9o/X+LEe7Ra6/5kfHNX57zqt/9cKFnAV5Eoc1bvTP
-Uts5yVhW6XnWRtOdrdK2swELaJAzsAIAAA==
-EOF
-  then
-    error "Failed to create DOCKER.PWL in $desc setup files!"
+  if [ ! -f "$image" ]; then
+    error "Failed to locate the Windows 9x DOS Patcher9x image!"
     return 1
   fi
 
-  if [ "$(wc -c < "$target")" -ne 688 ]; then
-    error "Failed to verify DOCKER.PWL in $desc setup files!"
+  # The official Patcher9x DOS image carries the DJGPP executable together with
+  # CWSDPMI. Keep both beside each other in the retained C:\SETUP source so the
+  # patcher can run from real mode before Windows starts.
+  for file in PATCH9X.EXE CWSDPMI.EXE; do
+
+    rm -f -- "$dir/$file" || return 1
+
+    if ! mcopy -o -i "$image" "::/$file" "$dir/$file" >/dev/null 2>&1 ||
+      [ ! -s "$dir/$file" ]; then
+      error "Failed to stage $file for $desc!"
+      return 1
+    fi
+
+  done
+
+  # Stage the marker under a dormant name. MSBATCH promotes it to PATCH9X.RUN
+  # only during its late file-copy phase, leaving the already-working early
+  # Setup reboots untouched. Win95/98 remove it in Win9x.FirstLogon; WinMe
+  # keeps it through Setup and removes it from the post-setup stage.
+  if ! printf 'Pending\r\n' > "$dir/PATCH9X.NEW"; then
+    error "Failed to stage the Patcher9x run marker for $desc!"
     return 1
   fi
 
   return 0
 }
 
-stageWin9xHide() {
+stageWin9xMouseFiles() {
 
   local dir="$1"
   local desc="$2"
-  local target="$dir/HIDE.EXE"
+  local qemouse="$3"
+  local file="qemouse.drv"
+  local source="$qemouse/$file"
+  local target="$dir/${file^^}"
 
-  if ! base64 -d <<'EOF' | gzip -dc > "$target"
-H4sIAAAAAAACA/ONYiAbNDBQDgJcGRh8GBlRxB4wMDFyg8SYkAQFkDCDA4QGyrNApWE0gwIDXB8T
-TKMAMg2nIH4AcjQYqA92CKDagw70SlIrSkAMRga4X1D8CwQJYERb8F90h4ADQ+exBjulUkG3BjuG
-Egcgs4TZ7fVnt9dCIL5Bg51CCUeDHSdI8B2IwwrklIJUgKQFsxjC/ovuARqSBTTsABJNFFiBFEgn
-BCDhhg1cA4q/AOJPAtj53q5Bfq4+xkZ6Lj4+IL57aolzfm5uYl6KT2ZeqiNQJDwzz7UiNRnIcq3I
-LAkoyk9OLS5mGOkAAN77EFsABAAA
-EOF
-  then
-    error "Failed to create HIDE.EXE in $desc setup files!"
+  # QEMouse is used both by MINI.CAB during GUI Setup and by the installed OS.
+  # Keep one source copy in C:\SETUP; MSBATCH.INF installs the same binary as
+  # MOUSE.DRV so Windows can retain its stock mouse configuration and VxD stack.
+  if [ ! -f "$source" ]; then
+    error "Failed to locate $file!"
     return 1
   fi
 
-  if [ "$(wc -c < "$target")" -ne 1024 ]; then
-    error "Failed to verify HIDE.EXE in $desc setup files!"
+  if ! cp -f -- "$source" "$target" || ! cmp -s -- "$source" "$target"; then
+    error "Failed to stage $file in $desc setup files!"
     return 1
   fi
 
   return 0
 }
 
-stageWin9xDMA() {
+stageWin9xFinalAutoexec() {
+
+  local target="$1"
+  local setup="$2"
+  local options="$3"
+  local desc="$4"
+  local id="$5"
+
+  local temp="$TMP/win9x-final-autoexec"
+  local autoexec="$temp/AUTOEXEC.BAT"
+
+  rm -rf -- "$temp" || return 1
+  mkdir -p "$temp" || return 1
+
+  if ! writeWin9xAutoexec "$autoexec" "$setup" "$options" "$id"; then
+    rm -rf -- "$temp" || :
+    return 1
+  fi
+
+  if ! cp -f -- "$autoexec" "$target/W9XAUTO.BAT" ||
+    ! cmp -s -- "$autoexec" "$target/W9XAUTO.BAT"; then
+    rm -rf -- "$temp" || :
+    error "Failed to stage the final $desc AUTOEXEC.BAT source file!"
+    return 1
+  fi
+
+  rm -rf -- "$temp" || :
+  return 0
+}
+
+writeWin9xAutoexec() {
+
+  local output="$1"
+  local setup="$2"
+  local options="$3"
+  local id="$4"
+  local patch_args="-auto -unselect creg"
+
+  [[ "${id,,}" == "win9x"* ]] && patch_args="-auto"
+
+  {
+    printf '%s\n' \
+      '@ECHO OFF' \
+      'IF EXIST C:\WINDOWS\WIN.COM GOTO WINDOWS' \
+      'ECHO.' \
+      'ECHO Starting Windows Setup, please wait...' \
+      'ECHO.' \
+      "IF NOT EXIST C:\\${setup}\\XMSMMGR.EXE GOTO SETUP" \
+      "IF NOT EXIST C:\\${setup}\\SMARTDRV.EXE GOTO SETUP" \
+      "C:\\${setup}\\XMSMMGR.EXE >NUL" \
+      "C:\\${setup}\\SMARTDRV.EXE C+ /Q 16384 16384 >NUL" \
+      ':SETUP' \
+      "C:\\${setup}\\SETUP.EXE $options" \
+      'GOTO END' \
+      ':WINDOWS' \
+      'IF NOT EXIST C:\WINDOWS\SYSTEM\KERNEL32.DLL GOTO STARTWIN' \
+      'IF NOT EXIST C:\WINDOWS\SYSTEM\VMM32.VXD GOTO STARTWIN'
+
+    # WinMe RunServices may invoke WinMeBoot more than once during one Setup boot.
+    # Clear its same-boot latch only here, at the next real AUTOEXEC boot boundary.
+    if [[ "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' 'IF EXIST C:\SETUP\MEBOOT.BOOT DEL C:\SETUP\MEBOOT.BOOT >NUL'
+    fi
+
+    printf '%s\n' \
+      'IF NOT EXIST C:\SETUP\PATCH9X.RUN GOTO STARTWIN' \
+      'IF NOT EXIST C:\SETUP\PATCH9X.EXE GOTO STARTWIN' \
+      'IF NOT EXIST C:\SETUP\CWSDPMI.EXE GOTO STARTWIN' \
+      "CD C:\\SETUP" \
+      "PATCH9X.EXE $patch_args C:\\WINDOWS\\SYSTEM >NUL" \
+      "CD C:\\" \
+      ':STARTWIN'
+
+    if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
+      printf '%s\n' 'C:\WINDOWS\WIN.COM'
+    fi
+
+    printf '%s\n' \
+      ':END' \
+      ''
+  } | unix2dos > "$output" || return 1
+
+  return 0
+}
+
+stageWinMeFinalBootFiles() {
+
+  local dir="$1"
+  local target="$2"
+  local desc="$3"
+
+  local temp="$TMP/winme-final-boot"
+  local cbs winboot size signature
+
+  rm -rf -- "$temp" || return 1
+  mkdir -p "$temp/nettools" || return 1
+
+  cbs=$(find "$dir" -type f -ipath '*/TOOLS/NETTOOLS/FAC/CBS.DTA' -print -quit) || return 1
+
+  if [ -z "$cbs" ]; then
+    rm -rf -- "$temp" || :
+    error "Failed to locate the Windows Me NETTOOLS CBS.DTA archive!"
+    return 1
+  fi
+
+  if ! cabextract -q -L -F 'WINBOOT.SYS' -d "$temp/nettools" "$cbs" >/dev/null 2>&1; then
+    rm -rf -- "$temp" || :
+    error "Failed to extract the Windows Me NETTOOLS WINBOOT.SYS!"
+    return 1
+  fi
+
+  winboot=$(find "$temp/nettools" -type f -iname 'WINBOOT.SYS' -print -quit) || return 1
+
+  if [ -z "$winboot" ] || [ ! -s "$winboot" ]; then
+    rm -rf -- "$temp" || :
+    error "Failed to locate the extracted Windows Me NETTOOLS WINBOOT.SYS!"
+    return 1
+  fi
+
+  size=$(stat -c %s -- "$winboot") || return 1
+  signature=$(dd if="$winboot" bs=1 count=2 status=none | od -An -tx1 | tr -d ' \n') || return 1
+
+  if (( size != 118784 )) || [[ "${signature,,}" != "4d5a" ]]; then
+    rm -rf -- "$temp" || :
+    error "Unexpected Windows Me NETTOOLS WINBOOT.SYS format!"
+    return 1
+  fi
+
+  if ! cp -f -- "$winboot" "$target/MEIO.SYS" ||
+    ! cmp -s -- "$winboot" "$target/MEIO.SYS"; then
+    rm -rf -- "$temp" || :
+    error "Failed to stage the final Windows Me IO.SYS source file!"
+    return 1
+  fi
+
+  if ! extractWin9xCabFile "$target" 'COMMAND.COM' "$target/MECOM.COM" "$desc" ||
+    ! extractWin9xCabFile "$target" 'REGENV32.EXE' "$target/MEREGENV.EXE" "$desc"; then
+    rm -rf -- "$temp" || :
+    return 1
+  fi
+
+  # Enable the normal real-mode path in the localized Windows Me COMMAND.COM.
+  # These are the three guarded substitutions used by the established Me DOS
+  # mode patch; do not include its unrelated hidden-file display tweaks.
+  if ! patchWinMeBinaryPatterns "$target/MECOM.COM" 'Windows Me COMMAND.COM' \
+    '7510b80e' 'eb10b80e' \
+    '0300750b8b' '0300eb0b8b' \
+    '128b1608' '448b1608'; then
+    rm -rf -- "$temp" || :
+    return 1
+  fi
+
+  # REGENV32 otherwise rewrites CONFIG.SYS and AUTOEXEC.BAT on every restart.
+  # Redirect those writes to .WIN files so our real-mode startup remains intact.
+  if ! patchWinMeBinaryPatterns "$target/MEREGENV.EXE" 'Windows Me REGENV32.EXE' \
+    '434f4e4649472e535953' '434f4e4649472e57494e' \
+    '4155544f455845432e424154' '4155544f455845432e57494e'; then
+    rm -rf -- "$temp" || :
+    return 1
+  fi
+
+  rm -rf -- "$temp" || :
+  return 0
+}
+
+extractWin9xCabFile() {
+
+  local dir="$1"
+  local name="$2"
+  local output="$3"
+  local desc="$4"
+
+  local temp="$TMP/win9x-cab-file"
+  local cab extracted find_pid
+  local -a precopy_cabs=() other_cabs=()
+
+  rm -rf -- "$temp" || return 1
+  mkdir -p "$temp" || return 1
+  rm -f -- "$output" || return 1
+
+  mapfile -d '' precopy_cabs < <(
+    find "$dir" -maxdepth 1 -type f -iname 'PRECOPY*.CAB' -print0
+  )
+
+  find_pid=$!
+
+  if ! wait "$find_pid"; then
+    rm -rf -- "$temp" || :
+    error "Failed to enumerate $desc setup cabinets!"
+    return 1
+  fi
+
+  mapfile -d '' other_cabs < <(
+    find "$dir" -maxdepth 1 -type f -iname '*.CAB' ! -iname 'PRECOPY*.CAB' -print0
+  )
+
+  find_pid=$!
+
+  if ! wait "$find_pid"; then
+    rm -rf -- "$temp" || :
+    error "Failed to enumerate $desc setup cabinets!"
+    return 1
+  fi
+
+  for cab in "${precopy_cabs[@]}" "${other_cabs[@]}"; do
+
+    rm -rf -- "$temp/files" || return 1
+    mkdir -p "$temp/files" || return 1
+
+    if ! cabextract -q -L -F "$name" -d "$temp/files" "$cab" >/dev/null 2>&1; then
+      continue
+    fi
+
+    extracted=$(find "$temp/files" -type f -iname "$name" -print -quit) || return 1
+
+    if [ -n "$extracted" ] && [ -s "$extracted" ]; then
+      if ! cp -f -- "$extracted" "$output" || ! cmp -s -- "$extracted" "$output"; then
+        rm -rf -- "$temp" || :
+        error "Failed to extract $name from $desc setup files!"
+        return 1
+      fi
+
+      rm -rf -- "$temp" || :
+      return 0
+    fi
+
+  done
+
+  rm -rf -- "$temp" || :
+  error "Failed to locate $name in $desc setup cabinets!"
+  return 1
+}
+
+patchWinMeBinaryPatterns() {
+
+  local file="$1"
+  local desc="$2"
+  shift 2
+
+  if (( $# == 0 || $# % 2 != 0 )); then
+    error "Invalid binary patch definition for $desc!"
+    return 1
+  fi
+
+  if ! python3 - "$file" "$desc" "$@" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+desc = sys.argv[2]
+args = sys.argv[3:]
+
+data = path.read_bytes()
+original = data
+
+for index in range(0, len(args), 2):
+    old = bytes.fromhex(args[index])
+    new = bytes.fromhex(args[index + 1])
+
+    if len(old) != len(new):
+        print(f"Invalid {desc} patch length.", file=sys.stderr)
+        raise SystemExit(1)
+
+    count = data.count(old)
+    if count != 1:
+        print(
+            f"Unexpected {desc} patch signature count for {args[index]}: {count} (expected 1).",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+
+    data = data.replace(old, new, 1)
+
+if data == original:
+    print(f"No changes were made while patching {desc}.", file=sys.stderr)
+    raise SystemExit(1)
+
+path.write_bytes(data)
+PY
+  then
+    error "Failed to patch $desc!"
+    return 1
+  fi
+
+  return 0
+}
+
+stageWinMeBootActivation() {
 
   local dir="$1"
   local desc="$2"
-  local target="$dir/WIN9XDMA.EXE"
+  local target="$dir/MEBOOT.BAT"
 
-  # Keep the Win9x DMA helper embedded alongside HIDE.EXE so the driver
-  # archive stays unchanged. It updates both enumerated ESDI disks and the
-  # persistent ESDI_506.PDR controller DMA flags used after a reboot.
-  if ! base64 -d <<'EOF' | gzip -dc > "$target"
-H4sIAAAAAAACA+1WT4gbZRR/yeaQtutm0A22a4sTnPViN8w3XYWqC0kzKQ1N7TRx41KjNSZDk5h/
-TGZKVtrSks0hHXIR60F69lxhKUtAGrpVD9oq4qoYkVzUDd3DwsIS8M/4vpmkpuxS9SII++DLzPu9
-N795v998zOTE6QrYAMABD4YP/j4quMaebI7B4q47niVb+I7n5XSmzJaU4lklkWeTiUKhqLJvyqyi
-FdhMgRVPRtl8MSV7OQApCBC2jUDHsZAd8HXAbttjG7OGGQzE9NdgKnpu/6vsGB64n9gHFzLDxyEa
-jGsswIsPE8fjfPDvo4e87EPqXlWuqHhct/cHcmw1H69/w6ukEmoC4B2bBZiinFuekc+ryLlisj8r
-3+/bvaXvCOzETmwTs9FXYpfXruMuq3ekrDMLaWB9kMZddMlwg8cHtZarZmAjaTdyHK/P/IblxiJ3
-HaH0JZPAULlR49taS2VmRpDHVfsI4e4t/GmInNMkncUeRp+ifMYKZXwfq/U4N0raafr6iVGScZNk
-l0mipe/l8GqHlB3JQgyLe+l1WkQPc47mbhwhy2J5XFotYHP1thMvPNgIc0yTwdrqBwgiMpG1pZ+h
-vciRnsATk8ft9JhnDsPdQyzQfdvAUDmnles4FVUa6B6g+DRnwXg3xvLn4FZ/vqFar5me6FPUIH2G
-lsim6VCUzr+fzn/foavUoffAMh2no/JZKl+7qI9yzTk6tA9vOS2tNmAg8DQK5JtJKvBjMAUeIy2f
-tEQlSksjCEmkJaVLltBxfcoUurJdz4V+j7FizXtf5tFuyHKDsfIsGG4GaS7fplvk9TOvvrZMd0x1
-zamf51j0aj/ZpM+pztd/ql/AzSDFIqcMt8M0Rnu8ep5z2DRGd3DHDvfKzk/EFwx05Wh9HRWZZMh1
-Zd9CWz3kd92wo6Ip142NxsWb9Y3qZ2zVmHAFfmyUbtY/rX7BVv/ArHf4V+2xI1f2+Rfa2l3SJq3n
-J1zvtu7ZSQvZlo1JU8skvbsxaaqfZMzfnonTZ/L5TjwQwYKWjwejYggCuUS5DGKm/JaoZM7JIJ7w
-BzRFkQtqbn62LKfAFp0vq3I+3kcDxYKqFHNRWY1HZeVcJimX4yZHPJ1KglRUVJNHAcp+5ln+OW8p
-pUBIDCKxGAnFgvxwQnBr0p0HQ8fvhj6kFY/1bV0fwmqIMZ7t32t7EX8a1zQuEddcvy/r+Wd1gIh8
-NpArluXj8ryVUasw8VvZyZJcwCxY6eenNFmZjyVymmxBFENvhpFgJaNKShGNKoNfjPml0CHBm8rl
-4Hgw8lIw3E/+42Cs/w6P8gd4wuf5Rf5LvsN3+Q3+d/4RwhGBzJAImSNXyYdkmXxFfiC/kE1iF/YI
-TwhPCTHhrvC18L3QEX4W1oSdr+n/L/4EP8bQ8wAMAAA=
-EOF
-  then
-    error "Failed to create WIN9XDMA.EXE in $desc setup files!"
+  # RunServices can invoke this more than once during a single Setup boot.
+  # MEBOOT.BOOT is a same-boot latch cleared by AUTOEXEC on the next real reboot;
+  # MEBOOT1.RUN persists across that boundary so activation occurs only then.
+  {
+    printf '%s\n' \
+      '@ECHO OFF' \
+      'IF EXIST C:\SETUP\MEBOOT.RUN GOTO END' \
+      'IF EXIST C:\SETUP\MEBOOT.BOOT GOTO END' \
+      'ECHO 1>C:\SETUP\MEBOOT.BOOT' \
+      'IF EXIST C:\SETUP\MEBOOT1.RUN GOTO ACTIVATE' \
+      'ECHO 1>C:\SETUP\MEBOOT1.RUN' \
+      'GOTO END' \
+      ':ACTIVATE' \
+      'IF NOT EXIST C:\SETUP\MEREGENV.EXE GOTO END' \
+      'IF NOT EXIST C:\SETUP\MECOM.COM GOTO END' \
+      'IF NOT EXIST C:\SETUP\MEIO.SYS GOTO END' \
+      'IF NOT EXIST C:\WINDOWS\COMMAND\ATTRIB.EXE GOTO END' \
+      'COPY /Y C:\SETUP\MEREGENV.EXE C:\WINDOWS\SYSTEM\REGENV32.EXE >NUL' \
+      'IF ERRORLEVEL 1 GOTO END' \
+      'COPY /Y C:\SETUP\MECOM.COM C:\WINDOWS\COMMAND.COM >NUL' \
+      'IF ERRORLEVEL 1 GOTO END' \
+      'COPY /Y C:\SETUP\MECOM.COM C:\COMMAND.COM >NUL' \
+      'IF ERRORLEVEL 1 GOTO END' \
+      'C:\WINDOWS\COMMAND\ATTRIB.EXE -R -S -H C:\IO.SYS >NUL' \
+      'IF ERRORLEVEL 1 GOTO END' \
+      'COPY /Y C:\SETUP\MEIO.SYS C:\IO.SYS >NUL' \
+      'IF ERRORLEVEL 1 GOTO IOFAIL' \
+      'C:\WINDOWS\COMMAND\ATTRIB.EXE +R +S +H C:\IO.SYS >NUL' \
+      'ECHO 1>C:\SETUP\MEBOOT.RUN' \
+      'GOTO END' \
+      ':IOFAIL' \
+      'C:\WINDOWS\COMMAND\ATTRIB.EXE +R +S +H C:\IO.SYS >NUL' \
+      ':END' \
+      ''
+  } | unix2dos > "$target" || {
+    error "Failed to create the Windows Me boot activation script for $desc!"
     return 1
-  fi
-
-  if [ "$(wc -c < "$target")" -ne 3072 ]; then
-    error "Failed to verify WIN9XDMA.EXE in $desc setup files!"
-    return 1
-  fi
+  }
 
   return 0
 }
@@ -891,71 +973,6 @@ EOF
   return 0
 }
 
-stageWin9xPostSetup() {
-
-  local dir="$1"
-  local desc="$2"
-  local install="$3"
-  local id="$4"
-  local target="$dir/POST9X.BAT"
-  local marker="$dir/POST9X.NEW"
-  local cleanup="$dir/POST9X.REG"
-
-  {
-    printf '%s\n' \
-      '@ECHO OFF' \
-      'IF NOT EXIST C:\WINDOWS\POST9X.RDY GOTO END'
-
-    printf '%s\n' 'START /W C:\WINDOWS\REGEDIT.EXE /S C:\WINDOWS\POST9X.REG'
-
-    printf '%s\n' \
-      'DEL C:\WINDOWS\POST9X.REG >NUL' \
-      'DEL C:\WINDOWS\POST9X.RDY >NUL'
-
-    if [[ "${id,,}" == "win9x"* ]]; then
-      printf '%s\n' 'DEL C:\SETUP\PATCH9X.RUN >NUL'
-    fi
-
-    if [ -n "$install" ]; then
-      if enabled "${LOG:-}"; then
-        printf '%s\n' 'CALL C:\OEM\install.bat > C:\OEM\install.log'
-      else
-        printf '%s\n' 'CALL C:\OEM\install.bat'
-      fi
-    fi
-
-    printf '%s\n' ':END'
-
-  } | unix2dos > "$target" || {
-    error "Failed to create post-desktop setup script for $desc!"
-    return 1
-  }
-
-  # Remove the persistent Run value without re-entering SETUPX.DLL from the
-  # desktop batch. REGEDIT /S performs the one registry cleanup silently.
-  {
-    printf '%s\n' \
-      'REGEDIT4' \
-      '' \
-      '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run]' \
-      '"PostSetup"=-'
-
-  } | unix2dos > "$cleanup" || {
-    error "Failed to create post-desktop registry cleanup for $desc!"
-    return 1
-  }
-
-  # Stage a real marker file for Setup to copy into the Windows directory.
-  # Win9x.FirstLogon adds a WININIT.INI rename so the following reboot promotes
-  # POST9X.NEW to POST9X.RDY before the final desktop starts.
-  if ! printf 'Ready\r\n' > "$marker"; then
-    error "Failed to create post-desktop marker for $desc!"
-    return 1
-  fi
-
-  return 0
-}
-
 stageWinMeFinalSetup() {
 
   local dir="$1"
@@ -976,198 +993,6 @@ stageWinMeFinalSetup() {
   }
 
   return 0
-}
-
-stageWin9xMouseFiles() {
-
-  local dir="$1"
-  local desc="$2"
-  local qemouse="$3"
-  local file="qemouse.drv"
-  local source="$qemouse/$file"
-  local target="$dir/${file^^}"
-
-  # QEMouse is used both by MINI.CAB during GUI Setup and by the installed OS.
-  # Keep one source copy in C:\SETUP; MSBATCH.INF installs the same binary as
-  # MOUSE.DRV so Windows can retain its stock mouse configuration and VxD stack.
-  if [ ! -f "$source" ]; then
-    error "Failed to locate $file!"
-    return 1
-  fi
-
-  if ! cp -f -- "$source" "$target" || ! cmp -s -- "$source" "$target"; then
-    error "Failed to stage $file in $desc setup files!"
-    return 1
-  fi
-
-  return 0
-}
-
-writeWin9xUserRegistry() {
-
-  local id="$1"
-
-  printf '%s\n' \
-    '[Win9x.UserDefault]' \
-    'HKU,".DEFAULT\Control Panel\Desktop","SCRNSAVE.EXE",,""' \
-    'HKU,".DEFAULT\Control Panel\Desktop","ScreenSaveActive",,"0"' \
-    'HKU,".DEFAULT\Control Panel\Desktop","DragFullWindows",,"1"' \
-    'HKU,".DEFAULT\Control Panel\Desktop","MenuShowDelay",,"100"' \
-    'HKU,".DEFAULT\Control Panel\Desktop","FontSmoothing",,"1"' \
-    'HKU,".DEFAULT\Control Panel\Desktop","SmoothScroll",0x00010001,0' \
-    'HKU,".DEFAULT\Control Panel\Desktop\WindowMetrics","MinAnimate",,"0"' \
-    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","HideFileExt",0x00010001,0' \
-    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer\CabinetState","Settings",1,0c,00,02,00,0a,01,00,00,60,00,00,00' \
-    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoActiveDesktop",0x00010001,1' \
-    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer","link",1,00,00,00,00'
-
-  if ! disabled "$AUTOLOGIN"; then
-    printf '%s\n' \
-      'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoLogOff",0x00010001,1'
-
-    if [[ "${id,,}" == "win9x"* ]]; then
-      printf '%s\n' \
-        'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","StartMenuLogoff",0x00010001,0'
-    fi
-  fi
-
-  printf '%s\n' \
-    '' \
-    '[Win9x.User]' \
-    'HKCU,"Control Panel\Desktop","SCRNSAVE.EXE",,""' \
-    'HKCU,"Control Panel\Desktop","ScreenSaveActive",,"0"' \
-    'HKCU,"Control Panel\Desktop","DragFullWindows",,"1"' \
-    'HKCU,"Control Panel\Desktop","MenuShowDelay",,"100"' \
-    'HKCU,"Control Panel\Desktop","FontSmoothing",,"1"' \
-    'HKCU,"Control Panel\Desktop","SmoothScroll",0x00010001,0' \
-    'HKCU,"Control Panel\Desktop\WindowMetrics","MinAnimate",,"0"' \
-    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","HideFileExt",0x00010001,0' \
-    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer\CabinetState","Settings",1,0c,00,02,00,0a,01,00,00,60,00,00,00' \
-    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoActiveDesktop",0x00010001,1' \
-    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer","link",1,00,00,00,00'
-
-  if ! disabled "$AUTOLOGIN"; then
-    printf '%s\n' \
-      'HKCU,"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoLogOff",0x00010001,1'
-
-    if [[ "${id,,}" == "win9x"* ]]; then
-      printf '%s\n' \
-        'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","StartMenuLogoff",0x00010001,0'
-    fi
-  fi
-}
-
-writeWin9xMachineRegistry() {
-
-  printf '%s\n' \
-    '[Win9x.Machine]' \
-    'HKU,".DEFAULT\Control Panel\Desktop","FontSmoothing",,"1"' \
-    'HKLM,"Software\Microsoft\Windows\CurrentVersion\FS Templates",,,"Server"' \
-    'HKLM,"Software\Microsoft\Windows\CurrentVersion\FS Templates\Server","NameCache",1,a9,0a,00,00' \
-    'HKLM,"Software\Microsoft\Windows\CurrentVersion\FS Templates\Server","PathCache",1,40,00,00,00' \
-    'HKLM,"System\CurrentControlSet\Control\FileSystem","NameCache",1,a9,0a,00,00' \
-    'HKLM,"System\CurrentControlSet\Control\FileSystem","PathCache",1,40,00,00,00' \
-    'HKLM,"System\CurrentControlSet\Control\FileSystem","ReadAheadThreshold",1,00,00,01,00' \
-    'HKLM,"System\CurrentControlSet\Control\FileSystem\CDFS","CacheSize",1,ac,09,00,00' \
-    'HKLM,"System\CurrentControlSet\Control\FileSystem\CDFS","Prefetch",1,e4,00,00,00' \
-    'HKLM,"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoDevMgrUpdate",0x00010001,1' \
-    'HKLM,"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoWindowsUpdate",0x00010001,1'
-}
-
-writeWin9xBrowserPowerRegistry() {
-
-  printf '%s\n' \
-    '[Win9x.Power]' \
-    'HKLM,"Software\Microsoft\Windows\CurrentVersion\Controls Folder\PowerCfg\PowerPolicies\3","Policies",0x00000001,01,00,00,00,02,00,00,00,02,00,00,00,02,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,02,00,00,00,04,00,00,c0,00,00,00,00,02,00,00,00,04,00,00,c0,00,00,00,00' \
-    'HKU,".DEFAULT\Control Panel\PowerCfg","CurrentPowerPolicy",,"3"' \
-    'HKU,".DEFAULT\Control Panel\PowerCfg\PowerPolicies\3","Policies",0x00000001,01,00,00,00,02,00,00,00,01,00,00,00,00,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,04,00,00,00,05,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,01,64,64,64,64,00,00' \
-    '' \
-    '[Win9x.BrowserDefault]' \
-    'HKU,".DEFAULT\Software\Microsoft\Internet Connection Wizard","Completed",0x00010001,1' \
-    'HKU,".DEFAULT\Software\Microsoft\Internet Explorer\Main","Start Page",,"http://www.google.com"' \
-    'HKU,".DEFAULT\Software\Microsoft\Internet Explorer\Main","First Home Page",,"http://www.google.com"' \
-    'HKU,".DEFAULT\Software\Microsoft\Internet Explorer\Main","Default_Page_URL",,"http://www.google.com"' \
-    'HKU,".DEFAULT\Software\Microsoft\Internet Explorer\Main","Search Page",,"http://www.google.com"' \
-    'HKU,".DEFAULT\Software\Microsoft\Internet Explorer\Main","Search Bar",,"http://www.google.com"' \
-    '' \
-    '[Win9x.ActiveSetup]' \
-    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx",,,">Batch 9x - General Settings"' \
-    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx","IsInstalled",0x00000001,01,00,00,00' \
-    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx","Version",,"3,0,0,0"' \
-    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx","StubPath",,"%25%\rundll.exe setupx.dll,InstallHinfSection Win9x.Browser 4 %10%\msbatch.inf"' \
-    '' \
-    '[Win9x.Browser]' \
-    'AddReg=Win9x.BrowserUser,Win9x.PowerUser' \
-    'DelReg=Win9x.MSN,Win9x.ICWDesktop' \
-    'DelFiles=Win9x.Connect,Win9x.ConnectAll' \
-    '' \
-    '[Win9x.PowerUser]' \
-    'HKCU,"Control Panel\PowerCfg","CurrentPowerPolicy",,"3"' \
-    'HKCU,"Control Panel\PowerCfg\PowerPolicies\3","Policies",0x00000001,01,00,00,00,02,00,00,00,01,00,00,00,00,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,04,00,00,00,05,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,01,64,64,64,64,00,00' \
-    '' \
-    '[Win9x.BrowserUser]' \
-    'HKCU,"Software\Microsoft\Internet Connection Wizard","Completed",0x00010001,1' \
-    'HKCU,"Software\Microsoft\Internet Explorer\Main","Start Page",,"http://www.google.com"' \
-    'HKCU,"Software\Microsoft\Internet Explorer\Main","First Home Page",,"http://www.google.com"' \
-    'HKCU,"Software\Microsoft\Internet Explorer\Main","Default_Page_URL",,"http://www.google.com"' \
-    'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Page",,"http://www.google.com"' \
-    'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Bar",,"http://www.google.com"'
-}
-
-writeWin9xStorageRegistry() {
-
-  printf '%s\n' \
-    '[Win9x.StorageActiveSetup]' \
-    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex",,,">Batch 9x - Storage Settings"' \
-    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex","IsInstalled",0x00000001,01,00,00,00' \
-    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex","Version",,"3,0,0,0"' \
-    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex","StubPath",,"%10%\WIN9XDMA.EXE"'
-}
-
-writeWin9xCleanupRegistry() {
-
-  printf '%s\n' \
-    '[Win9x.Welcome]' \
-    'HKLM,"Software\Microsoft\Windows\CurrentVersion\Run","Welcome",,,' \
-    '' \
-    '[Win9x.Regwiz]' \
-    'HKLM,"Software\Microsoft\Windows\CurrentVersion\Welcome\Regwiz",@,1,01,00,00,00' \
-    'HKLM,"Software\Microsoft\Windows\CurrentVersion","RegDone",1,01,00,00,00' \
-    '' \
-    '[Win9x.MSN]' \
-    'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{4B876A40-4EE8-11D1-811E-00C04FB98EEC}",,,' \
-    'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{88667D10-10F0-11D0-8150-00AA00BF8457}",,,' \
-    'HKCU,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{4B876A40-4EE8-11D1-811E-00C04FB98EEC}",,,' \
-    'HKCU,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{88667D10-10F0-11D0-8150-00AA00BF8457}",,,' \
-    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{4B876A40-4EE8-11D1-811E-00C04FB98EEC}",,,' \
-    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{88667D10-10F0-11D0-8150-00AA00BF8457}",,,' \
-    '' \
-    '[Win9x.ICWDesktop]' \
-    'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","^SetupICWDesktop",,,' \
-    'HKCU,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","^SetupICWDesktop",,,' \
-    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\RunOnce","^SetupICWDesktop",,,' \
-    '' \
-    '[Win9x.Connect]' \
-    'connec~1.lnk' \
-    '"Connect to the Internet.lnk"' \
-    '' \
-    '[Win9x.ConnectAll]' \
-    'connec~1.lnk' \
-    '"Connect to the Internet.lnk"' \
-    '' \
-    '[Win9x.OnlineServices]' \
-    'aol.lnk' \
-    'americ~1.lnk' \
-    'at&two~1.lnk' \
-    'compus~1.lnk' \
-    'prodig~1.lnk' \
-    'themic~1.lnk' \
-    'aboutt~1.lnk' \
-    'abouto~1.txt' \
-    'services.txt' \
-    '' \
-    '[Win9x.OnlineServicesFolder]' \
-    'wininit.ini,DIRNUL,,"%25%\Desktop\Online~1=1"'
 }
 
 writeWin9xAnswerFile() {
@@ -1601,53 +1426,171 @@ writeWin9xAnswerFile() {
   return 0
 }
 
-patchWin9xSetupFiles() {
+writeWin9xUserRegistry() {
 
   local id="$1"
-  local target="$2"
-  local desc="$3"
-  local patcher="$4"
-  local qemouse="$5"
-  local display="$6"
 
-  chmod 755 "$patcher" || {
-    error "Failed to make Patcher9x executable!"
-    return 1
-  }
+  printf '%s\n' \
+    '[Win9x.UserDefault]' \
+    'HKU,".DEFAULT\Control Panel\Desktop","SCRNSAVE.EXE",,""' \
+    'HKU,".DEFAULT\Control Panel\Desktop","ScreenSaveActive",,"0"' \
+    'HKU,".DEFAULT\Control Panel\Desktop","DragFullWindows",,"1"' \
+    'HKU,".DEFAULT\Control Panel\Desktop","MenuShowDelay",,"100"' \
+    'HKU,".DEFAULT\Control Panel\Desktop","FontSmoothing",,"1"' \
+    'HKU,".DEFAULT\Control Panel\Desktop","SmoothScroll",0x00010001,0' \
+    'HKU,".DEFAULT\Control Panel\Desktop\WindowMetrics","MinAnimate",,"0"' \
+    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","HideFileExt",0x00010001,0' \
+    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer\CabinetState","Settings",1,0c,00,02,00,0a,01,00,00,60,00,00,00' \
+    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoActiveDesktop",0x00010001,1' \
+    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer","link",1,00,00,00,00'
 
-  local msg="Patching Windows setup..."
-  info "$msg" && html "$msg"
+  if ! disabled "$AUTOLOGIN"; then
+    printf '%s\n' \
+      'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoLogOff",0x00010001,1'
 
-  local patch_output
-  local patch_args=(-auto -unselect creg)
-
-  [[ "${id,,}" == "win9x"* ]] && patch_args=(-auto)
-
-  if ! patch_output=$("$patcher" "${patch_args[@]}" "$target" 2>&1); then
-    [ -z "$patch_output" ] || printf '%s\n' "$patch_output" >&2
-    error "Failed to patch $desc setup files!"
-    return 1
+    if [[ "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' \
+        'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","StartMenuLogoff",0x00010001,0'
+    fi
   fi
 
-  stageWin9xDisplayDriver "$target" "$display" "$desc" || return 1
+  printf '%s\n' \
+    '' \
+    '[Win9x.User]' \
+    'HKCU,"Control Panel\Desktop","SCRNSAVE.EXE",,""' \
+    'HKCU,"Control Panel\Desktop","ScreenSaveActive",,"0"' \
+    'HKCU,"Control Panel\Desktop","DragFullWindows",,"1"' \
+    'HKCU,"Control Panel\Desktop","MenuShowDelay",,"100"' \
+    'HKCU,"Control Panel\Desktop","FontSmoothing",,"1"' \
+    'HKCU,"Control Panel\Desktop","SmoothScroll",0x00010001,0' \
+    'HKCU,"Control Panel\Desktop\WindowMetrics","MinAnimate",,"0"' \
+    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","HideFileExt",0x00010001,0' \
+    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer\CabinetState","Settings",1,0c,00,02,00,0a,01,00,00,60,00,00,00' \
+    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoActiveDesktop",0x00010001,1' \
+    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer","link",1,00,00,00,00'
 
-  if ! mv -f -- \
-    "$target/BOXV9X/boxv9x.inf" \
-    "$target/BOXV9X/boxvmini.drv" \
-    "$target/BOXV9X/boxvmini.vxd" \
-    "$target/"; then
-    error "Failed to stage the Windows 9x display driver in the setup source!"
-    return 1
+  if ! disabled "$AUTOLOGIN"; then
+    printf '%s\n' \
+      'HKCU,"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoLogOff",0x00010001,1'
+
+    if [[ "${id,,}" == "win9x"* ]]; then
+      printf '%s\n' \
+        'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","StartMenuLogoff",0x00010001,0'
+    fi
   fi
+}
 
-  rm -rf -- "$target/BOXV9X" || return 1
-  : > "$target/BOXV9X" || return 1
+writeWin9xMachineRegistry() {
 
-  # Use QEMouse directly in the MINI.CAB GUI Setup environment for every Win9x
-  # release, so the setup mouse path does not depend on a DOS INT 33h TSR.
-  integrateWin9xSetupMouse "$target" "$desc" "$qemouse/qemouse.drv" || return 1
+  printf '%s\n' \
+    '[Win9x.Machine]' \
+    'HKU,".DEFAULT\Control Panel\Desktop","FontSmoothing",,"1"' \
+    'HKLM,"Software\Microsoft\Windows\CurrentVersion\FS Templates",,,"Server"' \
+    'HKLM,"Software\Microsoft\Windows\CurrentVersion\FS Templates\Server","NameCache",1,a9,0a,00,00' \
+    'HKLM,"Software\Microsoft\Windows\CurrentVersion\FS Templates\Server","PathCache",1,40,00,00,00' \
+    'HKLM,"System\CurrentControlSet\Control\FileSystem","NameCache",1,a9,0a,00,00' \
+    'HKLM,"System\CurrentControlSet\Control\FileSystem","PathCache",1,40,00,00,00' \
+    'HKLM,"System\CurrentControlSet\Control\FileSystem","ReadAheadThreshold",1,00,00,01,00' \
+    'HKLM,"System\CurrentControlSet\Control\FileSystem\CDFS","CacheSize",1,ac,09,00,00' \
+    'HKLM,"System\CurrentControlSet\Control\FileSystem\CDFS","Prefetch",1,e4,00,00,00' \
+    'HKLM,"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoDevMgrUpdate",0x00010001,1' \
+    'HKLM,"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoWindowsUpdate",0x00010001,1'
+}
 
-  return 0
+writeWin9xBrowserPowerRegistry() {
+
+  printf '%s\n' \
+    '[Win9x.Power]' \
+    'HKLM,"Software\Microsoft\Windows\CurrentVersion\Controls Folder\PowerCfg\PowerPolicies\3","Policies",0x00000001,01,00,00,00,02,00,00,00,02,00,00,00,02,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,02,00,00,00,04,00,00,c0,00,00,00,00,02,00,00,00,04,00,00,c0,00,00,00,00' \
+    'HKU,".DEFAULT\Control Panel\PowerCfg","CurrentPowerPolicy",,"3"' \
+    'HKU,".DEFAULT\Control Panel\PowerCfg\PowerPolicies\3","Policies",0x00000001,01,00,00,00,02,00,00,00,01,00,00,00,00,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,04,00,00,00,05,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,01,64,64,64,64,00,00' \
+    '' \
+    '[Win9x.BrowserDefault]' \
+    'HKU,".DEFAULT\Software\Microsoft\Internet Connection Wizard","Completed",0x00010001,1' \
+    'HKU,".DEFAULT\Software\Microsoft\Internet Explorer\Main","Start Page",,"http://www.google.com"' \
+    'HKU,".DEFAULT\Software\Microsoft\Internet Explorer\Main","First Home Page",,"http://www.google.com"' \
+    'HKU,".DEFAULT\Software\Microsoft\Internet Explorer\Main","Default_Page_URL",,"http://www.google.com"' \
+    'HKU,".DEFAULT\Software\Microsoft\Internet Explorer\Main","Search Page",,"http://www.google.com"' \
+    'HKU,".DEFAULT\Software\Microsoft\Internet Explorer\Main","Search Bar",,"http://www.google.com"' \
+    '' \
+    '[Win9x.ActiveSetup]' \
+    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx",,,">Batch 9x - General Settings"' \
+    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx","IsInstalled",0x00000001,01,00,00,00' \
+    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx","Version",,"3,0,0,0"' \
+    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchSetupx","StubPath",,"%25%\rundll.exe setupx.dll,InstallHinfSection Win9x.Browser 4 %10%\msbatch.inf"' \
+    '' \
+    '[Win9x.Browser]' \
+    'AddReg=Win9x.BrowserUser,Win9x.PowerUser' \
+    'DelReg=Win9x.MSN,Win9x.ICWDesktop' \
+    'DelFiles=Win9x.Connect,Win9x.ConnectAll' \
+    '' \
+    '[Win9x.PowerUser]' \
+    'HKCU,"Control Panel\PowerCfg","CurrentPowerPolicy",,"3"' \
+    'HKCU,"Control Panel\PowerCfg\PowerPolicies\3","Policies",0x00000001,01,00,00,00,02,00,00,00,01,00,00,00,00,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,04,00,00,00,05,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,01,64,64,64,64,00,00' \
+    '' \
+    '[Win9x.BrowserUser]' \
+    'HKCU,"Software\Microsoft\Internet Connection Wizard","Completed",0x00010001,1' \
+    'HKCU,"Software\Microsoft\Internet Explorer\Main","Start Page",,"http://www.google.com"' \
+    'HKCU,"Software\Microsoft\Internet Explorer\Main","First Home Page",,"http://www.google.com"' \
+    'HKCU,"Software\Microsoft\Internet Explorer\Main","Default_Page_URL",,"http://www.google.com"' \
+    'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Page",,"http://www.google.com"' \
+    'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Bar",,"http://www.google.com"'
+}
+
+writeWin9xStorageRegistry() {
+
+  printf '%s\n' \
+    '[Win9x.StorageActiveSetup]' \
+    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex",,,">Batch 9x - Storage Settings"' \
+    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex","IsInstalled",0x00000001,01,00,00,00' \
+    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex","Version",,"3,0,0,0"' \
+    'HKLM,"SOFTWARE\Microsoft\Active Setup\Installed Components\>BatchStoragex","StubPath",,"%10%\WIN9XDMA.EXE"'
+}
+
+writeWin9xCleanupRegistry() {
+
+  printf '%s\n' \
+    '[Win9x.Welcome]' \
+    'HKLM,"Software\Microsoft\Windows\CurrentVersion\Run","Welcome",,,' \
+    '' \
+    '[Win9x.Regwiz]' \
+    'HKLM,"Software\Microsoft\Windows\CurrentVersion\Welcome\Regwiz",@,1,01,00,00,00' \
+    'HKLM,"Software\Microsoft\Windows\CurrentVersion","RegDone",1,01,00,00,00' \
+    '' \
+    '[Win9x.MSN]' \
+    'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{4B876A40-4EE8-11D1-811E-00C04FB98EEC}",,,' \
+    'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{88667D10-10F0-11D0-8150-00AA00BF8457}",,,' \
+    'HKCU,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{4B876A40-4EE8-11D1-811E-00C04FB98EEC}",,,' \
+    'HKCU,"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{88667D10-10F0-11D0-8150-00AA00BF8457}",,,' \
+    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{4B876A40-4EE8-11D1-811E-00C04FB98EEC}",,,' \
+    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{88667D10-10F0-11D0-8150-00AA00BF8457}",,,' \
+    '' \
+    '[Win9x.ICWDesktop]' \
+    'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","^SetupICWDesktop",,,' \
+    'HKCU,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","^SetupICWDesktop",,,' \
+    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\RunOnce","^SetupICWDesktop",,,' \
+    '' \
+    '[Win9x.Connect]' \
+    'connec~1.lnk' \
+    '"Connect to the Internet.lnk"' \
+    '' \
+    '[Win9x.ConnectAll]' \
+    'connec~1.lnk' \
+    '"Connect to the Internet.lnk"' \
+    '' \
+    '[Win9x.OnlineServices]' \
+    'aol.lnk' \
+    'americ~1.lnk' \
+    'at&two~1.lnk' \
+    'compus~1.lnk' \
+    'prodig~1.lnk' \
+    'themic~1.lnk' \
+    'aboutt~1.lnk' \
+    'abouto~1.txt' \
+    'services.txt' \
+    '' \
+    '[Win9x.OnlineServicesFolder]' \
+    'wininit.ini,DIRNUL,,"%25%\Desktop\Online~1=1"'
 }
 
 createWin9xSystemImage() {
@@ -2138,6 +2081,63 @@ createWin9xSystemImage() {
   fi
 
   rm -rf -- "$temp" || :
+
+  return 0
+}
+
+patchWinMeDosFile() {
+
+  local file="$1"
+  local name="$2"
+  local expected_size expected_offset expected_hex patch_offset
+  local actual_size actual_hex patched
+
+  case "$name" in
+    "IO.SYS" )
+      expected_size=116736
+      expected_offset=$((0x3a8))
+      expected_hex="fa8075098db69900"
+      patch_offset=$((0x3aa)) ;;
+
+    "COMMAND.COM" )
+      expected_size=93040
+      expected_offset=$((0x650c))
+      expected_hex="1580fa037510b80e"
+      patch_offset=$((0x6510)) ;;
+
+    * )
+      error "Unsupported Windows Me DOS bootstrap file: $name"
+      return 1 ;;
+  esac
+
+  actual_size=$(stat -c %s -- "$file") || return 1
+
+  if (( actual_size != expected_size )); then
+    error "Unexpected Windows Me $name size: $actual_size bytes (expected $expected_size)!"
+    return 1
+  fi
+
+  actual_hex=$(dd if="$file" bs=1 skip="$expected_offset" count=8 status=none | xxd -p -c 8) || return 1
+
+  if [[ "${actual_hex,,}" != "$expected_hex" ]]; then
+    error "Unexpected Windows Me $name bootstrap data at offset 0x$(printf '%X' "$expected_offset")!"
+    return 1
+  fi
+
+  # Windows Me deliberately disables its normal real-mode DOS path. Match the
+  # guarded patches used by Rufus: change the relevant conditional branch in
+  # each original Me DOS file to an unconditional jump.
+  if ! printf '\xeb' | dd of="$file" bs=1 seek="$patch_offset" count=1 conv=notrunc status=none; then
+    error "Failed to patch Windows Me $name!"
+    return 1
+  fi
+
+  patched=$(dd if="$file" bs=1 skip="$patch_offset" count=1 status=none | xxd -p) || return 1
+
+  if [[ "${patched,,}" != "eb" ]]; then
+    error "Failed to verify the Windows Me $name bootstrap patch!"
+    return 1
+  fi
 
   return 0
 }
