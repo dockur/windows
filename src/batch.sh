@@ -1,6 +1,188 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+Win9xInstall() {
+
+  local id="$1"
+  local dir="$3"
+  local desc="$4"
+
+  local folder monitor="Plug and Play Monitor" options="/IS /IQ /IT" target
+  local setup="SETUP"
+  local shortcut="Y"
+
+  if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
+    shortcut="N"
+  fi
+
+  if [ -n "$DOMAIN" ]; then
+    error "The DOMAIN variable is not supported for $desc!"
+    return 1
+  fi
+
+  monitor="Plug and Play Monitor (VESA DDC)"
+
+  case "${id,,}" in
+    "win95"* )
+      folder="WIN95" ;;
+    "win98"* )
+      folder="WIN98"
+      options="/P J /IE /NF $options" ;;
+    "win9x"* )
+      folder="WIN9X"
+      options="/P J /IE /NF $options" ;;
+    * )
+      error "Unknown version: $id"
+      return 1 ;;
+  esac
+
+  target=$(find "$dir" -maxdepth 1 -type d -iname "$folder" -print -quit) || return 1
+
+  if [ -z "$target" ]; then
+    error "Failed to locate the $folder Setup folder in $desc ISO image!"
+    return 1
+  fi
+
+  [ -z "$WIDTH" ] && WIDTH="1280"
+  [ -z "$HEIGHT" ] && HEIGHT="720"
+
+  validateResolution "WIDTH" "$WIDTH" 320 || return 1
+  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
+
+  # Express setup still needs concrete identity values. If NameAndOrg is absent,
+  # Windows 9x stops during GUI setup for the user's name/company; if Network is
+  # missing the identity fields, it later stops for the computer name/workgroup.
+  # Win9x has no useful "*" computer-name generator, so provide a valid default
+  # when HOST was not configured.
+  local host="${HOST:-Docker}"
+  local username="${USERNAME:-Docker}"
+  local workgroup="${WORKGROUP:-WORKGROUP}"
+
+  if ! disabled "$AUTOLOGIN"; then
+    username="Docker"
+  fi
+
+  validateComputerName "$host" || return 1
+
+  # Reuse the normal OEM-folder preparation so /OEM and COMMAND behave like the
+  # other Windows paths, but place the user payload directly at C:\OEM in the
+  # generated Win9x system image.
+  local win9x_oem="$dir/OEM"
+  local install=""
+
+  if ! addFolder "$dir" "win9x"; then
+    error "Failed to add OEM folder to image!"
+    return 1
+  fi
+
+  if [ -d "$win9x_oem" ]; then
+    install=$(find "$win9x_oem" -maxdepth 1 -type f -iname install.bat -print -quit) || return 1
+  fi
+
+  # MSBATCH.INF and WINNT.SIF both use quoted INF-style values. Reuse the SIF
+  # escaping helper so quotes and percent signs cannot alter the answer file.
+  local batchHost batchUsername batchOrganization batchWorkgroup batchKey=""
+  batchHost=$(escapeSIFValue "$host") || return 1
+  batchUsername=$(escapeSIFValue "$username") || return 1
+  batchOrganization=$(escapeSIFValue "$APP for $ENGINE") || return 1
+  batchWorkgroup=$(escapeSIFValue "$workgroup") || return 1
+
+  if [ -n "$KEY" ]; then
+    batchKey=$(escapeSIFValue "$KEY") || return 1
+  fi
+
+  if ! disabled "$AUTOLOGIN"; then
+    stageWin9xPasswordList "$target" "$desc" || return 1
+  fi
+
+  if enabled "$shortcut" || [ -n "$install" ] || [[ "${id,,}" == "win9x"* ]]; then
+    stageWin9xHide "$target" "$desc" || return 1
+  fi
+
+  if [ -n "$install" ] || [[ "${id,,}" == "win9x"* ]]; then
+    stageWin9xPostSetup "$target" "$desc" "$install" "$id" || return 1
+  fi
+
+  stageWin9xDMA "$target" "$desc" || return 1
+
+  # Reuse the same driver archive extraction used by the XP/2003 path. All
+  # Windows 9x support files live together under win9x/ in that archive.
+  local drivers="/tmp/drivers"
+  local win9x="$drivers/win9x"
+  local patcher="$win9x/patcher9x/patcher9x"
+  local patcher_dos="$patcher.img"
+  local qemouse="$win9x/qemouse"
+  local display="$win9x/boxv9x"
+
+  extractDrivers "$drivers" || return 1
+
+  if [ ! -f "$patcher" ] || [ ! -f "$patcher_dos" ]; then
+    rm -rf "$drivers" || :
+    error "Failed to locate Patcher9x!"
+    return 1
+  fi
+
+  if [ ! -f "$qemouse/qemouse.drv" ]; then
+    rm -rf "$drivers" || :
+    error "Failed to locate the Windows 9x QEMouse driver!"
+    return 1
+  fi
+
+  if ! patchWin9xSetupFiles "$id" "$target" "$desc" "$patcher" "$qemouse" "$display"; then
+    rm -rf "$drivers" || :
+    return 1
+  fi
+
+  if ! stageWin9xDosPatcher "$target" "$desc" "$patcher_dos"; then
+    rm -rf "$drivers" || :
+    return 1
+  fi
+
+  if ! stageWin9xMouseFiles "$target" "$desc" "$qemouse"; then
+    rm -rf "$drivers" || :
+    return 1
+  fi
+
+  if ! stageWin9xFinalAutoexec "$target" "$setup" "$options" "$desc" "$id"; then
+    rm -rf "$drivers" || :
+    return 1
+  fi
+
+  if [[ "${id,,}" == "win9x"* ]]; then
+    if ! stageWinMeFinalBootFiles "$dir" "$target" "$desc" ||
+      ! stageWinMeBootActivation "$target" "$desc" ||
+      ! stageWinMePowerPolicy "$target" "$desc" ||
+      ! stageWinMeFinalSetup "$target" "$desc"; then
+      rm -rf "$drivers" || :
+      return 1
+    fi
+  fi
+
+  # Do not copy optical-media AutoRun metadata onto the system disk; Explorer
+  # otherwise treats C: like the installation CD and runs its default action.
+  find "$dir" -maxdepth 1 -type f -iname 'AUTORUN.INF' -delete || return 1
+
+  # Generate MSBATCH.INF after the Setup-source staging is complete.
+  writeWin9xAnswerFile \
+    "$target" "$id" "$setup" "$monitor" \
+    "$batchHost" "$batchUsername" "$batchOrganization" "$batchWorkgroup" \
+    "$batchKey" "$shortcut" "$install" || return 1
+
+  # Build the hard-disk system image from the setup files themselves. Do not rely
+  # on a particular El Torito floppy-image filename: some perfectly valid Win9x
+  # discs expose a differently named boot image, while the required DOS system
+  # files are already present in the installation cabinets.
+  if ! createWin9xSystemImage "$dir" "$TMP/windows.img" "$desc" "$folder" "$options" "$id"; then
+    rm -rf "$drivers" || :
+    return 1
+  fi
+
+  rm -rf "$drivers" || :
+  SYSTEM="$TMP/windows.img"
+
+  return 0
+}
+
 patchWinMeDosFile() {
 
   local file="$1"
@@ -1958,188 +2140,6 @@ patchWin9xSetupFiles() {
   # Use QEMouse directly in the MINI.CAB GUI Setup environment for every Win9x
   # release, so the setup mouse path does not depend on a DOS INT 33h TSR.
   integrateWin9xSetupMouse "$target" "$desc" "$qemouse/qemouse.drv" || return 1
-
-  return 0
-}
-
-prepareWin9xInstall() {
-
-  local id="$1"
-  local dir="$3"
-  local desc="$4"
-
-  local folder monitor="Plug and Play Monitor" options="/IS /IQ /IT" target
-  local setup="SETUP"
-  local shortcut="Y"
-
-  if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
-    shortcut="N"
-  fi
-
-  if [ -n "$DOMAIN" ]; then
-    error "The DOMAIN variable is not supported for $desc!"
-    return 1
-  fi
-
-  monitor="Plug and Play Monitor (VESA DDC)"
-
-  case "${id,,}" in
-    "win95"* )
-      folder="WIN95" ;;
-    "win98"* )
-      folder="WIN98"
-      options="/P J /IE /NF $options" ;;
-    "win9x"* )
-      folder="WIN9X"
-      options="/P J /IE /NF $options" ;;
-    * )
-      error "Unknown version: $id"
-      return 1 ;;
-  esac
-
-  target=$(find "$dir" -maxdepth 1 -type d -iname "$folder" -print -quit) || return 1
-
-  if [ -z "$target" ]; then
-    error "Failed to locate the $folder Setup folder in $desc ISO image!"
-    return 1
-  fi
-
-  [ -z "$WIDTH" ] && WIDTH="1280"
-  [ -z "$HEIGHT" ] && HEIGHT="720"
-
-  validateResolution "WIDTH" "$WIDTH" 320 || return 1
-  validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
-
-  # Express setup still needs concrete identity values. If NameAndOrg is absent,
-  # Windows 9x stops during GUI setup for the user's name/company; if Network is
-  # missing the identity fields, it later stops for the computer name/workgroup.
-  # Win9x has no useful "*" computer-name generator, so provide a valid default
-  # when HOST was not configured.
-  local host="${HOST:-Docker}"
-  local username="${USERNAME:-Docker}"
-  local workgroup="${WORKGROUP:-WORKGROUP}"
-
-  if ! disabled "$AUTOLOGIN"; then
-    username="Docker"
-  fi
-
-  validateComputerName "$host" || return 1
-
-  # Reuse the normal OEM-folder preparation so /OEM and COMMAND behave like the
-  # other Windows paths, but place the user payload directly at C:\OEM in the
-  # generated Win9x system image.
-  local win9x_oem="$dir/OEM"
-  local install=""
-
-  if ! addFolder "$dir" "win9x"; then
-    error "Failed to add OEM folder to image!"
-    return 1
-  fi
-
-  if [ -d "$win9x_oem" ]; then
-    install=$(find "$win9x_oem" -maxdepth 1 -type f -iname install.bat -print -quit) || return 1
-  fi
-
-  # MSBATCH.INF and WINNT.SIF both use quoted INF-style values. Reuse the SIF
-  # escaping helper so quotes and percent signs cannot alter the answer file.
-  local batchHost batchUsername batchOrganization batchWorkgroup batchKey=""
-  batchHost=$(escapeSIFValue "$host") || return 1
-  batchUsername=$(escapeSIFValue "$username") || return 1
-  batchOrganization=$(escapeSIFValue "$APP for $ENGINE") || return 1
-  batchWorkgroup=$(escapeSIFValue "$workgroup") || return 1
-
-  if [ -n "$KEY" ]; then
-    batchKey=$(escapeSIFValue "$KEY") || return 1
-  fi
-
-  if ! disabled "$AUTOLOGIN"; then
-    stageWin9xPasswordList "$target" "$desc" || return 1
-  fi
-
-  if enabled "$shortcut" || [ -n "$install" ] || [[ "${id,,}" == "win9x"* ]]; then
-    stageWin9xHide "$target" "$desc" || return 1
-  fi
-
-  if [ -n "$install" ] || [[ "${id,,}" == "win9x"* ]]; then
-    stageWin9xPostSetup "$target" "$desc" "$install" "$id" || return 1
-  fi
-
-  stageWin9xDMA "$target" "$desc" || return 1
-
-  # Reuse the same driver archive extraction used by the XP/2003 path. All
-  # Windows 9x support files live together under win9x/ in that archive.
-  local drivers="/tmp/drivers"
-  local win9x="$drivers/win9x"
-  local patcher="$win9x/patcher9x/patcher9x"
-  local patcher_dos="$patcher.img"
-  local qemouse="$win9x/qemouse"
-  local display="$win9x/boxv9x"
-
-  extractDrivers "$drivers" || return 1
-
-  if [ ! -f "$patcher" ] || [ ! -f "$patcher_dos" ]; then
-    rm -rf "$drivers" || :
-    error "Failed to locate Patcher9x!"
-    return 1
-  fi
-
-  if [ ! -f "$qemouse/qemouse.drv" ]; then
-    rm -rf "$drivers" || :
-    error "Failed to locate the Windows 9x QEMouse driver!"
-    return 1
-  fi
-
-  if ! patchWin9xSetupFiles "$id" "$target" "$desc" "$patcher" "$qemouse" "$display"; then
-    rm -rf "$drivers" || :
-    return 1
-  fi
-
-  if ! stageWin9xDosPatcher "$target" "$desc" "$patcher_dos"; then
-    rm -rf "$drivers" || :
-    return 1
-  fi
-
-  if ! stageWin9xMouseFiles "$target" "$desc" "$qemouse"; then
-    rm -rf "$drivers" || :
-    return 1
-  fi
-
-  if ! stageWin9xFinalAutoexec "$target" "$setup" "$options" "$desc" "$id"; then
-    rm -rf "$drivers" || :
-    return 1
-  fi
-
-  if [[ "${id,,}" == "win9x"* ]]; then
-    if ! stageWinMeFinalBootFiles "$dir" "$target" "$desc" ||
-      ! stageWinMeBootActivation "$target" "$desc" ||
-      ! stageWinMePowerPolicy "$target" "$desc" ||
-      ! stageWinMeFinalSetup "$target" "$desc"; then
-      rm -rf "$drivers" || :
-      return 1
-    fi
-  fi
-
-  # Do not copy optical-media AutoRun metadata onto the system disk; Explorer
-  # otherwise treats C: like the installation CD and runs its default action.
-  find "$dir" -maxdepth 1 -type f -iname 'AUTORUN.INF' -delete || return 1
-
-  # Generate MSBATCH.INF after the Setup-source staging is complete.
-  writeWin9xAnswerFile \
-    "$target" "$id" "$setup" "$monitor" \
-    "$batchHost" "$batchUsername" "$batchOrganization" "$batchWorkgroup" \
-    "$batchKey" "$shortcut" "$install" || return 1
-
-  # Build the hard-disk system image from the setup files themselves. Do not rely
-  # on a particular El Torito floppy-image filename: some perfectly valid Win9x
-  # discs expose a differently named boot image, while the required DOS system
-  # files are already present in the installation cabinets.
-  if ! createWin9xSystemImage "$dir" "$TMP/windows.img" "$desc" "$folder" "$options" "$id"; then
-    rm -rf "$drivers" || :
-    return 1
-  fi
-
-  rm -rf "$drivers" || :
-  SYSTEM="$TMP/windows.img"
 
   return 0
 }
