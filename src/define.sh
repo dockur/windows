@@ -875,27 +875,6 @@ supportsSIF() {
   return 1
 }
 
-supportsACPI() {
-
-  local id="$1"
-
-  case "${id,,}" in
-
-    "win95" )
-
-      # Windows 95 has no ACPI support, so force kill the VM.
-      return 1 ;;
- 
-    "reactos" )
-
-      # If the ISO is a Live-CD it will ignore ACPI signals.
-      hasSystemImage && return 1 ;;
-
-  esac
- 
-  return 0
-}
-
 supportsBootKey() {
 
   local id="$1"
