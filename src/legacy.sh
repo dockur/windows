@@ -2762,12 +2762,10 @@ writeWin9xAnswerFile() {
     addReg+=",WinMe.BootService"
   fi
 
-  if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
-    # Every supported Windows 95 release is OSR2 or newer, so the same DMA
-    # helper is used for Windows 95, Windows 98 and Windows Me.
-    addReg+=",Win9x.StorageActiveSetup"
-    copyFiles+=",Win9x.DMA"
-  fi
+  # Every supported Windows 95 release is OSR2 or newer, so the same DMA
+  # helper is used for Windows 95, Windows 98 and Windows Me.
+  addReg+=",Win9x.StorageActiveSetup"
+  copyFiles+=",Win9x.DMA"
 
   # Enable the installed-system repatch only in the late MSBATCH file-copy
   # phase. The temporary AUTOEXEC already checks PATCH9X.RUN, so earlier Setup
@@ -2807,9 +2805,7 @@ writeWin9xAnswerFile() {
       'W9XAUTO.BAT=22' \
       'QEMOUSE.DRV=22'
 
-    if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
-      printf '%s\n' 'WIN9XDMA.EXE=22'
-    fi
+    printf '%s\n' 'WIN9XDMA.EXE=22'
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
@@ -3012,12 +3008,10 @@ writeWin9xAnswerFile() {
         '%10%\wininit.ini,Rename,,"C:\WINDOWS\POST9X.RDY=C:\WINDOWS\POST9X.NEW"'
     fi
 
-    if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
-      printf '%s\n' \
-        '' \
-        '[Win9x.DMA]' \
-        'WIN9XDMA.EXE'
-    fi
+    printf '%s\n' \
+      '' \
+      '[Win9x.DMA]' \
+      'WIN9XDMA.EXE'
 
     printf '%s\n' \
       '' \
@@ -3050,9 +3044,7 @@ writeWin9xAnswerFile() {
       printf '%s\n' 'Win9x.Post=10'
     fi
 
-    if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
-      printf '%s\n' 'Win9x.DMA=10'
-    fi
+    printf '%s\n' 'Win9x.DMA=10'
 
     if enabled "$shortcut"; then
       printf '%s\n' \
@@ -3298,9 +3290,7 @@ prepareWin9xInstall() {
     stageWin9xPostSetup "$target" "$desc" "$install" "$id" || return 1
   fi
 
-  if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
-    stageWin9xDMA "$target" "$desc" || return 1
-  fi
+  stageWin9xDMA "$target" "$desc" || return 1
 
   # Reuse the same driver archive extraction used by the XP/2003 path. All
   # Windows 9x support files live together under win9x/ in that archive.
