@@ -966,19 +966,18 @@ isLegacyBoot() {
 
 hasMarker() {
 
-  [ -f "${STORAGE}/${PROCESS}.$1" ]
+  [ -f "$(stateFile "$1")" ]
 }
 
 hasBootMarker() {
 
-  hasMarker "boot" || return 1
-
-  return 0
+  [ -f "$(stateFile "boot")" ]
 }
 
 createMarker() {
 
-  local marker="${STORAGE}/${PROCESS}.${1}"
+  local marker
+  marker="$(stateFile "$1")"
 
   if ! touch "$marker"; then
     warn "failed to create marker \"$marker\" !"
