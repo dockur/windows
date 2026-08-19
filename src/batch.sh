@@ -112,8 +112,6 @@ Win9xInstall() {
     stageWin9xHide "$target" "$desc" || return 1
   fi
 
-  stageWin9xSB16Install "$target" "$desc" || return 1
-
   if [[ "${id,,}" == "win9x"* ]]; then
     stageWin9xWait "$target" "$desc" || return 1
   fi
@@ -167,6 +165,14 @@ Win9xInstall() {
   fi
 
   if ! patchWin9xSetupFiles "$id" "$target" "$desc" "$patcher" "$qemouse" "$display"; then
+    rm -rf "$drivers" || :
+    return 1
+  fi
+
+  # Safe-class detection skips the legacy MEDIA class on Win9x. Opt only that
+  # class back into Setup's stock detector so DetectSB can install *PNPB003 with
+  # the resources already defined by WAVE.INF/SB16AWE.INF.
+  if ! patchWin9xSB16Detection "$target" "$desc"; then
     rm -rf "$drivers" || :
     return 1
   fi
@@ -307,63 +313,6 @@ EOF
     error "Failed to verify HIDE.EXE in $desc setup files!"
     return 1
   fi
-
-  return 0
-}
-
-stageWin9xSB16Install() {
-
-  local dir="$1"
-  local desc="$2"
-  local script="$dir/SB16SET.BAT"
-  local enable="$dir/SB16ON.REG"
-  local disable="$dir/SB16OFF.REG"
-
-  # The stock Win9x MEDIA class installer already knows how to detect and install
-  # the non-PnP Sound Blaster 16. Limit the first-desktop legacy install to that
-  # class and temporarily request silent class installation, avoiding Setup's
-  # global /P C- ISA scan while leaving Windows responsible for the real devnode,
-  # driver binding, LogConfig and companion game-port device.
-  {
-    printf '%s\n' \
-      '@ECHO OFF' \
-      'IF NOT EXIST C:\WINDOWS\INF\WAVE.INF GOTO CLEANUP' \
-      'C:\WINDOWS\REGEDIT.EXE /S C:\WINDOWS\SB16ON.REG' \
-      'C:\WINDOWS\RUNDLL.EXE SYSDM.CPL,InstallDevice_Rundll MEDIA,,0' \
-      ':CLEANUP' \
-      'C:\WINDOWS\REGEDIT.EXE /S C:\WINDOWS\SB16OFF.REG' \
-      'DEL C:\WINDOWS\SB16ON.REG >NUL' \
-      'DEL C:\WINDOWS\SB16OFF.REG >NUL' \
-      'DEL C:\WINDOWS\SB16SET.BAT >NUL'
-
-  } | unix2dos > "$script" || {
-    error "Failed to create the SB16 installer script for $desc!"
-    return 1
-  }
-
-  {
-    printf '%s\n' \
-      'REGEDIT4' \
-      '' \
-      '[HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\Class\MEDIA]' \
-      '"SilentInstall"="1"'
-
-  } | unix2dos > "$enable" || {
-    error "Failed to create the SB16 silent-install registry file for $desc!"
-    return 1
-  }
-
-  {
-    printf '%s\n' \
-      'REGEDIT4' \
-      '' \
-      '[HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\Class\MEDIA]' \
-      '"SilentInstall"=-'
-
-  } | unix2dos > "$disable" || {
-    error "Failed to create the SB16 class cleanup registry file for $desc!"
-    return 1
-  }
 
   return 0
 }
@@ -627,6 +576,122 @@ patchWin9xSetupFiles() {
   # Use QEMouse directly in the MINI.CAB GUI Setup environment for every Win9x
   # release, so the setup mouse path does not depend on a DOS INT 33h TSR.
   integrateWin9xSetupMouse "$target" "$desc" "$qemouse/qemouse.drv" || return 1
+
+  return 0
+}
+
+patchWin9xSB16Detection() {
+
+  local target="$1"
+  local desc="$2"
+  local msdet="$target/MSDET.INF"
+  local layout="$target/LAYOUT.INF"
+
+  # SYSDETMG.DLL reads [Det.Options] from MSDET.INF. Safe detection normally
+  # omits the entire legacy MEDIA class; DetectList=Media opts that class back
+  # in while leaving every other safe-detection decision unchanged.
+  if [ ! -s "$msdet" ]; then
+    extractWin9xCabFile "$target" 'MSDET.INF' "$msdet" "$desc" || return 1
+  fi
+
+  if [ ! -s "$layout" ]; then
+    extractWin9xCabFile "$target" 'LAYOUT.INF' "$layout" "$desc" || return 1
+  fi
+
+  if ! python3 - "$msdet" "$layout" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+msdet = Path(sys.argv[1])
+layout = Path(sys.argv[2])
+
+msdet_data = msdet.read_bytes()
+layout_data = layout.read_bytes()
+
+# The known Win95/98/Me setup files have no Det.Options section. Refuse to
+# guess how an unexpected OEM-specific section should be merged; this keeps a
+# different ISO from silently losing its own detection policy.
+section_re = re.compile(br'^[ \t]*\[Det\.Options\][ \t]*(?:\r?\n|$)', re.IGNORECASE | re.MULTILINE)
+if section_re.search(msdet_data):
+    print('Unexpected existing [Det.Options] section in MSDET.INF.', file=sys.stderr)
+    raise SystemExit(1)
+
+newline = b'\r\n' if b'\r\n' in msdet_data else b'\n'
+if msdet_data and not msdet_data.endswith((b'\r', b'\n')):
+    msdet_data += newline
+
+msdet_data += newline + b'[Det.Options]' + newline + b'Params=DetectList=Media' + newline
+
+if len(section_re.findall(msdet_data)) != 1:
+    print('Failed to create exactly one [Det.Options] section.', file=sys.stderr)
+    raise SystemExit(1)
+
+params_re = re.compile(
+    br'^[ \t]*Params[ \t]*=[ \t]*DetectList[ \t]*=[ \t]*Media[ \t]*(?:\r?$)',
+    re.IGNORECASE | re.MULTILINE,
+)
+if len(params_re.findall(msdet_data)) != 1:
+    print('Failed to verify the MEDIA DetectList override.', file=sys.stderr)
+    raise SystemExit(1)
+
+# A loose INF must be selected by LAYOUT.INF. Preserve the original layout
+# metadata but point MSDET.INF at disk 0 and update its byte count.
+layout_lines = layout_data.splitlines(keepends=True)
+layout_re = re.compile(
+    br'^([ \t]*MSDET\.INF[ \t]*=[ \t]*)[0-9]+,([^,\r\n]*,)[0-9]+([^\r\n]*)(\r?\n)?$',
+    re.IGNORECASE,
+)
+matches = []
+
+for index, line in enumerate(layout_lines):
+    match = layout_re.match(line)
+    if match:
+        matches.append((index, match))
+
+if len(matches) != 1:
+    print(
+        f'Unexpected MSDET.INF layout-entry count: {len(matches)} (expected 1).',
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+
+size = len(msdet_data)
+index, match = matches[0]
+layout_lines[index] = (
+    match.group(1)
+    + b'0,'
+    + match.group(2)
+    + str(size).encode('ascii')
+    + match.group(3)
+    + (match.group(4) or b'')
+)
+layout_data = b''.join(layout_lines)
+
+msdet.write_bytes(msdet_data)
+layout.write_bytes(layout_data)
+
+# Re-read both files so verification also catches a failed or truncated write.
+verify_msdet = msdet.read_bytes()
+verify_layout = layout.read_bytes()
+if verify_msdet != msdet_data or verify_layout != layout_data:
+    print('Failed to verify the patched Win9x detection files.', file=sys.stderr)
+    raise SystemExit(1)
+
+expected_layout = re.compile(
+    br'^[ \t]*MSDET\.INF[ \t]*=[ \t]*0,[^,\r\n]*,'
+    + str(size).encode('ascii')
+    + br'[^\r\n]*\r?$',
+    re.IGNORECASE | re.MULTILINE,
+)
+if len(expected_layout.findall(verify_layout)) != 1:
+    print('Failed to verify the loose MSDET.INF layout entry.', file=sys.stderr)
+    raise SystemExit(1)
+PY
+  then
+    error "Failed to enable targeted SB16 detection for $desc!"
+    return 1
+  fi
 
   return 0
 }
@@ -1786,7 +1851,6 @@ writeWin9xAnswerFile() {
     copyFiles+=",Win9x.SharedShortcut"
   fi
 
-  copyFiles+=",Win9x.SB16Install"
   addReg+=",OEMDrivers"
 
   if [[ "${id,,}" == "win9x"* ]]; then
@@ -1824,10 +1888,7 @@ writeWin9xAnswerFile() {
       '' \
       '[SourceDisksFiles]' \
       'PATCH9X.NEW=22' \
-      'WIN9XDMA.EXE=22' \
-      'SB16SET.BAT=22' \
-      'SB16ON.REG=22' \
-      'SB16OFF.REG=22'
+      'WIN9XDMA.EXE=22'
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
@@ -1885,11 +1946,6 @@ writeWin9xAnswerFile() {
       printf '%s\n' \
         'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","Win9xSetup",,"%25%\rundll.exe setupx.dll,InstallHinfSection Win9x.FirstLogon 4 %10%\msbatch.inf"'
     fi
-
-    # Keep this first validation visible if the Win9x MEDIA installer unexpectedly
-    # asks for input; once the path is proven silent it can safely move behind HIDE.
-    printf '%s\n' \
-      'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","Win9xSB16",,"C:\WINDOWS\COMMAND.COM /C C:\WINDOWS\SB16SET.BAT"'
 
     if enabled "$shortcut"; then
       printf '%s\n' \
@@ -2077,16 +2133,10 @@ writeWin9xAnswerFile() {
 
     printf '%s\n' \
       '' \
-      '[Win9x.SB16Install]' \
-      'SB16SET.BAT' \
-      'SB16ON.REG' \
-      'SB16OFF.REG' \
-      '' \
       '[Win9x.DMA]' \
       'WIN9XDMA.EXE' \
       '' \
       '[DestinationDirs]' \
-      'Win9x.SB16Install=10' \
       'Win9x.PatcherEnable=30,SETUP' \
       'Win9x.PatcherMarker=30,SETUP' \
       'Win9x.Connect=10,Desktop' \
