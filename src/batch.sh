@@ -112,6 +112,8 @@ Win9xInstall() {
     stageWin9xHide "$target" "$desc" || return 1
   fi
 
+  stageWin9xSB16Install "$target" "$desc" || return 1
+
   if [[ "${id,,}" == "win9x"* ]]; then
     stageWin9xWait "$target" "$desc" || return 1
   fi
@@ -309,6 +311,63 @@ EOF
   return 0
 }
 
+stageWin9xSB16Install() {
+
+  local dir="$1"
+  local desc="$2"
+  local script="$dir/SB16SET.BAT"
+  local enable="$dir/SB16ON.REG"
+  local disable="$dir/SB16OFF.REG"
+
+  # The stock Win9x MEDIA class installer already knows how to detect and install
+  # the non-PnP Sound Blaster 16. Limit the first-desktop legacy install to that
+  # class and temporarily request silent class installation, avoiding Setup's
+  # global /P C- ISA scan while leaving Windows responsible for the real devnode,
+  # driver binding, LogConfig and companion game-port device.
+  {
+    printf '%s\n' \
+      '@ECHO OFF' \
+      'IF NOT EXIST C:\WINDOWS\INF\WAVE.INF GOTO CLEANUP' \
+      'C:\WINDOWS\REGEDIT.EXE /S C:\WINDOWS\SB16ON.REG' \
+      'C:\WINDOWS\RUNDLL.EXE SYSDM.CPL,InstallDevice_Rundll MEDIA,,0' \
+      ':CLEANUP' \
+      'C:\WINDOWS\REGEDIT.EXE /S C:\WINDOWS\SB16OFF.REG' \
+      'DEL C:\WINDOWS\SB16ON.REG >NUL' \
+      'DEL C:\WINDOWS\SB16OFF.REG >NUL' \
+      'DEL C:\WINDOWS\SB16SET.BAT >NUL'
+
+  } | unix2dos > "$script" || {
+    error "Failed to create the SB16 installer script for $desc!"
+    return 1
+  }
+
+  {
+    printf '%s\n' \
+      'REGEDIT4' \
+      '' \
+      '[HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\Class\MEDIA]' \
+      '"SilentInstall"="1"'
+
+  } | unix2dos > "$enable" || {
+    error "Failed to create the SB16 silent-install registry file for $desc!"
+    return 1
+  }
+
+  {
+    printf '%s\n' \
+      'REGEDIT4' \
+      '' \
+      '[HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\Class\MEDIA]' \
+      '"SilentInstall"=-'
+
+  } | unix2dos > "$disable" || {
+    error "Failed to create the SB16 class cleanup registry file for $desc!"
+    return 1
+  }
+
+  return 0
+}
+
 stageWin9xWait() {
 
   local dir="$1"
@@ -347,10 +406,45 @@ stageWin9xPostSetup() {
   local id="$4"
   local target="$dir/POST9X.BAT"
 
+  # Windows 95 can reach its first real desktop without the extra Setup reboot
+  # that promotes POST9X.NEW to POST9X.RDY. Run FirstLogon and the OEM install
+  # together from its existing RunOnce entry so install.bat still runs on that
+  # first desktop. Keep the established reboot-gated path unchanged for 98/Me.
+  if [[ "${id,,}" == "win95"* ]]; then
+    {
+      printf '%s\n' \
+        '@ECHO OFF' \
+        'C:\WINDOWS\RUNDLL.EXE SETUPX.DLL,InstallHinfSection Win9x.FirstLogon 4 C:\WINDOWS\MSBATCH.INF'
+
+      if [ -n "$install" ]; then
+        if enabled "${LOG:-}"; then
+          printf '%s\n' 'CALL C:\OEM\install.bat > C:\OEM\install.log'
+        else
+          printf '%s\n' 'CALL C:\OEM\install.bat'
+        fi
+      fi
+
+    } | unix2dos > "$target" || {
+      error "Failed to create post-desktop setup script for $desc!"
+      return 1
+    }
+
+    return 0
+  fi
+
+  local marker="$dir/POST9X.NEW"
+  local cleanup="$dir/POST9X.REG"
+
   {
     printf '%s\n' \
       '@ECHO OFF' \
-      'C:\WINDOWS\RUNDLL.EXE SETUPX.DLL,InstallHinfSection Win9x.FirstLogon 4 C:\WINDOWS\MSBATCH.INF'
+      'IF NOT EXIST C:\WINDOWS\POST9X.RDY GOTO END'
+
+    printf '%s\n' 'START /W C:\WINDOWS\REGEDIT.EXE /S C:\WINDOWS\POST9X.REG'
+
+    printf '%s\n' \
+      'DEL C:\WINDOWS\POST9X.REG >NUL' \
+      'DEL C:\WINDOWS\POST9X.RDY >NUL'
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' 'DEL C:\SETUP\PATCH9X.RUN >NUL'
@@ -364,10 +458,34 @@ stageWin9xPostSetup() {
       fi
     fi
 
+    printf '%s\n' ':END'
+
   } | unix2dos > "$target" || {
     error "Failed to create post-desktop setup script for $desc!"
     return 1
   }
+
+  # Remove the persistent Run value without re-entering SETUPX.DLL from the
+  # desktop batch. REGEDIT /S performs the one registry cleanup silently.
+  {
+    printf '%s\n' \
+      'REGEDIT4' \
+      '' \
+      '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run]' \
+      '"PostSetup"=-'
+
+  } | unix2dos > "$cleanup" || {
+    error "Failed to create post-desktop registry cleanup for $desc!"
+    return 1
+  }
+
+  # Stage a real marker file for Setup to copy into the Windows directory.
+  # Win9x.FirstLogon adds a WININIT.INI rename so the following reboot promotes
+  # POST9X.NEW to POST9X.RDY before the final desktop starts.
+  if ! printf 'Ready\r\n' > "$marker"; then
+    error "Failed to create post-desktop marker for $desc!"
+    return 1
+  fi
 
   return 0
 }
@@ -1668,7 +1786,8 @@ writeWin9xAnswerFile() {
     copyFiles+=",Win9x.SharedShortcut"
   fi
 
-  addReg+=",Win9x.SB16,OEMDrivers"
+  copyFiles+=",Win9x.SB16Install"
+  addReg+=",OEMDrivers"
 
   if [[ "${id,,}" == "win9x"* ]]; then
     addReg+=",WinMe.BootService"
@@ -1705,7 +1824,10 @@ writeWin9xAnswerFile() {
       '' \
       '[SourceDisksFiles]' \
       'PATCH9X.NEW=22' \
-      'WIN9XDMA.EXE=22'
+      'WIN9XDMA.EXE=22' \
+      'SB16SET.BAT=22' \
+      'SB16ON.REG=22' \
+      'SB16OFF.REG=22'
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
@@ -1727,7 +1849,14 @@ writeWin9xAnswerFile() {
     fi
 
     if enabled "$post"; then
-      printf '%s\n' 'POST9X.BAT=22'
+      if [[ "${id,,}" == "win95"* ]]; then
+        printf '%s\n' 'POST9X.BAT=22'
+      else
+        printf '%s\n' \
+          'POST9X.BAT=22' \
+          'POST9X.NEW=22' \
+          'POST9X.REG=22'
+      fi
     fi
 
     printf '%s\n' \
@@ -1749,7 +1878,7 @@ writeWin9xAnswerFile() {
       "HKLM,\"SOFTWARE\Microsoft\Windows\CurrentVersion\",\"RegisteredOwner\",,\"$batchUsername\"" \
       "HKLM,\"SOFTWARE\Microsoft\Windows\CurrentVersion\",\"RegisteredOrganization\",,\"$batchOrganization\""
 
-    if enabled "$post"; then
+    if [[ "${id,,}" == "win95"* ]] && enabled "$post"; then
       printf '%s\n' \
         'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","Win9xSetup",,"C:\WINDOWS\COMMAND.COM /C C:\WINDOWS\POST9X.BAT"'
     else
@@ -1757,9 +1886,19 @@ writeWin9xAnswerFile() {
         'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","Win9xSetup",,"%25%\rundll.exe setupx.dll,InstallHinfSection Win9x.FirstLogon 4 %10%\msbatch.inf"'
     fi
 
+    # Keep this first validation visible if the Win9x MEDIA installer unexpectedly
+    # asks for input; once the path is proven silent it can safely move behind HIDE.
+    printf '%s\n' \
+      'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","Win9xSB16",,"C:\WINDOWS\COMMAND.COM /C C:\WINDOWS\SB16SET.BAT"'
+
     if enabled "$shortcut"; then
       printf '%s\n' \
         "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\",\"SharedDrive\",,\"C:\\WINDOWS\\HIDE.EXE C:\\WINDOWS\\NET.EXE USE Z: $share\""
+    fi
+
+    if enabled "$post" && [[ "${id,,}" != "win95"* ]]; then
+      printf '%s\n' \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","PostSetup",,"C:\WINDOWS\HIDE.EXE C:\WINDOWS\COMMAND.COM /C C:\WINDOWS\POST9X.BAT"'
     fi
 
     if ! disabled "$AUTOLOGIN"; then
@@ -1837,6 +1976,11 @@ writeWin9xAnswerFile() {
     [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
     firstLogonUpdateInis+="Win9x.AutoexecFinal"
 
+    if enabled "$post" && [[ "${id,,}" != "win95"* ]]; then
+      [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
+      firstLogonUpdateInis+="Win9x.PostMarker"
+    fi
+
     if [ -n "$firstLogonUpdateInis" ]; then
       printf '%s\n' "UpdateInis=$firstLogonUpdateInis"
     fi
@@ -1846,9 +1990,6 @@ writeWin9xAnswerFile() {
 
     printf '%s\n' ''
     writeWin9xBrowserPowerRegistry
-
-    printf '%s\n' ''
-    writeWin9xSB16Registry
 
     printf '%s\n' ''
     writeWin9xStorageRegistry
@@ -1916,18 +2057,36 @@ writeWin9xAnswerFile() {
     fi
 
     if enabled "$post"; then
-      printf '%s\n' \
-        '' \
-        '[Win9x.Post]' \
-        'POST9X.BAT'
+      if [[ "${id,,}" == "win95"* ]]; then
+        printf '%s\n' \
+          '' \
+          '[Win9x.Post]' \
+          'POST9X.BAT'
+      else
+        printf '%s\n' \
+          '' \
+          '[Win9x.Post]' \
+          'POST9X.BAT' \
+          'POST9X.NEW' \
+          'POST9X.REG' \
+          '' \
+          '[Win9x.PostMarker]' \
+          '%10%\wininit.ini,Rename,,"C:\WINDOWS\POST9X.RDY=C:\WINDOWS\POST9X.NEW"'
+      fi
     fi
 
     printf '%s\n' \
+      '' \
+      '[Win9x.SB16Install]' \
+      'SB16SET.BAT' \
+      'SB16ON.REG' \
+      'SB16OFF.REG' \
       '' \
       '[Win9x.DMA]' \
       'WIN9XDMA.EXE' \
       '' \
       '[DestinationDirs]' \
+      'Win9x.SB16Install=10' \
       'Win9x.PatcherEnable=30,SETUP' \
       'Win9x.PatcherMarker=30,SETUP' \
       'Win9x.Connect=10,Desktop' \
@@ -2189,18 +2348,6 @@ writeWin9xBrowserPowerRegistry() {
     'HKCU,"Software\Microsoft\Internet Explorer\Main","Default_Page_URL",,"http://www.google.com"' \
     'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Page",,"http://www.google.com"' \
     'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Bar",,"http://www.google.com"'
-}
-
-writeWin9xSB16Registry() {
-
-  # QEMU's SB16 uses the stock non-PnP Sound Blaster hardware ID and fixed
-  # resources. Predeclare a root-enumerated device so Win9x can bind its own
-  # *PNPB003 driver and FactDef resources without performing a full ISA probe.
-  printf '%s\n' \
-    '[Win9x.SB16]' \
-    'HKLM,"Enum\Root\*PNPB003\0000","HardwareID",,"*PNPB003"' \
-    'HKLM,"Enum\Root\*PNPB003\0000","Class",,"MEDIA"' \
-    'HKLM,"Enum\Root\*PNPB003\0000","ConfigFlags",1,00,00,00,00'
 }
 
 writeWin9xStorageRegistry() {
