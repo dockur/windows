@@ -70,8 +70,8 @@ setMachine() {
     esac
   fi
 
-  restoreBootMode || return 1
   restoreMachine || return 1
+  restoreBootMode || return 1
 
   case "${id,,}" in
 
@@ -140,16 +140,16 @@ restoreMachineState() {
   mergeState "CPU_FLAGS" "flag" "," || return 1
   mergeState "ARGUMENTS" "args" " " || return 1
 
-  if [ -s "$(stateFile "bios")" ]; then
-    BIOS="$(stateFile "bios")"
-  fi
-
   return 0
 }
 
 restoreBootMode() {
 
   local current="${BOOT_MODE:-}"
+
+  if [ -s "$(stateFile "bios")" ]; then
+    BIOS="$(stateFile "bios")"jj
+  fi
 
   local mode
   mode=$(readState "mode") || return 1
