@@ -55,15 +55,8 @@ Win9xInstall() {
     validateWin95OSR2 "$target" "$desc" || return 1
   fi
 
-  if [ -z "$WIDTH" ]; then
-    WIDTH="1024"
-    [[ "${id,,}" == "win95" ]] && WIDTH="800"
-  fi
-
-  if [ -z "$HEIGHT" ]; then
-    HEIGHT="768"
-    [[ "${id,,}" == "win95" ]] && HEIGHT="600"
-  fi
+  [ -z "$WIDTH" ] && WIDTH="1024"
+  [ -z "$HEIGHT" ] && HEIGHT="768"
 
   validateResolution "WIDTH" "$WIDTH" 320 || return 1
   validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
@@ -143,7 +136,7 @@ Win9xInstall() {
   local patcher_dos="$patcher.img"
   local qemouse="$win9x/qemouse"
   local display="$win9x/vmdisp9x"
-  local audio="$win9x/es1370"
+  local audio="$win9x/ac97"
 
   extractDrivers "$drivers" || return 1
 
@@ -183,9 +176,9 @@ Win9xInstall() {
   fi
 
   if [[ "${id,,}" == "win95"* ]]; then
-    # Win95 has no usable in-box USB Audio class driver. ES1370 is a normal PCI
-    # PnP device, so keep its vendor driver beside the retained C:\SETUP source.
-    if ! stageWin95ES1370Driver "$target" "$audio" "$desc"; then
+    # Win95 has no usable in-box USB Audio class driver. QEMU AC97 is a normal
+    # PCI PnP device, so keep its VxD driver beside the retained C:\SETUP source.
+    if ! stageWin95AC97Driver "$target" "$audio" "$desc"; then
       rm -rf "$drivers" || :
       return 1
     fi
@@ -597,7 +590,7 @@ patchWin9xSetupFiles() {
   return 0
 }
 
-stageWin95ES1370Driver() {
+stageWin95AC97Driver() {
 
   local dir="$1"
   local audio="$2"
@@ -605,15 +598,15 @@ stageWin95ES1370Driver() {
   local source name
 
   if [ ! -d "$audio" ] || [ -z "$(find "$audio" -maxdepth 1 -type f -print -quit)" ]; then
-    error "Failed to locate the Windows 95 ES1370 driver payload!"
+    error "Failed to locate the Windows 95 AC97 driver payload!"
     return 1
   fi
 
   # Keep the driver payload self-contained: drivers.tar.xz owns the exact files
-  # and this path simply stages everything present in win9x/es1370/. This avoids
+  # and this path simply stages everything present in win9x/ac97/. This avoids
   # having to update an installer-side filename list when the payload changes.
   if ! cp -a -- "$audio"/. "$dir"/; then
-    error "Failed to stage the Windows 95 ES1370 driver payload!"
+    error "Failed to stage the Windows 95 AC97 driver payload!"
     return 1
   fi
 
@@ -622,61 +615,93 @@ stageWin95ES1370Driver() {
   while IFS= read -r -d '' source; do
     name="${source##*/}"
     if [ ! -f "$dir/$name" ] || ! cmp -s -- "$source" "$dir/$name"; then
-      error "Failed to verify the staged Windows 95 ES1370 driver file $name!"
+      error "Failed to verify the staged Windows 95 AC97 driver file $name!"
       return 1
     fi
   done < <(find "$audio" -maxdepth 1 -type f -print0)
 
-  # The payload itself carries the QEMU PCI match, Ensoniq legacy-emulation
-  # configuration and MIDI waveset. Only validate those critical invariants here;
-  # do not rewrite the driver files after staging them.
-  if ! python3 - "$dir/EAPCI95.INF" "$dir/EAPCI_SS.INI" "$dir/EAPCI2M.ECW" <<'PY'
+  # Validate the critical invariants of the Win95 VxD package without rewriting
+  # vendor files: QEMU's PCI ID, PnP/SB-emulation registration, and every file
+  # referenced by the INF must be present and non-empty.
+  if ! python3 - "$dir" <<'PY'
 from pathlib import Path
 import sys
 
-inf = Path(sys.argv[1])
-ini = Path(sys.argv[2])
-waveset = Path(sys.argv[3])
+root = Path(sys.argv[1])
+required_files = (
+    'VALCX95.INF',
+    'VALCX95.VXD',
+    'ALCX95.DRV',
+    'ALCX95.INI',
+    'ALSWWT.DRV',
+    'ALSWWT16.DLL',
+    'SWWTAC97.DAT',
+    'SWWTAC97.TON',
+)
 
-for path in (inf, ini, waveset):
+for name in required_files:
+    path = root / name
     if not path.is_file() or path.stat().st_size == 0:
-        raise SystemExit(f'ES1370 payload file missing or empty: {path.name}')
+        raise SystemExit(f'AC97 payload file missing or empty: {name}')
 
-data = inf.read_bytes().replace(b'\r\n', b'\n').lower()
+data = (root / 'VALCX95.INF').read_bytes().replace(b'\r\n', b'\n').lower()
+
 required_inf = (
-    b'pci\\ven_1274&dev_5000&subsys_4c4c4942',
-    b'pci\\ven_1274&dev_5000',
-    b'virtual\\ssc-legacy',
-    b'hkr,,sbemu,1,01',
-    b'eapci2m.ecw=1,.,',
-    b'hklm,software\\ensoniq\\waveset,current,1,00,00,00,00',
-    b'hklm,software\\ensoniq\\waveset\\0000,filename,,"%11%\\eapci2m.ecw"',
-    b'hklm,software\\ensoniq\\waveset\\0000,title,,"2 megabyte general midi"',
+    b'signature="$chicago$"',
+    b'class=media',
+    b'%alcich.devicedesc%=alcaud, pci\\ven_8086&dev_2415',
+    b'%alcaud_sb.devicedesc%=alcsb, virtual\\alc_sbemulation',
+    b'hkr,drivers,sbemulation,,"yes"',
+    b'copyfiles=alcaud.copylist, alcwtb.copylist, alcini.copylist',
 )
 for item in required_inf:
     if item not in data:
-        raise SystemExit(f'ES1370 INF verification failed for {item!r}.')
+        raise SystemExit(f'AC97 INF verification failed for {item!r}.')
 
-system_copy = data.split(b'[sscncrt.systemcopylist]', 1)[1].split(b'\n[', 1)[0]
-if b'eapci2m.ecw,,' not in system_copy:
-    raise SystemExit('ES1370 INF does not copy the MIDI waveset to the Windows System directory.')
+def section(name: bytes) -> bytes:
+    marker = b'[' + name + b']'
+    try:
+        body = data.split(marker, 1)[1]
+    except IndexError:
+        raise SystemExit(f'AC97 INF section missing: {name.decode()}')
+    return body.split(b'\n[', 1)[0]
 
-settings = ini.read_bytes().replace(b'\r\n', b'\n').lower()
+destinations = section(b'destinationdirs')
 for item in (
-    b'sbport=220',
-    b'sbirq=5',
-    b'dma=1',
-    b'sbenable=true',
-    b'synthfile=c:\\windows\\system\\eapci2m.ecw',
+    b'defaultdestdir=11',
+    b'alcaud.copylist=11',
+    b'alcwtb.copylist=10',
+    b'alcini.copylist=10',
 ):
-    if item not in settings:
-        raise SystemExit(f'ES1370 settings verification failed for {item!r}.')
+    if item not in destinations:
+        raise SystemExit(f'AC97 destination verification failed for {item!r}.')
 
-if waveset.read_bytes()[:4] != b'ECLW':
-    raise SystemExit('ES1370 MIDI waveset header verification failed.')
+copy_sections = {
+    b'alcaud.copylist': (
+        b'valcx95.vxd',
+        b'alcx95.drv',
+        b'alswwt.drv',
+        b'alswwt16.dll',
+        b'swwtac97.ton',
+    ),
+    b'alcwtb.copylist': (b'swwtac97.dat',),
+    b'alcini.copylist': (b'alcx95.ini',),
+}
+for name, items in copy_sections.items():
+    body = section(name)
+    for item in items:
+        if item not in body:
+            raise SystemExit(
+                f'AC97 copy-list verification failed in {name!r} for {item!r}.'
+            )
+
+source_files = section(b'sourcedisksfiles')
+for name in required_files[1:]:
+    if name.lower().encode() not in source_files:
+        raise SystemExit(f'AC97 source-file verification failed for {name}.')
 PY
   then
-    error "Failed to verify the Windows 95 ES1370 PCI driver payload!"
+    error "Failed to verify the Windows 95 AC97 PCI driver payload!"
     return 1
   fi
 
