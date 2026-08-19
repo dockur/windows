@@ -113,7 +113,7 @@ Win9xInstall() {
     stageWin9xPasswordList "$target" "$desc" || return 1
   fi
 
-  if enabled "$shortcut" || [ -n "$install" ] || [[ "${id,,}" == "win9x"* ]]; then
+  if enabled "$shortcut" || [ -n "$install" ] || [[ "${id,,}" == "win95"* || "${id,,}" == "win9x"* ]]; then
     stageWin9xHide "$target" "$desc" || return 1
   fi
 
@@ -364,8 +364,9 @@ stageWin9xPostSetup() {
 
   # Windows 95 can reach its first real desktop without the extra Setup reboot
   # used by the established 98/Me post-setup path. Run FirstLogon and finish its
-  # pending file operations directly before the OEM install, so the next normal
-  # reboot does not re-enter WININIT just to finalize our own setup changes.
+  # pending file operations in a hidden housekeeping shell so the next normal
+  # reboot does not re-enter WININIT. Launch the OEM install in its own visible
+  # command window and wait for it so install.bat keeps its debugging behavior.
   if [[ "${id,,}" == "win95"* ]]; then
     {
       printf '%s\n' \
@@ -377,9 +378,9 @@ stageWin9xPostSetup() {
 
       if [ -n "$install" ]; then
         if enabled "${LOG:-}"; then
-          printf '%s\n' 'CALL C:\OEM\install.bat > C:\OEM\install.log'
+          printf '%s\n' 'START /W C:\WINDOWS\COMMAND.COM /C C:\OEM\install.bat > C:\OEM\install.log'
         else
-          printf '%s\n' 'CALL C:\OEM\install.bat'
+          printf '%s\n' 'START /W C:\WINDOWS\COMMAND.COM /C C:\OEM\install.bat'
         fi
       fi
 
@@ -1860,7 +1861,7 @@ writeWin9xAnswerFile() {
     copyFiles+=",WinMe.Final,WinMe.Power,WinMe.Wait"
   fi
 
-  if enabled "$shortcut" || [ -n "$install" ] || [[ "${id,,}" == "win9x"* ]]; then
+  if enabled "$shortcut" || [ -n "$install" ] || [[ "${id,,}" == "win95"* || "${id,,}" == "win9x"* ]]; then
     hide="Y"
     copyFiles+=",Win9x.Hide"
   fi
@@ -1959,7 +1960,7 @@ writeWin9xAnswerFile() {
 
     if [[ "${id,,}" == "win95"* ]] && enabled "$post"; then
       printf '%s\n' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","Win9xSetup",,"C:\WINDOWS\COMMAND.COM /C C:\WINDOWS\POST9X.BAT"'
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","Win9xSetup",,"C:\WINDOWS\HIDE.EXE C:\WINDOWS\COMMAND.COM /C C:\WINDOWS\POST9X.BAT"'
     else
       printf '%s\n' \
         'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","Win9xSetup",,"%25%\rundll.exe setupx.dll,InstallHinfSection Win9x.FirstLogon 4 %10%\msbatch.inf"'
