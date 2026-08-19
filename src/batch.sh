@@ -634,18 +634,24 @@ for path in (inf, ini, waveset):
     if not path.is_file() or path.stat().st_size == 0:
         raise SystemExit(f'ES1370 payload file missing or empty: {path.name}')
 
-data = inf.read_bytes()
+data = inf.read_bytes().replace(b'\r\n', b'\n').lower()
 required_inf = (
-    b'PCI\\VEN_1274&DEV_5000&SUBSYS_4C4C4942',
-    b'PCI\\VEN_1274&DEV_5000',
-    b'VIRTUAL\\SSC-Legacy',
-    b'HKR,,SBEmu,1,01',
-    b'eapci2m.ecw,,',
+    b'pci\\ven_1274&dev_5000&subsys_4c4c4942',
+    b'pci\\ven_1274&dev_5000',
+    b'virtual\\ssc-legacy',
+    b'hkr,,sbemu,1,01',
     b'eapci2m.ecw=1,.,',
+    b'hklm,software\\ensoniq\\waveset,current,1,00,00,00,00',
+    b'hklm,software\\ensoniq\\waveset\\0000,filename,,"%11%\\eapci2m.ecw"',
+    b'hklm,software\\ensoniq\\waveset\\0000,title,,"2 megabyte general midi"',
 )
 for item in required_inf:
     if item not in data:
         raise SystemExit(f'ES1370 INF verification failed for {item!r}.')
+
+system_copy = data.split(b'[sscncrt.systemcopylist]', 1)[1].split(b'\n[', 1)[0]
+if b'eapci2m.ecw,,' not in system_copy:
+    raise SystemExit('ES1370 INF does not copy the MIDI waveset to the Windows System directory.')
 
 settings = ini.read_bytes().replace(b'\r\n', b'\n').lower()
 for item in (
@@ -653,7 +659,7 @@ for item in (
     b'sbirq=5',
     b'dma=1',
     b'sbenable=true',
-    b'synthfile=c:\\windows\\eapci2m.ecw',
+    b'synthfile=c:\\windows\\system\\eapci2m.ecw',
 ):
     if item not in settings:
         raise SystemExit(f'ES1370 settings verification failed for {item!r}.')
