@@ -132,20 +132,20 @@ Win9xInstall() {
 
   extractDrivers "$drivers" || return 1
 
-  if [[ "${id,,}" == "win95"* ]] && [ -z "${BIOS:-}" ]; then
-    local bios="$win9x/bios/win95.bin"
+  if [ -z "${BIOS:-}" ]; then
+    local bios="$win9x/bios/win9x.bin"
 
     if [ ! -s "$bios" ]; then
       rm -rf "$drivers" || :
-      error "Failed to locate the Windows 95 BIOS!"
+      error "Failed to locate the Windows 9x BIOS!"
       return 1
     fi
 
-    BIOS="$TMP/win95.bin"
+    BIOS="$TMP/win9x.bin"
 
     if ! cp -f -- "$bios" "$BIOS"; then
       rm -rf "$drivers" || :
-      error "Failed to prepare the Windows 95 BIOS!"
+      error "Failed to prepare the Windows 9x BIOS!"
       return 1
     fi
   fi
