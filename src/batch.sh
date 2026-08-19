@@ -50,8 +50,15 @@ Win9xInstall() {
     validateWin95OSR2 "$target" "$desc" || return 1
   fi
 
-  [ -z "$WIDTH" ] && WIDTH="1024"
-  [ -z "$HEIGHT" ] && HEIGHT="768"
+  if [ -z "$WIDTH" ]; then
+    WIDTH="1024"
+    [[ "${id,,}" == "win95" ]] && WIDTH="800"
+  fi
+
+  if [ -z "$HEIGHT" ]; then
+    HEIGHT="768"
+    [[ "${id,,}" == "win95" ]] && HEIGHT="600"
+  fi
 
   validateResolution "WIDTH" "$WIDTH" 320 || return 1
   validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
