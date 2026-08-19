@@ -621,17 +621,17 @@ newline = b'\r\n' if b'\r\n' in msdet_data else b'\n'
 if msdet_data and not msdet_data.endswith((b'\r', b'\n')):
     msdet_data += newline
 
-msdet_data += newline + b'[Det.Options]' + newline + b'Params=DetectList=Media' + newline
+msdet_data += newline + b'[Det.Options]' + newline + b'DetectList=Media' + newline
 
 if len(section_re.findall(msdet_data)) != 1:
     print('Failed to create exactly one [Det.Options] section.', file=sys.stderr)
     raise SystemExit(1)
 
-params_re = re.compile(
-    br'^[ \t]*Params[ \t]*=[ \t]*DetectList[ \t]*=[ \t]*Media[ \t]*(?:\r?$)',
+detectlist_re = re.compile(
+    br'^[ \t]*DetectList[ \t]*=[ \t]*Media[ \t]*(?:\r?$)',
     re.IGNORECASE | re.MULTILINE,
 )
-if len(params_re.findall(msdet_data)) != 1:
+if len(detectlist_re.findall(msdet_data)) != 1:
     print('Failed to verify the MEDIA DetectList override.', file=sys.stderr)
     raise SystemExit(1)
 
@@ -3015,3 +3015,4 @@ patchWinMeDosFile() {
 }
 
 return 0
+
