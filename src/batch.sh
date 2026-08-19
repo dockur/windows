@@ -26,7 +26,7 @@ Win9xInstall() {
   case "${id,,}" in
     "win95"* )
       folder="WIN95"
-      options="/IW $options"
+      options="/P C- /IW $options"
       share='\\Host\Data' ;;
     "win98"* )
       folder="WIN98"
@@ -810,47 +810,6 @@ stageWin9xDisplayDriver() {
     return 1
   fi
 
-  # VMDisp9x defaults QEMU STD VGA to 8-bit 640x480. Match the QEMU driver
-  # default to the mode requested in MSBATCH.INF so it does not reset Setup's
-  # selected resolution and color depth when the driver is installed.
-  if ! python3 - "$dest/vmdisp9x.inf" "$WIDTH" "$HEIGHT" <<'INF_MODE'
-from pathlib import Path
-import sys
-
-path = Path(sys.argv[1])
-mode = f'16,{sys.argv[2]},{sys.argv[3]}'.encode()
-data = path.read_bytes()
-lines = data.splitlines(keepends=True)
-section = b''
-matches = []
-
-for index, line in enumerate(lines):
-    stripped = line.rstrip(b'\r\n')
-
-    if stripped.startswith(b'[') and stripped.endswith(b']'):
-        section = stripped.lower()
-        continue
-
-    if section == b'[qemu.addreg]' and stripped == b'HKR,DEFAULT,Mode,,"8,640,480"':
-        matches.append(index)
-
-if len(matches) != 1:
-    print(
-        f"Unexpected VMDisp9x QEMU default-mode count: {len(matches)} (expected 1).",
-        file=sys.stderr,
-    )
-    raise SystemExit(1)
-
-index = matches[0]
-ending = b'\r\n' if lines[index].endswith(b'\r\n') else (b'\n' if lines[index].endswith(b'\n') else b'')
-lines[index] = b'HKR,DEFAULT,Mode,,"' + mode + b'"' + ending
-path.write_bytes(b''.join(lines))
-INF_MODE
-  then
-    error "Failed to set the Windows 9x display mode!"
-    return 1
-  fi
-
   return 0
 }
 
@@ -1619,7 +1578,7 @@ writeWin9xAnswerFile() {
   addReg+=",Win9x.Shutdown"
 
   if [[ "${id,,}" == "win95"* ]]; then
-    addReg+=",Win95.PCINIC,Win95.Welcome"
+    addReg+=",Win95.DisplayMode,Win95.PCINIC,Win95.Welcome"
     firstLogonAddReg+=",Win95.SuspendMenu"
     installDelReg="Win95.InitShell,Win9x.Welcome"
   fi
@@ -1770,6 +1729,10 @@ writeWin9xAnswerFile() {
 
     if [[ "${id,,}" == "win95"* ]]; then
       printf '%s\n' \
+        '' \
+        '[Win95.DisplayMode]' \
+        'HKLM,"Config\0001\Display\Settings","BitsPerPixel",,"16"' \
+        "HKLM,\"Config\\0001\\Display\\Settings\",\"Resolution\",,\"$WIDTH,$HEIGHT\"" \
         '' \
         '[Win95.PCINIC]' \
         'HKLM,"System\CurrentControlSet\Services\Class\Net\0000","DisableWarning",,"1"' \
