@@ -26,7 +26,7 @@ Win9xInstall() {
   case "${id,,}" in
     "win95"* )
       folder="WIN95"
-      options="/P C- /IW $options"
+      options="/IW $options"
       share='\\Host\Data' ;;
     "win98"* )
       folder="WIN98"
@@ -961,7 +961,10 @@ stageWin9xSetupOverrides() {
   local scandisk="$dir/W9XSCAN.INI"
   local mouse_target="$dir/MOUSE.DRV"
   local scandisk_target="$dir/SCANDISK.INI"
+  local layout_temp="$TMP/win9x-layout-files"
+  local cab extracted existing layout_name
   local mouse_size scandisk_size
+  local -a precopy_cabs=() other_cabs=() extracted_layouts=() layouts=()
 
   if [ ! -f "$mouse" ]; then
     error "Failed to locate qemouse.drv!"
@@ -980,6 +983,74 @@ stageWin9xSetupOverrides() {
     extractWin9xCabFile "$dir" 'LAYOUT.INF' "$layout" "$desc" || return 1
   fi
 
+  # Windows 98 splits its setup source map across LAYOUT.INF, LAYOUT1.INF and
+  # LAYOUT2.INF. Stage every numbered LAYOUT file available in the cabinets, but
+  # never overwrite an already-loose copy because earlier setup patches may have
+  # modified it. Win95/Me simply keep whichever LAYOUT files their media carries.
+  rm -rf -- "$layout_temp" || return 1
+  mkdir -p "$layout_temp/files" || return 1
+
+  mapfile -d '' precopy_cabs < <(
+    find "$dir" -maxdepth 1 -type f -iname 'PRECOPY*.CAB' -print0 | sort -z
+  )
+  mapfile -d '' other_cabs < <(
+    find "$dir" -maxdepth 1 -type f -iname '*.CAB' ! -iname 'PRECOPY*.CAB' -print0 | sort -z
+  )
+
+  for cab in "${precopy_cabs[@]}" "${other_cabs[@]}"; do
+
+    rm -rf -- "$layout_temp/files" || return 1
+    mkdir -p "$layout_temp/files" || return 1
+
+    cabextract -q \
+      -F 'LAYOUT*.INF' \
+      -F 'layout*.inf' \
+      -d "$layout_temp/files" "$cab" >/dev/null 2>&1 || :
+
+    mapfile -d '' extracted_layouts < <(
+      find "$layout_temp/files" -type f -iname 'LAYOUT*.INF' -print0 | sort -z
+    )
+
+    for extracted in "${extracted_layouts[@]}"; do
+
+      layout_name=$(basename "$extracted")
+      layout_name="${layout_name^^}"
+
+      if [[ ! "$layout_name" =~ ^LAYOUT[0-9]*\.INF$ ]]; then
+        continue
+      fi
+
+      existing=$(find "$dir" -maxdepth 1 -type f -iname "$layout_name" -print -quit) || return 1
+
+      if [ -n "$existing" ] && [ -s "$existing" ]; then
+        continue
+      fi
+
+      if [ -n "$existing" ]; then
+        rm -f -- "$existing" || return 1
+      fi
+
+      if ! cp -f -- "$extracted" "$dir/$layout_name"; then
+        rm -rf -- "$layout_temp" || :
+        error "Failed to stage $layout_name from $desc setup files!"
+        return 1
+      fi
+
+    done
+
+  done
+
+  rm -rf -- "$layout_temp" || return 1
+
+  mapfile -d '' layouts < <(
+    find "$dir" -maxdepth 1 -type f -iregex '.*/LAYOUT[0-9]*\.INF' -print0 | sort -z
+  )
+
+  if (( ${#layouts[@]} == 0 )); then
+    error "Failed to locate the $desc setup source layout files!"
+    return 1
+  fi
+
   if ! cp -f -- "$mouse" "$mouse_target" ||
     ! cmp -s -- "$mouse" "$mouse_target"; then
     error "Failed to replace the $desc MOUSE.DRV setup source!"
@@ -995,23 +1066,24 @@ stageWin9xSetupOverrides() {
   mouse_size=$(stat -c %s -- "$mouse_target") || return 1
   scandisk_size=$(stat -c %s -- "$scandisk_target") || return 1
 
-  # LAYOUT.INF is the source map used by the system-supplied setup INFs. Point
-  # both stock filenames at disk 0 with no source subdirectory, matching the
-  # loose-file override already used for Win95 SETUPPP.INF, and record the new
-  # uncompressed sizes. Preserve every unrelated byte in LAYOUT.INF.
-  if ! python3 - "$layout" "$mouse_size" "$scandisk_size" <<'PY'
+  # Search the complete LAYOUT*.INF set for each stock source entry, then patch
+  # the one file that owns it. Point that entry at disk 0 with no source
+  # subdirectory and record the loose replacement's uncompressed size.
+  if ! python3 - "$mouse_size" "$scandisk_size" "${layouts[@]}" <<'PY'
 from pathlib import Path
 import re
 import sys
 
-layout = Path(sys.argv[1])
 replacements = {
-    b'MOUSE.DRV': int(sys.argv[2]),
-    b'SCANDISK.INI': int(sys.argv[3]),
+    b'MOUSE.DRV': int(sys.argv[1]),
+    b'SCANDISK.INI': int(sys.argv[2]),
 }
-
-data = layout.read_bytes()
-lines = data.splitlines(keepends=True)
+layouts = [Path(value) for value in sys.argv[3:]]
+contents = {
+    layout: layout.read_bytes().splitlines(keepends=True)
+    for layout in layouts
+}
+changed = set()
 
 for name, size in replacements.items():
     pattern = re.compile(
@@ -1021,30 +1093,37 @@ for name, size in replacements.items():
     )
     matches = []
 
-    for index, line in enumerate(lines):
-        match = pattern.match(line)
-        if match:
-            matches.append((index, match))
+    for layout, lines in contents.items():
+        for index, line in enumerate(lines):
+            match = pattern.match(line)
+            if match:
+                matches.append((layout, index, match))
 
     if len(matches) != 1:
         print(
-            f"Unexpected {name.decode('ascii')} layout-entry count: {len(matches)} (expected 1).",
+            f"Unexpected {name.decode('ascii')} layout-entry count across "
+            f"LAYOUT*.INF: {len(matches)} (expected 1).",
             file=sys.stderr,
         )
         raise SystemExit(1)
 
-    index, match = matches[0]
-    lines[index] = (
+    layout, index, match = matches[0]
+    contents[layout][index] = (
         match.group(1)
         + b'0,,'
         + str(size).encode('ascii')
         + match.group(2)
         + (match.group(3) or b'')
     )
+    changed.add(layout)
 
-layout.write_bytes(b''.join(lines))
+for layout in changed:
+    layout.write_bytes(b''.join(contents[layout]))
 
-verify = layout.read_bytes().splitlines()
+verify = {
+    layout: layout.read_bytes().splitlines()
+    for layout in layouts
+}
 for name, size in replacements.items():
     expected = re.compile(
         br'^[ \t]*' + re.escape(name) + br'[ \t]*=[ \t]*0,,'
@@ -1052,8 +1131,17 @@ for name, size in replacements.items():
         + br'(?:,|[ \t]*$)',
         re.IGNORECASE,
     )
-    if sum(bool(expected.match(line)) for line in verify) != 1:
-        print(f"Failed to verify the {name.decode('ascii')} layout override.", file=sys.stderr)
+    count = sum(
+        bool(expected.match(line))
+        for lines in verify.values()
+        for line in lines
+    )
+    if count != 1:
+        print(
+            f"Failed to verify the {name.decode('ascii')} layout override "
+            f"across LAYOUT*.INF.",
+            file=sys.stderr,
+        )
         raise SystemExit(1)
 PY
   then
@@ -1579,7 +1667,7 @@ writeWin9xAnswerFile() {
 
   if [[ "${id,,}" == "win95"* ]]; then
     addReg+=",Win95.DisplayMode,Win95.PCINIC,Win95.Welcome"
-    firstLogonAddReg+=",Win95.SuspendMenu"
+    firstLogonAddReg+=",Win95.SuspendMenu,Win95.InternetIcon"
     installDelReg="Win95.InitShell,Win9x.Welcome"
   fi
 
@@ -1612,7 +1700,7 @@ writeWin9xAnswerFile() {
     copyFiles+=",Win9x.SharedShortcut"
   fi
 
-  addReg+=",OEMDrivers"
+  addReg+=",Win9x.SB16,OEMDrivers"
 
   if [[ "${id,,}" == "win9x"* ]]; then
     addReg+=",WinMe.BootService"
@@ -1738,7 +1826,10 @@ writeWin9xAnswerFile() {
         'HKLM,"System\CurrentControlSet\Services\Class\Net\0000","DisableWarning",,"1"' \
         '' \
         '[Win95.SuspendMenu]' \
-        'HKLM,"Enum\Root\*PNP0C05\0000","APMMenuSuspend",1,00'
+        'HKLM,"Enum\Root\*PNP0C05\0000","APMMenuSuspend",1,00' \
+        '' \
+        '[Win95.InternetIcon]' \
+        'HKCR,"CLSID\{FBF23B42-E3F0-101B-8488-00AA003E56F8}\Shell\Open\Command",,,"""C:\Program Files\Internet Explorer\IEXPLORE.EXE"""'
     fi
 
     if [[ "${id,,}" == "win9x"* ]]; then
@@ -1793,6 +1884,9 @@ writeWin9xAnswerFile() {
 
     printf '%s\n' ''
     writeWin9xBrowserPowerRegistry
+
+    printf '%s\n' ''
+    writeWin9xSB16Registry
 
     printf '%s\n' ''
     writeWin9xStorageRegistry
@@ -2102,6 +2196,7 @@ writeWin9xBrowserPowerRegistry() {
     '' \
     '[Win9x.BrowserDefault]' \
     'HKU,".DEFAULT\Software\Microsoft\Internet Connection Wizard","Completed",1,01,00,00,00' \
+    'HKU,".DEFAULT\Software\Microsoft\Internet Connection Wizard","DesktopChanged",0x00010001,1' \
     'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Internet Settings","EnableAutodial",0x00010001,0' \
     'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Internet Settings","NoNetAutodial",0x00010001,0' \
     'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Internet Settings","ProxyEnable",0x00010001,0' \
@@ -2128,6 +2223,7 @@ writeWin9xBrowserPowerRegistry() {
     '' \
     '[Win9x.BrowserUser]' \
     'HKCU,"Software\Microsoft\Internet Connection Wizard","Completed",1,01,00,00,00' \
+    'HKCU,"Software\Microsoft\Internet Connection Wizard","DesktopChanged",0x00010001,1' \
     'HKCU,"Software\Microsoft\Windows\CurrentVersion\Internet Settings","EnableAutodial",0x00010001,0' \
     'HKCU,"Software\Microsoft\Windows\CurrentVersion\Internet Settings","NoNetAutodial",0x00010001,0' \
     'HKCU,"Software\Microsoft\Windows\CurrentVersion\Internet Settings","ProxyEnable",0x00010001,0' \
@@ -2136,6 +2232,18 @@ writeWin9xBrowserPowerRegistry() {
     'HKCU,"Software\Microsoft\Internet Explorer\Main","Default_Page_URL",,"http://www.google.com"' \
     'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Page",,"http://www.google.com"' \
     'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Bar",,"http://www.google.com"'
+}
+
+writeWin9xSB16Registry() {
+
+  # QEMU's SB16 uses the stock non-PnP Sound Blaster hardware ID and fixed
+  # resources. Predeclare a root-enumerated device so Win9x can bind its own
+  # *PNPB003 driver and FactDef resources without performing a full ISA probe.
+  printf '%s\n' \
+    '[Win9x.SB16]' \
+    'HKLM,"Enum\Root\*PNPB003\0000","HardwareID",,"*PNPB003"' \
+    'HKLM,"Enum\Root\*PNPB003\0000","Class",,"MEDIA"' \
+    'HKLM,"Enum\Root\*PNPB003\0000","ConfigFlags",1,00,00,00,00'
 }
 
 writeWin9xStorageRegistry() {
