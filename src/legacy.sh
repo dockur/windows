@@ -29,20 +29,12 @@ setMachine() {
 
     case "${id,,}" in
 
-      "win95" | "winnt4" )
+      "win9"* | "winnt4" )
 
-        createMarker "kill" || return 1
         writeState "usb" "N" || return 1
         writeState "port" "on" || return 1
         writeState "net" "pcnet" || return 1
         writeState "sound" "AC97" || return 1 ;;
-
-      "win98" | "win9x" )
-
-        writeState "port" "on" || return 1
-        writeState "net" "pcnet" || return 1
-        writeState "usb" "pci-ohci" || return 1
-        writeState "sound" "usb-audio" || return 1 ;;
 
       "win2k"* )
 
@@ -72,6 +64,15 @@ setMachine() {
 
   restoreMachine || return 1
   restoreBootMode || return 1
+
+  case "${id,,}" in
+
+    "win9"* | "winnt4" )
+
+      # Windows 95 does not support ACPI so disable graceful shutdown
+      createMarker "kill" || return 1 ;;
+
+  esac
 
   case "${id,,}" in
 
