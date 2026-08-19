@@ -67,7 +67,7 @@ setMachine() {
 
   case "${id,,}" in
 
-    "win9"* | "winnt4" )
+    "win95" | "winnt4" )
 
       # Windows 95 does not support ACPI so disable graceful shutdown
       createMarker "kill" || return 1 ;;
