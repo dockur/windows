@@ -10,6 +10,7 @@ Win9xInstall() {
   local folder monitor="Plug and Play Monitor" options="/ID /IS /IQ /IT" target
   local setup="SETUP"
   local shortcut="Y"
+  local share='\\host.lan\Data'
 
   if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
     shortcut="N"
@@ -25,7 +26,8 @@ Win9xInstall() {
   case "${id,,}" in
     "win95"* )
       folder="WIN95"
-      options="/IW $options" ;;
+      options="/IW $options"
+      share='\\Host\Data' ;;
     "win98"* )
       folder="WIN98"
       options="/P J /IE /NF $options" ;;
@@ -192,7 +194,7 @@ Win9xInstall() {
     return 1
   fi
 
-  if enabled "$shortcut" && ! stageWin9xSharedShortcut "$target" "$desc"; then
+  if enabled "$shortcut" && ! stageWin9xSharedShortcut "$target" "$desc" "$share"; then
     rm -rf "$drivers" || :
     return 1
   fi
@@ -215,7 +217,7 @@ Win9xInstall() {
   writeWin9xAnswerFile \
     "$target" "$id" "$setup" "$monitor" \
     "$batchHost" "$batchUsername" "$batchOrganization" "$batchWorkgroup" \
-    "$batchKey" "$shortcut" "$install" "$timezone" || return 1
+    "$batchKey" "$shortcut" "$install" "$timezone" "$share" || return 1
 
   # Build the hard-disk system image from the setup files themselves. Do not rely
   # on a particular El Torito floppy-image filename: some perfectly valid Win9x
@@ -808,6 +810,47 @@ stageWin9xDisplayDriver() {
     return 1
   fi
 
+  # VMDisp9x defaults QEMU STD VGA to 8-bit 640x480. Match the QEMU driver
+  # default to the mode requested in MSBATCH.INF so it does not reset Setup's
+  # selected resolution and color depth when the driver is installed.
+  if ! python3 - "$dest/vmdisp9x.inf" "$WIDTH" "$HEIGHT" <<'INF_MODE'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+mode = f'16,{sys.argv[2]},{sys.argv[3]}'.encode()
+data = path.read_bytes()
+lines = data.splitlines(keepends=True)
+section = b''
+matches = []
+
+for index, line in enumerate(lines):
+    stripped = line.rstrip(b'\r\n')
+
+    if stripped.startswith(b'[') and stripped.endswith(b']'):
+        section = stripped.lower()
+        continue
+
+    if section == b'[qemu.addreg]' and stripped == b'HKR,DEFAULT,Mode,,"8,640,480"':
+        matches.append(index)
+
+if len(matches) != 1:
+    print(
+        f"Unexpected VMDisp9x QEMU default-mode count: {len(matches)} (expected 1).",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+
+index = matches[0]
+ending = b'\r\n' if lines[index].endswith(b'\r\n') else (b'\n' if lines[index].endswith(b'\n') else b'')
+lines[index] = b'HKR,DEFAULT,Mode,,"' + mode + b'"' + ending
+path.write_bytes(b''.join(lines))
+INF_MODE
+  then
+    error "Failed to set the Windows 9x display mode!"
+    return 1
+  fi
+
   return 0
 }
 
@@ -1097,27 +1140,81 @@ stageWin9xSharedShortcut() {
 
   local dir="$1"
   local desc="$2"
+  local share="$3"
   local target="$dir/SHARED.LNK"
-  local expected="5e5bbcc3e32b1dea7a7a742dc648f85d9aca801b874d60066899d770aa7700a5"
-  local actual
 
-  # Shell-generated network PIDL for \\host.lan\Data and the SHELL32 folder icon.
-  if ! base64 -d <<'EOF' > "$target"
-TAAAAAEUAgAAAAAAwAAAAAAAAEZBAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD
-AAAAAAAAAAAAAAAAAAAAAAAAADsAFAAfLWAsjSDqOmkQotcIACswMJ0QAEAAAFxcaG9zdC5sYW4A
-FQDAAABcXGhvc3QubGFuXERhdGEAAAAdAEM6XFdJTkRPV1NcU1lTVEVNXFNIRUxMMzIuRExMAAAA
-AA==
-EOF
+  # Use the native network PIDL layout from a Shell-generated Windows 98 link.
+  # Keep that known-good structure byte-for-byte for the normal host.lan target,
+  # and resize only its server/share PIDL items when Win95 needs the NetBIOS name.
+  if ! python3 - "$target" "$share" <<'PY'
+from pathlib import Path
+import hashlib
+import struct
+import sys
+
+target = Path(sys.argv[1])
+share = sys.argv[2].encode('ascii')
+
+template = bytes.fromhex(
+    '4c0000000114020000000000c000000000000046410000001000000000000000'
+    '0000000000000000000000000000000000000000000000000300000000000000'
+    '0000000000000000000000003b0014001f2d602c8d20ea3a6910a2d708002b30'
+    '309d10004000005c5c686f73742e6c616e001500c000005c5c686f73742e6c61'
+    '6e5c446174610000001d00433a5c57494e444f57535c53595354454d5c534845'
+    '4c4c33322e444c4c00000000'
+)
+
+if len(template) != 172:
+    raise SystemExit('Native Shared link template size verification failed.')
+if hashlib.sha256(template).hexdigest() != '5e5bbcc3e32b1dea7a7a742dc648f85d9aca801b874d60066899d770aa7700a5':
+    raise SystemExit('Native Shared link template hash verification failed.')
+if not share.startswith(b'\\\\'):
+    raise SystemExit('Shared link target is not a UNC path.')
+
+server, separator, name = share[2:].partition(b'\\')
+if not server or not separator or not name or b'\\' in name:
+    raise SystemExit('Shared link target must contain one server and one share name.')
+
+# The working Win98 link contains a 20-byte Network Neighborhood root PIDL,
+# followed by a server item (type 0x40) and a share item (type 0xC0).
+header = template[:76]
+old_id_size = struct.unpack_from('<H', template, 76)[0]
+old_id_list = template[78:78 + old_id_size]
+root_size = struct.unpack_from('<H', old_id_list, 0)[0]
+root_item = old_id_list[:root_size]
+tail = template[78 + old_id_size:]
+
+if root_size != 20 or root_item != bytes.fromhex('14001f2d602c8d20ea3a6910a2d708002b30309d'):
+    raise SystemExit('Native Shared link root PIDL verification failed.')
+
+server_name = b'\\\\' + server + b'\0'
+share_name = share + b'\0'
+server_item = struct.pack('<H', 5 + len(server_name)) + b'\x40\x00\x00' + server_name
+share_item = struct.pack('<H', 5 + len(share_name)) + b'\xc0\x00\x00' + share_name
+id_list = root_item + server_item + share_item + b'\x00\x00'
+link = header + struct.pack('<H', len(id_list)) + id_list + tail
+
+# Rebuilding the normal Win98/Me target must reproduce the extracted working
+# shortcut exactly; Win95 changes only the two variable PIDL strings and sizes.
+if share == b'\\\\host.lan\\Data' and link != template:
+    raise SystemExit('Native Shared link template reproduction failed.')
+
+target.write_bytes(link)
+data = target.read_bytes()
+
+if data != link:
+    raise SystemExit('Shared link write verification failed.')
+if struct.unpack_from('<I', data, 20)[0] != 0x00000041:
+    raise SystemExit('Shared link flags verification failed.')
+if struct.unpack_from('<H', data, 76)[0] != len(id_list):
+    raise SystemExit('Shared link PIDL size verification failed.')
+if server_name not in data or share_name not in data:
+    raise SystemExit('Shared link UNC target verification failed.')
+if b'C:\\WINDOWS\\SYSTEM\\SHELL32.DLL' not in data:
+    raise SystemExit('Shared link icon verification failed.')
+PY
   then
     error "Failed to create the Shared desktop shortcut for $desc!"
-    return 1
-  fi
-
-  actual=$(sha256sum "$target") || return 1
-  actual="${actual%% *}"
-
-  if [ "$(wc -c < "$target")" -ne 172 ] || [ "$actual" != "$expected" ]; then
-    error "Failed to verify the Shared desktop shortcut for $desc!"
     return 1
   fi
 
@@ -1497,6 +1594,7 @@ writeWin9xAnswerFile() {
   local shortcut="${10}"
   local install="${11}"
   local timezone="${12}"
+  local share="${13}"
 
   local addReg="OPKInstall,Win9x.Machine,Win9x.PCMCIA,Win9x.Power,Win9x.UserDefault,Win9x.BrowserDefault,Win9x.ActiveSetup"
   local updateInis="Win9x.SystemIni,Win9x.SystemCb"
@@ -1522,6 +1620,7 @@ writeWin9xAnswerFile() {
 
   if [[ "${id,,}" == "win95"* ]]; then
     addReg+=",Win95.PCINIC,Win95.Welcome"
+    firstLogonAddReg+=",Win95.SuspendMenu"
     installDelReg="Win95.InitShell,Win9x.Welcome"
   fi
 
@@ -1641,7 +1740,7 @@ writeWin9xAnswerFile() {
 
     if enabled "$shortcut"; then
       printf '%s\n' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","SharedDrive",,"C:\WINDOWS\HIDE.EXE C:\WINDOWS\NET.EXE USE Z: \\host.lan\Data"'
+        "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\",\"SharedDrive\",,\"C:\\WINDOWS\\HIDE.EXE C:\\WINDOWS\\NET.EXE USE Z: $share\""
     fi
 
     if enabled "$post"; then
@@ -1673,7 +1772,10 @@ writeWin9xAnswerFile() {
       printf '%s\n' \
         '' \
         '[Win95.PCINIC]' \
-        'HKLM,"System\CurrentControlSet\Services\Class\Net\0000","DisableWarning",,"1"'
+        'HKLM,"System\CurrentControlSet\Services\Class\Net\0000","DisableWarning",,"1"' \
+        '' \
+        '[Win95.SuspendMenu]' \
+        'HKLM,"Enum\Root\*PNP0C05\0000","APMMenuSuspend",1,00'
     fi
 
     if [[ "${id,,}" == "win9x"* ]]; then
@@ -2037,6 +2139,9 @@ writeWin9xBrowserPowerRegistry() {
     '' \
     '[Win9x.BrowserDefault]' \
     'HKU,".DEFAULT\Software\Microsoft\Internet Connection Wizard","Completed",0x00010001,1' \
+    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Internet Settings","EnableAutodial",0x00010001,0' \
+    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Internet Settings","NoNetAutodial",0x00010001,0' \
+    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Internet Settings","ProxyEnable",0x00010001,0' \
     'HKU,".DEFAULT\Software\Microsoft\Internet Explorer\Main","Start Page",,"http://www.google.com"' \
     'HKU,".DEFAULT\Software\Microsoft\Internet Explorer\Main","First Home Page",,"http://www.google.com"' \
     'HKU,".DEFAULT\Software\Microsoft\Internet Explorer\Main","Default_Page_URL",,"http://www.google.com"' \
@@ -2060,6 +2165,9 @@ writeWin9xBrowserPowerRegistry() {
     '' \
     '[Win9x.BrowserUser]' \
     'HKCU,"Software\Microsoft\Internet Connection Wizard","Completed",0x00010001,1' \
+    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Internet Settings","EnableAutodial",0x00010001,0' \
+    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Internet Settings","NoNetAutodial",0x00010001,0' \
+    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Internet Settings","ProxyEnable",0x00010001,0' \
     'HKCU,"Software\Microsoft\Internet Explorer\Main","Start Page",,"http://www.google.com"' \
     'HKCU,"Software\Microsoft\Internet Explorer\Main","First Home Page",,"http://www.google.com"' \
     'HKCU,"Software\Microsoft\Internet Explorer\Main","Default_Page_URL",,"http://www.google.com"' \
