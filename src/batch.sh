@@ -136,7 +136,8 @@ Win9xInstall() {
   local patcher_dos="$patcher.img"
   local qemouse="$win9x/qemouse"
   local display="$win9x/vmdisp9x"
-  local audio="$win9x/ac97"
+  local audio95="$win9x/alcx95"
+  local audiowdm="$win9x/alcxwdm"
 
   extractDrivers "$drivers" || return 1
 
@@ -176,9 +177,16 @@ Win9xInstall() {
   fi
 
   if [[ "${id,,}" == "win95"* ]]; then
-    # Win95 has no usable in-box USB Audio class driver. QEMU AC97 is a normal
-    # PCI PnP device, so keep its VxD driver beside the retained C:\SETUP source.
-    if ! stageWin95AC97Driver "$target" "$audio" "$desc"; then
+    # QEMU AC97 is a normal PCI PnP device, so keep its Win95 VxD driver beside
+    # the retained C:\SETUP source.
+    if ! stageWin95AC97Driver "$target" "$audio95" "$desc"; then
+      rm -rf "$drivers" || :
+      return 1
+    fi
+  elif [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
+    # Win98/Me use the WDM package from the same driver archive. Stage it beside
+    # C:\SETUP and add a QEMU-specific INF match for the emulated Intel AC97 PCI ID.
+    if ! stageWin98MeAC97Driver "$target" "$audiowdm" "$desc"; then
       rm -rf "$drivers" || :
       return 1
     fi
@@ -604,7 +612,7 @@ stageWin95AC97Driver() {
   fi
 
   # Keep the driver payload self-contained: drivers.tar.xz owns the exact files
-  # and this path simply stages everything present in win9x/ac97/. This avoids
+  # and this path simply stages everything present in win9x/alcx95/. This avoids
   # having to update an installer-side filename list when the payload changes.
   if ! cp -a -- "$audio"/. "$dir"/; then
     error "Failed to stage the Windows 95 AC97 driver payload!"
@@ -703,6 +711,127 @@ for name in required_files[1:]:
 PY
   then
     error "Failed to verify the Windows 95 AC97 PCI driver payload!"
+    return 1
+  fi
+
+  return 0
+}
+
+stageWin98MeAC97Driver() {
+
+  local dir="$1"
+  local audio="$2"
+  local desc="$3"
+  local source name
+
+  if [ ! -d "$audio" ] || [ -z "$(find "$audio" -maxdepth 1 -type f -print -quit)" ]; then
+    error "Failed to locate the Windows 98/Me AC97 WDM driver payload!"
+    return 1
+  fi
+
+  # Keep both vendor INFs and every referenced payload file together in the
+  # retained setup source. OtherDevicePath already makes C:\SETUP an OEM PnP
+  # search path while Windows is enumerating the AC97 controller.
+  if ! cp -a -- "$audio"/. "$dir"/; then
+    error "Failed to stage the Windows 98/Me AC97 WDM driver payload!"
+    return 1
+  fi
+
+  # Verify every top-level archive file before creating the QEMU compatibility
+  # INF below, so the vendor payload itself remains byte-for-byte unchanged.
+  while IFS= read -r -d '' source; do
+    name="${source##*/}"
+    if [ ! -f "$dir/$name" ] || ! cmp -s -- "$source" "$dir/$name"; then
+      error "Failed to verify the staged Windows 98/Me AC97 driver file $name!"
+      return 1
+    fi
+  done < <(find "$audio" -maxdepth 1 -type f -print0)
+
+  # The supplied Realtek WDM INFs contain Intel ICH matches but no generic
+  # PCI\VEN_8086&DEV_2415 entry used by QEMU's AC97 device. Derive an unsigned
+  # 8.3-compatible OEM INF from Alcxwdm0.inf, preserving the vendor INF itself.
+  # Removing CatalogFile avoids claiming the generated INF is covered by the
+  # vendor catalog after adding the QEMU hardware ID.
+  if ! python3 - "$dir" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+root = Path(sys.argv[1])
+required_files = (
+    'Alcxwdm0.inf',
+    'Alcxwdm1.inf',
+    'Alcxwdm.cat',
+    'ALCXWDM.SYS',
+    'Soundman.exe',
+    'ALSndMgr.cpl',
+    'alsndmgr.wav',
+)
+
+for name in required_files:
+    path = root / name
+    if not path.is_file() or path.stat().st_size == 0:
+        raise SystemExit(f'AC97 WDM payload file missing or empty: {name}')
+
+vendor = root / 'Alcxwdm0.inf'
+raw = vendor.read_bytes()
+normalized = raw.replace(b'\r\n', b'\n').lower()
+
+for item in (
+    b'signature="$chicago$"',
+    b'class=media',
+    b'[avance]',
+    b'[ac97aud]',
+    b'alcxwdm.sys',
+    b'alsoinstall=ks.registration(ks.inf), wdmaudio.registration(wdmaudio.inf)',
+    b'hkr,drivers\\wave\\wdmaud.drv,driver,,wdmaud.drv',
+    b'alcxwdm.sys=222',
+    b'soundman.exe=222',
+    b'alsndmgr.cpl=222',
+    b'alsndmgr.wav=222',
+):
+    if item not in normalized:
+        raise SystemExit(f'AC97 WDM installation invariant missing: {item!r}.')
+
+newline = b'\r\n' if b'\r\n' in raw else b'\n'
+clone = raw
+clone, catalog_count = re.subn(
+    br'(?im)^[ \t]*CatalogFile[ \t]*=[^\r\n]*(?:\r?\n)',
+    b'',
+    clone,
+    count=1,
+)
+if catalog_count != 1:
+    raise SystemExit(f'Unexpected AC97 WDM CatalogFile count: {catalog_count}.')
+
+generic = re.compile(
+    br'(?im)^[ \t]*%ALCAUD\.Desc%[ \t]*=[ \t]*AC97AUD[ \t]*,[ \t]*'
+    br'PCI\\VEN_8086&DEV_2415[ \t]*(?:\r?$)'
+)
+
+if not generic.search(clone):
+    section = re.search(br'(?im)^\[Avance\][ \t]*(?:\r?\n)', clone)
+    if section is None:
+        raise SystemExit('AC97 WDM [Avance] section missing.')
+    entry = b'%ALCAUD.Desc%=AC97AUD,\tPCI\\VEN_8086&DEV_2415' + newline
+    clone = clone[:section.end()] + entry + clone[section.end():]
+
+matches = generic.findall(clone)
+if len(matches) != 1:
+    raise SystemExit(
+        f'Unexpected QEMU AC97 generic hardware-ID count: {len(matches)} (expected 1).'
+    )
+
+if re.search(br'(?im)^[ \t]*CatalogFile[ \t]*=', clone):
+    raise SystemExit('Generated QEMU AC97 INF still references the vendor catalog.')
+
+output = root / 'QEMUAC97.INF'
+output.write_bytes(clone)
+if not output.is_file() or output.stat().st_size == 0:
+    raise SystemExit('Failed to create QEMUAC97.INF.')
+PY
+  then
+    error "Failed to prepare the Windows 98/Me AC97 WDM PCI driver!"
     return 1
   fi
 
