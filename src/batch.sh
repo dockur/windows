@@ -128,7 +128,7 @@ Win9xInstall() {
   local patcher="$win9x/patcher9x/patcher9x"
   local patcher_dos="$patcher.img"
   local qemouse="$win9x/qemouse"
-  local display="$win9x/boxv9x"
+  local display="$win9x/vmdisp9x"
 
   extractDrivers "$drivers" || return 1
 
@@ -523,16 +523,18 @@ patchWin9xSetupFiles() {
   stageWin9xDisplayDriver "$target" "$display" "$desc" || return 1
 
   if ! mv -f -- \
-    "$target/BOXV9X/boxv9x.inf" \
-    "$target/BOXV9X/boxvmini.drv" \
-    "$target/BOXV9X/boxvmini.vxd" \
+    "$target/VMDISP9X/vmdisp9x.inf" \
+    "$target/VMDISP9X/qemumini.drv" \
+    "$target/VMDISP9X/qemumini.vxd" \
+    "$target/VMDISP9X/vmhal9x.dll" \
+    "$target/VMDISP9X/vmhal486.dll" \
+    "$target/VMDISP9X/vmdisp9x.dll" \
     "$target/"; then
     error "Failed to stage the Windows 9x display driver in the setup source!"
     return 1
   fi
 
-  rm -rf -- "$target/BOXV9X" || return 1
-  : > "$target/BOXV9X" || return 1
+  rm -rf -- "$target/VMDISP9X" || return 1
 
   # Use QEMouse directly in the MINI.CAB GUI Setup environment for every Win9x
   # release, so the setup mouse path does not depend on a DOS INT 33h TSR.
@@ -757,10 +759,16 @@ stageWin9xDisplayDriver() {
   local source="$2"
   local desc="$3"
 
-  local dest="$target/BOXV9X"
+  local dest="$target/VMDISP9X"
   local file
 
-  for file in boxv9x.inf boxvmini.drv boxvmini.vxd; do
+  for file in \
+    vmdisp9x.inf \
+    qemumini.drv \
+    qemumini.vxd \
+    vmhal9x.dll \
+    vmhal486.dll \
+    vmdisp9x.dll; do
 
     if [ ! -f "$source/$file" ]; then
       error "Failed to locate required Windows 9x display driver file: $file"
@@ -773,34 +781,32 @@ stageWin9xDisplayDriver() {
   mkdir -p "$dest" || return 1
 
   if ! cp -f -- \
-    "$source/boxv9x.inf" \
-    "$source/boxvmini.drv" \
-    "$source/boxvmini.vxd" \
+    "$source/vmdisp9x.inf" \
+    "$source/qemumini.drv" \
+    "$source/qemumini.vxd" \
+    "$source/vmhal9x.dll" \
+    "$source/vmhal486.dll" \
+    "$source/vmdisp9x.dll" \
     "$dest/"; then
 
     error "Failed to add the display driver to $desc setup files!"
     return 1
   fi
 
-  # The virtual display driver's DDC flag makes Win9x enumerate a Plug and
-  # Play monitor after the display driver starts. The unattended setup already
-  # selects the monitor and display mode, and BOXV9X carries a fixed mode list,
-  # so disable DDC in our staged copy to avoid a second monitor PnP pass.
-  if ! grep -Eq '^[[:space:]]*HKR,DEFAULT,DDC,,1[[:space:]]*$' "$dest/boxv9x.inf"; then
+  # VMDisp9x's DDC flag makes Win9x enumerate a Plug and Play monitor after
+  # the display driver starts. The unattended setup already selects the monitor
+  # and display mode, and VMDisp9x carries a fixed mode list, so disable DDC in
+  # our staged copy to avoid a second monitor PnP pass.
+  if ! grep -Eq '^[[:space:]]*HKR,DEFAULT,DDC,,1[[:space:]]*$' "$dest/vmdisp9x.inf"; then
     error "Failed to locate the DDC setting in the Windows 9x display driver!"
     return 1
   fi
 
-  if ! sed -i 's/HKR,DEFAULT,DDC,,1/HKR,DEFAULT,DDC,,0/' "$dest/boxv9x.inf" ||
-    ! grep -Eq '^[[:space:]]*HKR,DEFAULT,DDC,,0[[:space:]]*$' "$dest/boxv9x.inf"; then
+  if ! sed -i 's/HKR,DEFAULT,DDC,,1/HKR,DEFAULT,DDC,,0/' "$dest/vmdisp9x.inf" ||
+    ! grep -Eq '^[[:space:]]*HKR,DEFAULT,DDC,,0[[:space:]]*$' "$dest/vmdisp9x.inf"; then
     error "Failed to disable DDC in the Windows 9x display driver!"
     return 1
   fi
-
-  # BOXV9X is the source-media tag named by the upstream INF. Provide that tag
-  # beside the driver files so Setup never asks for a separate driver disk while
-  # installing the exact QEMU PCI match.
-  : > "$dest/BOXV9X" || return 1
 
   return 0
 }
@@ -1092,81 +1098,26 @@ stageWin9xSharedShortcut() {
   local dir="$1"
   local desc="$2"
   local target="$dir/SHARED.LNK"
+  local expected="5e5bbcc3e32b1dea7a7a742dc648f85d9aca801b874d60066899d770aa7700a5"
+  local actual
 
-  # Build a real Shell Link to the UNC share instead of relying on Setup's
-  # legacy setup.ini/Program Manager shortcut conversion. The link contains a
-  # CommonNetworkRelativeLink with an ANSI UNC name so it remains usable by
-  # Windows 95 as well as Windows 98 and Windows Me.
-  if ! python3 - "$target" <<'PY'
-from pathlib import Path
-import struct
-import sys
-
-target = Path(sys.argv[1])
-net_name = bytes((92, 92)) + b'host.lan' + bytes((92,)) + b'Data' + bytes((0,))
-
-# ShellLinkHeader: HasLinkInfo, FILE_ATTRIBUTE_DIRECTORY, SW_SHOWNORMAL.
-header = struct.pack(
-    '<I16sIIQQQIIIHHII',
-    0x0000004C,
-    bytes.fromhex('0114020000000000c000000000000046'),
-    0x00000002,
-    0x00000010,
-    0, 0, 0,
-    0,
-    0,
-    1,
-    0,
-    0,
-    0,
-    0,
-)
-
-# CommonNetworkRelativeLink with no mapped drive and no provider-specific data.
-network = struct.pack(
-    '<IIIII',
-    20 + len(net_name),
-    0,
-    20,
-    0,
-    0,
-) + net_name
-
-network_offset = 0x1C
-suffix_offset = network_offset + len(network)
-link_info = struct.pack(
-    '<IIIIIII',
-    suffix_offset + 1,
-    0x0000001C,
-    0x00000002,
-    0,
-    0,
-    network_offset,
-    suffix_offset,
-) + network + bytes((0,))
-
-link = header + link_info + struct.pack('<I', 0)
-target.write_bytes(link)
-
-# Verify the structures and target path before handing the file to Setup.
-data = target.read_bytes()
-if len(data) != len(link):
-    raise SystemExit('Shell Link size verification failed.')
-if struct.unpack_from('<I', data, 0)[0] != 0x4C:
-    raise SystemExit('Shell Link header verification failed.')
-if data[4:20] != bytes.fromhex('0114020000000000c000000000000046'):
-    raise SystemExit('Shell Link CLSID verification failed.')
-if struct.unpack_from('<I', data, 20)[0] != 0x00000002:
-    raise SystemExit('Shell Link flags verification failed.')
-if struct.unpack_from('<I', data, 76)[0] != len(link_info):
-    raise SystemExit('Shell Link LinkInfo verification failed.')
-if net_name not in data:
-    raise SystemExit('Shell Link UNC target verification failed.')
-if data[-4:] != bytes(4):
-    raise SystemExit('Shell Link terminal block verification failed.')
-PY
+  # Shell-generated network PIDL for \\host.lan\Data and the SHELL32 folder icon.
+  if ! base64 -d <<'EOF' > "$target"
+TAAAAAEUAgAAAAAAwAAAAAAAAEZBAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD
+AAAAAAAAAAAAAAAAAAAAAAAAADsAFAAfLWAsjSDqOmkQotcIACswMJ0QAEAAAFxcaG9zdC5sYW4A
+FQDAAABcXGhvc3QubGFuXERhdGEAAAAdAEM6XFdJTkRPV1NcU1lTVEVNXFNIRUxMMzIuRExMAAAA
+AA==
+EOF
   then
     error "Failed to create the Shared desktop shortcut for $desc!"
+    return 1
+  fi
+
+  actual=$(sha256sum "$target") || return 1
+  actual="${actual%% *}"
+
+  if [ "$(wc -c < "$target")" -ne 172 ] || [ "$actual" != "$expected" ]; then
+    error "Failed to verify the Shared desktop shortcut for $desc!"
     return 1
   fi
 
