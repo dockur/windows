@@ -192,6 +192,11 @@ Win9xInstall() {
     return 1
   fi
 
+  if enabled "$shortcut" && ! stageWin9xSharedShortcut "$target" "$desc"; then
+    rm -rf "$drivers" || :
+    return 1
+  fi
+
   if [[ "${id,,}" == "win9x"* ]]; then
     if ! stageWinMeFinalBootFiles "$dir" "$target" "$desc" ||
       ! stageWinMeBootActivation "$target" "$desc" ||
@@ -1082,6 +1087,92 @@ stageWin9xFinalAutoexec() {
   return 0
 }
 
+stageWin9xSharedShortcut() {
+
+  local dir="$1"
+  local desc="$2"
+  local target="$dir/SHARED.LNK"
+
+  # Build a real Shell Link to the UNC share instead of relying on Setup's
+  # legacy setup.ini/Program Manager shortcut conversion. The link contains a
+  # CommonNetworkRelativeLink with an ANSI UNC name so it remains usable by
+  # Windows 95 as well as Windows 98 and Windows Me.
+  if ! python3 - "$target" <<'PY'
+from pathlib import Path
+import struct
+import sys
+
+target = Path(sys.argv[1])
+net_name = bytes((92, 92)) + b'host.lan' + bytes((92,)) + b'Data' + bytes((0,))
+
+# ShellLinkHeader: HasLinkInfo, FILE_ATTRIBUTE_DIRECTORY, SW_SHOWNORMAL.
+header = struct.pack(
+    '<I16sIIQQQIIIHHII',
+    0x0000004C,
+    bytes.fromhex('0114020000000000c000000000000046'),
+    0x00000002,
+    0x00000010,
+    0, 0, 0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+)
+
+# CommonNetworkRelativeLink with no mapped drive and no provider-specific data.
+network = struct.pack(
+    '<IIIII',
+    20 + len(net_name),
+    0,
+    20,
+    0,
+    0,
+) + net_name
+
+network_offset = 0x1C
+suffix_offset = network_offset + len(network)
+link_info = struct.pack(
+    '<IIIIIII',
+    suffix_offset + 1,
+    0x0000001C,
+    0x00000002,
+    0,
+    0,
+    network_offset,
+    suffix_offset,
+) + network + bytes((0,))
+
+link = header + link_info + struct.pack('<I', 0)
+target.write_bytes(link)
+
+# Verify the structures and target path before handing the file to Setup.
+data = target.read_bytes()
+if len(data) != len(link):
+    raise SystemExit('Shell Link size verification failed.')
+if struct.unpack_from('<I', data, 0)[0] != 0x4C:
+    raise SystemExit('Shell Link header verification failed.')
+if data[4:20] != bytes.fromhex('0114020000000000c000000000000046'):
+    raise SystemExit('Shell Link CLSID verification failed.')
+if struct.unpack_from('<I', data, 20)[0] != 0x00000002:
+    raise SystemExit('Shell Link flags verification failed.')
+if struct.unpack_from('<I', data, 76)[0] != len(link_info):
+    raise SystemExit('Shell Link LinkInfo verification failed.')
+if net_name not in data:
+    raise SystemExit('Shell Link UNC target verification failed.')
+if data[-4:] != bytes(4):
+    raise SystemExit('Shell Link terminal block verification failed.')
+PY
+  then
+    error "Failed to create the Shared desktop shortcut for $desc!"
+    return 1
+  fi
+
+  return 0
+}
+
 writeWin9xAutoexec() {
 
   local output="$1"
@@ -1456,7 +1547,6 @@ writeWin9xAnswerFile() {
   local install="${11}"
   local timezone="${12}"
 
-  local desktop="%10%\Desktop"
   local addReg="OPKInstall,Win9x.Machine,Win9x.PCMCIA,Win9x.Power,Win9x.UserDefault,Win9x.BrowserDefault,Win9x.ActiveSetup"
   local updateInis="Win9x.SystemIni,Win9x.SystemCb"
   local firstLogonAddReg="Win9x.User,Win9x.Regwiz,Win9x.BrowserUser,Win9x.PowerUser"
@@ -1507,6 +1597,10 @@ writeWin9xAnswerFile() {
   if enabled "$shortcut" || [ -n "$install" ] || [[ "${id,,}" == "win9x"* ]]; then
     hide="Y"
     copyFiles+=",Win9x.Hide"
+  fi
+
+  if enabled "$shortcut"; then
+    copyFiles+=",Win9x.SharedShortcut"
   fi
 
   addReg+=",OEMDrivers"
@@ -1561,6 +1655,10 @@ writeWin9xAnswerFile() {
 
     if enabled "$hide"; then
       printf '%s\n' 'HIDE.EXE=22'
+    fi
+
+    if enabled "$shortcut"; then
+      printf '%s\n' 'SHARED.LNK=22'
     fi
 
     if enabled "$post"; then
@@ -1668,11 +1766,6 @@ writeWin9xAnswerFile() {
     if enabled "$post"; then
       [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
       firstLogonUpdateInis+="Win9x.PostMarker"
-    fi
-
-    if enabled "$shortcut"; then
-      [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
-      firstLogonUpdateInis+="Win9x.Shortcut"
     fi
 
     if [ -n "$firstLogonUpdateInis" ]; then
@@ -1787,6 +1880,10 @@ writeWin9xAnswerFile() {
       printf '%s\n' 'Win9x.Hide=10'
     fi
 
+    if enabled "$shortcut"; then
+      printf '%s\n' 'Win9x.SharedShortcut=10,Desktop'
+    fi
+
     if ! disabled "$AUTOLOGIN"; then
       printf '%s\n' 'Win9x.Password=10'
     fi
@@ -1800,9 +1897,8 @@ writeWin9xAnswerFile() {
     if enabled "$shortcut"; then
       printf '%s\n' \
         '' \
-        '[Win9x.Shortcut]' \
-        "setup.ini, progman.groups,, \"group1=\"\"$desktop\"\"\"" \
-        'setup.ini, group1,,"""Shared"",""\\host.lan\Data"",""%11%\SHELL32.DLL"",3,,,""Shared folder"""'
+        '[Win9x.SharedShortcut]' \
+        'SHARED.LNK'
     fi
 
     printf '%s\n' \
@@ -1878,6 +1974,7 @@ writeWin9xAnswerFile() {
       "ComputerName=\"$batchHost\"" \
       "Workgroup=\"$batchWorkgroup\"" \
       'PrimaryLogon=Windows' \
+      'DefaultProtocol=MSTCP' \
       'Clients=VREDIR' \
       'Protocols=MSTCP'
 
