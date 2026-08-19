@@ -35,14 +35,14 @@ setMachine() {
         writeState "usb" "N" || return 1
         writeState "port" "on" || return 1
         writeState "net" "pcnet" || return 1
-        writeState "sound" "sb16" || return 1 ;;
+        writeState "sound" "es1370" || return 1 ;;
 
       "win98" | "win9x" )
 
         writeState "port" "on" || return 1
         writeState "net" "pcnet" || return 1
-        writeState "sound" "sb16" || return 1
-        writeState "usb" "pci-ohci" || return 1 ;;
+        writeState "usb" "pci-ohci" || return 1
+        writeState "sound" "usb-audio" || return 1 ;;
 
       "win2k"* )
 
