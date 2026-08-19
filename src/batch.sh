@@ -128,7 +128,7 @@ Win9xInstall() {
     stageWin9xWait "$target" "$desc" || return 1
   fi
 
-  if [ -n "$install" ] || [[ "${id,,}" == "win9x"* ]]; then
+  if [ -n "$install" ] || [[ "${id,,}" == "win95"* || "${id,,}" == "win9x"* ]]; then
     stageWin9xPostSetup "$target" "$desc" "$install" "$id" || return 1
   fi
 
@@ -370,14 +370,17 @@ stageWin9xPostSetup() {
   local target="$dir/POST9X.BAT"
 
   # Windows 95 can reach its first real desktop without the extra Setup reboot
-  # that promotes POST9X.NEW to POST9X.RDY. Run FirstLogon and the OEM install
-  # together from its existing RunOnce entry so install.bat still runs on that
-  # first desktop. Keep the established reboot-gated path unchanged for 98/Me.
+  # used by the established 98/Me post-setup path. Run FirstLogon and finish its
+  # pending file operations directly before the OEM install, so the next normal
+  # reboot does not re-enter WININIT just to finalize our own setup changes.
   if [[ "${id,,}" == "win95"* ]]; then
     {
       printf '%s\n' \
         '@ECHO OFF' \
-        'C:\WINDOWS\RUNDLL.EXE SETUPX.DLL,InstallHinfSection Win9x.FirstLogon 4 C:\WINDOWS\MSBATCH.INF'
+        'C:\WINDOWS\RUNDLL.EXE SETUPX.DLL,InstallHinfSection Win9x.FirstLogon 4 C:\WINDOWS\MSBATCH.INF' \
+        'COPY /Y C:\SETUP\W9XAUTO.BAT C:\AUTOEXEC.BAT >NUL' \
+        'DEL C:\SETUP\PATCH9X.RUN >NUL' \
+        'IF EXIST C:\WINDOWS\DESKTOP\ONLINE~1 C:\WINDOWS\COMMAND\DELTREE.EXE /Y C:\WINDOWS\DESKTOP\ONLINE~1 >NUL'
 
       if [ -n "$install" ]; then
         if enabled "${LOG:-}"; then
@@ -1808,6 +1811,7 @@ writeWin9xAnswerFile() {
   if [[ "${id,,}" == "win95"* ]]; then
     addReg+=",Win95.DisplayMode,Win95.PCINIC,Win95.Welcome"
     firstLogonAddReg+=",Win95.SuspendMenu,Win95.InternetIcon"
+    firstLogonUpdateInis=""
     installDelReg="Win95.InitShell,Win9x.Welcome"
   fi
 
@@ -1822,7 +1826,7 @@ writeWin9xAnswerFile() {
     copyFiles+=",Win9x.Password"
   fi
 
-  if [ -n "$install" ] || [[ "${id,,}" == "win9x"* ]]; then
+  if [ -n "$install" ] || [[ "${id,,}" == "win95"* || "${id,,}" == "win9x"* ]]; then
     post="Y"
     copyFiles+=",Win9x.Post"
   fi
@@ -2013,13 +2017,15 @@ writeWin9xAnswerFile() {
       printf '%s\n' "DelFiles=$firstLogonDelFiles"
     fi
 
-    if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
+    if [[ "${id,,}" == "win98"* ]]; then
       [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
       firstLogonUpdateInis+="Win9x.PatcherCleanup"
     fi
 
-    [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
-    firstLogonUpdateInis+="Win9x.AutoexecFinal"
+    if [[ "${id,,}" != "win95"* ]]; then
+      [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
+      firstLogonUpdateInis+="Win9x.AutoexecFinal"
+    fi
 
     if enabled "$post" && [[ "${id,,}" != "win95"* ]]; then
       [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
