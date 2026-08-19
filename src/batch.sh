@@ -2138,7 +2138,7 @@ writeWin9xBrowserPowerRegistry() {
     'HKU,".DEFAULT\Control Panel\PowerCfg\PowerPolicies\3","Policies",0x00000001,01,00,00,00,02,00,00,00,01,00,00,00,00,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,04,00,00,00,05,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,01,64,64,64,64,00,00' \
     '' \
     '[Win9x.BrowserDefault]' \
-    'HKU,".DEFAULT\Software\Microsoft\Internet Connection Wizard","Completed",0x00010001,1' \
+    'HKU,".DEFAULT\Software\Microsoft\Internet Connection Wizard","Completed",1,01,00,00,00' \
     'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Internet Settings","EnableAutodial",0x00010001,0' \
     'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Internet Settings","NoNetAutodial",0x00010001,0' \
     'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Internet Settings","ProxyEnable",0x00010001,0' \
@@ -2164,7 +2164,7 @@ writeWin9xBrowserPowerRegistry() {
     'HKCU,"Control Panel\PowerCfg\PowerPolicies\3","Policies",0x00000001,01,00,00,00,02,00,00,00,01,00,00,00,00,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,04,00,00,00,05,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,01,64,64,64,64,00,00' \
     '' \
     '[Win9x.BrowserUser]' \
-    'HKCU,"Software\Microsoft\Internet Connection Wizard","Completed",0x00010001,1' \
+    'HKCU,"Software\Microsoft\Internet Connection Wizard","Completed",1,01,00,00,00' \
     'HKCU,"Software\Microsoft\Windows\CurrentVersion\Internet Settings","EnableAutodial",0x00010001,0' \
     'HKCU,"Software\Microsoft\Windows\CurrentVersion\Internet Settings","NoNetAutodial",0x00010001,0' \
     'HKCU,"Software\Microsoft\Windows\CurrentVersion\Internet Settings","ProxyEnable",0x00010001,0' \
@@ -2213,6 +2213,8 @@ writeWin9xCleanupRegistry() {
     'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","^SetupICWDesktop",,,' \
     'HKCU,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","^SetupICWDesktop",,,' \
     'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\RunOnce","^SetupICWDesktop",,,' \
+    'HKCU,"Software\Microsoft\Internet Connection Wizard","ShellNext",,,' \
+    'HKU,".DEFAULT\Software\Microsoft\Internet Connection Wizard","ShellNext",,,' \
     '' \
     '[Win9x.Connect]' \
     'connec~1.lnk' \
