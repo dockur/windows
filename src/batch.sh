@@ -789,6 +789,7 @@ for item in (
     b'soundman.exe=222',
     b'alsndmgr.cpl=222',
     b'alsndmgr.wav=222',
+    b'hklm,%autorun%,soundman,,"soundman.exe"',
 ):
     if item not in normalized:
         raise SystemExit(f'AC97 WDM installation invariant missing: {item!r}.')
@@ -803,6 +804,26 @@ clone, catalog_count = re.subn(
 )
 if catalog_count != 1:
     raise SystemExit(f'Unexpected AC97 WDM CatalogFile count: {catalog_count}.')
+
+soundman = re.compile(
+    br'(?im)^[ \t]*HKLM[ \t]*,[ \t]*%AUTORUN%[ \t]*,[ \t]*SoundMan[ \t]*,'
+    br'[ \t]*,[ \t]*"SOUNDMAN\.EXE"[ \t]*(?:\r?\n|$)'
+)
+clone, soundman_count = soundman.subn(b'', clone, count=1)
+if soundman_count != 1:
+    raise SystemExit(f'Unexpected AC97 SoundMan autorun count: {soundman_count}.')
+
+preferred = re.compile(
+    br'(?im)^[ \t]*HKR[ \t]*,[ \t]*,[ \t]*SetupPreferredAudioDevices[ \t]*,'
+)
+if preferred.search(clone):
+    raise SystemExit('AC97 WDM INF already configures SetupPreferredAudioDevices.')
+
+addreg = re.search(br'(?im)^\[AC97AUD\.AddReg\][ \t]*(?:\r?\n)', clone)
+if addreg is None:
+    raise SystemExit('AC97 WDM [AC97AUD.AddReg] section missing.')
+preference = b'HKR,,SetupPreferredAudioDevices,3,01,00,00,00' + newline
+clone = clone[:addreg.end()] + preference + clone[addreg.end():]
 
 generic = re.compile(
     br'(?im)^[ \t]*%ALCAUD\.Desc%[ \t]*=[ \t]*AC97AUD[ \t]*,[ \t]*'
@@ -824,6 +845,10 @@ if len(matches) != 1:
 
 if re.search(br'(?im)^[ \t]*CatalogFile[ \t]*=', clone):
     raise SystemExit('Generated QEMU AC97 INF still references the vendor catalog.')
+if soundman.search(clone):
+    raise SystemExit('Generated QEMU AC97 INF still enables the SoundMan autorun entry.')
+if len(preferred.findall(clone)) != 1:
+    raise SystemExit('Generated QEMU AC97 INF preferred-audio registration is invalid.')
 
 output = root / 'QEMUAC97.INF'
 output.write_bytes(clone)
@@ -1481,7 +1506,7 @@ stageWin9xSharedShortcut() {
   local dir="$1"
   local desc="$2"
   local share="$3"
-  local target="$dir/SHARED.LNK"
+  local target="$dir/Shared.lnk"
 
   # Use the native network PIDL layout from a Shell-generated Windows 98 link.
   # Keep that known-good structure byte-for-byte for the normal host.lan target,
@@ -2054,7 +2079,7 @@ writeWin9xAnswerFile() {
     fi
 
     if enabled "$shortcut"; then
-      printf '%s\n' 'SHARED.LNK=22'
+      printf '%s\n' 'Shared.lnk=22'
     fi
 
     if enabled "$post"; then
@@ -2326,7 +2351,7 @@ writeWin9xAnswerFile() {
       printf '%s\n' \
         '' \
         '[Win9x.SharedShortcut]' \
-        'SHARED.LNK'
+        'Shared.lnk'
     fi
 
     printf '%s\n' \
