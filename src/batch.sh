@@ -346,19 +346,11 @@ stageWin9xPostSetup() {
   local install="$3"
   local id="$4"
   local target="$dir/POST9X.BAT"
-  local marker="$dir/POST9X.NEW"
-  local cleanup="$dir/POST9X.REG"
 
   {
     printf '%s\n' \
       '@ECHO OFF' \
-      'IF NOT EXIST C:\WINDOWS\POST9X.RDY GOTO END'
-
-    printf '%s\n' 'START /W C:\WINDOWS\REGEDIT.EXE /S C:\WINDOWS\POST9X.REG'
-
-    printf '%s\n' \
-      'DEL C:\WINDOWS\POST9X.REG >NUL' \
-      'DEL C:\WINDOWS\POST9X.RDY >NUL'
+      'C:\WINDOWS\RUNDLL.EXE SETUPX.DLL,InstallHinfSection Win9x.FirstLogon 4 C:\WINDOWS\MSBATCH.INF'
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' 'DEL C:\SETUP\PATCH9X.RUN >NUL'
@@ -372,34 +364,10 @@ stageWin9xPostSetup() {
       fi
     fi
 
-    printf '%s\n' ':END'
-
   } | unix2dos > "$target" || {
     error "Failed to create post-desktop setup script for $desc!"
     return 1
   }
-
-  # Remove the persistent Run value without re-entering SETUPX.DLL from the
-  # desktop batch. REGEDIT /S performs the one registry cleanup silently.
-  {
-    printf '%s\n' \
-      'REGEDIT4' \
-      '' \
-      '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run]' \
-      '"PostSetup"=-'
-
-  } | unix2dos > "$cleanup" || {
-    error "Failed to create post-desktop registry cleanup for $desc!"
-    return 1
-  }
-
-  # Stage a real marker file for Setup to copy into the Windows directory.
-  # Win9x.FirstLogon adds a WININIT.INI rename so the following reboot promotes
-  # POST9X.NEW to POST9X.RDY before the final desktop starts.
-  if ! printf 'Ready\r\n' > "$marker"; then
-    error "Failed to create post-desktop marker for $desc!"
-    return 1
-  fi
 
   return 0
 }
@@ -1759,10 +1727,7 @@ writeWin9xAnswerFile() {
     fi
 
     if enabled "$post"; then
-      printf '%s\n' \
-        'POST9X.BAT=22' \
-        'POST9X.NEW=22' \
-        'POST9X.REG=22'
+      printf '%s\n' 'POST9X.BAT=22'
     fi
 
     printf '%s\n' \
@@ -1782,17 +1747,19 @@ writeWin9xAnswerFile() {
       'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion","ProductId",,"12345-OEM-1234567-12345"' \
       'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion","ProductKey",,"CDKey"' \
       "HKLM,\"SOFTWARE\Microsoft\Windows\CurrentVersion\",\"RegisteredOwner\",,\"$batchUsername\"" \
-      "HKLM,\"SOFTWARE\Microsoft\Windows\CurrentVersion\",\"RegisteredOrganization\",,\"$batchOrganization\"" \
-      "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce\",\"Win9xSetup\",,\"%25%\\rundll.exe setupx.dll,InstallHinfSection Win9x.FirstLogon 4 %10%\\msbatch.inf\""
+      "HKLM,\"SOFTWARE\Microsoft\Windows\CurrentVersion\",\"RegisteredOrganization\",,\"$batchOrganization\""
+
+    if enabled "$post"; then
+      printf '%s\n' \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","Win9xSetup",,"C:\WINDOWS\COMMAND.COM /C C:\WINDOWS\POST9X.BAT"'
+    else
+      printf '%s\n' \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","Win9xSetup",,"%25%\rundll.exe setupx.dll,InstallHinfSection Win9x.FirstLogon 4 %10%\msbatch.inf"'
+    fi
 
     if enabled "$shortcut"; then
       printf '%s\n' \
         "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\",\"SharedDrive\",,\"C:\\WINDOWS\\HIDE.EXE C:\\WINDOWS\\NET.EXE USE Z: $share\""
-    fi
-
-    if enabled "$post"; then
-      printf '%s\n' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","PostSetup",,"C:\WINDOWS\HIDE.EXE C:\WINDOWS\COMMAND.COM /C C:\WINDOWS\POST9X.BAT"'
     fi
 
     if ! disabled "$AUTOLOGIN"; then
@@ -1869,11 +1836,6 @@ writeWin9xAnswerFile() {
 
     [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
     firstLogonUpdateInis+="Win9x.AutoexecFinal"
-
-    if enabled "$post"; then
-      [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
-      firstLogonUpdateInis+="Win9x.PostMarker"
-    fi
 
     if [ -n "$firstLogonUpdateInis" ]; then
       printf '%s\n' "UpdateInis=$firstLogonUpdateInis"
@@ -1957,12 +1919,7 @@ writeWin9xAnswerFile() {
       printf '%s\n' \
         '' \
         '[Win9x.Post]' \
-        'POST9X.BAT' \
-        'POST9X.NEW' \
-        'POST9X.REG' \
-        '' \
-        '[Win9x.PostMarker]' \
-        '%10%\wininit.ini,Rename,,"C:\WINDOWS\POST9X.RDY=C:\WINDOWS\POST9X.NEW"'
+        'POST9X.BAT'
     fi
 
     printf '%s\n' \
