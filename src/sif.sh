@@ -10,6 +10,9 @@ SIFInstall() {
   local shortcut="Y"
   local drivers="/tmp/drivers"
 
+  local msg="Preparing $desc installation..."
+  info "$msg" && html "$msg"
+
   if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
     shortcut="N"
   fi
