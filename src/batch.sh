@@ -587,79 +587,75 @@ stageWin95ES1370Driver() {
   local dir="$1"
   local audio="$2"
   local desc="$3"
-  local name source output
+  local source name
 
-  # Keep only the Windows driver payload. The VxD enumerates VIRTUAL\SSC-Legacy
-  # itself, so APINIT/AUDIOPCI.BIN and the real-mode DOS utilities are unnecessary.
-  local -a files=(
-    EAPCI95.INF
-    EAPCI.VXD
-    EAPCI95.DRV
-    ENSMIX32.EXE
-    STARTER.EXE
-    MIXRES32.DLL
-    EAPCI95.HLP
-    EAPCI_SS.INI
-  )
+  if [ ! -d "$audio" ] || [ -z "$(find "$audio" -maxdepth 1 -type f -print -quit)" ]; then
+    error "Failed to locate the Windows 95 ES1370 driver payload!"
+    return 1
+  fi
 
-  for name in "${files[@]}"; do
+  # Keep the driver payload self-contained: drivers.tar.xz owns the exact files
+  # and this path simply stages everything present in win9x/es1370/. This avoids
+  # having to update an installer-side filename list when the payload changes.
+  if ! cp -a -- "$audio"/. "$dir"/; then
+    error "Failed to stage the Windows 95 ES1370 driver payload!"
+    return 1
+  fi
 
-    source=$(find "$audio" -maxdepth 1 -type f -iname "$name" -print -quit) || return 1
-    output="$dir/$name"
-
-    if [ -z "$source" ] || [ ! -s "$source" ]; then
-      error "Failed to locate the Windows 95 ES1370 driver file $name!"
+  # Verify every top-level file copied byte-for-byte without hard-coding the
+  # payload contents. Subdirectories, if ever added, are copied by cp -a above.
+  while IFS= read -r -d '' source; do
+    name="${source##*/}"
+    if [ ! -f "$dir/$name" ] || ! cmp -s -- "$source" "$dir/$name"; then
+      error "Failed to verify the staged Windows 95 ES1370 driver file $name!"
       return 1
     fi
+  done < <(find "$audio" -maxdepth 1 -type f -print0)
 
-    if ! cp -f -- "$source" "$output" || ! cmp -s -- "$source" "$output"; then
-      error "Failed to stage the Windows 95 ES1370 driver file $name!"
-      return 1
-    fi
-
-  done
-
-  # QEMU exposes the ES1370 as 1274:5000 with subsystem 4942:4c4c. Add that
-  # more-specific ID before Ensoniq's generic match, while retaining the generic
-  # line as a fallback for Win95 PCI enumerators that report only vendor/device.
-  if ! python3 - "$dir/EAPCI95.INF" "$dir/EAPCI_SS.INI" <<'PY'
+  # The payload itself carries the QEMU PCI match, Ensoniq legacy-emulation
+  # configuration and MIDI waveset. Only validate those critical invariants here;
+  # do not rewrite the driver files after staging them.
+  if ! python3 - "$dir/EAPCI95.INF" "$dir/EAPCI_SS.INI" "$dir/EAPCI2M.ECW" <<'PY'
 from pathlib import Path
 import sys
 
 inf = Path(sys.argv[1])
 ini = Path(sys.argv[2])
+waveset = Path(sys.argv[3])
+
+for path in (inf, ini, waveset):
+    if not path.is_file() or path.stat().st_size == 0:
+        raise SystemExit(f'ES1370 payload file missing or empty: {path.name}')
+
 data = inf.read_bytes()
-
-generic = b'%DEV_3031.DeviceDesc%=DEV3031.Device,PCI\\VEN_1274&DEV_5000   ; Concert PCI board'
-specific = b'%DEV_3031.DeviceDesc%=DEV3031.Device,PCI\\VEN_1274&DEV_5000&SUBSYS_4C4C4942   ; QEMU ES1370'
-
-if data.count(generic) != 1:
-    raise SystemExit('ES1370 generic PCI hardware ID verification failed.')
-if data.count(specific) == 0:
-    data = data.replace(generic, specific + b'\r\n' + generic, 1)
-
-inf.write_bytes(data)
-written = inf.read_bytes()
-
 required_inf = (
-    specific,
-    generic,
+    b'PCI\\VEN_1274&DEV_5000&SUBSYS_4C4C4942',
+    b'PCI\\VEN_1274&DEV_5000',
     b'VIRTUAL\\SSC-Legacy',
     b'HKR,,SBEmu,1,01',
-    b'eapci.vxd',
-    b'eapci95.drv',
+    b'eapci2m.ecw,,',
+    b'eapci2m.ecw=1,.,',
 )
 for item in required_inf:
-    if item not in written:
+    if item not in data:
         raise SystemExit(f'ES1370 INF verification failed for {item!r}.')
 
 settings = ini.read_bytes().replace(b'\r\n', b'\n').lower()
-for item in (b'sbport=220', b'sbirq=5', b'dma=1', b'sbenable=true'):
+for item in (
+    b'sbport=220',
+    b'sbirq=5',
+    b'dma=1',
+    b'sbenable=true',
+    b'synthfile=c:\\windows\\eapci2m.ecw',
+):
     if item not in settings:
-        raise SystemExit(f'ES1370 legacy setting verification failed for {item!r}.')
+        raise SystemExit(f'ES1370 settings verification failed for {item!r}.')
+
+if waveset.read_bytes()[:4] != b'ECLW':
+    raise SystemExit('ES1370 MIDI waveset header verification failed.')
 PY
   then
-    error "Failed to prepare the Windows 95 ES1370 PCI driver!"
+    error "Failed to verify the Windows 95 ES1370 PCI driver payload!"
     return 1
   fi
 
