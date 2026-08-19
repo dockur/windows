@@ -35,7 +35,7 @@ setMachine() {
         writeState "usb" "N" || return 1
         writeState "port" "on" || return 1
         writeState "net" "pcnet" || return 1
-        writeState "sound" "es1370" || return 1 ;;
+        writeState "sound" "ac97" || return 1 ;;
 
       "win98" | "win9x" )
 
