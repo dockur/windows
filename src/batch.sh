@@ -131,6 +131,7 @@ Win9xInstall() {
   local patcher_dos="$patcher.img"
   local qemouse="$win9x/qemouse"
   local display="$win9x/vmdisp9x"
+  local audio="$win9x/es1370"
 
   extractDrivers "$drivers" || return 1
 
@@ -169,11 +170,13 @@ Win9xInstall() {
     return 1
   fi
 
-  # Avoid broad legacy probing: stage the stock SB16/game-port payload and
-  # reproduce the stable state from a successful manual Add New Hardware install.
-  if ! stageWin9xSB16Files "$target" "$desc" "$id"; then
-    rm -rf "$drivers" || :
-    return 1
+  if [[ "${id,,}" == "win95"* ]]; then
+    # Win95 has no usable in-box USB Audio class driver. ES1370 is a normal PCI
+    # PnP device, so keep its vendor driver beside the retained C:\SETUP source.
+    if ! stageWin95ES1370Driver "$target" "$audio" "$desc"; then
+      rm -rf "$drivers" || :
+      return 1
+    fi
   fi
 
   # Keep Win95's product-type and online-service changes together in the same
@@ -579,61 +582,86 @@ patchWin9xSetupFiles() {
   return 0
 }
 
-stageWin9xSB16Files() {
+stageWin95ES1370Driver() {
 
   local dir="$1"
-  local desc="$2"
-  local id="$3"
-  local name output existing
+  local audio="$2"
+  local desc="$3"
+  local name source output
 
-  # The successful manual SB16 installation copies these stock Win9x files into
-  # the system directory. Stage the exact files from the installation cabinets
-  # so MSBATCH can perform the same copy without invoking hardware detection.
+  # Keep only the Windows driver payload. The VxD enumerates VIRTUAL\SSC-Legacy
+  # itself, so APINIT/AUDIOPCI.BIN and the real-mode DOS utilities are unnecessary.
   local -a files=(
-    CSPMAN.DLL
-    SBFM.DRV
-    SB16SND.DRV
-    WFM0200.ACV
-    WFM0200A.CSP
-    WFM0201.ACV
-    WFM0201A.CSP
-    WFM0202.ACV
-    WFM0202A.CSP
-    WFM0203.ACV
-    WFM0203A.CSP
-    MSJSTICK.DRV
-    VJOYD.VXD
+    EAPCI95.INF
+    EAPCI.VXD
+    EAPCI95.DRV
+    ENSMIX32.EXE
+    STARTER.EXE
+    MIXRES32.DLL
+    EAPCI95.HLP
+    EAPCI_SS.INI
   )
-
-  # Windows Me's stock SB16AWE.INF does not copy a loose SB16.VXD; its VxD is
-  # supplied by the base multimedia stack. Windows 95/98 copy the loose file.
-  if [[ "${id,,}" != "win9x"* ]]; then
-    files+=(SB16.VXD)
-  fi
-
-  # Windows 98/Me's stock game-port install also stages the analog joystick VxD.
-  if [[ "${id,,}" != "win95"* ]]; then
-    files+=(MSANALOG.VXD)
-  fi
 
   for name in "${files[@]}"; do
 
+    source=$(find "$audio" -maxdepth 1 -type f -iname "$name" -print -quit) || return 1
     output="$dir/$name"
-    existing=$(find "$dir" -maxdepth 1 -type f -iname "$name" -print -quit) || return 1
 
-    if [ -n "$existing" ]; then
-      if [ "$existing" != "$output" ]; then
-        mv -f -- "$existing" "$output" || {
-          error "Failed to normalize $name in $desc setup files!"
-          return 1
-        }
-      fi
-      continue
+    if [ -z "$source" ] || [ ! -s "$source" ]; then
+      error "Failed to locate the Windows 95 ES1370 driver file $name!"
+      return 1
     fi
 
-    extractWin9xCabFile "$dir" "$name" "$output" "$desc" || return 1
+    if ! cp -f -- "$source" "$output" || ! cmp -s -- "$source" "$output"; then
+      error "Failed to stage the Windows 95 ES1370 driver file $name!"
+      return 1
+    fi
 
   done
+
+  # QEMU exposes the ES1370 as 1274:5000 with subsystem 4942:4c4c. Add that
+  # more-specific ID before Ensoniq's generic match, while retaining the generic
+  # line as a fallback for Win95 PCI enumerators that report only vendor/device.
+  if ! python3 - "$dir/EAPCI95.INF" "$dir/EAPCI_SS.INI" <<'PY'
+from pathlib import Path
+import sys
+
+inf = Path(sys.argv[1])
+ini = Path(sys.argv[2])
+data = inf.read_bytes()
+
+generic = b'%DEV_3031.DeviceDesc%=DEV3031.Device,PCI\\VEN_1274&DEV_5000   ; Concert PCI board'
+specific = b'%DEV_3031.DeviceDesc%=DEV3031.Device,PCI\\VEN_1274&DEV_5000&SUBSYS_4C4C4942   ; QEMU ES1370'
+
+if data.count(generic) != 1:
+    raise SystemExit('ES1370 generic PCI hardware ID verification failed.')
+if data.count(specific) == 0:
+    data = data.replace(generic, specific + b'\r\n' + generic, 1)
+
+inf.write_bytes(data)
+written = inf.read_bytes()
+
+required_inf = (
+    specific,
+    generic,
+    b'VIRTUAL\\SSC-Legacy',
+    b'HKR,,SBEmu,1,01',
+    b'eapci.vxd',
+    b'eapci95.drv',
+)
+for item in required_inf:
+    if item not in written:
+        raise SystemExit(f'ES1370 INF verification failed for {item!r}.')
+
+settings = ini.read_bytes().replace(b'\r\n', b'\n').lower()
+for item in (b'sbport=220', b'sbirq=5', b'dma=1', b'sbenable=true'):
+    if item not in settings:
+        raise SystemExit(f'ES1370 legacy setting verification failed for {item!r}.')
+PY
+  then
+    error "Failed to prepare the Windows 95 ES1370 PCI driver!"
+    return 1
+  fi
 
   return 0
 }
@@ -1372,8 +1400,13 @@ writeWin9xAutoexec() {
   [[ "${id,,}" == "win9x"* ]] && patch_options="-auto"
 
   {
+    printf '%s\n' '@ECHO OFF'
+
+    if [[ "${id,,}" == "win95"* ]]; then
+      printf '%s\n' 'SET BLASTER=A220 I5 D1 T2'
+    fi
+
     printf '%s\n' \
-      '@ECHO OFF' \
       'IF EXIST C:\WINDOWS\WIN.COM GOTO WINDOWS' \
       'ECHO.' \
       'ECHO Starting Windows Setup, please wait...' \
@@ -1738,7 +1771,6 @@ writeWin9xAnswerFile() {
 
   local addReg="OPKInstall,Win9x.Machine,Win9x.PCMCIA,Win9x.Power,Win9x.UserDefault,Win9x.BrowserDefault,Win9x.ActiveSetup"
   local updateInis="Win9x.SystemIni,Win9x.SystemCb"
-  local updateIniFields="Win9x.SB16IniFields"
   local firstLogonAddReg="Win9x.User,Win9x.Regwiz,Win9x.BrowserUser,Win9x.PowerUser"
   local firstLogonDelReg="Win9x.Welcome,Win9x.MSN,Win9x.ICWDesktop"
   local firstLogonDelFiles="Win9x.PatcherMarker,Win9x.Connect,Win9x.ConnectAll,Win9x.OnlineServices"
@@ -1757,7 +1789,7 @@ writeWin9xAnswerFile() {
     firstLogonDelFiles="${firstLogonDelFiles/Win9x.PatcherMarker,/}"
   fi
 
-  addReg+=",Win9x.Shutdown,Win9x.SB16"
+  addReg+=",Win9x.Shutdown"
 
   if [[ "${id,,}" == "win95"* ]]; then
     addReg+=",Win95.DisplayMode,Win95.PCINIC,Win95.Welcome"
@@ -1794,7 +1826,6 @@ writeWin9xAnswerFile() {
     copyFiles+=",Win9x.SharedShortcut"
   fi
 
-  copyFiles+=",Win9x.SB16Files"
   addReg+=",OEMDrivers"
 
   if [[ "${id,,}" == "win9x"* ]]; then
@@ -1832,28 +1863,7 @@ writeWin9xAnswerFile() {
       '' \
       '[SourceDisksFiles]' \
       'PATCH9X.NEW=22' \
-      'WIN9XDMA.EXE=22' \
-      'CSPMAN.DLL=22' \
-      'SBFM.DRV=22' \
-      'SB16SND.DRV=22' \
-      'WFM0200.ACV=22' \
-      'WFM0200A.CSP=22' \
-      'WFM0201.ACV=22' \
-      'WFM0201A.CSP=22' \
-      'WFM0202.ACV=22' \
-      'WFM0202A.CSP=22' \
-      'WFM0203.ACV=22' \
-      'WFM0203A.CSP=22' \
-      'MSJSTICK.DRV=22' \
-      'VJOYD.VXD=22'
-
-    if [[ "${id,,}" != "win9x"* ]]; then
-      printf '%s\n' 'SB16.VXD=22'
-    fi
-
-    if [[ "${id,,}" != "win95"* ]]; then
-      printf '%s\n' 'MSANALOG.VXD=22'
-    fi
+      'WIN9XDMA.EXE=22'
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
@@ -1890,7 +1900,6 @@ writeWin9xAnswerFile() {
       '[Install]' \
       "CopyFiles=$copyFiles" \
       "UpdateInis=$updateInis" \
-      "UpdateIniFields=$updateIniFields" \
       "AddReg=$addReg"
 
     if [ -n "$installDelReg" ]; then
@@ -2014,9 +2023,6 @@ writeWin9xAnswerFile() {
     writeWin9xBrowserPowerRegistry
 
     printf '%s\n' ''
-    writeWin9xSB16Registry "$id"
-
-    printf '%s\n' ''
     writeWin9xStorageRegistry
 
     printf '%s\n' ''
@@ -2103,30 +2109,7 @@ writeWin9xAnswerFile() {
     printf '%s\n' \
       '' \
       '[Win9x.DMA]' \
-      'WIN9XDMA.EXE' \
-      '' \
-      '[Win9x.SB16Files]' \
-      'CSPMAN.DLL' \
-      'SBFM.DRV' \
-      'SB16SND.DRV' \
-      'WFM0200.ACV' \
-      'WFM0200A.CSP' \
-      'WFM0201.ACV' \
-      'WFM0201A.CSP' \
-      'WFM0202.ACV' \
-      'WFM0202A.CSP' \
-      'WFM0203.ACV' \
-      'WFM0203A.CSP' \
-      'MSJSTICK.DRV' \
-      'VJOYD.VXD'
-
-    if [[ "${id,,}" != "win9x"* ]]; then
-      printf '%s\n' 'SB16.VXD'
-    fi
-
-    if [[ "${id,,}" != "win95"* ]]; then
-      printf '%s\n' 'MSANALOG.VXD'
-    fi
+      'WIN9XDMA.EXE'
 
     printf '%s\n' \
       '' \
@@ -2135,8 +2118,7 @@ writeWin9xAnswerFile() {
       'Win9x.PatcherMarker=30,SETUP' \
       'Win9x.Connect=10,Desktop' \
       'Win9x.ConnectAll=10,alluse~1\desktop' \
-      'Win9x.OnlineServices=10,Desktop\Online~1' \
-      'Win9x.SB16Files=11'
+      'Win9x.OnlineServices=10,Desktop\Online~1'
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
@@ -2173,9 +2155,6 @@ writeWin9xAnswerFile() {
     fi
 
     printf '%s\n' \
-      '' \
-      '[Win9x.SB16IniFields]' \
-      '%10%\system.ini,boot,drivers,msmixmgr.dll' \
       '' \
       '[Win9x.SystemIni]' \
       '%10%\system.ini,386Enh,,"MaxPhysPage=100000"' \
@@ -2396,132 +2375,6 @@ writeWin9xBrowserPowerRegistry() {
     'HKCU,"Software\Microsoft\Internet Explorer\Main","Default_Page_URL",,"http://www.google.com"' \
     'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Page",,"http://www.google.com"' \
     'HKCU,"Software\Microsoft\Internet Explorer\Main","Search Bar",,"http://www.google.com"'
-}
-
-writeWin9xSB16Registry() {
-
-  local id="$1"
-  local inf sound_desc sound_mfg internal_desc
-
-  if [[ "${id,,}" == "win95"* ]]; then
-    inf="WAVE.INF"
-    sound_desc="Creative Labs Sound Blaster 16 or AWE-32"
-    sound_mfg="Creative Labs"
-    internal_desc="Internal OPL2/OPL3 FM Synthesis"
-  else
-    inf="SB16AWE.INF"
-    sound_desc="Sound Blaster 16 or AWE-32 or compatible"
-    sound_mfg="Creative"
-    internal_desc="Creative Stereo Music Synthesizer"
-  fi
-
-  # Mirror the stable state produced by Add New Hardware for QEMU's fixed SB16.
-  # Runtime DevNode values are deliberately omitted; Configuration Manager must
-  # create those for this boot instead of receiving a stale pointer from another VM.
-  printf '%s\n' \
-    '[Win9x.SB16]' \
-    "HKLM,\"Enum\\Root\\*PNPB003\\0000\",\"InfName\",,\"$inf\"" \
-    "HKLM,\"Enum\\Root\\*PNPB003\\0000\",\"DeviceDesc\",,\"$sound_desc\"" \
-    'HKLM,"Enum\Root\*PNPB003\0000","Class",,"MEDIA"' \
-    'HKLM,"Enum\Root\*PNPB003\0000","HardwareID",,"*PNPB003"' \
-    'HKLM,"Enum\Root\*PNPB003\0000","DetFunc",,"*:DETECTSB"' \
-    'HKLM,"Enum\Root\*PNPB003\0000","NoSetupUI",,"1"' \
-    'HKLM,"Enum\Root\*PNPB003\0000","DetFlags",1,00,00,00,00' \
-    'HKLM,"Enum\Root\*PNPB003\0000","BootConfig",1,00,04,00,00,00,00,00,00,14,00,00,00,02,00,00,00,00,00,0c,00,20,02,2f,02,00,00,00,03,10,00,00,00,04,00,00,00,00,00,05,00,00,00,00,00,0c,00,00,00,03,00,00,00,00,01,00,00,0c,00,00,00,03,00,00,00,00,05,00,00,00,00,00,00' \
-    'HKLM,"Enum\Root\*PNPB003\0000","VerifyKey",1,20,02,00,00' \
-    'HKLM,"Enum\Root\*PNPB003\0000","Driver",,"MEDIA\0000"' \
-    "HKLM,\"Enum\\Root\\*PNPB003\\0000\",\"Mfg\",,\"$sound_mfg\"" \
-    'HKLM,"Enum\Root\*PNPB003\0000","ConfigFlags",1,00,00,00,00' \
-    'HKLM,"Enum\Root\*PNPB003\0000\LogConfig","0",1,00,04,00,00,00,30,00,00,44,00,00,00,02,00,00,00,04,00,0c,00,00,00,00,00,00,00,00,00,ff,ff,10,00,20,02,2f,02,00,00,00,03,ff,ff,10,00,40,02,4f,02,00,00,00,03,ff,ff,10,00,60,02,6f,02,00,00,00,03,ff,ff,10,00,80,02,8f,02,00,00,00,03,10,00,00,00,04,00,00,00,00,00,00,00,a0,06,00,00,0c,00,00,00,03,00,00,00,00,00,0b,00,0c,00,00,00,03,00,00,00,00,00,e0,00,00,00,00,00' \
-    'HKLM,"Enum\Root\*PNPB003\0000\LogConfig","1",1,00,04,00,00,00,30,00,00,44,00,00,00,02,00,00,00,04,00,0c,00,00,00,00,00,00,00,00,00,ff,ff,10,00,20,02,2f,02,00,00,00,03,ff,ff,10,00,40,02,4f,02,00,00,00,03,ff,ff,10,00,60,02,6f,02,00,00,00,03,ff,ff,10,00,80,02,8f,02,00,00,00,03,10,00,00,00,04,00,00,00,00,00,00,00,a0,06,00,00,0c,00,00,00,03,00,00,00,00,00,0b,00,00,00,00,00' \
-    'HKLM,"Enum\Root\*PNPB003\0000\LogConfig","2",1,00,04,00,00,00,30,00,00,44,00,00,00,02,00,00,00,04,00,0c,00,00,00,00,00,00,00,00,00,ff,ff,10,00,20,02,2f,02,00,00,00,03,ff,ff,10,00,40,02,4f,02,00,00,00,03,ff,ff,10,00,60,02,6f,02,00,00,00,03,ff,ff,10,00,80,02,8f,02,00,00,00,03,20,00,00,00,02,00,00,00,01,00,0c,00,00,00,00,00,00,00,00,00,ff,ff,04,00,88,03,8b,03,00,00,00,03,10,00,00,00,04,00,00,00,00,00,00,00,a0,06,00,00,0c,00,00,00,03,00,00,00,00,00,0b,00,0c,00,00,00,03,00,00,00,00,00,e0,00,00,00,00,00' \
-    'HKLM,"Enum\Root\*PNPB003\0000\LogConfig","3",1,00,04,00,00,00,30,00,00,44,00,00,00,02,00,00,00,04,00,0c,00,00,00,00,00,00,00,00,00,ff,ff,10,00,20,02,2f,02,00,00,00,03,ff,ff,10,00,40,02,4f,02,00,00,00,03,ff,ff,10,00,60,02,6f,02,00,00,00,03,ff,ff,10,00,80,02,8f,02,00,00,00,03,20,00,00,00,02,00,00,00,01,00,0c,00,00,00,00,00,00,00,00,00,ff,ff,04,00,88,03,8b,03,00,00,00,03,10,00,00,00,04,00,00,00,00,00,00,00,a0,06,00,00,0c,00,00,00,03,00,00,00,00,00,0b,00,00,00,00,00' \
-    'HKLM,"Enum\Root\*PNPB003\0000\LogConfig","4",1,00,04,00,00,00,30,00,00,44,00,00,00,02,00,00,00,04,00,0c,00,00,00,00,00,00,00,00,00,ff,ff,10,00,20,02,2f,02,00,00,00,03,ff,ff,10,00,40,02,4f,02,00,00,00,03,ff,ff,10,00,60,02,6f,02,00,00,00,03,ff,ff,10,00,80,02,8f,02,00,00,00,03,2c,00,00,00,02,00,00,00,02,00,0c,00,00,00,00,00,00,00,00,00,ff,ff,02,00,30,03,31,03,00,00,00,03,ff,ff,02,00,00,03,01,03,00,00,00,03,10,00,00,00,04,00,00,00,00,00,00,00,a0,06,00,00,0c,00,00,00,03,00,00,00,00,00,0b,00,0c,00,00,00,03,00,00,00,00,00,e0,00,00,00,00,00' \
-    'HKLM,"Enum\Root\*PNPB003\0000\LogConfig","5",1,00,04,00,00,00,30,00,00,44,00,00,00,02,00,00,00,04,00,0c,00,00,00,00,00,00,00,00,00,ff,ff,10,00,20,02,2f,02,00,00,00,03,ff,ff,10,00,40,02,4f,02,00,00,00,03,ff,ff,10,00,60,02,6f,02,00,00,00,03,ff,ff,10,00,80,02,8f,02,00,00,00,03,2c,00,00,00,02,00,00,00,02,00,0c,00,00,00,00,00,00,00,00,00,ff,ff,02,00,30,03,31,03,00,00,00,03,ff,ff,02,00,00,03,01,03,00,00,00,03,10,00,00,00,04,00,00,00,00,00,00,00,a0,06,00,00,0c,00,00,00,03,00,00,00,00,00,0b,00,00,00,00,00' \
-    'HKLM,"Enum\Root\*PNPB003\0000\LogConfig","6",1,00,04,00,00,00,30,00,00,44,00,00,00,02,00,00,00,04,00,0c,00,00,00,00,00,00,00,00,00,ff,ff,10,00,20,02,2f,02,00,00,00,03,ff,ff,10,00,40,02,4f,02,00,00,00,03,ff,ff,10,00,60,02,6f,02,00,00,00,03,ff,ff,10,00,80,02,8f,02,00,00,00,03,2c,00,00,00,02,00,00,00,02,00,0c,00,00,00,00,00,00,00,00,00,ff,ff,02,00,30,03,31,03,00,00,00,03,ff,ff,02,00,00,03,01,03,00,00,00,03,20,00,00,00,02,00,00,00,01,00,0c,00,00,00,00,00,00,00,00,00,ff,ff,04,00,88,03,8b,03,00,00,00,03,10,00,00,00,04,00,00,00,00,00,00,00,a0,06,00,00,0c,00,00,00,03,00,00,00,00,00,0b,00,0c,00,00,00,03,00,00,00,00,00,e0,00,00,00,00,00' \
-    'HKLM,"Enum\Root\*PNPB003\0000\LogConfig","7",1,00,04,00,00,00,30,00,00,44,00,00,00,02,00,00,00,04,00,0c,00,00,00,00,00,00,00,00,00,ff,ff,10,00,20,02,2f,02,00,00,00,03,ff,ff,10,00,40,02,4f,02,00,00,00,03,ff,ff,10,00,60,02,6f,02,00,00,00,03,ff,ff,10,00,80,02,8f,02,00,00,00,03,2c,00,00,00,02,00,00,00,02,00,0c,00,00,00,00,00,00,00,00,00,ff,ff,02,00,30,03,31,03,00,00,00,03,ff,ff,02,00,00,03,01,03,00,00,00,03,20,00,00,00,02,00,00,00,01,00,0c,00,00,00,00,00,00,00,00,00,ff,ff,04,00,88,03,8b,03,00,00,00,03,10,00,00,00,04,00,00,00,00,00,00,00,a0,06,00,00,0c,00,00,00,03,00,00,00,00,00,0b,00,00,00,00,00' \
-    "HKLM,\"System\\CurrentControlSet\\Services\\Class\\MEDIA\\0000\",\"InfPath\",,\"$inf\"" \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0000","DevLoader",,"mmdevldr.vxd"' \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0000","Driver",,"sb16.vxd"' \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0000","InfSection",,"PNPB003_Device"' \
-    "HKLM,\"System\\CurrentControlSet\\Services\\Class\\MEDIA\\0000\",\"DriverDesc\",,\"$sound_desc\"" \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0000","EnumPropPages",,"sb16snd.drv, DrvEnumPropPages"' \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0000\Drivers","MIGRATED",,"1"' \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0000\Drivers","SubClasses",,"wave,midi,aux,mixer"' \
-    "HKLM,\"System\\CurrentControlSet\\Services\\Class\\MEDIA\\0000\\Drivers\\wave\\sb16snd.drv\",\"Description\",,\"$sound_desc\"" \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0000\Drivers\wave\sb16snd.drv","Driver",,"sb16snd.drv"' \
-    "HKLM,\"System\\CurrentControlSet\\Services\\Class\\MEDIA\\0000\\Drivers\\midi\\sbfm.drv\",\"Description\",,\"$internal_desc\"" \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0000\Drivers\midi\sbfm.drv","Driver",,"sbfm.drv"' \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0000\Drivers\midi\sbfm.drv","NotPresent",,"0"' \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0000\Drivers\midi\sb16snd.drv","Description",,"External MIDI Port"' \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0000\Drivers\midi\sb16snd.drv","Driver",,"sb16snd.drv"' \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0000\Drivers\midi\sb16snd.drv","External",1,01,00,00,00' \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0000\Drivers\midi\sb16snd.drv","NotPresent",,"1"' \
-    "HKLM,\"System\\CurrentControlSet\\Services\\Class\\MEDIA\\0000\\Drivers\\mixer\\sb16snd.drv\",\"Description\",,\"$sound_desc\"" \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0000\Drivers\mixer\sb16snd.drv","Driver",,"sb16snd.drv"' \
-    "HKLM,\"System\\CurrentControlSet\\Services\\Class\\MEDIA\\0000\\Drivers\\aux\\sb16snd.drv\",\"Description\",,\"$sound_desc\"" \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0000\Drivers\aux\sb16snd.drv","Driver",,"sb16snd.drv"' \
-    "HKLM,\"System\\CurrentControlSet\\control\\MediaResources\\wave\\sb16snd.drv<0000>\",\"Description\",,\"$sound_desc\"" \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\wave\sb16snd.drv<0000>","SOFTWAREKEY",,"System\CurrentControlSet\Services\Class\MEDIA\0000"' \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\wave\sb16snd.drv<0000>","DeviceID",,"ROOT\*PNPB003\0000"' \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\wave\sb16snd.drv<0000>","Driver",,"sb16snd.drv"' \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\wave\sb16snd.drv<0000>","Active",,"1"' \
-    "HKLM,\"System\\CurrentControlSet\\control\\MediaResources\\midi\\sbfm.drv<0000>\",\"Description\",,\"$internal_desc\"" \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\midi\sbfm.drv<0000>","SOFTWAREKEY",,"System\CurrentControlSet\Services\Class\MEDIA\0000"' \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\midi\sbfm.drv<0000>","DeviceID",,"ROOT\*PNPB003\0000"' \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\midi\sbfm.drv<0000>","Driver",,"sbfm.drv"' \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\midi\sbfm.drv<0000>","NotPresent",,"0"' \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\midi\sbfm.drv<0000>","Active",,"1"' \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\midi\sbfm.drv<0000>","MapperConfig",0x00010001,1' \
-    "HKLM,\"System\\CurrentControlSet\\control\\MediaResources\\mixer\\sb16snd.drv<0000>\",\"Description\",,\"$sound_desc\"" \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\mixer\sb16snd.drv<0000>","SOFTWAREKEY",,"System\CurrentControlSet\Services\Class\MEDIA\0000"' \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\mixer\sb16snd.drv<0000>","DeviceID",,"ROOT\*PNPB003\0000"' \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\mixer\sb16snd.drv<0000>","Driver",,"sb16snd.drv"' \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\mixer\sb16snd.drv<0000>","Active",,"1"' \
-    "HKLM,\"System\\CurrentControlSet\\control\\MediaResources\\aux\\sb16snd.drv<0000>\",\"Description\",,\"$sound_desc\"" \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\aux\sb16snd.drv<0000>","SOFTWAREKEY",,"System\CurrentControlSet\Services\Class\MEDIA\0000"' \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\aux\sb16snd.drv<0000>","DeviceID",,"ROOT\*PNPB003\0000"' \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\aux\sb16snd.drv<0000>","Driver",,"sb16snd.drv"' \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\aux\sb16snd.drv<0000>","Active",,"1"' \
-    'HKLM,"Enum\Root\*PNPB02F\0000","InfName",,"joystick.inf"' \
-    'HKLM,"Enum\Root\*PNPB02F\0000","DeviceDesc",,"Gameport Joystick"' \
-    'HKLM,"Enum\Root\*PNPB02F\0000","Class",,"MEDIA"' \
-    'HKLM,"Enum\Root\*PNPB02F\0000","HardwareID",,"*PNPB02F"' \
-    'HKLM,"Enum\Root\*PNPB02F\0000","DetFunc",,"*:DETECTSB"' \
-    'HKLM,"Enum\Root\*PNPB02F\0000","NoSetupUI",,"1"' \
-    'HKLM,"Enum\Root\*PNPB02F\0000","DetFlags",1,00,00,00,00' \
-    'HKLM,"Enum\Root\*PNPB02F\0000","BootConfig",1,00,04,00,00,00,00,00,00,14,00,00,00,02,00,00,00,00,00,0c,00,00,02,07,02,00,00,00,03,00,00,00,00' \
-    'HKLM,"Enum\Root\*PNPB02F\0000","VerifyKey",1,1c,00,00,00,20,02,00,00,00,02,00,00,07,02,00,00,ff,03,00,00,00,00,00,00,00,00,00,00' \
-    'HKLM,"Enum\Root\*PNPB02F\0000","Driver",,"MEDIA\0001"' \
-    'HKLM,"Enum\Root\*PNPB02F\0000","Mfg",,"Microsoft"' \
-    'HKLM,"Enum\Root\*PNPB02F\0000","ConfigFlags",1,00,00,00,00' \
-    'HKLM,"Enum\Root\*PNPB02F\0000\LogConfig","0",1,00,04,00,00,00,e0,00,00,20,00,00,00,02,00,00,00,01,00,0c,00,00,00,00,00,00,00,00,00,ff,ff,01,00,01,02,01,02,00,00,00,03,00,00,00,00' \
-    'HKLM,"Enum\Root\*PNPB02F\0000\LogConfig","1",1,00,04,00,00,00,e0,00,00,20,00,00,00,02,00,00,00,01,00,0c,00,00,00,00,00,00,00,00,00,ff,ff,08,00,00,02,07,02,00,00,00,03,00,00,00,00' \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0001","DevLoader",,"mmdevldr.vxd"' \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0001","Driver",,"vjoyd.vxd"' \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0001","InfPath",,"JOYSTICK.INF"' \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0001","InfSection",,"MSJSTICK"' \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0001","DriverDesc",,"Gameport Joystick"' \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0001\Drivers","MIGRATED",,"1"' \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0001\Drivers","SubClasses",,"joystick"' \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0001\Drivers\joystick\msjstick.drv","Description",,"Gameport Joystick"' \
-    'HKLM,"System\CurrentControlSet\Services\Class\MEDIA\0001\Drivers\joystick\msjstick.drv","Driver",,"msjstick.drv"' \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\joystick","JoyNumDevs",0x00010001,1' \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\joystick\msjstick.drv<0001>","SOFTWAREKEY",,"System\CurrentControlSet\Services\Class\MEDIA\0001"' \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\joystick\msjstick.drv<0001>","DeviceID",,"ROOT\*PNPB02F\0000"' \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\joystick\msjstick.drv<0001>","Description",,"Gameport Joystick"' \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\joystick\msjstick.drv<0001>","Driver",,"msjstick.drv"' \
-    'HKLM,"System\CurrentControlSet\control\MediaResources\joystick\msjstick.drv<0001>","Active",,"1"' \
-    'HKLM,"System\CurrentControlSet\control\SessionManager\Known16DLLs","sbfm.drv",,"sbfm.drv"' \
-    'HKLM,"System\CurrentControlSet\control\SessionManager\Known16DLLs","sb16snd.drv",,"sb16snd.drv"' \
-    'HKLM,"System\CurrentControlSet\control\SessionManager\Known16DLLs","CSPMAN.DLL",,"CSPMAN.DLL"' \
-    'HKLM,"System\CurrentControlSet\control\SessionManager\Known16DLLs","msacm.drv",,"msacm.drv"' \
-    'HKLM,"System\CurrentControlSet\control\SessionManager\Known16DLLs","MSACM.DLL",,"MSACM.DLL"' \
-    'HKLM,"System\CurrentControlSet\control\SessionManager\Known16DLLs","midimap.drv",,"midimap.drv"' \
-    'HKLM,"System\CurrentControlSet\control\SessionManager\Known16DLLs","msjstick.drv",,"msjstick.drv"' \
-    'HKU,".DEFAULT\Software\Microsoft\Multimedia\Sound Mapper","Playback",,"SB16 Wave Out [220]"' \
-    'HKU,".DEFAULT\Software\Microsoft\Multimedia\Sound Mapper","Record",,"SB16 Wave In [220]"' \
-    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Multimedia\MIDIMap","CurrentInstrument",,"sbfm.drv<0000>"'
 }
 
 writeWin9xStorageRegistry() {
