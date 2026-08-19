@@ -137,6 +137,10 @@ restoreMachineState() {
   restoreState "CPU_MODEL" "cpu" || return 1
   restoreState "DISK_TYPE" "type" || return 1
 
+  if [ -z "${BIOS:-}" ] && [ -s "$(stateFile "bios")" ]; then
+    BIOS="$(stateFile "bios")"
+  fi
+
   mergeState "CPU_FLAGS" "flag" "," || return 1
   mergeState "ARGUMENTS" "args" " " || return 1
 
@@ -146,10 +150,6 @@ restoreMachineState() {
 restoreBootMode() {
 
   local current="${BOOT_MODE:-}"
-
-  if [ -s "$(stateFile "bios")" ]; then
-    BIOS="$(stateFile "bios")"jj
-  fi
 
   local mode
   mode=$(readState "mode") || return 1
