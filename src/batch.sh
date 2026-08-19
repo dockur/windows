@@ -7,10 +7,15 @@ Win9xInstall() {
   local dir="$3"
   local desc="$4"
 
-  local folder monitor="Plug and Play Monitor" options="/ID /IS /IQ /IT" target
-  local setup="SETUP"
   local shortcut="Y"
+  local setup="SETUP"
   local share='\\host.lan\Data'
+  local options="/ID /IS /IQ /IT"
+  local monitor="Plug and Play Monitor"
+  local target folder
+
+  local msg="Preparing $desc installation..."
+  info "$msg" && html "$msg"
 
   if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
     shortcut="N"
