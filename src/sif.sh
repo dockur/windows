@@ -69,8 +69,8 @@ SIFInstall() {
 
   oem=$(writeCommand "$install") || return 1
 
-  [ -z "$WIDTH" ] && WIDTH="1280"
-  [ -z "$HEIGHT" ] && HEIGHT="720"
+  [ -z "$WIDTH" ] && WIDTH="1024"
+  [ -z "$HEIGHT" ] && HEIGHT="768"
 
   validateResolution "WIDTH" "$WIDTH" 320 || return 1
   validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
