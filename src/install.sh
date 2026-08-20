@@ -388,7 +388,7 @@ finishInstall() {
   local aborted="$2"
   local boot="$3"
 
-  local base secure=0
+  local base file bios target
 
   if ! hasImage "$iso"; then
     error "Failed to find ISO file: $iso" && return 1
@@ -400,7 +400,7 @@ finishInstall() {
     fi
   fi
 
-  local file="$(stateFile "ver")"
+  file="$(stateFile "ver")"
   cp -f /etc/version "$file" || {
     error "Failed to save the Windows installation version!"
     return 1
@@ -490,8 +490,8 @@ finishInstall() {
 
   if [ -n "${BIOS:-}" ]; then
 
-    local bios="$(stateFile "bios")"
-    local target="${bios}.tmp"
+    bios="$(stateFile "bios")"
+    target="${bios}.tmp"
 
     if ! cp -f -- "$BIOS" "$target"; then
       rm -f -- "$target"
