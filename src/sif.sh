@@ -304,9 +304,12 @@ addDisplayDriver() {
     return 1
   fi
 
+  local files="qbochs.inf qbochs.sys"
+  [[ "$driver" == "2k3" ]] && files+=" qbochs.cat qbochs.cer"
+
   local file
 
-  for file in qbochs.inf qbochs.sys; do
+  for file in $files; do
 
     if [ ! -f "$source/$file" ]; then
       error "Failed to locate required QBochs display driver file: $file"
@@ -316,8 +319,10 @@ addDisplayDriver() {
   done
 
   mkdir -p "$destination" || return 1
-  cp -L "$source/qbochs.inf" "$destination/qbochs.inf" || return 1
-  cp -L "$source/qbochs.sys" "$destination/qbochs.sys" || return 1
+
+  for file in $files; do
+    cp -L "$source/$file" "$destination/$file" || return 1
+  done
 
   return 0
 }
@@ -640,6 +645,12 @@ writeSIF() {
       '    OemSkipWelcome=1' \
       "    AdminPassword=\"$sifPassword\"" \
       "    TimeZone=$timezone"
+
+    if [[ "$driver" == "2k3" ]]; then
+      printf '%s\n' \
+        '    DetachedProgram="%SystemRoot%\System32\cmd.exe"' \
+        '    Arguments="/Q /C certutil.exe -f -addstore Root C:\Drivers\QBochs\qbochs.cer && certutil.exe -f -addstore TrustedPublisher C:\Drivers\QBochs\qbochs.cer"'
+    fi
 
     if disabled "$AUTOLOGIN"; then
       printf '%s\n' \
