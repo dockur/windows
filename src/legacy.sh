@@ -28,7 +28,7 @@ setMachine() {
 
     case "${id,,}" in
 
-      "winnt4" | "win2k"* )
+      "winnt4" )
         writeState "vga" "cirrus" || return 1 ;;
 
       *) writeState "vga" "std" || return 1 ;;
