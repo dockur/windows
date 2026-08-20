@@ -435,17 +435,16 @@ finishInstall() {
       # Aborted Win11 installs boot without any answer file present,
       # so enable Secure Boot and TPM to satisfy its hardware checks.
       if enabled "$aborted" || enabled "$MANUAL"; then
-        [[ "${DETECTED,,}" == "win11"* ]] && secure=1
-      fi
 
-      if (( secure )); then
+        if [[ "${DETECTED,,}" == "win11"* ]]; then
 
-        BOOT_MODE="windows_secure"
-        writeState "mode" "$BOOT_MODE" || {
-          error "Failed to save the Windows boot mode!"
-          return 1
-        }
+          BOOT_MODE="windows_secure"
+          writeState "mode" "$BOOT_MODE" || {
+            error "Failed to save the Windows boot mode!"
+            return 1
+          }
 
+        fi
       fi
 
     fi
