@@ -2057,6 +2057,16 @@ updateSetupScript() {
 
   fi
 
+  if ! disabled "${SHORTCUT:-}" && ! disabled "${SAMBA:-}"; then
+    printf -v content '%s\n%s\n%s\n%s' \
+      'rem Add the shared folder to the desktop and map it to drive Z:.' \
+      'reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\NetworkProvider" /v "RestoreConnection" /t REG_DWORD /d 0 /f' \
+      'if not exist "%USERPROFILE%\Desktop\Shared" mklink /d "%USERPROFILE%\Desktop\Shared" \\host.lan\Data' \
+      'net.exe use Z: \\host.lan\Data /persistent:yes'
+
+    replaceSetupBlock "$script" "SHARED_FOLDER" "$content" || return 1
+  fi
+
   enableLog "$script" || return 1
   updateProductKey "$script" || return 1
   removeSharedFolder "$script" || return 1
