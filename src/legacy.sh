@@ -28,7 +28,7 @@ setMachine() {
 
     case "${id,,}" in
 
-      "winnt4" | "win2k"* )
+      "winnt4" )
         writeState "vga" "cirrus" || return 1 ;;
 
       *) writeState "vga" "std" || return 1 ;;
@@ -106,6 +106,10 @@ setMachine() {
         # blue screen on XP and others if the 64 bit PCI hole size is >2G.
 
         writeState "args" "-global q35-pcihost.x-pci-hole64-fix=false" || return 1
+
+      else
+
+        writeState "args" "-global PIIX4_PM.acpi-root-pci-hotplug=off" || return 1
 
       fi ;;
 

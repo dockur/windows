@@ -42,9 +42,35 @@ SIFInstall() {
     return 1
   fi
 
-  if [[ "${driver,,}" == "xp" || "${driver,,}" == "2k3" ]]; then
-    addLegacyDrivers "$dir" "$target" "$driver" "$arch" "$drivers" || return 1
-  fi
+  case "${driver,,}" in
+
+    "2k" )
+      # Windows 2000 keeps its existing storage/network path, but still needs
+      # the QBochs display package staged for Plug and Play setup.
+      extractDrivers "$drivers" || return 1
+
+      if ! addDisplayDriver "$dir" "$driver" "$arch" "$drivers"; then
+        rm -rf "$drivers" || :
+        return 1
+      fi
+
+      if ! rm -rf "$drivers"; then
+        warn "failed to clean temporary driver files!"
+      fi ;;
+
+    "xp" )
+
+      addLegacyDrivers "$dir" "$target" "$driver" "$arch" "$drivers" || return 1 ;;
+
+    "2k3" )
+
+      if [[ "${arch,,}" == "x86" ]]; then
+        error "The 32-bit version of $desc is not supported!" && return 1
+      fi
+  
+      addLegacyDrivers "$dir" "$target" "$driver" "$arch" "$drivers" || return 1 ;;
+  
+  esac
 
   disableAutoReboot "$target" || return 1
   setLegacyKey "$target" "$driver" "$arch" "$desc" || return 1
@@ -156,6 +182,7 @@ addLegacyDrivers() {
   extractDrivers "$drivers" || return 1
   copyStorageDriver "$dir" "$target" "$driver" "$arch" "$drivers" || return 1
   addNetworkDriver "$dir" "$driver" "$arch" "$drivers" || return 1
+  addQXLDriver "$dir" "$driver" "$arch" "$drivers" || return 1
   addDisplayDriver "$dir" "$driver" "$arch" "$drivers" || return 1
   addBalloonDriver "$dir" "$driver" "$arch" "$drivers" || return 1
 
@@ -224,7 +251,7 @@ addNetworkDriver() {
   return 0
 }
 
-addDisplayDriver() {
+addQXLDriver() {
 
   local dir="$1"
   local driver="$2"
@@ -255,6 +282,42 @@ addDisplayDriver() {
 
   mkdir -p "$destination" || return 1
   cp -Lr "$source/." "$destination" || return 1
+
+  return 0
+}
+
+addDisplayDriver() {
+
+  local dir="$1"
+  local driver="$2"
+  local arch="$3"
+  local drivers="$4"
+
+  local qbochs_arch="$arch"
+  [[ "${qbochs_arch,,}" == "amd64" ]] && qbochs_arch="x64"
+
+  local source="$drivers/qbochs/$driver/$qbochs_arch"
+  local destination="$dir/\$OEM\$/\$1/Drivers/QBochs"
+
+  if [ ! -d "$source" ]; then
+    error "Failed to locate required QBochs display driver directory: $source"
+    return 1
+  fi
+
+  local file
+
+  for file in qbochs.inf qbochs.sys; do
+
+    if [ ! -f "$source/$file" ]; then
+      error "Failed to locate required QBochs display driver file: $file"
+      return 1
+    fi
+
+  done
+
+  mkdir -p "$destination" || return 1
+  cp -L "$source/qbochs.inf" "$destination/qbochs.inf" || return 1
+  cp -L "$source/qbochs.sys" "$destination/qbochs.sys" || return 1
 
   return 0
 }
@@ -565,7 +628,7 @@ writeSIF() {
       '    WaitForReboot="No"' \
       '    DriverSigningPolicy="Ignore"' \
       '    NonDriverSigningPolicy="Ignore"' \
-      '    OemPnPDriversPath="Drivers\viostor;Drivers\NetKVM;Drivers\sata;Drivers\QXL;Drivers\Balloon"' \
+      '    OemPnPDriversPath="Drivers\viostor;Drivers\NetKVM;Drivers\sata;Drivers\QXL;Drivers\QBochs;Drivers\Balloon"' \
       '    NoWaitAfterTextMode=1' \
       '    NoWaitAfterGUIMode=1' \
       '    FileSystem=ConvertNTFS' \
