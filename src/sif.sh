@@ -724,6 +724,9 @@ writeRegistry() {
       '[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\wscsvc]' \
       '"Start"=dword:00000004' \
       '' \
+      '[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\NetworkProvider]' \
+      '"RestoreConnection"=dword:00000000' \
+      '' \
       '[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU]' \
       '"NoAutoUpdate"=dword:00000001' \
       '' \
