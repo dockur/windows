@@ -182,6 +182,7 @@ addLegacyDrivers() {
   extractDrivers "$drivers" || return 1
   copyStorageDriver "$dir" "$target" "$driver" "$arch" "$drivers" || return 1
   addNetworkDriver "$dir" "$driver" "$arch" "$drivers" || return 1
+  addQXLDriver "$dir" "$driver" "$arch" "$drivers" || return 1
   addDisplayDriver "$dir" "$driver" "$arch" "$drivers" || return 1
   addBalloonDriver "$dir" "$driver" "$arch" "$drivers" || return 1
 
@@ -246,6 +247,41 @@ addNetworkDriver() {
   cp -L "$drivers/NetKVM/$driver/$arch/netkvm.cat" "$destination" || return 1
   cp -L "$drivers/NetKVM/$driver/$arch/netkvm.inf" "$destination" || return 1
   cp -L "$drivers/NetKVM/$driver/$arch/netkvm.sys" "$destination" || return 1
+
+  return 0
+}
+
+addQXLDriver() {
+
+  local dir="$1"
+  local driver="$2"
+  local arch="$3"
+  local drivers="$4"
+
+  local source="$drivers/qxl/$driver/$arch"
+  local destination="$dir/\$OEM\$/\$1/Drivers/QXL"
+
+  # The legacy QXL package is named for XP but its x86 INF targets XP and
+  # later NT x86 releases, so it is also suitable to keep around for 2003 x86.
+  if [ ! -d "$source" ] && [[ "${arch,,}" == "x86" ]]; then
+    source="$drivers/qxl/xp/x86"
+  fi
+
+  [ -d "$source" ] || return 0
+
+  local file
+
+  for file in qxl.cat qxl.inf qxl.sys qxldd.dll; do
+
+    if [ ! -f "$source/$file" ]; then
+      error "Failed to locate required QXL display driver file: $file"
+      return 1
+    fi
+
+  done
+
+  mkdir -p "$destination" || return 1
+  cp -Lr "$source/." "$destination" || return 1
 
   return 0
 }
@@ -592,7 +628,7 @@ writeSIF() {
       '    WaitForReboot="No"' \
       '    DriverSigningPolicy="Ignore"' \
       '    NonDriverSigningPolicy="Ignore"' \
-      '    OemPnPDriversPath="Drivers\viostor;Drivers\NetKVM;Drivers\sata;Drivers\QBochs;Drivers\Balloon"' \
+      '    OemPnPDriversPath="Drivers\viostor;Drivers\NetKVM;Drivers\sata;Drivers\QXL;Drivers\QBochs;Drivers\Balloon"' \
       '    NoWaitAfterTextMode=1' \
       '    NoWaitAfterGUIMode=1' \
       '    FileSystem=ConvertNTFS' \
