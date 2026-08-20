@@ -217,7 +217,8 @@ Win9xInstall() {
     return 1
   fi
 
-  if enabled "$shortcut" && ! stageWin9xSharedShortcut "$target" "$desc" "$share"; then
+  if enabled "$shortcut" && [[ "${id,,}" == "win95"* ]] &&
+    ! stageWin9xSharedShortcut "$target" "$desc" "$share"; then
     rm -rf "$drivers" || :
     return 1
   fi
@@ -1966,6 +1967,7 @@ writeWin9xAnswerFile() {
   local timezone="${12}"
   local share="${13}"
 
+  local desktop="%10%\Desktop"
   local addReg="OPKInstall,Win9x.Machine,Win9x.PCMCIA,Win9x.Power,Win9x.UserDefault,Win9x.BrowserDefault,Win9x.ActiveSetup"
   local updateInis="Win9x.SystemIni,Win9x.SystemCb"
   local firstLogonAddReg="Win9x.User,Win9x.Regwiz,Win9x.BrowserUser,Win9x.PowerUser"
@@ -2020,7 +2022,7 @@ writeWin9xAnswerFile() {
     copyFiles+=",Win9x.Hide"
   fi
 
-  if enabled "$shortcut"; then
+  if enabled "$shortcut" && [[ "${id,,}" == "win95"* ]]; then
     copyFiles+=",Win9x.SharedShortcut"
   fi
 
@@ -2078,7 +2080,7 @@ writeWin9xAnswerFile() {
       printf '%s\n' 'HIDE.EXE=22'
     fi
 
-    if enabled "$shortcut"; then
+    if enabled "$shortcut" && [[ "${id,,}" == "win95"* ]]; then
       printf '%s\n' 'Shared.lnk=22'
     fi
 
@@ -2212,6 +2214,11 @@ writeWin9xAnswerFile() {
       firstLogonUpdateInis+="Win9x.PostMarker"
     fi
 
+    if enabled "$shortcut" && [[ "${id,,}" != "win95"* ]]; then
+      [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
+      firstLogonUpdateInis+="Win9x.Shortcut"
+    fi
+
     if [ -n "$firstLogonUpdateInis" ]; then
       printf '%s\n' "UpdateInis=$firstLogonUpdateInis"
     fi
@@ -2333,7 +2340,7 @@ writeWin9xAnswerFile() {
       printf '%s\n' 'Win9x.Hide=10'
     fi
 
-    if enabled "$shortcut"; then
+    if enabled "$shortcut" && [[ "${id,,}" == "win95"* ]]; then
       printf '%s\n' 'Win9x.SharedShortcut=10,Desktop'
     fi
 
@@ -2348,10 +2355,18 @@ writeWin9xAnswerFile() {
     printf '%s\n' 'Win9x.DMA=10'
 
     if enabled "$shortcut"; then
-      printf '%s\n' \
-        '' \
-        '[Win9x.SharedShortcut]' \
-        'Shared.lnk'
+      if [[ "${id,,}" == "win95"* ]]; then
+        printf '%s\n' \
+          '' \
+          '[Win9x.SharedShortcut]' \
+          'Shared.lnk'
+      else
+        printf '%s\n' \
+          '' \
+          '[Win9x.Shortcut]' \
+          "setup.ini, progman.groups,, \"group1=\"\"$desktop\"\"\"" \
+          "setup.ini, group1,,\"\"\"Shared\"\",\"\"$share\"\",\"\"%11%\\SHELL32.DLL\"\",3,,,\"\"Shared folder\"\"\""
+      fi
     fi
 
     printf '%s\n' \
