@@ -113,9 +113,9 @@ parseVersion() {
       VERSION="win2019-hv" ;;
     "2012" | "2012r2" | "win2012" | "win2012r2" | "windows2012" | "windows 2012" )
       VERSION="win2012r2-eval" ;;
-    "2008" | "2008r2" | "win2008" | "win2008r2" | "windows2008" | "windows 2008" )
+    "2008" | "2008r2" | "2k8" | "win2008" | "win2008r2" | "windows2008" | "windows 2008" )
       VERSION="win2008r2" ;;
-    "2003" | "2003r2" | "win2003" | "win2003r2" | "windows2003" | "windows 2003" )
+    "2003" | "2003r2" | "2k3" | "win2003" | "win2003r2" | "windows2003" | "windows 2003" )
       VERSION="win2003r2" ;;
     "core11" | "core 11" )
       VERSION="core11"
@@ -873,22 +873,6 @@ supportsSIF() {
   esac
 
   return 1
-}
-
-supportsACPI() {
-
-  local id="$1"
-
-  case "${id,,}" in
-
-    "reactos" )
-
-      # If the ISO is a Live-CD it will ignore ACPI signals.
-      hasSystemImage && return 1 ;;
-
-  esac
- 
-  return 0
 }
 
 supportsBootKey() {

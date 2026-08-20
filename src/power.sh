@@ -398,18 +398,7 @@ markWindowsBooted() {
   # now booting from the installed disk rather than from setup media.
   ready || return 0
 
-  local marker="$STORAGE/windows.boot"
-
-  if ! touch "$marker"; then
-    warn "failed to create Windows installation marker!"
-    return 0
-  fi
-
-  if ! setOwner "$marker"; then
-    rm -f "$marker"
-    warn "failed to set the owner for \"$marker\" !"
-    return 0
-  fi
+  createMarker "boot" || return 0
 
   if ! disabled "$REMOVE"; then
     case "${BOOT,,}" in
@@ -506,20 +495,16 @@ gracefulShutdown() {
     finish "$code"
   fi
 
-  if ! supportsACPI "$DETECTED"; then
-    if [[ "${DETECTED,,}" != "reactos" ]]; then
-      info "This $(app) version does not support ACPI shutdown, decreasing timeout to 10 seconds..."
-      TIMEOUT=13
-    else
-      info "ReactOS LiveCD does not support ACPI shutdown, decreasing timeout to 1 second..."
-      TIMEOUT=7
-    fi
-  elif hasSystemImage && ! hasBootMarker; then
+  if hasMarker "kill"; then
+
+    info "This $(app) version does not support ACPI shutdown, decreasing timeout to 1 second..."
+    TIMEOUT=7
+
+  elif ! ready || { hasSystemImage && ! hasBootMarker; }; then
+
     info "$(app) will ignore ACPI signals during setup, decreasing timeout to 10 seconds..."
     TIMEOUT=13
-  elif ! ready; then
-    info "$(app) will ignore ACPI signals during setup, decreasing timeout to 10 seconds..."
-    TIMEOUT=13
+
   fi
 
   normalizeTimeout 105

@@ -7,9 +7,15 @@ Win9xInstall() {
   local dir="$3"
   local desc="$4"
 
-  local folder monitor="Plug and Play Monitor" options="/IS /IQ /IT" target
-  local setup="SETUP"
   local shortcut="Y"
+  local setup="SETUP"
+  local share='\\host.lan\Data'
+  local options="/ID /IS /IQ /IT"
+  local monitor="Plug and Play Monitor"
+  local target folder
+
+  local msg="Preparing $desc installation..."
+  info "$msg" && html "$msg"
 
   if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
     shortcut="N"
@@ -24,7 +30,9 @@ Win9xInstall() {
 
   case "${id,,}" in
     "win95"* )
-      folder="WIN95" ;;
+      folder="WIN95"
+      options="/IW $options"
+      share='\\Host\Data' ;;
     "win98"* )
       folder="WIN98"
       options="/P J /IE /NF $options" ;;
@@ -43,8 +51,12 @@ Win9xInstall() {
     return 1
   fi
 
-  [ -z "$WIDTH" ] && WIDTH="1280"
-  [ -z "$HEIGHT" ] && HEIGHT="720"
+  if [[ "${id,,}" == "win95"* ]]; then
+    validateWin95OSR2 "$target" "$desc" || return 1
+  fi
+
+  [ -z "$WIDTH" ] && WIDTH="1024"
+  [ -z "$HEIGHT" ] && HEIGHT="768"
 
   validateResolution "WIDTH" "$WIDTH" 320 || return 1
   validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
@@ -101,7 +113,7 @@ Win9xInstall() {
     stageWin9xPasswordList "$target" "$desc" || return 1
   fi
 
-  if enabled "$shortcut" || [ -n "$install" ] || [[ "${id,,}" == "win9x"* ]]; then
+  if enabled "$shortcut" || [ -n "$install" ] || [[ "${id,,}" == "win95"* || "${id,,}" == "win9x"* ]]; then
     stageWin9xHide "$target" "$desc" || return 1
   fi
 
@@ -109,11 +121,12 @@ Win9xInstall() {
     stageWin9xWait "$target" "$desc" || return 1
   fi
 
-  if [ -n "$install" ] || [[ "${id,,}" == "win9x"* ]]; then
+  if [ -n "$install" ] || [[ "${id,,}" == "win95"* || "${id,,}" == "win9x"* ]]; then
     stageWin9xPostSetup "$target" "$desc" "$install" "$id" || return 1
   fi
 
   stageWin9xDMA "$target" "$desc" || return 1
+  stageWin9xScandiskConfig "$target" "$desc" || return 1
 
   # Reuse the same driver archive extraction used by the XP/2003 path. All
   # Windows 9x support files live together under win9x/ in that archive.
@@ -122,9 +135,29 @@ Win9xInstall() {
   local patcher="$win9x/patcher9x/patcher9x"
   local patcher_dos="$patcher.img"
   local qemouse="$win9x/qemouse"
-  local display="$win9x/boxv9x"
+  local display="$win9x/vmdisp9x"
+  local audio95="$win9x/alcx95"
+  local audiowdm="$win9x/alcxwdm"
 
   extractDrivers "$drivers" || return 1
+
+  if [ -z "${BIOS:-}" ]; then
+    local bios="$win9x/bios/win9x.bin"
+
+    if [ ! -s "$bios" ]; then
+      rm -rf "$drivers" || :
+      error "Failed to locate the Windows 9x BIOS!"
+      return 1
+    fi
+
+    BIOS="$TMP/win9x.bin"
+
+    if ! cp -f -- "$bios" "$BIOS"; then
+      rm -rf "$drivers" || :
+      error "Failed to prepare the Windows 9x BIOS!"
+      return 1
+    fi
+  fi
 
   if [ ! -f "$patcher" ] || [ ! -f "$patcher_dos" ]; then
     rm -rf "$drivers" || :
@@ -143,17 +176,49 @@ Win9xInstall() {
     return 1
   fi
 
+  if [[ "${id,,}" == "win95"* ]]; then
+    # QEMU AC97 is a normal PCI PnP device, so keep its Win95 VxD driver beside
+    # the retained C:\SETUP source.
+    if ! stageWin95AC97Driver "$target" "$audio95" "$desc"; then
+      rm -rf "$drivers" || :
+      return 1
+    fi
+  elif [[ "${id,,}" == "win98"* || "${id,,}" == "win9x"* ]]; then
+    # Win98/Me use the WDM package from the same driver archive. Stage it beside
+    # C:\SETUP and add a QEMU-specific INF match for the emulated Intel AC97 PCI ID.
+    if ! stageWin98MeAC97Driver "$target" "$audiowdm" "$desc"; then
+      rm -rf "$drivers" || :
+      return 1
+    fi
+  fi
+
+  # Keep Win95's product-type and online-service changes together in the same
+  # loose SETUPPP.INF. This prevents MSN/Online Services from being installed
+  # at all, and also handles the no-key OEM product type when needed.
+  if [[ "${id,,}" == "win95"* ]]; then
+    patchWin95SetupComponents "$target" "$desc" "$batchKey" || {
+      rm -rf "$drivers" || :
+      return 1
+    }
+  fi
+
   if ! stageWin9xDosPatcher "$target" "$desc" "$patcher_dos"; then
     rm -rf "$drivers" || :
     return 1
   fi
 
-  if ! stageWin9xMouseFiles "$target" "$desc" "$qemouse"; then
+  if ! stageWin9xSetupOverrides "$target" "$desc" "$qemouse"; then
     rm -rf "$drivers" || :
     return 1
   fi
 
   if ! stageWin9xFinalAutoexec "$target" "$setup" "$options" "$desc" "$id"; then
+    rm -rf "$drivers" || :
+    return 1
+  fi
+
+  if enabled "$shortcut" && [[ "${id,,}" == "win95"* ]] &&
+    ! stageWin9xSharedShortcut "$target" "$desc" "$share"; then
     rm -rf "$drivers" || :
     return 1
   fi
@@ -176,7 +241,7 @@ Win9xInstall() {
   writeWin9xAnswerFile \
     "$target" "$id" "$setup" "$monitor" \
     "$batchHost" "$batchUsername" "$batchOrganization" "$batchWorkgroup" \
-    "$batchKey" "$shortcut" "$install" "$timezone" || return 1
+    "$batchKey" "$shortcut" "$install" "$timezone" "$share" || return 1
 
   # Build the hard-disk system image from the setup files themselves. Do not rely
   # on a particular El Torito floppy-image filename: some perfectly valid Win9x
@@ -189,6 +254,31 @@ Win9xInstall() {
 
   rm -rf "$drivers" || :
   SYSTEM="$TMP/windows.img"
+
+  return 0
+}
+
+validateWin95OSR2() {
+
+  local dir="$1"
+  local desc="$2"
+  local format
+
+  format=$(find "$dir" -maxdepth 1 -type f -iname 'FORMAT.COM' -print -quit) || return 1
+
+  if [ -z "$format" ]; then
+    error "Failed to locate FORMAT.COM in $desc setup files!"
+    return 1
+  fi
+
+  # FAT32 support was introduced with Windows 95 OSR2. Require the setup
+  # FORMAT.COM itself to carry the FAT32 marker so pre-OSR2 media fail before
+  # any setup files are modified. The existing image builder performs the full
+  # structural validation of that FAT32 boot template later.
+  if ! LC_ALL=C grep -aFq 'FAT32   ' "$format"; then
+    error "Unsupported $desc ISO image: Windows 95 OSR2 or newer is required!"
+    return 1
+  fi
 
   return 0
 }
@@ -280,6 +370,37 @@ stageWin9xPostSetup() {
   local install="$3"
   local id="$4"
   local target="$dir/POST9X.BAT"
+
+  # Windows 95 can reach its first real desktop without the extra Setup reboot
+  # used by the established 98/Me post-setup path. Run FirstLogon and finish its
+  # pending file operations in a hidden housekeeping shell so the next normal
+  # reboot does not re-enter WININIT. Launch the OEM install in its own visible
+  # command window and wait for it so install.bat keeps its debugging behavior.
+  if [[ "${id,,}" == "win95"* ]]; then
+    {
+      printf '%s\n' \
+        '@ECHO OFF' \
+        'C:\WINDOWS\RUNDLL.EXE SETUPX.DLL,InstallHinfSection Win9x.FirstLogon 4 C:\WINDOWS\MSBATCH.INF' \
+        'COPY /Y C:\SETUP\W9XAUTO.BAT C:\AUTOEXEC.BAT >NUL' \
+        'DEL C:\SETUP\PATCH9X.RUN >NUL' \
+        'IF EXIST C:\WINDOWS\DESKTOP\ONLINE~1 C:\WINDOWS\COMMAND\DELTREE.EXE /Y C:\WINDOWS\DESKTOP\ONLINE~1 >NUL'
+
+      if [ -n "$install" ]; then
+        if enabled "${LOG:-}"; then
+          printf '%s\n' 'START /W C:\WINDOWS\COMMAND.COM /C C:\OEM\install.bat > C:\OEM\install.log'
+        else
+          printf '%s\n' 'START /W C:\WINDOWS\COMMAND.COM /C C:\OEM\install.bat'
+        fi
+      fi
+
+    } | unix2dos > "$target" || {
+      error "Failed to create post-desktop setup script for $desc!"
+      return 1
+    }
+
+    return 0
+  fi
+
   local marker="$dir/POST9X.NEW"
   local cleanup="$dir/POST9X.REG"
 
@@ -381,6 +502,52 @@ EOF
   return 0
 }
 
+stageWin9xScandiskConfig() {
+
+  local dir="$1"
+  local desc="$2"
+  local target="$dir/W9XSCAN.INI"
+
+  # Boot-time ScanDisk is started in /CUSTOM mode after an unclean shutdown.
+  # Keep filesystem repair enabled while removing every normal interactive
+  # decision and summary screen. A surface scan is intentionally excluded: it
+  # is unnecessary for routine forced-poweroff recovery and would make booting
+  # a large virtual disk take an excessive amount of time.
+  {
+    printf '%s\n' \
+      '[Environment]' \
+      'LfnCheck=On' \
+      '' \
+      '[Custom]' \
+      'DriveSummary=Off' \
+      'AllSummary=Off' \
+      'Surface=Never' \
+      'CheckHost=Never' \
+      'SaveLog=Append' \
+      'Undo=Never' \
+      'DS_Header=Fix' \
+      'FAT_Media=Fix' \
+      'Okay_Entries=Fix' \
+      'Bad_Chain=Fix' \
+      'Crosslinks=Fix' \
+      'Boot_Sector=Fix' \
+      'Invalid_MDFAT=Fix' \
+      'DS_Crosslinks=Fix' \
+      'DS_LostClust=Fix' \
+      'DS_Signatures=Fix' \
+      'Mismatch_FAT=Fix' \
+      'Bad_Clusters=Fix' \
+      'Bad_Entries=Delete' \
+      'LostClust=Save' \
+      ''
+  } | unix2dos > "$target" || {
+    error "Failed to create SCANDISK.INI in $desc setup files!"
+    return 1
+  }
+
+  return 0
+}
+
 patchWin9xSetupFiles() {
 
   local id="$1"
@@ -413,20 +580,430 @@ patchWin9xSetupFiles() {
   stageWin9xDisplayDriver "$target" "$display" "$desc" || return 1
 
   if ! mv -f -- \
-    "$target/BOXV9X/boxv9x.inf" \
-    "$target/BOXV9X/boxvmini.drv" \
-    "$target/BOXV9X/boxvmini.vxd" \
+    "$target/VMDISP9X/vmdisp9x.inf" \
+    "$target/VMDISP9X/qemumini.drv" \
+    "$target/VMDISP9X/qemumini.vxd" \
+    "$target/VMDISP9X/vmhal9x.dll" \
+    "$target/VMDISP9X/vmhal486.dll" \
+    "$target/VMDISP9X/vmdisp9x.dll" \
     "$target/"; then
     error "Failed to stage the Windows 9x display driver in the setup source!"
     return 1
   fi
 
-  rm -rf -- "$target/BOXV9X" || return 1
-  : > "$target/BOXV9X" || return 1
+  rm -rf -- "$target/VMDISP9X" || return 1
 
   # Use QEMouse directly in the MINI.CAB GUI Setup environment for every Win9x
   # release, so the setup mouse path does not depend on a DOS INT 33h TSR.
   integrateWin9xSetupMouse "$target" "$desc" "$qemouse/qemouse.drv" || return 1
+
+  return 0
+}
+
+stageWin95AC97Driver() {
+
+  local dir="$1"
+  local audio="$2"
+  local desc="$3"
+  local source name
+
+  if [ ! -d "$audio" ] || [ -z "$(find "$audio" -maxdepth 1 -type f -print -quit)" ]; then
+    error "Failed to locate the Windows 95 AC97 driver payload!"
+    return 1
+  fi
+
+  # Keep the driver payload self-contained: drivers.tar.xz owns the exact files
+  # and this path simply stages everything present in win9x/alcx95/. This avoids
+  # having to update an installer-side filename list when the payload changes.
+  if ! cp -a -- "$audio"/. "$dir"/; then
+    error "Failed to stage the Windows 95 AC97 driver payload!"
+    return 1
+  fi
+
+  # Verify every top-level file copied byte-for-byte without hard-coding the
+  # payload contents. Subdirectories, if ever added, are copied by cp -a above.
+  while IFS= read -r -d '' source; do
+    name="${source##*/}"
+    if [ ! -f "$dir/$name" ] || ! cmp -s -- "$source" "$dir/$name"; then
+      error "Failed to verify the staged Windows 95 AC97 driver file $name!"
+      return 1
+    fi
+  done < <(find "$audio" -maxdepth 1 -type f -print0)
+
+  # Validate the critical invariants of the Win95 VxD package without rewriting
+  # vendor files: QEMU's PCI ID, PnP/SB-emulation registration, and every file
+  # referenced by the INF must be present and non-empty.
+  if ! python3 - "$dir" <<'PY'
+from pathlib import Path
+import sys
+
+root = Path(sys.argv[1])
+required_files = (
+    'VALCX95.INF',
+    'VALCX95.VXD',
+    'ALCX95.DRV',
+    'ALCX95.INI',
+    'ALSWWT.DRV',
+    'ALSWWT16.DLL',
+    'SWWTAC97.DAT',
+    'SWWTAC97.TON',
+)
+
+for name in required_files:
+    path = root / name
+    if not path.is_file() or path.stat().st_size == 0:
+        raise SystemExit(f'AC97 payload file missing or empty: {name}')
+
+data = (root / 'VALCX95.INF').read_bytes().replace(b'\r\n', b'\n').lower()
+
+required_inf = (
+    b'signature="$chicago$"',
+    b'class=media',
+    b'%alcich.devicedesc%=alcaud, pci\\ven_8086&dev_2415',
+    b'%alcaud_sb.devicedesc%=alcsb, virtual\\alc_sbemulation',
+    b'hkr,drivers,sbemulation,,"yes"',
+    b'copyfiles=alcaud.copylist, alcwtb.copylist, alcini.copylist',
+)
+for item in required_inf:
+    if item not in data:
+        raise SystemExit(f'AC97 INF verification failed for {item!r}.')
+
+def section(name: bytes) -> bytes:
+    marker = b'[' + name + b']'
+    try:
+        body = data.split(marker, 1)[1]
+    except IndexError:
+        raise SystemExit(f'AC97 INF section missing: {name.decode()}')
+    return body.split(b'\n[', 1)[0]
+
+destinations = section(b'destinationdirs')
+for item in (
+    b'defaultdestdir=11',
+    b'alcaud.copylist=11',
+    b'alcwtb.copylist=10',
+    b'alcini.copylist=10',
+):
+    if item not in destinations:
+        raise SystemExit(f'AC97 destination verification failed for {item!r}.')
+
+copy_sections = {
+    b'alcaud.copylist': (
+        b'valcx95.vxd',
+        b'alcx95.drv',
+        b'alswwt.drv',
+        b'alswwt16.dll',
+        b'swwtac97.ton',
+    ),
+    b'alcwtb.copylist': (b'swwtac97.dat',),
+    b'alcini.copylist': (b'alcx95.ini',),
+}
+for name, items in copy_sections.items():
+    body = section(name)
+    for item in items:
+        if item not in body:
+            raise SystemExit(
+                f'AC97 copy-list verification failed in {name!r} for {item!r}.'
+            )
+
+source_files = section(b'sourcedisksfiles')
+for name in required_files[1:]:
+    if name.lower().encode() not in source_files:
+        raise SystemExit(f'AC97 source-file verification failed for {name}.')
+PY
+  then
+    error "Failed to verify the Windows 95 AC97 PCI driver payload!"
+    return 1
+  fi
+
+  return 0
+}
+
+stageWin98MeAC97Driver() {
+
+  local dir="$1"
+  local audio="$2"
+  local desc="$3"
+  local source name
+
+  if [ ! -d "$audio" ] || [ -z "$(find "$audio" -maxdepth 1 -type f -print -quit)" ]; then
+    error "Failed to locate the Windows 98/Me AC97 WDM driver payload!"
+    return 1
+  fi
+
+  # Keep both vendor INFs and every referenced payload file together in the
+  # retained setup source. OtherDevicePath already makes C:\SETUP an OEM PnP
+  # search path while Windows is enumerating the AC97 controller.
+  if ! cp -a -- "$audio"/. "$dir"/; then
+    error "Failed to stage the Windows 98/Me AC97 WDM driver payload!"
+    return 1
+  fi
+
+  # Verify every top-level archive file before creating the QEMU compatibility
+  # INF below, so the vendor payload itself remains byte-for-byte unchanged.
+  while IFS= read -r -d '' source; do
+    name="${source##*/}"
+    if [ ! -f "$dir/$name" ] || ! cmp -s -- "$source" "$dir/$name"; then
+      error "Failed to verify the staged Windows 98/Me AC97 driver file $name!"
+      return 1
+    fi
+  done < <(find "$audio" -maxdepth 1 -type f -print0)
+
+  # The supplied Realtek WDM INFs contain Intel ICH matches but no generic
+  # PCI\VEN_8086&DEV_2415 entry used by QEMU's AC97 device. Derive an unsigned
+  # 8.3-compatible OEM INF from Alcxwdm0.inf, preserving the vendor INF itself.
+  # Removing CatalogFile avoids claiming the generated INF is covered by the
+  # vendor catalog after adding the QEMU hardware ID.
+  if ! python3 - "$dir" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+root = Path(sys.argv[1])
+required_files = (
+    'Alcxwdm0.inf',
+    'Alcxwdm1.inf',
+    'Alcxwdm.cat',
+    'ALCXWDM.SYS',
+    'Soundman.exe',
+    'ALSndMgr.cpl',
+    'alsndmgr.wav',
+)
+
+for name in required_files:
+    path = root / name
+    if not path.is_file() or path.stat().st_size == 0:
+        raise SystemExit(f'AC97 WDM payload file missing or empty: {name}')
+
+vendor = root / 'Alcxwdm0.inf'
+raw = vendor.read_bytes()
+normalized = raw.replace(b'\r\n', b'\n').lower()
+
+for item in (
+    b'signature="$chicago$"',
+    b'class=media',
+    b'[avance]',
+    b'[ac97aud]',
+    b'alcxwdm.sys',
+    b'alsoinstall=ks.registration(ks.inf), wdmaudio.registration(wdmaudio.inf)',
+    b'hkr,drivers\\wave\\wdmaud.drv,driver,,wdmaud.drv',
+    b'alcxwdm.sys=222',
+    b'soundman.exe=222',
+    b'alsndmgr.cpl=222',
+    b'alsndmgr.wav=222',
+    b'hklm,%autorun%,soundman,,"soundman.exe"',
+):
+    if item not in normalized:
+        raise SystemExit(f'AC97 WDM installation invariant missing: {item!r}.')
+
+newline = b'\r\n' if b'\r\n' in raw else b'\n'
+clone = raw
+clone, catalog_count = re.subn(
+    br'(?im)^[ \t]*CatalogFile[ \t]*=[^\r\n]*(?:\r?\n)',
+    b'',
+    clone,
+    count=1,
+)
+if catalog_count != 1:
+    raise SystemExit(f'Unexpected AC97 WDM CatalogFile count: {catalog_count}.')
+
+soundman = re.compile(
+    br'(?im)^[ \t]*HKLM[ \t]*,[ \t]*%AUTORUN%[ \t]*,[ \t]*SoundMan[ \t]*,'
+    br'[ \t]*,[ \t]*"SOUNDMAN\.EXE"[ \t]*(?:\r?\n|$)'
+)
+clone, soundman_count = soundman.subn(b'', clone, count=1)
+if soundman_count != 1:
+    raise SystemExit(f'Unexpected AC97 SoundMan autorun count: {soundman_count}.')
+
+preferred = re.compile(
+    br'(?im)^[ \t]*HKR[ \t]*,[ \t]*,[ \t]*SetupPreferredAudioDevices[ \t]*,'
+)
+if preferred.search(clone):
+    raise SystemExit('AC97 WDM INF already configures SetupPreferredAudioDevices.')
+
+addreg = re.search(br'(?im)^\[AC97AUD\.AddReg\][ \t]*(?:\r?\n)', clone)
+if addreg is None:
+    raise SystemExit('AC97 WDM [AC97AUD.AddReg] section missing.')
+preference = b'HKR,,SetupPreferredAudioDevices,3,01,00,00,00' + newline
+clone = clone[:addreg.end()] + preference + clone[addreg.end():]
+
+generic = re.compile(
+    br'(?im)^[ \t]*%ALCAUD\.Desc%[ \t]*=[ \t]*AC97AUD[ \t]*,[ \t]*'
+    br'PCI\\VEN_8086&DEV_2415[ \t]*(?:\r?$)'
+)
+
+if not generic.search(clone):
+    section = re.search(br'(?im)^\[Avance\][ \t]*(?:\r?\n)', clone)
+    if section is None:
+        raise SystemExit('AC97 WDM [Avance] section missing.')
+    entry = b'%ALCAUD.Desc%=AC97AUD,\tPCI\\VEN_8086&DEV_2415' + newline
+    clone = clone[:section.end()] + entry + clone[section.end():]
+
+matches = generic.findall(clone)
+if len(matches) != 1:
+    raise SystemExit(
+        f'Unexpected QEMU AC97 generic hardware-ID count: {len(matches)} (expected 1).'
+    )
+
+if re.search(br'(?im)^[ \t]*CatalogFile[ \t]*=', clone):
+    raise SystemExit('Generated QEMU AC97 INF still references the vendor catalog.')
+if soundman.search(clone):
+    raise SystemExit('Generated QEMU AC97 INF still enables the SoundMan autorun entry.')
+if len(preferred.findall(clone)) != 1:
+    raise SystemExit('Generated QEMU AC97 INF preferred-audio registration is invalid.')
+
+output = root / 'QEMUAC97.INF'
+output.write_bytes(clone)
+if not output.is_file() or output.stat().st_size == 0:
+    raise SystemExit('Failed to create QEMUAC97.INF.')
+PY
+  then
+    error "Failed to prepare the Windows 98/Me AC97 WDM PCI driver!"
+    return 1
+  fi
+
+  return 0
+}
+
+patchWin95SetupComponents() {
+
+  local target="$1"
+  local desc="$2"
+  local batchKey="$3"
+  local setuppp="$target/SETUPPP.INF"
+  local layout="$target/LAYOUT.INF"
+
+  # Win95 OSR2 normally keeps SETUPPP.INF in PRECOPY*.CAB, while some later
+  # media exposes it directly. A loose copy selected by LAYOUT.INF lets us
+  # suppress MSN/Online Services before Setup creates their desktop objects.
+  if [ ! -s "$setuppp" ]; then
+    extractWin9xCabFile "$target" 'SETUPPP.INF' "$setuppp" "$desc" || return 1
+  fi
+
+  if [ ! -s "$layout" ]; then
+    extractWin9xCabFile "$target" 'LAYOUT.INF' "$layout" "$desc" || return 1
+  fi
+
+  if ! python3 - "$setuppp" "$layout" "$batchKey" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+setuppp = Path(sys.argv[1])
+layout = Path(sys.argv[2])
+has_key = bool(sys.argv[3])
+
+setup_data = setuppp.read_bytes()
+setup_lines = setup_data.splitlines(keepends=True)
+
+if not has_key:
+    product_re = re.compile(
+        br'^([ \t]*ProductType[ \t]*=[ \t]*)9([ \t]*)(\r?\n)?$',
+        re.IGNORECASE,
+    )
+    matches = []
+
+    for index, line in enumerate(setup_lines):
+        match = product_re.match(line)
+        if match:
+            matches.append((index, match))
+
+    if len(matches) != 1:
+        print(
+            f"Unexpected Windows 95 ProductType=9 count: {len(matches)} (expected 1).",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+
+    index, match = matches[0]
+    setup_lines[index] = (
+        match.group(1)
+        + b'1'
+        + match.group(2)
+        + (match.group(3) or b'')
+    )
+
+# MOS.INF installs The Microsoft Network and online registration. MSINFO.INF
+# installs the OSR2 Online Services material. Remove every active reference but
+# preserve comments and every unrelated byte in SETUPPP.INF.
+blocked = (b'MOS.INF', b'MSINFO.INF')
+filtered = []
+
+for line in setup_lines:
+    stripped = line.lstrip(b' \t')
+    upper = stripped.upper()
+
+    if stripped.startswith(b';') or not any(name in upper for name in blocked):
+        filtered.append(line)
+
+setup_data = b''.join(filtered)
+
+for line in setup_data.splitlines():
+    stripped = line.lstrip(b' \t')
+    upper = stripped.upper()
+
+    if not stripped.startswith(b';') and any(name in upper for name in blocked):
+        print("Failed to remove a Windows 95 online-service setup reference.", file=sys.stderr)
+        raise SystemExit(1)
+
+if not has_key:
+    product_one = re.compile(
+        br'^[ \t]*ProductType[ \t]*=[ \t]*1[ \t]*$',
+        re.IGNORECASE,
+    )
+    if sum(bool(product_one.match(line.rstrip(b'\r'))) for line in setup_data.splitlines()) != 1:
+        print("Failed to verify the Windows 95 ProductType=1 change.", file=sys.stderr)
+        raise SystemExit(1)
+
+layout_data = layout.read_bytes()
+layout_lines = layout_data.splitlines(keepends=True)
+layout_re = re.compile(
+    br'^([ \t]*SETUPPP\.INF[ \t]*=[ \t]*)[0-9]+,([^,\r\n]*,)[0-9]+([^\r\n]*)(\r?\n)?$',
+    re.IGNORECASE,
+)
+layout_matches = []
+
+for index, line in enumerate(layout_lines):
+    match = layout_re.match(line)
+    if match:
+        layout_matches.append((index, match))
+
+if len(layout_matches) != 1:
+    print(
+        f"Unexpected Windows 95 SETUPPP.INF layout-entry count: {len(layout_matches)} (expected 1).",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+
+setuppp_size = len(setup_data)
+index, match = layout_matches[0]
+layout_lines[index] = (
+    match.group(1)
+    + b'0,'
+    + match.group(2)
+    + str(setuppp_size).encode('ascii')
+    + match.group(3)
+    + (match.group(4) or b'')
+)
+
+setuppp.write_bytes(setup_data)
+layout.write_bytes(b''.join(layout_lines))
+
+verify_layout = layout.read_bytes().splitlines()
+expected = re.compile(
+    br'^[ \t]*SETUPPP\.INF[ \t]*=[ \t]*0,[^,\r\n]*,'
+    + str(setuppp_size).encode('ascii')
+    + br'(?:,|[ \t]*$)',
+    re.IGNORECASE,
+)
+
+if sum(bool(expected.match(line)) for line in verify_layout) != 1:
+    print("Failed to verify the Windows 95 SETUPPP.INF layout entry.", file=sys.stderr)
+    raise SystemExit(1)
+PY
+  then
+    error "Failed to patch the Windows 95 setup components!"
+    return 1
+  fi
 
   return 0
 }
@@ -503,10 +1080,16 @@ stageWin9xDisplayDriver() {
   local source="$2"
   local desc="$3"
 
-  local dest="$target/BOXV9X"
+  local dest="$target/VMDISP9X"
   local file
 
-  for file in boxv9x.inf boxvmini.drv boxvmini.vxd; do
+  for file in \
+    vmdisp9x.inf \
+    qemumini.drv \
+    qemumini.vxd \
+    vmhal9x.dll \
+    vmhal486.dll \
+    vmdisp9x.dll; do
 
     if [ ! -f "$source/$file" ]; then
       error "Failed to locate required Windows 9x display driver file: $file"
@@ -519,34 +1102,32 @@ stageWin9xDisplayDriver() {
   mkdir -p "$dest" || return 1
 
   if ! cp -f -- \
-    "$source/boxv9x.inf" \
-    "$source/boxvmini.drv" \
-    "$source/boxvmini.vxd" \
+    "$source/vmdisp9x.inf" \
+    "$source/qemumini.drv" \
+    "$source/qemumini.vxd" \
+    "$source/vmhal9x.dll" \
+    "$source/vmhal486.dll" \
+    "$source/vmdisp9x.dll" \
     "$dest/"; then
 
     error "Failed to add the display driver to $desc setup files!"
     return 1
   fi
 
-  # The virtual display driver's DDC flag makes Win9x enumerate a Plug and
-  # Play monitor after the display driver starts. The unattended setup already
-  # selects the monitor and display mode, and BOXV9X carries a fixed mode list,
-  # so disable DDC in our staged copy to avoid a second monitor PnP pass.
-  if ! grep -Eq '^[[:space:]]*HKR,DEFAULT,DDC,,1[[:space:]]*$' "$dest/boxv9x.inf"; then
+  # VMDisp9x's DDC flag makes Win9x enumerate a Plug and Play monitor after
+  # the display driver starts. The unattended setup already selects the monitor
+  # and display mode, and VMDisp9x carries a fixed mode list, so disable DDC in
+  # our staged copy to avoid a second monitor PnP pass.
+  if ! grep -Eq '^[[:space:]]*HKR,DEFAULT,DDC,,1[[:space:]]*$' "$dest/vmdisp9x.inf"; then
     error "Failed to locate the DDC setting in the Windows 9x display driver!"
     return 1
   fi
 
-  if ! sed -i 's/HKR,DEFAULT,DDC,,1/HKR,DEFAULT,DDC,,0/' "$dest/boxv9x.inf" ||
-    ! grep -Eq '^[[:space:]]*HKR,DEFAULT,DDC,,0[[:space:]]*$' "$dest/boxv9x.inf"; then
+  if ! sed -i 's/HKR,DEFAULT,DDC,,1/HKR,DEFAULT,DDC,,0/' "$dest/vmdisp9x.inf" ||
+    ! grep -Eq '^[[:space:]]*HKR,DEFAULT,DDC,,0[[:space:]]*$' "$dest/vmdisp9x.inf"; then
     error "Failed to disable DDC in the Windows 9x display driver!"
     return 1
   fi
-
-  # BOXV9X is the source-media tag named by the upstream INF. Provide that tag
-  # beside the driver files so Setup never asks for a separate driver disk while
-  # installing the exact QEMU PCI match.
-  : > "$dest/BOXV9X" || return 1
 
   return 0
 }
@@ -689,28 +1270,205 @@ stageWin9xDosPatcher() {
   return 0
 }
 
-stageWin9xMouseFiles() {
+stageWin9xSetupOverrides() {
 
   local dir="$1"
   local desc="$2"
   local qemouse="$3"
-  local file="qemouse.drv"
-  local source="$qemouse/$file"
-  local target="$dir/${file^^}"
+  local layout="$dir/LAYOUT.INF"
+  local mouse="$qemouse/qemouse.drv"
+  local scandisk="$dir/W9XSCAN.INI"
+  local mouse_target="$dir/MOUSE.DRV"
+  local scandisk_target="$dir/SCANDISK.INI"
+  local layout_temp="$TMP/win9x-layout-files"
+  local cab extracted existing layout_name
+  local mouse_size scandisk_size
+  local -a precopy_cabs=() other_cabs=() extracted_layouts=() layouts=()
 
-  # QEMouse is used both by MINI.CAB during GUI Setup and by the installed OS.
-  # Keep one source copy in C:\SETUP; MSBATCH.INF installs the same binary as
-  # MOUSE.DRV so Windows can retain its stock mouse configuration and VxD stack.
-  if [ ! -f "$source" ]; then
-    error "Failed to locate $file!"
+  if [ ! -f "$mouse" ]; then
+    error "Failed to locate qemouse.drv!"
     return 1
   fi
 
-  if ! cp -f -- "$source" "$target" || ! cmp -s -- "$source" "$target"; then
-    error "Failed to stage $file in $desc setup files!"
+  if [ ! -f "$scandisk" ]; then
+    error "Failed to locate the staged SCANDISK.INI configuration!"
     return 1
   fi
 
+  # Make Setup's own source filenames contain our desired payloads. This avoids
+  # competing CopyFiles destinations entirely: every normal Setup copy or later
+  # reinstall of MOUSE.DRV/SCANDISK.INI resolves to these same loose files.
+  if [ ! -s "$layout" ]; then
+    extractWin9xCabFile "$dir" 'LAYOUT.INF' "$layout" "$desc" || return 1
+  fi
+
+  # Windows 98 splits its setup source map across LAYOUT.INF, LAYOUT1.INF and
+  # LAYOUT2.INF. Stage every numbered LAYOUT file available in the cabinets, but
+  # never overwrite an already-loose copy because earlier setup patches may have
+  # modified it. Win95/Me simply keep whichever LAYOUT files their media carries.
+  rm -rf -- "$layout_temp" || return 1
+  mkdir -p "$layout_temp/files" || return 1
+
+  mapfile -d '' precopy_cabs < <(
+    find "$dir" -maxdepth 1 -type f -iname 'PRECOPY*.CAB' -print0 | sort -z
+  )
+  mapfile -d '' other_cabs < <(
+    find "$dir" -maxdepth 1 -type f -iname '*.CAB' ! -iname 'PRECOPY*.CAB' -print0 | sort -z
+  )
+
+  for cab in "${precopy_cabs[@]}" "${other_cabs[@]}"; do
+
+    rm -rf -- "$layout_temp/files" || return 1
+    mkdir -p "$layout_temp/files" || return 1
+
+    cabextract -q \
+      -F 'LAYOUT*.INF' \
+      -F 'layout*.inf' \
+      -d "$layout_temp/files" "$cab" >/dev/null 2>&1 || :
+
+    mapfile -d '' extracted_layouts < <(
+      find "$layout_temp/files" -type f -iname 'LAYOUT*.INF' -print0 | sort -z
+    )
+
+    for extracted in "${extracted_layouts[@]}"; do
+
+      layout_name=$(basename "$extracted")
+      layout_name="${layout_name^^}"
+
+      if [[ ! "$layout_name" =~ ^LAYOUT[0-9]*\.INF$ ]]; then
+        continue
+      fi
+
+      existing=$(find "$dir" -maxdepth 1 -type f -iname "$layout_name" -print -quit) || return 1
+
+      if [ -n "$existing" ] && [ -s "$existing" ]; then
+        continue
+      fi
+
+      if [ -n "$existing" ]; then
+        rm -f -- "$existing" || return 1
+      fi
+
+      if ! cp -f -- "$extracted" "$dir/$layout_name"; then
+        rm -rf -- "$layout_temp" || :
+        error "Failed to stage $layout_name from $desc setup files!"
+        return 1
+      fi
+
+    done
+
+  done
+
+  rm -rf -- "$layout_temp" || return 1
+
+  mapfile -d '' layouts < <(
+    find "$dir" -maxdepth 1 -type f -iregex '.*/LAYOUT[0-9]*\.INF' -print0 | sort -z
+  )
+
+  if (( ${#layouts[@]} == 0 )); then
+    error "Failed to locate the $desc setup source layout files!"
+    return 1
+  fi
+
+  if ! cp -f -- "$mouse" "$mouse_target" ||
+    ! cmp -s -- "$mouse" "$mouse_target"; then
+    error "Failed to replace the $desc MOUSE.DRV setup source!"
+    return 1
+  fi
+
+  if ! cp -f -- "$scandisk" "$scandisk_target" ||
+    ! cmp -s -- "$scandisk" "$scandisk_target"; then
+    error "Failed to replace the $desc SCANDISK.INI setup source!"
+    return 1
+  fi
+
+  mouse_size=$(stat -c %s -- "$mouse_target") || return 1
+  scandisk_size=$(stat -c %s -- "$scandisk_target") || return 1
+
+  # Search the complete LAYOUT*.INF set for each stock source entry, then patch
+  # the one file that owns it. Point that entry at disk 0 with no source
+  # subdirectory and record the loose replacement's uncompressed size.
+  if ! python3 - "$mouse_size" "$scandisk_size" "${layouts[@]}" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+replacements = {
+    b'MOUSE.DRV': int(sys.argv[1]),
+    b'SCANDISK.INI': int(sys.argv[2]),
+}
+layouts = [Path(value) for value in sys.argv[3:]]
+contents = {
+    layout: layout.read_bytes().splitlines(keepends=True)
+    for layout in layouts
+}
+changed = set()
+
+for name, size in replacements.items():
+    pattern = re.compile(
+        br'^([ \t]*' + re.escape(name) + br'[ \t]*=[ \t]*)'
+        br'[0-9]+,[^,\r\n]*,[0-9]+([^\r\n]*)(\r?\n)?$',
+        re.IGNORECASE,
+    )
+    matches = []
+
+    for layout, lines in contents.items():
+        for index, line in enumerate(lines):
+            match = pattern.match(line)
+            if match:
+                matches.append((layout, index, match))
+
+    if len(matches) != 1:
+        print(
+            f"Unexpected {name.decode('ascii')} layout-entry count across "
+            f"LAYOUT*.INF: {len(matches)} (expected 1).",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+
+    layout, index, match = matches[0]
+    contents[layout][index] = (
+        match.group(1)
+        + b'0,,'
+        + str(size).encode('ascii')
+        + match.group(2)
+        + (match.group(3) or b'')
+    )
+    changed.add(layout)
+
+for layout in changed:
+    layout.write_bytes(b''.join(contents[layout]))
+
+verify = {
+    layout: layout.read_bytes().splitlines()
+    for layout in layouts
+}
+for name, size in replacements.items():
+    expected = re.compile(
+        br'^[ \t]*' + re.escape(name) + br'[ \t]*=[ \t]*0,,'
+        + str(size).encode('ascii')
+        + br'(?:,|[ \t]*$)',
+        re.IGNORECASE,
+    )
+    count = sum(
+        bool(expected.match(line))
+        for lines in verify.values()
+        for line in lines
+    )
+    if count != 1:
+        print(
+            f"Failed to verify the {name.decode('ascii')} layout override "
+            f"across LAYOUT*.INF.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+PY
+  then
+    error "Failed to update the $desc setup source layout!"
+    return 1
+  fi
+
+  rm -f -- "$scandisk" || return 1
   return 0
 }
 
@@ -744,6 +1502,91 @@ stageWin9xFinalAutoexec() {
   return 0
 }
 
+stageWin9xSharedShortcut() {
+
+  local dir="$1"
+  local desc="$2"
+  local share="$3"
+  local target="$dir/Shared.lnk"
+
+  # Use the native network PIDL layout from a Shell-generated Windows 98 link.
+  # Keep that known-good structure byte-for-byte for the normal host.lan target,
+  # and resize only its server/share PIDL items when Win95 needs the NetBIOS name.
+  if ! python3 - "$target" "$share" <<'PY'
+from pathlib import Path
+import hashlib
+import struct
+import sys
+
+target = Path(sys.argv[1])
+share = sys.argv[2].encode('ascii')
+
+template = bytes.fromhex(
+    '4c0000000114020000000000c000000000000046410000001000000000000000'
+    '0000000000000000000000000000000000000000000000000300000000000000'
+    '0000000000000000000000003b0014001f2d602c8d20ea3a6910a2d708002b30'
+    '309d10004000005c5c686f73742e6c616e001500c000005c5c686f73742e6c61'
+    '6e5c446174610000001d00433a5c57494e444f57535c53595354454d5c534845'
+    '4c4c33322e444c4c00000000'
+)
+
+if len(template) != 172:
+    raise SystemExit('Native Shared link template size verification failed.')
+if hashlib.sha256(template).hexdigest() != '5e5bbcc3e32b1dea7a7a742dc648f85d9aca801b874d60066899d770aa7700a5':
+    raise SystemExit('Native Shared link template hash verification failed.')
+if not share.startswith(b'\\\\'):
+    raise SystemExit('Shared link target is not a UNC path.')
+
+server, separator, name = share[2:].partition(b'\\')
+if not server or not separator or not name or b'\\' in name:
+    raise SystemExit('Shared link target must contain one server and one share name.')
+
+# The working Win98 link contains a 20-byte Network Neighborhood root PIDL,
+# followed by a server item (type 0x40) and a share item (type 0xC0).
+header = template[:76]
+old_id_size = struct.unpack_from('<H', template, 76)[0]
+old_id_list = template[78:78 + old_id_size]
+root_size = struct.unpack_from('<H', old_id_list, 0)[0]
+root_item = old_id_list[:root_size]
+tail = template[78 + old_id_size:]
+
+if root_size != 20 or root_item != bytes.fromhex('14001f2d602c8d20ea3a6910a2d708002b30309d'):
+    raise SystemExit('Native Shared link root PIDL verification failed.')
+
+server_name = b'\\\\' + server + b'\0'
+share_name = share + b'\0'
+server_item = struct.pack('<H', 5 + len(server_name)) + b'\x40\x00\x00' + server_name
+share_item = struct.pack('<H', 5 + len(share_name)) + b'\xc0\x00\x00' + share_name
+id_list = root_item + server_item + share_item + b'\x00\x00'
+link = header + struct.pack('<H', len(id_list)) + id_list + tail
+
+# Rebuilding the normal Win98/Me target must reproduce the extracted working
+# shortcut exactly; Win95 changes only the two variable PIDL strings and sizes.
+if share == b'\\\\host.lan\\Data' and link != template:
+    raise SystemExit('Native Shared link template reproduction failed.')
+
+target.write_bytes(link)
+data = target.read_bytes()
+
+if data != link:
+    raise SystemExit('Shared link write verification failed.')
+if struct.unpack_from('<I', data, 20)[0] != 0x00000041:
+    raise SystemExit('Shared link flags verification failed.')
+if struct.unpack_from('<H', data, 76)[0] != len(id_list):
+    raise SystemExit('Shared link PIDL size verification failed.')
+if server_name not in data or share_name not in data:
+    raise SystemExit('Shared link UNC target verification failed.')
+if b'C:\\WINDOWS\\SYSTEM\\SHELL32.DLL' not in data:
+    raise SystemExit('Shared link icon verification failed.')
+PY
+  then
+    error "Failed to create the Shared desktop shortcut for $desc!"
+    return 1
+  fi
+
+  return 0
+}
+
 writeWin9xAutoexec() {
 
   local output="$1"
@@ -755,8 +1598,13 @@ writeWin9xAutoexec() {
   [[ "${id,,}" == "win9x"* ]] && patch_options="-auto"
 
   {
+    printf '%s\n' '@ECHO OFF'
+
+    if [[ "${id,,}" == "win95"* ]]; then
+      printf '%s\n' 'SET BLASTER=A220 I5 D1 T2'
+    fi
+
     printf '%s\n' \
-      '@ECHO OFF' \
       'IF EXIST C:\WINDOWS\WIN.COM GOTO WINDOWS' \
       'ECHO.' \
       'ECHO Starting Windows Setup, please wait...' \
@@ -1117,6 +1965,7 @@ writeWin9xAnswerFile() {
   local shortcut="${10}"
   local install="${11}"
   local timezone="${12}"
+  local share="${13}"
 
   local desktop="%10%\Desktop"
   local addReg="OPKInstall,Win9x.Machine,Win9x.PCMCIA,Win9x.Power,Win9x.UserDefault,Win9x.BrowserDefault,Win9x.ActiveSetup"
@@ -1125,7 +1974,7 @@ writeWin9xAnswerFile() {
   local firstLogonDelReg="Win9x.Welcome,Win9x.MSN,Win9x.ICWDesktop"
   local firstLogonDelFiles="Win9x.PatcherMarker,Win9x.Connect,Win9x.ConnectAll,Win9x.OnlineServices"
   local firstLogonUpdateInis="Win9x.OnlineServicesFolder"
-  local copyFiles="" post="" hide=""
+  local copyFiles="" post="" hide="" installDelReg=""
   local culture region keyboard localeID keyboardID
 
   if [[ "${id,,}" == "win9x"* ]]; then
@@ -1141,6 +1990,13 @@ writeWin9xAnswerFile() {
 
   addReg+=",Win9x.Shutdown"
 
+  if [[ "${id,,}" == "win95"* ]]; then
+    addReg+=",Win95.DisplayMode,Win95.PCINIC,Win95.Welcome"
+    firstLogonAddReg+=",Win95.SuspendMenu,Win95.InternetIcon"
+    firstLogonUpdateInis=""
+    installDelReg="Win95.InitShell,Win9x.Welcome"
+  fi
+
   culture=$(getLanguage "$LANGUAGE" "culture") || return 1
   [ -z "$culture" ] && culture="en-US"
   region="${REGION:-$culture}"
@@ -1152,7 +2008,7 @@ writeWin9xAnswerFile() {
     copyFiles+=",Win9x.Password"
   fi
 
-  if [ -n "$install" ] || [[ "${id,,}" == "win9x"* ]]; then
+  if [ -n "$install" ] || [[ "${id,,}" == "win95"* || "${id,,}" == "win9x"* ]]; then
     post="Y"
     copyFiles+=",Win9x.Post"
   fi
@@ -1161,9 +2017,13 @@ writeWin9xAnswerFile() {
     copyFiles+=",WinMe.Final,WinMe.Power,WinMe.Wait"
   fi
 
-  if enabled "$shortcut" || [ -n "$install" ] || [[ "${id,,}" == "win9x"* ]]; then
+  if enabled "$shortcut" || [ -n "$install" ] || [[ "${id,,}" == "win95"* || "${id,,}" == "win9x"* ]]; then
     hide="Y"
     copyFiles+=",Win9x.Hide"
+  fi
+
+  if enabled "$shortcut" && [[ "${id,,}" == "win95"* ]]; then
+    copyFiles+=",Win9x.SharedShortcut"
   fi
 
   addReg+=",OEMDrivers"
@@ -1181,15 +2041,6 @@ writeWin9xAnswerFile() {
   # phase. The temporary AUTOEXEC already checks PATCH9X.RUN, so earlier Setup
   # reboots continue exactly as before this change.
   copyFiles+=",Win9x.PatcherEnable"
-
-  # Restore the exact same final AUTOEXEC.BAT for Win95, Win98 and Me. It is
-  # intentionally last so Setup cannot leave any release-specific startup edits.
-  copyFiles+=",Win9x.Autoexec"
-
-  # Replace the stock MOUSE.DRV binary during Setup without changing its installed
-  # filename or Windows' mouse configuration. The same QEMouse binary is also
-  # used directly by the MINI.CAB GUI Setup environment.
-  copyFiles+=",Win9x.QEMouse"
 
   # Strip the leading separator left by the common CopyFiles append logic.
   copyFiles="${copyFiles#,}"
@@ -1212,8 +2063,6 @@ writeWin9xAnswerFile() {
       '' \
       '[SourceDisksFiles]' \
       'PATCH9X.NEW=22' \
-      'W9XAUTO.BAT=22' \
-      'QEMOUSE.DRV=22' \
       'WIN9XDMA.EXE=22'
 
     if [[ "${id,,}" == "win9x"* ]]; then
@@ -1231,11 +2080,19 @@ writeWin9xAnswerFile() {
       printf '%s\n' 'HIDE.EXE=22'
     fi
 
+    if enabled "$shortcut" && [[ "${id,,}" == "win95"* ]]; then
+      printf '%s\n' 'Shared.lnk=22'
+    fi
+
     if enabled "$post"; then
-      printf '%s\n' \
-        'POST9X.BAT=22' \
-        'POST9X.NEW=22' \
-        'POST9X.REG=22'
+      if [[ "${id,,}" == "win95"* ]]; then
+        printf '%s\n' 'POST9X.BAT=22'
+      else
+        printf '%s\n' \
+          'POST9X.BAT=22' \
+          'POST9X.NEW=22' \
+          'POST9X.REG=22'
+      fi
     fi
 
     printf '%s\n' \
@@ -1243,21 +2100,34 @@ writeWin9xAnswerFile() {
       '[Install]' \
       "CopyFiles=$copyFiles" \
       "UpdateInis=$updateInis" \
-      "AddReg=$addReg" \
+      "AddReg=$addReg"
+
+    if [ -n "$installDelReg" ]; then
+      printf '%s\n' "DelReg=$installDelReg"
+    fi
+
+    printf '%s\n' \
       '' \
       '[OPKInstall]' \
       'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion","ProductId",,"12345-OEM-1234567-12345"' \
       'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion","ProductKey",,"CDKey"' \
       "HKLM,\"SOFTWARE\Microsoft\Windows\CurrentVersion\",\"RegisteredOwner\",,\"$batchUsername\"" \
-      "HKLM,\"SOFTWARE\Microsoft\Windows\CurrentVersion\",\"RegisteredOrganization\",,\"$batchOrganization\"" \
-      "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce\",\"Win9xSetup\",,\"%25%\\rundll.exe setupx.dll,InstallHinfSection Win9x.FirstLogon 4 %10%\\msbatch.inf\""
+      "HKLM,\"SOFTWARE\Microsoft\Windows\CurrentVersion\",\"RegisteredOrganization\",,\"$batchOrganization\""
+
+    if [[ "${id,,}" == "win95"* ]] && enabled "$post"; then
+      printf '%s\n' \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","Win9xSetup",,"C:\WINDOWS\HIDE.EXE C:\WINDOWS\COMMAND.COM /C C:\WINDOWS\POST9X.BAT"'
+    else
+      printf '%s\n' \
+        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","Win9xSetup",,"%25%\rundll.exe setupx.dll,InstallHinfSection Win9x.FirstLogon 4 %10%\msbatch.inf"'
+    fi
 
     if enabled "$shortcut"; then
       printf '%s\n' \
-        'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","SharedDrive",,"C:\WINDOWS\HIDE.EXE C:\WINDOWS\NET.EXE USE Z: \\host.lan\Data"'
+        "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\",\"SharedDrive\",,\"C:\\WINDOWS\\HIDE.EXE C:\\WINDOWS\\NET.EXE USE Z: $share\""
     fi
 
-    if enabled "$post"; then
+    if enabled "$post" && [[ "${id,,}" != "win95"* ]]; then
       printf '%s\n' \
         'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\Run","PostSetup",,"C:\WINDOWS\HIDE.EXE C:\WINDOWS\COMMAND.COM /C C:\WINDOWS\POST9X.BAT"'
     fi
@@ -1281,6 +2151,23 @@ writeWin9xAnswerFile() {
       '' \
       '[OEMDrivers]' \
       "HKLM,\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\",\"OtherDevicePath\",,\"C:\\WINDOWS\\INF\\OTHER;C:\\$setup\""
+
+    if [[ "${id,,}" == "win95"* ]]; then
+      printf '%s\n' \
+        '' \
+        '[Win95.DisplayMode]' \
+        'HKLM,"Config\0001\Display\Settings","BitsPerPixel",,"16"' \
+        "HKLM,\"Config\\0001\\Display\\Settings\",\"Resolution\",,\"$WIDTH,$HEIGHT\"" \
+        '' \
+        '[Win95.PCINIC]' \
+        'HKLM,"System\CurrentControlSet\Services\Class\Net\0000","DisableWarning",,"1"' \
+        '' \
+        '[Win95.SuspendMenu]' \
+        'HKLM,"Enum\Root\*PNP0C05\0000","APMMenuSuspend",1,00' \
+        '' \
+        '[Win95.InternetIcon]' \
+        'HKCR,"CLSID\{FBF23B42-E3F0-101B-8488-00AA003E56F8}\Shell\Open\Command",,,"""C:\Program Files\Internet Explorer\IEXPLORE.EXE"""'
+    fi
 
     if [[ "${id,,}" == "win9x"* ]]; then
       printf '%s\n' \
@@ -1312,17 +2199,22 @@ writeWin9xAnswerFile() {
       printf '%s\n' "DelFiles=$firstLogonDelFiles"
     fi
 
-    if [[ "${id,,}" == "win95"* || "${id,,}" == "win98"* ]]; then
+    if [[ "${id,,}" == "win98"* ]]; then
       [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
       firstLogonUpdateInis+="Win9x.PatcherCleanup"
     fi
 
-    if enabled "$post"; then
+    if [[ "${id,,}" != "win95"* ]]; then
+      [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
+      firstLogonUpdateInis+="Win9x.AutoexecFinal"
+    fi
+
+    if enabled "$post" && [[ "${id,,}" != "win95"* ]]; then
       [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
       firstLogonUpdateInis+="Win9x.PostMarker"
     fi
 
-    if enabled "$shortcut"; then
+    if enabled "$shortcut" && [[ "${id,,}" != "win95"* ]]; then
       [ -n "$firstLogonUpdateInis" ] && firstLogonUpdateInis+=","
       firstLogonUpdateInis+="Win9x.Shortcut"
     fi
@@ -1378,11 +2270,8 @@ writeWin9xAnswerFile() {
       '[Win9x.PatcherMarker]' \
       'PATCH9X.RUN' \
       '' \
-      '[Win9x.Autoexec]' \
-      'AUTOEXEC.BAT,W9XAUTO.BAT,,4' \
-      '' \
-      '[Win9x.QEMouse]' \
-      'MOUSE.DRV,QEMOUSE.DRV,,4'
+      '[Win9x.AutoexecFinal]' \
+      '%10%\wininit.ini,Rename,,"C:\AUTOEXEC.BAT=C:\SETUP\W9XAUTO.BAT"'
 
     if ! disabled "$AUTOLOGIN"; then
       printf '%s\n' \
@@ -1406,27 +2295,34 @@ writeWin9xAnswerFile() {
     fi
 
     if enabled "$post"; then
-      printf '%s\n' \
-        '' \
-        '[Win9x.Post]' \
-        'POST9X.BAT' \
-        'POST9X.NEW' \
-        'POST9X.REG' \
-        '' \
-        '[Win9x.PostMarker]' \
-        '%10%\wininit.ini,Rename,,"C:\WINDOWS\POST9X.RDY=C:\WINDOWS\POST9X.NEW"'
+      if [[ "${id,,}" == "win95"* ]]; then
+        printf '%s\n' \
+          '' \
+          '[Win9x.Post]' \
+          'POST9X.BAT'
+      else
+        printf '%s\n' \
+          '' \
+          '[Win9x.Post]' \
+          'POST9X.BAT' \
+          'POST9X.NEW' \
+          'POST9X.REG' \
+          '' \
+          '[Win9x.PostMarker]' \
+          '%10%\wininit.ini,Rename,,"C:\WINDOWS\POST9X.RDY=C:\WINDOWS\POST9X.NEW"'
+      fi
     fi
 
     printf '%s\n' \
       '' \
       '[Win9x.DMA]' \
-      'WIN9XDMA.EXE' \
+      'WIN9XDMA.EXE'
+
+    printf '%s\n' \
       '' \
       '[DestinationDirs]' \
       'Win9x.PatcherEnable=30,SETUP' \
       'Win9x.PatcherMarker=30,SETUP' \
-      'Win9x.Autoexec=30' \
-      'Win9x.QEMouse=11' \
       'Win9x.Connect=10,Desktop' \
       'Win9x.ConnectAll=10,alluse~1\desktop' \
       'Win9x.OnlineServices=10,Desktop\Online~1'
@@ -1444,6 +2340,10 @@ writeWin9xAnswerFile() {
       printf '%s\n' 'Win9x.Hide=10'
     fi
 
+    if enabled "$shortcut" && [[ "${id,,}" == "win95"* ]]; then
+      printf '%s\n' 'Win9x.SharedShortcut=10,Desktop'
+    fi
+
     if ! disabled "$AUTOLOGIN"; then
       printf '%s\n' 'Win9x.Password=10'
     fi
@@ -1455,11 +2355,18 @@ writeWin9xAnswerFile() {
     printf '%s\n' 'Win9x.DMA=10'
 
     if enabled "$shortcut"; then
-      printf '%s\n' \
-        '' \
-        '[Win9x.Shortcut]' \
-        "setup.ini, progman.groups,, \"group1=\"\"$desktop\"\"\"" \
-        'setup.ini, group1,,"""Shared"",""\\host.lan\Data"",""%11%\SHELL32.DLL"",3,,,""Shared folder"""'
+      if [[ "${id,,}" == "win95"* ]]; then
+        printf '%s\n' \
+          '' \
+          '[Win9x.SharedShortcut]' \
+          'Shared.lnk'
+      else
+        printf '%s\n' \
+          '' \
+          '[Win9x.Shortcut]' \
+          "setup.ini, progman.groups,, \"group1=\"\"$desktop\"\"\"" \
+          "setup.ini, group1,,\"\"\"Shared\"\",\"\"$share\"\",\"\"%11%\\SHELL32.DLL\"\",3,,,\"\"Shared folder\"\"\""
+      fi
     fi
 
     printf '%s\n' \
@@ -1535,8 +2442,18 @@ writeWin9xAnswerFile() {
       "ComputerName=\"$batchHost\"" \
       "Workgroup=\"$batchWorkgroup\"" \
       'PrimaryLogon=Windows' \
+      'DefaultProtocol=MSTCP' \
       'Clients=VREDIR' \
-      'Protocols=MSTCP' \
+      'Protocols=MSTCP'
+
+    if [[ "${id,,}" == "win95"* ]]; then
+      printf '%s\n' \
+        'NetCards=PCI\VEN_1022&DEV_2000' \
+        'IgnoreDetectedNetCards=1' \
+        'ValidateNetCardResources=0'
+    fi
+
+    printf '%s\n' \
       'Display=0' \
       '' \
       '[MSTCP]' \
@@ -1545,6 +2462,10 @@ writeWin9xAnswerFile() {
       '[VREDIR]' \
       'ValidatedLogon=0' \
       ''
+
+    if [[ "${id,,}" == "win95"* ]]; then
+      printf '%s\n' '[Printers]'
+    fi
   } | unix2dos > "$target/MSBATCH.INF" || return 1
 
   return 0
@@ -1632,7 +2553,11 @@ writeWin9xBrowserPowerRegistry() {
     'HKU,".DEFAULT\Control Panel\PowerCfg\PowerPolicies\3","Policies",0x00000001,01,00,00,00,02,00,00,00,01,00,00,00,00,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,04,00,00,00,05,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,01,64,64,64,64,00,00' \
     '' \
     '[Win9x.BrowserDefault]' \
-    'HKU,".DEFAULT\Software\Microsoft\Internet Connection Wizard","Completed",0x00010001,1' \
+    'HKU,".DEFAULT\Software\Microsoft\Internet Connection Wizard","Completed",1,01,00,00,00' \
+    'HKU,".DEFAULT\Software\Microsoft\Internet Connection Wizard","DesktopChanged",0x00010001,1' \
+    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Internet Settings","EnableAutodial",0x00010001,0' \
+    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Internet Settings","NoNetAutodial",0x00010001,0' \
+    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Internet Settings","ProxyEnable",0x00010001,0' \
     'HKU,".DEFAULT\Software\Microsoft\Internet Explorer\Main","Start Page",,"http://www.google.com"' \
     'HKU,".DEFAULT\Software\Microsoft\Internet Explorer\Main","First Home Page",,"http://www.google.com"' \
     'HKU,".DEFAULT\Software\Microsoft\Internet Explorer\Main","Default_Page_URL",,"http://www.google.com"' \
@@ -1655,7 +2580,11 @@ writeWin9xBrowserPowerRegistry() {
     'HKCU,"Control Panel\PowerCfg\PowerPolicies\3","Policies",0x00000001,01,00,00,00,02,00,00,00,01,00,00,00,00,00,00,00,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,04,00,00,00,05,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,01,64,64,64,64,00,00' \
     '' \
     '[Win9x.BrowserUser]' \
-    'HKCU,"Software\Microsoft\Internet Connection Wizard","Completed",0x00010001,1' \
+    'HKCU,"Software\Microsoft\Internet Connection Wizard","Completed",1,01,00,00,00' \
+    'HKCU,"Software\Microsoft\Internet Connection Wizard","DesktopChanged",0x00010001,1' \
+    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Internet Settings","EnableAutodial",0x00010001,0' \
+    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Internet Settings","NoNetAutodial",0x00010001,0' \
+    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Internet Settings","ProxyEnable",0x00010001,0' \
     'HKCU,"Software\Microsoft\Internet Explorer\Main","Start Page",,"http://www.google.com"' \
     'HKCU,"Software\Microsoft\Internet Explorer\Main","First Home Page",,"http://www.google.com"' \
     'HKCU,"Software\Microsoft\Internet Explorer\Main","Default_Page_URL",,"http://www.google.com"' \
@@ -1676,6 +2605,12 @@ writeWin9xStorageRegistry() {
 writeWin9xCleanupRegistry() {
 
   printf '%s\n' \
+    '[Win95.InitShell]' \
+    'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","InitShell",,,' \
+    '' \
+    '[Win95.Welcome]' \
+    'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\Explorer\Tips","Show",1,00' \
+    '' \
     '[Win9x.Welcome]' \
     'HKLM,"Software\Microsoft\Windows\CurrentVersion\Run","Welcome",,,' \
     '' \
@@ -1695,6 +2630,8 @@ writeWin9xCleanupRegistry() {
     'HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","^SetupICWDesktop",,,' \
     'HKCU,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","^SetupICWDesktop",,,' \
     'HKU,".DEFAULT\Software\Microsoft\Windows\CurrentVersion\RunOnce","^SetupICWDesktop",,,' \
+    'HKCU,"Software\Microsoft\Internet Connection Wizard","ShellNext",,,' \
+    'HKU,".DEFAULT\Software\Microsoft\Internet Connection Wizard","ShellNext",,,' \
     '' \
     '[Win9x.Connect]' \
     'connec~1.lnk' \
@@ -2131,6 +3068,7 @@ createWin9xSystemImage() {
       '[Options]' \
       "BootGUI=$boot_gui" \
       'BootDelay=0' \
+      'AutoScan=2' \
       'Logo=0' \
       ''
   } | unix2dos > "$msdos" || return 1

@@ -10,6 +10,9 @@ SIFInstall() {
   local shortcut="Y"
   local drivers="/tmp/drivers"
 
+  local msg="Preparing $desc installation..."
+  info "$msg" && html "$msg"
+
   if disabled "$SHORTCUT" || disabled "${SAMBA:-Y}"; then
     shortcut="N"
   fi
@@ -69,8 +72,8 @@ SIFInstall() {
 
   oem=$(writeCommand "$install") || return 1
 
-  [ -z "$WIDTH" ] && WIDTH="1280"
-  [ -z "$HEIGHT" ] && HEIGHT="720"
+  [ -z "$WIDTH" ] && WIDTH="1024"
+  [ -z "$HEIGHT" ] && HEIGHT="768"
 
   validateResolution "WIDTH" "$WIDTH" 320 || return 1
   validateResolution "HEIGHT" "$HEIGHT" 200 || return 1
@@ -551,7 +554,7 @@ writeSIF() {
       '    AutoPartition=1' \
       '    MsDosInitiated="0"' \
       '    UnattendedInstall="Yes"' \
-      '    AutomaticUpdates="Yes"' \
+      '    AutomaticUpdates="No"' \
       '' \
       '[Unattended]' \
       '    UnattendSwitch=Yes' \
@@ -658,6 +661,9 @@ writeRegistry() {
       '[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\wscsvc]' \
       '"Start"=dword:00000004' \
       '' \
+      '[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU]' \
+      '"NoAutoUpdate"=dword:00000001' \
+      '' \
       '[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\StandardProfile\GloballyOpenPorts\List]' \
       '"3389:TCP"="3389:TCP:*:Enabled:@xpsp2res.dll,-22009"' \
       '' \
@@ -712,6 +718,7 @@ appendRegistry() {
         '[HKEY_CURRENT_USER\Control Panel\Desktop]' \
         '"SCRNSAVE.EXE"="off"' \
         '"ScreenSaveActive"="0"' \
+        '"DragFullWindows"="1"' \
         '"MenuShowDelay"="100"' \
         '' \
         '[HKEY_CURRENT_USER\Control Panel\Desktop\WindowMetrics]' \
@@ -733,6 +740,12 @@ appendRegistry() {
   if [[ "$driver" == "2k" ]]; then
     {
       printf '%s\n' \
+        '[HKEY_CURRENT_USER\Control Panel\PowerCfg]' \
+        '"CurrentPowerPolicy"="3"' \
+        '' \
+        '[HKEY_CURRENT_USER\Control Panel\PowerCfg\PowerPolicies\3]' \
+        '"Policies"=hex:01,00,00,00,00,00,00,00,01,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,04,00,00,00,04,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,01,64,64,64,64,00,00' \
+        '' \
         '[HKEY_USERS\.DEFAULT\Software\Microsoft\Windows\CurrentVersion\Runonce]' \
         '"^SetupICWDesktop"=-' ''
     } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
@@ -857,15 +870,16 @@ writeVBS() {
         'Set FSO = WScript.CreateObject("Scripting.FileSystemObject")' \
         'PowerCfg = Shell.ExpandEnvironmentStrings("%SystemRoot%\System32\POWERCFG.EXE")' \
         '' \
+        'Shell.RegWrite "HKCU\Control Panel\Desktop\SCRNSAVE.EXE", "off", "REG_SZ"' \
+        'Shell.RegWrite "HKCU\Control Panel\Desktop\ScreenSaveActive", "0", "REG_SZ"' \
+        '' \
         'If FSO.FileExists(PowerCfg) Then' \
-        '  Err.Clear' \
-        '  Policy = Shell.RegRead("HKCU\Control Panel\PowerCfg\CurrentPowerPolicy")' \
-        '  If Err.Number = 0 Then' \
-        '    Cmd = Chr(34) & PowerCfg & Chr(34) & " /CHANGE " & Policy & " /NUMERICAL "' \
-        '    For Each Setting In Array("/monitor-timeout-ac", "/monitor-timeout-dc", "/disk-timeout-ac", "/disk-timeout-dc", "/standby-timeout-ac", "/standby-timeout-dc")' \
-        '      Shell.Run Cmd & Setting & " 0", 0, True' \
-        '    Next' \
-        '  End If' \
+        '  Policy = 3' \
+        '  Cmd = Chr(34) & PowerCfg & Chr(34) & " /CHANGE " & Policy & " /NUMERICAL "' \
+        '  For Each Setting In Array("/monitor-timeout-ac", "/monitor-timeout-dc", "/disk-timeout-ac", "/disk-timeout-dc", "/standby-timeout-ac", "/standby-timeout-dc")' \
+        '    Shell.Run Cmd & Setting & " 0", 0, True' \
+        '  Next' \
+        '  Shell.Run Chr(34) & PowerCfg & Chr(34) & " /SETACTIVE 3 /NUMERICAL", 0, True' \
         'End If' \
         ''
     } | unix2dos > "$power" || return 1

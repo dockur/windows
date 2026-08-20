@@ -15,7 +15,6 @@ setMachine() {
       return 1
     fi
 
-    writeState "vga" "std" || return 1
     writeState "mode" "windows_legacy" || return 1
 
     case "${id,,}" in
@@ -23,25 +22,27 @@ setMachine() {
       "win9"* | "winnt4" | "win2k"* | "reactos" )
 
         writeState "old" "pc" || return 1
-        writeState "type" "auto" || return 1
+        writeState "type" "auto" || return 1 ;;
 
     esac
 
     case "${id,,}" in
 
-      "win95" | "winnt4" )
+      "winnt4" | "win2k"* )
+        writeState "vga" "cirrus" || return 1 ;;
+
+      *) writeState "vga" "std" || return 1 ;;
+
+    esac
+
+    case "${id,,}" in
+
+      "win9"* | "winnt4" )
 
         writeState "usb" "N" || return 1
         writeState "port" "on" || return 1
         writeState "net" "pcnet" || return 1
-        writeState "sound" "sb16" || return 1 ;;
-
-      "win98" | "win9x" )
-
-        writeState "port" "on" || return 1
-        writeState "net" "pcnet" || return 1
-        writeState "sound" "sb16" || return 1
-        writeState "usb" "pci-ohci" || return 1 ;;
+        writeState "sound" "AC97" || return 1 ;;
 
       "win2k"* )
 
@@ -63,13 +64,23 @@ setMachine() {
 
         if isReactOSLiveCD "$iso"; then
           SYSTEM="$iso"
+          createMarker "kill" || return 1
         fi ;;
 
     esac
   fi
 
-  restoreBootMode || return 1
   restoreMachine || return 1
+  restoreBootMode || return 1
+
+  case "${id,,}" in
+
+    "win95" | "winnt4" )
+
+      # Windows 95 does not support ACPI so disable graceful shutdown
+      createMarker "kill" || return 1 ;;
+
+  esac
 
   case "${id,,}" in
 
@@ -134,6 +145,10 @@ restoreMachineState() {
   restoreState "VMPORT" "port" || return 1
   restoreState "CPU_MODEL" "cpu" || return 1
   restoreState "DISK_TYPE" "type" || return 1
+
+  if [ -z "${BIOS:-}" ] && [ -s "$(stateFile "bios")" ]; then
+    BIOS="$(stateFile "bios")"
+  fi
 
   mergeState "CPU_FLAGS" "flag" "," || return 1
   mergeState "ARGUMENTS" "args" " " || return 1

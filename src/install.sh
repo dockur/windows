@@ -388,7 +388,7 @@ finishInstall() {
   local aborted="$2"
   local boot="$3"
 
-  local base secure=0
+  local base file bios target
 
   if ! hasImage "$iso"; then
     error "Failed to find ISO file: $iso" && return 1
@@ -400,7 +400,7 @@ finishInstall() {
     fi
   fi
 
-  local file="$STORAGE/windows.ver"
+  file="$(stateFile "ver")"
   cp -f /etc/version "$file" || {
     error "Failed to save the Windows installation version!"
     return 1
@@ -435,17 +435,16 @@ finishInstall() {
       # Aborted Win11 installs boot without any answer file present,
       # so enable Secure Boot and TPM to satisfy its hardware checks.
       if enabled "$aborted" || enabled "$MANUAL"; then
-        [[ "${DETECTED,,}" == "win11"* ]] && secure=1
-      fi
 
-      if (( secure )); then
+        if [[ "${DETECTED,,}" == "win11"* ]]; then
 
-        BOOT_MODE="windows_secure"
-        writeState "mode" "$BOOT_MODE" || {
-          error "Failed to save the Windows boot mode!"
-          return 1
-        }
+          BOOT_MODE="windows_secure"
+          writeState "mode" "$BOOT_MODE" || {
+            error "Failed to save the Windows boot mode!"
+            return 1
+          }
 
+        fi
       fi
 
     fi
@@ -460,12 +459,12 @@ finishInstall() {
 
     if [[ "$SYSTEM" == "$TMP/"* ]]; then
 
-      if ! mv -f -- "$SYSTEM" "$STORAGE/windows.img"; then
+      if ! mv -f -- "$SYSTEM" "$(stateFile "img")"; then
         error "Failed to finalize the Windows system image!"
         return 1
       fi
 
-      BOOT="$STORAGE/windows.img"
+      BOOT="$(stateFile "img")"
 
     else
 
@@ -481,6 +480,36 @@ finishInstall() {
 
       BOOT="$SYSTEM"
     fi
+
+    if ! setOwner "$BOOT"; then
+      warn "failed to set the owner for \"$BOOT\" !"
+    fi
+
+  fi
+
+  if [ -n "${BIOS:-}" ]; then
+
+    bios="$(stateFile "bios")"
+    target="${bios}.tmp"
+
+    if ! cp -f -- "$BIOS" "$target"; then
+      rm -f -- "$target"
+      error "Failed to copy the BIOS file!"
+      return 1
+    fi
+
+    if ! mv -f -- "$target" "$bios"; then
+      rm -f -- "$target"
+      error "Failed to finalize the BIOS file!"
+      return 1
+    fi
+
+    BIOS="$bios"
+
+    if ! setOwner "$BIOS"; then
+      warn "failed to set the owner for \"$BIOS\" !"
+    fi
+
   fi
 
   if ! rm -rf -- "$TMP"; then
@@ -964,9 +993,33 @@ isLegacyBoot() {
   [[ "${BOOT_MODE,,}" == "windows_legacy" ]]
 }
 
+hasMarker() {
+
+  [ -f "$(stateFile "$1")" ]
+}
+
 hasBootMarker() {
 
-  [ -f "$STORAGE/windows.boot" ]
+  [ -f "$(stateFile "boot")" ]
+}
+
+createMarker() {
+
+  local marker
+  marker="$(stateFile "$1")"
+
+  if ! touch "$marker"; then
+    warn "failed to create marker \"$marker\" !"
+    return 1
+  fi
+
+  if ! setOwner "$marker"; then
+    rm -f "$marker"
+    warn "failed to set the owner for \"$marker\" !"
+    return 1
+  fi
+
+  return 0
 }
 
 hasImage() {
@@ -991,7 +1044,7 @@ getSystemImage() {
     return 0
   fi
 
-  image="$STORAGE/windows.img"
+  image="$(stateFile "img")"
   hasImage "$image" || return 1
 
   echo "$image"
