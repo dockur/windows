@@ -715,6 +715,7 @@ appendRegistry() {
         '[HKEY_CURRENT_USER\Control Panel\Desktop]' \
         '"SCRNSAVE.EXE"="off"' \
         '"ScreenSaveActive"="0"' \
+        '"DragFullWindows"="1"' \
         '"MenuShowDelay"="100"' \
         '' \
         '[HKEY_CURRENT_USER\Control Panel\Desktop\WindowMetrics]' \
@@ -736,6 +737,12 @@ appendRegistry() {
   if [[ "$driver" == "2k" ]]; then
     {
       printf '%s\n' \
+        '[HKEY_CURRENT_USER\Control Panel\PowerCfg]' \
+        '"CurrentPowerPolicy"="3"' \
+        '' \
+        '[HKEY_CURRENT_USER\Control Panel\PowerCfg\PowerPolicies\3]' \
+        '"Policies"=hex:01,00,00,00,00,00,00,00,01,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,04,00,00,00,04,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,01,64,64,64,64,00,00' \
+        '' \
         '[HKEY_USERS\.DEFAULT\Software\Microsoft\Windows\CurrentVersion\Runonce]' \
         '"^SetupICWDesktop"=-' ''
     } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
