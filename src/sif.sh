@@ -42,9 +42,24 @@ SIFInstall() {
     return 1
   fi
 
-  if [[ "${driver,,}" == "xp" || "${driver,,}" == "2k3" ]]; then
-    addLegacyDrivers "$dir" "$target" "$driver" "$arch" "$drivers" || return 1
-  fi
+  case "${driver,,}" in
+    "2k" )
+      # Windows 2000 keeps its existing storage/network path, but still needs
+      # the QBochs display package staged for Plug and Play setup.
+      extractDrivers "$drivers" || return 1
+
+      if ! addDisplayDriver "$dir" "$driver" "$arch" "$drivers"; then
+        rm -rf "$drivers" || :
+        return 1
+      fi
+
+      if ! rm -rf "$drivers"; then
+        warn "failed to clean temporary driver files!"
+      fi ;;
+
+    "xp" | "2k3" )
+      addLegacyDrivers "$dir" "$target" "$driver" "$arch" "$drivers" || return 1 ;;
+  esac
 
   disableAutoReboot "$target" || return 1
   setLegacyKey "$target" "$driver" "$arch" "$desc" || return 1
@@ -231,30 +246,31 @@ addDisplayDriver() {
   local arch="$3"
   local drivers="$4"
 
-  local source="$drivers/qxl/$driver/$arch"
-  local destination="$dir/\$OEM\$/\$1/Drivers/QXL"
+  local qbochs_arch="$arch"
+  [[ "${qbochs_arch,,}" == "amd64" ]] && qbochs_arch="x64"
 
-  # The legacy QXL package is named for XP but its x86 INF targets XP and
-  # later NT x86 releases, so it is also suitable to keep around for 2003 x86.
-  if [ ! -d "$source" ] && [[ "${arch,,}" == "x86" ]]; then
-    source="$drivers/qxl/xp/x86"
+  local source="$drivers/qbochs/$driver/$qbochs_arch"
+  local destination="$dir/\$OEM\$/\$1/Drivers/QBochs"
+
+  if [ ! -d "$source" ]; then
+    error "Failed to locate required QBochs display driver directory: $source"
+    return 1
   fi
-
-  [ -d "$source" ] || return 0
 
   local file
 
-  for file in qxl.cat qxl.inf qxl.sys qxldd.dll; do
+  for file in qbochs.inf qbochs.sys; do
 
     if [ ! -f "$source/$file" ]; then
-      error "Failed to locate required QXL display driver file: $file"
+      error "Failed to locate required QBochs display driver file: $file"
       return 1
     fi
 
   done
 
   mkdir -p "$destination" || return 1
-  cp -Lr "$source/." "$destination" || return 1
+  cp -L "$source/qbochs.inf" "$destination/qbochs.inf" || return 1
+  cp -L "$source/qbochs.sys" "$destination/qbochs.sys" || return 1
 
   return 0
 }
@@ -565,7 +581,7 @@ writeSIF() {
       '    WaitForReboot="No"' \
       '    DriverSigningPolicy="Ignore"' \
       '    NonDriverSigningPolicy="Ignore"' \
-      '    OemPnPDriversPath="Drivers\viostor;Drivers\NetKVM;Drivers\sata;Drivers\QXL;Drivers\Balloon"' \
+      '    OemPnPDriversPath="Drivers\viostor;Drivers\NetKVM;Drivers\sata;Drivers\QBochs;Drivers\Balloon"' \
       '    NoWaitAfterTextMode=1' \
       '    NoWaitAfterGUIMode=1' \
       '    FileSystem=ConvertNTFS' \
