@@ -43,6 +43,7 @@ SIFInstall() {
   fi
 
   case "${driver,,}" in
+
     "2k" )
       # Windows 2000 keeps its existing storage/network path, but still needs
       # the QBochs display package staged for Plug and Play setup.
@@ -57,8 +58,18 @@ SIFInstall() {
         warn "failed to clean temporary driver files!"
       fi ;;
 
-    "xp" | "2k3" )
+    "xp" )
+
       addLegacyDrivers "$dir" "$target" "$driver" "$arch" "$drivers" || return 1 ;;
+
+    "2k3" )
+
+      if [[ "${arch,,}" == "x86" ]]; then
+        error "The 32-bit version of $desc is not supported!" && return 1
+      fi
+  
+      addLegacyDrivers "$dir" "$target" "$driver" "$arch" "$drivers" || return 1 ;;
+  
   esac
 
   disableAutoReboot "$target" || return 1
