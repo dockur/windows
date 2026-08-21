@@ -2420,8 +2420,7 @@ writeWin9xAnswerFile() {
     printf '%s\n' \
       '' \
       '[Win9x.SystemIni]' \
-      "%10%\system.ini,386Enh,,\"MaxPhysPage=$phys\"" \
-      '%10%\system.ini,vcache,,"MaxFileCache=65536"'
+      "%10%\system.ini,386Enh,,\"MaxPhysPage=$phys\""
 
     if ! disabled "$AUTOLOGIN"; then
       printf '%s\n' '%10%\system.ini,"Password Lists",,"DOCKER=C:\WINDOWS\DOCKER.PWL"'
