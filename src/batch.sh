@@ -609,22 +609,8 @@ patchWin9xLooseSetupFiles() {
   local desc="$3"
   local patcher="$4"
   local patches="tlb,speed,mem,g4resfix"
-  local name file
-  local patch_output
-  local -a files=()
-  local -a names=(
-    VMM32.VXD
-    VMM.VXD
-    NTKERN.VXD
-    IOS.VXD
-    ESDI_506.PDR
-    SCSIPORT.PDR
-    NDIS.VXD
-    NDIS.386
-    VCACHE.VXD
-    WIN.COM
-    WIN.CNF
-  )
+  local name file patch_output
+  local -a list=()
 
   [[ "${id,,}" == "win9x"* ]] && patches="default"
 
@@ -632,14 +618,27 @@ patchWin9xLooseSetupFiles() {
   # Setup gives loose files in the setup directory precedence over CAB copies.
   # Patch every loose file Patcher9x documents as a possible replacement so a
   # media-specific override cannot bypass the already-patched cabinet version.
-  for name in "${names[@]}"; do
+  for name in \
+    VMM32.VXD \
+    VMM.VXD \
+    NTKERN.VXD \
+    IOS.VXD \
+    ESDI_506.PDR \
+    SCSIPORT.PDR \
+    NDIS.VXD \
+    NDIS.386 \
+    VCACHE.VXD \
+    WIN.COM \
+    WIN.CNF; do
+
     file=$(find "$target" -maxdepth 1 -type f -iname "$name" -print -quit) || return 1
-    [ -n "$file" ] && files+=("$file")
+    [ -n "$file" ] && list+=("$file")
+
   done
 
-  (( ${#files[@]} == 0 )) && return 0
+  (( ${#list[@]} == 0 )) && return 0
 
-  if ! patch_output=$("$patcher" --patch "$patches" "${files[@]}" 2>&1); then
+  if ! patch_output=$("$patcher" --patch "$patches" "${list[@]}" 2>&1); then
     [ -z "$patch_output" ] || printf '%s\n' "$patch_output" >&2
     error "Failed to patch loose $desc setup files!"
     return 1
@@ -2024,6 +2023,9 @@ writeWin9xAnswerFile() {
   local firstLogonUpdateInis="Win9x.OnlineServicesFolder"
   local copyFiles="" post="" hide="" installDelReg=""
   local culture region keyboard localeID keyboardID
+  local phys="100000"
+
+  [[ "${id,,}" == "win95"* ]] && phys="40000"
 
   if [[ "${id,,}" == "win9x"* ]]; then
     addReg="${addReg%,Win9x.ActiveSetup},WinMe.ActiveSetup"
@@ -2420,7 +2422,7 @@ writeWin9xAnswerFile() {
     printf '%s\n' \
       '' \
       '[Win9x.SystemIni]' \
-      '%10%\system.ini,386Enh,,"MaxPhysPage=100000"' \
+      "%10%\system.ini,386Enh,,\"MaxPhysPage=$phys\"" \
       '%10%\system.ini,vcache,,"MaxFileCache=65536"'
 
     if ! disabled "$AUTOLOGIN"; then
@@ -2430,7 +2432,7 @@ writeWin9xAnswerFile() {
     printf '%s\n' \
       '' \
       '[Win9x.SystemCb]' \
-      '%10%\system.cb,386Enh,,"MaxPhysPage=100000"' \
+      "%10%\system.cb,386Enh,,\"MaxPhysPage=$phys\"" \
       '' \
       '[Setup]' \
       'Express=1' \
