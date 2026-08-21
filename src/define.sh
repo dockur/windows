@@ -36,8 +36,6 @@ USERNAME=$(strip "$USERNAME")
 DOMAIN_OU=$(strip "$DOMAIN_OU")
 WORKGROUP=$(strip "$WORKGROUP")
 
-MIRRORS=6
-
 parseVersion() {
 
   DETECTED=""
@@ -129,6 +127,8 @@ parseVersion() {
     "reactos" | "react os" )
       VERSION="reactos" ;;
   esac
+
+  initMirrors 6 || return 1
 
   return 0
 }
@@ -1670,16 +1670,39 @@ getLink6() {
   return 0
 }
 
+initMirrors() {
+
+  MIRRORS="$1"
+  MIRROR_ORDER=()
+
+  local i
+  for ((i=1;i<MIRRORS;i++)); do
+    MIRROR_ORDER+=("$i")
+  done
+
+  for ((i=${#MIRROR_ORDER[@]}-1;i>0;i--)); do
+    local j=$((RANDOM % (i + 1)))
+    local tmp="${MIRROR_ORDER[i]}"
+    MIRROR_ORDER[i]="${MIRROR_ORDER[j]}"
+    MIRROR_ORDER[j]="$tmp"
+  done
+
+  MIRROR_ORDER+=("$MIRRORS")
+  return 0
+}
+
 getValue() {
 
+  local index="$1"
   local id="$2"
   local lang="$3"
   local type="$4"
-  local func="getLink$1"
 
   local val=""
 
-  if [ "$1" -gt 0 ] && [ "$1" -le "$MIRRORS" ]; then
+  if [ "$index" -gt 0 ] && [ "$index" -le "$MIRRORS" ]; then
+    local mirror="${MIRROR_ORDER[$((index - 1))]}"
+    local func="getLink$mirror"
     val=$($func "$id" "$lang" "$type")
   fi
 
