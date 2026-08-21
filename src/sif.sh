@@ -184,6 +184,7 @@ addLegacyDrivers() {
   addNetworkDriver "$dir" "$driver" "$arch" "$drivers" || return 1
   addQXLDriver "$dir" "$driver" "$arch" "$drivers" || return 1
   addDisplayDriver "$dir" "$driver" "$arch" "$drivers" || return 1
+  addDisplayTrust "$target" "$driver" "$arch" "$drivers" || return 1
   addBalloonDriver "$dir" "$driver" "$arch" "$drivers" || return 1
 
   local file
@@ -323,6 +324,110 @@ addDisplayDriver() {
   for file in $files; do
     cp -L "$source/$file" "$destination/$file" || return 1
   done
+
+  return 0
+}
+
+addDisplayTrust() {
+
+  local target="$1"
+  local driver="$2"
+  local arch="$3"
+  local drivers="$4"
+
+  [[ "$driver" == "2k3" ]] || return 0
+
+  local qbochs_arch="$arch"
+  [[ "${qbochs_arch,,}" == "amd64" ]] && qbochs_arch="x64"
+
+  local cer="$drivers/qbochs/$driver/$qbochs_arch/qbochs.cer"
+
+  if [ ! -s "$cer" ]; then
+    error "Failed to locate required QBochs certificate: $cer"
+    return 1
+  fi
+
+  local hive
+  hive=$(find "$target" -maxdepth 1 -type f -iname HIVESFT.INF -print -quit) || return 1
+
+  if [ -z "$hive" ]; then
+    error "The file HIVESFT.INF could not be found!"
+    return 1
+  fi
+
+  local der
+  der=$(mktemp) || return 1
+
+  # Normalize the package certificate to DER with OpenSSL. Accept either
+  # PEM/Base64 or DER input so the ISO preparation does not depend on how the
+  # certificate was exported.
+  if ! openssl x509 -inform PEM -in "$cer" -outform DER -out "$der" 2>/dev/null; then
+    if ! openssl x509 -inform DER -in "$cer" -outform DER -out "$der" 2>/dev/null; then
+      rm -f "$der" || :
+      error "Failed to parse the QBochs certificate!"
+      return 1
+    fi
+  fi
+
+  local thumbprint
+  thumbprint=$(openssl x509 -inform DER -in "$der" -sha1 -fingerprint -noout |
+    sed -E 's/^[^=]*=//; s/://g') || {
+      rm -f "$der" || :
+      return 1
+    }
+  thumbprint="${thumbprint^^}"
+
+  if [[ ! "$thumbprint" =~ ^[0-9A-F]{40}$ ]]; then
+    rm -f "$der" || :
+    error "Failed to determine the QBochs certificate thumbprint!"
+    return 1
+  fi
+
+  local size
+  size=$(stat -c '%s' "$der") || {
+    rm -f "$der" || :
+    return 1
+  }
+
+  if (( size <= 0 )); then
+    rm -f "$der" || :
+    error "The QBochs certificate is empty!"
+    return 1
+  fi
+
+  # Windows serializes a certificate store element as the certificate element
+  # type (0x20), X.509 ASN encoding (1), the DER length, and the DER bytes.
+  # All three header fields are 32-bit little-endian values.
+  local header
+  printf -v header '20,00,00,00,01,00,00,00,%02X,%02X,%02X,%02X' \
+    $(( size & 0xFF )) \
+    $(( (size >> 8) & 0xFF )) \
+    $(( (size >> 16) & 0xFF )) \
+    $(( (size >> 24) & 0xFF ))
+
+  local body
+  body=$(od -An -v -tx1 "$der" |
+    awk 'BEGIN { sep="" }
+         { for (i = 1; i <= NF; i++) { printf "%s%s", sep, toupper($i); sep="," } }
+         END { print "" }') || {
+      rm -f "$der" || :
+      return 1
+    }
+
+  rm -f "$der" || return 1
+
+  if [ -z "$body" ]; then
+    error "Failed to encode the QBochs certificate!"
+    return 1
+  fi
+
+  local blob="$header,$body"
+  local store='SOFTWARE\Microsoft\SystemCertificates'
+
+  addSIFEntry "$hive" "AddReg" \
+    "HKLM,\"$store\\Root\\Certificates\\$thumbprint\",\"Blob\",0x00000001,$blob" || return 1
+  addSIFEntry "$hive" "AddReg" \
+    "HKLM,\"$store\\TrustedPublisher\\Certificates\\$thumbprint\",\"Blob\",0x00000001,$blob" || return 1
 
   return 0
 }
@@ -645,12 +750,6 @@ writeSIF() {
       '    OemSkipWelcome=1' \
       "    AdminPassword=\"$sifPassword\"" \
       "    TimeZone=$timezone"
-
-    if [[ "$driver" == "2k3" ]]; then
-      printf '%s\n' \
-        '    DetachedProgram="%SystemRoot%\System32\cmd.exe"' \
-        '    Arguments="/Q /C certutil.exe -f -addstore Root C:\Drivers\QBochs\qbochs.cer && certutil.exe -f -addstore TrustedPublisher C:\Drivers\QBochs\qbochs.cer"'
-    fi
 
     if disabled "$AUTOLOGIN"; then
       printf '%s\n' \
