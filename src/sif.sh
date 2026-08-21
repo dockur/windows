@@ -160,9 +160,10 @@ SIFInstall() {
     "$product" "$sifHost" "$sifUsername" "$sifPassword" "$sifOrganization" "$sifWorkgroup" \
     "$localeID" "$inputLocaleID" "$keyboardID" "$timezone" || return 1
 
-  writeRegistry "$dir" "$shortcut" "$oem" "$regUsername" "$regPassword" || return 1
+  writeRegistry "$dir" "$shortcut" "$oem" "$regUsername" "$regPassword" "$driver" || return 1
 
   appendRegistry "$dir" "$driver" || return 1
+  writeNT5Effects "$dir" || return 1
   writeVBS "$dir" "$username" "$shortcut" "$driver" || return 1
 
   return 0
@@ -748,6 +749,9 @@ writeSIF() {
   local inputLocaleID="${10}"
   local keyboardID="${11}"
   local timezone="${12}"
+  local bitsPerPel=32
+
+  [[ "$driver" == "2k3" ]] && bitsPerPel=16
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -delete || return 1
 
@@ -807,7 +811,7 @@ writeSIF() {
       "    JoinWorkgroup = \"$sifWorkgroup\"" \
       '' \
       '[Display]' \
-      '    BitsPerPel=32' \
+      "    BitsPerPel=$bitsPerPel" \
       "    XResolution=$WIDTH" \
       "    YResolution=$HEIGHT" \
       '' \
@@ -850,6 +854,10 @@ writeRegistry() {
   local oem="$3"
   local regUsername="$4"
   local regPassword="$5"
+  local driver="$6"
+  local bitsPerPelHex="00000020"
+
+  [[ "$driver" == "2k3" ]] && bitsPerPelHex="00000010"
 
   {
     printf '%s\n' \
@@ -904,12 +912,12 @@ writeRegistry() {
     printf '%s\n' \
       '' \
       '[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]' \
-      '"DefaultSettings.BitsPerPel"=dword:00000020' \
+      "\"DefaultSettings.BitsPerPel\"=dword:$bitsPerPelHex" \
       "\"DefaultSettings.XResolution\"=dword:$XHEX" \
       "\"DefaultSettings.YResolution\"=dword:$YHEX" \
       '' \
       '[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Hardware Profiles\Current\System\CurrentControlSet\Control\VIDEO\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]' \
-      '"DefaultSettings.BitsPerPel"=dword:00000020' \
+      "\"DefaultSettings.BitsPerPel\"=dword:$bitsPerPelHex" \
       "\"DefaultSettings.XResolution\"=dword:$XHEX" \
       "\"DefaultSettings.YResolution\"=dword:$YHEX" \
       '' \
@@ -933,7 +941,7 @@ appendRegistry() {
         '"SCRNSAVE.EXE"="off"' \
         '"ScreenSaveActive"="0"' \
         '"DragFullWindows"="1"' \
-        '"MenuShowDelay"="100"' \
+        '"MenuShowDelay"="0"' \
         '' \
         '[HKEY_CURRENT_USER\Control Panel\Desktop\WindowMetrics]' \
         '"MinAnimate"="0"' \
@@ -989,6 +997,34 @@ appendRegistry() {
         '"cd2chain"=dword:00000000' ''
     } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
   fi
+
+  return 0
+}
+
+writeNT5Effects() {
+
+  local dir="$1"
+  local target="$dir/\$OEM\$/effects.inf"
+
+  {
+    printf '%s\n' \
+      '[Version]' \
+      "Signature=\"\$CHICAGO\$\"" \
+      '' \
+      '[DefaultInstall]' \
+      'BitReg=DisableAnimations' \
+      '' \
+      '[DisableAnimations]' \
+      '; Fade or slide menus into view' \
+      'HKCU,"Control Panel\Desktop","UserPreferencesMask",0,0x02,0' \
+      '' \
+      '; Fade out menu items after clicking' \
+      'HKCU,"Control Panel\Desktop","UserPreferencesMask",0,0x04,1' \
+      '' \
+      '; Fade or slide ToolTips into view' \
+      'HKCU,"Control Panel\Desktop","UserPreferencesMask",0,0x08,1' \
+      ''
+  } | unix2dos > "$target" || return 1
 
   return 0
 }
@@ -1092,6 +1128,7 @@ writeVBS() {
     printf '%s\n' \
       '[COMMANDS]' \
       '"REGEDIT /s install.reg"' \
+      '"RUNDLL32.EXE setupapi.dll,InstallHinfSection DefaultInstall 128 effects.inf"' \
       '"Wscript install.vbs"' \
       ''
   } | unix2dos > "$dir/\$OEM\$/cmdlines.txt" || return 1
