@@ -39,6 +39,7 @@ setMachine() {
 
       "win9"* | "winnt4" )
 
+        writeState "hv" "N" || return 1
         writeState "usb" "N" || return 1
         writeState "port" "on" || return 1
         writeState "net" "pcnet" || return 1
@@ -46,12 +47,14 @@ setMachine() {
 
       "win2k"* )
 
+        writeState "hv" "N" || return 1
         writeState "net" "rtl8139" || return 1
         writeState "usb" "pci-ohci" || return 1
         writeState "sound" "usb-audio" || return 1 ;;
 
       "winxpx"* | "win2003"* )
 
+        writeState "hv" "N" || return 1
         writeState "type" "blk" || return 1
         writeState "net" "rtl8139" || return 1
         writeState "sound" "usb-audio" || return 1 ;;
@@ -138,6 +141,7 @@ restoreMachine() {
 
 restoreMachineState() {
 
+  restoreState "HV" "hv" || return 1
   restoreState "VGA" "vga" || return 1
   restoreState "USB" "usb" || return 1
   restoreState "SOUND" "sound" || return 1
