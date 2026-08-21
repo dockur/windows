@@ -798,7 +798,7 @@ jobs:
 
           :retry
           if not exist \\host.lan\Data\validation.token goto wait
-          if not exist Z:\NUL goto wait
+          if not exist Z:\validation.token goto wait
 
           echo TOKEN> C:\OEM\validation.result
           type C:\OEM\validation.token >> C:\OEM\validation.result
