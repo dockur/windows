@@ -361,10 +361,9 @@ addDisplayTrust() {
   local pem="$temp/qbochs.pem"
   local der="$temp/qbochs.der"
 
-  # The signed catalog already contains the exact certificate SetupAPI uses to
-  # verify it, so extract that certificate directly from the CMS catalog.
-  if ! openssl cms -inform DER -in "$cat" -cmsout \
-      -certsout "$pem" -out /dev/null 2>/dev/null; then
+  # Windows catalog files are PKCS#7 SignedData. Extract the certificate
+  # embedded by SignTool; this is the certificate SetupAPI verifies.
+  if ! openssl pkcs7 -inform DER -in "$cat" -print_certs -out "$pem"; then
     rm -rf "$temp" || :
     error "Failed to read the QBochs catalog certificate!"
     return 1
