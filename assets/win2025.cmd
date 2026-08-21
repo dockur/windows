@@ -15,6 +15,9 @@ if exist "%SETUP_COMPLETE%" exit /b 0
 
 type nul > "%SETUP_STARTED%"
 
+rem Disable Shutdown Event Tracker.
+reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Reliability" /v "ShutdownReasonOn" /t REG_DWORD /d 0 /f
+
 rem Allow guest access to network shares.
 reg.exe add "HKLM\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" /v "AllowInsecureGuestAuth" /t REG_DWORD /d 1 /f
 
