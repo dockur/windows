@@ -1009,7 +1009,7 @@ writeNT5Effects() {
   {
     printf '%s\n' \
       '[Version]' \
-      'Signature="$CHICAGO$"' \
+      "Signature=\"\$CHICAGO\$\"" \
       '' \
       '[DefaultInstall]' \
       'BitReg=DisableAnimations' \
