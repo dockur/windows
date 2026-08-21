@@ -306,7 +306,7 @@ addDisplayDriver() {
   fi
 
   local files="qbochs.inf qbochs.sys"
-  [[ "$driver" == "2k3" ]] && files+=" qbochs.cat qbochs.cer"
+  [[ "$driver" == "2k3" ]] && files+=" qbochs.cat"
 
   local file
 
@@ -340,10 +340,10 @@ addDisplayTrust() {
   local qbochs_arch="$arch"
   [[ "${qbochs_arch,,}" == "amd64" ]] && qbochs_arch="x64"
 
-  local cer="$drivers/qbochs/$driver/$qbochs_arch/qbochs.cer"
+  local cat="$drivers/qbochs/$driver/$qbochs_arch/qbochs.cat"
 
-  if [ ! -s "$cer" ]; then
-    error "Failed to locate required QBochs certificate: $cer"
+  if [ ! -s "$cat" ]; then
+    error "Failed to locate required QBochs catalog: $cat"
     return 1
   fi
 
@@ -355,49 +355,65 @@ addDisplayTrust() {
     return 1
   fi
 
-  local der
-  der=$(mktemp) || return 1
+  local temp
+  temp=$(mktemp -d) || return 1
 
-  # Normalize the package certificate to DER with OpenSSL. Accept either
-  # PEM/Base64 or DER input so the ISO preparation does not depend on how the
-  # certificate was exported.
-  if ! openssl x509 -inform PEM -in "$cer" -outform DER -out "$der" 2>/dev/null; then
-    if ! openssl x509 -inform DER -in "$cer" -outform DER -out "$der" 2>/dev/null; then
-      rm -f "$der" || :
-      error "Failed to parse the QBochs certificate!"
-      return 1
-    fi
+  local pem="$temp/qbochs.pem"
+  local der="$temp/qbochs.der"
+
+  # The signed catalog already contains the exact certificate SetupAPI uses to
+  # verify it, so extract that certificate directly from the CMS catalog.
+  if ! openssl cms -inform DER -in "$cat" -cmsout \
+      -certsout "$pem" -out /dev/null 2>/dev/null; then
+    rm -rf "$temp" || :
+    error "Failed to read the QBochs catalog certificate!"
+    return 1
+  fi
+
+  local count
+  count=$(grep -c '^-----BEGIN CERTIFICATE-----$' "$pem") || count=0
+
+  if (( count != 1 )); then
+    rm -rf "$temp" || :
+    error "The QBochs catalog does not contain exactly one certificate!"
+    return 1
+  fi
+
+  if ! openssl x509 -in "$pem" -outform DER -out "$der" 2>/dev/null; then
+    rm -rf "$temp" || :
+    error "Failed to extract the QBochs catalog certificate!"
+    return 1
   fi
 
   local thumbprint
-  thumbprint=$(openssl x509 -inform DER -in "$der" -sha1 -fingerprint -noout |
+  thumbprint=$(openssl x509 -in "$pem" -sha1 -fingerprint -noout |
     sed -E 's/^[^=]*=//; s/://g') || {
-      rm -f "$der" || :
+      rm -rf "$temp" || :
       return 1
     }
   thumbprint="${thumbprint^^}"
 
   if [[ ! "$thumbprint" =~ ^[0-9A-F]{40}$ ]]; then
-    rm -f "$der" || :
+    rm -rf "$temp" || :
     error "Failed to determine the QBochs certificate thumbprint!"
     return 1
   fi
 
   local size
   size=$(stat -c '%s' "$der") || {
-    rm -f "$der" || :
+    rm -rf "$temp" || :
     return 1
   }
 
   if (( size <= 0 )); then
-    rm -f "$der" || :
+    rm -rf "$temp" || :
     error "The QBochs certificate is empty!"
     return 1
   fi
 
-  # Windows serializes a certificate store element as the certificate element
-  # type (0x20), X.509 ASN encoding (1), the DER length, and the DER bytes.
-  # All three header fields are 32-bit little-endian values.
+  # A Windows serialized certificate element is three little-endian DWORDs:
+  # FILE_ELEMENT_CERT_TYPE (0x20), X509_ASN_ENCODING (1), DER length,
+  # followed by the DER certificate itself.
   local header
   printf -v header '20,00,00,00,01,00,00,00,%02X,%02X,%02X,%02X' \
     $(( size & 0xFF )) \
@@ -410,11 +426,11 @@ addDisplayTrust() {
     awk 'BEGIN { sep="" }
          { for (i = 1; i <= NF; i++) { printf "%s%s", sep, toupper($i); sep="," } }
          END { print "" }') || {
-      rm -f "$der" || :
+      rm -rf "$temp" || :
       return 1
     }
 
-  rm -f "$der" || return 1
+  rm -rf "$temp" || return 1
 
   if [ -z "$body" ]; then
     error "Failed to encode the QBochs certificate!"
