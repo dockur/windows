@@ -2100,8 +2100,7 @@ writeWin9xAnswerFile() {
       '[Install]' \
       "CopyFiles=$copyFiles" \
       "UpdateInis=$updateInis" \
-      "AddReg=$addReg" \
-      'BitReg=Win9x.DisableAnimationsDefault'
+      "AddReg=$addReg"
 
     if [ -n "$installDelReg" ]; then
       printf '%s\n' "DelReg=$installDelReg"
@@ -2190,8 +2189,7 @@ writeWin9xAnswerFile() {
     printf '%s\n' \
       '' \
       '[Win9x.FirstLogon]' \
-      "AddReg=$firstLogonAddReg" \
-      'BitReg=Win9x.DisableAnimations'
+      "AddReg=$firstLogonAddReg"
 
     if [ -n "$firstLogonDelReg" ]; then
       printf '%s\n' "DelReg=$firstLogonDelReg"
@@ -2483,6 +2481,7 @@ writeWin9xUserRegistry() {
     'HKU,".DEFAULT\Control Panel\Desktop","ScreenSaveActive",,"0"' \
     'HKU,".DEFAULT\Control Panel\Desktop","DragFullWindows",,"1"' \
     'HKU,".DEFAULT\Control Panel\Desktop","MenuShowDelay",,"0"' \
+    'HKU,".DEFAULT\Control Panel\Desktop","UserPreferenceMask",1,9c,32,07,80' \
     'HKU,".DEFAULT\Control Panel\Desktop","FontSmoothing",,"1"' \
     'HKU,".DEFAULT\Control Panel\Desktop","SmoothScroll",0x00010001,0' \
     'HKU,".DEFAULT\Control Panel\Desktop\WindowMetrics","MinAnimate",,"0"' \
@@ -2509,6 +2508,7 @@ writeWin9xUserRegistry() {
     'HKCU,"Control Panel\Desktop","ScreenSaveActive",,"0"' \
     'HKCU,"Control Panel\Desktop","DragFullWindows",,"1"' \
     'HKCU,"Control Panel\Desktop","MenuShowDelay",,"0"' \
+    'HKCU,"Control Panel\Desktop","UserPreferenceMask",1,9c,32,07,80' \
     'HKCU,"Control Panel\Desktop","FontSmoothing",,"1"' \
     'HKCU,"Control Panel\Desktop","SmoothScroll",0x00010001,0' \
     'HKCU,"Control Panel\Desktop\WindowMetrics","MinAnimate",,"0"' \
@@ -2528,13 +2528,6 @@ writeWin9xUserRegistry() {
     fi
   fi
 
-  printf '%s\n' \
-    '' \
-    '[Win9x.DisableAnimationsDefault]' \
-    'HKU,".DEFAULT\Control Panel\Desktop","UserPreferenceMask",0,0x02,0' \
-    '' \
-    '[Win9x.DisableAnimations]' \
-    'HKCU,"Control Panel\Desktop","UserPreferenceMask",0,0x02,0'
 }
 
 writeWin9xMachineRegistry() {
