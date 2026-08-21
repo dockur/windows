@@ -184,6 +184,7 @@ addLegacyDrivers() {
   addNetworkDriver "$dir" "$driver" "$arch" "$drivers" || return 1
   addQXLDriver "$dir" "$driver" "$arch" "$drivers" || return 1
   addDisplayDriver "$dir" "$driver" "$arch" "$drivers" || return 1
+  disableGenericDisplay "$target" "$driver" "$arch" "$drivers" || return 1
   addBalloonDriver "$dir" "$driver" "$arch" "$drivers" || return 1
 
   local file
@@ -323,6 +324,140 @@ addDisplayDriver() {
   for file in $files; do
     cp -L "$source/$file" "$destination/$file" || return 1
   done
+
+  return 0
+}
+
+disableGenericDisplay() {
+
+  local target="$1"
+  local driver="$2"
+  local arch="$3"
+  local drivers="$4"
+
+  [[ "$driver" == "2k3" && "${arch,,}" == "amd64" ]] || return 0
+
+  local qbochs_inf="$drivers/qbochs/$driver/x64/qbochs.inf"
+  local qbochs_id='PCI\VEN_1234&DEV_1111&SUBSYS_11001AF4'
+
+  # Do not remove the generic VGA match unless the exact QBochs device is
+  # present in the driver package that was just staged for this installation.
+  if [ ! -f "$qbochs_inf" ] || ! grep -Fqi "$qbochs_id" "$qbochs_inf"; then
+    error "The QBochs driver does not contain the expected device ID: $qbochs_id"
+    return 1
+  fi
+
+  local cab
+  cab=$(find "$target" -maxdepth 1 -type f -iname DISPLAY.IN_ -print -quit) || return 1
+
+  if [ -z "$cab" ] || [ ! -s "$cab" ]; then
+    error "The file DISPLAY.IN_ could not be found!"
+    return 1
+  fi
+
+  local temp
+  temp=$(mktemp -d) || return 1
+
+  if ! cabextract -q -d "$temp" "$cab"; then
+    rm -rf "$temp" || :
+    error "Failed to extract DISPLAY.IN_!"
+    return 1
+  fi
+
+  local inf
+  inf=$(find "$temp" -maxdepth 1 -type f -iname display.inf -print -quit) || {
+    rm -rf "$temp" || :
+    return 1
+  }
+
+  if [ -z "$inf" ] || [ ! -s "$inf" ]; then
+    rm -rf "$temp" || :
+    error "DISPLAY.IN_ does not contain display.inf!"
+    return 1
+  fi
+
+  local active='^%stdVga%[[:space:]]*=[[:space:]]*vga,PCI\\CC_0300'
+  local disabled='^;%stdVga%[[:space:]]*=[[:space:]]*vga,PCI\\CC_0300'
+  local active_count disabled_count
+
+  active_count=$(grep -c "$active" "$inf") || active_count=0
+  disabled_count=$(grep -c "$disabled" "$inf") || disabled_count=0
+
+  if (( active_count == 0 && disabled_count == 1 )); then
+    rm -rf "$temp" || return 1
+    return 0
+  fi
+
+  if (( active_count != 1 || disabled_count != 0 )); then
+    rm -rf "$temp" || :
+    error "Failed to identify the Server 2003 Standard VGA PCI\\CC_0300 entry!"
+    return 1
+  fi
+
+  if ! sed -i \
+    '/^%stdVga%[[:space:]]*=[[:space:]]*vga,PCI\\CC_0300/s/^/;/' "$inf"; then
+    rm -rf "$temp" || :
+    error "Failed to disable the Server 2003 Standard VGA PCI\\CC_0300 entry!"
+    return 1
+  fi
+
+  active_count=$(grep -c "$active" "$inf") || active_count=0
+  disabled_count=$(grep -c "$disabled" "$inf") || disabled_count=0
+
+  if (( active_count != 0 || disabled_count != 1 )); then
+    rm -rf "$temp" || :
+    error "Failed to verify the Server 2003 Standard VGA change!"
+    return 1
+  fi
+
+  local rebuilt="$temp/DISPLAY.IN_.new"
+
+  if ! gcab --create --nopath --zip "$rebuilt" "$inf"; then
+    rm -rf "$temp" || :
+    error "Failed to rebuild DISPLAY.IN_!"
+    return 1
+  fi
+
+  local verify="$temp/verify"
+  mkdir -p "$verify" || {
+    rm -rf "$temp" || :
+    return 1
+  }
+
+  if ! cabextract -q -d "$verify" "$rebuilt"; then
+    rm -rf "$temp" || :
+    error "Failed to verify the rebuilt DISPLAY.IN_!"
+    return 1
+  fi
+
+  local verify_inf
+  verify_inf=$(find "$verify" -maxdepth 1 -type f -iname display.inf -print -quit) || {
+    rm -rf "$temp" || :
+    return 1
+  }
+
+  if [ -z "$verify_inf" ] || ! cmp -s "$inf" "$verify_inf"; then
+    rm -rf "$temp" || :
+    error "The rebuilt DISPLAY.IN_ did not preserve the modified display.inf!"
+    return 1
+  fi
+
+  chmod --reference="$cab" "$rebuilt" || {
+    rm -rf "$temp" || :
+    return 1
+  }
+  touch --reference="$cab" "$rebuilt" || {
+    rm -rf "$temp" || :
+    return 1
+  }
+
+  if ! mv -f "$rebuilt" "$cab"; then
+    rm -rf "$temp" || :
+    error "Failed to replace DISPLAY.IN_!"
+    return 1
+  fi
+
+  rm -rf "$temp" || return 1
 
   return 0
 }
