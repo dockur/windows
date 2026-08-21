@@ -305,7 +305,7 @@ addDisplayDriver() {
   fi
 
   local files="qbochs.inf qbochs.sys"
-  [[ "$driver" == "2k3" ]] && files+=" qbochs.cat qbochs.cer"
+  [[ "$driver" == "2k3" ]] && files+=" qbochs.cat"
 
   local file
 
@@ -646,12 +646,6 @@ writeSIF() {
       "    AdminPassword=\"$sifPassword\"" \
       "    TimeZone=$timezone"
 
-    if [[ "$driver" == "2k3" ]]; then
-      printf '%s\n' \
-        '    DetachedProgram="%SystemRoot%\System32\cmd.exe"' \
-        '    Arguments="/Q /C certutil.exe -f -addstore Root C:\Drivers\QBochs\qbochs.cer && certutil.exe -f -addstore TrustedPublisher C:\Drivers\QBochs\qbochs.cer"'
-    fi
-
     if disabled "$AUTOLOGIN"; then
       printf '%s\n' \
         '    AutoLogon=No'
@@ -764,6 +758,14 @@ writeRegistry() {
         '"AutoAdminLogon"="1"' "\"DefaultUserName\"=\"$regUsername\"" "\"DefaultPassword\"=\"$regPassword\""
     fi
 
+    if enabled "$shortcut"; then
+      printf '%s\n' \
+        '' \
+        '[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\DOS Devices]' \
+        '"Z:"="\\Device\\LanmanRedirector\\;Z:00000000000003e7\\host.lan\\Data"' \
+        ''
+    fi
+
     printf '%s\n' \
       '' \
       '[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]' \
@@ -839,6 +841,9 @@ appendRegistry() {
   if [[ "$driver" == "2k3" ]]; then
     {
       printf '%s\n' \
+        '[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability]' \
+        '"ShutdownReasonOn"=dword:00000000' \
+        '' \
         '[HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\srvWiz]' \
         '@=dword:00000000' \
         '' \
@@ -909,22 +914,6 @@ writeVBS() {
       printf '%s\n' \
         'Set oLink = WshShell.CreateShortcut(WshShell.SpecialFolders("Desktop") & "\Shared.lnk")' \
         'With oLink' '  .TargetPath = "\\host.lan\Data"' '  .Save' 'End With' 'Set oLink = Nothing' ''
-    fi
-
-    if enabled "$shortcut"; then
-      printf '%s\n' \
-        'Set FSO = WScript.CreateObject("Scripting.FileSystemObject")' \
-        'TempDir = WshShell.ExpandEnvironmentStrings("%SystemRoot%\Temp")' \
-        'If Not FSO.FolderExists(TempDir) Then FSO.CreateFolder TempDir' \
-        'SharedScript = FSO.BuildPath(TempDir, "shared.vbs")' \
-        'Set SharedFile = FSO.CreateTextFile(SharedScript, True)' \
-        'SharedFile.WriteLine "On Error Resume Next"' \
-        'SharedFile.WriteLine "Set Network = WScript.CreateObject(""WScript.Network"")"' \
-        'SharedFile.WriteLine "Network.MapNetworkDrive ""Z:"", ""\\host.lan\Data"", True"' \
-        'SharedFile.WriteLine "CreateObject(""Scripting.FileSystemObject"").DeleteFile WScript.ScriptFullName, True"' \
-        'SharedFile.Close' \
-        'WshShell.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce\SharedDrive", "Wscript.exe " & Chr(34) & SharedScript & Chr(34), "REG_SZ"' \
-        ''
     fi
 
     if [ -f "$balloonExe" ]; then

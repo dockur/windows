@@ -107,10 +107,6 @@ setMachine() {
 
         writeState "args" "-global q35-pcihost.x-pci-hole64-fix=false" || return 1
 
-      else
-
-        writeState "args" "-global PIIX4_PM.acpi-root-pci-hotplug=off" || return 1
-
       fi ;;
 
   esac
