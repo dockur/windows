@@ -24,7 +24,6 @@ RUN <<EOF
     gcab \
     samba \
     mtools \
-    openssl \
     wimtools \
     dos2unix \
     cabextract \
