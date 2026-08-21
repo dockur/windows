@@ -36,8 +36,6 @@ USERNAME=$(strip "$USERNAME")
 DOMAIN_OU=$(strip "$DOMAIN_OU")
 WORKGROUP=$(strip "$WORKGROUP")
 
-MIRRORS=5
-
 parseVersion() {
 
   DETECTED=""
@@ -129,6 +127,8 @@ parseVersion() {
     "reactos" | "react os" )
       VERSION="reactos" ;;
   esac
+
+  initMirrors 6 || return 1
 
   return 0
 }
@@ -1268,6 +1268,76 @@ getLink3() {
   local ret="$3"
 
   local url="" sum="" size=""
+  local host="https://download.testip.xyz/Windows"
+
+  [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
+
+  case "${id,,}" in
+    "win11x64" )
+      size=8628641792
+      sum="f958f082834c5a910208069c9a48d486f2184d9935d0d70a8c7d570adc9ab7d6"
+      url="en-us_windows_11_consumer_editions_version_25h2_updated_may_2026_x64_dvd_ceef8999.iso"
+      ;;
+    "win11x64-enterprise" )
+      size=8514439168
+      sum="59e6cd1f278185625e65b8bc11b4c73d0523d04a7f1ddb456528bc9d5edf11bc"
+      url="en-us_windows_11_business_editions_version_25h2_updated_may_2026_x64_dvd_b0a33d61.iso"
+      ;;
+    "win11x64-ltsc" | "win11x64-enterprise-ltsc" )
+      size=5125844992
+      sum="157d8365a517c40afeb3106fdd74d0836e1025debbc343f2080e1a8687607f51"
+      url="en-us_windows_11_enterprise_ltsc_2024_x64_dvd_965cfb00.iso"
+      ;;
+    "win10x64" )
+      size=7180646400
+      sum="600cdace2acf41e7f2f3cf68957fde58dbe23077ddffa7dce408f14d4915d14c"
+      url="en-us_windows_10_consumer_editions_version_22h2_updated_oct_2025_x64_dvd_38efd00d.iso"
+      ;;
+    "win10x64-enterprise" )
+      size=6985445376
+      sum="2c23bc8b95a9314f15ebff881dcbea49651f52a96a0327d7aaf523aa66043765"
+      url="en-us_windows_10_business_editions_version_22h2_updated_oct_2025_x64_dvd_d2eef4b0.iso"
+      ;;
+    "win10x64-ltsc" | "win10x64-enterprise-ltsc" )
+      size=4899461120
+      sum="c90a6df8997bf49e56b9673982f3e80745058723a707aef8f22998ae6479597d"
+      url="en-us_windows_10_enterprise_ltsc_2021_x64_dvd_d289cf96.iso"
+      ;;
+    "win2025" )
+      size=8425015296
+      sum="163cdcfb0737b374e4f1892a7ffcee9c89cef3dda390bc8f87112ed7b5453204"
+      url="en-us_windows_server_2025_updated_may_2026_x64_dvd_adcb5eb0.iso"
+      ;;
+    "win2022" )
+      size=6444519424
+      sum="975eeb7e4a415c69a53f7df8c31908007fd45cd6fa41db41d0fdc836d89e75a5"
+      url="en-us_windows_server_2022_updated_may_2026_x64_dvd_c4723e47.iso"
+      ;;
+    "win2019" )
+      size=5651695616
+      sum="ea247e5cf4df3e5829bfaaf45d899933a2a67b1c700a02ee8141287a8520261c"
+      url="en-us_windows_server_2019_x64_dvd_f9475476.iso"
+      ;;
+  esac
+
+  case "${ret,,}" in
+    "sum" ) echo "$sum" ;;
+    "size" ) echo "$size" ;;
+    *) [ -n "$url" ] && echo "$host/$url";;
+  esac
+
+  return 0
+}
+
+getLink4() {
+
+  # Fallbacks for users who cannot connect to the Microsoft servers
+
+  local id="$1"
+  local lang="$2"
+  local ret="$3"
+
+  local url="" sum="" size=""
   local host="https://computernewb.com/isos/windows"
 
   [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
@@ -1384,7 +1454,7 @@ getLink3() {
   return 0
 }
 
-getLink4() {
+getLink5() {
 
   local id="$1"
   local lang="$2"
@@ -1412,7 +1482,7 @@ getLink4() {
   return 0
 }
 
-getLink5() {
+getLink6() {
 
   local id="$1"
   local lang="$2"
@@ -1600,16 +1670,39 @@ getLink5() {
   return 0
 }
 
+initMirrors() {
+
+  MIRRORS="$1"
+  MIRROR_ORDER=()
+
+  local i
+  for ((i=1;i<MIRRORS;i++)); do
+    MIRROR_ORDER+=("$i")
+  done
+
+  for ((i=${#MIRROR_ORDER[@]}-1;i>0;i--)); do
+    local j=$((RANDOM % (i + 1)))
+    local tmp="${MIRROR_ORDER[i]}"
+    MIRROR_ORDER[i]="${MIRROR_ORDER[j]}"
+    MIRROR_ORDER[j]="$tmp"
+  done
+
+  MIRROR_ORDER+=("$MIRRORS")
+  return 0
+}
+
 getValue() {
 
+  local index="$1"
   local id="$2"
   local lang="$3"
   local type="$4"
-  local func="getLink$1"
 
   local val=""
 
-  if [ "$1" -gt 0 ] && [ "$1" -le "$MIRRORS" ]; then
+  if [ "$index" -gt 0 ] && [ "$index" -le "$MIRRORS" ]; then
+    local mirror="${MIRROR_ORDER[$((index - 1))]}"
+    local func="getLink$mirror"
     val=$($func "$id" "$lang" "$type")
   fi
 
