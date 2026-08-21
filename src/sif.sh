@@ -878,6 +878,14 @@ writeRegistry() {
         '"AutoAdminLogon"="1"' "\"DefaultUserName\"=\"$regUsername\"" "\"DefaultPassword\"=\"$regPassword\""
     fi
 
+    if enabled "$shortcut"; then
+      printf '%s\n' \
+        '' \
+        '[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\DOS Devices]' \
+        '"Z:"="\\Device\\LanmanRedirector\\;Z:00000000000003e7\\host.lan\\Data"' \
+        ''
+    fi
+
     printf '%s\n' \
       '' \
       '[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]' \
@@ -1023,22 +1031,6 @@ writeVBS() {
       printf '%s\n' \
         'Set oLink = WshShell.CreateShortcut(WshShell.SpecialFolders("Desktop") & "\Shared.lnk")' \
         'With oLink' '  .TargetPath = "\\host.lan\Data"' '  .Save' 'End With' 'Set oLink = Nothing' ''
-    fi
-
-    if enabled "$shortcut"; then
-      printf '%s\n' \
-        'Set FSO = WScript.CreateObject("Scripting.FileSystemObject")' \
-        'TempDir = WshShell.ExpandEnvironmentStrings("%SystemRoot%\Temp")' \
-        'If Not FSO.FolderExists(TempDir) Then FSO.CreateFolder TempDir' \
-        'SharedScript = FSO.BuildPath(TempDir, "shared.vbs")' \
-        'Set SharedFile = FSO.CreateTextFile(SharedScript, True)' \
-        'SharedFile.WriteLine "On Error Resume Next"' \
-        'SharedFile.WriteLine "Set Network = WScript.CreateObject(""WScript.Network"")"' \
-        'SharedFile.WriteLine "Network.MapNetworkDrive ""Z:"", ""\\host.lan\Data"", True"' \
-        'SharedFile.WriteLine "CreateObject(""Scripting.FileSystemObject"").DeleteFile WScript.ScriptFullName, True"' \
-        'SharedFile.Close' \
-        'WshShell.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce\SharedDrive", "Wscript.exe " & Chr(34) & SharedScript & Chr(34), "REG_SZ"' \
-        ''
     fi
 
     if [ -f "$balloonExe" ]; then
