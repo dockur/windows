@@ -233,6 +233,7 @@ jobs:
         shell: bash
         env:
           CALLBACK: ${{ inputs.callback }}
+          VERSION: ${{ inputs.version }}
         run: |
           set -Eeuo pipefail
 
@@ -793,24 +794,29 @@ jobs:
               ;;
 
             basic)
-              cat > "$RUNNER_TEMP/oem/install.bat" <<'BATCH'
+              case "${VERSION,,}" in
+                95) share_host="Host" ;;
+                *) share_host="host.lan" ;;
+              esac
+
+              sed "s|@@SHARE_HOST@@|$share_host|g" > "$RUNNER_TEMP/oem/install.bat" <<'BATCH'
           @echo off
 
           :retry
-          if not exist \\host.lan\Data\validation.token goto wait
-          if not exist Z:\NUL goto wait
+          if not exist \\@@SHARE_HOST@@\Data\validation.token goto wait
+          if not exist Z:\validation.token goto wait
 
           echo TOKEN> C:\OEM\validation.result
           type C:\OEM\validation.token >> C:\OEM\validation.result
           echo SHARE>> C:\OEM\validation.result
-          type \\host.lan\Data\validation.token >> C:\OEM\validation.result
+          type \\@@SHARE_HOST@@\Data\validation.token >> C:\OEM\validation.result
           echo DRIVE_Z>> C:\OEM\validation.result
           echo ok>> C:\OEM\validation.result
           echo VERSION>> C:\OEM\validation.result
           ver >> C:\OEM\validation.result
 
-          if exist \\host.lan\Data\validation.result del \\host.lan\Data\validation.result >nul
-          copy C:\OEM\validation.result \\host.lan\Data\validation.result >nul
+          if exist \\@@SHARE_HOST@@\Data\validation.result del \\@@SHARE_HOST@@\Data\validation.result >nul
+          copy C:\OEM\validation.result \\@@SHARE_HOST@@\Data\validation.result >nul
           if errorlevel 1 goto wait
 
           goto end
