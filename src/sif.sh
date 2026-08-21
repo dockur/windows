@@ -184,7 +184,6 @@ addLegacyDrivers() {
   addNetworkDriver "$dir" "$driver" "$arch" "$drivers" || return 1
   addQXLDriver "$dir" "$driver" "$arch" "$drivers" || return 1
   addDisplayDriver "$dir" "$driver" "$arch" "$drivers" || return 1
-  addDisplayTrust "$target" "$driver" "$arch" "$drivers" || return 1
   addBalloonDriver "$dir" "$driver" "$arch" "$drivers" || return 1
 
   local file
@@ -324,125 +323,6 @@ addDisplayDriver() {
   for file in $files; do
     cp -L "$source/$file" "$destination/$file" || return 1
   done
-
-  return 0
-}
-
-addDisplayTrust() {
-
-  local target="$1"
-  local driver="$2"
-  local arch="$3"
-  local drivers="$4"
-
-  [[ "$driver" == "2k3" ]] || return 0
-
-  local qbochs_arch="$arch"
-  [[ "${qbochs_arch,,}" == "amd64" ]] && qbochs_arch="x64"
-
-  local cat="$drivers/qbochs/$driver/$qbochs_arch/qbochs.cat"
-
-  if [ ! -s "$cat" ]; then
-    error "Failed to locate required QBochs catalog: $cat"
-    return 1
-  fi
-
-  local hive
-  hive=$(find "$target" -maxdepth 1 -type f -iname HIVESFT.INF -print -quit) || return 1
-
-  if [ -z "$hive" ]; then
-    error "The file HIVESFT.INF could not be found!"
-    return 1
-  fi
-
-  local temp
-  temp=$(mktemp -d) || return 1
-
-  local pem="$temp/qbochs.pem"
-  local der="$temp/qbochs.der"
-
-  # Windows catalog files are PKCS#7 SignedData. Extract the certificate
-  # embedded by SignTool; this is the certificate SetupAPI verifies.
-  if ! openssl pkcs7 -inform DER -in "$cat" -print_certs -out "$pem"; then
-    rm -rf "$temp" || :
-    error "Failed to read the QBochs catalog certificate!"
-    return 1
-  fi
-
-  local count
-  count=$(grep -c '^-----BEGIN CERTIFICATE-----$' "$pem") || count=0
-
-  if (( count != 1 )); then
-    rm -rf "$temp" || :
-    error "The QBochs catalog does not contain exactly one certificate!"
-    return 1
-  fi
-
-  if ! openssl x509 -in "$pem" -outform DER -out "$der" 2>/dev/null; then
-    rm -rf "$temp" || :
-    error "Failed to extract the QBochs catalog certificate!"
-    return 1
-  fi
-
-  local thumbprint
-  thumbprint=$(openssl x509 -in "$pem" -sha1 -fingerprint -noout |
-    sed -E 's/^[^=]*=//; s/://g') || {
-      rm -rf "$temp" || :
-      return 1
-    }
-  thumbprint="${thumbprint^^}"
-
-  if [[ ! "$thumbprint" =~ ^[0-9A-F]{40}$ ]]; then
-    rm -rf "$temp" || :
-    error "Failed to determine the QBochs certificate thumbprint!"
-    return 1
-  fi
-
-  local size
-  size=$(stat -c '%s' "$der") || {
-    rm -rf "$temp" || :
-    return 1
-  }
-
-  if (( size <= 0 )); then
-    rm -rf "$temp" || :
-    error "The QBochs certificate is empty!"
-    return 1
-  fi
-
-  # A Windows serialized certificate element is three little-endian DWORDs:
-  # FILE_ELEMENT_CERT_TYPE (0x20), X509_ASN_ENCODING (1), DER length,
-  # followed by the DER certificate itself.
-  local header
-  printf -v header '20,00,00,00,01,00,00,00,%02X,%02X,%02X,%02X' \
-    $(( size & 0xFF )) \
-    $(( (size >> 8) & 0xFF )) \
-    $(( (size >> 16) & 0xFF )) \
-    $(( (size >> 24) & 0xFF ))
-
-  local body
-  body=$(od -An -v -tx1 "$der" |
-    awk 'BEGIN { sep="" }
-         { for (i = 1; i <= NF; i++) { printf "%s%s", sep, toupper($i); sep="," } }
-         END { print "" }') || {
-      rm -rf "$temp" || :
-      return 1
-    }
-
-  rm -rf "$temp" || return 1
-
-  if [ -z "$body" ]; then
-    error "Failed to encode the QBochs certificate!"
-    return 1
-  fi
-
-  local blob="$header,$body"
-  local store='SOFTWARE\Microsoft\SystemCertificates'
-
-  addSIFEntry "$hive" "AddReg" \
-    "HKLM,\"$store\\Root\\Certificates\\$thumbprint\",\"Blob\",0x00000001,$blob" || return 1
-  addSIFEntry "$hive" "AddReg" \
-    "HKLM,\"$store\\TrustedPublisher\\Certificates\\$thumbprint\",\"Blob\",0x00000001,$blob" || return 1
 
   return 0
 }
