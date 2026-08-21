@@ -961,6 +961,9 @@ appendRegistry() {
   if [[ "$driver" == "2k3" ]]; then
     {
       printf '%s\n' \
+        '[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability]' \
+        '"ShutdownReasonOn"=dword:00000000' \
+        '' \
         '[HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\srvWiz]' \
         '@=dword:00000000' \
         '' \
