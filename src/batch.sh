@@ -2531,10 +2531,10 @@ writeWin9xUserRegistry() {
   printf '%s\n' \
     '' \
     '[Win9x.DisableAnimationsDefault]' \
-    'HKU,".DEFAULT\Control Panel\Desktop","UserPreferencesMask",0,0x02,0' \
+    'HKU,".DEFAULT\Control Panel\Desktop","UserPreferenceMask",0,0x02,0' \
     '' \
     '[Win9x.DisableAnimations]' \
-    'HKCU,"Control Panel\Desktop","UserPreferencesMask",0,0x02,0'
+    'HKCU,"Control Panel\Desktop","UserPreferenceMask",0,0x02,0'
 }
 
 writeWin9xMachineRegistry() {
