@@ -2023,9 +2023,7 @@ writeWin9xAnswerFile() {
   local firstLogonUpdateInis="Win9x.OnlineServicesFolder"
   local copyFiles="" post="" hide="" installDelReg=""
   local culture region keyboard localeID keyboardID
-  local phys="100000"
-
-  [[ "${id,,}" == "win95"* ]] && phys="40000"
+  local phys="10000" # 256 MB
 
   if [[ "${id,,}" == "win9x"* ]]; then
     addReg="${addReg%,Win9x.ActiveSetup},WinMe.ActiveSetup"
