@@ -87,12 +87,15 @@ setMachine() {
 
   case "${id,,}" in
 
-    "win9"* | "winnt4" | "win2k"* | *"x86"* | "reactos" )
+    "win9"* | "winnt4" | "win2k"* | *"x86"* )
 
       # Legacy 32-bit Windows may enter an incompatible PAE/DEP path when the
       # NX flag is exposed, causing installation failures or repeated resets.
+      #
+      # Long mode is unusable by 32-bit guests and may cause the firmware to
+      # allocate PCI resources above 4 GB, which older systems may not handle.
 
-      writeState "flag" "nx=off" || return 1 ;;
+      writeState "flag" "nx=off,lm=off" || return 1 ;;
 
   esac
 

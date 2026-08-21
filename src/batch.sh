@@ -573,6 +573,8 @@ patchWin9xSetupFiles() {
     return 1
   fi
 
+  patchWin9xLooseSetupFiles "$id" "$target" "$desc" "$patcher" || return 1
+
   if [[ "${id,,}" == "win9x"* ]]; then
     patchWinMeBaseComponents "$target" "$desc" || return 1
   fi
@@ -596,6 +598,51 @@ patchWin9xSetupFiles() {
   # Use QEMouse directly in the MINI.CAB GUI Setup environment for every Win9x
   # release, so the setup mouse path does not depend on a DOS INT 33h TSR.
   integrateWin9xSetupMouse "$target" "$desc" "$qemouse/qemouse.drv" || return 1
+
+  return 0
+}
+
+patchWin9xLooseSetupFiles() {
+
+  local id="$1"
+  local target="$2"
+  local desc="$3"
+  local patcher="$4"
+  local patches="tlb,speed,mem,g4resfix"
+  local name file patch_output
+  local -a list=()
+
+  [[ "${id,,}" == "win9x"* ]] && patches="default"
+
+  # Patcher9x scans the setup CABs in installation-media mode, while Windows
+  # Setup gives loose files in the setup directory precedence over CAB copies.
+  # Patch every loose file Patcher9x documents as a possible replacement so a
+  # media-specific override cannot bypass the already-patched cabinet version.
+  for name in \
+    VMM32.VXD \
+    VMM.VXD \
+    NTKERN.VXD \
+    IOS.VXD \
+    ESDI_506.PDR \
+    SCSIPORT.PDR \
+    NDIS.VXD \
+    NDIS.386 \
+    VCACHE.VXD \
+    WIN.COM \
+    WIN.CNF; do
+
+    file=$(find "$target" -maxdepth 1 -type f -iname "$name" -print -quit) || return 1
+    [ -n "$file" ] && list+=("$file")
+
+  done
+
+  (( ${#list[@]} == 0 )) && return 0
+
+  if ! patch_output=$("$patcher" --patch "$patches" "${list[@]}" 2>&1); then
+    [ -z "$patch_output" ] || printf '%s\n' "$patch_output" >&2
+    error "Failed to patch loose $desc setup files!"
+    return 1
+  fi
 
   return 0
 }
@@ -1976,6 +2023,7 @@ writeWin9xAnswerFile() {
   local firstLogonUpdateInis="Win9x.OnlineServicesFolder"
   local copyFiles="" post="" hide="" installDelReg=""
   local culture region keyboard localeID keyboardID
+  local phys="10000" # 256 MB
 
   if [[ "${id,,}" == "win9x"* ]]; then
     addReg="${addReg%,Win9x.ActiveSetup},WinMe.ActiveSetup"
@@ -2100,8 +2148,7 @@ writeWin9xAnswerFile() {
       '[Install]' \
       "CopyFiles=$copyFiles" \
       "UpdateInis=$updateInis" \
-      "AddReg=$addReg" \
-      'BitReg=Win9x.DisableAnimationsDefault'
+      "AddReg=$addReg"
 
     if [ -n "$installDelReg" ]; then
       printf '%s\n' "DelReg=$installDelReg"
@@ -2190,8 +2237,7 @@ writeWin9xAnswerFile() {
     printf '%s\n' \
       '' \
       '[Win9x.FirstLogon]' \
-      "AddReg=$firstLogonAddReg" \
-      'BitReg=Win9x.DisableAnimations'
+      "AddReg=$firstLogonAddReg"
 
     if [ -n "$firstLogonDelReg" ]; then
       printf '%s\n' "DelReg=$firstLogonDelReg"
@@ -2374,8 +2420,7 @@ writeWin9xAnswerFile() {
     printf '%s\n' \
       '' \
       '[Win9x.SystemIni]' \
-      '%10%\system.ini,386Enh,,"MaxPhysPage=100000"' \
-      '%10%\system.ini,vcache,,"MaxFileCache=65536"'
+      "%10%\system.ini,386Enh,,\"MaxPhysPage=$phys\""
 
     if ! disabled "$AUTOLOGIN"; then
       printf '%s\n' '%10%\system.ini,"Password Lists",,"DOCKER=C:\WINDOWS\DOCKER.PWL"'
@@ -2384,7 +2429,7 @@ writeWin9xAnswerFile() {
     printf '%s\n' \
       '' \
       '[Win9x.SystemCb]' \
-      '%10%\system.cb,386Enh,,"MaxPhysPage=100000"' \
+      "%10%\system.cb,386Enh,,\"MaxPhysPage=$phys\"" \
       '' \
       '[Setup]' \
       'Express=1' \
@@ -2483,6 +2528,7 @@ writeWin9xUserRegistry() {
     'HKU,".DEFAULT\Control Panel\Desktop","ScreenSaveActive",,"0"' \
     'HKU,".DEFAULT\Control Panel\Desktop","DragFullWindows",,"1"' \
     'HKU,".DEFAULT\Control Panel\Desktop","MenuShowDelay",,"0"' \
+    'HKU,".DEFAULT\Control Panel\Desktop","UserPreferenceMask",1,9c,32,07,80' \
     'HKU,".DEFAULT\Control Panel\Desktop","FontSmoothing",,"1"' \
     'HKU,".DEFAULT\Control Panel\Desktop","SmoothScroll",0x00010001,0' \
     'HKU,".DEFAULT\Control Panel\Desktop\WindowMetrics","MinAnimate",,"0"' \
@@ -2509,6 +2555,7 @@ writeWin9xUserRegistry() {
     'HKCU,"Control Panel\Desktop","ScreenSaveActive",,"0"' \
     'HKCU,"Control Panel\Desktop","DragFullWindows",,"1"' \
     'HKCU,"Control Panel\Desktop","MenuShowDelay",,"0"' \
+    'HKCU,"Control Panel\Desktop","UserPreferenceMask",1,9c,32,07,80' \
     'HKCU,"Control Panel\Desktop","FontSmoothing",,"1"' \
     'HKCU,"Control Panel\Desktop","SmoothScroll",0x00010001,0' \
     'HKCU,"Control Panel\Desktop\WindowMetrics","MinAnimate",,"0"' \
@@ -2528,13 +2575,6 @@ writeWin9xUserRegistry() {
     fi
   fi
 
-  printf '%s\n' \
-    '' \
-    '[Win9x.DisableAnimationsDefault]' \
-    'HKU,".DEFAULT\Control Panel\Desktop","UserPreferencesMask",0,0x02,0' \
-    '' \
-    '[Win9x.DisableAnimations]' \
-    'HKCU,"Control Panel\Desktop","UserPreferencesMask",0,0x02,0'
 }
 
 writeWin9xMachineRegistry() {

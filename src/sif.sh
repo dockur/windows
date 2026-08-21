@@ -163,7 +163,6 @@ SIFInstall() {
   writeRegistry "$dir" "$shortcut" "$oem" "$regUsername" "$regPassword" "$driver" || return 1
 
   appendRegistry "$dir" "$driver" || return 1
-  writeNT5Effects "$dir" || return 1
   writeVBS "$dir" "$username" "$shortcut" "$driver" || return 1
 
   return 0
@@ -941,7 +940,15 @@ appendRegistry() {
         '"SCRNSAVE.EXE"="off"' \
         '"ScreenSaveActive"="0"' \
         '"DragFullWindows"="1"' \
-        '"MenuShowDelay"="0"' \
+        '"MenuShowDelay"="0"'
+
+      if [[ "$driver" == "2k" ]]; then
+        printf '%s\n' '"UserPreferencesMask"=hex:9c,32,00,80'
+      else
+        printf '%s\n' '"UserPreferencesMask"=hex:9c,32,07,80'
+      fi
+
+      printf '%s\n' \
         '' \
         '[HKEY_CURRENT_USER\Control Panel\Desktop\WindowMetrics]' \
         '"MinAnimate"="0"' \
@@ -997,34 +1004,6 @@ appendRegistry() {
         '"cd2chain"=dword:00000000' ''
     } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
   fi
-
-  return 0
-}
-
-writeNT5Effects() {
-
-  local dir="$1"
-  local target="$dir/\$OEM\$/effects.inf"
-
-  {
-    printf '%s\n' \
-      '[Version]' \
-      "Signature=\"\$CHICAGO\$\"" \
-      '' \
-      '[DefaultInstall]' \
-      'BitReg=DisableAnimations' \
-      '' \
-      '[DisableAnimations]' \
-      '; Fade or slide menus into view' \
-      'HKCU,"Control Panel\Desktop","UserPreferencesMask",0,0x02,0' \
-      '' \
-      '; Fade out menu items after clicking' \
-      'HKCU,"Control Panel\Desktop","UserPreferencesMask",0,0x04,1' \
-      '' \
-      '; Fade or slide ToolTips into view' \
-      'HKCU,"Control Panel\Desktop","UserPreferencesMask",0,0x08,1' \
-      ''
-  } | unix2dos > "$target" || return 1
 
   return 0
 }
@@ -1128,7 +1107,6 @@ writeVBS() {
     printf '%s\n' \
       '[COMMANDS]' \
       '"REGEDIT /s install.reg"' \
-      '"RUNDLL32.EXE setupapi.dll,InstallHinfSection DefaultInstall 128 effects.inf"' \
       '"Wscript install.vbs"' \
       ''
   } | unix2dos > "$dir/\$OEM\$/cmdlines.txt" || return 1
