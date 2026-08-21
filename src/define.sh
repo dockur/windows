@@ -36,7 +36,7 @@ USERNAME=$(strip "$USERNAME")
 DOMAIN_OU=$(strip "$DOMAIN_OU")
 WORKGROUP=$(strip "$WORKGROUP")
 
-MIRRORS=4
+MIRRORS=5
 
 parseVersion() {
 
@@ -1261,6 +1261,131 @@ getLink2() {
 
 getLink3() {
 
+  # Fallbacks for users who cannot connect to the Microsoft servers
+
+  local id="$1"
+  local lang="$2"
+  local ret="$3"
+
+  local url="" sum="" size=""
+  local host="https://computernewb.com/isos/windows"
+
+  [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
+
+  case "${id,,}" in
+    "win11x64-ltsc" | "win11x64-enterprise-ltsc" )
+      size=5144817664
+      sum="4f59662a96fc1da48c1b415d6c369d08af55ddd64e8f1c84e0166d9e50405d7a"
+      url="en-us_windows_11_iot_enterprise_ltsc_2024_x64_dvd_f6b14814.iso"
+      ;;
+    "win11x64-iot" | "win11x64-enterprise-iot" )
+      size=5144817664
+      sum="4f59662a96fc1da48c1b415d6c369d08af55ddd64e8f1c84e0166d9e50405d7a"
+      url="en-us_windows_11_iot_enterprise_ltsc_2024_x64_dvd_f6b14814.iso"
+      ;;
+    "win10x64" )
+      size=6140975104
+      sum="a6f470ca6d331eb353b815c043e327a347f594f37ff525f17764738fe812852e"
+      url="Win10_22H2_English_x64v1.iso"
+      ;;
+    "win10x64-ltsc" | "win10x64-enterprise-ltsc" )
+      size=4899461120
+      sum="c90a6df8997bf49e56b9673982f3e80745058723a707aef8f22998ae6479597d"
+      url="en-us_windows_10_enterprise_ltsc_2021_x64_dvd_d289cf96.iso"
+      ;;
+    "win10x64-iot" | "win10x64-enterprise-iot" )
+      size=4851668992
+      sum="a0334f31ea7a3e6932b9ad7206608248f0bd40698bfb8fc65f14fc5e4976c160"
+      url="en-us_windows_10_iot_enterprise_ltsc_2021_x64_dvd_257ad90f.iso"
+      ;;
+    "win81x64" )
+      size=4320526336
+      sum="d8333cf427eb3318ff6ab755eb1dd9d433f0e2ae43745312c1cd23e83ca1ce51"
+      url="en_windows_8.1_with_update_x64_dvd_6051480.iso"
+      ;;
+    "win2025" )
+      size=7196053504
+      sum="bb5d8bfc6c881c0b8700958a35eb2533a763b427a8cfc82c388a1245bb347eaf"
+      url="en-us_windows_server_2025_updated_nov_2024_x64_dvd_ccbcec44.iso"
+      ;;
+    "win2022" )
+      size=5985101824
+      sum="0c388fe9d0a524ac603945f5cffb7cc600a73432bcccea3e95274bf851973c96"
+      url="en-us_windows_server_2022_updated_nov_2024_x64_dvd_4e34897c.iso"
+      ;;
+    "win2019" )
+      size=5575774208
+      sum="0067afe7fdc4e61f677bd8c35a209082aa917df9c117527fc4b2b52a447e89bb"
+      url="en-us_windows_server_2019_updated_aug_2021_x64_dvd_a6431a28.iso"
+      ;;
+    "win2016" )
+      size=6006587392
+      sum="af06e5483c786c023123e325cea4775050324d9e1366f46850b515ae43f764be"
+      url="en_windows_server_2016_updated_feb_2018_x64_dvd_11636692.iso"
+      ;;
+    "win2012r2" )
+      size=5397889024
+      sum="f351e89eb88a96af4626ceb3450248b8573e3ed5924a4e19ea891e6003b62e4e"
+      url="en_windows_server_2012_r2_with_update_x64_dvd_6052708-004.iso"
+      ;;
+    "win2008r2" )
+      size=3166584832
+      sum="dfd9890881b7e832a927c38310fb415b7ea62ac5a896671f2ce2a111998f0df8"
+      url="en_windows_server_2008_r2_with_sp1_x64_dvd_617601-018.iso"
+      ;;
+    "win7x64" | "win7x64-ultimate" )
+      size=3320903680
+      sum="36f4fa2416d0982697ab106e3a72d2e120dbcdb6cc54fd3906d06120d0653808"
+      url="en_windows_7_ultimate_with_sp1_x64_dvd_u_677332.iso"
+      ;;
+    "win7x64-enterprise" )
+      size=3182604288
+      sum="ee69f3e9b86ff973f632db8e01700c5724ef78420b175d25bae6ead90f6805a7"
+      url="en_windows_7_enterprise_with_sp1_x64_dvd_u_677651.iso"
+      ;;
+    "winvistax64" | "winvistax64-ultimate" )
+      size=3861460992
+      sum="edf9f947c5791469fd7d2d40a5dcce663efa754f91847aa1d28ed7f585675b78"
+      url="en_windows_vista_sp2_x64_dvd_342267.iso"
+      ;;
+    "winvistax64-enterprise" )
+      size=3205953536
+      sum="0a0cd511b3eac95c6f081419c9c65b12317b9d6a8d9707f89d646c910e788016"
+      url="en_windows_vista_enterprise_sp2_x64_dvd_342332.iso"
+      ;;
+    "winvistax86-enterprise" )
+      size=2420981760
+      sum="54e2720004041e7db988a391543ea5228b0affc28efcf9303d2d0ff9402067f5"
+      url="en_windows_vista_enterprise_sp2_x86_dvd_342329.iso"
+      ;;
+    "winxpx86" )
+      size=617756672
+      sum="62b6c91563bad6cd12a352aa018627c314cfc5162d8e9f8af0756a642e602a46"
+      url="en_windows_xp_professional_with_service_pack_3_x86_cd_x14-80428.iso"
+      ;;
+    "win2kx86" )
+      size=386859008
+      sum="e3816f6e80b66ff686ead03eeafffe9daf020a5e4717b8bd4736b7c51733ba22"
+      url="EN_WIN2000_PRO_SP4.ISO"
+      ;;
+    "win98" )
+      size=655591424
+      sum="2adfb46df8a9c7bbd2f67bff07461cc2f9d9ec8e01f0e112cb044c9e3e62f607"
+      url="Windows%2098%20Second%20Edition.iso"
+      ;;
+  esac
+
+  case "${ret,,}" in
+    "sum" ) echo "$sum" ;;
+    "size" ) echo "$size" ;;
+    *) [ -n "$url" ] && echo "$host/$url";;
+  esac
+
+  return 0
+}
+
+getLink4() {
+
   local id="$1"
   local lang="$2"
   local ret="$3"
@@ -1287,7 +1412,7 @@ getLink3() {
   return 0
 }
 
-getLink4() {
+getLink5() {
 
   local id="$1"
   local lang="$2"
