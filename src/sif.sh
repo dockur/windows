@@ -160,7 +160,7 @@ SIFInstall() {
     "$product" "$sifHost" "$sifUsername" "$sifPassword" "$sifOrganization" "$sifWorkgroup" \
     "$localeID" "$inputLocaleID" "$keyboardID" "$timezone" || return 1
 
-  writeRegistry "$dir" "$shortcut" "$oem" "$regUsername" "$regPassword" || return 1
+  writeRegistry "$dir" "$shortcut" "$oem" "$regUsername" "$regPassword" "$driver" || return 1
 
   appendRegistry "$dir" "$driver" || return 1
   writeNT5Effects "$dir" || return 1
@@ -749,6 +749,9 @@ writeSIF() {
   local inputLocaleID="${10}"
   local keyboardID="${11}"
   local timezone="${12}"
+  local bitsPerPel=32
+
+  [[ "$driver" == "2k3" ]] && bitsPerPel=16
 
   find "$target" -maxdepth 1 -type f -iname winnt.sif -delete || return 1
 
@@ -808,7 +811,7 @@ writeSIF() {
       "    JoinWorkgroup = \"$sifWorkgroup\"" \
       '' \
       '[Display]' \
-      '    BitsPerPel=32' \
+      "    BitsPerPel=$bitsPerPel" \
       "    XResolution=$WIDTH" \
       "    YResolution=$HEIGHT" \
       '' \
@@ -851,6 +854,10 @@ writeRegistry() {
   local oem="$3"
   local regUsername="$4"
   local regPassword="$5"
+  local driver="$6"
+  local bitsPerPelHex="00000020"
+
+  [[ "$driver" == "2k3" ]] && bitsPerPelHex="00000010"
 
   {
     printf '%s\n' \
@@ -905,12 +912,12 @@ writeRegistry() {
     printf '%s\n' \
       '' \
       '[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Video\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]' \
-      '"DefaultSettings.BitsPerPel"=dword:00000020' \
+      "\"DefaultSettings.BitsPerPel\"=dword:$bitsPerPelHex" \
       "\"DefaultSettings.XResolution\"=dword:$XHEX" \
       "\"DefaultSettings.YResolution\"=dword:$YHEX" \
       '' \
       '[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Hardware Profiles\Current\System\CurrentControlSet\Control\VIDEO\{23A77BF7-ED96-40EC-AF06-9B1F4867732A}\0000]' \
-      '"DefaultSettings.BitsPerPel"=dword:00000020' \
+      "\"DefaultSettings.BitsPerPel\"=dword:$bitsPerPelHex" \
       "\"DefaultSettings.XResolution\"=dword:$XHEX" \
       "\"DefaultSettings.YResolution\"=dword:$YHEX" \
       '' \
