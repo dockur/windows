@@ -573,6 +573,8 @@ patchWin9xSetupFiles() {
     return 1
   fi
 
+  patchWin9xLooseSetupFiles "$id" "$target" "$desc" "$patcher" || return 1
+
   if [[ "${id,,}" == "win9x"* ]]; then
     patchWinMeBaseComponents "$target" "$desc" || return 1
   fi
@@ -596,6 +598,52 @@ patchWin9xSetupFiles() {
   # Use QEMouse directly in the MINI.CAB GUI Setup environment for every Win9x
   # release, so the setup mouse path does not depend on a DOS INT 33h TSR.
   integrateWin9xSetupMouse "$target" "$desc" "$qemouse/qemouse.drv" || return 1
+
+  return 0
+}
+
+patchWin9xLooseSetupFiles() {
+
+  local id="$1"
+  local target="$2"
+  local desc="$3"
+  local patcher="$4"
+  local patches="tlb,speed,mem,g4resfix"
+  local name file
+  local patch_output
+  local -a files=()
+  local -a names=(
+    VMM32.VXD
+    VMM.VXD
+    NTKERN.VXD
+    IOS.VXD
+    ESDI_506.PDR
+    SCSIPORT.PDR
+    NDIS.VXD
+    NDIS.386
+    VCACHE.VXD
+    WIN.COM
+    WIN.CNF
+  )
+
+  [[ "${id,,}" == "win9x"* ]] && patches="default"
+
+  # Patcher9x scans the setup CABs in installation-media mode, while Windows
+  # Setup gives loose files in the setup directory precedence over CAB copies.
+  # Patch every loose file Patcher9x documents as a possible replacement so a
+  # media-specific override cannot bypass the already-patched cabinet version.
+  for name in "${names[@]}"; do
+    file=$(find "$target" -maxdepth 1 -type f -iname "$name" -print -quit) || return 1
+    [ -n "$file" ] && files+=("$file")
+  done
+
+  (( ${#files[@]} == 0 )) && return 0
+
+  if ! patch_output=$("$patcher" --patch "$patches" "${files[@]}" 2>&1); then
+    [ -z "$patch_output" ] || printf '%s\n' "$patch_output" >&2
+    error "Failed to patch loose $desc setup files!"
+    return 1
+  fi
 
   return 0
 }
