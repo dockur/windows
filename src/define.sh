@@ -1268,7 +1268,7 @@ getLink3() {
   local ret="$3"
 
   local url="" sum="" size=""
-  local host="https://download.testip.xyz/Windows"
+  local host="https://download.testip.xyz/windows"
 
   [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
 
