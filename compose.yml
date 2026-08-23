@@ -1,19 +1,30 @@
+version: "3.8"
+
 services:
   windows:
     image: dockurr/windows
     container_name: windows
     environment:
       VERSION: "11"
+      DISK_SIZE: "256G"
+      RAM_SIZE: "16G"
+      CPU_CORES: "8"
+      AUDIO: "Y"
+      USERNAME: "Andre"
+      PASSWORD: "123"
+      LANGUAGE: "Español"
     devices:
-      - /dev/kvm
-      - /dev/net/tun
+      - /dev/kvm:/dev/kvm
+      - /dev/net/tun:/dev/net/tun
     cap_add:
       - NET_ADMIN
+    privileged: true
     ports:
-      - 8006:8006
-      - 3389:3389/tcp
-      - 3389:3389/udp
+      - "8006:8006"
+      - "3389:3389/tcp"
+      - "3389:3389/udp"
     volumes:
       - ./windows:/storage
+      - ./Win11:/shared
     restart: always
     stop_grace_period: 2m
