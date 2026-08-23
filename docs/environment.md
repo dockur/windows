@@ -33,6 +33,7 @@ An empty default means the variable is unset and its value is determined automat
 | `VMX` | `N` | Exposes Intel VMX virtualization extensions to the guest. |
 | `HV` | `Y` | Enables Hyper-V enlightenments for Windows guests. |
 | `RAM_SIZE` | `4G` | Amount of RAM assigned to Windows, such as `8G`, `half`, or `max`. |
+| `RAM_BACKEND` |  | Guest RAM backing mechanism, set `memfd` for memfd-backed memory. |
 | `RAM_CHECK` | `Y` | Checks whether enough host memory is available before starting Windows. |
 
 ## 💾 Storage
@@ -113,8 +114,8 @@ An empty default means the variable is unset and its value is determined automat
 | `PCI_BUS` | `pcie.0` | Overrides the PCI bus used for attached devices. |
 | `RNG` | `Y` | Adds the Virtio RNG device to the machine. |
 | `UUID` |  | UUID assigned to Windows. |
-| `HPET` | `off` | HPET timer setting. |
-| `VMPORT` | `off` | VMware port setting. |
+| `HPET` | `N` | HPET timer setting. |
+| `VMPORT` | `N` | VMware port setting. |
 | `MOUSE` | `usb-tablet` | Pointing device used by the machine. |
 | `SOUND` | `intel-hda` | Audio device used when `AUDIO=Y`. |
 | `SM_BIOS` |  | Additional arguments passed to QEMU’s `-smbios` option. |
