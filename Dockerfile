@@ -1,9 +1,9 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1.19
 
 ARG VERSION_ARG="latest"
 FROM scratch AS build-amd64
 
-COPY --from=qemux/qemu:7.49 / /
+COPY --from=qemux/qemu:7.49 --exclude=usr/bin/qemu-system-x86_64 / /
 
 ARG TARGETARCH
 
