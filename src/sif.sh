@@ -46,8 +46,13 @@ SIFInstall() {
 
     "2k" )
       # Windows 2000 keeps its existing storage/network path, but still needs
-      # the QBochs display package staged for Plug and Play setup.
+      # its display driver packages staged for Plug and Play setup.
       extractDrivers "$drivers" || return 1
+
+      if ! addVMSVGADriver "$dir" "$driver" "$arch" "$drivers"; then
+        rm -rf "$drivers" || :
+        return 1
+      fi
 
       if ! addDisplayDriver "$dir" "$driver" "$arch" "$drivers"; then
         rm -rf "$drivers" || :
@@ -183,6 +188,7 @@ addLegacyDrivers() {
   copyStorageDriver "$dir" "$target" "$driver" "$arch" "$drivers" || return 1
   addNetworkDriver "$dir" "$driver" "$arch" "$drivers" || return 1
   addQXLDriver "$dir" "$driver" "$arch" "$drivers" || return 1
+  addVMSVGADriver "$dir" "$driver" "$arch" "$drivers" || return 1
   addDisplayDriver "$dir" "$driver" "$arch" "$drivers" || return 1
   disableGenericDisplay "$target" "$driver" "$arch" "$drivers" || return 1
   addBalloonDriver "$dir" "$driver" "$arch" "$drivers" || return 1
@@ -276,6 +282,44 @@ addQXLDriver() {
 
     if [ ! -f "$source/$file" ]; then
       error "Failed to locate required QXL display driver file: $file"
+      return 1
+    fi
+
+  done
+
+  mkdir -p "$destination" || return 1
+  cp -Lr "$source/." "$destination" || return 1
+
+  return 0
+}
+
+addVMSVGADriver() {
+
+  local dir="$1"
+  local driver="$2"
+  local arch="$3"
+  local drivers="$4"
+
+  local vmsvga_arch="$arch"
+  [[ "${vmsvga_arch,,}" == "amd64" ]] && vmsvga_arch="x64"
+
+  local source="$drivers/vmsvga/$driver/$vmsvga_arch"
+  local destination="$dir/\$OEM\$/\$1/Drivers/VMSVGA"
+
+  if [ ! -d "$source" ]; then
+    error "Failed to locate required VMware SVGA display driver directory: $source"
+    return 1
+  fi
+
+  local files="vmx_svgaver.dll vmx_svga.cat vmx_mode.dll vmx_svga.sys vmwogl32.dll vmx_fb.dll vmx_svga.inf"
+  [[ "$vmsvga_arch" == "x64" ]] && files+=" vmwogl64.dll"
+
+  local file
+
+  for file in $files; do
+
+    if [ ! -f "$source/$file" ]; then
+      error "Failed to locate required VMware SVGA display driver file: $file"
       return 1
     fi
 
@@ -771,7 +815,7 @@ writeSIF() {
       '    WaitForReboot="No"' \
       '    DriverSigningPolicy="Ignore"' \
       '    NonDriverSigningPolicy="Ignore"' \
-      '    OemPnPDriversPath="Drivers\viostor;Drivers\NetKVM;Drivers\sata;Drivers\QXL;Drivers\QBochs;Drivers\Balloon"' \
+      '    OemPnPDriversPath="Drivers\viostor;Drivers\NetKVM;Drivers\sata;Drivers\QXL;Drivers\VMSVGA;Drivers\QBochs;Drivers\Balloon"' \
       '    NoWaitAfterTextMode=1' \
       '    NoWaitAfterGUIMode=1' \
       '    FileSystem=ConvertNTFS' \
