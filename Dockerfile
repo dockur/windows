@@ -4,6 +4,7 @@ ARG VERSION_ARG="latest"
 FROM scratch AS build-amd64
 
 COPY --from=qemux/qemu:7.49 / /
+COPY --from=qemux/qemu-helios:1.0.0 /usr/bin/qemu-system-x86_64 /usr/bin/
 
 ARG TARGETARCH
 
