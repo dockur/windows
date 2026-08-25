@@ -1053,8 +1053,6 @@ writeVBS() {
   local balloonExe="$dir/\$OEM\$/\$1/Drivers/Balloon/blnsvr.exe"
   local power="$dir/\$OEM\$/\$\$/NT5POWER.VBS"
   local powerRunOnce=""
-  local userSettings="$dir/\$OEM\$/\$\$/NT5USER.VBS"
-  local userSettingsReg="$dir/\$OEM\$/\$\$/NT5USER.REG"
 
   if [[ "$driver" == "xp" || "$driver" == "2k3" ]]; then
     powerRunOnce='WshShell.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce\PowerPolicy", "Wscript.exe //B " & Chr(34) & "%SystemRoot%\NT5POWER.VBS" & Chr(34), "REG_EXPAND_SZ"'
@@ -1066,7 +1064,6 @@ writeVBS() {
   {
     printf '%s\n' \
       'Set WshShell = WScript.CreateObject("WScript.Shell")' \
-      'WshShell.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce\UserSettings", "Wscript.exe //B " & Chr(34) & "%SystemRoot%\NT5USER.VBS" & Chr(34), "REG_EXPAND_SZ"' \
       "$powerRunOnce" \
       'Set WshNetwork = WScript.CreateObject("WScript.Network")' \
       'Set Domain = GetObject("WinNT://" & WshNetwork.ComputerName)' \
@@ -1180,40 +1177,6 @@ writeVBS() {
   else
     rm -f -- "$power" || return 1
   fi
-
-  mkdir -p "$(dirname "$userSettings")" || return 1
-
-  # Setup components can overwrite HKCU values after cmdlines.txt imports them.
-  # Copy every static current-user section, except RunOnce itself, into a file
-  # that is reapplied during each user's first interactive session.
-  {
-    printf '%s\n' 'Windows Registry Editor Version 5.00' ''
-
-    awk '
-      {
-        line = $0
-        sub(/\r$/, "", line)
-      }
-      /^\[HKEY_/ {
-        upper = toupper(line)
-        keep = index(upper, "[HKEY_CURRENT_USER\\") == 1 && \
-          upper != "[HKEY_CURRENT_USER\\SOFTWARE\\MICROSOFT\\WINDOWS\\CURRENTVERSION\\RUNONCE]"
-      }
-      keep {
-        print line
-      }
-    ' "$dir/\$OEM\$/install.reg"
-  } | unix2dos > "$userSettingsReg" || return 1
-
-  {
-    printf '%s\n' \
-      'On Error Resume Next' \
-      'Set Shell = WScript.CreateObject("WScript.Shell")' \
-      'UserSettingsReg = Shell.ExpandEnvironmentStrings("%SystemRoot%\NT5USER.REG")' \
-      'Shell.Run "REGEDIT.EXE /S " & Chr(34) & UserSettingsReg & Chr(34), 0, True' \
-      'Shell.Run "RUNDLL32.EXE USER32.DLL,UpdatePerUserSystemParameters", 0, True' \
-      ''
-  } | unix2dos > "$userSettings" || return 1
 
   {
     printf '%s\n' \
