@@ -989,7 +989,10 @@ appendRegistry() {
       if [[ "$driver" == "2k" ]]; then
         printf '%s\n' '"UserPreferencesMask"=hex:9c,32,00,80'
       else
-        printf '%s\n' '"UserPreferencesMask"=hex:9c,32,07,80'
+        printf '%s\n' \
+          '"UserPreferencesMask"=hex:9c,32,07,80' \
+          '"FontSmoothing"="2"' \
+          '"FontSmoothingType"=dword:00000001'
       fi
 
       printf '%s\n' \
@@ -999,6 +1002,46 @@ appendRegistry() {
         '' \
         '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer]' \
         '"link"=hex:00,00,00,00' ''
+    } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
+  fi
+
+  if [[ "$driver" == "xp" || "$driver" == "2k3" ]]; then
+    # Shell32 Active Setup applies these defaults while creating a new profile.
+    # Set them before first logon so it preserves the requested animation state.
+    {
+      printf '%s\n' \
+        '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects\AnimateMinMax]' \
+        '"DefaultValue"=dword:00000000' \
+        '' \
+        '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects\ComboBoxAnimation]' \
+        '"DefaultValue"=dword:00000001' \
+        '' \
+        '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects\CursorShadow]' \
+        '"DefaultValue"=dword:00000001' \
+        '' \
+        '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects\DragFullWindows]' \
+        '"DefaultValue"=dword:00000001' \
+        '"DefaultByAlphaTest"=dword:00000001' \
+        '' \
+        '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects\FontSmoothing]' \
+        '"DefaultValue"=dword:00000001' \
+        '"DefaultByFontTest"=dword:00000001' \
+        '' \
+        '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects\ListBoxSmoothScrolling]' \
+        '"DefaultValue"=dword:00000001' \
+        '' \
+        '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects\MenuAnimation]' \
+        '"DefaultValue"=dword:00000000' \
+        '"DefaultByAlphaTest"=dword:00000000' \
+        '' \
+        '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects\SelectionFade]' \
+        '"DefaultValue"=dword:00000000' \
+        '"DefaultByAlphaTest"=dword:00000000' \
+        '' \
+        '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects\TooltipAnimation]' \
+        '"DefaultValue"=dword:00000000' \
+        '"DefaultByAlphaTest"=dword:00000000' \
+        ''
     } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
   fi
 
