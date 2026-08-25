@@ -998,7 +998,10 @@ appendRegistry() {
         '"MinAnimate"="0"' \
         '' \
         '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer]' \
-        '"link"=hex:00,00,00,00' ''
+        '"link"=hex:00,00,00,00' \
+        '' \
+        '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce]' \
+        '"UserPreferences"="Wscript.exe %SystemRoot%\\NT5ANIM.VBS"' ''
     } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
   fi
 
@@ -1059,7 +1062,12 @@ writeVBS() {
   local shortcut="$3"
   local driver="$4"
   local balloonExe="$dir/\$OEM\$/\$1/Drivers/Balloon/blnsvr.exe"
+  local animation="$dir/\$OEM\$/\$\$/NT5ANIM.VBS"
+  local animationReg="$dir/\$OEM\$/\$\$/NT5ANIM.REG"
+  local animationMask="9c,32,07,80"
   local power="$dir/\$OEM\$/\$\$/NT5POWER.VBS"
+
+  [[ "$driver" == "2k" ]] && animationMask="9c,32,00,80"
 
   # Locate the built-in Administrator by its RID 500 SID rather than its
   # localized display name, then rename that account to the requested username.
@@ -1179,6 +1187,33 @@ writeVBS() {
   else
     rm -f -- "$power" || return 1
   fi
+
+  mkdir -p "$(dirname "$animation")" || return 1
+
+  # The animation settings are imported before logon, but USER32 can retain
+  # values loaded earlier in Setup. Reapply the complete animation state for
+  # each user and refresh it during their first interactive session.
+  {
+    printf '%s\n' \
+      'Windows Registry Editor Version 5.00' \
+      '' \
+      '[HKEY_CURRENT_USER\Control Panel\Desktop]' \
+      "\"UserPreferencesMask\"=hex:$animationMask" \
+      '' \
+      '[HKEY_CURRENT_USER\Control Panel\Desktop\WindowMetrics]' \
+      '"MinAnimate"="0"' \
+      ''
+  } | unix2dos > "$animationReg" || return 1
+
+  {
+    printf '%s\n' \
+      'On Error Resume Next' \
+      'Set Shell = WScript.CreateObject("WScript.Shell")' \
+      'AnimationReg = Shell.ExpandEnvironmentStrings("%SystemRoot%\NT5ANIM.REG")' \
+      'Shell.Run "REGEDIT.EXE /S " & Chr(34) & AnimationReg & Chr(34), 0, True' \
+      'Shell.Run "RUNDLL32.EXE USER32.DLL,UpdatePerUserSystemParameters", 0, True' \
+      ''
+  } | unix2dos > "$animation" || return 1
 
   {
     printf '%s\n' \
