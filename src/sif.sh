@@ -78,7 +78,6 @@ SIFInstall() {
   esac
 
   disableAutoReboot "$target" || return 1
-  patchDefaultHive "$target" "$driver" || return 1
   setLegacyKey "$target" "$driver" "$arch" "$desc" || return 1
   validateProductKey "$KEY" || return 1
 
@@ -626,214 +625,6 @@ addSIFEntry() {
   return 0
 }
 
-addHiveEntry() {
-
-  local file="$1"
-  local entry="$2"
-
-  local header="[AddReg]"
-  local line ending="lf"
-
-  line=$(grep -Fnx -m 1 "$header" "$file" | cut -d: -f1) || line=""
-
-  if [ -z "$line" ]; then
-    line=$(grep -Fnx -m 1 "$header"$'\r' "$file" | cut -d: -f1) || line=""
-    ending="crlf"
-  fi
-
-  if [ -z "$line" ]; then
-    error "Failed to locate section \"$header\" in \"$file\" !"
-    return 1
-  fi
-
-  local next
-  next=$(awk -v start="$((line + 1))" '
-    NR >= start {
-      value = $0
-      sub(/\r$/, "", value)
-      if (value ~ /^[[:space:]]*\[[^]]+\][[:space:]]*$/) {
-        print NR
-        exit
-      }
-    }
-  ' "$file") || return 1
-
-  local insert
-  if [ -n "$next" ]; then
-    insert=$((next - 1))
-  else
-    insert=$(wc -l < "$file") || return 1
-  fi
-
-  local replacement
-  replacement=$(mktemp) || return 1
-
-  if [[ "$ending" == "crlf" ]]; then
-    printf '%s\r\n' "$entry" > "$replacement" || {
-      rm -f -- "$replacement" || :
-      return 1
-    }
-  else
-    printf '%s\n' "$entry" > "$replacement" || {
-      rm -f -- "$replacement" || :
-      return 1
-    }
-  fi
-
-  if ! sed -i "${insert}r $replacement" "$file"; then
-    rm -f -- "$replacement" || :
-    return 1
-  fi
-
-  rm -f -- "$replacement" || return 1
-
-  return 0
-}
-
-setHiveEntry() {
-
-  local file="$1"
-  local key="$2"
-  local name="$3"
-  local entry="$4"
-
-  local target="HKCU,\"$key\","
-
-  if [ -n "$name" ]; then
-    target+="\"$name\","
-  else
-    target+=","
-  fi
-
-  local -a lines=()
-  mapfile -t lines < <(
-    HIVE_TARGET="$target" awk '
-      BEGIN {
-        target = toupper(ENVIRON["HIVE_TARGET"])
-        gsub(/[[:space:]]/, "", target)
-      }
-      {
-        value = $0
-        sub(/\r$/, "", value)
-        gsub(/[[:space:]]/, "", value)
-        if (index(toupper(value), target) == 1) {
-          print NR
-        }
-      }
-    ' "$file"
-  ) || return 1
-
-  if (( ${#lines[@]} > 1 )); then
-    error "Found multiple HIVEDEF.INF entries for \"$key\\$name\"!"
-    return 1
-  fi
-
-  if (( ${#lines[@]} == 0 )); then
-    addHiveEntry "$file" "$entry" || return 1
-    return 0
-  fi
-
-  local replacement
-  replacement=$(mktemp) || return 1
-
-  if LC_ALL=C grep -q $'\r$' "$file"; then
-    printf '%s\r\n' "$entry" > "$replacement" || {
-      rm -f -- "$replacement" || :
-      return 1
-    }
-  else
-    printf '%s\n' "$entry" > "$replacement" || {
-      rm -f -- "$replacement" || :
-      return 1
-    }
-  fi
-
-  if ! sed -i "${lines[0]}r $replacement" "$file" ||
-    ! sed -i "${lines[0]}d" "$file"; then
-    rm -f -- "$replacement" || :
-    return 1
-  fi
-
-  rm -f -- "$replacement" || return 1
-
-  return 0
-}
-
-patchDefaultHive() {
-
-  local target="$1"
-  local driver="$2"
-
-  local file
-  file=$(find "$target" -maxdepth 1 -type f -iname HIVEDEF.INF -print -quit) || return 1
-
-  if [ -z "$file" ]; then
-    error "The file HIVEDEF.INF could not be found!"
-    return 1
-  fi
-
-  # Apply static user preferences while Setup is constructing the default
-  # profile, so they are active for the first desktop and inherited by every
-  # subsequently created user.
-  setHiveEntry "$file" 'Software\Microsoft\Windows\CurrentVersion\Applets\Tour' 'RunCount' \
-    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Applets\Tour","RunCount",0x00010001,0' || return 1
-  setHiveEntry "$file" 'Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' 'HideFileExt' \
-    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced","HideFileExt",0x00010001,0' || return 1
-  setHiveEntry "$file" 'Software\Microsoft\Internet Connection Wizard' 'Completed' \
-    'HKCU,"Software\Microsoft\Internet Connection Wizard","Completed",0x00000000,"1"' || return 1
-  setHiveEntry "$file" 'Software\Microsoft\Internet Connection Wizard' 'Desktopchanged' \
-    'HKCU,"Software\Microsoft\Internet Connection Wizard","Desktopchanged",0x00000000,"1"' || return 1
-  setHiveEntry "$file" 'Control Panel\Desktop' 'SCRNSAVE.EXE' \
-    'HKCU,"Control Panel\Desktop","SCRNSAVE.EXE",0x00000000,"off"' || return 1
-  setHiveEntry "$file" 'Control Panel\Desktop' 'ScreenSaveActive' \
-    'HKCU,"Control Panel\Desktop","ScreenSaveActive",0x00000000,"0"' || return 1
-  setHiveEntry "$file" 'Control Panel\Desktop' 'DragFullWindows' \
-    'HKCU,"Control Panel\Desktop","DragFullWindows",0x00000000,"1"' || return 1
-  setHiveEntry "$file" 'Control Panel\Desktop' 'MenuShowDelay' \
-    'HKCU,"Control Panel\Desktop","MenuShowDelay",0x00000000,"0"' || return 1
-
-  if [[ "$driver" == "2k" ]]; then
-    setHiveEntry "$file" 'Control Panel\Desktop' 'UserPreferencesMask' \
-      'HKCU,"Control Panel\Desktop","UserPreferencesMask",0x00000001,9c,32,00,80' || return 1
-  else
-    setHiveEntry "$file" 'Control Panel\Desktop' 'UserPreferencesMask' \
-      'HKCU,"Control Panel\Desktop","UserPreferencesMask",0x00000001,9c,32,07,80' || return 1
-  fi
-
-  setHiveEntry "$file" 'Control Panel\Desktop\WindowMetrics' 'MinAnimate' \
-    'HKCU,"Control Panel\Desktop\WindowMetrics","MinAnimate",0x00000000,"0"' || return 1
-  setHiveEntry "$file" 'Software\Microsoft\Windows\CurrentVersion\Explorer' 'link' \
-    'HKCU,"Software\Microsoft\Windows\CurrentVersion\Explorer","link",0x00000001,00,00,00,00' || return 1
-
-  if [[ "$driver" == "xp" || "$driver" == "2k3" ]]; then
-    # Keep the helper in the Windows directory and let each user run it once
-    # for their own power scheme without adding generated files to C:\OEM.
-    setHiveEntry "$file" 'Software\Microsoft\Windows\CurrentVersion\RunOnce' 'PowerPolicy' \
-      'HKCU,"Software\Microsoft\Windows\CurrentVersion\RunOnce","PowerPolicy",0x00020000,"Wscript.exe %%SystemRoot%%\NT5POWER.VBS"' || return 1
-  fi
-
-  if [[ "$driver" == "2k" ]]; then
-    setHiveEntry "$file" 'Control Panel\PowerCfg' 'CurrentPowerPolicy' \
-      'HKCU,"Control Panel\PowerCfg","CurrentPowerPolicy",0x00000000,"3"' || return 1
-    setHiveEntry "$file" 'Control Panel\PowerCfg\PowerPolicies\3' 'Policies' \
-      'HKCU,"Control Panel\PowerCfg\PowerPolicies\3","Policies",0x00000001,01,00,00,00,00,00,00,00,01,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,04,00,00,00,04,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,01,64,64,64,64,00,00' || return 1
-    setHiveEntry "$file" 'Software\Microsoft\Windows\CurrentVersion\Runonce' '^SetupICWDesktop' \
-      'HKCU,"Software\Microsoft\Windows\CurrentVersion\Runonce","^SetupICWDesktop",0x00000004' || return 1
-  fi
-
-  if [[ "$driver" == "2k" || "$driver" == "2k3" ]]; then
-    setHiveEntry "$file" 'Software\Microsoft\Windows\CurrentVersion\Policies\Explorer' 'NoActiveDesktop' \
-      'HKCU,"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer","NoActiveDesktop",0x00010001,1' || return 1
-  fi
-
-  if [[ "$driver" == "2k3" ]]; then
-    setHiveEntry "$file" 'Software\Microsoft\Windows NT\CurrentVersion\srvWiz' '' \
-      'HKCU,"Software\Microsoft\Windows NT\CurrentVersion\srvWiz",,0x00010001,0' || return 1
-  fi
-
-  return 0
-}
-
 disableAutoReboot() {
 
   local target="$1"
@@ -1133,10 +924,18 @@ writeRegistry() {
       '[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\StandardProfile\GloballyOpenPorts\List]' \
       '"3389:TCP"="3389:TCP:*:Enabled:@xpsp2res.dll,-22009"' \
       '' \
+      '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Applets\Tour]' \
+      '"RunCount"=dword:00000000' \
+      '' \
+      '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]' \
+      '"HideFileExt"=dword:00000000' \
+      '' \
       '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer]' \
       '"NoWelcomeScreen"="1"' \
       '' \
-      '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]'
+      '[HKEY_CURRENT_USER\Software\Microsoft\Internet Connection Wizard]' \
+      '"Completed"="1"' \
+      '"Desktopchanged"="1"' '' '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]'
 
     if disabled "$AUTOLOGIN"; then
       printf '%s\n' '"AutoAdminLogon"="0"'
@@ -1165,7 +964,7 @@ writeRegistry() {
       "\"DefaultSettings.XResolution\"=dword:$XHEX" \
       "\"DefaultSettings.YResolution\"=dword:$YHEX" \
       '' \
-      '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce]'
+      '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce]'
 
     printf '%s\n' "$oem" ''
   } | unix2dos > "$dir/\$OEM\$/install.reg" || return 1
@@ -1178,11 +977,69 @@ appendRegistry() {
   local dir="$1"
   local driver="$2"
 
+  if [[ "$driver" == "2k" || "$driver" == "xp" || "$driver" == "2k3" ]]; then
+    {
+      printf '%s\n' \
+        '[HKEY_CURRENT_USER\Control Panel\Desktop]' \
+        '"SCRNSAVE.EXE"="off"' \
+        '"ScreenSaveActive"="0"' \
+        '"DragFullWindows"="1"' \
+        '"MenuShowDelay"="0"'
+
+      if [[ "$driver" == "2k" ]]; then
+        printf '%s\n' '"UserPreferencesMask"=hex:9c,32,00,80'
+      else
+        printf '%s\n' '"UserPreferencesMask"=hex:9c,32,07,80'
+      fi
+
+      printf '%s\n' \
+        '' \
+        '[HKEY_CURRENT_USER\Control Panel\Desktop\WindowMetrics]' \
+        '"MinAnimate"="0"' \
+        '' \
+        '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer]' \
+        '"link"=hex:00,00,00,00' ''
+    } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
+  fi
+
+  if [[ "$driver" == "xp" || "$driver" == "2k3" ]]; then
+    {
+      printf '%s\n' \
+        '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce]' \
+        '"PowerPolicy"="Wscript.exe %SystemRoot%\\NT5POWER.VBS"' ''
+    } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
+  fi
+
+  if [[ "$driver" == "2k" ]]; then
+    {
+      printf '%s\n' \
+        '[HKEY_CURRENT_USER\Control Panel\PowerCfg]' \
+        '"CurrentPowerPolicy"="3"' \
+        '' \
+        '[HKEY_CURRENT_USER\Control Panel\PowerCfg\PowerPolicies\3]' \
+        '"Policies"=hex:01,00,00,00,00,00,00,00,01,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,32,32,00,00,04,00,00,00,04,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,01,64,64,64,64,00,00' \
+        '' \
+        '[HKEY_USERS\.DEFAULT\Software\Microsoft\Windows\CurrentVersion\Runonce]' \
+        '"^SetupICWDesktop"=-' ''
+    } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
+  fi
+
+  if [[ "$driver" == "2k" || "$driver" == "2k3" ]]; then
+    {
+      printf '%s\n' \
+        '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer]' \
+        '"NoActiveDesktop"=dword:00000001' ''
+    } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
+  fi
+
   if [[ "$driver" == "2k3" ]]; then
     {
       printf '%s\n' \
         '[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability]' \
         '"ShutdownReasonOn"=dword:00000000' \
+        '' \
+        '[HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\srvWiz]' \
+        '@=dword:00000000' \
         '' \
         '[HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\ServerOOBE\SecurityOOBE]' \
         '"DontLaunchSecurityOOBE"=dword:00000000' \
@@ -1305,6 +1162,9 @@ writeVBS() {
         'Set Shell = WScript.CreateObject("WScript.Shell")' \
         'Set FSO = WScript.CreateObject("Scripting.FileSystemObject")' \
         'PowerCfg = Shell.ExpandEnvironmentStrings("%SystemRoot%\System32\POWERCFG.EXE")' \
+        '' \
+        'Shell.RegWrite "HKCU\Control Panel\Desktop\SCRNSAVE.EXE", "off", "REG_SZ"' \
+        'Shell.RegWrite "HKCU\Control Panel\Desktop\ScreenSaveActive", "0", "REG_SZ"' \
         '' \
         'If FSO.FileExists(PowerCfg) Then' \
         '  Policy = 3' \
