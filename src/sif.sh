@@ -1077,6 +1077,39 @@ writeVBS() {
   } | unix2dos > "$dir/\$OEM\$/install.vbs" || return 1
 
   if [[ "$driver" == "xp" || "$driver" == "2k3" ]]; then
+    # Windows XP and Server 2003 store the automatic recovery menu timeout
+    # in byte 0x09 of bootstat.dat. Patch only that byte and leave the boot
+    # success/shutdown state in the rest of the file untouched.
+    {
+      printf '%s\n' \
+        'On Error Resume Next' \
+        'BootStatPath = WshShell.ExpandEnvironmentStrings("%SystemRoot%\bootstat.dat")' \
+        'Set BootStatStream = WScript.CreateObject("ADODB.Stream")' \
+        'Set BootStatXML = WScript.CreateObject("Msxml2.DOMDocument.3.0")' \
+        'Set BootStatByte = BootStatXML.CreateElement("byte")' \
+        'BootStatByte.DataType = "bin.base64"' \
+        'BootStatByte.Text = "Aw=="' \
+        'If IsObject(BootStatStream) And IsObject(BootStatByte) Then' \
+        '  BootStatStream.Type = 1' \
+        '  BootStatStream.Open' \
+        '  Err.Clear' \
+        '  BootStatStream.LoadFromFile BootStatPath' \
+        '  If Err.Number = 0 Then' \
+        '    If BootStatStream.Size > 9 Then' \
+        '      BootStatStream.Position = 9' \
+        '      BootStatStream.Write BootStatByte.NodeTypedValue' \
+        '      BootStatStream.SaveToFile BootStatPath, 2' \
+        '    End If' \
+        '  End If' \
+        '  BootStatStream.Close' \
+        'End If' \
+        'Set BootStatByte = Nothing' \
+        'Set BootStatXML = Nothing' \
+        'Set BootStatStream = Nothing' \
+        'On Error GoTo 0' \
+        ''
+    } | unix2dos >> "$dir/\$OEM\$/install.vbs" || return 1
+
     mkdir -p "$(dirname "$power")" || return 1
 
     {
