@@ -998,18 +998,7 @@ appendRegistry() {
         '"MinAnimate"="0"' \
         '' \
         '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer]' \
-        '"link"=hex:00,00,00,00' \
-        '' \
-        '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce]' \
-        '"UserPreferences"="Wscript.exe %SystemRoot%\\NT5ANIM.VBS"' ''
-    } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
-  fi
-
-  if [[ "$driver" == "xp" || "$driver" == "2k3" ]]; then
-    {
-      printf '%s\n' \
-        '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce]' \
-        '"PowerPolicy"="Wscript.exe %SystemRoot%\\NT5POWER.VBS"' ''
+        '"link"=hex:00,00,00,00' ''
     } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
   fi
 
@@ -1066,8 +1055,13 @@ writeVBS() {
   local animationReg="$dir/\$OEM\$/\$\$/NT5ANIM.REG"
   local animationMask="9c,32,07,80"
   local power="$dir/\$OEM\$/\$\$/NT5POWER.VBS"
+  local powerRunOnce=""
 
   [[ "$driver" == "2k" ]] && animationMask="9c,32,00,80"
+
+  if [[ "$driver" == "xp" || "$driver" == "2k3" ]]; then
+    powerRunOnce='WshShell.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce\PowerPolicy", "Wscript.exe //B " & Chr(34) & "%SystemRoot%\NT5POWER.VBS" & Chr(34), "REG_EXPAND_SZ"'
+  fi
 
   # Locate the built-in Administrator by its RID 500 SID rather than its
   # localized display name, then rename that account to the requested username.
@@ -1075,6 +1069,8 @@ writeVBS() {
   {
     printf '%s\n' \
       'Set WshShell = WScript.CreateObject("WScript.Shell")' \
+      'WshShell.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce\UserPreferences", "Wscript.exe //B " & Chr(34) & "%SystemRoot%\NT5ANIM.VBS" & Chr(34), "REG_EXPAND_SZ"' \
+      "$powerRunOnce" \
       'Set WshNetwork = WScript.CreateObject("WScript.Network")' \
       'Set Domain = GetObject("WinNT://" & WshNetwork.ComputerName)' \
       '' \
