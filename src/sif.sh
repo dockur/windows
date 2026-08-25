@@ -1051,13 +1051,10 @@ writeVBS() {
   local shortcut="$3"
   local driver="$4"
   local balloonExe="$dir/\$OEM\$/\$1/Drivers/Balloon/blnsvr.exe"
-  local animation="$dir/\$OEM\$/\$\$/NT5ANIM.VBS"
-  local animationReg="$dir/\$OEM\$/\$\$/NT5ANIM.REG"
-  local animationMask="9c,32,07,80"
   local power="$dir/\$OEM\$/\$\$/NT5POWER.VBS"
   local powerRunOnce=""
-
-  [[ "$driver" == "2k" ]] && animationMask="9c,32,00,80"
+  local userSettings="$dir/\$OEM\$/\$\$/NT5USER.VBS"
+  local userSettingsReg="$dir/\$OEM\$/\$\$/NT5USER.REG"
 
   if [[ "$driver" == "xp" || "$driver" == "2k3" ]]; then
     powerRunOnce='WshShell.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce\PowerPolicy", "Wscript.exe //B " & Chr(34) & "%SystemRoot%\NT5POWER.VBS" & Chr(34), "REG_EXPAND_SZ"'
@@ -1069,7 +1066,7 @@ writeVBS() {
   {
     printf '%s\n' \
       'Set WshShell = WScript.CreateObject("WScript.Shell")' \
-      'WshShell.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce\UserPreferences", "Wscript.exe //B " & Chr(34) & "%SystemRoot%\NT5ANIM.VBS" & Chr(34), "REG_EXPAND_SZ"' \
+      'WshShell.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce\UserSettings", "Wscript.exe //B " & Chr(34) & "%SystemRoot%\NT5USER.VBS" & Chr(34), "REG_EXPAND_SZ"' \
       "$powerRunOnce" \
       'Set WshNetwork = WScript.CreateObject("WScript.Network")' \
       'Set Domain = GetObject("WinNT://" & WshNetwork.ComputerName)' \
@@ -1184,32 +1181,39 @@ writeVBS() {
     rm -f -- "$power" || return 1
   fi
 
-  mkdir -p "$(dirname "$animation")" || return 1
+  mkdir -p "$(dirname "$userSettings")" || return 1
 
-  # The animation settings are imported before logon, but USER32 can retain
-  # values loaded earlier in Setup. Reapply the complete animation state for
-  # each user and refresh it during their first interactive session.
+  # Setup components can overwrite HKCU values after cmdlines.txt imports them.
+  # Copy every static current-user section, except RunOnce itself, into a file
+  # that is reapplied during each user's first interactive session.
   {
-    printf '%s\n' \
-      'Windows Registry Editor Version 5.00' \
-      '' \
-      '[HKEY_CURRENT_USER\Control Panel\Desktop]' \
-      "\"UserPreferencesMask\"=hex:$animationMask" \
-      '' \
-      '[HKEY_CURRENT_USER\Control Panel\Desktop\WindowMetrics]' \
-      '"MinAnimate"="0"' \
-      ''
-  } | unix2dos > "$animationReg" || return 1
+    printf '%s\n' 'Windows Registry Editor Version 5.00' ''
+
+    awk '
+      {
+        line = $0
+        sub(/\r$/, "", line)
+      }
+      /^\[HKEY_/ {
+        upper = toupper(line)
+        keep = index(upper, "[HKEY_CURRENT_USER\\") == 1 && \
+          upper != "[HKEY_CURRENT_USER\\SOFTWARE\\MICROSOFT\\WINDOWS\\CURRENTVERSION\\RUNONCE]"
+      }
+      keep {
+        print line
+      }
+    ' "$dir/\$OEM\$/install.reg"
+  } | unix2dos > "$userSettingsReg" || return 1
 
   {
     printf '%s\n' \
       'On Error Resume Next' \
       'Set Shell = WScript.CreateObject("WScript.Shell")' \
-      'AnimationReg = Shell.ExpandEnvironmentStrings("%SystemRoot%\NT5ANIM.REG")' \
-      'Shell.Run "REGEDIT.EXE /S " & Chr(34) & AnimationReg & Chr(34), 0, True' \
+      'UserSettingsReg = Shell.ExpandEnvironmentStrings("%SystemRoot%\NT5USER.REG")' \
+      'Shell.Run "REGEDIT.EXE /S " & Chr(34) & UserSettingsReg & Chr(34), 0, True' \
       'Shell.Run "RUNDLL32.EXE USER32.DLL,UpdatePerUserSystemParameters", 0, True' \
       ''
-  } | unix2dos > "$animation" || return 1
+  } | unix2dos > "$userSettings" || return 1
 
   {
     printf '%s\n' \
