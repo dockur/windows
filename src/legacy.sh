@@ -31,7 +31,7 @@ setMachine() {
       "winnt4" )
         writeState "vga" "cirrus" || return 1 ;;
 
-      "win2k"* | "winxp"* | "win2003"* )
+      "win9"* | "win2k"* | "winxp"* | "win2003"* )
         writeState "vga" "vmware" || return 1 ;;
 
       *) writeState "vga" "std" || return 1 ;;
