@@ -138,13 +138,7 @@ Win9xInstall() {
   local display="$win9x/vmdisp9x"
   local audio95="$win9x/alcx95"
   local audiowdm="$win9x/alcxwdm"
-  local vmware_display
-
-  case "${id,,}" in
-    "win95"* ) vmware_display="$drivers/vmsvga/95" ;;
-    "win98"* ) vmware_display="$drivers/vmsvga/98" ;;
-    "win9x"* ) vmware_display="$drivers/vmsvga/me" ;;
-  esac
+  local vmware_display="$win9x/vmsvga"
 
   extractDrivers "$drivers" || return 1
 
