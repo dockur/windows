@@ -1422,7 +1422,9 @@ addDrivers() {
     warn "Windows version unknown, falling back to $desc drivers..."
   fi
 
-  if ! bsdtar -xf /var/drivers.txz -C "$drivers"; then
+  if ! bsdtar -xf /var/drivers.txz -C "$drivers" \
+    --exclude='win9x' --exclude='sata' --exclude='qbochs' \
+    --exclude='vmsvga'; then
     error "Failed to extract drivers from archive!" && return 1
   fi
 
