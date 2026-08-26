@@ -518,6 +518,7 @@ stageWin9xScandiskConfig() {
     printf '%s\n' \
       '[Environment]' \
       'LfnCheck=On' \
+      'Mount=Never' \
       '' \
       '[Custom]' \
       'DriveSummary=Off' \
@@ -533,6 +534,7 @@ stageWin9xScandiskConfig() {
       'Crosslinks=Fix' \
       'Boot_Sector=Fix' \
       'Invalid_MDFAT=Fix' \
+      'FSInfo_Sector=Fix' \
       'DS_Crosslinks=Fix' \
       'DS_LostClust=Fix' \
       'DS_Signatures=Fix' \
