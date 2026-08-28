@@ -179,6 +179,7 @@ Also see [Dynamic memory allocation](https://github.com/qemus/qemu/blob/master/d
 | `DEBUG` | `N` | Enables verbose debug output. |
 | `TRACE` | `N` | Enables shell command tracing. |
 | `LOG`   | `N` | Saves all output from `install.bat` to `C:\OEM\install.log` for troubleshooting. |
-| `SERIAL` | `mon:stdio` | QEMU serial device configuration. |
-| `MONITOR` |  | QEMU monitor configuration. |
-| `QMP` |  | QEMU Machine Protocol configuration. |
+| `SERIAL` | `mon:stdio` | QEMU serial device, such as `/storage/serial.sock` or `4444`. |
+| `MONITOR` |  | QEMU monitor, such as `/storage/monitor.sock` or `4444`. |
+| `QMP` |  | QEMU Machine Protocol, such as `/storage/qmp.sock` or `4444`. |
+| `QGA` |  | QEMU Guest Agent, such as `/storage/qga.sock` or `4444`. |
