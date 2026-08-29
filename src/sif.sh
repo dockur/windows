@@ -794,8 +794,6 @@ writeSIF() {
   local timezone="${12}"
   local bitsPerPel=32
 
-  [[ "$driver" == "2k3" ]] && bitsPerPel=16
-
   find "$target" -maxdepth 1 -type f -iname winnt.sif -delete || return 1
 
   {
