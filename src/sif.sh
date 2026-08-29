@@ -46,8 +46,13 @@ SIFInstall() {
 
     "2k" )
       # Windows 2000 keeps its existing storage/network path, but still needs
-      # the QBochs display package staged for Plug and Play setup.
+      # its display driver packages staged for Plug and Play setup.
       extractDrivers "$drivers" || return 1
+
+      if ! addVMSVGADriver "$dir" "$driver" "$arch" "$drivers"; then
+        rm -rf "$drivers" || :
+        return 1
+      fi
 
       if ! addDisplayDriver "$dir" "$driver" "$arch" "$drivers"; then
         rm -rf "$drivers" || :
@@ -183,6 +188,7 @@ addLegacyDrivers() {
   copyStorageDriver "$dir" "$target" "$driver" "$arch" "$drivers" || return 1
   addNetworkDriver "$dir" "$driver" "$arch" "$drivers" || return 1
   addQXLDriver "$dir" "$driver" "$arch" "$drivers" || return 1
+  addVMSVGADriver "$dir" "$driver" "$arch" "$drivers" || return 1
   addDisplayDriver "$dir" "$driver" "$arch" "$drivers" || return 1
   disableGenericDisplay "$target" "$driver" "$arch" "$drivers" || return 1
   addBalloonDriver "$dir" "$driver" "$arch" "$drivers" || return 1
@@ -276,6 +282,44 @@ addQXLDriver() {
 
     if [ ! -f "$source/$file" ]; then
       error "Failed to locate required QXL display driver file: $file"
+      return 1
+    fi
+
+  done
+
+  mkdir -p "$destination" || return 1
+  cp -Lr "$source/." "$destination" || return 1
+
+  return 0
+}
+
+addVMSVGADriver() {
+
+  local dir="$1"
+  local driver="$2"
+  local arch="$3"
+  local drivers="$4"
+
+  local vmsvga_arch="$arch"
+  [[ "${vmsvga_arch,,}" == "amd64" ]] && vmsvga_arch="x64"
+
+  local source="$drivers/vmsvga/$driver/$vmsvga_arch"
+  local destination="$dir/\$OEM\$/\$1/Drivers/VMSVGA"
+
+  if [ ! -d "$source" ]; then
+    error "Failed to locate required VMware SVGA display driver directory: $source"
+    return 1
+  fi
+
+  local files="vmx_svgaver.dll vmx_svga.cat vmx_mode.dll vmx_svga.sys vmwogl32.dll vmx_fb.dll vmx_svga.inf"
+  [[ "$vmsvga_arch" == "x64" ]] && files+=" vmwogl64.dll"
+
+  local file
+
+  for file in $files; do
+
+    if [ ! -f "$source/$file" ]; then
+      error "Failed to locate required VMware SVGA display driver file: $file"
       return 1
     fi
 
@@ -750,8 +794,6 @@ writeSIF() {
   local timezone="${12}"
   local bitsPerPel=32
 
-  [[ "$driver" == "2k3" ]] && bitsPerPel=16
-
   find "$target" -maxdepth 1 -type f -iname winnt.sif -delete || return 1
 
   {
@@ -771,7 +813,7 @@ writeSIF() {
       '    WaitForReboot="No"' \
       '    DriverSigningPolicy="Ignore"' \
       '    NonDriverSigningPolicy="Ignore"' \
-      '    OemPnPDriversPath="Drivers\viostor;Drivers\NetKVM;Drivers\sata;Drivers\QXL;Drivers\QBochs;Drivers\Balloon"' \
+      '    OemPnPDriversPath="Drivers\viostor;Drivers\NetKVM;Drivers\sata;Drivers\QXL;Drivers\VMSVGA;Drivers\QBochs;Drivers\Balloon"' \
       '    NoWaitAfterTextMode=1' \
       '    NoWaitAfterGUIMode=1' \
       '    FileSystem=ConvertNTFS' \
@@ -945,7 +987,10 @@ appendRegistry() {
       if [[ "$driver" == "2k" ]]; then
         printf '%s\n' '"UserPreferencesMask"=hex:9c,32,00,80'
       else
-        printf '%s\n' '"UserPreferencesMask"=hex:9c,32,07,80'
+        printf '%s\n' \
+          '"UserPreferencesMask"=hex:9c,32,07,80' \
+          '"FontSmoothing"="2"' \
+          '"FontSmoothingType"=dword:00000001'
       fi
 
       printf '%s\n' \
@@ -959,10 +1004,42 @@ appendRegistry() {
   fi
 
   if [[ "$driver" == "xp" || "$driver" == "2k3" ]]; then
+    # Shell32 Active Setup applies these defaults while creating a new profile.
+    # Set them before first logon so it preserves the requested animation state.
     {
       printf '%s\n' \
-        '[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce]' \
-        '"PowerPolicy"="Wscript.exe C:\\OEM\\NT5POWER.VBS"' ''
+        '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects\AnimateMinMax]' \
+        '"DefaultValue"=dword:00000000' \
+        '' \
+        '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects\ComboBoxAnimation]' \
+        '"DefaultValue"=dword:00000001' \
+        '' \
+        '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects\CursorShadow]' \
+        '"DefaultValue"=dword:00000001' \
+        '' \
+        '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects\DragFullWindows]' \
+        '"DefaultValue"=dword:00000001' \
+        '"DefaultByAlphaTest"=dword:00000001' \
+        '' \
+        '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects\FontSmoothing]' \
+        '"DefaultValue"=dword:00000001' \
+        '"DefaultByFontTest"=dword:00000001' \
+        '' \
+        '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects\ListBoxSmoothScrolling]' \
+        '"DefaultValue"=dword:00000001' \
+        '' \
+        '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects\MenuAnimation]' \
+        '"DefaultValue"=dword:00000000' \
+        '"DefaultByAlphaTest"=dword:00000000' \
+        '' \
+        '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects\SelectionFade]' \
+        '"DefaultValue"=dword:00000000' \
+        '"DefaultByAlphaTest"=dword:00000000' \
+        '' \
+        '[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects\TooltipAnimation]' \
+        '"DefaultValue"=dword:00000000' \
+        '"DefaultByAlphaTest"=dword:00000000' \
+        ''
     } | unix2dos >> "$dir/\$OEM\$/install.reg" || return 1
   fi
 
@@ -1015,7 +1092,12 @@ writeVBS() {
   local shortcut="$3"
   local driver="$4"
   local balloonExe="$dir/\$OEM\$/\$1/Drivers/Balloon/blnsvr.exe"
-  local power="$dir/\$OEM\$/\$1/OEM/NT5POWER.VBS"
+  local power="$dir/\$OEM\$/\$\$/NT5POWER.VBS"
+  local powerRunOnce=""
+
+  if [[ "$driver" == "xp" || "$driver" == "2k3" ]]; then
+    powerRunOnce='WshShell.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce\PowerPolicy", "Wscript.exe //B " & Chr(34) & "%SystemRoot%\NT5POWER.VBS" & Chr(34), "REG_EXPAND_SZ"'
+  fi
 
   # Locate the built-in Administrator by its RID 500 SID rather than its
   # localized display name, then rename that account to the requested username.
@@ -1023,6 +1105,7 @@ writeVBS() {
   {
     printf '%s\n' \
       'Set WshShell = WScript.CreateObject("WScript.Shell")' \
+      "$powerRunOnce" \
       'Set WshNetwork = WScript.CreateObject("WScript.Network")' \
       'Set Domain = GetObject("WinNT://" & WshNetwork.ComputerName)' \
       '' \
@@ -1077,6 +1160,39 @@ writeVBS() {
   } | unix2dos > "$dir/\$OEM\$/install.vbs" || return 1
 
   if [[ "$driver" == "xp" || "$driver" == "2k3" ]]; then
+    # Windows XP and Server 2003 store the automatic recovery menu timeout
+    # in byte 0x09 of bootstat.dat. Patch only that byte and leave the boot
+    # success/shutdown state in the rest of the file untouched.
+    {
+      printf '%s\n' \
+        'On Error Resume Next' \
+        'BootStatPath = WshShell.ExpandEnvironmentStrings("%SystemRoot%\bootstat.dat")' \
+        'Set BootStatStream = WScript.CreateObject("ADODB.Stream")' \
+        'Set BootStatXML = WScript.CreateObject("Msxml2.DOMDocument.3.0")' \
+        'Set BootStatByte = BootStatXML.CreateElement("byte")' \
+        'BootStatByte.DataType = "bin.base64"' \
+        'BootStatByte.Text = "Aw=="' \
+        'If IsObject(BootStatStream) And IsObject(BootStatByte) Then' \
+        '  BootStatStream.Type = 1' \
+        '  BootStatStream.Open' \
+        '  Err.Clear' \
+        '  BootStatStream.LoadFromFile BootStatPath' \
+        '  If Err.Number = 0 Then' \
+        '    If BootStatStream.Size > 9 Then' \
+        '      BootStatStream.Position = 9' \
+        '      BootStatStream.Write BootStatByte.NodeTypedValue' \
+        '      BootStatStream.SaveToFile BootStatPath, 2' \
+        '    End If' \
+        '  End If' \
+        '  BootStatStream.Close' \
+        'End If' \
+        'Set BootStatByte = Nothing' \
+        'Set BootStatXML = Nothing' \
+        'Set BootStatStream = Nothing' \
+        'On Error GoTo 0' \
+        ''
+    } | unix2dos >> "$dir/\$OEM\$/install.vbs" || return 1
+
     mkdir -p "$(dirname "$power")" || return 1
 
     {

@@ -33,6 +33,7 @@ An empty default means the variable is unset and its value is determined automat
 | `VMX` | `N` | Exposes Intel VMX virtualization extensions to the guest. |
 | `HV` | `Y` | Enables Hyper-V enlightenments for Windows guests. |
 | `RAM_SIZE` | `4G` | Amount of RAM assigned to Windows, such as `8G`, `half`, or `max`. |
+| `RAM_BACKEND` |  | Guest RAM backing mechanism, set `memfd` for memfd-backed memory. |
 | `RAM_CHECK` | `Y` | Checks whether enough host memory is available before starting Windows. |
 
 ## 💾 Storage
@@ -82,7 +83,8 @@ An empty default means the variable is unset and its value is determined automat
 | `VGA` | `virtio` | QEMU video adapter model. |
 | `WIDTH` | `1280` | Display width configured in Windows. |
 | `HEIGHT` | `720` | Display height configured in Windows. |
-| `GPU` | `N` | Enables experimental GPU acceleration. |
+| `GPU` | `N` | Enables Helios GPU acceleration. |
+| `VRAM_SIZE` | `4G` | Virtual GPU memory budget. |
 | `RENDERNODE` | `/dev/dri/renderD128` | Render node used for GPU acceleration. |
 
 ## 🌍 Web UI
@@ -113,8 +115,8 @@ An empty default means the variable is unset and its value is determined automat
 | `PCI_BUS` | `pcie.0` | Overrides the PCI bus used for attached devices. |
 | `RNG` | `Y` | Adds the Virtio RNG device to the machine. |
 | `UUID` |  | UUID assigned to Windows. |
-| `HPET` | `off` | HPET timer setting. |
-| `VMPORT` | `off` | VMware port setting. |
+| `HPET` | `N` | HPET timer setting. |
+| `VMPORT` | `N` | VMware port setting. |
 | `MOUSE` | `usb-tablet` | Pointing device used by the machine. |
 | `SOUND` | `intel-hda` | Audio device used when `AUDIO=Y`. |
 | `SM_BIOS` |  | Additional arguments passed to QEMU’s `-smbios` option. |
@@ -177,6 +179,7 @@ Also see [Dynamic memory allocation](https://github.com/qemus/qemu/blob/master/d
 | `DEBUG` | `N` | Enables verbose debug output. |
 | `TRACE` | `N` | Enables shell command tracing. |
 | `LOG`   | `N` | Saves all output from `install.bat` to `C:\OEM\install.log` for troubleshooting. |
-| `SERIAL` | `mon:stdio` | QEMU serial device configuration. |
-| `MONITOR` |  | QEMU monitor configuration. |
-| `QMP` |  | QEMU Machine Protocol configuration. |
+| `SERIAL` | `mon:stdio` | QEMU serial device, such as `/storage/serial.sock` or `4444`. |
+| `MONITOR` |  | QEMU monitor, such as `/storage/monitor.sock` or `4444`. |
+| `QMP` |  | QEMU Machine Protocol, such as `/storage/qmp.sock` or `4444`. |
+| `QGA` |  | QEMU Guest Agent, such as `/storage/qga.sock` or `4444`. |
