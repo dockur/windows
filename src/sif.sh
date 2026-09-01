@@ -301,10 +301,8 @@ addVMSVGADriver() {
   local drivers="$4"
 
   local vmsvga_arch="$arch"
-  [[ "${vmsvga_arch,,}" == "amd64" ]] && vmsvga_arch="x64"
-
   local source="$drivers/vmsvga/$driver/$vmsvga_arch"
-  local destination="$dir/\$OEM\$/\$1/Drivers/VMSVGA"
+  local destination="$dir/\$OEM\$/\$1/Drivers/vmsvga"
 
   if [ ! -d "$source" ]; then
     error "Failed to locate required VMware SVGA display driver directory: $source"
@@ -337,8 +335,6 @@ addDisplayDriver() {
   local drivers="$4"
 
   local qbochs_arch="$arch"
-  [[ "${qbochs_arch,,}" == "amd64" ]] && qbochs_arch="x64"
-
   local source="$drivers/qbochs/$driver/$qbochs_arch"
   local destination="$dir/\$OEM\$/\$1/Drivers/QBochs"
 
