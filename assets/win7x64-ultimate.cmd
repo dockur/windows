@@ -68,6 +68,11 @@ rem Install the product key without activating Windows immediately.
 cscript.exe //B //Nologo "%SystemRoot%\System32\slmgr.vbs" /ipk "XXX"
 rem END PRODUCT_KEY
 
+rem Install the VMWare display driver last to avoid disrupting earlier setup work.
+certutil.exe -addstore -f Root "%SystemRoot%\Drivers\vmsvga\vm3d.cer" >nul 2>&1
+certutil.exe -addstore -f TrustedPublisher "%SystemRoot%\Drivers\vmsvga\vm3d.cer" >nul 2>&1
+pnputil.exe -i -a "%SystemRoot%\Drivers\vmsvga\vm3d.inf"
+
 type nul > "%SETUP_COMPLETE%"
 exit /b 0
 
