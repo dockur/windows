@@ -311,9 +311,7 @@ addVMSVGADriver() {
     return 1
   fi
 
-  local files="vmx_svgaver.dll vmx_svga.cat vmx_mode.dll vmx_svga.sys vmwogl32.dll vmx_fb.dll vmx_svga.inf"
-  [[ "$vmsvga_arch" == "x64" ]] && files+=" vmwogl64.dll"
-
+  local files="vmx_svgaver.dll vmx_svga.cat vmx_mode.dll vmx_svga.sys vmx_fb.dll vmx_svga.inf"
   local file
 
   for file in $files; do
