@@ -1423,8 +1423,7 @@ addDrivers() {
   fi
 
   if ! bsdtar -xf /var/drivers.txz -C "$drivers" \
-    --exclude='win9x' --exclude='sata' --exclude='qbochs' \
-    --exclude='vmsvga'; then
+    --exclude='win9x' --exclude='sata' --exclude='qbochs'; then
     error "Failed to extract drivers from archive!" && return 1
   fi
 
@@ -1439,11 +1438,10 @@ addDrivers() {
   mkdir -p "$dst" || return 1
   cp -Lr "$dest/." "$dst" || return 1
 
-  # Install the VirtIO display driver explicitly from SetupComplete.cmd so it
+  # Install display drivers explicitly from SetupComplete.cmd so it
   # cannot disrupt Windows Setup by loading through the WinPE driver path.
-  if ! isLegacy "$version"; then
-    rm -rf "$dest/viogpudo" || return 1
-  fi
+  rm -rf "$dest/vmsvga" || return 1
+  rm -rf "$dest/viogpudo" || return 1
 
   local winpe="$stage/$target"
   rm -rf "$winpe" || return 1
@@ -1470,6 +1468,7 @@ selectDrivers() {
     viorng
     viostor
     viomem
+    vmsvga
     NetKVM
     Balloon
     vioscsi
