@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.19
+# syntax=docker/dockerfile:1.27
 
 ARG VERSION_ARG="latest"
 FROM scratch AS build-amd64
