@@ -1068,9 +1068,6 @@ else
 fi
 
 info "Render:     $RENDERNODE"
-info
-info "Vulkan:     [ ✓ ]"
-info "Backend:    Venus"
 
 DISPLAY_OPTS="-display egl-headless,rendernode=$RENDERNODE"
 DISPLAY_OPTS+=" -device $VGA"
