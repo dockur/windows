@@ -1169,6 +1169,50 @@ stageWin9xDisplayDriver() {
     return 1
   fi
 
+  # VMDisp9x identifies QEMU by the absence of SVGA_FIFO_CAP_FENCE. Our
+  # enhanced SVGA device supports fences, so force the driver's existing QEMU
+  # compatibility path instead. This keeps fence support while enabling its V86
+  # VGA-memory mapping workaround for KVM/WHPX shutdown. Match the surrounding
+  # machine code exactly and fail closed if an upstream driver build changes it.
+  if ! python3 - "$dest/vmwsmini.vxd" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+data = bytearray(path.read_bytes())
+
+old = bytes.fromhex(
+    "6A 01 "
+    "E8 CE 0B 00 00 "
+    "83 C4 04 "
+    "85 C0 "
+    "75 48 "
+    "68 20 00 00 00 "
+    "68 CE 01 00 00"
+)
+new = old[:12] + b"\x90\x90" + old[14:]
+
+old_count = bytes(data).count(old)
+new_count = bytes(data).count(new)
+if old_count != 1 or new_count != 0:
+    raise SystemExit(
+        "VMDisp9x QEMU compatibility signature mismatch: "
+        f"original={old_count}, patched={new_count}"
+    )
+
+offset = bytes(data).index(old)
+data[offset + 12:offset + 14] = b"\x90\x90"
+path.write_bytes(data)
+
+verify = path.read_bytes()
+if verify.count(old) != 0 or verify.count(new) != 1:
+    raise SystemExit("VMDisp9x QEMU compatibility patch verification failed")
+PY
+  then
+    error "Failed to enable the VMDisp9x QEMU compatibility path!"
+    return 1
+  fi
+
   # VMDisp9x's DDC flag makes Win9x enumerate a Plug and Play monitor after
   # the display driver starts. The unattended setup already selects the monitor
   # and display mode, and VMDisp9x carries a fixed mode list, so disable DDC in
