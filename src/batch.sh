@@ -587,6 +587,8 @@ patchWin9xSetupFiles() {
     "$target/VMDISP9X/vmdisp9x.inf" \
     "$target/VMDISP9X/qemumini.drv" \
     "$target/VMDISP9X/qemumini.vxd" \
+    "$target/VMDISP9X/vmwsmini.drv" \
+    "$target/VMDISP9X/vmwsmini.vxd" \
     "$target/VMDISP9X/vmhal9x.dll" \
     "$target/VMDISP9X/vmhal486.dll" \
     "$target/VMDISP9X/vmdisp9x.dll" \
