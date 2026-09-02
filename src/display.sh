@@ -325,11 +325,7 @@ msg="Configuring display drivers..."
 enabled "$DEBUG" && echo "$msg"
 
 if [[ "$ARCH" != "amd64" ]]; then
-  if [[ "${VGA_DEVICE,,}" == "vmware-svga" ]]; then
-    gpuSetupFailure "GPU acceleration is only supported for the AMD64 platform"
-  fi
   gpuSetupFailure "GPU acceleration is only supported for the AMD64 platform"
-  return 0
 fi
 
 if [[ "${VGA_DEVICE,,}" == "vmware-svga" ]]; then
