@@ -1139,6 +1139,8 @@ stageWin9xDisplayDriver() {
     vmdisp9x.inf \
     qemumini.drv \
     qemumini.vxd \
+    vmwsmini.drv \
+    vmwsmini.vxd \
     vmhal9x.dll \
     vmhal486.dll \
     vmdisp9x.dll; do
@@ -1157,6 +1159,8 @@ stageWin9xDisplayDriver() {
     "$source/vmdisp9x.inf" \
     "$source/qemumini.drv" \
     "$source/qemumini.vxd" \
+    "$source/vmwsmini.drv" \
+    "$source/vmwsmini.vxd" \
     "$source/vmhal9x.dll" \
     "$source/vmhal486.dll" \
     "$source/vmdisp9x.dll" \
@@ -1178,100 +1182,6 @@ stageWin9xDisplayDriver() {
   if ! sed -i 's/HKR,DEFAULT,DDC,,1/HKR,DEFAULT,DDC,,0/' "$dest/vmdisp9x.inf" ||
     ! grep -Eq '^[[:space:]]*HKR,DEFAULT,DDC,,0[[:space:]]*$' "$dest/vmdisp9x.inf"; then
     error "Failed to disable DDC in the Windows 9x display driver!"
-    return 1
-  fi
-
-  # Keep VMDisp9x available for QEMU STD VGA, but let the official VMware
-  # driver own VMware SVGA-II. Comment only the matching model in our staged
-  # INF so the original driver archive remains untouched.
-  if ! python3 - "$dest/vmdisp9x.inf" <<'PY'
-from pathlib import Path
-import sys
-
-path = Path(sys.argv[1])
-lines = path.read_bytes().splitlines(keepends=True)
-needle = br'PCI\VEN_15AD&DEV_0405&SUBSYS_040515AD'
-matches = []
-
-for index, line in enumerate(lines):
-    stripped = line.lstrip(b' \t')
-    if stripped.startswith(b';'):
-        continue
-    if needle in stripped.upper():
-        matches.append(index)
-
-if len(matches) != 1:
-    raise SystemExit(f'expected exactly one active VMware SVGA-II model, found {len(matches)}')
-
-index = matches[0]
-indent = len(lines[index]) - len(lines[index].lstrip(b' \t'))
-lines[index] = lines[index][:indent] + b'; ' + lines[index][indent:]
-path.write_bytes(b''.join(lines))
-PY
-  then
-    error "Failed to reserve VMware SVGA-II for the official VMware driver!"
-    return 1
-  fi
-
-  if grep -iF 'PCI\VEN_15AD&DEV_0405&SUBSYS_040515AD' "$dest/vmdisp9x.inf" |
-    grep -Ev '^[[:space:]]*;' >/dev/null; then
-    error "Failed to remove the active VMware SVGA-II VMDisp9x model!"
-    return 1
-  fi
-
-  if ! grep -iF 'PCI\VEN_15AD&DEV_0405&SUBSYS_040515AD' "$dest/vmdisp9x.inf" |
-    grep -Eq '^[[:space:]]*;'; then
-    error "Failed to verify the VMware SVGA-II VMDisp9x model change!"
-    return 1
-  fi
-
-  return 0
-}
-
-stageWin9xVMwareDriver() {
-
-  local target="$1"
-  local source="$2"
-  local desc="$3"
-
-  local file
-
-  for file in \
-    vmx_svga.inf \
-    VMX_SVGA.DRV \
-    VMX_SVGA.vxd; do
-
-    if [ ! -s "$source/$file" ]; then
-      error "Failed to locate required VMware SVGA driver file: $file"
-      return 1
-    fi
-
-  done
-
-  if ! cp -f -- \
-    "$source/vmx_svga.inf" \
-    "$source/VMX_SVGA.DRV" \
-    "$source/VMX_SVGA.vxd" \
-    "$target/"; then
-
-    error "Failed to add the VMware SVGA driver to $desc setup files!"
-    return 1
-  fi
-
-  for file in \
-    vmx_svga.inf \
-    VMX_SVGA.DRV \
-    VMX_SVGA.vxd; do
-
-    if ! cmp -s -- "$source/$file" "$target/$file"; then
-      error "Failed to verify the staged VMware SVGA driver file: $file"
-      return 1
-    fi
-
-  done
-
-  if ! grep -Fqi 'PCI\VEN_15AD&DEV_0405' "$target/vmx_svga.inf"; then
-    error "Failed to verify the VMware SVGA-II hardware ID!"
     return 1
   fi
 
