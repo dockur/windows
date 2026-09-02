@@ -68,31 +68,7 @@ case "${DISPLAY,,}" in
 
 esac
 
-gpuFallbackAllowed() {
-
-  local app="${APP:-}"
-
-  case "${app,,}" in
-    "chrome"* ) return 0 ;;
-  esac
-
-  return 1
-}
-
 gpuSetupFailure() {
-
-  local reason="$1"
-
-  if gpuFallbackAllowed; then
-    warn "$reason; falling back to software rendering."
-    return 0
-  fi
-
-  error "$reason"
-  exit 87
-}
-
-vmwareGpuSetupFailure() {
 
   local reason="$1"
 
@@ -316,18 +292,18 @@ vmwareGpuSetup() {
   VMWARE_VULKAN_REASON=""
 
   if ! vmwareRenderNodeReady; then
-    vmwareGpuSetupFailure "VMware GPU acceleration requires a usable host GPU, but $VMWARE_RENDER_REASON"
+    gpuSetupFailure "VMware GPU acceleration requires a usable host GPU, but $VMWARE_RENDER_REASON"
   fi
 
   local library
   for library in libvulkan.so.1 libdxvk_d3d9.so.0 libdxvk_d3d11.so.0; do
     if ! vmwareLibraryReady "$library"; then
-      vmwareGpuSetupFailure "VMware GPU acceleration is unavailable because $VMWARE_LIBRARY_REASON"
+      gpuSetupFailure "VMware GPU acceleration is unavailable because $VMWARE_LIBRARY_REASON"
     fi
   done
 
   if ! vmwareVulkanReady; then
-    vmwareGpuSetupFailure "VMware GPU acceleration is unavailable because $VMWARE_VULKAN_REASON"
+    gpuSetupFailure "VMware GPU acceleration is unavailable because $VMWARE_VULKAN_REASON"
   fi
 
   echo
@@ -350,7 +326,7 @@ enabled "$DEBUG" && echo "$msg"
 
 if [[ "$ARCH" != "amd64" ]]; then
   if [[ "${VGA_DEVICE,,}" == "vmware-svga" ]]; then
-    vmwareGpuSetupFailure "GPU acceleration is only supported for the AMD64 platform"
+    gpuSetupFailure "GPU acceleration is only supported for the AMD64 platform"
   fi
   gpuSetupFailure "GPU acceleration is only supported for the AMD64 platform"
   return 0
@@ -458,29 +434,6 @@ intelMesaReady() {
   esac
 
   return 0
-}
-
-# Venus requires a Vulkan userspace driver in addition to the normal EGL/GBM
-# rendering path. Keep this separate so normal VirGL/OpenGL does not require Vulkan.
-
-venusEnabled() {
-
-  [[ ",${VGA,,}," =~ ,venus=(on|true|yes|1), ]]
-}
-
-disableVenus() {
-
-  VGA="$(sed -E 's/,venus=(on|true|yes|1)(,|$)/\2/I' <<< "$VGA")"
-}
-
-drmNativeEnabled() {
-
-  [[ ",${VGA,,}," =~ ,drm_native_context=(on|true|yes|1), ]]
-}
-
-disableDrmNative() {
-
-  VGA="$(sed -E 's/,drm_native_context=(on|true|yes|1)(,|$)/\2/I' <<< "$VGA")"
 }
 
 vulkanLibraryAvailable() {
@@ -680,7 +633,7 @@ vulkanRuntimeReady() {
     return 1
   fi
 
-  if [[ "${APP,,}" == "windows" && "$external_memory_dma_buf" != "1" ]]; then
+  if [[ "$external_memory_dma_buf" != "1" ]]; then
     VULKAN_REASON="the selected GPU does not support VK_EXT_external_memory_dma_buf required by Helios"
     return 1
   fi
@@ -868,67 +821,9 @@ nvidiaGpuReady() {
   return 0
 }
 
-modernVirtioGpuGuest() {
-
-  case "${APP,,}" in
-    "macos" ) return 1 ;;
-  esac
-
-  return 0
-}
-
-drmNativeGpuGuest() {
-
-  case "${APP,,}" in
-    "qemu" ) return 0 ;;
-  esac
-
-  return 1
-}
-
 hostBlobsSupported() {
 
   kernelAtLeast 6 13
-}
-
-# qemu-render builds the AMDGPU and i915 native-context backends. Host support
-# can be validated here; arbitrary guest kernel/Mesa support is negotiated later.
-drmNativeReady() {
-
-  DRM_REASON=""
-
-  if [[ "${APP,,}" == "windows" ]]; then
-    DRM_REASON="DRM native contexts require a Linux guest"
-    return 1
-  fi
-
-  if ! hostBlobsSupported; then
-    DRM_REASON="Linux 6.13 or newer is required for DRM native contexts"
-    return 1
-  fi
-
-  if ! [[ ",${VGA,,}," =~ ,blob=(on|true|yes|1), ]]; then
-    DRM_REASON="virtio-gpu host blobs are not enabled"
-    return 1
-  fi
-
-  case "$GPU_VENDOR" in
-    "0x1002" )
-      if [[ "$GPU_DRIVER" != "amdgpu" ]]; then
-        DRM_REASON="the AMD GPU is using '$GPU_DRIVER' instead of the amdgpu DRM driver"
-        return 1
-      fi ;;
-    "0x8086" )
-      if [[ "$GPU_DRIVER" != "i915" ]]; then
-        DRM_REASON="the Intel GPU is using '$GPU_DRIVER' instead of the i915 DRM driver"
-        return 1
-      fi ;;
-    * )
-      DRM_REASON="no native DRM renderer is available for this GPU"
-      return 1 ;;
-  esac
-
-  return 0
 }
 
 venusGuestPatRequired() {
@@ -983,14 +878,10 @@ venusGuestPatReady() {
 }
 
 GPU_VENDOR=""
-DRM_REASON=""
 NVIDIA_NODE=""
 NVIDIA_REASON=""
 VULKAN_REASON=""
 VULKAN_PAT_REASON=""
-VULKAN_STATE_REASON=""
-OPENGL_46_REASON=""
-DRM_STATE_REASON=""
 VIRTGPU_GUEST_PAT=""
 
 if [ -n "$RENDERNODE" ]; then
@@ -1130,88 +1021,29 @@ if ! gpuNodeVendor "$RENDERNODE"; then
   return 0
 fi
 
-if venusEnabled; then
-
-  case "$GPU_VENDOR" in
-    "0x8086" | "0x1002" )
-      if ! mesaVulkanReady "$GPU_VENDOR"; then
-        VULKAN_STATE_REASON="$VULKAN_REASON"
-        disableVenus
-      fi ;;
-    "0x10de" )
-      if ! nvidiaVulkanReady; then
-        VULKAN_STATE_REASON="$NVIDIA_REASON"
-        disableVenus
-      fi ;;
-  esac
-
-  if venusEnabled && ! venusGuestPatReady; then
-    VULKAN_STATE_REASON="$VULKAN_PAT_REASON"
-    disableVenus
-  fi
-
+if ! hostBlobsSupported; then
+  gpuSetupFailure "Windows GPU acceleration requires virtio-gpu host blobs (Linux 6.13+ host kernel)"
 fi
 
-if modernVirtioGpuGuest; then
+VGA+=",hostmem=$VRAM_BYTES,max_hostmem=$VRAM_BYTES,blob=true"
+VGA+=",host3d_blob_limit=$VRAM_BYTES"
 
-  if hostBlobsSupported; then
+case "$GPU_VENDOR" in
+  "0x8086" | "0x1002" )
+    if ! mesaVulkanReady "$GPU_VENDOR"; then
+      gpuSetupFailure "Windows GPU acceleration requires Vulkan via Venus, but $VULKAN_REASON"
+    fi ;;
+  "0x10de" )
+    if ! nvidiaVulkanReady; then
+      gpuSetupFailure "Windows GPU acceleration requires Vulkan via Venus, but $NVIDIA_REASON"
+    fi ;;
+esac
 
-    VGA+=",hostmem=$VRAM_BYTES,max_hostmem=$VRAM_BYTES,blob=true"
-    VGA+=",host3d_blob_limit=$VRAM_BYTES"
-
-    if drmNativeGpuGuest; then
-      VGA+=",drm_native_context=on"
-    fi
-
-    case "$GPU_VENDOR" in
-      "0x8086" | "0x1002" )
-        if ! mesaVulkanReady "$GPU_VENDOR"; then
-          VULKAN_STATE_REASON="$VULKAN_REASON"
-        elif ! venusGuestPatReady; then
-          VULKAN_STATE_REASON="$VULKAN_PAT_REASON"
-        else
-          VGA+=",venus=true"
-        fi ;;
-      "0x10de" )
-        if ! nvidiaVulkanReady; then
-          VULKAN_STATE_REASON="$NVIDIA_REASON"
-        elif ! venusGuestPatReady; then
-          VULKAN_STATE_REASON="$VULKAN_PAT_REASON"
-        else
-          VGA+=",venus=true"
-        fi ;;
-    esac
-
-  else
-
-    OPENGL_46_REASON="requires virtio-gpu host blobs (Linux 6.13+ host kernel)"
-    VULKAN_STATE_REASON="requires virtio-gpu host blobs (Linux 6.13+ host kernel)"
-
-    if drmNativeGpuGuest; then
-      DRM_STATE_REASON="requires virtio-gpu host blobs (Linux 6.13+ host kernel)"
-    fi
-
-  fi
+if ! venusGuestPatReady; then
+  gpuSetupFailure "Windows GPU acceleration requires Vulkan via Venus, but $VULKAN_PAT_REASON"
 fi
 
-if [[ "${APP,,}" == "windows" ]] && ! venusEnabled; then
-  error "Windows GPU acceleration requires Vulkan via Venus, but Venus could not be enabled${VULKAN_STATE_REASON:+: $VULKAN_STATE_REASON}."
-  exit 87
-fi
-
-if drmNativeEnabled && ! drmNativeReady; then
-  DRM_STATE_REASON="$DRM_REASON"
-  disableDrmNative
-fi
-
-OPENGL_46="   "
-[[ ",${VGA,,}," =~ ,blob=(on|true|yes|1), ]] && OPENGL_46=" ✓ "
-
-VULKAN_STATE="   "
-venusEnabled && VULKAN_STATE=" ✓ "
-
-DRM_STATE="   "
-drmNativeEnabled && DRM_STATE=" ✓ "
+VGA+=",venus=true"
 
 echo
 info "Hardware rendering enabled:"
@@ -1237,15 +1069,8 @@ fi
 
 info "Render:     $RENDERNODE"
 info
-
-if modernVirtioGpuGuest; then
-  info "Vulkan:     [$VULKAN_STATE]${VULKAN_STATE_REASON:+ $VULKAN_STATE_REASON}"
-  if drmNativeGpuGuest; then
-    info "DRM Native: [$DRM_STATE]${DRM_STATE_REASON:+ $DRM_STATE_REASON}"
-  fi
-  info "OpenGL 4.3: [ ✓ ]"
-  info "OpenGL 4.6: [$OPENGL_46]${OPENGL_46_REASON:+ $OPENGL_46_REASON}"
-fi
+info "Vulkan:     [ ✓ ]"
+info "Backend:    Venus"
 
 DISPLAY_OPTS="-display egl-headless,rendernode=$RENDERNODE"
 DISPLAY_OPTS+=" -device $VGA"
