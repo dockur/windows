@@ -138,7 +138,6 @@ Win9xInstall() {
   local display="$win9x/vmdisp9x"
   local audio95="$win9x/alcx95"
   local audiowdm="$win9x/alcxwdm"
-  local vmware_display="$win9x/vmsvga"
 
   extractDrivers "$drivers" || return 1
 
@@ -172,7 +171,7 @@ Win9xInstall() {
     return 1
   fi
 
-  if ! patchWin9xSetupFiles "$id" "$target" "$desc" "$patcher" "$qemouse" "$display" "$vmware_display"; then
+  if ! patchWin9xSetupFiles "$id" "$target" "$desc" "$patcher" "$qemouse" "$display"; then
     rm -rf "$drivers" || :
     return 1
   fi
@@ -559,7 +558,6 @@ patchWin9xSetupFiles() {
   local patcher="$4"
   local qemouse="$5"
   local display="$6"
-  local vmware_display="$7"
 
   chmod 755 "$patcher" || {
     error "Failed to make Patcher9x executable!"
@@ -584,7 +582,6 @@ patchWin9xSetupFiles() {
   fi
 
   stageWin9xDisplayDriver "$target" "$display" "$desc" || return 1
-  stageWin9xVMwareDriver "$target" "$vmware_display" "$desc" || return 1
 
   if ! mv -f -- \
     "$target/VMDISP9X/vmdisp9x.inf" \
