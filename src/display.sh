@@ -325,11 +325,7 @@ msg="Configuring display drivers..."
 enabled "$DEBUG" && echo "$msg"
 
 if [[ "$ARCH" != "amd64" ]]; then
-  if [[ "${VGA_DEVICE,,}" == "vmware-svga" ]]; then
-    gpuSetupFailure "GPU acceleration is only supported for the AMD64 platform"
-  fi
   gpuSetupFailure "GPU acceleration is only supported for the AMD64 platform"
-  return 0
 fi
 
 if [[ "${VGA_DEVICE,,}" == "vmware-svga" ]]; then
@@ -719,9 +715,12 @@ nvidiaVulkanReady() {
     return 1
   fi
 
-  [[ "$NVIDIA_DRIVER_VERSION" =~ ^([0-9]+)\.([0-9]+) ]] || return 1
-  major="${BASH_REMATCH[1]}"
-  minor="${BASH_REMATCH[2]}"
+if ! [[ "$NVIDIA_DRIVER_VERSION" =~ ^([0-9]+)\.([0-9]+) ]]; then
+  NVIDIA_REASON="the NVIDIA driver version '$NVIDIA_DRIVER_VERSION' could not be parsed"
+  return 1
+fi
+major="${BASH_REMATCH[1]}"
+minor="${BASH_REMATCH[2]}"
 
   if (( major < 570 || (major == 570 && minor < 86) )); then
     NVIDIA_REASON="NVIDIA driver $NVIDIA_DRIVER_VERSION is older than the 570.86 minimum required by Venus"
