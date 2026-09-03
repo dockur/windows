@@ -152,6 +152,15 @@
         </FirewallGroup>
       </FirewallGroups>
     </component>
+    <component name="Microsoft-Windows-Deployment" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <RunSynchronous>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>1</Order>
+          <Path>cmd.exe /d /c call "%WINDIR%\Setup\Scripts\SetupComplete.cmd" specialize</Path>
+          <Description>Run the specialize pass of the setup script</Description>
+        </RunSynchronousCommand>
+      </RunSynchronous>
+    </component>
   </settings>
   <settings pass="oobeSystem">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
