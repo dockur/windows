@@ -8,7 +8,17 @@ set "SETUP_COMPLETE=%SCRIPT_DIR%setup.complete"
 if "%~1"=="" goto setup
 if /i "%~1"=="setup" goto setup
 if /i "%~1"=="logon" goto logon
+if /i "%~1"=="specialize" goto specialize
 exit /b 2
+
+:specialize
+
+rem Install the VMWare display driver before Windows Setup's final reboot.
+certutil.exe -addstore -f Root "%SystemRoot%\Drivers\vmsvga\vm3d.cer" >nul 2>&1
+certutil.exe -addstore -f TrustedPublisher "%SystemRoot%\Drivers\vmsvga\vm3d.cer" >nul 2>&1
+pnputil.exe -i -a "%SystemRoot%\Drivers\vmsvga\vm3d.inf"
+
+exit /b 0
 
 :setup
 if exist "%SETUP_COMPLETE%" exit /b 0
@@ -37,6 +47,9 @@ reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Network\NetworkLocationWizard
 
 rem Disable Network Discovery popup.
 reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\NewNetworks" /v NetworkList /t REG_MULTI_SZ /d "" /f
+
+rem Disable AutoPlay for all drives.
+reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" /v "NoDriveTypeAutoRun" /t REG_DWORD /d 255 /f
 
 rem Disable first-run experience in Edge.
 reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v "HideFirstRunExperience" /t REG_DWORD /d 1 /f
