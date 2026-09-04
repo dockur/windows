@@ -77,6 +77,9 @@ rem Prevent the local user password from expiring.
 powershell.exe -ExecutionPolicy Unrestricted -NoLogo -NoProfile -NonInteractive set-localuser -name "Docker" -passwordneverexpires 1
 rem END LOCAL_ACCOUNT
 
+rem Disable per-CPU clock tick scheduling.
+reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" /v "EnablePerCpuClockTickScheduling" /t REG_DWORD /d 2 /f
+
 rem Disable hibernation.
 POWERCFG -H OFF
 
