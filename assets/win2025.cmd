@@ -16,7 +16,6 @@ exit /b 2
 rem Set Network Location to Home
 reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\CurrentVersion\NetworkList\Signatures\FirstNetwork" /v Category /t REG_DWORD /d 1 /f
 
-
 rem Install the VMWare display driver before Windows Setup's final reboot.
 certutil.exe -addstore -f Root "%SystemRoot%\Drivers\vmsvga\vm3d.cer" >nul 2>&1
 certutil.exe -addstore -f TrustedPublisher "%SystemRoot%\Drivers\vmsvga\vm3d.cer" >nul 2>&1
