@@ -540,13 +540,13 @@ updateLogonCommandXML() {
   local asset="$1"
 
   local command="$XML_COMPONENT_SHELL_OOBE/u:FirstLogonCommands/u:SynchronousCommand/u:CommandLine"
-  local expected='cmd.exe /d /c call "%WINDIR%\Setup\Scripts\SetupComplete.cmd" logon'
+  local expected='cmd.exe /d /c call "%WINDIR%\Setup\Scripts\Unattend.cmd" logon'
   local hidden
 
   if usesWscriptLogonLauncher; then
     hidden='wscript.exe //B //NoLogo C:\Windows\Setup\Scripts\RunHidden.vbs'
   else
-    hidden="powershell.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -Command \"\$cmd = 'call ' + [char]34 + \$env:WINDIR + '\Setup\Scripts\SetupComplete.cmd' + [char]34 + ' logon'; & \$env:ComSpec /d /c \$cmd; exit \$LASTEXITCODE\""
+    hidden="powershell.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -Command \"\$cmd = 'call ' + [char]34 + \$env:WINDIR + '\Setup\Scripts\Unattend.cmd' + [char]34 + ' logon'; & \$env:ComSpec /d /c \$cmd; exit \$LASTEXITCODE\""
   fi
 
   local count value
@@ -1971,6 +1971,30 @@ prepareSetupScript() {
   stageHiddenLogonLauncher "$stage" || return 1
   updateSetupScript "$staged" "$asset" || return 1
   finalizeSetupScript "$staged" || return 1
+  stageSetupCompleteWrapper "$stage" || return 1
+
+  return 0
+}
+
+stageSetupCompleteWrapper() {
+
+  local stage="$1"
+  local target="$stage/\$OEM\$/\$\$/Setup/Scripts/SetupComplete.cmd"
+
+  if ! cat > "$target" <<'EOF'
+@echo off
+call "%~dp0Unattend.cmd" setup
+exit /b %errorlevel%
+EOF
+  then
+    error "Failed to create SetupComplete wrapper!"
+    return 1
+  fi
+
+  if ! unix2dos -q "$target"; then
+    error "Failed to convert SetupComplete wrapper to DOS format!"
+    return 1
+  fi
 
   return 0
 }
@@ -1994,7 +2018,7 @@ Option Explicit
 Dim shell, command, result
 
 Set shell = CreateObject("WScript.Shell")
-command = shell.ExpandEnvironmentStrings("%ComSpec% /d /c call " & Chr(34) & "%WINDIR%\Setup\Scripts\SetupComplete.cmd" & Chr(34) & " logon")
+command = shell.ExpandEnvironmentStrings("%ComSpec% /d /c call " & Chr(34) & "%WINDIR%\Setup\Scripts\Unattend.cmd" & Chr(34) & " logon")
 result = shell.Run(command, 0, True)
 WScript.Quit result
 EOF
@@ -2124,7 +2148,7 @@ stageSetupScript() {
   source=$(findSetupScript "$asset") || return 1
   [ -n "$source" ] || return 0
 
-  target="$stage/\$OEM\$/\$\$/Setup/Scripts/SetupComplete.cmd"
+  target="$stage/\$OEM\$/\$\$/Setup/Scripts/Unattend.cmd"
 
   if ! mkdir -p "$(dirname "$target")"; then
     error "Failed to create setup script directory!"
