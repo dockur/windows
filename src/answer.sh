@@ -71,16 +71,6 @@ updateXML() {
     return 1
   fi
 
-  if ! updateSpecializeCommandXML "$asset"; then
-    error "Failed to update specialize command in answer file!"
-    return 1
-  fi
-
-  if ! updateLogonCommandXML "$asset"; then
-    error "Failed to update first-logon command in answer file!"
-    return 1
-  fi
-
   if ! updateEditionXML "$asset"; then
     error "Failed to update edition settings in answer file!"
     return 1
@@ -527,77 +517,6 @@ updateAutologinXML() {
   disabled "${AUTOLOGIN:-}" || return 0
 
   xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -d "$shell/u:AutoLogon" "$asset" || return 1
-
-  return 0
-}
-
-usesWscriptLogonLauncher() {
-
-  case "${DETECTED,,}" in
-    "winvista"* | "win7"* | "win2008r2"* ) return 0 ;;
-  esac
-
-  return 1
-}
-
-updateSpecializeCommandXML() {
-
-  local asset="$1"
-
-  local command="$XML_SETTINGS_SPECIALIZE/u:component[@name='Microsoft-Windows-Deployment']/u:RunSynchronous/u:RunSynchronousCommand/u:Path"
-  local expected='cmd.exe /d /c call "%WINDIR%\Setup\Scripts\Unattend.cmd" specialize'
-  local hidden='wscript.exe //B //NoLogo C:\Windows\Setup\Scripts\Unattend.vbs specialize'
-
-  local count value
-  count=$(getXMLNodeCount "$asset" "$command") || return 1
-
-  if [ "$count" != "1" ]; then
-    error "Failed to find a unique specialize command in answer file: $asset"
-    return 1
-  fi
-
-  value=$(xmlstarlet sel -N "$XML_NS_UNATTEND_ARG" -T -t -v "string($command)" "$asset") || return 1
-
-  if [ "$value" != "$expected" ]; then
-    error "Unexpected specialize command in answer file: $asset"
-    return 1
-  fi
-
-  xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -u "$command" -v "$hidden" "$asset" || return 1
-
-  return 0
-}
-
-updateLogonCommandXML() {
-
-  local asset="$1"
-
-  local command="$XML_COMPONENT_SHELL_OOBE/u:FirstLogonCommands/u:SynchronousCommand/u:CommandLine"
-  local expected='cmd.exe /d /c call "%WINDIR%\Setup\Scripts\Unattend.cmd" logon'
-  local hidden
-
-  if usesWscriptLogonLauncher; then
-    hidden='wscript.exe //B //NoLogo C:\Windows\Setup\Scripts\Unattend.vbs logon'
-  else
-    hidden="powershell.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -Command \"\$cmd = 'call ' + [char]34 + \$env:WINDIR + '\Setup\Scripts\Unattend.cmd' + [char]34 + ' logon'; & \$env:ComSpec /d /c \$cmd; exit \$LASTEXITCODE\""
-  fi
-
-  local count value
-  count=$(getXMLNodeCount "$asset" "$command") || return 1
-
-  if [ "$count" != "1" ]; then
-    error "Failed to find a unique first-logon command in answer file: $asset"
-    return 1
-  fi
-
-  value=$(xmlstarlet sel -N "$XML_NS_UNATTEND_ARG" -T -t -v "string($command)" "$asset") || return 1
-
-  if [ "$value" != "$expected" ]; then
-    error "Unexpected first-logon command in answer file: $asset"
-    return 1
-  fi
-
-  xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -u "$command" -v "$hidden" "$asset" || return 1
 
   return 0
 }
@@ -2045,16 +1964,15 @@ stageUnattendLauncher() {
   if ! cat > "$target" <<'EOF'
 Option Explicit
 
-Dim shell, command, result, stage
+Dim shell, command, result, pass
 
 If WScript.Arguments.Count <> 1 Then
-  WScript.Quit 87
+  WScript.Quit 1
 End If
 
-stage = WScript.Arguments(0)
-
+pass = WScript.Arguments(0)
 Set shell = CreateObject("WScript.Shell")
-command = shell.ExpandEnvironmentStrings("%ComSpec% /d /c call " & Chr(34) & "%WINDIR%\Setup\Scripts\Unattend.cmd" & Chr(34) & " " & stage)
+command = shell.ExpandEnvironmentStrings("%ComSpec% /d /c call " & Chr(34) & "%WINDIR%\Setup\Scripts\Unattend.cmd" & Chr(34) & " " & pass)
 result = shell.Run(command, 0, True)
 WScript.Quit result
 EOF
