@@ -1438,7 +1438,7 @@ addDrivers() {
   mkdir -p "$dst" || return 1
   cp -Lr "$dest/." "$dst" || return 1
 
-  # Install display drivers explicitly from SetupComplete.cmd so it
+  # Install display drivers explicitly from Unattend.cmd so it
   # cannot disrupt Windows Setup by loading through the WinPE driver path.
   rm -rf "$dest/vmsvga" || return 1
   rm -rf "$dest/viogpudo" || return 1
