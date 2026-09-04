@@ -39,7 +39,7 @@ if [ -z "$VGA" ]; then
         minor=$((10#${BASH_REMATCH[2]}))
 
         if (( major < 6 || (major == 6 && minor < 6) )); then
-          VGA="virtio"
+          (( major > 0 )) && VGA="virtio"
         fi
 
       fi
