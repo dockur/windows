@@ -164,6 +164,11 @@
           <Path>dism.exe /online /Disable-Feature /FeatureName:Microsoft-Hyper-V /NoRestart</Path>
           <Description>Disable Hyper-V role</Description>
         </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>3</Order>
+          <Path>cmd.exe /d /c call "%WINDIR%\Setup\Scripts\SetupComplete.cmd" specialize</Path>
+          <Description>Run the specialize pass of the setup script</Description>
+        </RunSynchronousCommand>
       </RunSynchronous>
     </component>
     <component name="Microsoft-Windows-ServerManager-SvrMgrNc" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
