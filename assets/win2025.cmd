@@ -45,29 +45,40 @@ rem Prevent the local user password from expiring.
 powershell.exe -ExecutionPolicy Unrestricted -NoLogo -NoProfile -NonInteractive set-localuser -name "Docker" -passwordneverexpires 1
 rem END LOCAL_ACCOUNT
 
-rem Disable hibernation and monitor blanking.
+rem Disable per-CPU clock tick scheduling.
+reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" /v "EnablePerCpuClockTickScheduling" /t REG_DWORD /d 2 /f
+
+rem Disable hibernation.
 POWERCFG -H OFF
+
+rem Disable monitor blanking.
 POWERCFG -X -monitor-timeout-ac 0
 
-rem Disable the first-run experience in Edge.
+rem Disable first-run experience in Edge.
 reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v "HideFirstRunExperience" /t REG_DWORD /d 1 /f
 
 rem Disable hibernation in the registry.
 reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Power" /v "HibernateFileSizePercent" /t REG_DWORD /d 0 /f
+
+rem Disable hibernation.
 reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Power" /v "HibernateEnabled" /t REG_DWORD /d 0 /f
 
 rem Disable sleep.
 POWERCFG -X -standby-timeout-ac 0
 
-rem Allow RemoteApp to launch unlisted programs.
+rem Enable RemoteApp to launch unlisted programs.
 reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services" /v "fAllowUnlistedRemotePrograms" /t REG_DWORD /d 1 /f
+
+rem Disable RemoteApp allowlist.
 reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Terminal Server\TSAppAllowList" /v "fDisabledAllowList" /t REG_DWORD /d 1 /f
 
 rem Turn off automatic Windows Update downloads.
 reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v "NoAutoUpdate" /t REG_DWORD /d 1 /f
 
-rem Enable Network Discovery and File Sharing.
+rem Enable Network Discovery.
 netsh advfirewall firewall set rule group="@FirewallAPI.dll,-32752" new enable=Yes
+
+rem Enable File Sharing.
 netsh advfirewall firewall set rule group="@FirewallAPI.dll,-28502" new enable=Yes
 
 rem Remove the empty Windows.old folder.
@@ -92,12 +103,11 @@ exit /b 0
 rem Run the machine setup here when the SetupComplete hook was skipped.
 if not exist "%SETUP_COMPLETE%" call "%~f0" setup
 
-rem Set initial Explorer and taskbar preferences for the logged-in user.
-reg.exe add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "ShowCopilotButton" /t REG_DWORD /d 0 /f
+rem Show file extensions in Explorer.
 reg.exe add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "HideFileExt" /t REG_DWORD /d 0 /f
-reg.exe add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "ShowTaskViewButton" /t REG_DWORD /d 0 /f
+
+rem Remove Widgets from the Taskbar.
 reg.exe add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "TaskbarDa" /t REG_DWORD /d 0 /f
-reg.exe add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "TaskbarMn" /t REG_DWORD /d 0 /f
 
 rem BEGIN SHARED_FOLDER
 rem Add the shared folder to the desktop and map it to drive Z:.
