@@ -8,7 +8,17 @@ set "SETUP_COMPLETE=%SCRIPT_DIR%setup.complete"
 if "%~1"=="" goto setup
 if /i "%~1"=="setup" goto setup
 if /i "%~1"=="logon" goto logon
+if /i "%~1"=="specialize" goto specialize
 exit /b 2
+
+:specialize
+
+rem Install the VMWare display driver before Windows Setup's final reboot.
+certutil.exe -addstore -f Root "%SystemRoot%\Drivers\vmsvga\vm3d.cer" >nul 2>&1
+certutil.exe -addstore -f TrustedPublisher "%SystemRoot%\Drivers\vmsvga\vm3d.cer" >nul 2>&1
+start "" /wait /b pnputil.exe -i -a "%SystemRoot%\Drivers\vmsvga\vm3d.inf" >nul 2>&1
+
+exit /b 0
 
 :setup
 if exist "%SETUP_COMPLETE%" exit /b 0
