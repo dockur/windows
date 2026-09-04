@@ -71,6 +71,11 @@ updateXML() {
     return 1
   fi
 
+  if ! updateSpecializeCommandXML "$asset"; then
+    error "Failed to update specialize command in answer file!"
+    return 1
+  fi
+
   if ! updateLogonCommandXML "$asset"; then
     error "Failed to update first-logon command in answer file!"
     return 1
@@ -535,6 +540,34 @@ usesWscriptLogonLauncher() {
   return 1
 }
 
+updateSpecializeCommandXML() {
+
+  local asset="$1"
+
+  local command="$XML_SETTINGS_SPECIALIZE/u:component[@name='Microsoft-Windows-Deployment']/u:RunSynchronous/u:RunSynchronousCommand/u:Path"
+  local expected='cmd.exe /d /c call "%WINDIR%\Setup\Scripts\Unattend.cmd" specialize'
+  local hidden='wscript.exe //B //NoLogo C:\Windows\Setup\Scripts\Unattend.vbs specialize'
+
+  local count value
+  count=$(getXMLNodeCount "$asset" "$command") || return 1
+
+  if [ "$count" != "1" ]; then
+    error "Failed to find a unique specialize command in answer file: $asset"
+    return 1
+  fi
+
+  value=$(xmlstarlet sel -N "$XML_NS_UNATTEND_ARG" -T -t -v "string($command)" "$asset") || return 1
+
+  if [ "$value" != "$expected" ]; then
+    error "Unexpected specialize command in answer file: $asset"
+    return 1
+  fi
+
+  xmlstarlet ed -L -N "$XML_NS_UNATTEND_ARG" -u "$command" -v "$hidden" "$asset" || return 1
+
+  return 0
+}
+
 updateLogonCommandXML() {
 
   local asset="$1"
@@ -544,7 +577,7 @@ updateLogonCommandXML() {
   local hidden
 
   if usesWscriptLogonLauncher; then
-    hidden='wscript.exe //B //NoLogo C:\Windows\Setup\Scripts\RunHidden.vbs'
+    hidden='wscript.exe //B //NoLogo C:\Windows\Setup\Scripts\Unattend.vbs logon'
   else
     hidden="powershell.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -Command \"\$cmd = 'call ' + [char]34 + \$env:WINDIR + '\Setup\Scripts\Unattend.cmd' + [char]34 + ' logon'; & \$env:ComSpec /d /c \$cmd; exit \$LASTEXITCODE\""
   fi
@@ -1968,7 +2001,7 @@ prepareSetupScript() {
 
   [ -n "$staged" ] || return 0
 
-  stageHiddenLogonLauncher "$stage" || return 1
+  stageUnattendLauncher "$stage" || return 1
   updateSetupScript "$staged" "$asset" || return 1
   finalizeSetupScript "$staged" || return 1
   stageSetupCompleteWrapper "$stage" || return 1
@@ -1999,36 +2032,39 @@ EOF
   return 0
 }
 
-stageHiddenLogonLauncher() {
+stageUnattendLauncher() {
 
   local stage="$1"
-
-  usesWscriptLogonLauncher || return 0
-
-  local target="$stage/\$OEM\$/\$\$/Setup/Scripts/RunHidden.vbs"
+  local target="$stage/\$OEM\$/\$\$/Setup/Scripts/Unattend.vbs"
 
   if ! mkdir -p "$(dirname "$target")"; then
-    error "Failed to create hidden logon launcher directory!"
+    error "Failed to create unattended launcher directory!"
     return 1
   fi
 
   if ! cat > "$target" <<'EOF'
 Option Explicit
 
-Dim shell, command, result
+Dim shell, command, result, stage
+
+If WScript.Arguments.Count <> 1 Then
+  WScript.Quit 87
+End If
+
+stage = WScript.Arguments(0)
 
 Set shell = CreateObject("WScript.Shell")
-command = shell.ExpandEnvironmentStrings("%ComSpec% /d /c call " & Chr(34) & "%WINDIR%\Setup\Scripts\Unattend.cmd" & Chr(34) & " logon")
+command = shell.ExpandEnvironmentStrings("%ComSpec% /d /c call " & Chr(34) & "%WINDIR%\Setup\Scripts\Unattend.cmd" & Chr(34) & " " & stage)
 result = shell.Run(command, 0, True)
 WScript.Quit result
 EOF
   then
-    error "Failed to create hidden logon launcher!"
+    error "Failed to create unattended launcher!"
     return 1
   fi
 
   if ! unix2dos -q "$target"; then
-    error "Failed to convert hidden logon launcher to DOS format!"
+    error "Failed to convert unattended launcher to DOS format!"
     return 1
   fi
 
