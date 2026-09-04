@@ -3,8 +3,8 @@ set -Eeuo pipefail
 
 # Docker environment variables
 
-: "${GPU:="N"}"               # GPU acceleration
-: "${VGA:="virtio"}"          # VGA adapter
+: "${VGA:=""}"                # VGA adapter
+: "${GPU:=""}"                # GPU acceleration
 : "${DISPLAY:="web"}"         # Display type
 : "${LOSSY:="N"}"             # Lossy VNC compression
 : "${VNC_PORT:="5900"}"       # VNC port
@@ -16,9 +16,37 @@ VGA=$(strip "$VGA")
 LOSSY=$(strip "$LOSSY")
 DISPLAY=$(strip "$DISPLAY")
 VNC_PORT=$(strip "$VNC_PORT")
-RENDERNODE=$(strip "$RENDERNODE")
 VRAM_SIZE=$(strip "$VRAM_SIZE")
+RENDERNODE=$(strip "$RENDERNODE")
 WSS_SOCKET="${WSS_SOCKET:-$QEMU_DIR/vnc-ws.sock}"
+
+if [ -z "$VGA" ]; then
+
+  VGA="vmware"
+
+  if ! enabled "$GPU"; then
+
+    version_file="$(stateFile "ver")"
+
+    if [ -s "$version_file" ]; then
+
+      version_installed=""
+      IFS= read -r version_installed < "$version_file" || version_installed=""
+
+      if [[ "$version_installed" =~ ^([0-9]+)\.([0-9]+) ]]; then
+
+        major=$((10#${BASH_REMATCH[1]}))
+        minor=$((10#${BASH_REMATCH[2]}))
+
+        if (( major < 6 || (major == 6 && minor < 6) )); then
+          VGA="virtio"
+        fi
+
+      fi
+    fi
+  fi
+
+fi
 
 VGA_DEVICE="${VGA%%,*}"
 VGA_OPTIONS="${VGA#"$VGA_DEVICE"}"
@@ -312,9 +340,6 @@ vmwareGpuSetup() {
   info "Device:     ${VMWARE_VULKAN_DEVICE:-GPU}"
   [ -n "${VMWARE_VULKAN_DRIVER:-}" ] && info "Driver:     $VMWARE_VULKAN_DRIVER"
   info "Vulkan:     $VMWARE_VULKAN_API"
-  info "Backend:    DXVK"
-  info "Render:     automatic"
-  info
 
   return 0
 }
