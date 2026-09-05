@@ -6,6 +6,7 @@ set -Eeuo pipefail
 : "${VGA:=""}"                # VGA adapter
 : "${GPU:=""}"                # GPU acceleration
 : "${HELIOS:=""}"             # Enable Helios
+: "${VGPU:="auto"}"           # vGPU level
 : "${DISPLAY:="web"}"         # Display type
 : "${LOSSY:="N"}"             # Lossy VNC compression
 : "${VNC_PORT:="5900"}"       # VNC port
@@ -14,6 +15,7 @@ set -Eeuo pipefail
 
 # Sanitize variables
 VGA=$(strip "$VGA")
+VGPU=$(strip "$VGPU")
 LOSSY=$(strip "$LOSSY")
 DISPLAY=$(strip "$DISPLAY")
 VNC_PORT=$(strip "$VNC_PORT")
@@ -32,9 +34,21 @@ if [ -z "$VGA" ]; then
 
     VGA="vmware"
 
-    if ! enabled "$GPU"; then
+    if enabled "$DEBUG"; then
+      VGA+=",debug=on"
+    fi
 
-      version_file="$(stateFile "ver")"
+    if enabled "$GPU"; then
+
+      if [[ "${VGPU,,}" != "auto" ]]; then
+        VGA+=",vgpu=$VGPU"
+      fi
+
+    else
+
+      VGA+=",3d=off"
+
+      version_file="$(st)"
 
       if [ -s "$version_file" ]; then
 
