@@ -5,6 +5,7 @@ set -Eeuo pipefail
 
 : "${VGA:=""}"                # VGA adapter
 : "${GPU:=""}"                # GPU acceleration
+: "${HELIOS:=""}"             # Enable Helios
 : "${DISPLAY:="web"}"         # Display type
 : "${LOSSY:="N"}"             # Lossy VNC compression
 : "${VNC_PORT:="5900"}"       # VNC port
@@ -22,30 +23,38 @@ WSS_SOCKET="${WSS_SOCKET:-$QEMU_DIR/vnc-ws.sock}"
 
 if [ -z "$VGA" ]; then
 
-  VGA="vmware"
+  if enabled "$HELIOS"; then
 
-  if ! enabled "$GPU"; then
+    GPU="Y"
+    VGA="virtio"
 
-    version_file="$(stateFile "ver")"
+  else
 
-    if [ -s "$version_file" ]; then
+    VGA="vmware"
 
-      version_installed=""
-      IFS= read -r version_installed < "$version_file" || version_installed=""
+    if ! enabled "$GPU"; then
 
-      if [[ "$version_installed" =~ ^([0-9]+)\.([0-9]+) ]]; then
+      version_file="$(stateFile "ver")"
 
-        major=$((10#${BASH_REMATCH[1]}))
-        minor=$((10#${BASH_REMATCH[2]}))
+      if [ -s "$version_file" ]; then
 
-        if (( major < 6 || (major == 6 && minor < 6) )); then
-          (( major > 0 )) && VGA="virtio"
+        version_installed=""
+        IFS= read -r version_installed < "$version_file" || version_installed=""
+
+        if [[ "$version_installed" =~ ^([0-9]+)\.([0-9]+) ]]; then
+
+          major=$((10#${BASH_REMATCH[1]}))
+          minor=$((10#${BASH_REMATCH[2]}))
+
+          if (( major < 6 || (major == 6 && minor < 6) )); then
+            (( major > 0 )) && VGA="virtio"
+          fi
+
         fi
-
       fi
     fi
-  fi
 
+  fi
 fi
 
 VGA_DEVICE="${VGA%%,*}"
