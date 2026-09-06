@@ -31,6 +31,15 @@ if exist "%SETUP_COMPLETE%" exit /b 0
 
 type nul > "%SETUP_STARTED%"
 
+rem Ignore unclean shutdowns when deciding whether to enter recovery.
+bcdedit.exe /set {current} bootstatuspolicy IgnoreShutdownFailures
+
+rem Keep the blue screen visible after a system crash.
+bcdedit.exe /set {current} nocrashautoreboot on
+
+rem Boot the default entry immediately without waiting at the boot menu.
+bcdedit.exe /timeout 0
+
 rem Disable Shutdown Event Tracker.
 reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Reliability" /v "ShutdownReasonOn" /t REG_DWORD /d 0 /f
 
