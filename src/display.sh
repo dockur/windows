@@ -34,7 +34,7 @@ if [ -z "$VGA" ]; then
 
     VGA="vmware"
 
-    if enabled "$DEBUG"; then
+    if enabled "${DEBUG_DXVK:-}"; then
       VGA+=",debug=on"
     fi
 
