@@ -36,7 +36,7 @@ if [ -z "$VGA" ]; then
 
     if enabled "$GPU"; then
 
-      version_file="$(st)"
+      version_file="$(stateFile "ver")"
 
       if [ -s "$version_file" ]; then
 
