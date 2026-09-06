@@ -34,19 +34,7 @@ if [ -z "$VGA" ]; then
 
     VGA="vmvga"
 
-    if enabled "${DEBUG_GPU:-}"; then
-      VGA+=",debug=on"
-    fi
-
     if enabled "$GPU"; then
-
-      if [[ "${VGPU,,}" != "auto" ]]; then
-        VGA+=",vgpu=$VGPU"
-      fi
-
-    else
-
-      VGA+=",3d=off"
 
       version_file="$(st)"
 
@@ -336,7 +324,7 @@ vmwareVulkanReady() {
   return 0
 }
 
-vmwareGpuSetup() {
+vmvgaGpuSetup() {
 
   VMWARE_LIBRARY_REASON=""
   VMWARE_RENDER_REASON=""
@@ -367,6 +355,31 @@ vmwareGpuSetup() {
   return 0
 }
 
+vmvgaSetup() {
+
+  if enabled "${DEBUG_GPU:-}"; then
+    DISPLAY_OPTS+=",debug=on"
+  fi
+
+  if enabled "$GPU"; then
+ 
+    if [[ "${VGPU,,}" != "auto" ]]; then
+      DISPLAY_OPTS+=",vgpu=$VGPU"
+    fi
+
+  else
+
+    DISPLAY_OPTS+=",3d=off"
+
+  fi
+
+  return 0
+}
+
+if [[ "${VGA_DEVICE,,}" == "vmvga" ]]; then
+  vmvgaSetup
+fi
+
 enabled "$GPU" || return 0
 
 msg="Configuring display drivers..."
@@ -376,8 +389,8 @@ if [[ "$ARCH" != "amd64" ]]; then
   gpuSetupFailure "GPU acceleration is only supported for the AMD64 platform"
 fi
 
-if [[ "${VGA_DEVICE,,}" == "vmware-svga" ]]; then
-  vmwareGpuSetup
+if [[ "${VGA_DEVICE,,}" == "vmvga" ]]; then
+  vmvgaGpuSetup
   return 0
 fi
 
