@@ -63,6 +63,15 @@ if exist "%SETUP_COMPLETE%" exit /b 0
 
 type nul > "%SETUP_STARTED%"
 
+rem Ignore unclean shutdowns when deciding whether to enter recovery.
+bcdedit.exe /set {current} bootstatuspolicy IgnoreShutdownFailures
+
+rem Keep the blue screen visible after a system crash.
+bcdedit.exe /set {current} nocrashautoreboot on
+
+rem Boot the default entry immediately without waiting at the boot menu.
+bcdedit.exe /timeout 0
+
 rem Allow guest access to network shares.
 reg.exe add "HKLM\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" /v "AllowInsecureGuestAuth" /t REG_DWORD /d 1 /f
 
