@@ -32,7 +32,7 @@ if [ -z "$VGA" ]; then
 
   else
 
-    VGA="vmware"
+    VGA="vmvga"
 
     if enabled "${DEBUG_GPU:-}"; then
       VGA+=",debug=on"
@@ -78,8 +78,8 @@ case "${VGA_DEVICE,,}" in
   "std" | "vga" )
     VGA_DEVICE="VGA"
     VGA_ARG="-device" ;;
-  "vmware" | "vmware-svga" )
-    VGA_DEVICE="vmware-svga"
+  "vmvga" | "vmware" | "vmware-svga" )
+    VGA_DEVICE="vmvga"
     VGA_ARG="-device" ;;
   "virtio" )
     VGA_DEVICE="virtio-vga"
