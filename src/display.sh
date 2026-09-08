@@ -68,7 +68,8 @@ case "${VGA_DEVICE,,}" in
     VGA_ARG="-device" ;;
   "vmvga" | "vmware" | "vmware-svga" )
     VGA_DEVICE="vmvga"
-    VGA_ARG="-device" ;;
+    VGA_ARG="-device"
+    [ -z "${VMPORT:-}" ] && VMPORT="Y" ;;
   "virtio" )
     VGA_DEVICE="virtio-vga"
     VGA_ARG="-device" ;;
