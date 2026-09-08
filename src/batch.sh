@@ -3163,19 +3163,22 @@ createWin9xSystemImage() {
   fi
 
   local boot_gui=0
-  [[ "${id,,}" == "win9x"* ]] && boot_gui=1
+  [[ "${id,,}" == "win9x" ]] && boot_gui=1
+
+  local auto_scan=2
+  [[ "${id,,}" == "win95" ]] && auto_scan=0
 
   {
     printf '%s\n' \
-      '[Options]' \
+      "[Options]" \
       "BootGUI=$boot_gui" \
       "BootMenu=0" \
       "BootMenuDefault=1" \
       "BootWarn=0" \
       "BootSafe=0" \
-      'BootDelay=0' \
-      'AutoScan=2' \
-      'Logo=0' \
+      "BootDelay=0" \
+      "AutoScan=$auto_scan" \
+      "Logo=0" \
       ''
   } | unix2dos > "$msdos" || return 1
 
