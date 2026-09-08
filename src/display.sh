@@ -357,13 +357,13 @@ vmvgaGpuSetup() {
 
 vmvgaSetup() {
 
-  if enabled "${DEBUG_GPU:-}"; then
-    DISPLAY_OPTS+=",debug=on"
+  if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
+    DISPLAY_OPTS+=",vgamem_mb=16"
   fi
 
   if enabled "$GPU"; then
  
-    if [[ "${VGPU,,}" != "auto" ]]; then
+    if [ -n "$VGPU"] && [[ "${VGPU,,}" != "auto" ]]; then
       DISPLAY_OPTS+=",vgpu=$VGPU"
     fi
 
@@ -371,6 +371,10 @@ vmvgaSetup() {
 
     DISPLAY_OPTS+=",3d=off"
 
+  fi
+
+  if enabled "${DEBUG_GPU:-}"; then
+    DISPLAY_OPTS+=",debug=on"
   fi
 
   return 0
