@@ -3169,6 +3169,10 @@ createWin9xSystemImage() {
     printf '%s\n' \
       '[Options]' \
       "BootGUI=$boot_gui" \
+      "BootMenu=0" \
+      "BootMenuDefault=1" \
+      "BootWarn=0" \
+      "BootSafe=0" \
       'BootDelay=0' \
       'AutoScan=2' \
       'Logo=0' \
