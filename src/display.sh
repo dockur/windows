@@ -363,7 +363,7 @@ vmvgaSetup() {
 
   if enabled "$GPU"; then
  
-    if [ -n "$VGPU"] && [[ "${VGPU,,}" != "auto" ]]; then
+    if [ -n "$VGPU" ] && [[ "${VGPU,,}" != "auto" ]]; then
       DISPLAY_OPTS+=",vgpu=$VGPU"
     fi
 
