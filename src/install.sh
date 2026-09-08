@@ -1722,8 +1722,10 @@ setDiskMinimum() {
   local id="$1"
   local required
 
-  required=$(getRequiredDisk "$id") || return
-  DISK_MINIMUM="$required"
+  if [ -z "${DISK_MINIMUM:-}" ]; then
+    required=$(getRequiredDisk "$id") || return
+    DISK_MINIMUM="$required"
+  fi
 
   return 0
 }
