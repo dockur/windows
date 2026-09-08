@@ -54,7 +54,7 @@ if exist "%SETUP_COMPLETE%" exit /b 0
 type nul > "%SETUP_STARTED%"
 
 rem Ignore unclean shutdowns when deciding whether to enter recovery.
-bcdedit.exe /set {current} bootstatuspolicy IgnoreShutdownFailures
+bcdedit.exe /set {current} bootstatuspolicy IgnoreAllFailures
 
 rem Keep the blue screen visible after a system crash.
 bcdedit.exe /set {current} nocrashautoreboot on
