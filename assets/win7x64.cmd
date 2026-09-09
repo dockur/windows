@@ -38,6 +38,9 @@ reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Network\NetworkLocationWizard
 rem Disable Network Discovery popup.
 reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\NewNetworks" /v NetworkList /t REG_MULTI_SZ /d "" /f
 
+rem Disable AutoPlay for all drives.
+reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" /v "NoDriveTypeAutoRun" /t REG_DWORD /d 255 /f
+
 rem Disable first-run experience in Edge.
 reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v "HideFirstRunExperience" /t REG_DWORD /d 1 /f
 

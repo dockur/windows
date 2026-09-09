@@ -3,12 +3,12 @@
 ARG VERSION_ARG="latest"
 FROM scratch AS build-amd64
 
-COPY --from=qemux/qemu:7.49 --exclude=usr/bin/qemu-system-x86_64 / /
+COPY --from=qemux/qemu:7.50 --exclude=usr/bin/qemu-system-x86_64 / /
 
 ARG TARGETARCH
 
 ARG VERSION_WSDD="1.27"
-ARG VERSION_VIRTIO="1.9.60"
+ARG VERSION_VIRTIO="1.9.61"
 ARG VERSION_BLINTER="1.0.112"
 
 ARG DEBCONF_NOWARNINGS="yes"
