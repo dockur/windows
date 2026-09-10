@@ -45,7 +45,7 @@ EOF
 COPY --chmod=755 ./src /run/
 COPY --chmod=755 ./assets /run/assets
 COPY --from=qemux/udfread:1.2.0 /udfread /usr/bin/
-COPY --from=qemux/qemu-helios:1.0.0 /usr/bin/qemu-system-x86_64 /usr/bin/
+COPY --from=qemux/qemu-helios:1.0.3 /usr/bin/qemu-system-x86_64 /usr/bin/
 
 ADD --chmod=664 https://github.com/qemus/virtiso-whql/releases/download/v${VERSION_VIRTIO}-0/virtio-win-${VERSION_VIRTIO}.tar.xz /var/drivers.txz
 
