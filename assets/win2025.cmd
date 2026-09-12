@@ -37,6 +37,9 @@ bcdedit.exe /set {current} nocrashautoreboot on
 rem Boot the default entry immediately without waiting at the boot menu.
 bcdedit.exe /timeout 0
 
+rem Disable automatic reboot after BSOD
+reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\CrashControl" /v "AutoReboot" /t REG_DWORD /d 0 /f
+
 rem Disable Shutdown Event Tracker.
 reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Reliability" /v "ShutdownReasonOn" /t REG_DWORD /d 0 /f
 
