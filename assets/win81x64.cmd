@@ -37,6 +37,9 @@ bcdedit.exe /set {current} nocrashautoreboot on
 rem Boot the default entry immediately without waiting at the boot menu.
 bcdedit.exe /timeout 0
 
+rem Disable automatic reboot after BSOD
+reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\CrashControl" /v "AutoReboot" /t REG_DWORD /d 0 /f
+
 rem Allow guest access to network shares.
 reg.exe add "HKLM\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" /v "AllowInsecureGuestAuth" /t REG_DWORD /d 1 /f
 
