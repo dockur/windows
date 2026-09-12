@@ -78,6 +78,9 @@ POWERCFG -X -standby-timeout-ac 0
 rem Enable RemoteAPP to launch unlisted programs.
 reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services" /v "fAllowUnlistedRemotePrograms" /t REG_DWORD /d 1 /f
 
+rem Turn off automatic Windows Update downloads.
+reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update" /v "AUOptions" /t REG_DWORD /d 1 /f
+
 rem Enable Network Discovery.
 netsh advfirewall firewall set rule group="@FirewallAPI.dll,-32752" new enable=Yes
 
