@@ -8,6 +8,7 @@ COPY --from=qemux/qemu:7.50 --exclude=usr/bin/qemu-system-x86_64 / /
 ARG TARGETARCH
 
 ARG VERSION_WSDD="1.27"
+ARG VERSION_DXVK="2.7.1"
 ARG VERSION_VIRTIO="1.9.61"
 ARG VERSION_BLINTER="1.0.112"
 
