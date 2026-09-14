@@ -64,6 +64,19 @@ setMachine() {
     esac
   fi
 
+  case "${id,,}" in
+
+    "winnt4" )
+      writeState "vga" "cirrus" || return 1 ;;
+
+    "win9"* | "win2k"* | "winxp"* | \
+    "win2003"* | "win2008"* | "win2012"*| \
+    "winvista"* | "win7"* | "win8"* | "reactos" )
+
+      writeState "vga" "vmvga" || return 1 ;;
+
+  esac
+
   restoreMachine || return 1
   restoreBootMode || return 1
 
