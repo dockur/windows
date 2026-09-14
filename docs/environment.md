@@ -80,7 +80,7 @@ An empty default means the variable is unset and its value is determined automat
 | Variable | Default | Description |
 |---|---|---|
 | `DISPLAY` | `web` | Display backend, such as `web`, `vnc`, `disabled`, or `none`. |
-| `VGA` | `vmware` | QEMU video adapter model. |
+| `VGA` | `virtio` | QEMU video adapter model. |
 | `WIDTH` | `1280` | Display width configured in Windows. |
 | `HEIGHT` | `720` | Display height configured in Windows. |
 | `GPU` | `N` | Enables GPU acceleration. |
