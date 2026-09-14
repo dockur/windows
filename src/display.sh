@@ -3,10 +3,8 @@ set -Eeuo pipefail
 
 # Docker environment variables
 
-: "${VGA:=""}"                # VGA adapter
-: "${GPU:=""}"                # GPU acceleration
-: "${HELIOS:=""}"             # Enable Helios
-: "${VGPU:="auto"}"           # vGPU level
+: "${VGA:="virtio"}"          # VGA adapter
+: "${GPU:="N"}"               # GPU acceleration
 : "${DISPLAY:="web"}"         # Display type
 : "${LOSSY:="N"}"             # Lossy VNC compression
 : "${VNC_PORT:="5900"}"       # VNC port
@@ -15,49 +13,12 @@ set -Eeuo pipefail
 
 # Sanitize variables
 VGA=$(strip "$VGA")
-VGPU=$(strip "$VGPU")
 LOSSY=$(strip "$LOSSY")
 DISPLAY=$(strip "$DISPLAY")
 VNC_PORT=$(strip "$VNC_PORT")
 VRAM_SIZE=$(strip "$VRAM_SIZE")
 RENDERNODE=$(strip "$RENDERNODE")
 WSS_SOCKET="${WSS_SOCKET:-$QEMU_DIR/vnc-ws.sock}"
-
-if [ -z "$VGA" ]; then
-
-  if enabled "$HELIOS"; then
-
-    GPU="Y"
-    VGA="virtio"
-
-  else
-
-    VGA="vmvga"
-
-    if enabled "$GPU"; then
-
-      version_file="$(stateFile "ver")"
-
-      if [ -s "$version_file" ]; then
-
-        version_installed=""
-        IFS= read -r version_installed < "$version_file" || version_installed=""
-
-        if [[ "$version_installed" =~ ^([0-9]+)\.([0-9]+) ]]; then
-
-          major=$((10#${BASH_REMATCH[1]}))
-          minor=$((10#${BASH_REMATCH[2]}))
-
-          if (( major < 6 || (major == 6 && minor < 6) )); then
-            (( major > 0 )) && VGA="virtio"
-          fi
-
-        fi
-      fi
-    fi
-
-  fi
-fi
 
 VGA_DEVICE="${VGA%%,*}"
 VGA_OPTIONS="${VGA#"$VGA_DEVICE"}"
@@ -363,7 +324,9 @@ vmvgaSetup() {
   fi
 
   if enabled "$GPU"; then
- 
+
+    VGPU=$(strip "${VGPU:-}")
+
     if [ -n "$VGPU" ] && [[ "${VGPU,,}" != "auto" ]]; then
       DISPLAY_OPTS+=",vgpu=$VGPU"
     fi
