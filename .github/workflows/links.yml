@@ -1,0 +1,259 @@
+name: Links
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
+
+concurrency:
+  group: links
+  cancel-in-progress: false
+
+jobs:
+  links:
+    name: Links
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      packages: read
+      contents: read
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      -
+        name: Install aria2
+        run: |
+          if ! command -v aria2c > /dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -qq --no-install-recommends -y aria2
+          fi
+      -
+        name: Validate all download mirrors
+        id: validate
+        run: |
+          errors=0
+          tested=0
+          host=""
+          failed_links=""
+          failed_links_html=""
+          declare -A seen
+
+          ignored_domains=(
+            files.dog
+          )
+
+          check() {
+            local url="$1"
+            local agent="Mozilla/5.0 (X11; Linux x86_64; rv:154.0) Gecko/20100101 Firefox/154.0"
+            local tmp output pid blocks bytes rc status delay
+            local attempt=1
+            local attempts=3
+            local start
+
+            tmp=$(mktemp -d)
+
+            while (( attempt <= attempts )); do
+              output="$tmp/aria2.log"
+              rm -f -- "$tmp/probe" "$tmp/probe.aria2" "$output"
+              start=$SECONDS
+
+              aria2c \
+                --no-conf=true \
+                --connect-timeout=30 \
+                --timeout=30 \
+                --max-tries=2 \
+                --retry-wait=2 \
+                --async-dns=false \
+                --follow-metalink=false \
+                --follow-torrent=false \
+                --user-agent="$agent" \
+                --split=4 \
+                --max-connection-per-server=4 \
+                --file-allocation=none \
+                --allow-overwrite=true \
+                --auto-file-renaming=false \
+                --continue=false \
+                --dir="$tmp" \
+                --out=probe \
+                --console-log-level=error \
+                --summary-interval=0 \
+                --download-result=hide \
+                --show-console-readout=false \
+                --enable-color=false \
+                -- "$url" > "$output" 2>&1 &
+              pid=$!
+
+              while kill -0 "$pid" 2>/dev/null; do
+                if [[ -f "$tmp/probe" ]]; then
+                  blocks=$(stat -c '%b' "$tmp/probe" 2>/dev/null || echo 0)
+                  bytes=$((blocks * 512))
+
+                  if (( bytes >= 1048576 )); then
+                    kill "$pid" 2>/dev/null || true
+                    wait "$pid" 2>/dev/null || true
+                    rm -rf -- "$tmp"
+                    return 0
+                  fi
+                fi
+
+                if (( SECONDS - start >= 60 )); then
+                  kill "$pid" 2>/dev/null || true
+                  break
+                fi
+
+                sleep 0.2
+              done
+
+              if wait "$pid"; then
+                rc=0
+              else
+                rc=$?
+              fi
+
+              blocks=0
+
+              if [[ -f "$tmp/probe" ]]; then
+                blocks=$(stat -c '%b' "$tmp/probe" 2>/dev/null || echo 0)
+              fi
+
+              bytes=$((blocks * 512))
+
+              if (( bytes >= 1048576 || (rc == 0 && bytes > 0) )); then
+                rm -rf -- "$tmp"
+                return 0
+              fi
+
+              status=$(sed -n 's/.*status=\([0-9][0-9][0-9]\).*/\1/p' "$output" | tail -n 1)
+
+              if (( attempt < attempts )) && [[ "$status" == "429" || "$status" == 5?? ]]; then
+                delay=$((attempt * 15))
+                echo "      HTTP ${status}, retrying in ${delay} seconds..." >&2
+                sleep "$delay"
+                attempt=$((attempt + 1))
+                continue
+              fi
+
+              sed 's/^/      /' "$output" >&2
+              echo "      Downloaded bytes: $bytes" >&2
+              echo "      aria2c exit status: $rc" >&2
+              rm -rf -- "$tmp"
+              return 1
+            done
+
+            rm -rf -- "$tmp"
+            return 1
+          }
+
+          isIgnoredDomain() {
+            local url="$1"
+            local domain ignored
+
+            domain="${url#*://}"
+            domain="${domain%%/*}"
+            domain="${domain%%:*}"
+            domain="${domain,,}"
+
+            for ignored in "${ignored_domains[@]}"; do
+              if [[ "$domain" == "$ignored" || "$domain" == *."$ignored" ]]; then
+                return 0
+              fi
+            done
+
+            return 1
+          }
+
+          while IFS= read -r line; do
+            if [[ "$line" =~ ^[[:space:]]*local[[:space:]]+host=\"(https://[^\"]+)\" ]]; then
+              host="${BASH_REMATCH[1]%/}"
+              continue
+            fi
+
+            [[ "$line" =~ ^[[:space:]]*url=\"(.+)\" ]] || continue
+            val="${BASH_REMATCH[1]#/}"
+
+            if [[ "$val" == https://* ]]; then
+              url="$val"
+            elif [[ -n "$host" ]]; then
+              url="$host/$val"
+            else
+              continue
+            fi
+
+            [[ -v seen[$url] ]] && continue
+            seen[$url]=1
+
+            if isIgnoredDomain "$url"; then
+              echo "SKIP: $url"
+              continue
+            fi
+
+            tested=$((tested + 1))
+
+            if check "$url"; then
+              echo "  OK: $url"
+            else
+              echo "FAIL: $url"
+              errors=$((errors + 1))
+              failed_links+="$url"$'\n'
+              failed_links_html+="<li><a href=\"$url\">$url</a></li>"$'\n'
+            fi
+
+            sleep 2
+          done < "src/define.sh"
+
+          echo ""
+          printf '%d/%d tested links valid\n' "$((tested - errors))" "$tested"
+
+          if (( errors > 0 )); then
+            printf '%d blocking failure(s)\n' "$errors"
+
+            {
+              echo "failed=true"
+              echo "links<<EOF"
+              printf '%s' "$failed_links"
+              echo "EOF"
+              echo "html_links<<EOF"
+              printf '%s' "$failed_links_html"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "failed=false" >> "$GITHUB_OUTPUT"
+          fi
+      -
+        name: Send mail
+        if: steps.validate.outputs.failed == 'true'
+        uses: action-pack/send-mail@v1
+        with:
+          to: ${{secrets.MAILTO}}
+          from: Github Actions <${{secrets.MAILTO}}>
+          connection_url: ${{secrets.MAIL_CONNECTION}}
+          subject: Mirror verification failed!
+          body: |
+            Mirror verification failed!
+
+            The following links failed:
+
+            ${{ steps.validate.outputs.links }}
+
+            See https://github.com/${{ github.repository }}/actions for more information.
+          html_body: |
+            <p>Mirror verification failed!</p>
+
+            <p>The following links failed:</p>
+
+            <ul>
+            ${{ steps.validate.outputs.html_links }}
+            </ul>
+
+            <p>
+              See
+              <a href="https://github.com/${{ github.repository }}/actions">GitHub Actions</a>
+              for more information.
+            </p>
+      -
+        name: Fail workflow
+        if: always() && steps.validate.outputs.failed == 'true'
+        run: exit 1

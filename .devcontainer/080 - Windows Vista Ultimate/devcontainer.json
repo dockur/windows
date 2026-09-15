@@ -1,0 +1,19 @@
+{
+  "name": "Windows Vista Ultimate",
+  "service": "windows",
+  "containerEnv": {
+    "VERSION": "vu"
+  },
+  "forwardPorts": [8006],
+  "portsAttributes": {
+    "8006": {
+      "label": "Web",
+      "onAutoForward": "notify"
+    }
+  },
+  "otherPortsAttributes": {
+    "onAutoForward": "ignore"
+  }, 
+  "dockerComposeFile": "../codespaces.yml",
+  "initializeCommand": "docker system prune --all --force"
+}

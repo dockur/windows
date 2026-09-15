@@ -1,6 +1,6 @@
 <h1 align="center">Windows<br />
 <div align="center">
-<a href="https://github.com/dockur/windows"><img src="https://github.com/dockur/windows/raw/master/.github/logo.png" title="Logo" style="max-width:100%;" width="128" /></a>
+<a href="https://github.com/dockur/windows"><img src="https://github.com/dockur/windows/raw/master/.github/logo.png" title="Logo" style="max-width:100%;" width="96" /></a>
 </div>
 <div align="center">
 
@@ -16,17 +16,22 @@ Windows inside a Docker container.
 
 ## Features ✨
 
- - ISO downloader
- - KVM acceleration
- - Web-based viewer
+- Runs Windows inside a Docker container
+- Automatic download and hands-free installation
+- Supports modern and legacy Windows releases
+- Near-native performance with KVM acceleration
+- Customizable CPU, memory, and storage allocation
+- Dynamic memory allocation with memory ballooning
+- USB passthrough and host folder sharing
+- Supports NAT, user-mode, macvlan, and macvtap networking
 
 ## Video 📺
 
-[![Youtube](https://img.youtube.com/vi/xhGYobuG508/0.jpg)](https://www.youtube.com/watch?v=xhGYobuG508)
+[![YouTube](https://img.youtube.com/vi/xhGYobuG508/maxresdefault.jpg)](https://www.youtube.com/watch?v=xhGYobuG508)
 
 ## Usage 🐳
 
-##### Via Docker Compose:
+##### Docker Compose:
 
 ```yaml
 services:
@@ -50,21 +55,35 @@ services:
     stop_grace_period: 2m
 ```
 
-##### Via Docker CLI:
+##### Docker CLI:
 
 ```bash
-docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -v "${PWD:-.}/windows:/storage" --stop-timeout 120 dockurr/windows
+docker run -it --rm --name windows -e "VERSION=11" -p 8006:8006 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -v "${PWD:-.}/windows:/storage" --stop-timeout 120 docker.io/dockurr/windows
 ```
 
-##### Via Kubernetes:
+##### Kubernetes:
 
 ```shell
 kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/master/kubernetes.yml
 ```
 
-##### Via Github Codespaces:
+##### Desktop applications
+
+For a complete graphical desktop experience, see [WinBoat](https://winboat.app), [WinPodX](https://www.winpodx.org), or [WinApps](https://github.com/winapps-org/winapps). Each of these projects uses this container as its backend.
+
+##### GitHub Codespaces:
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/dockur/windows)
+
+## Requirements ⚙️
+
+- Docker or Podman on a Linux host with KVM support.
+- Docker Desktop or Podman (Desktop) on Windows 11 with nested virtualization enabled.
+- At least 2 GB of available RAM.
+- At least 32 GB of free disk space.
+
+> [!NOTE]
+> Docker Desktop on Linux, macOS, and Windows 10 does not currently provide KVM access to containers and is therefore not supported.
 
 ## FAQ 💬
 
@@ -74,7 +93,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   
   - Start the container and connect to [port 8006](http://127.0.0.1:8006/) using your web browser.
 
-  - Sit back and relax while the magic happens, the whole installation will be performed fully automatic.
+  - Sit back and relax while the magic happens, the whole installation will be performed fully automatically.
 
   - Once you see the desktop, your Windows installation is ready for use.
   
@@ -86,16 +105,16 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   ```yaml
   environment:
-    VERSION: "11"
+    VERSION: "10"
   ```
 
   Select from the values below:
   
   | **Value** | **Version**            | **Size** |
   |---|---|---|
-  | `11`   | Windows 11 Pro            | 5.4 GB   |
+  | `11`   | Windows 11 Pro            | 7.9 GB   |
   | `11l`  | Windows 11 LTSC           | 4.7 GB   |
-  | `11e`  | Windows 11 Enterprise     | 4.0 GB   |
+  | `11e`  | Windows 11 Enterprise     | 6.6 GB   |
   ||||
   | `10`   | Windows 10 Pro            | 5.7 GB   |
   | `10l`  | Windows 10 LTSC           | 4.6 GB   |
@@ -106,14 +125,22 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   | `vu`   | Windows Vista Ultimate    | 3.0 GB   |
   | `xp`   | Windows XP Professional   | 0.6 GB   |
   | `2k`   | Windows 2000 Professional | 0.4 GB   | 
+  | `me`   | Windows ME                | 0.5 GB   |
+  | `98`   | Windows 98                | 0.7 GB   |
+  | `95`   | Windows 95                | 0.6 GB   |
   ||||  
-  | `2025` | Windows Server 2025       | 5.6 GB   |
-  | `2022` | Windows Server 2022       | 4.7 GB   |
+  | `2025` | Windows Server 2025       | 7.6 GB   |
+  | `2022` | Windows Server 2022       | 6.0 GB   |
   | `2019` | Windows Server 2019       | 5.3 GB   |
   | `2016` | Windows Server 2016       | 6.5 GB   |
   | `2012` | Windows Server 2012       | 4.3 GB   |
   | `2008` | Windows Server 2008       | 3.0 GB   |
   | `2003` | Windows Server 2003       | 0.6 GB   |
+  ||||  
+  | `core11`  | Tiny11 Core      | 3.0 GB   |
+  | `tiny11`  | Tiny11           | 5.3 GB   |
+  | `tiny10`  | Tiny10           | 3.6 GB   |
+  | `reactos` | ReactOS          | 0.1 GB   |
 
 > [!TIP]
 > To install ARM64 versions of Windows use [dockur/windows-arm](https://github.com/dockur/windows-arm/).
@@ -139,27 +166,24 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   ```
   
 > [!TIP]
-> This can also be used to resize the existing disk to a larger capacity without any data loss.
+> This can also be used to resize an existing disk to a larger capacity without any data loss. However, you will need to [manually extend the disk partition](https://learn.microsoft.com/en-us/windows-server/storage/disk-management/extend-a-basic-volume?tabs=disk-management) afterwards, since the added disk space will appear as unallocated.
 
 ### How do I share files with the host?
 
-  Open 'File Explorer' and click on the 'Network' section, you will see a computer called `host.lan`.
+  After installation there will be a folder called `Shared` on your desktop, which can be used to exchange files with the host machine.
   
-  Double-click it and it will show a folder called `Data`, which can be bound to any folder on your host via the compose file:
+  To select a folder on the host for this purpose, include the following bind mount in your compose file:
 
   ```yaml
   volumes:
-    -  ./example:/data
+    -  ./example:/shared
   ```
 
-  The example folder `./example` will be available as ` \\host.lan\Data`.
-  
-> [!TIP]
-> You can map this path to a drive letter in Windows, for easier access.
+  Replace the example path `./example` with your desired shared folder, which then will become visible as `Shared` on the desktop and as drive `Z:`.
 
 ### How do I change the amount of CPU or RAM?
 
-  By default, the container will be allowed to use a maximum of 2 CPU cores and 4 GB of RAM.
+  By default, Windows will be allowed to use 2 CPU cores and 4 GB of RAM.
 
   If you want to adjust this, you can specify the desired amount using the following environment variables:
 
@@ -169,11 +193,30 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
     CPU_CORES: "4"
   ```
 
+### How do I enable audio?
+
+  Audio is disabled by default unless you are using RDP. To stream it to the browser, add the following environment variable:
+
+  ```yaml
+  environment:
+    AUDIO: "Y"
+  ```
+
+  Then enable **Audio** under **Settings → Advanced** in the web viewer. The stream is only active while this option is enabled, so it uses no extra bandwidth otherwise.
+
+### How do I connect using RDP?
+
+  The web viewer is mainly intended for use during installation, since it is less responsive than RDP and does not support features such as clipboard sharing.
+
+  So for a better experience you can connect using any Microsoft Remote Desktop client to the IP of the container, using the username `Docker` and password `admin`.
+
+  There is an RDP client for [Android](https://play.google.com/store/apps/details?id=com.microsoft.rdc.androidx) available from the Play Store and one for [iOS](https://apps.apple.com/nl/app/microsoft-remote-desktop/id714464092?l=en-GB) in the Apple Store. For Linux you can use [FreeRDP](https://www.freerdp.com/) and on Windows just type `mstsc` in the search box.
+
 ### How do I configure the username and password?
 
-  By default, a user called `Docker` is created during installation and its password is `admin`.
+  By default, a user called `Docker` is created and its password is `admin`.
 
-  If you want to use different credentials, you can configure them in your compose file (only before installation):
+  If you want to set up different credentials during installation, you can configure them in your compose file:
 
   ```yaml
   environment:
@@ -181,11 +224,27 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
     PASSWORD: "gates"
   ```
 
+  When `DOMAIN` is set, these variables are used as domain credentials instead.
+
+### How do I join an Active Directory domain?
+
+  Windows can automatically join an Active Directory domain during installation. Specify the domain name in your compose file:
+
+  ```yaml
+  environment:
+    DOMAIN: "example.com"
+    DOMAIN_OU: "OU=Virtual Machines,OU=Servers,DC=example,DC=com"
+  ```
+
+  Use the domain name, such as `example.com`, rather than a URL. The supplied account is added to the local Administrators group and automatically signed in after installation. `DOMAIN_OU` is optional and specifies where the computer account should be created. 
+
+  Windows must be able to resolve and reach the domain controller through the domain's DNS server.
+
 ### How do I select the Windows language?
 
   By default, the English version of Windows will be downloaded.
   
-  But before installation you can add the `LANGUAGE` environment variable to your compose file, in order to specify an alternative language:
+  But you can add the `LANGUAGE` environment variable to your compose file, in order to specify an alternative language to be downloaded:
 
   ```yaml
   environment:
@@ -196,21 +255,12 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I select the keyboard layout?
 
-  If you want to use a keyboard layout or locale that is not the default for your selected language, you can add  `KEYBOARD` and `REGION` variables like this (before installation):
+  If you want to set up a keyboard layout or locale that is not the default for your selected language, you can add `KEYBOARD` and `REGION` variables like this:
 
   ```yaml
   environment:
     REGION: "en-US"
     KEYBOARD: "en-US"
-  ```
-
-### How do I select the edition?
-
-  Windows Server offers a minimalistic Core edition without a GUI. To select those non-standard editions, you can add a `EDITION` variable like this (before installation):
-
-  ```yaml
-  environment:
-    EDITION: "core"
   ```
 
 ### How do I install a custom image?
@@ -226,42 +276,30 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   
   ```yaml
   volumes:
-    - ./example.iso:/boot.iso
+    - ./example.iso:/custom.iso
   ```
 
   Replace the example path `./example.iso` with the filename of your desired ISO file. The value of `VERSION` will be ignored in this case.
 
-### How do I run a script after installation?
+### How do I run a command after installation?
 
-  To run your own script after installation, you can create a file called `install.bat` and place it in a folder together with any additional files it needs (software to be installed for example).
-  
+  To execute a single command during the final step of the automatic installation, add the `COMMAND` environment variable:
+
+  ```yaml
+  environment:
+    COMMAND: 'reg add "HKLM\Software\Example" /v Enabled /t REG_DWORD /d 1 /f'
+  ```
+
+  To run a script or include additional files, create a file called `install.bat` and place it in a folder together with any files it needs, such as software to be installed.
+
   Then bind that folder in your compose file like this:
 
   ```yaml
   volumes:
-    -  ./example:/oem
+    - ./example:/oem
   ```
 
-  The example folder `./example` will be copied to `C:\OEM` and the containing `install.bat` will be executed during the last step of the automatic installation.
-
-### How do I perform a manual installation?
-
-  It's recommended to stick to the automatic installation, as it adjusts various settings to prevent common issues when running Windows inside a virtual environment.
-
-  However, if you insist on performing the installation manually at your own risk, add the following environment variable to your compose file:
-
-  ```yaml
-  environment:
-    MANUAL: "Y"
-  ```
-
-### How do I connect using RDP?
-
-  The web-viewer is mainly meant to be used during installation, as its picture quality is low, and it has no audio or clipboard for example.
-
-  So for a better experience you can connect using any Microsoft Remote Desktop client to the IP of the container, using the username `Docker` and password `admin`.
-
-  There is a RDP client for [Android](https://play.google.com/store/apps/details?id=com.microsoft.rdc.androidx) available from the Play Store and one for [iOS](https://apps.apple.com/nl/app/microsoft-remote-desktop/id714464092?l=en-GB) in the Apple Store. For Linux you can use [FreeRDP](https://www.freerdp.com/) and on Windows just type `mstsc` in the search box.
+  The example folder `./example` will be copied to `C:\OEM` and the `install.bat` file inside it will be executed during the final step of the automatic installation.
 
 ### How do I assign an individual IP address to the container?
 
@@ -328,9 +366,9 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
     - ./example3:/storage3
   ```
 
-### How do I pass-through a disk?
+### How do I pass through a disk?
 
-  It is possible to pass-through disk devices or partitions directly by adding them to your compose file in this way:
+  You can pass through disk devices or partitions directly by adding them to your compose file in this way:
 
   ```yaml
   devices:
@@ -340,9 +378,9 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   Use `/disk1` if you want it to become your main drive (which will be formatted during installation), and use `/disk2` and higher to add them as secondary drives (which will stay untouched).
 
-### How do I pass-through a USB device?
+### How do I pass through a USB device?
 
-  To pass-through a USB device, first lookup its vendor and product id via the `lsusb` command, then add them to your compose file like this:
+  To pass through a USB device, first look up its vendor and product IDs via the `lsusb` command, then add them to your compose file like this:
 
   ```yaml
   environment:
@@ -351,35 +389,49 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
     - /dev/bus/usb
   ```
 
-  If the device is a USB disk drive, please wait until after the installation is fully completed before connecting it. Otherwise the installation may fail, as the order of the disks can get rearranged.
+> [!WARNING]  
+> Adding a USB mass storage device before Windows Setup has finished may cause it to fail. Or worse: the drive can get formatted as the system disk, and all your data will be lost! So always keep them disconnected when launching the container for the first time.
 
-### How do I verify if my system supports KVM?
+### How do I enable dynamic memory allocation?
 
-  First check if your software is compatible using this chart:
+  By default, the VM is allocated the full amount of RAM configured via `RAM_SIZE` for its entire lifetime.
 
-  | **Product**  | **Linux** | **Win11** | **Win10** | **macOS** |
-  |---|---|---|---|---|
-  | Docker CLI        | ✅   | ✅       | ❌        | ❌ |
-  | Docker Desktop    | ❌   | ✅       | ❌        | ❌ | 
-  | Podman CLI        | ✅   | ✅       | ❌        | ❌ | 
-  | Podman Desktop    | ✅   | ✅       | ❌        | ❌ | 
+  However, you can enable [memory ballooning](https://github.com/qemus/qemu/blob/master/docs/ballooning.md) if you want the container to dynamically reclaim unused guest RAM based on host memory pressure.
 
-  After that you can run the following commands in Linux to check your system:
+### Are these all available options?
+
+  No. For a complete overview of all supported settings, see the [environment variables](docs/environment.md) page.
+
+### How do I verify that KVM is available?
+
+  First, make sure your platform and container runtime meet the [requirements](#requirements-️) listed above.
+
+  On a Linux host, install `cpu-checker` and run:
 
   ```bash
   sudo apt install cpu-checker
   sudo kvm-ok
   ```
 
-  If you receive an error from `kvm-ok` indicating that KVM cannot be used, please check whether:
+  A working configuration should report:
 
-  - the virtualization extensions (`Intel VT-x` or `AMD SVM`) are enabled in your BIOS.
+  ```text
+  KVM acceleration can be used
+  ```
 
-  - you enabled "nested virtualization" if you are running the container inside a virtual machine.
+  You can also verify that the KVM device exists:
 
-  - you are not using a cloud provider, as most of them do not allow nested virtualization for their VPS's.
+  ```bash
+  ls -l /dev/kvm
+  ```
 
-  If you did not receive any error from `kvm-ok` but the container still complains about a missing KVM device, it could help to add `privileged: true` to your compose file (or `sudo` to your `docker` command) to rule out any permission issue.
+  If KVM is unavailable, check whether:
+
+  - Hardware virtualization (`Intel VT-x` or `AMD-V`) is enabled in your BIOS or UEFI.
+  - Nested virtualization is enabled when the host itself is a virtual machine.
+  - Your VPS or cloud provider supports nested virtualization.
+
+  If `kvm-ok` succeeds but the container still reports that KVM is unavailable, you can temporarily add `privileged: true` to your Compose file to rule out a permission or device-access issue.
 
 ### How do I run macOS in a container?
 
@@ -391,10 +443,12 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### Is this project legal?
 
-  Yes, this project contains only open-source code and does not distribute any copyrighted material. Any product keys found in the code are just generic placeholders provided by Microsoft for trial purposes. So under all applicable laws, this project will be considered legal.
+  Yes, this project contains only open-source code and does not distribute Windows itself. Any product keys found in the code are generic installation keys published by Microsoft for trial purposes and are not valid activation licenses.
+
+  You are responsible for ensuring that you have a valid Windows license and that your use complies with Microsoft's licensing terms.
 
 ## Stars 🌟
-[![Stars](https://starchart.cc/dockur/windows.svg?variant=adaptive)](https://starchart.cc/dockur/windows)
+[![Stargazers](https://raw.githubusercontent.com/star-stats/stars/refs/heads/data/charts/dockur-windows.svg)](https://github.com/dockur/windows/stargazers)
 
 ## Disclaimer ⚖️
 

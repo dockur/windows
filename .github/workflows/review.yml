@@ -1,0 +1,14 @@
+on:
+  pull_request:
+
+name: "Review"
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  review:
+    name: review
+    uses: action-pack/.github/.github/workflows/review.yml@master

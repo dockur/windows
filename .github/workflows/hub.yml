@@ -12,13 +12,15 @@ jobs:
   dockerHubDescription:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
-    - 
-      name: Docker Hub Description
-      uses: peter-evans/dockerhub-description@v4
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-        repository: ${{ secrets.DOCKERHUB_REPO }}
-        short-description: ${{ github.event.repository.description }}
-        readme-filepath: ./readme.md
+      -
+        name: Checkout repo
+        uses: actions/checkout@v7
+      - 
+        name: Docker Hub Description
+        uses: peter-evans/dockerhub-description@v5
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ secrets.DOCKERHUB_REPO }}
+          short-description: ${{ github.event.repository.description }}
+          readme-filepath: ./readme.md

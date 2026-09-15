@@ -1,0 +1,1582 @@
+name: Installation
+
+on:
+  workflow_call:
+    inputs:
+      name:
+        description: Display name for the Windows version
+        required: true
+        type: string
+
+      version:
+        description: VERSION value passed to the container
+        required: true
+        type: string
+
+      runner:
+        description: GitHub Actions runner
+        required: false
+        default: ubuntu-24.04
+        type: string
+
+      branch:
+        description: Repository branch to build
+        required: false
+        default: dev
+        type: string
+
+      callback:
+        description: Guest script type
+        required: false
+        default: powershell
+        type: string
+
+      machine:
+        description: QEMU machine type exposed to Windows
+        required: false
+        default: ""
+        type: string
+
+      cpu:
+        description: CPU model exposed to Windows
+        required: false
+        default: ""
+        type: string
+
+      cpu_flags:
+        description: Additional CPU flags exposed to Windows
+        required: false
+        default: ""
+        type: string
+
+      disk_type:
+        description: Disk controller type exposed to Windows
+        required: false
+        default: ""
+        type: string
+
+      network:
+        description: Network backend exposed to Windows
+        required: false
+        default: ""
+        type: string
+
+      adapter:
+        description: Network adapter exposed to Windows
+        required: false
+        default: ""
+        type: string
+
+      enable_tunnel:
+        description: Open a temporary public noVNC tunnel
+        required: false
+        default: false
+        type: boolean
+
+      tunnel_delay:
+        description: Automatically open the noVNC tunnel after this many seconds
+        required: false
+        default: 0
+        type: number
+
+      kill_on_failure:
+        description: Stop the workflow when an installation failure is detected
+        required: false
+        default: true
+        type: boolean
+
+      install_timeout:
+        description: Maximum installation time in seconds
+        required: false
+        default: 9000
+        type: number
+
+      reboot_timeout:
+        description: Maximum time before the first reboot in seconds
+        required: false
+        default: 1800
+        type: number
+
+      minimum_reboots:
+        description: Minimum required reboot count
+        required: false
+        default: 1
+        type: number
+
+      boot_loop_limit:
+        description: Number of repeated boots considered a boot loop
+        required: false
+        default: 10
+        type: number
+
+      expected_caption:
+        description: Text expected in the Windows caption
+        required: true
+        type: string
+
+      expected_edition:
+        description: Expected Windows EditionID
+        required: false
+        default: ""
+        type: string
+
+      minimum_build:
+        description: Minimum acceptable Windows build number
+        required: true
+        type: number
+
+      platform:
+        description: Expected Windows platform
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    name: ${{ inputs.name }}
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 180
+
+    env:
+      CONTAINER: windows-test
+      IMAGE: windows-validation:local
+      TUNNEL: windows-test-tunnel
+
+    steps:
+      - name: Resolve branch
+        id: branch
+        shell: bash
+        env:
+          REQUESTED_BRANCH: ${{ inputs.branch }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+
+          authorization="$(
+            printf 'x-access-token:%s' "$GITHUB_TOKEN" |
+              base64 -w 0
+          )"
+
+          if git \
+            -c "http.extraheader=Authorization: basic $authorization" \
+            ls-remote \
+            --exit-code \
+            --heads \
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" \
+            "refs/heads/$REQUESTED_BRANCH" > /dev/null 2>&1; then
+
+            branch="$REQUESTED_BRANCH"
+          else
+            branch="master"
+            echo "Branch '$REQUESTED_BRANCH' does not exist; using '$branch'."
+          fi
+
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.branch.outputs.branch }}
+
+      - name: Check KVM
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          test -c /dev/kvm
+
+      - name: Free disk space
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          sudo rm -rf \
+            /usr/local/.ghcup \
+            /usr/local/lib/android \
+            /usr/local/lib/node_modules \
+            /usr/local/share/boost \
+            /usr/local/share/chromium \
+            /usr/local/share/powershell \
+            /usr/share/dotnet \
+            /usr/share/swift \
+            /opt/az \
+            /opt/ghc \
+            /opt/google \
+            /opt/hostedtoolcache \
+            /opt/microsoft \
+            /opt/pipx
+
+          sudo apt-get clean
+          sudo rm -rf \
+            /var/cache/apt/* \
+            /var/lib/apt/lists/*
+
+          docker system prune \
+            --all \
+            --force \
+            --volumes > /dev/null || true
+
+          available_kb="$(df --output=avail / | tail -1)"
+          available_gb="$((available_kb / 1024 / 1024))"
+
+          echo "Available disk space: ${available_gb} GB"
+
+          if (( available_gb < 40 )); then
+            echo "At least 40 GB of free space is required."
+            exit 1
+          fi
+
+      - name: Prepare installation test
+        id: test
+        shell: bash
+        env:
+          CALLBACK: ${{ inputs.callback }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -Eeuo pipefail
+
+          case "$CALLBACK" in
+            powershell | legacy | basic)
+              ;;
+            *)
+              echo "Unsupported guest script type: $CALLBACK"
+              exit 1
+              ;;
+          esac
+
+          token="$(cat /proc/sys/kernel/random/uuid)"
+
+          mkdir -p \
+            "$RUNNER_TEMP/data" \
+            "$RUNNER_TEMP/oem" \
+            "$RUNNER_TEMP/storage"
+
+          printf '%s\n' "$token" > "$RUNNER_TEMP/data/validation.token"
+          printf '%s\n' "$token" > "$RUNNER_TEMP/oem/validation.token"
+
+          if [[ "$CALLBACK" != "basic" ]]; then
+          cat > "$RUNNER_TEMP/oem/sync-log.bat" <<'BATCH'
+          @echo off
+          setlocal
+
+          set "mode=%~1"
+          set "lock=C:\OEM\sync-log.lock"
+          set /A retries=0 >nul
+
+          :sync
+          call :sync_file
+
+          if /I not "%mode%"=="once" goto continuous
+          if not errorlevel 1 exit /B 0
+
+          set /A retries+=1 >nul
+          if %retries% GEQ 30 exit /B 1
+
+          ping 127.0.0.1 -n 2 >nul
+          goto sync
+
+          :continuous
+          if exist C:\OEM\install.done exit /B
+
+          ping 127.0.0.1 -n 6 >nul
+          goto sync
+
+          :sync_file
+          if not exist C:\OEM\install.log exit /B 1
+
+          2>nul mkdir "%lock%"
+          if errorlevel 1 exit /B 1
+
+          copy /Y C:\OEM\install.log \\host.lan\Data\install.tmp >nul 2>&1
+          if errorlevel 1 goto sync_failed
+
+          move /Y \\host.lan\Data\install.tmp \\host.lan\Data\install.log >nul 2>&1
+          if errorlevel 1 goto sync_failed
+
+          rmdir "%lock%" >nul 2>&1
+          exit /B 0
+
+          :sync_failed
+          rmdir "%lock%" >nul 2>&1
+          exit /B 1
+          BATCH
+
+          cat > "$RUNNER_TEMP/oem/watchdog.vbs" <<'VBSCRIPT'
+          Option Explicit
+
+          Dim filesystem
+          Dim file
+          Dim result
+          Dim shell
+
+          WScript.Sleep 180000
+
+          Set filesystem = CreateObject("Scripting.FileSystemObject")
+
+          If filesystem.FileExists("C:\OEM\install.done") Then
+            WScript.Quit 0
+          End If
+
+          On Error Resume Next
+
+          WScript.Echo Now & " - Callback failed for 3 minutes."
+
+          Set shell = CreateObject("WScript.Shell")
+          result = shell.Run("cmd.exe /C C:\OEM\sync-log.bat once", 0, True)
+
+          Set file = filesystem.CreateTextFile("C:\OEM\install.done", True)
+          file.Close
+
+          If result <> 0 Then
+            shell.Run "cmd.exe /C echo VALIDATION_LOG_SYNC_FAILED^>COM1", 0, True
+          End If
+
+          shell.Run "cmd.exe /C echo VALIDATION_CALLBACK_FAILED^>COM1", 0, True
+          VBSCRIPT
+          fi
+
+          case "$CALLBACK" in
+            powershell)
+              cat > "$RUNNER_TEMP/oem/ready.ps1" <<'POWERSHELL'
+          param(
+              [Parameter(Mandatory = $true)]
+              [string]$Token
+          )
+
+          $ErrorActionPreference = "Stop"
+
+          while ($true) {
+              try {
+                  $windows = Get-CimInstance Win32_OperatingSystem
+                  $registry = Get-ItemProperty `
+                      "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
+
+                  $platform = switch (
+                      $env:PROCESSOR_ARCHITECTURE.ToUpperInvariant()
+                  ) {
+                      "AMD64" {
+                          "x64"
+                      }
+                      "ARM64" {
+                          "arm64"
+                      }
+                      "X86" {
+                          "x86"
+                      }
+                      default {
+                          $env:PROCESSOR_ARCHITECTURE.ToLowerInvariant()
+                      }
+                  }
+
+                  if (-not (Test-Path -LiteralPath "Z:\" -PathType Container)) {
+                      throw "Mapped Z: drive is not available."
+                  }
+
+                  $driveZ = "ok"
+
+                  $share = (
+                      Get-Content `
+                          -LiteralPath "\\host.lan\Data\validation.token" `
+                          -Raw
+                  ).Trim()
+
+                  $shareTest = "\\host.lan\Data\validation-write-$Token.tmp"
+                  $shareValue = "write-test-$Token"
+                  $encoding = New-Object System.Text.UTF8Encoding($false)
+
+                  try {
+                      [System.IO.File]::WriteAllText(
+                          $shareTest,
+                          $shareValue,
+                          $encoding
+                      )
+
+                      if (
+                          [System.IO.File]::ReadAllText($shareTest) -ne
+                          $shareValue
+                      ) {
+                          throw "Shared-folder readback verification failed."
+                      }
+                  }
+                  finally {
+                      if (Test-Path -LiteralPath $shareTest) {
+                          Remove-Item -LiteralPath $shareTest -Force
+                      }
+                  }
+
+                  $oemFile = (
+                      Get-Content `
+                          -LiteralPath "C:\OEM\validation.token" `
+                          -Raw
+                  ).Trim()
+
+                  $addresses = [System.Net.Dns]::GetHostAddresses(
+                      "www.msftconnecttest.com"
+                  )
+
+                  if ($addresses.Count -eq 0) {
+                      throw "Internet DNS lookup returned no addresses."
+                  }
+
+                  $internet = (
+                      Invoke-WebRequest `
+                          -Uri "http://www.msftconnecttest.com/connecttest.txt" `
+                          -UseBasicParsing `
+                          -TimeoutSec 30
+                  ).Content.Trim()
+
+                  if ($internet -ne "Microsoft Connect Test") {
+                      throw "Internet HTTP test returned unexpected content."
+                  }
+
+                  $result = @{
+                      token       = $Token
+                      caption     = [string]$windows.Caption
+                      edition     = [string]$registry.EditionID
+                      version     = [string]$windows.Version
+                      build       = [string]$windows.BuildNumber
+                      platform    = $platform
+                      drive_z     = $driveZ
+                      oem_file    = $oemFile
+                      share       = $share
+                      share_write = "ok"
+                      internet    = "ok"
+                  }
+
+                  $json = $result | ConvertTo-Json -Compress
+                  $serialResult = "C:\OEM\validation.result"
+                  $serialValue = "VALIDATION_RESULT=$json`r`n"
+
+                  [System.IO.File]::WriteAllText(
+                      $serialResult,
+                      $serialValue,
+                      $encoding
+                  )
+
+                  break
+              }
+              catch {
+                  Write-Output "$(Get-Date -Format s) - Callback retry: $($_.Exception.Message)"
+                  Start-Sleep -Seconds 10
+              }
+          }
+          POWERSHELL
+
+              cat > "$RUNNER_TEMP/oem/install.bat" <<EOF
+          @echo off
+          del /Q C:\OEM\install.done 2>nul
+          del /Q C:\OEM\validation.result 2>nul
+          rmdir /S /Q C:\OEM\sync-log.lock 2>nul
+          start "" /B cmd.exe /C C:\OEM\sync-log.bat
+          start "" /B cscript.exe //B //NoLogo C:\OEM\watchdog.vbs
+
+          powershell.exe -NoProfile -ExecutionPolicy Bypass ^
+            -File C:\OEM\ready.ps1 ^
+            -Token "$token"
+
+          set "result=%errorlevel%"
+
+          if not "%result%"=="0" (
+            echo %date% %time% - Callback failed.
+            call C:\OEM\sync-log.bat once
+            if errorlevel 1 echo VALIDATION_LOG_SYNC_FAILED>COM1
+            type nul > C:\OEM\install.done
+            echo VALIDATION_CALLBACK_FAILED>COM1
+            exit /B %result%
+          )
+
+          call C:\OEM\sync-log.bat once
+
+          if errorlevel 1 (
+            type nul > C:\OEM\install.done
+            echo VALIDATION_LOG_SYNC_FAILED>COM1
+            echo VALIDATION_CALLBACK_FAILED>COM1
+            exit /B 1
+          )
+
+          type C:\OEM\validation.result > COM1
+
+          if errorlevel 1 (
+            exit /B 1
+          )
+
+          type nul > C:\OEM\install.done
+          exit /B %result%
+          EOF
+              ;;
+
+            legacy)
+              cat > "$RUNNER_TEMP/oem/ready.vbs" <<'VBSCRIPT'
+          Option Explicit
+
+          Const ForReading = 1
+          Const ForWriting = 2
+
+          Dim arguments
+          Dim token
+
+          Set arguments = WScript.Arguments
+
+          If arguments.Count < 1 Then
+            WScript.Quit 1
+          End If
+
+          token = arguments(0)
+
+          Function EscapeJson(value)
+            Dim result
+
+            result = CStr(value)
+            result = Replace(result, "\", "\\")
+            result = Replace(result, Chr(34), "\" & Chr(34))
+            result = Replace(result, vbCr, "\r")
+            result = Replace(result, vbLf, "\n")
+            result = Replace(result, vbTab, "\t")
+
+            EscapeJson = result
+          End Function
+
+          Function ReadRegistry(shell, path)
+            Dim value
+
+            value = ""
+
+            On Error Resume Next
+            value = shell.RegRead(path)
+
+            If Err.Number <> 0 Then
+              Err.Clear
+              value = ""
+            End If
+
+            On Error GoTo 0
+
+            ReadRegistry = CStr(value)
+          End Function
+
+          Function ReadTextFile(filesystem, path)
+            Dim file
+            Dim value
+
+            value = ""
+
+            Set file = filesystem.OpenTextFile(path, ForReading, False)
+            value = file.ReadAll
+            file.Close
+
+            value = Replace(value, vbCr, "")
+            value = Replace(value, vbLf, "")
+
+            ReadTextFile = value
+          End Function
+
+          Function TestSharedFolder(filesystem, token)
+            Dim path
+            Dim expected
+            Dim file
+            Dim actual
+
+            path = "\\host.lan\Data\validation-write-" & token & ".tmp"
+            expected = "write-test-" & token
+
+            Set file = filesystem.CreateTextFile(path, True)
+            file.Write expected
+            file.Close
+
+            Set file = filesystem.OpenTextFile(path, ForReading, False)
+            actual = file.ReadAll
+            file.Close
+
+            If actual <> expected Then
+              Err.Raise vbObjectError + 1, "TestSharedFolder", _
+                "Shared-folder readback verification failed."
+            End If
+
+            filesystem.DeleteFile path, True
+            TestSharedFolder = "ok"
+          End Function
+
+          Function TestMappedDrive(filesystem)
+            If Not filesystem.DriveExists("Z:") Then
+              Err.Raise vbObjectError + 4, "TestMappedDrive", _
+                "Mapped Z: drive is not available."
+            End If
+
+            TestMappedDrive = "ok"
+          End Function
+
+          Function TestInternet()
+            Dim request
+            Dim response
+
+            Set request = CreateObject("WinHttp.WinHttpRequest.5.1")
+            request.SetTimeouts 30000, 30000, 30000, 30000
+            request.Open "GET", "http://www.msftncsi.com/ncsi.txt", False
+            request.Send
+
+            If request.Status <> 200 Then
+              Err.Raise vbObjectError + 2, "TestInternet", _
+                "Internet HTTP test returned status " & CStr(request.Status) & "."
+            End If
+
+            response = Replace(request.ResponseText, vbCr, "")
+            response = Replace(response, vbLf, "")
+
+            If response <> "Microsoft NCSI" Then
+              Err.Raise vbObjectError + 3, "TestInternet", _
+                "Internet HTTP test returned unexpected content."
+            End If
+
+            TestInternet = "ok"
+          End Function
+
+          Function GetPlatform(shell)
+            Dim architecture
+
+            architecture = UCase(shell.ExpandEnvironmentStrings("%PROCESSOR_ARCHITECTURE%"))
+
+            Select Case architecture
+              Case "AMD64"
+                GetPlatform = "x64"
+              Case "ARM64"
+                GetPlatform = "arm64"
+              Case "X86"
+                GetPlatform = "x86"
+              Case Else
+                GetPlatform = LCase(architecture)
+            End Select
+          End Function
+
+          Dim filesystem
+          Dim shell
+          Dim locator
+          Dim service
+          Dim systems
+          Dim system
+
+          Dim caption
+          Dim edition
+          Dim version
+          Dim build
+          Dim platform
+          Dim oemFile
+          Dim share
+          Dim shareWrite
+          Dim driveZ
+          Dim internet
+
+          Dim json
+          Dim errorMessage
+          Dim file
+          Dim success
+
+          Do
+            success = False
+
+            On Error Resume Next
+            Err.Clear
+
+            Set filesystem = CreateObject("Scripting.FileSystemObject")
+            Set shell = CreateObject("WScript.Shell")
+            Set locator = CreateObject("WbemScripting.SWbemLocator")
+            Set service = locator.ConnectServer(".", "root\cimv2")
+            Set systems = service.ExecQuery("SELECT Caption, Version, BuildNumber FROM Win32_OperatingSystem")
+
+            caption = ""
+            version = ""
+            build = ""
+
+            If Err.Number = 0 Then
+              For Each system In systems
+                caption = CStr(system.Caption)
+                version = CStr(system.Version)
+                build = CStr(system.BuildNumber)
+                Exit For
+              Next
+            End If
+
+            If Err.Number = 0 Then
+              edition = ReadRegistry(shell, "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\EditionID")
+              platform = GetPlatform(shell)
+              oemFile = ReadTextFile(filesystem, "C:\OEM\validation.token")
+              share = ReadTextFile(filesystem, "\\host.lan\Data\validation.token")
+              shareWrite = TestSharedFolder(filesystem, token)
+              driveZ = TestMappedDrive(filesystem)
+              internet = TestInternet()
+            End If
+
+            If Err.Number = 0 Then
+              json = _
+                "{" & _
+                """token"":""" & EscapeJson(token) & """," & _
+                """caption"":""" & EscapeJson(caption) & """," & _
+                """edition"":""" & EscapeJson(edition) & """," & _
+                """version"":""" & EscapeJson(version) & """," & _
+                """build"":""" & EscapeJson(build) & """," & _
+                """platform"":""" & EscapeJson(platform) & """," & _
+                """oem_file"":""" & EscapeJson(oemFile) & """," & _
+                """share"":""" & EscapeJson(share) & """," & _
+                """share_write"":""" & EscapeJson(shareWrite) & """," & _
+                """drive_z"":""" & EscapeJson(driveZ) & """," & _
+                """internet"":""" & EscapeJson(internet) & """" & _
+                "}"
+
+              Set file = filesystem.OpenTextFile("C:\OEM\validation.result", ForWriting, True)
+              file.WriteLine "VALIDATION_RESULT=" & json
+              file.Close
+            End If
+
+            If Err.Number = 0 Then
+              success = True
+            Else
+              errorMessage = _
+                Now & _
+                " - Callback retry: 0x" & _
+                Hex(Err.Number) & _
+                " - " & _
+                Err.Description
+
+              WScript.Echo errorMessage
+            End If
+
+            Err.Clear
+            On Error GoTo 0
+
+            If success Then
+              Exit Do
+            End If
+
+            WScript.Sleep 10000
+          Loop
+          VBSCRIPT
+
+              cat > "$RUNNER_TEMP/oem/install.bat" <<EOF
+          @echo off
+          del /Q C:\OEM\install.done 2>nul
+          del /Q C:\OEM\validation.result 2>nul
+          rmdir /S /Q C:\OEM\sync-log.lock 2>nul
+          start "" /B cmd.exe /C C:\OEM\sync-log.bat
+          start "" /B cscript.exe //B //NoLogo C:\OEM\watchdog.vbs
+
+          cscript.exe //B //NoLogo C:\OEM\ready.vbs "$token"
+
+          set "result=%errorlevel%"
+
+          if not "%result%"=="0" (
+            echo %date% %time% - Callback failed.
+            call C:\OEM\sync-log.bat once
+            if errorlevel 1 echo VALIDATION_LOG_SYNC_FAILED>COM1
+            type nul > C:\OEM\install.done
+            echo VALIDATION_CALLBACK_FAILED>COM1
+            exit /B %result%
+          )
+
+          call C:\OEM\sync-log.bat once
+
+          if errorlevel 1 (
+            type nul > C:\OEM\install.done
+            echo VALIDATION_LOG_SYNC_FAILED>COM1
+            echo VALIDATION_CALLBACK_FAILED>COM1
+            exit /B 1
+          )
+
+          type C:\OEM\validation.result > COM1
+
+          if errorlevel 1 (
+            exit /B 1
+          )
+
+          type nul > C:\OEM\install.done
+          exit /B %result%
+          EOF
+              ;;
+
+            basic)
+              case "${VERSION,,}" in
+                95) share_host="Host" ;;
+                *) share_host="host.lan" ;;
+              esac
+
+              sed "s|@@SHARE_HOST@@|$share_host|g" > "$RUNNER_TEMP/oem/install.bat" <<'BATCH'
+          @echo off
+
+          :retry
+          if not exist \\@@SHARE_HOST@@\Data\validation.token goto wait
+          if not exist Z:\validation.token goto wait
+
+          echo TOKEN> C:\OEM\validation.result
+          type C:\OEM\validation.token >> C:\OEM\validation.result
+          echo SHARE>> C:\OEM\validation.result
+          type \\@@SHARE_HOST@@\Data\validation.token >> C:\OEM\validation.result
+          echo DRIVE_Z>> C:\OEM\validation.result
+          echo ok>> C:\OEM\validation.result
+          echo VERSION>> C:\OEM\validation.result
+          ver >> C:\OEM\validation.result
+
+          if exist \\@@SHARE_HOST@@\Data\validation.result del \\@@SHARE_HOST@@\Data\validation.result >nul
+          copy C:\OEM\validation.result \\@@SHARE_HOST@@\Data\validation.result >nul
+          if errorlevel 1 goto wait
+
+          goto end
+
+          :wait
+          ping 127.0.0.1 -n 6 >nul
+          goto retry
+
+          :end
+          BATCH
+              ;;
+          esac
+
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Build image
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          echo "Building branch: ${{ steps.branch.outputs.branch }}"
+          echo "Commit: $(git rev-parse HEAD)"
+
+          for attempt in 1 2 3; do
+            if docker build \
+              --tag "$IMAGE" \
+              . >/dev/null 2>/dev/null; then
+              break
+            fi
+
+            if (( attempt == 3 )); then
+              echo "Image build failed after $attempt attempts."
+              exit 1
+            fi
+
+            delay=$((attempt * 15))
+            echo "Image build failed, retrying in $delay seconds..."
+            sleep "$delay"
+          done
+
+          docker image inspect "$IMAGE" \
+            --format 'Image ID: {{.Id}}'
+
+      - name: Start Windows container
+        shell: bash
+        env:
+          ADAPTER: ${{ inputs.adapter }}
+          CPU: ${{ inputs.cpu }}
+          CPU_FLAGS: ${{ inputs.cpu_flags }}
+          DISK_TYPE: ${{ inputs.disk_type }}
+          MACHINE: ${{ inputs.machine }}
+          NETWORK: ${{ inputs.network }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -Eeuo pipefail
+
+          docker run --detach \
+            --name "$CONTAINER" \
+            --device /dev/kvm \
+            --device /dev/net/tun \
+            --cap-add NET_ADMIN \
+            --stop-timeout 120 \
+            --env "MACHINE=$MACHINE" \
+            --env "VERSION=$VERSION" \
+            --env "RAM_SIZE=half" \
+            --env "CPU_CORES=half" \
+            --env "DISK_SIZE=64G" \
+            --env "CPU_MODEL=$CPU" \
+            --env "CPU_FLAGS=$CPU_FLAGS" \
+            --env "DISK_TYPE=$DISK_TYPE" \
+            --env "NETWORK=$NETWORK" \
+            --env "ADAPTER=$ADAPTER" \
+            --env "LOG=Y" \
+            --env "DEBUG=Y" \
+            --env "LOSSY=Y" \
+            --volume "$RUNNER_TEMP/data:/shared" \
+            --volume "$RUNNER_TEMP/oem:/oem:ro" \
+            --volume "$RUNNER_TEMP/storage:/storage" \
+            "$IMAGE"
+
+          echo
+          echo "Container mounts:"
+          docker inspect "$CONTAINER" \
+            --format '{{range .Mounts}}{{println .Source "->" .Destination}}{{end}}'
+
+      - name: Start noVNC tunnel
+        if: ${{ inputs.enable_tunnel }}
+        id: tunnel
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          if docker run --detach \
+            --name "$TUNNEL" \
+            --network "container:$CONTAINER" \
+            cloudflare/cloudflared:latest \
+            tunnel \
+            --no-autoupdate \
+            --url http://127.0.0.1:8006 > /dev/null 2>/dev/null; then
+            novnc_url=""
+
+            for _ in {1..30}; do
+              novnc_url="$(
+                docker logs "$TUNNEL" 2>&1 |
+                  grep -Eo 'https://[-a-z0-9]+\.trycloudflare\.com' |
+                  tail -n 1 || true
+              )"
+
+              [ -n "$novnc_url" ] && break
+              sleep 2
+            done
+
+            if [ -n "$novnc_url" ]; then
+              echo
+              echo "::notice title=noVNC viewer::$novnc_url"
+              echo "noVNC viewer: $novnc_url"
+              echo "Warning: this temporary URL is publicly accessible."
+              echo "url=$novnc_url" >> "$GITHUB_OUTPUT"
+
+              {
+                echo "### noVNC viewer"
+                echo
+                echo "[$novnc_url]($novnc_url)"
+                echo
+                echo "> This temporary URL is publicly accessible while the job is running."
+              } >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::warning::Failed to obtain a noVNC tunnel URL."
+              docker logs "$TUNNEL" 2>&1 || true
+            fi
+          else
+            echo "::warning::Failed to start the noVNC tunnel."
+          fi
+
+      - name: Install and validate Windows
+        shell: bash
+        env:
+          CALLBACK: ${{ inputs.callback }}
+          ENABLE_TUNNEL: ${{ inputs.enable_tunnel }}
+          TUNNEL_DELAY: ${{ inputs.tunnel_delay }}
+          KILL_ON_FAILURE: ${{ inputs.kill_on_failure }}
+          INSTALL_TIMEOUT: ${{ inputs.install_timeout }}
+          REBOOT_TIMEOUT: ${{ inputs.reboot_timeout }}
+          MINIMUM_REBOOTS: ${{ inputs.minimum_reboots }}
+          BOOT_LOOP_LIMIT: ${{ inputs.boot_loop_limit }}
+          EXPECTED_TOKEN: ${{ steps.test.outputs.token }}
+          EXPECTED_CAPTION: ${{ inputs.expected_caption }}
+          EXPECTED_EDITION: ${{ inputs.expected_edition }}
+          EXPECTED_PLATFORM: ${{ inputs.platform }}
+          MINIMUM_BUILD: ${{ inputs.minimum_build }}
+          DISPLAY_NAME: ${{ inputs.name }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -Eeuo pipefail
+
+          echo
+          echo "Container log:"
+          echo "------------------------------------------------------------"
+
+          docker logs \
+            --follow \
+            --timestamps \
+            "$CONTAINER" &
+
+          logs_pid="$!"
+          guest_log="$RUNNER_TEMP/data/install.log"
+          guest_log_offset="$RUNNER_TEMP/install-log.offset"
+          guest_log_snapshot="$RUNNER_TEMP/install-log.snapshot"
+
+          printf '0\n' > "$guest_log_offset"
+
+          print_guest_log() {
+            local offset
+            local size
+
+            offset="$(cat "$guest_log_offset" 2>/dev/null || echo 0)"
+
+            if ! [[ "$offset" =~ ^[0-9]+$ ]]; then
+              offset=0
+            fi
+
+            if cp "$guest_log" "$guest_log_snapshot" 2>/dev/null; then
+              size="$(stat -c %s "$guest_log_snapshot" 2>/dev/null || echo 0)"
+
+              if (( size < offset )); then
+                offset=0
+              fi
+
+              if (( size > offset )); then
+                tail -c "+$((offset + 1))" "$guest_log_snapshot" 2>/dev/null |
+                  sed -u 's/^/[install.bat] /' || true
+              fi
+
+              printf '%s\n' "$size" > "$guest_log_offset"
+            fi
+          }
+
+          (
+            while true; do
+              print_guest_log
+              sleep 2
+            done
+          ) &
+
+          guest_logs_pid="$!"
+          tunnel_delay_pid=""
+
+          start_delayed_tunnel() {
+            local state
+            local novnc_url
+
+            sleep "$TUNNEL_DELAY"
+
+            state="$(
+              docker inspect \
+                --format '{{.State.Status}}' \
+                "$CONTAINER" 2>/dev/null || true
+            )"
+
+            if [[ "$state" != "running" ]]; then
+              return 0
+            fi
+
+            echo
+            echo "------------------------------------------------------------"
+            echo "Installation is still running after $((TUNNEL_DELAY / 60)) minutes."
+            echo "Starting temporary noVNC tunnel..."
+
+            if docker run --detach \
+              --name "$TUNNEL" \
+              --network "container:$CONTAINER" \
+              cloudflare/cloudflared:latest \
+              tunnel \
+              --no-autoupdate \
+              --url http://127.0.0.1:8006 > /dev/null 2>/dev/null; then
+              novnc_url=""
+
+              for _ in {1..30}; do
+                novnc_url="$(
+                  docker logs "$TUNNEL" 2>&1 |
+                    grep -Eo 'https://[-a-z0-9]+\.trycloudflare\.com' |
+                    tail -n 1 || true
+                )"
+
+                [ -n "$novnc_url" ] && break
+                sleep 2
+              done
+
+              if [ -n "$novnc_url" ]; then
+                echo
+                echo "::notice title=noVNC viewer::$novnc_url"
+                echo "noVNC viewer: $novnc_url"
+                echo "Warning: this temporary URL is publicly accessible."
+
+                {
+                  echo "### noVNC viewer"
+                  echo
+                  echo "[$novnc_url]($novnc_url)"
+                  echo
+                  echo "> This temporary URL is publicly accessible while the job is running."
+                } >> "$GITHUB_STEP_SUMMARY"
+              else
+                echo "::warning::Failed to obtain a noVNC tunnel URL."
+                docker logs "$TUNNEL" 2>&1 || true
+              fi
+            else
+              echo "::warning::Failed to start the noVNC tunnel."
+            fi
+          }
+
+          if [[ "$ENABLE_TUNNEL" != "true" ]] && (( TUNNEL_DELAY > 0 )); then
+            start_delayed_tunnel &
+            tunnel_delay_pid="$!"
+          fi
+
+          stop_logs() {
+            if [[ -n "$tunnel_delay_pid" ]]; then
+              kill "$tunnel_delay_pid" 2>/dev/null || true
+              wait "$tunnel_delay_pid" 2>/dev/null || true
+            fi
+
+            kill "$logs_pid" "$guest_logs_pid" 2>/dev/null || true
+            wait "$logs_pid" "$guest_logs_pid" 2>/dev/null || true
+            print_guest_log
+          }
+
+          trap stop_logs EXIT
+
+          failure_checks_disabled=0
+          callback_failure_detected=0
+
+          handle_failure() {
+            local message="$1"
+
+            if [[ "$KILL_ON_FAILURE" == "true" ]]; then
+              return 1
+            fi
+
+            echo
+            echo "Automatic termination is disabled by kill_on_failure."
+            echo "The container will remain available for debugging."
+            echo "::warning title=Failure detected::$message"
+            failure_checks_disabled=1
+            return 0
+          }
+
+          check_rdp_port() {
+            local container_ip
+            local attempt
+
+            container_ip="$(
+              docker inspect \
+                --format '{{range .NetworkSettings.Networks}}{{println .IPAddress}}{{end}}' \
+                "$CONTAINER" 2>/dev/null |
+                head -n 1 || true
+            )"
+
+            if [[ -z "$container_ip" ]]; then
+              echo "Could not determine the Windows container IP address."
+              return 1
+            fi
+
+            echo
+            echo "Checking TCP port 3389 at $container_ip..."
+
+            for attempt in {1..30}; do
+              if timeout 2 bash -c \
+                "exec 3<>/dev/tcp/$container_ip/3389; exec 3>&-; exec 3<&-" \
+                2>/dev/null; then
+                echo "TCP port 3389 is open."
+                return 0
+              fi
+
+              sleep 2
+            done
+
+            case "${VERSION,,}" in
+              95 | 98 | me)
+                echo "::warning::TCP port 3389 is not open for $DISPLAY_NAME; this is allowed."
+                return 0
+                ;;
+            esac
+
+            echo "TCP port 3389 is not open for $DISPLAY_NAME."
+            return 1
+          }
+
+          deadline=$((SECONDS + INSTALL_TIMEOUT))
+          reboot_timeout="$REBOOT_TIMEOUT"
+          minimum_reboots="$MINIMUM_REBOOTS"
+          boot_loop_limit="$BOOT_LOOP_LIMIT"
+          first_bios_start=-1
+
+          version_lower="${VERSION,,}"
+
+          case "$version_lower" in
+            95 | 98 | me)
+              reboot_timeout=$((REBOOT_TIMEOUT * 2))
+              echo "Extended first reboot timeout to $((reboot_timeout / 60)) minutes for $DISPLAY_NAME."
+              ;;
+          esac
+
+          while (( SECONDS < deadline )); do
+            state="$(
+              docker inspect \
+                --format '{{.State.Status}}' \
+                "$CONTAINER" 2>/dev/null || true
+            )"
+
+            if [[ "$state" != "running" ]]; then
+              echo
+              echo "------------------------------------------------------------"
+              echo "Container stopped before Windows became ready."
+              echo "Container state: ${state:-missing}"
+              exit 1
+            fi
+
+            container_log="$(docker logs "$CONTAINER" 2>&1 || true)"
+
+            if (( callback_failure_detected == 0 )) &&
+               grep -Fq 'VALIDATION_CALLBACK_FAILED' <<< "$container_log"; then
+              callback_failure_detected=1
+
+              echo
+              echo "------------------------------------------------------------"
+              echo "The guest validation callback failed."
+
+              if grep -Fq 'VALIDATION_LOG_SYNC_FAILED' <<< "$container_log"; then
+                echo "The final install.log synchronization also failed."
+              fi
+
+              if [[ "$KILL_ON_FAILURE" == "true" ]]; then
+                echo "Stopping the Windows container..."
+                docker stop "$CONTAINER" > /dev/null
+                exit 1
+              fi
+
+              echo "Automatic termination is disabled by kill_on_failure."
+              echo "The container will remain available for debugging."
+              echo "::warning title=Failure detected::The guest validation callback failed."
+              failure_checks_disabled=1
+            fi
+
+            if (( failure_checks_disabled == 0 )) &&
+               grep -Eqi \
+                 'KVM internal error|KVM: entry failed|hardware error 0x[0-9a-f]+|Triple fault' \
+                 <<< "$container_log"; then
+              echo
+              echo "------------------------------------------------------------"
+              echo "Detected a fatal QEMU or KVM error."
+
+              if ! handle_failure "Detected a fatal QEMU or KVM error."; then
+                exit 1
+              fi
+            fi
+
+            if (( failure_checks_disabled == 0 )) &&
+               grep -Eqi \
+                 'CDBOOT: Cannot boot from CD.*Code: 5' \
+                 <<< "$container_log"; then
+              echo
+              echo "------------------------------------------------------------"
+              echo "The installation media could not be booted."
+
+              if ! handle_failure "The installation media could not be booted."; then
+                exit 1
+              fi
+            fi
+
+            bios_starts="$(
+              grep -Fci 'SeaBIOS (version ' <<< "$container_log" || true
+            )"
+
+            hard_disk_boots="$(
+              grep -Fci 'Booting from Hard Disk' <<< "$container_log" || true
+            )"
+
+            dvd_boots="$(
+              grep -Fci 'Booting from DVD/CD' <<< "$container_log" || true
+            )"
+
+            not_bootable_disk="$(
+              grep -Fci \
+                'Boot failed: not a bootable disk' \
+                <<< "$container_log" || true
+            )"
+
+            unreadable_boot_disk="$(
+              grep -Fci \
+                'Boot failed: could not read the boot disk' \
+                <<< "$container_log" || true
+            )"
+
+            no_bootable_device="$(
+              grep -Fci 'No bootable device.' <<< "$container_log" || true
+            )"
+
+            bootmgr_missing="$(
+              grep -Fci 'BOOTMGR is missing' <<< "$container_log" || true
+            )"
+
+            reboots=$((bios_starts > 0 ? bios_starts - 1 : 0))
+
+            if (( first_bios_start < 0 && bios_starts > 0 )); then
+              first_bios_start=$SECONDS
+            fi
+
+            if (( failure_checks_disabled == 0 &&
+                  first_bios_start >= 0 &&
+                  SECONDS - first_bios_start >= reboot_timeout &&
+                  reboots < minimum_reboots )); then
+              echo
+              echo "------------------------------------------------------------"
+              echo "The installation did not reboot within" \
+                "$((reboot_timeout / 60)) minutes after the first BIOS start."
+              echo "Observed reboots: $reboots"
+              echo "Required reboots: $minimum_reboots"
+
+              if ! handle_failure "The installation did not reboot in time."; then
+                exit 1
+              fi
+            fi
+
+            if (( failure_checks_disabled == 0 &&
+                  bios_starts >= boot_loop_limit )) &&
+               (( hard_disk_boots >= boot_loop_limit ||
+                  dvd_boots >= boot_loop_limit ||
+                  not_bootable_disk >= boot_loop_limit ||
+                  unreadable_boot_disk >= boot_loop_limit ||
+                  no_bootable_device >= boot_loop_limit ||
+                  bootmgr_missing >= boot_loop_limit )); then
+              echo
+              echo "------------------------------------------------------------"
+              echo "Detected a repeated BIOS boot loop."
+              echo
+              echo "SeaBIOS starts: $bios_starts"
+              echo "Hard disk boots: $hard_disk_boots"
+              echo "DVD boots: $dvd_boots"
+              echo "Not-bootable disk failures: $not_bootable_disk"
+              echo "Unreadable boot-disk failures: $unreadable_boot_disk"
+              echo "No-bootable-device failures: $no_bootable_device"
+              echo "BOOTMGR failures: $bootmgr_missing"
+
+              if ! handle_failure "Detected a repeated BIOS boot loop."; then
+                exit 1
+              fi
+            fi
+
+            basic_result="$RUNNER_TEMP/data/validation.result"
+
+            if [[ "$CALLBACK" == "basic" && -s "$basic_result" ]]; then
+              basic_response="$(tr -d '\r' < "$basic_result")"
+
+              oem_file="$(
+                awk '$0 == "TOKEN" { getline; print; exit }' <<< "$basic_response"
+              )"
+
+              share="$(
+                awk '$0 == "SHARE" { getline; print; exit }' <<< "$basic_response"
+              )"
+
+              drive_z="$(
+                awk '$0 == "DRIVE_Z" { getline; print; exit }' <<< "$basic_response"
+              )"
+
+              version="$(
+                awk '
+                  $0 == "VERSION" { found = 1; next }
+                  found && NF { print; exit }
+                ' <<< "$basic_response"
+              )"
+
+              if [[ -z "$oem_file" || -z "$share" || -z "$drive_z" || -z "$version" ]] ||
+                 ! grep -Eq '[0-9]+\.[0-9]+\.[0-9]+' <<< "$version"; then
+                sleep 1
+                continue
+              fi
+
+              stop_logs
+              trap - EXIT
+
+              echo
+              echo "------------------------------------------------------------"
+              echo "Received response:"
+              printf '%s\n' "$basic_response"
+
+              if [[ "$oem_file" != "$EXPECTED_TOKEN" ]]; then
+                echo "Failed to read C:\\OEM\\validation.token."
+                echo "Expected contents:"
+                echo "  $EXPECTED_TOKEN"
+                echo "Received:"
+                echo "  ${oem_file:-empty}"
+                exit 1
+              fi
+
+              if [[ "$share" != "$EXPECTED_TOKEN" ]]; then
+                echo "Failed to read \\\\host.lan\\Data\\validation.token."
+                echo "Expected contents:"
+                echo "  $EXPECTED_TOKEN"
+                echo "Received:"
+                echo "  ${share:-empty}"
+                exit 1
+              fi
+
+              if [[ "$drive_z" != "ok" ]]; then
+                echo "The mapped Z: drive test did not succeed."
+                exit 1
+              fi
+
+              normalized_caption="${version//\(R\)/}"
+              normalized_expected_caption="${EXPECTED_CAPTION//\(R\)/}"
+
+              if [[ "$normalized_caption" != *"$normalized_expected_caption"* ]]; then
+                echo "Expected caption containing:"
+                echo "  $EXPECTED_CAPTION"
+                echo "Received:"
+                echo "  $version"
+                exit 1
+              fi
+
+              version_number="$(
+                grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' <<< "$version" |
+                  head -n 1 || true
+              )"
+
+              if [[ ! "$version_number" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                echo "Unexpected Windows version: $version"
+                exit 1
+              fi
+
+              build="${version_number##*.}"
+
+              if [[ ! "$build" =~ ^[0-9]+$ ]]; then
+                echo "Invalid Windows build number: $build"
+                exit 1
+              fi
+
+              if (( build < MINIMUM_BUILD )); then
+                echo "Expected build $MINIMUM_BUILD or newer."
+                echo "Received build: $build"
+                exit 1
+              fi
+
+              if ! check_rdp_port; then
+                exit 1
+              fi
+
+              echo
+              echo "$DISPLAY_NAME installed successfully."
+              echo "Version: $version_number"
+              echo "Build: $build"
+              echo "OEM files: copied successfully"
+              echo "Shared folder: readable and writable"
+              echo "Mapped Z: drive: available"
+              exit 0
+            fi
+
+            response="$(
+              grep -F 'VALIDATION_RESULT=' <<< "$container_log" |
+                tail -n 1 |
+                sed 's/^.*VALIDATION_RESULT=//' |
+                tr -d '\r' || true
+            )"
+
+            if [[ -n "$response" ]]; then
+              stop_logs
+              trap - EXIT
+
+              echo
+              echo "------------------------------------------------------------"
+              echo "Received response:"
+
+              if ! jq . <<< "$response"; then
+                echo "$response"
+                echo "The guest returned invalid JSON."
+                exit 1
+              fi
+
+              token="$(jq -r '.token // empty' <<< "$response")"
+              caption="$(jq -r '.caption // empty' <<< "$response")"
+              edition="$(jq -r '.edition // empty' <<< "$response")"
+              version="$(jq -r '.version // empty' <<< "$response")"
+              build="$(jq -r '.build // empty' <<< "$response")"
+              platform="$(jq -r '.platform // empty' <<< "$response")"
+              oem_file="$(jq -r '.oem_file // empty' <<< "$response")"
+              share="$(jq -r '.share // empty' <<< "$response")"
+              share_write="$(jq -r '.share_write // empty' <<< "$response")"
+              drive_z="$(jq -r '.drive_z // empty' <<< "$response")"
+              internet="$(jq -r '.internet // empty' <<< "$response")"
+
+              if [[ "$token" != "$EXPECTED_TOKEN" ]]; then
+                echo "The response token does not match."
+                exit 1
+              fi
+
+              if [[ "$oem_file" != "$EXPECTED_TOKEN" ]]; then
+                echo "Failed to read C:\\OEM\\validation.token."
+                echo "Expected contents:"
+                echo "  $EXPECTED_TOKEN"
+                echo "Received:"
+                echo "  ${oem_file:-empty}"
+                exit 1
+              fi
+
+              if [[ "$share" != "$EXPECTED_TOKEN" ]]; then
+                echo "Failed to read \\\\host.lan\\Data\\validation.token."
+                echo "Expected contents:"
+                echo "  $EXPECTED_TOKEN"
+                echo "Received:"
+                echo "  ${share:-empty}"
+                exit 1
+              fi
+
+              if [[ "$share_write" != "ok" ]]; then
+                echo "The shared folder write test did not succeed."
+                exit 1
+              fi
+
+              if [[ "$drive_z" != "ok" ]]; then
+                echo "The mapped Z: drive test did not succeed."
+                exit 1
+              fi
+
+              if [[ "$internet" != "ok" ]]; then
+                echo "The guest internet connection test did not succeed."
+                exit 1
+              fi
+
+              normalized_caption="${caption//\(R\)/}"
+              normalized_expected_caption="${EXPECTED_CAPTION//\(R\)/}"
+
+              if [[ "$normalized_caption" != *"$normalized_expected_caption"* ]]; then
+                echo "Expected caption containing:"
+                echo "  $EXPECTED_CAPTION"
+                echo "Received:"
+                echo "  $caption"
+                exit 1
+              fi
+
+              normalized_edition="${edition%Eval}"
+              normalized_expected_edition="${EXPECTED_EDITION%Eval}"
+
+              if [[ -n "$EXPECTED_EDITION" &&
+                    "$normalized_edition" != "$normalized_expected_edition" ]]; then
+                echo "Expected edition: $EXPECTED_EDITION"
+                echo "Received edition: $edition"
+                exit 1
+              fi
+
+              if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                echo "Unexpected Windows version: $version"
+                exit 1
+              fi
+
+              if [[ ! "$build" =~ ^[0-9]+$ ]]; then
+                echo "Invalid Windows build number: $build"
+                exit 1
+              fi
+
+              if (( build < MINIMUM_BUILD )); then
+                echo "Expected build $MINIMUM_BUILD or newer."
+                echo "Received build: $build"
+                exit 1
+              fi
+
+              if [[ "$platform" != "$EXPECTED_PLATFORM" ]]; then
+                echo "Expected platform:"
+                echo "  $EXPECTED_PLATFORM"
+                echo "Received platform:"
+                echo "  $platform"
+                exit 1
+              fi
+
+              if ! check_rdp_port; then
+                exit 1
+              fi
+
+              echo
+              echo "$DISPLAY_NAME installed successfully."
+              echo "Version: $version"
+              echo "Build: $build"
+              echo "Platform: $platform"
+              echo "OEM files: copied successfully"
+              echo "Shared folder: readable and writable"
+              echo "Mapped Z: drive: available"
+              echo "Internet connection: accessible"
+              exit 0
+            fi
+
+            sleep 10
+          done
+
+          echo
+          echo "------------------------------------------------------------"
+          echo "Timed out waiting for Windows installation."
+          exit 1
+
+      - name: Cleanup
+        if: always()
+        shell: bash
+        run: |
+          docker rm --force "$TUNNEL" 2>/dev/null || true
+          docker rm --force "$CONTAINER" 2>/dev/null || true

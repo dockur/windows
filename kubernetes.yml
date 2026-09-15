@@ -18,6 +18,8 @@ metadata:
     name: windows
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: windows
@@ -66,6 +68,7 @@ spec:
           claimName: windows-pvc
       - hostPath:
           path: /dev/kvm
+          type: CharDevice
         name: dev-kvm
       - hostPath:
           path: /dev/net/tun
