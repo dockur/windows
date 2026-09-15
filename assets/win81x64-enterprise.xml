@@ -146,8 +146,8 @@
       <RunSynchronous>
         <RunSynchronousCommand wcm:action="add">
           <Order>1</Order>
-          <Path>reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\CurrentVersion\NetworkList\Signatures\FirstNetwork" /v Category /t REG_DWORD /d 1 /f</Path>
-          <Description>Set Network Location to Home</Description>
+          <Path>wscript.exe //B //NoLogo %WINDIR%\Setup\Scripts\Unattend.vbs specialize</Path>
+          <Description>Run the specialize pass of the unattended setup script</Description>
         </RunSynchronousCommand>
       </RunSynchronous>
     </component>
@@ -221,7 +221,7 @@
       <FirstLogonCommands>
         <SynchronousCommand wcm:action="add">
           <Order>1</Order>
-          <CommandLine>cmd.exe /d /c call "%WINDIR%\Setup\Scripts\SetupComplete.cmd" logon</CommandLine>
+          <CommandLine>wscript.exe //B //NoLogo %WINDIR%\Setup\Scripts\Unattend.vbs logon</CommandLine>
           <Description>Configure Windows after logon</Description>
         </SynchronousCommand>
       </FirstLogonCommands>

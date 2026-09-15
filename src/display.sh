@@ -3,8 +3,8 @@ set -Eeuo pipefail
 
 # Docker environment variables
 
-: "${GPU:="N"}"               # GPU acceleration
 : "${VGA:="virtio"}"          # VGA adapter
+: "${GPU:="N"}"               # GPU acceleration
 : "${DISPLAY:="web"}"         # Display type
 : "${LOSSY:="N"}"             # Lossy VNC compression
 : "${VNC_PORT:="5900"}"       # VNC port
@@ -16,8 +16,8 @@ VGA=$(strip "$VGA")
 LOSSY=$(strip "$LOSSY")
 DISPLAY=$(strip "$DISPLAY")
 VNC_PORT=$(strip "$VNC_PORT")
-RENDERNODE=$(strip "$RENDERNODE")
 VRAM_SIZE=$(strip "$VRAM_SIZE")
+RENDERNODE=$(strip "$RENDERNODE")
 WSS_SOCKET="${WSS_SOCKET:-$QEMU_DIR/vnc-ws.sock}"
 
 VGA_DEVICE="${VGA%%,*}"
@@ -27,9 +27,10 @@ case "${VGA_DEVICE,,}" in
   "std" | "vga" )
     VGA_DEVICE="VGA"
     VGA_ARG="-device" ;;
-  "vmware" | "vmware-svga" )
-    VGA_DEVICE="vmware-svga"
-    VGA_ARG="-device" ;;
+  "vmvga" | "vmware" | "vmware-svga" )
+    VGA_DEVICE="vmvga"
+    VGA_ARG="-device"
+    [ -z "${VMPORT:-}" ] && VMPORT="Y" ;;
   "virtio" )
     VGA_DEVICE="virtio-vga"
     VGA_ARG="-device" ;;
@@ -285,7 +286,7 @@ vmwareVulkanReady() {
   return 0
 }
 
-vmwareGpuSetup() {
+vmvgaGpuSetup() {
 
   VMWARE_LIBRARY_REASON=""
   VMWARE_RENDER_REASON=""
@@ -312,12 +313,40 @@ vmwareGpuSetup() {
   info "Device:     ${VMWARE_VULKAN_DEVICE:-GPU}"
   [ -n "${VMWARE_VULKAN_DRIVER:-}" ] && info "Driver:     $VMWARE_VULKAN_DRIVER"
   info "Vulkan:     $VMWARE_VULKAN_API"
-  info "Backend:    DXVK"
-  info "Render:     automatic"
-  info
 
   return 0
 }
+
+vmvgaSetup() {
+
+  if [[ "${BOOT_MODE:-}" == "windows_legacy" ]]; then
+    DISPLAY_OPTS+=",vgamem_mb=16"
+  fi
+
+  if enabled "$GPU"; then
+
+    VGPU=$(strip "${VGPU:-}")
+
+    if [ -n "$VGPU" ] && [[ "${VGPU,,}" != "auto" ]]; then
+      DISPLAY_OPTS+=",vgpu=$VGPU"
+    fi
+
+  else
+
+    DISPLAY_OPTS+=",3d=off"
+
+  fi
+
+  if enabled "${DEBUG_GPU:-}"; then
+    DISPLAY_OPTS+=",debug=on"
+  fi
+
+  return 0
+}
+
+if [[ "${VGA_DEVICE,,}" == "vmvga" ]]; then
+  vmvgaSetup
+fi
 
 enabled "$GPU" || return 0
 
@@ -328,8 +357,8 @@ if [[ "$ARCH" != "amd64" ]]; then
   gpuSetupFailure "GPU acceleration is only supported for the AMD64 platform"
 fi
 
-if [[ "${VGA_DEVICE,,}" == "vmware-svga" ]]; then
-  vmwareGpuSetup
+if [[ "${VGA_DEVICE,,}" == "vmvga" ]]; then
+  vmvgaGpuSetup
   return 0
 fi
 

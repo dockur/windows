@@ -90,6 +90,15 @@
     <component name="Microsoft-Windows-TerminalServices-LocalSessionManager" processorArchitecture="x86" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <fDenyTSConnections>false</fDenyTSConnections>
     </component>
+    <component name="Microsoft-Windows-Deployment" processorArchitecture="x86" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <RunSynchronous>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>1</Order>
+          <Path>wscript.exe //B //NoLogo %WINDIR%\Setup\Scripts\Unattend.vbs specialize</Path>
+          <Description>Run the specialize pass of the unattended setup script</Description>
+        </RunSynchronousCommand>
+      </RunSynchronous>
+    </component>
   </settings>
   <settings pass="oobeSystem">
     <component name="Microsoft-Windows-International-Core" processorArchitecture="x86" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
@@ -147,7 +156,7 @@
       <FirstLogonCommands>
         <SynchronousCommand wcm:action="add">
           <Order>1</Order>
-          <CommandLine>cmd.exe /d /c call "%WINDIR%\Setup\Scripts\SetupComplete.cmd" logon</CommandLine>
+          <CommandLine>wscript.exe //B //NoLogo %WINDIR%\Setup\Scripts\Unattend.vbs logon</CommandLine>
           <Description>Configure Windows after logon</Description>
         </SynchronousCommand>
       </FirstLogonCommands>

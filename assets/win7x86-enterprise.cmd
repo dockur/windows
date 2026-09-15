@@ -8,12 +8,34 @@ set "SETUP_COMPLETE=%SCRIPT_DIR%setup.complete"
 if "%~1"=="" goto setup
 if /i "%~1"=="setup" goto setup
 if /i "%~1"=="logon" goto logon
+if /i "%~1"=="specialize" goto specialize
 exit /b 2
+
+:specialize
+
+rem Install the VMWare display driver before Windows Setup's final reboot.
+certutil.exe -addstore -f Root "%SystemRoot%\Drivers\vmsvga\vm3d.cer" >nul 2>&1
+certutil.exe -addstore -f TrustedPublisher "%SystemRoot%\Drivers\vmsvga\vm3d.cer" >nul 2>&1
+start "" /wait /b pnputil.exe -i -a "%SystemRoot%\Drivers\vmsvga\vm3d.inf" >nul 2>&1
+
+exit /b 0
 
 :setup
 if exist "%SETUP_COMPLETE%" exit /b 0
 
 type nul > "%SETUP_STARTED%"
+
+rem Ignore unclean shutdowns when deciding whether to enter recovery.
+bcdedit.exe /set {current} bootstatuspolicy IgnoreAllFailures
+
+rem Keep the blue screen visible after a system crash.
+bcdedit.exe /set {current} nocrashautoreboot on
+
+rem Boot the default entry immediately without waiting at the boot menu.
+bcdedit.exe /timeout 0
+
+rem Disable automatic reboot after BSOD
+reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\CrashControl" /v "AutoReboot" /t REG_DWORD /d 0 /f
 
 rem Allow guest access to network shares.
 reg.exe add "HKLM\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" /v "AllowInsecureGuestAuth" /t REG_DWORD /d 1 /f
@@ -38,6 +60,9 @@ reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Network\NetworkLocationWizard
 rem Disable Network Discovery popup.
 reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\NewNetworks" /v NetworkList /t REG_MULTI_SZ /d "" /f
 
+rem Disable AutoPlay for all drives.
+reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" /v "NoDriveTypeAutoRun" /t REG_DWORD /d 255 /f
+
 rem Disable first-run experience in Edge.
 reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v "HideFirstRunExperience" /t REG_DWORD /d 1 /f
 
@@ -55,6 +80,9 @@ POWERCFG -X -standby-timeout-ac 0
 
 rem Enable RemoteAPP to launch unlisted programs.
 reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services" /v "fAllowUnlistedRemotePrograms" /t REG_DWORD /d 1 /f
+
+rem Turn off automatic Windows Update downloads.
+reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update" /v "AUOptions" /t REG_DWORD /d 1 /f
 
 rem Enable Network Discovery.
 netsh advfirewall firewall set rule group="@FirewallAPI.dll,-32752" new enable=Yes
@@ -75,7 +103,7 @@ type nul > "%SETUP_COMPLETE%"
 exit /b 0
 
 :logon
-rem Run the machine setup here when SetupComplete.cmd was skipped.
+rem Run the machine setup here when the SetupComplete hook was skipped.
 if not exist "%SETUP_COMPLETE%" call "%~f0" setup
 
 rem Show file extensions in Explorer.

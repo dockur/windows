@@ -138,7 +138,6 @@ Win9xInstall() {
   local display="$win9x/vmdisp9x"
   local audio95="$win9x/alcx95"
   local audiowdm="$win9x/alcxwdm"
-  local vmware_display="$win9x/vmsvga"
 
   extractDrivers "$drivers" || return 1
 
@@ -172,7 +171,7 @@ Win9xInstall() {
     return 1
   fi
 
-  if ! patchWin9xSetupFiles "$id" "$target" "$desc" "$patcher" "$qemouse" "$display" "$vmware_display"; then
+  if ! patchWin9xSetupFiles "$id" "$target" "$desc" "$patcher" "$qemouse" "$display"; then
     rm -rf "$drivers" || :
     return 1
   fi
@@ -559,7 +558,6 @@ patchWin9xSetupFiles() {
   local patcher="$4"
   local qemouse="$5"
   local display="$6"
-  local vmware_display="$7"
 
   chmod 755 "$patcher" || {
     error "Failed to make Patcher9x executable!"
@@ -584,12 +582,13 @@ patchWin9xSetupFiles() {
   fi
 
   stageWin9xDisplayDriver "$target" "$display" "$desc" || return 1
-  stageWin9xVMwareDriver "$target" "$vmware_display" "$desc" || return 1
 
   if ! mv -f -- \
     "$target/VMDISP9X/vmdisp9x.inf" \
     "$target/VMDISP9X/qemumini.drv" \
     "$target/VMDISP9X/qemumini.vxd" \
+    "$target/VMDISP9X/vmwsmini.drv" \
+    "$target/VMDISP9X/vmwsmini.vxd" \
     "$target/VMDISP9X/vmhal9x.dll" \
     "$target/VMDISP9X/vmhal486.dll" \
     "$target/VMDISP9X/vmdisp9x.dll" \
@@ -1139,6 +1138,8 @@ stageWin9xDisplayDriver() {
     vmdisp9x.inf \
     qemumini.drv \
     qemumini.vxd \
+    vmwsmini.drv \
+    vmwsmini.vxd \
     vmhal9x.dll \
     vmhal486.dll \
     vmdisp9x.dll; do
@@ -1157,12 +1158,58 @@ stageWin9xDisplayDriver() {
     "$source/vmdisp9x.inf" \
     "$source/qemumini.drv" \
     "$source/qemumini.vxd" \
+    "$source/vmwsmini.drv" \
+    "$source/vmwsmini.vxd" \
     "$source/vmhal9x.dll" \
     "$source/vmhal486.dll" \
     "$source/vmdisp9x.dll" \
     "$dest/"; then
 
     error "Failed to add the display driver to $desc setup files!"
+    return 1
+  fi
+
+  # VMDisp9x identifies QEMU by the absence of SVGA_FIFO_CAP_FENCE. Our
+  # enhanced SVGA device supports fences, so force the driver's existing QEMU
+  # compatibility path instead. This keeps fence support while enabling its V86
+  # VGA-memory mapping workaround for KVM/WHPX shutdown. Match the surrounding
+  # machine code exactly and fail closed if an upstream driver build changes it.
+  if ! python3 - "$dest/vmwsmini.vxd" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+data = bytearray(path.read_bytes())
+
+old = bytes.fromhex(
+    "6A 01 "
+    "E8 CE 0B 00 00 "
+    "83 C4 04 "
+    "85 C0 "
+    "75 48 "
+    "68 20 00 00 00 "
+    "68 CE 01 00 00"
+)
+new = old[:12] + b"\x90\x90" + old[14:]
+
+old_count = bytes(data).count(old)
+new_count = bytes(data).count(new)
+if old_count != 1 or new_count != 0:
+    raise SystemExit(
+        "VMDisp9x QEMU compatibility signature mismatch: "
+        f"original={old_count}, patched={new_count}"
+    )
+
+offset = bytes(data).index(old)
+data[offset + 12:offset + 14] = b"\x90\x90"
+path.write_bytes(data)
+
+verify = path.read_bytes()
+if verify.count(old) != 0 or verify.count(new) != 1:
+    raise SystemExit("VMDisp9x QEMU compatibility patch verification failed")
+PY
+  then
+    error "Failed to enable the VMDisp9x QEMU compatibility path!"
     return 1
   fi
 
@@ -1178,100 +1225,6 @@ stageWin9xDisplayDriver() {
   if ! sed -i 's/HKR,DEFAULT,DDC,,1/HKR,DEFAULT,DDC,,0/' "$dest/vmdisp9x.inf" ||
     ! grep -Eq '^[[:space:]]*HKR,DEFAULT,DDC,,0[[:space:]]*$' "$dest/vmdisp9x.inf"; then
     error "Failed to disable DDC in the Windows 9x display driver!"
-    return 1
-  fi
-
-  # Keep VMDisp9x available for QEMU STD VGA, but let the official VMware
-  # driver own VMware SVGA-II. Comment only the matching model in our staged
-  # INF so the original driver archive remains untouched.
-  if ! python3 - "$dest/vmdisp9x.inf" <<'PY'
-from pathlib import Path
-import sys
-
-path = Path(sys.argv[1])
-lines = path.read_bytes().splitlines(keepends=True)
-needle = br'PCI\VEN_15AD&DEV_0405&SUBSYS_040515AD'
-matches = []
-
-for index, line in enumerate(lines):
-    stripped = line.lstrip(b' \t')
-    if stripped.startswith(b';'):
-        continue
-    if needle in stripped.upper():
-        matches.append(index)
-
-if len(matches) != 1:
-    raise SystemExit(f'expected exactly one active VMware SVGA-II model, found {len(matches)}')
-
-index = matches[0]
-indent = len(lines[index]) - len(lines[index].lstrip(b' \t'))
-lines[index] = lines[index][:indent] + b'; ' + lines[index][indent:]
-path.write_bytes(b''.join(lines))
-PY
-  then
-    error "Failed to reserve VMware SVGA-II for the official VMware driver!"
-    return 1
-  fi
-
-  if grep -iF 'PCI\VEN_15AD&DEV_0405&SUBSYS_040515AD' "$dest/vmdisp9x.inf" |
-    grep -Ev '^[[:space:]]*;' >/dev/null; then
-    error "Failed to remove the active VMware SVGA-II VMDisp9x model!"
-    return 1
-  fi
-
-  if ! grep -iF 'PCI\VEN_15AD&DEV_0405&SUBSYS_040515AD' "$dest/vmdisp9x.inf" |
-    grep -Eq '^[[:space:]]*;'; then
-    error "Failed to verify the VMware SVGA-II VMDisp9x model change!"
-    return 1
-  fi
-
-  return 0
-}
-
-stageWin9xVMwareDriver() {
-
-  local target="$1"
-  local source="$2"
-  local desc="$3"
-
-  local file
-
-  for file in \
-    vmx_svga.inf \
-    VMX_SVGA.DRV \
-    VMX_SVGA.vxd; do
-
-    if [ ! -s "$source/$file" ]; then
-      error "Failed to locate required VMware SVGA driver file: $file"
-      return 1
-    fi
-
-  done
-
-  if ! cp -f -- \
-    "$source/vmx_svga.inf" \
-    "$source/VMX_SVGA.DRV" \
-    "$source/VMX_SVGA.vxd" \
-    "$target/"; then
-
-    error "Failed to add the VMware SVGA driver to $desc setup files!"
-    return 1
-  fi
-
-  for file in \
-    vmx_svga.inf \
-    VMX_SVGA.DRV \
-    VMX_SVGA.vxd; do
-
-    if ! cmp -s -- "$source/$file" "$target/$file"; then
-      error "Failed to verify the staged VMware SVGA driver file: $file"
-      return 1
-    fi
-
-  done
-
-  if ! grep -Fqi 'PCI\VEN_15AD&DEV_0405' "$target/vmx_svga.inf"; then
-    error "Failed to verify the VMware SVGA-II hardware ID!"
     return 1
   fi
 
@@ -3210,15 +3163,22 @@ createWin9xSystemImage() {
   fi
 
   local boot_gui=0
-  [[ "${id,,}" == "win9x"* ]] && boot_gui=1
+  [[ "${id,,}" == "win9x" ]] && boot_gui=1
+
+  local auto_scan=2
+  [[ "${id,,}" == "win95" ]] && auto_scan=0
 
   {
     printf '%s\n' \
-      '[Options]' \
+      "[Options]" \
       "BootGUI=$boot_gui" \
-      'BootDelay=0' \
-      'AutoScan=2' \
-      'Logo=0' \
+      "BootMenu=0" \
+      "BootMenuDefault=1" \
+      "BootWarn=0" \
+      "BootSafe=0" \
+      "BootDelay=0" \
+      "AutoScan=$auto_scan" \
+      "Logo=0" \
       ''
   } | unix2dos > "$msdos" || return 1
 
