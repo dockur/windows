@@ -73,7 +73,7 @@ setMachine() {
     "win2003"* | "win2008"* | "win2012"*| \
     "winvista"* | "win7"* | "win8"* | "reactos" )
 
-      writeState "vga" "vmvga" || return 1 ;;
+      writeState "vga" "vmware" || return 1 ;;
 
   esac
 

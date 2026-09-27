@@ -1342,6 +1342,8 @@ getLink4() {
 
   [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
 
+  return 0 # Disable
+
   case "${id,,}" in
     "win11x64-ltsc" | "win11x64-enterprise-ltsc" )
       size=5144817664

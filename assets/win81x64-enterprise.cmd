@@ -96,21 +96,6 @@ rem Install the product key without activating Windows immediately.
 cscript.exe //B //Nologo "%SystemRoot%\System32\slmgr.vbs" /ipk "XXX"
 rem END PRODUCT_KEY
 
-rem Trust the VirtIO display driver publisher to avoid an interactive prompt.
-powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$catalog = Get-ChildItem -Path (Join-Path $env:SystemRoot 'Drivers\viogpudo') -Filter '*.cat' | Select-Object -First 1; if ($null -eq $catalog) { exit 1 }; $certificate = (Get-AuthenticodeSignature -LiteralPath $catalog.FullName).SignerCertificate; if ($null -eq $certificate) { exit 1 }; [IO.File]::WriteAllBytes((Join-Path $env:TEMP 'viogpudo.cer'), $certificate.Export([Security.Cryptography.X509Certificates.X509ContentType]::Cert))"
-
-if not errorlevel 1 (
-    certutil.exe -addstore -f TrustedPublisher "%TEMP%\viogpudo.cer"
-    if not errorlevel 1 (
-        pnputil.exe -i -a "%SystemRoot%\Drivers\viogpudo\viogpudo.inf"
-    )
-)
-
-del /q "%TEMP%\viogpudo.cer" >nul 2>&1
-
-rem Install the VirtIO display driver last to avoid disrupting earlier setup work.
-pnputil.exe -i -a "%SystemRoot%\Drivers\viogpudo\viogpudo.inf"
-
 type nul > "%SETUP_COMPLETE%"
 exit /b 0
 
