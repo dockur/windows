@@ -38,6 +38,12 @@ trap - ERR
 
 cmd=(qemu-system-x86_64)
 version=$("${cmd[@]}" --version | awk 'NR==1 { print $4 }')
+if [ -n "${ARGS_FILE:-}" ]; then
+  while IFS= read -r arg || [ -n "$arg" ]; do
+    if [ -n "$arg" ]; then cmd+=("$arg"); fi
+  done < "$ARGS_FILE"
+fi
+
 info "Booting ${APP}${BOOT_DESC} using QEMU v$version..." && echo
 
 pipe="$QEMU_DIR/qemu.pipe"

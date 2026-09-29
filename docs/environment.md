@@ -121,6 +121,7 @@ An empty default means the variable is unset and its value is determined automat
 | `SOUND` | `intel-hda` | Audio device used when `AUDIO=Y`. |
 | `SM_BIOS` |  | Additional arguments passed to QEMU’s `-smbios` option. |
 | `ARGUMENTS` |  | Additional raw arguments appended to the QEMU command line. |
+| `ARGS_FILE` |  | Path to a file with extra QEMU arguments, one per line, passed exactly as written (no word splitting). |
 
 ## 🚀 Boot
 
