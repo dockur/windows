@@ -688,7 +688,9 @@ stageWin95AC97Driver() {
 from pathlib import Path
 import sys
 
-root = Path(sys.argv[1])
+root = Path(sys.argv[1]).resolve(strict=True)
+if not root.is_dir():
+    raise SystemExit(f'AC97 payload root is not a directory: {root}')
 required_files = (
     'VALCX95.INF',
     'VALCX95.VXD',
