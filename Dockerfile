@@ -8,7 +8,7 @@ COPY --from=qemux/qemu:7.50 --exclude=usr/bin/qemu-system-x86_64 / /
 ARG TARGETARCH
 
 ARG VERSION_WSDD="1.27"
-ARG VERSION_DXVK="3.0.2"
+ARG VERSION_DXVK="3.1.1"
 ARG VERSION_VIRTIO="1.9.61"
 ARG VERSION_BLINTER="1.0.112"
 
@@ -51,7 +51,7 @@ EOF
 COPY --chmod=755 ./src /run/
 COPY --chmod=755 ./assets /run/assets
 COPY --from=qemux/udfread:1.2.0 /udfread /usr/bin/
-COPY --from=qemux/qemu-windows:latest /usr/bin/qemu-system-x86_64 /usr/bin/
+COPY --from=qemux/qemu-windows:11.2.23 /usr/bin/qemu-system-x86_64 /usr/bin/
 
 ADD --chmod=664 https://github.com/qemus/virtiso-whql/releases/download/v${VERSION_VIRTIO}-0/virtio-win-${VERSION_VIRTIO}.tar.xz /var/drivers.txz
 
