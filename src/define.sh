@@ -1024,8 +1024,6 @@ getLink1() {
 
   [[ "${lang,,}" != "en" && "${lang,,}" != "en-us" ]] && return 0
 
-  return 0 # Disable
-
   case "${id,,}" in
     "win11x64" | "win11x64-enterprise" )
       size=6927149056
