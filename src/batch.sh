@@ -569,9 +569,52 @@ patchWin9xSetupFiles() {
 
   [[ "${id,,}" == "win9x"* ]] && patch_args=(-auto)
 
-  if ! patch_output=$("$patcher" "${patch_args[@]}" "$target" 2>&1); then
+  # Patcher9x checks exact-case cabinet names to recognize installation media.
+  # If detection fails, even -auto waits for a patch-mode choice. Keep the source
+  # name available for split-cabinet references and use a temporary uppercase
+  # alias only for detection; remove it before later staging and image creation.
+  local marker marker_source marker_alias=""
+
+  case "${id,,}" in
+    "win95"* ) marker="WIN95_02.CAB" ;;
+    "win98"* ) marker="BASE4.CAB" ;;
+    "win9x"* ) marker="BASE2.CAB" ;;
+    * )
+      error "Unknown Windows 9x version: $id"
+      return 1 ;;
+  esac
+
+  if [ ! -e "$target/$marker" ] && [ ! -L "$target/$marker" ]; then
+    marker_source=$(find "$target" -maxdepth 1 -type f -iname "$marker" -print -quit) || return 1
+
+    if [ -n "$marker_source" ]; then
+      marker_alias="$target/$marker"
+
+      if ! ln -s -- "${marker_source##*/}" "$marker_alias"; then
+        error "Failed to prepare the Patcher9x detection cabinet for $desc!"
+        return 1
+      fi
+    fi
+  fi
+
+  # EOF alone is insufficient: an unrecognized directory can be cancelled with
+  # a successful exit status. Require a readable, non-empty detection cabinet
+  # before closing stdin so that automatic mode selects installation patching.
+  if [ ! -f "$target/$marker" ] || [ ! -s "$target/$marker" ] || [ ! -r "$target/$marker" ]; then
+    [ -z "$marker_alias" ] || rm -f -- "$marker_alias" || :
+    error "Failed to locate a readable $marker cabinet in $desc setup files!"
+    return 1
+  fi
+
+  if ! patch_output=$("$patcher" "${patch_args[@]}" "$target" < /dev/null 2>&1); then
+    [ -z "$marker_alias" ] || rm -f -- "$marker_alias" || :
     [ -z "$patch_output" ] || printf '%s\n' "$patch_output" >&2
     error "Failed to patch $desc setup files!"
+    return 1
+  fi
+
+  if [ -n "$marker_alias" ] && ! rm -f -- "$marker_alias"; then
+    error "Failed to remove the Patcher9x detection alias for $desc!"
     return 1
   fi
 
@@ -642,7 +685,7 @@ patchWin9xLooseSetupFiles() {
 
   (( ${#list[@]} == 0 )) && return 0
 
-  if ! patch_output=$("$patcher" --patch "$patches" "${list[@]}" 2>&1); then
+  if ! patch_output=$("$patcher" --patch "$patches" "${list[@]}" < /dev/null 2>&1); then
     [ -z "$patch_output" ] || printf '%s\n' "$patch_output" >&2
     error "Failed to patch loose $desc setup files!"
     return 1
