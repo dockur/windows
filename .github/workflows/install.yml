@@ -843,7 +843,7 @@ jobs:
           for attempt in 1 2 3; do
             if docker build \
               --tag "$IMAGE" \
-              . >/dev/null 2>/dev/null; then
+              . >/dev/null; then
               break
             fi
 
