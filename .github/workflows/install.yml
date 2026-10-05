@@ -832,6 +832,13 @@ jobs:
 
           echo "token=$token" >> "$GITHUB_OUTPUT"
 
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v4
+        with:
+          driver: docker-container
+          driver-opts: image=moby/buildkit:v0.25.2
+
       - name: Build image
         shell: bash
         run: |
@@ -841,9 +848,12 @@ jobs:
           echo "Commit: $(git rev-parse HEAD)"
 
           for attempt in 1 2 3; do
-            if docker build \
+            if docker buildx build \
+              --builder "${{ steps.buildx.outputs.name }}" \
+              --load \
+              --progress=plain \
               --tag "$IMAGE" \
-              . >/dev/null; then
+              .; then
               break
             fi
 
