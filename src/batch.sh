@@ -55,6 +55,10 @@ Win9xInstall() {
     validateWin95OSR2 "$target" "$desc" || return 1
   fi
 
+  # Resolve the filenames used by patching and staging before either can create
+  # a second case variant that would collide on the FAT system volume.
+  prepareWin9xFileNames "$target" "$desc" "normalize" || return 1
+
   [ -z "$WIDTH" ] && WIDTH="1024"
   [ -z "$HEIGHT" ] && HEIGHT="768"
 
@@ -254,6 +258,70 @@ Win9xInstall() {
 
   rm -rf "$drivers" || :
   SYSTEM="$TMP/windows.img"
+
+  return 0
+}
+
+prepareWin9xFileNames() {
+
+  local dir="$1"
+  local desc="$2"
+  local mode="${3:-check}"
+
+  if ! python3 - "$dir" "$mode" <<'PY'
+from pathlib import Path
+import os
+import re
+import sys
+
+root = Path(sys.argv[1])
+mode = sys.argv[2]
+
+# FAT cannot store two entries whose names differ only in case. Check complete
+# source trees, including OEM files, before copying anything onto the volume.
+for directory, folders, files in os.walk(root):
+    seen = {}
+    for name in sorted(folders + files):
+        key = name.casefold()
+        if key in seen:
+            raise SystemExit(
+                f'Case-insensitive filename collision in {directory}: '
+                f'{seen[key]!r} and {name!r}.'
+            )
+        seen[key] = name
+
+if mode == 'check':
+    raise SystemExit(0)
+if mode != 'normalize':
+    raise SystemExit(f'Unknown Windows 9x filename preparation mode: {mode}')
+
+# Match the exact names written by Patcher9x and the setup-source staging steps.
+# Patcher9x writes WIN.COM/WIN.CNF in lowercase, while its VxD names are uppercase.
+# Cabinet names stay intact because split cabinets can reference those names.
+canonical_names = (
+    'VMM32.VXD', 'VMM.VXD', 'NTKERN.VXD', 'IOS.VXD', 'ESDI_506.PDR',
+    'SCSIPORT.PDR', 'NDIS.VXD', 'NDIS.386', 'VCACHE.VXD', 'win.com', 'win.cnf',
+    'SETUPPP.INF', 'MOUSE.DRV', 'SCANDISK.INI', 'WMP.INF', 'MPLAYER2.INF',
+    'DOCKER.PWL', 'HIDE.EXE', 'WAIT.EXE', 'POST9X.BAT', 'POST9X.NEW',
+    'POST9X.REG', 'WIN9XDMA.EXE', 'W9XSCAN.INI', 'PATCH9X.EXE', 'CWSDPMI.EXE',
+    'PATCH9X.NEW', 'W9XAUTO.BAT', 'Shared.lnk', 'MEIO.SYS', 'MECOM.COM',
+    'MEREGENV.EXE', 'MEBOOT.BAT', 'MEPOWER.EXE', 'MEFINAL.BAT', 'MSBATCH.INF',
+    'VMDISP9X', 'vmdisp9x.inf', 'qemumini.drv', 'qemumini.vxd',
+    'vmwsmini.drv', 'vmwsmini.vxd', 'vmhal9x.dll', 'vmhal486.dll', 'vmdisp9x.dll',
+)
+canonical = {name.casefold(): name for name in canonical_names}
+
+for entry in sorted(root.iterdir()):
+    name = canonical.get(entry.name.casefold(), entry.name)
+    if re.fullmatch(r'layout[0-9]*\.inf', entry.name, re.IGNORECASE):
+        name = entry.name.upper()
+    if name != entry.name:
+        entry.rename(root / name)
+PY
+  then
+    error "Failed to prepare $desc filenames for the system image!"
+    return 1
+  fi
 
   return 0
 }
@@ -569,9 +637,52 @@ patchWin9xSetupFiles() {
 
   [[ "${id,,}" == "win9x"* ]] && patch_args=(-auto)
 
-  if ! patch_output=$("$patcher" "${patch_args[@]}" "$target" 2>&1); then
+  # Patcher9x checks exact-case cabinet names to recognize installation media.
+  # If detection fails, even -auto waits for a patch-mode choice. Keep the source
+  # name available for split-cabinet references and use a temporary uppercase
+  # alias only for detection; remove it before later staging and image creation.
+  local marker marker_source marker_alias=""
+
+  case "${id,,}" in
+    "win95"* ) marker="WIN95_02.CAB" ;;
+    "win98"* ) marker="BASE4.CAB" ;;
+    "win9x"* ) marker="BASE2.CAB" ;;
+    * )
+      error "Unknown Windows 9x version: $id"
+      return 1 ;;
+  esac
+
+  if [ ! -e "$target/$marker" ] && [ ! -L "$target/$marker" ]; then
+    marker_source=$(find "$target" -maxdepth 1 -type f -iname "$marker" -print -quit) || return 1
+
+    if [ -n "$marker_source" ]; then
+      marker_alias="$target/$marker"
+
+      if ! ln -s -- "${marker_source##*/}" "$marker_alias"; then
+        error "Failed to prepare the Patcher9x detection cabinet for $desc!"
+        return 1
+      fi
+    fi
+  fi
+
+  # EOF alone is insufficient: an unrecognized directory can be cancelled with
+  # a successful exit status. Require a readable, non-empty detection cabinet
+  # before closing stdin so that automatic mode selects installation patching.
+  if [ ! -f "$target/$marker" ] || [ ! -s "$target/$marker" ] || [ ! -r "$target/$marker" ]; then
+    [ -z "$marker_alias" ] || rm -f -- "$marker_alias" || :
+    error "Failed to locate a readable $marker cabinet in $desc setup files!"
+    return 1
+  fi
+
+  if ! patch_output=$("$patcher" "${patch_args[@]}" "$target" < /dev/null 2>&1); then
+    [ -z "$marker_alias" ] || rm -f -- "$marker_alias" || :
     [ -z "$patch_output" ] || printf '%s\n' "$patch_output" >&2
     error "Failed to patch $desc setup files!"
+    return 1
+  fi
+
+  if [ -n "$marker_alias" ] && ! rm -f -- "$marker_alias"; then
+    error "Failed to remove the Patcher9x detection alias for $desc!"
     return 1
   fi
 
@@ -642,7 +753,7 @@ patchWin9xLooseSetupFiles() {
 
   (( ${#list[@]} == 0 )) && return 0
 
-  if ! patch_output=$("$patcher" --patch "$patches" "${list[@]}" 2>&1); then
+  if ! patch_output=$("$patcher" --patch "$patches" "${list[@]}" < /dev/null 2>&1); then
     [ -z "$patch_output" ] || printf '%s\n' "$patch_output" >&2
     error "Failed to patch loose $desc setup files!"
     return 1
@@ -3211,7 +3322,15 @@ createWin9xSystemImage() {
 
   for entry in "${entries[@]}"; do
 
-    if ! MTOOLSRC="$config" mcopy -Q -s "$entry" w:/; then
+    # Reject ambiguous case variants before an unattended copy. All intended
+    # replacements already share one source filename, so copy order cannot
+    # select an older unpatched payload over the staged replacement.
+    if ! prepareWin9xFileNames "$entry" "$desc"; then
+      rm -f -- "$tmp"
+      return 1
+    fi
+
+    if ! MTOOLSRC="$config" mcopy -Q -s -o "$entry" w:/; then
       rm -f -- "$tmp"
       error "Failed to copy $desc file: $entry"
       return 1
