@@ -375,7 +375,7 @@ disableGenericDisplay() {
 
   [[ "$driver" == "2k3" && "${arch,,}" == "amd64" ]] || return 0
 
-  local qbochs_inf="$drivers/qbochs/$driver/x64/qbochs.inf"
+  local qbochs_inf="$drivers/qbochs/$driver/$arch/qbochs.inf"
   local qbochs_id='PCI\VEN_1234&DEV_1111&SUBSYS_11001AF4'
 
   # Do not remove the generic VGA match unless the exact QBochs device is
