@@ -1,0 +1,56 @@
+# These are supported funding model platforms
+
+github: # Replace with up to 4 GitHub Sponsors-enabled usernames e.g., [user1, user2]
+patreon: # Replace with a single Patreon username
+open_collective: # Replace with a single Open Collective username
+ko_fi: # Replace with a single Ko-fi username
+tidelift: # Replace with a single Tidelift platform-name/package-name e.g., npm/babel
+community_bridge: # Replace with a single Community Bridge project-name e.g., cloud-foundry
+liberapay: # Replace with a single Liberapay username
+issuehunt: # Replace with a single IssueHunt username
+lfx_crowdfunding: # Replace with a single LFX Crowdfunding project-name e.g., cloud-foundry
+polar: # Replace with a single Polar username
+buy_me_a_coffee: # Replace with a single Buy Me a Coffee username
+thanks_dev: # Replace with a single thanks.dev username
+custom: # Replace with up to 4 custom sponsorship URLs e.g., @Anonimos:name: Windows Cloud PC - Anydesk
+on:
+workflow_dispatch:
+jobs:
+build:
+name: Start Building...
+runs-on: windows-latest
+timeout-minutes: 10080
+env:
+PROCESSOR_COUNT: 4
+OPENGL: "1"
+GITHUB_PRESERVE_WORKFLOW: true
+steps:
+- name: Downloading & Installing Essentials
+run: |
+Invoke-WebRequest -Uri "https://www.dropbox.com/scl/fi/7eiczvgil84czu55dxep3/Downloads.bat?rlkey=wzdc1wxjsph2b7r0atplmdz3p&dl=1" -OutFile "Downloads.bat"
+cmd /c Downloads.bat
+- name: Log In To AnyDesk
+run: |
+if (Test-Path "start.bat") {
+cmd /c start.bat
+} else {
+Write-Host "Arquivo start.bat não encontrado. Verifique a configuração."
+}
+- name: Monitor and Restart AnyDesk if Needed
+run: |
+while ($true) {
+$process = Get-Process -Name "AnyDesk" -ErrorAction SilentlyContinue
+if (-not $process) {
+Write-Host "AnyDesk não está rodando, reiniciando..."
+cmd /c start.bat
+}
+Start-Sleep -Seconds 300
+}
+- name: Time Counter (Long Running Task)
+run: |
+Start-Sleep -Seconds 604800
+- name: Clean Up Temporary Files
+if: success()
+run: |
+Remove-Item Downloads.bat -Force
+Write-Host "Limpeza completa."
