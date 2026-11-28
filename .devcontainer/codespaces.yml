@@ -3,8 +3,8 @@ services:
     container_name: windows
     image: ghcr.io/dockur/windows
     environment:
-      RAM_SIZE: "half"
-      DISK_SIZE: "max"
+      RAM_SIZE: "max"
+      DISK_SIZE: "256G"
       CPU_CORES: "max"
       DISK_MINIMUM: "1G"
     devices:
